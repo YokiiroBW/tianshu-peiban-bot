@@ -54,9 +54,14 @@ class Background:
         self.states.setdefault(name, {"state": "scheduled", "restarts": 0, "code": None})
         task = "capabilities.media." + name
         if task not in self.runtime.jobs.tasks:
-            async def run(**payload):
+            async def dispatch(**payload):
+                await self.dispatch(name, **payload)
+            self.runtime.jobs.register(task, dispatch)
+        work_task = "capabilities.media.work." + name
+        if work_task not in self.runtime.jobs.tasks:
+            async def work(**payload):
                 await self.run(name, **payload)
-            self.runtime.jobs.register(task, run)
+            self.runtime.jobs.register(work_task, work)
 
     async def activate(self):
         for name in self.operations:
@@ -78,6 +83,26 @@ class Background:
             row = await (await connection.execute(SCHEDULE, (name, due))).fetchone()
             if row:
                 await self.runtime.jobs.enqueue(connection, maintenance_job(name, row))
+
+    async def dispatch(self, name, wake_generation=None):
+        """Only queue durable work; the resource-specific worker owns its lease."""
+        if self.closed:
+            return
+        async with self.runtime.database.transaction() as connection:
+            row = await (await connection.execute(
+                "SELECT wake_generation,lease_until,GREATEST(lease_until,now()) AS scheduled_at "
+                "FROM capabilities.maintenance WHERE name=%s AND next_due_at<=now() "
+                "AND (%s::bigint IS NULL OR wake_generation=%s)",
+                (name, wake_generation, wake_generation))).fetchone()
+            if row:
+                # A wake racing with a live owner waits in the native queue, not
+                # in a maintenance slot. Its lease value distinguishes a later
+                # busy-owner wake from a completed job of the same generation.
+                key = f"media-work:{name}:{row['wake_generation']}:{row['lease_until'].isoformat()}"
+                await self.runtime.jobs.enqueue(connection, JobSpec(
+                    "capabilities.media.work." + name, key,
+                    {"wake_generation": row["wake_generation"]},
+                    ServiceClass.ELASTIC, scheduled_at=row["scheduled_at"]))
 
     async def run(self, name, wake_generation=None):
         if self.closed:

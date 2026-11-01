@@ -236,7 +236,7 @@ class Infrastructure:
     async def _collect(self, node_id, revision):
         run = self.runs[node_id]
         try:
-            async with self.slots, self.node_locks.setdefault(node_id, asyncio.Lock()):
+            async with self.node_locks.setdefault(node_id, asyncio.Lock()), self.slots:
                 if not await self.local(self.current, node_id, revision):
                     return
                 run.update(state="in_progress", stage="node.snapshot")
@@ -602,7 +602,7 @@ class Infrastructure:
         key = node_id, container_id
         result = self.logs[key]
         try:
-            async with self.slots, self.node_locks.setdefault(node_id, asyncio.Lock()):
+            async with self.node_locks.setdefault(node_id, asyncio.Lock()), self.slots:
                 if not await self.local(self.current, node_id, revision):
                     return
                 result["state"] = "in_progress"

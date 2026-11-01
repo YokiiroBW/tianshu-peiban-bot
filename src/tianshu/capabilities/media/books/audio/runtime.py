@@ -95,6 +95,7 @@ class BookAudio:
                     artifact = await self.local(self.files.link, job, cached)
                 else:
                     pieces = []
+                    generated = False
                     for index, part in enumerate(segments(job["text"])):
                         plan = await self.local(self.repo.get, "book_audio_plan", job["book_id"])
                         if plan and plan.get("paused") and plan["profile_id"] == job["profile_id"]:
@@ -103,6 +104,15 @@ class BookAudio:
                         key = digest({"part": part["text"], "profile": job["profile"]})
                         cached = await self.local(self.files.read, job["root"], key)
                         if cached is None:
+                            if generated:
+                                # Published fragment caches and completed_parts
+                                # belong to this original chapter job. Yield its
+                                # lease before another paid fragment; the next
+                                # durable wake reuses those same Action keys.
+                                await self.local(self.ledger.update, job,
+                                    state="queued", code="queued", lease=0,
+                                    next_at=self.repo.clock())
+                                return True
                             from tianshu.types import Action, OriginKind, SourceRef
                             from tianshu.runtime.serialization import wire
                             from ....serialization import context_from, artifact_from
@@ -157,6 +167,7 @@ class BookAudio:
                                 raw,
                                 result["result"].get("alignment", []),
                             )
+                            generated = True
                         pieces.append((cached, part))
                         await self.local(
                             self.ledger.update,

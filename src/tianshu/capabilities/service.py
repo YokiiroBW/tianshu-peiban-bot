@@ -382,6 +382,7 @@ class Capabilities:
             await process_event(self.plugins, **payload)
 
         self.runtime.jobs.register("capabilities.media_job", media_job)
+        self.runtime.jobs.register("capabilities.media.library_job", media_job)
         self.runtime.jobs.register("capabilities.plugin_event", plugin_event)
 
         async def plugin_schedule(**payload):
@@ -418,10 +419,21 @@ class Capabilities:
                     else self.media.background
                 )
                 if owner is not None and _name in owner.operations:
+                    await owner.dispatch(_name, wake_generation=wake_generation)
+
+            async def maintenance_work(_name=name, wake_generation=None):
+                owner = (
+                    getattr(self.infrastructure, "background", None)
+                    if _name == "infrastructure_observe"
+                    else self.media.background
+                )
+                if owner is not None and _name in owner.operations:
                     await owner.run(_name, wake_generation=wake_generation)
 
             if "capabilities.media." + name not in self.runtime.jobs.tasks:
                 self.runtime.jobs.register("capabilities.media." + name, maintenance)
+            if "capabilities.media.work." + name not in self.runtime.jobs.tasks:
+                self.runtime.jobs.register("capabilities.media.work." + name, maintenance_work)
 
     def register_operations(self):
         from .plugins.control import OPERATIONS

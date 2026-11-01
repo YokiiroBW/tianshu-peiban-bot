@@ -12,10 +12,15 @@ from tianshu.capabilities.contracts import Fault
 from tianshu.capabilities.external_catalog import ExternalCatalog
 from tianshu.capabilities.infrastructure.runtime import Infrastructure
 from tianshu.capabilities.media.background import Background
+from tianshu.capabilities.media.books.audio.runtime import BookAudio
+from tianshu.capabilities.media.music.navidrome.sync import Navidrome
+from tianshu.capabilities.media.scheduling import scan_due
 from tianshu.capabilities.media.runtime import Media
 from tianshu.capabilities.service import Capabilities
 from tianshu.runtime.jobs import JobQueue
 from tianshu.runtime.migrations import Migration, migrate
+from tianshu.runtime.serialization import wire
+from tianshu.types import ArtifactRef, MediaRef, OriginKind, Receipt, TrustedContext
 
 
 async def prepare(database):
@@ -107,6 +112,9 @@ async def test_future_maintenance_cannot_run_before_its_database_deadline(databa
     await background.schedule("subscriptions", due)
     await background.activate()
     assert jobs.enqueue.call_args.args[1].scheduled_at == due
+    enqueued = jobs.enqueue.await_count
+    await background.dispatch("subscriptions", wake_generation=2)
+    assert jobs.enqueue.await_count == enqueued
     await background.run("subscriptions", wake_generation=2)
     operation.assert_not_awaited()
     async with database.transaction(read_only=True) as connection:
@@ -282,11 +290,15 @@ async def test_registered_maintenance_adapter_forwards_the_persisted_generation(
     capabilities = Capabilities.__new__(Capabilities)
     capabilities.runtime = SimpleNamespace(jobs=jobs)
     capabilities.actions = SimpleNamespace(register_tasks=lambda: None)
-    background = SimpleNamespace(operations={"subscriptions": object()}, run=AsyncMock())
+    background = SimpleNamespace(operations={"subscriptions": object()}, dispatch=AsyncMock(), run=AsyncMock())
     capabilities.media = SimpleNamespace(background=background)
     capabilities.infrastructure = None
     capabilities.register_tasks()
+    assert handlers["capabilities.media.library_job"] is handlers["capabilities.media_job"]
     await handlers["capabilities.media.subscriptions"](wake_generation=23)
+    background.dispatch.assert_awaited_once_with("subscriptions", wake_generation=23)
+    background.run.assert_not_awaited()
+    await handlers["capabilities.media.work.subscriptions"](wake_generation=23)
     background.run.assert_awaited_once_with("subscriptions", wake_generation=23)
 
 
@@ -335,3 +347,215 @@ async def test_detached_collector_failure_has_persisted_terminal_run_and_structu
     event = infrastructure.storage_runtime.events.emit.call_args
     assert event.args == ("job.failed", "failed")
     assert event.kwargs["error_code"] == "infrastructure_collection_failed"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("name", ["music_lyrics", "music_navidrome"])
+async def test_maintenance_dispatch_queues_once_without_running_the_work(database, name):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+    operation = AsyncMock()
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start(name, operation)
+    await background.activate()
+    await background.dispatch(name, wake_generation=1)
+    await background.dispatch(name, wake_generation=1)
+    operation.assert_not_awaited()
+    async with database.transaction(read_only=True) as connection:
+        work = await (await connection.execute(
+            "SELECT key FROM runtime.job_keys WHERE task=%s",
+            ("capabilities.media.work." + name,))).fetchall()
+        state = await (await connection.execute(
+            "SELECT owner,wake_generation,next_due_at FROM capabilities.maintenance WHERE name=%s",
+            (name,))).fetchone()
+    assert len(work) == 1
+    assert state["owner"] == "" and state["wake_generation"] == 1
+    assert state["next_due_at"] is not None
+    await background.run(name, wake_generation=1)
+    operation.assert_awaited_once()
+    await background.dispatch(name, wake_generation=1)
+    operation.assert_awaited_once()
+    await background.close()
+
+
+def work_context():
+    return TrustedContext("principal", "actor", "person", "conversation", ("scope",),
+        (), 1, OriginKind.TIMER, frozenset({"*"}))
+
+
+@pytest.mark.asyncio
+async def test_maintenance_dispatch_preserves_busy_owner_and_schedules_work_after_its_lease(database):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    jobs.enqueue = AsyncMock(wraps=jobs.enqueue)
+    operation = AsyncMock()
+    background = Background(SimpleNamespace(database=database, jobs=jobs))
+    background.start("music_lyrics", operation)
+    await background.activate()
+    async with database.transaction() as connection:
+        lease = (await (await connection.execute(
+            "UPDATE capabilities.maintenance SET owner='existing-owner',lease_until=now()+interval '1 hour' "
+            "WHERE name='music_lyrics' RETURNING lease_until")).fetchone())["lease_until"]
+    await background.dispatch("music_lyrics", wake_generation=1)
+    queued = jobs.enqueue.call_args.args[1]
+    assert queued.task == "capabilities.media.work.music_lyrics"
+    assert queued.scheduled_at == lease
+    operation.assert_not_awaited()
+    async with database.transaction(read_only=True) as connection:
+        state = await (await connection.execute(
+            "SELECT owner,lease_until,wake_generation FROM capabilities.maintenance WHERE name='music_lyrics'")).fetchone()
+    assert state == {"owner": "existing-owner", "lease_until": lease, "wake_generation": 1}
+    await background.close()
+
+
+@pytest.mark.asyncio
+async def test_automatic_subscription_dispatch_keeps_original_action_without_waiting_for_scan():
+    rows = [{"state": "active", "next_scan_at": 1, "subscription_id": identity,
+        "revision": 3, "context": wire(work_context()), "source_refs": []}
+        for identity in ("first", "second")]
+
+    async def local(operation, *args):
+        return operation(*args)
+
+    actions = SimpleNamespace(invoke=AsyncMock(return_value={"execution": "pending"}))
+    media = SimpleNamespace(local=local,
+        repo=SimpleNamespace(list=lambda _kind: rows, clock=lambda: 10),
+        capabilities=SimpleNamespace(actions=actions))
+    await scan_due(media, "subscription", "subscription_id", None)
+    first_ids = [call.args[0].action_id for call in actions.invoke.call_args_list]
+    assert len(set(first_ids)) == 2
+    assert all(call.kwargs == {"background": True} for call in actions.invoke.call_args_list)
+    actions.invoke.reset_mock()
+    await scan_due(media, "subscription", "subscription_id", None)
+    assert [call.args[0].action_id for call in actions.invoke.call_args_list] == first_ids
+    assert [call.args[0].arguments["subscription_id"] for call in actions.invoke.call_args_list] == ["first", "second"]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("second_execution", ["succeeded", "unknown"])
+async def test_book_audio_yields_between_fragments_and_preserves_original_unknown(monkeypatch, second_execution):
+    audio = BookAudio.__new__(BookAudio)
+    state = {"id": "chapter-job", "owner": "original-owner", "book_id": "book", "chapter_id": "chapter",
+        "root": "/synthetic", "key": "whole-chapter", "text": "first second",
+        "profile": {"id": "voice", "revision": 1}, "profile_id": "profile",
+        "context": wire(work_context()), "source_refs": [], "state": "queued", "generation": 0}
+    fragments = [{"text": "first", "start": 0, "end": 5}, {"text": "second", "start": 6, "end": 12}]
+    monkeypatch.setattr("tianshu.capabilities.media.books.audio.runtime.segments", lambda _text: fragments)
+    caches, paid = {}, []
+
+    async def local(operation, *args, **kwargs):
+        return operation(*args, **kwargs)
+
+    def claim():
+        return dict(state) if state["state"] in {"queued", "working"} else None
+
+    def update(job, **changes):
+        assert job["id"] == state["id"] and job["owner"] == state["owner"]
+        state.update(changes)
+        return dict(state)
+
+    def publish(_root, key, text, _raw, _alignment):
+        caches[key] = {"key": key, "text": text}
+        return caches[key]
+
+    async def invoke(action):
+        paid.append(action)
+        execution = "succeeded" if len(paid) == 1 else second_execution
+        return Receipt("receipt", action.action_id, "original-attempt:" + action.action_id,
+            execution, "unknown" if execution == "unknown" else "confirmed", "not_requested",
+            artifacts=() if execution == "unknown" else (ArtifactRef("artifact",
+                MediaRef("media", "artifact:media", "audio/mpeg")),), result={"alignment": []})
+
+    service = SimpleNamespace(configuration=SimpleNamespace(get=AsyncMock(return_value=state["profile"])),
+        actions=SimpleNamespace(invoke=AsyncMock(side_effect=invoke)),
+        artifacts=SimpleNamespace(get=AsyncMock(return_value=(b"audio", None))))
+    audio.books = SimpleNamespace(media=SimpleNamespace(capabilities=service))
+    audio.repo = SimpleNamespace(get=lambda *_args: None, clock=lambda: 100)
+    audio.local, audio.lock = local, asyncio.Lock()
+    audio.ledger = SimpleNamespace(claim=claim, update=update)
+    audio.files = SimpleNamespace(read=lambda _root, key: caches.get(key), publish=publish,
+        assemble=AsyncMock(return_value={"chapter_id": "chapter"}))
+
+    assert await audio.run_once()
+    assert len(paid) == 1 and state["state"] == "queued"
+    assert state["completed_parts"] == 1 and state["lease"] == 0
+    audio.files.assemble.assert_not_awaited()
+    first_action = paid[0].action_id
+    assert await audio.run_once()
+    assert len(paid) == 2 and paid[0].action_id == first_action
+    assert paid[1].action_id != first_action and paid[1].arguments["text"] == "second"
+    assert state["id"] == "chapter-job" and state["generation"] == 0
+    if second_execution == "unknown":
+        assert state["state"] == "unknown" and state["code"] == "book_audio_unknown"
+        assert len(caches) == 1
+        audio.files.assemble.assert_not_awaited()
+    else:
+        assert state["state"] == "ready" and state["completed_parts"] == 2
+        assert len(caches) == 2
+        audio.files.assemble.assert_awaited_once()
+    assert not await audio.run_once()
+    assert len(paid) == 2
+
+
+@pytest.mark.asyncio
+async def test_navidrome_work_advances_one_due_link_and_leaves_the_other_for_next_turn():
+    sync = Navidrome.__new__(Navidrome)
+    rows = [{"link_id": identity, "connection_id": "server", "status": "queued",
+        "auto_sync": True, "next_sync_at": due, "revision": revision}
+        for identity, due, revision in (("later", 5, 7), ("earlier", 1, 4))]
+    released = []
+
+    async def local(operation, *args, **kwargs):
+        return operation(*args, **kwargs)
+
+    async def advance(_connection, link, _owner, _generation, _catalog):
+        link["next_sync_at"] = 1000
+
+    sync.media = SimpleNamespace(local=local)
+    sync.repo = SimpleNamespace(list=lambda _kind: rows, clock=lambda: 10,
+        scan_claim=lambda *_args: 3, scan_heartbeat=lambda *_args: None,
+        scan_release=lambda *args: released.append(args))
+    sync.state = SimpleNamespace(saved=lambda: {"connection_id": "server", "enabled": True},
+        connection=lambda: {"connection_id": "server"})
+    sync.sync = AsyncMock(side_effect=advance)
+    await sync.tick()
+    assert sync.sync.await_count == 1
+    assert sync.sync.call_args.args[1]["link_id"] == "earlier"
+    assert rows[0]["next_sync_at"] == 5 and rows[0]["revision"] == 7
+    await sync.tick()
+    assert sync.sync.await_count == 2
+    assert sync.sync.call_args.args[1]["link_id"] == "later"
+    assert len(released) == 2
+
+
+@pytest.mark.asyncio
+async def test_waiting_on_one_infrastructure_node_does_not_consume_other_node_slots():
+    infrastructure = Infrastructure.__new__(Infrastructure)
+
+    async def local(operation, *args):
+        return operation(*args)
+
+    infrastructure.local = local
+    infrastructure.current = lambda *_args: True
+    infrastructure.slots = asyncio.Semaphore(2)
+    held = asyncio.Lock()
+    infrastructure.node_locks = {"busy": held}
+    infrastructure.logs = {(node, container): {"state": "queued"}
+        for node, container in (("busy", "one"), ("busy", "two"), ("independent", "three"))}
+    infrastructure.log_jobs = {}
+    infrastructure._call = AsyncMock(return_value={"status": "ok", "data": {},
+        "observed_at": "2026-11-01T00:00:00Z", "reason_codes": []})
+    await held.acquire()
+    waiters = [asyncio.create_task(infrastructure._logs("busy", container, 1))
+        for container in ("one", "two")]
+    try:
+        await asyncio.sleep(0)
+        await asyncio.wait_for(infrastructure._logs("independent", "three", 1), timeout=2)
+        assert infrastructure.logs[("independent", "three")]["state"] == "observed"
+        infrastructure._call.assert_awaited_once()
+    finally:
+        for task in waiters:
+            task.cancel()
+        await asyncio.gather(*waiters, return_exceptions=True)
+        held.release()

@@ -69,7 +69,7 @@ async def scan_due(media, kind, identity_field, scan):
                 operation="feeds/refresh" if kind=="book_feed" else "playlists/scan" if domain=="music" else "subscriptions/scan"
                 body={field:row[identity_field]}
                 if kind=="subscription":body.update(recompute=False,client_request_id=key)
-                await media.capabilities.actions.invoke(Action(key,key,domain+"."+operation.replace("/","."),context.actor_id,context,body,OriginKind.TIMER,source_refs=tuple(SourceRef(**x) for x in row.get("source_refs",[]))))
+                await media.capabilities.actions.invoke(Action(key,key,domain+"."+operation.replace("/","."),context.actor_id,context,body,OriginKind.TIMER,source_refs=tuple(SourceRef(**x) for x in row.get("source_refs",[]))), background=True)
             except Fault:
                 pass
 

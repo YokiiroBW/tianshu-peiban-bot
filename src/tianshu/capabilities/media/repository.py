@@ -280,7 +280,10 @@ class Repository:
         from tianshu.runtime.jobs import JobSpec
         due=datetime.now(UTC)+timedelta(seconds=job.get("retry_delay",30) if job["state"]=="retry_wait" else 0)
         key="media-acquire:"+job["job_id"]+":"+str(job.get("generation",0))+":"+str(job.get("revision",1))
-        self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.media_job",key,{"job_id":job["job_id"],"generation":job.get("generation",0),"revision":job.get("revision",1)},scheduled_at=due))
+        task = ("capabilities.media.library_job"
+            if job.get("media_kind") == "audio" and job.get("audio_operation") in {"scan", "import"}
+            else "capabilities.media_job")
+        self.runtime.jobs.enqueue_sync(db,JobSpec(task,key,{"job_id":job["job_id"],"generation":job.get("generation",0),"revision":job.get("revision",1)},scheduled_at=due))
 
     def insert_job(self, payload, dedupe, db):
         row = db.execute('SELECT body FROM jobs WHERE dedupe=%s', (dedupe,)).fetchone()

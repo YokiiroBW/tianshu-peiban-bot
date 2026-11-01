@@ -67,3 +67,31 @@ G 工具根据已有 cancel receipt 记录原状态；显式 observe 子命令�
 root 在 `cb7dae9` 集中复验报告 92 项中 83 通过、9 失败，其中 G 的两处夹具问题由本提交修订：共享准备预算用例补齐 AppError 导入；原 rerank 撤回用例增加来源独立、不同 predicate 的第二条真实 Claim，确保确有重排收益而触发 callback。回调检查两条完整单元及联合 source_refs，并将随后撤回的单元排第一；最终仍须整条剔除坏单元、保留好单元与其真实来源，当前/known_at 查询都不返回已撤回单元。没有恢复单候选重排或修改产品代码。
 
 本次只静态 diff/空白检查，G 未运行测试。主协调可复用其余已通过结果，只重验 `tests/core/test_consolidation_pipeline.py::test_candidate_preparation_uses_one_lease_budget_across_input_shrinks` 与 `tests/core/test_memory_evidence_retrieval.py::test_rerank_rechecks_sources_and_drops_the_whole_unit`；其余失败由对应 owner 交付后由 root 集中处理。
+
+## RC28：媒体内部短派工与业务资源隔离
+
+基线 `271ad96e21e0035e7f605b345114c10703542a0d`，分支 `codex/queue-media-isolation-20261101`。root追加完整队列盘点并授权本窄范围实现；私有盘点为 `.runtime/coherent-refactor-20261031/memory-closure-20261101/queue-isolation-inventory-20261101.md`，不含真实正文或凭据。A/B仍分别拥有能力路由与公共ExecutionLane/worker，G未读其未提交工作树。
+
+- 原 `capabilities.media.<name>` 只按数据库实际 due/generation 原子登记 `capabilities.media.work.<name>`，不执行长operation。work保留现有owner lease、generation CAS、心跳、异常与finally续调度。busy-owner任务原生排到lease之后，不占短维护槽等待；相同generation/lease重复dispatch复用原job。旧启动/续调度身份及原来源不变，没有脱管后台任务或第二套调度器。
+- `capabilities/service.py` 仅窄改维护注册loop（A已明确交G独占）及新增 `capabilities.media.library_job`，仍复用原media_job handler。音乐原生audio_operation=scan/import（含转换）用该新task，B映射MUSIC_LIBRARY；其余media_job为DOWNLOADS。新登记仍以原job ID/generation/revision为key，已存在的旧pending job不重建、不批量改队列，后续业务新revision正常登记；`media.acquire`继续在所选worker内联执行原Action，无子job占同槽等回环。
+- 自动视频/书籍/漫画/歌单/书源扫描改为background登记同一个确定性Action，不等网络执行。A已承诺各实际scan capability路由到对应业务lane，避免再次聚到MEDIA。
+- 书籍音频一次work最多生成一个未缓存TTS片段，片段文件与completed_parts沿原chapter job保存；下次复用同cache/Action key继续，最后才按完整pieces合成。unknown仍停在原未知状态，不自动重付费；原pause/profile revision/取消逻辑保持。长TTS在BOOK_AUDIO，不占短SPEECH。
+- Navidrome一次work只推进最早due的一个link，其他link的时间/revision留给后续原生wake；原connection scan lease/heartbeat/原创建与核验流程保持。Lyrics原tick已限定一个artifact，原240秒收集预算不变，只迁到独立work lane，不另造歌词循环。
+- Infrastructure先取node_lock再取全局slots，等待同node的日志/采集不再占满其他node可用资源；同node顺序、连接版本和原外部操作身份保持。
+
+公共装配依赖：root最终冻结33lane/38默认执行槽（另有MEMORY_RECOVERY/SOURCE_LIFECYCLE），B配置本产品PG预算72，G不写这些公共文件。`capabilities.media.work.book_audio`→BOOK_AUDIO；`work.book_subscriptions/work.book_sources`→BOOK_SOURCES（2槽）；`work.comic_subscriptions`→COMIC_SOURCES；`work.subscriptions`→VIDEO_SUBSCRIPTIONS；`work.music_playlists`→MUSIC_PLAYLISTS；`work.music_navidrome`→MUSIC_NAVIDROME；`work.music_lyrics`→MUSIC_LYRICS；`work.comic_extensions`→COMIC_EXTENSIONS；`work.comic_cleanup`→COMIC_CLEANUP；`work.retention`→MEDIA_RETENTION。`work.music_imports/work.music_maintenance/work.infrastructure_observe`仅原生派工/短repo计划，仍MAINTENANCE。无MEDIA_SYNC万能桶；真实provider配额及unknown保护不变。
+
+### 必要集中验证节点（全部written_not_run）
+
+沿用 `tests/capabilities/test_runtime_observations.py`，没有新框架。新增/受影响节点如下（参数化共10例），供root在A/B/G完整集成后统一执行：
+
+- `test_maintenance_dispatch_queues_once_without_running_the_work`（music_lyrics/music_navidrome）
+- `test_maintenance_dispatch_preserves_busy_owner_and_schedules_work_after_its_lease`
+- `test_future_maintenance_cannot_run_before_its_database_deadline`
+- `test_registered_maintenance_adapter_forwards_the_persisted_generation`
+- `test_automatic_subscription_dispatch_keeps_original_action_without_waiting_for_scan`
+- `test_book_audio_yields_between_fragments_and_preserves_original_unknown`（succeeded/unknown）
+- `test_navidrome_work_advances_one_due_link_and_leaves_the_other_for_next_turn`
+- `test_waiting_on_one_infrastructure_node_does_not_consume_other_node_slots`
+
+其余原有lease/generation/启动/关闭成功结果按适用性复用；B的lane/task/config节点、A的实际Action路由节点与原生装配一起由root执行。G仅静态阅读、编写和 `git diff --check`，未运行pytest、类型/语法检查、build、PG、模型、网络或生产动作，不声称已解决实况六分钟等待。该结果须完整批次部署/适用读回后判定。

@@ -300,7 +300,9 @@ class Navidrome:
         try:
             connection = await local(self.state.connection)
             catalog = {}
-            for link in due:
+            # One playlist per durable work turn. Other links keep their own
+            # due times and revisions instead of waiting through N transports.
+            for link in sorted(due, key=lambda item: (item.get("next_sync_at", 0), item["link_id"]))[:1]:
                 try:
                     async with asyncio.timeout(180):
                         await self.sync(connection, link, owner, generation, catalog)
