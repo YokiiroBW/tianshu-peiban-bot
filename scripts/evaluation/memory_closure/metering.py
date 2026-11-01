@@ -78,9 +78,13 @@ def aggregate_calls(calls):
                          "complete": len(known) == len(metrics) and bool(metrics),
                          "known_attempts": len(known), "unknown_attempts": len(metrics) - len(known)}
     result["total_tokens_or_fee"] = None
-    result["routes"] = [dict(items) for items in sorted({tuple((key, receipt.get(key))
-        for key in ("route_id", "route_revision", "provider_id", "model", "protocol", "quota_group"))
-        for call in latest.values() if (receipt := call.get("receipt"))}, key=repr)]
+    routes = set()
+    route_fields = ("route_id", "route_revision", "provider_id", "model", "protocol", "quota_group")
+    for call in latest.values():
+        receipt = call.get("receipt")
+        if receipt:
+            routes.add(tuple((key, receipt.get(key)) for key in route_fields))
+    result["routes"] = [dict(items) for items in sorted(routes, key=repr)]
     result["reason"] = "Report separate provider columns; no cache/reasoning double count or token-priced fee."
     offered, repeated, seen = 0, 0, set()
     functions = {}
