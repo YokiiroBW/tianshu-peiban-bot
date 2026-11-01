@@ -1,4 +1,5 @@
 import { useAuth } from "../../app/Auth";
+import { requestId } from "../../app/requestId";
 import { apiRead } from "../../api/client";
 import { commandIntent } from "../../api/intents";
 import type { CommandResult, Coverage } from "../../api/contracts";
@@ -150,7 +151,7 @@ export function ProviderManager({
         )
           continue;
         const key = `${source.provider_id}:${model}`;
-        const id = batchIds.current.get(key) ?? crypto.randomUUID();
+        const id = batchIds.current.get(key) ?? requestId();
         batchIds.current.set(key, id);
         const saved = await command.save(
           "routes",

@@ -1,4 +1,5 @@
 import type { ApiErrorBody, CommandInput, CommandResult } from "./contracts";
+import { requestId } from "../app/requestId";
 
 export const API_ROOT = "/api/v1/";
 
@@ -142,8 +143,8 @@ export function apiRead<T>(path: string, body: object, csrf: string, signal: Abo
   return apiJson<T>(path, { body, csrf, signal, kind: "read" });
 }
 
-export function commandInput(revision: number | null = null, requestId: string = crypto.randomUUID()): CommandInput {
-  return { client_request_id: requestId, expected_revision: revision };
+export function commandInput(revision: number | null = null, clientRequestId: string = requestId()): CommandInput {
+  return { client_request_id: clientRequestId, expected_revision: revision };
 }
 
 export async function apiCommand<T>(path: string, body: object & CommandInput, csrf: string, signal: AbortSignal) {

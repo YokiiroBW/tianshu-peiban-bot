@@ -1,11 +1,26 @@
 import { test, expect } from "@playwright/test";
 import { readFileSync } from "node:fs";
 import { stripTypeScriptTypes } from "node:module";
+import { answer, command, nativeSession } from "./native-fixture";
 
-const source = stripTypeScriptTypes(
-  readFileSync(new URL("../src/api/client.ts", import.meta.url), "utf8"),
-  { mode: "transform" },
-);
+const requestIdModule = `data:text/javascript;base64,${Buffer.from(
+  stripTypeScriptTypes(
+    readFileSync(new URL("../src/app/requestId.ts", import.meta.url), "utf8"),
+    { mode: "transform" },
+  ),
+).toString("base64")}`;
+function browserSource(path: string) {
+  return stripTypeScriptTypes(
+    readFileSync(new URL(path, import.meta.url), "utf8"),
+    { mode: "transform" },
+  ).replaceAll('"../app/requestId"', JSON.stringify(requestIdModule));
+}
+const source = browserSource("../src/api/client.ts");
+const intentsSource = browserSource("../src/api/intents.ts");
+// TEST-NET is not a trustworthy loopback origin. Routes keep all traffic local.
+const lanOrigin = "http://192.0.2.1:4173";
+const uuidV4 =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 test.beforeEach(async ({ page }) => {
   await page.route("**/__transport", (route) =>
@@ -15,6 +30,152 @@ test.beforeEach(async ({ page }) => {
     }),
   );
   await page.goto("/__transport");
+});
+
+test("LAN HTTP login submits without secure-context randomUUID", async ({
+  page,
+}) => {
+  await page.route(`${lanOrigin}/**`, async (route) => {
+    const url = new URL(route.request().url());
+    const response = await route.fetch({
+      url: `http://127.0.0.1:4173${url.pathname}${url.search}`,
+    });
+    await route.fulfill({ response });
+  });
+  await nativeSession(page);
+  let authenticated = false;
+  const session = () => ({
+    authenticated,
+    initialized: true,
+    setup_token_required: false,
+    principal: authenticated
+      ? { principal_id: "author", display_name: "测试作者", permissions: ["*"] }
+      : null,
+    csrf_token: "synthetic-csrf",
+  });
+  const submissions: Record<string, unknown>[] = [];
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.route("**/api/v1/session", (route) => answer(route, session()));
+  await page.route("**/api/v1/auth/login", (route) => {
+    const body = route.request().postDataJSON();
+    submissions.push(body);
+    authenticated = true;
+    return answer(route, command(body, session()));
+  });
+  await page.goto(`${lanOrigin}/#/login`);
+  expect(
+    await page.evaluate(() => ({
+      secure: window.isSecureContext,
+      randomUUID: typeof crypto.randomUUID,
+      getRandomValues: typeof crypto.getRandomValues,
+    })),
+  ).toEqual({
+    secure: false,
+    randomUUID: "undefined",
+    getRandomValues: "function",
+  });
+  await page.getByLabel("账号", { exact: true }).fill("lan-author");
+  await page.getByLabel("密码", { exact: true }).fill("synthetic-password");
+  await page.getByRole("button", { name: "登录", exact: true }).click();
+  await expect(page).toHaveURL(`${lanOrigin}/#/workbench`);
+  expect(submissions).toHaveLength(1);
+  expect(submissions[0]).toMatchObject({
+    username: "lan-author",
+    password: "synthetic-password",
+    expected_revision: null,
+  });
+  expect(submissions[0].client_request_id).toMatch(uuidV4);
+  expect(errors).toEqual([]);
+});
+
+test("LAN HTTP commands keep the same intent after an uncertain submission", async ({
+  page,
+}) => {
+  await page.goto(`${lanOrigin}/__transport`);
+  const result = await page.evaluate(
+    async ({ source, intentsSource }) => {
+      const { commandInput, apiCommand } = await import(
+        URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
+      );
+      const { commandIntent, finishIntent } = await import(
+        URL.createObjectURL(
+          new Blob([intentsSource], { type: "text/javascript" }),
+        )
+      );
+      const input = { title: "一次明确约定", state: "planned" };
+      const first = commandIntent(
+        "session",
+        "actor",
+        "life/commitments.save",
+        input,
+        4,
+      );
+      const generated = commandInput(4);
+      const explicit = commandInput(4, "original-explicit-id");
+      const originalFetch = window.fetch;
+      const submitted: string[] = [];
+      let outcome = "";
+      let uncertainId = "";
+      window.fetch = async (_url, options) => {
+        submitted.push(JSON.parse(options.body as string).client_request_id);
+        throw new TypeError("connection closed after submission");
+      };
+      try {
+        await apiCommand(
+          "life/commitments.save",
+          { ...input, ...commandInput(4, first.id) },
+          "synthetic-csrf",
+          new AbortController().signal,
+        );
+      } catch (error) {
+        outcome = error.executionState;
+        uncertainId = error.details.client_request_id;
+      } finally {
+        window.fetch = originalFetch;
+      }
+      const retry = commandIntent(
+        "session",
+        "actor",
+        "life/commitments.save",
+        { state: "planned", title: "一次明确约定" },
+        4,
+      );
+      finishIntent(first.key);
+      const next = commandIntent(
+        "session",
+        "actor",
+        "life/commitments.save",
+        input,
+        4,
+      );
+      return {
+        secure: window.isSecureContext,
+        randomUUID: typeof crypto.randomUUID,
+        generated,
+        explicit,
+        first: first.id,
+        retry: retry.id,
+        next: next.id,
+        outcome,
+        uncertainId,
+        submitted,
+      };
+    },
+    { source, intentsSource },
+  );
+  expect(result.secure).toBe(false);
+  expect(result.randomUUID).toBe("undefined");
+  expect(result.generated.client_request_id).toMatch(uuidV4);
+  expect(result.generated.expected_revision).toBe(4);
+  expect(result.explicit.client_request_id).toBe("original-explicit-id");
+  expect(result.first).toMatch(uuidV4);
+  expect(result.retry).toBe(result.first);
+  expect(result.uncertainId).toBe(result.first);
+  expect(result.outcome).toBe("unknown");
+  expect(result.submitted).toEqual([result.first]);
+  expect(result.next).toMatch(uuidV4);
+  expect(result.next).not.toBe(result.first);
 });
 
 test("the shared client revalidates an expired session and never retries an uncertain command", async ({

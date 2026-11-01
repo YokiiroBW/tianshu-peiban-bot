@@ -1,4 +1,5 @@
 import { useAuth } from "../../app/Auth";
+import { requestId } from "../../app/requestId";
 import { useState } from "react";
 import {
   useDomainCommand,
@@ -24,7 +25,7 @@ function MatterEditor({
   cancel: () => void;
   subjectId?: string | null;
 }) {
-  const [id] = useState(item?.matter_id ?? crypto.randomUUID());
+  const [id] = useState(() => item?.matter_id ?? requestId());
   const [title, setTitle] = useState(item?.title ?? "");
   const [summary, setSummary] = useState(item?.summary ?? "");
   const [state, setState] = useState(item?.state ?? "planned");

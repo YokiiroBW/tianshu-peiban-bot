@@ -1,3 +1,5 @@
+import { requestId } from "../app/requestId";
+
 /** In-memory request identities survive component navigation, never a second business state. */
 const intents = new Map<string, string>();
 
@@ -10,7 +12,7 @@ function canonical(value: unknown): unknown {
 export function commandIntent(session: string, scope: string, path: string, value: object, revision: number | null) {
   const key = JSON.stringify([session, scope, path, canonical(value), revision]);
   let id = intents.get(key);
-  if (!id) { id = crypto.randomUUID(); intents.set(key, id); }
+  if (!id) { id = requestId(); intents.set(key, id); }
   return { key, id };
 }
 

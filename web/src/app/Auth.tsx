@@ -7,6 +7,7 @@ import {
   type AccountSession,
 } from "../api/session";
 import { PASSWORD_MIN_LENGTH } from "./passwordPolicy";
+import { requestId } from "./requestId";
 import {
   createContext,
   useCallback,
@@ -77,7 +78,7 @@ async function api(
       endpoint,
       {
         ...body,
-        client_request_id: crypto.randomUUID(),
+        client_request_id: requestId(),
         expected_revision: null,
       },
       csrf ?? "",
