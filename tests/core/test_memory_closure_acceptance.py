@@ -13,7 +13,7 @@ from scripts.evaluation.memory_closure.broker import EvaluationModels
 from scripts.evaluation.memory_closure.dataset import (COST_STORY_IDS, OLD_PRODUCTION_SHA,
     Story, comparison_key, stream_plan, write_json)
 from scripts.evaluation.memory_closure.metering import aggregate_calls
-from scripts.evaluation.memory_closure.recovery import validate_manifest
+from scripts.evaluation.memory_closure.recovery import plan as recovery_plan, validate_manifest
 from scripts.evaluation.memory_closure.run import compare, observe, read_results
 from scripts.evaluation.memory_closure.runtime import content_incomplete, progress_key
 from tianshu.models.types import ModelMessage, ModelPart, ModelReceipt, ModelRequest
@@ -254,19 +254,19 @@ def test_cost_comparison_reuses_same_inputs_and_refuses_a_fictional_old_baseline
         compare(args)
 
 
-def test_fixed_recovery_requires_both_versions_and_cannot_reset_an_unknown_attempt():
-    item = {"kind": "imagined_episode", "context": {}, "activity_id": "synthetic-activity",
-            "episode_id": "synthetic-episode", "expected_episode_revision": 1,
-            "expected_activity_revision": 2}
+def test_fixed_recovery_keeps_original_inbox_identity_and_rejects_retired_kinds():
+    item = {"kind": "qq_inbox", "event_key": "synthetic-original-event",
+            "connection_id": "synthetic-connection", "producer": "synthetic-qq",
+            "event_id": "synthetic-event", "event_revision": 2, "expected_state": "accepted"}
     value = {"schema_version": "memory.closure.recovery.v1", "manifest_id": "synthetic-fixed-list",
              "items": [item]}
     assert validate_manifest(value) is value
-    with pytest.raises(ValueError, match="fixed_activity_episode_and_both_revisions_required"):
+    assert recovery_plan(value)["items"][0]["event_key"] == item["event_key"]
+    with pytest.raises(ValueError, match="fixed_original_accepted_inbox_identity_required"):
         validate_manifest({**value, "items": [{key: data for key, data in item.items()
-                                             if key != "expected_activity_revision"}]})
-    with pytest.raises(ValueError, match="growth_resume_requires_known_source_rejection"):
-        validate_manifest({**value, "items": [{**item, "resume_known_source_rejection": True,
-                                               "expected_growth_error": "model_outcome_unknown"}]})
+                                             if key != "event_revision"}]})
+    with pytest.raises(ValueError, match="unsupported_recovery_kind"):
+        validate_manifest({**value, "items": [{"kind": "imagined_episode"}]})
 
 
 async def test_continuous_intake_cannot_push_wake_past_first_pending_maximum(core, ordinary_users):

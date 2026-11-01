@@ -124,11 +124,9 @@ compare 校验相同 corpus、原始输入/时间/检查点、模型授权与共
 
 ## 固定 ID 恢复
 
-`recovery.py plan` 是默认准备用途，无网络/DB/模型；`apply` 仅显式执行 imagined Episode 的公开修复端口，并只读核对 QQ 原 inbox。不调用模型，不修改活动，不重建输入，不偷偷改群策略。
+`recovery.py plan` 是默认准备用途，无网络/DB/模型；`apply` 只读核对 QQ 原 inbox，不构造产品运行时、不调用模型、不修改活动、不重建输入、不改群策略。
 
-固定清单 schema `memory.closure.recovery.v1`，包含 manifest_id 和 items。imagined 项必须有原 `context/activity_id/episode_id/expected_episode_revision/expected_activity_revision`；CLI 调用 C 的 `LifeService.repair_completed_imagined_episode`，使用保存的 completed checkpoint 登记 ACTOR 原件、同事务修订原 Episode。原 ID/event/occurred_at 保留，recorded_at 为实际补登记时间。C 的 CommandStore 负责重复清单幂等与漂移拒绝。没有历史足够依据的活动不回填。
-
-可选 `resume_known_source_rejection=true` 和 `expected_growth_error` 仅适用于已知缺来源拒绝，且原 blocked_material/batch 实际包含该 Episode。修复后先读原生 Growth view；observer 已续接则不用新审。仍为同一已知拒绝、`can_request_review=true` 才使用固定 client_request_id 调原生 request_review。任何 unknown 原 attempt 不替换。
+固定清单 schema `memory.closure.recovery.v1`，包含 manifest_id 和 items，仅支持 `kind="qq_inbox"`。
 
 QQ 项必须提供原 `event_key/connection_id/producer/event_id/event_revision/expected_state='accepted'`。apply 仅读回原 events/job-key/admission/turn 身份及保存的 delivery_allowed；原 observe/ignored 与可能正常 reply 分开，缺值 unknown，当前 link mode 明确标为 current。原 reply 路径可能排队正常回复：由主协调对实际清单审阅、必要时一次具体向用户确认后，恢复**原 job id/event_key**，不生成新消息或重新提交 raw。原功能和权限保留。
 
@@ -139,7 +137,7 @@ QQ 项必须提供原 `event_key/connection_id/producer/event_id/event_revision/
 & $python $recovery apply --manifest "$private/recovery-fixed.json" --config "$private/recovery-config.json" --code-root $codeRoot --private-root $private --output "$private/recovery-result.json"
 ```
 
-恢复配置由主协调提供 `recovery_postgres_env`（必须显式，无默认 DSN）与实际 `app_settings`。plan 不需要配置。apply 也不打印/导出 DSN 或秘密配置。恢复结果/配置/真实材料全部留在私有目录，不能入库。
+恢复配置由主协调提供 `recovery_postgres_env`（必须显式，无默认 DSN）。plan 不需要配置。apply 也不打印/导出 DSN 或秘密配置。恢复结果/配置/真实材料全部留在私有目录，不能入库。
 
 ## 本批真实运行命令与兼容核对（静态准备）
 
