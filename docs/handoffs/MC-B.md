@@ -82,3 +82,18 @@ Episode.speaker_id 只取来源中可证明的唯一人类作者，多个作者�
 - `run_pending` 对相同配置、无 active batch 且 wake 已关闭的 budget failure 立即带诊断失败，不再强行写 wake 连做 80 次 SQL。129 片段尾部断言保留，并增加实际请求预算及长原文只覆盖一次的断言。
 
 待协调者集中复验的现有合同文件：`tests/memory/test_consolidation_contract.py`（公共定义引用、每种 Claim 变体必填/多余字段、人物/材料引用、read_set/no_change）、`tests/memory/test_extraction_contract.py`（有限旧合同未变）。受影响调用链文件：`tests/core/test_consolidation_pipeline.py`（含本轮两个失败节点、原 unknown/原子性/版本）、`tests/core/test_incremental_consumers.py`（129 片段尾部、默认字节预算、视频派生来源）。新增的默认 Counter 最小前缀和临时缓存精确范围用例也在 contract 文件中，均 written_not_run。
+
+## 真实开发样本后的首次类型选择修复
+
+分支 `codex/memory-semantic-contract-repair-20261101`，基线 `3153c53f621cc786498296327d01312bb58af8d6`。协调者确认开发样本 S01 虽回答和逐人覆盖正确，却把两项明确未来安排只记成 Claim，没有 Matter。本修复只改 `extraction_contract.consolidation_instruction` 及本交接；未读取 held_out，未修改冻结候选的输入、输出或评测记录。
+
+- 同源提示现在明确首次类型选择：独立事实、属性和条件偏好用 Claim；可跟踪进展的具体安排、约定、承诺、待办首次明确表达即用 `upsert_matter`，不能只拆成时间属性 Claim。兴趣、愿望、假设、提问及他人建议不自动成为安排。陶艺习惯与约定取陶坯的通用对照仅解释语义，不构成关键词分类器或 S01 特例。
+- 旧事项以主体、上下文与来源确认身份；改名、改期、进展、取消沿同一个固定 `r` 引用及 `expected_revision/reads` 追加版本，同名或同日不证明相同事项，不同人的独立安排不合并。关键身份不明则补查或未决。六种 Matter 状态、约定/截止时间和条件均说明；仅知日期、不知时刻时 `due_at=null`，原时间粒度保留于 `conditions/summary`，不制造午夜或把发言时间当安排时间。
+- 完成依据继续区分真人报告 `human_report` 与服务端材料内真实成功 Action/Receipt 的 `action_receipt`；失败或未核实不能写 completed，ACTOR 虚构活动不能证明真人或外部动作完成。Matter 记录事项认识，不创建提醒、任务或外部执行。相关独立 Claim 可以 `about_matter` 关联，不重复拆出同一安排凑数。
+- 通用 JSON Schema、合法操作集合、逐人覆盖、来源校验、CAS、固定 ModelSteps、未知请求观察及所有模型参数均未改变。Schema 仍只序列化为 system 提示文本并由本地 Draft validator 校验，不新增 provider 原生 response_schema 要求。新提示只影响随后准备的新请求，原固定请求不换提示、不重发；S01 的原 rerank unknown 也未操作。
+
+静态文本计数：提示组装内固定字符串从 740 字符 / 1712 UTF-8 字节变为 1471 字符 / 3331 字节，净增 731 字符 / 1619 字节。动态 Schema 和无变化示例未变，因此无 tokenizer 的默认 `TokenCounter` 对同一完整输入净增 1619 个估算 token；配置 tokenizer 时及供应商实际 token/费用增量未测量，不以字节冒充这些数据。`max_input_tokens=12000` 及输出/推理预算均未提高；固定开销增加可令原有有界前缀变短，尾部仍须沿原游标续处理。
+
+实际只做代码/调用链阅读、完整 diff 审阅与 PowerShell 静态字符串字节计数；未运行测试、构建、产品代码、模型、PG 或生产操作。此次没有新程序约束，未新增仅复述提示字符串的测试；现有来源/CAS/Schema 验证结果可复用，模型是否按新指引选择 Matter 必须由新开发样本运行确认。
+
+建议协调者整批交付后最小复验：`tests/memory/test_consolidation_contract.py::test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources`、`::test_manifest_keeps_mapping_without_a_second_full_model_input`，以及 `tests/core/test_incremental_consumers.py::test_long_original_and_more_than_128_parts_reach_the_tail`（固定提示开销改变涉及的实际预算与完整尾部）。真实语义用新 SHA、新 run 保留原 S01 输入，检查各自 Matter 的 planned/due_at、C 的 no_change 和逐人覆盖；若继续核对改期/完成，复用开发集已有相应样本。保留 `3153c53` 冻结证据，未知 rerank 仅允许原 attempt 观察。本分支未执行上述复验。
