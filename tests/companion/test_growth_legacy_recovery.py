@@ -83,7 +83,10 @@ async def test_original_intent_inventory_does_not_cross_principal_or_scope(datab
     await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
     assert len(await growth.generations.pending_materials(replace(context, person_id="another"), prefix="organize:")) == 1
     assert await growth.generations.pending_materials(replace(context, principal_id="another"), prefix="organize:") == ()
+    assert await growth.generations.pending_materials(replace(context, actor_id="another"), prefix="organize:") == ()
     assert await growth.generations.pending_materials(replace(context, scope_ids=("other",)), prefix="organize:") == ()
+    assert await growth.generations.pending_materials(replace(context, scope_ids=()), prefix="organize:") == ()
+    assert await growth.generations.pending_materials(replace(context, scope_ids=(*context.scope_ids, "other")), prefix="organize:") == ()
     assert await growth.generations.pending_materials(context, prefix="life:") == ()
     first = await growth.generations.pending_materials(context, prefix="organize:", limit=1)
     assert await growth.generations.pending_materials(context, prefix="organize:", after=first[0]["material_key"]) == ()

@@ -11,22 +11,26 @@ from ..contracts import canonical
 
 SCHEDULE = (
     "INSERT INTO capabilities.maintenance(name,owner,lease_until,next_due_at,wake_generation) "
-    "VALUES(%s,'',to_timestamp(0),%s,1) ON CONFLICT(name) DO UPDATE SET "
+    "VALUES(%s,'',to_timestamp(0),coalesce(%s::timestamptz,now()),1) ON CONFLICT(name) DO UPDATE SET "
     "next_due_at=LEAST(capabilities.maintenance.next_due_at,excluded.next_due_at),wake_generation=capabilities.maintenance.wake_generation+1 "
-    "WHERE %s OR capabilities.maintenance.next_due_at IS NULL OR capabilities.maintenance.next_due_at>excluded.next_due_at "
+    "WHERE capabilities.maintenance.next_due_at IS NULL OR capabilities.maintenance.next_due_at>excluded.next_due_at "
     "RETURNING wake_generation,next_due_at"
 )
 
 
-def wake_sync(runtime, connection, name, due):
+def maintenance_job(name, row):
+    generation = row["wake_generation"]
+    return JobSpec("capabilities.media." + name, f"media-maintenance:{name}:{generation}",
+        {"wake_generation": generation}, ServiceClass.ELASTIC, scheduled_at=row["next_due_at"])
+
+
+def wake_sync(runtime, connection, name, due=None):
     task = "capabilities.media." + name
     if task not in runtime.jobs.sync_tasks:
         return
-    row = connection.execute(SCHEDULE, (name, due, False)).fetchone()
+    row = connection.execute(SCHEDULE, (name, due)).fetchone()
     if row:
-        generation = row["wake_generation"]
-        runtime.jobs.enqueue_sync(connection, JobSpec(task, f"media-maintenance:{name}:{generation}",
-            {"wake_generation": generation}, ServiceClass.ELASTIC, scheduled_at=row["next_due_at"]))
+        runtime.jobs.enqueue_sync(connection, maintenance_job(name, row))
 
 
 class Background:
@@ -46,18 +50,16 @@ class Background:
 
     async def activate(self):
         for name in self.operations:
-            await self.schedule(name, datetime.now(UTC))
+            await self.schedule(name)
 
-    async def schedule(self, name, due, *, force=False):
+    async def schedule(self, name, due=None):
+        """Omitted due means immediately on the queue's database clock."""
         if self.closed:
             return
         async with self.runtime.database.transaction() as connection:
-            row = await (await connection.execute(SCHEDULE, (name, due, force))).fetchone()
+            row = await (await connection.execute(SCHEDULE, (name, due))).fetchone()
             if row:
-                generation = row["wake_generation"]
-                await self.runtime.jobs.enqueue(connection, JobSpec("capabilities.media." + name,
-                    f"media-maintenance:{name}:{generation}", {"wake_generation": generation},
-                    ServiceClass.ELASTIC, scheduled_at=row["next_due_at"]))
+                await self.runtime.jobs.enqueue(connection, maintenance_job(name, row))
 
     async def run(self, name, wake_generation=None):
         if self.closed:
@@ -115,15 +117,24 @@ class Background:
                 plan = {"known": False}
                 state.update(state="failed", code="media_due_state_unavailable")
             if plan.get("known"):
-                due = datetime.fromtimestamp(plan["due"], UTC) if plan.get("due") is not None else now + timedelta(minutes=5)
-                due = max(due, now + timedelta(seconds=10))
+                due = datetime.fromtimestamp(plan["due"], UTC) if plan.get("due") is not None else None
+                delay = 10 if due is not None else 300
             else:
-                due = now + timedelta(seconds=10 if self.next_due is None else min(300, 10 * 2**idle_runs))
+                due = None
+                delay = 10 if self.next_due is None else min(300, 10 * 2**idle_runs)
             state.update(idle_runs=idle_runs, observed_at=now.isoformat(), worker_owner=worker_owner)
             async with self.runtime.database.transaction() as connection:
-                await connection.execute("UPDATE capabilities.maintenance SET lease_until=now(),body=%s::jsonb "
-                    "WHERE name=%s AND owner=%s", (canonical(state), name, owner))
-            await self.schedule(name, due, force=True)
+                # Finish and the next wake commit together while we still own
+                # this lease. A business change during the operation keeps its
+                # earlier due, and an expired owner cannot replace a newer one.
+                queued = await (await connection.execute(
+                    "UPDATE capabilities.maintenance SET owner='',lease_until=now(),body=%s::jsonb,"
+                    "next_due_at=LEAST(next_due_at,GREATEST(coalesce(%s::timestamptz,now()),"
+                    "now()+%s*interval '1 second')),wake_generation=wake_generation+1 "
+                    "WHERE name=%s AND owner=%s RETURNING wake_generation,next_due_at",
+                    (canonical(state), due, delay, name, owner))).fetchone()
+                if queued and not self.closed:
+                    await self.runtime.jobs.enqueue(connection, maintenance_job(name, queued))
 
     async def snapshot(self):
         async with self.runtime.database.transaction(read_only=True) as connection:

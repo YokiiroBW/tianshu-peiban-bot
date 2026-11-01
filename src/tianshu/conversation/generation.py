@@ -93,8 +93,9 @@ class GenerationRequests:
             rows = await (await connection.execute(
                 "SELECT material_key,attempt_id,request,state,created_at FROM conversation.generation_requests "
                 "WHERE left(material_key,length(%s))=%s AND (%s::text IS NULL OR material_key>%s) "
-                "AND ((request->'context'->>'principal_id'=%s AND request->'context'->>'actor_id'=%s "
-                "AND request->'context'->'scope_ids' @> %s::jsonb AND %s::jsonb @> request->'context'->'scope_ids') "
+                "AND (((request->'context'->>'principal_id')=%s AND (request->'context'->>'actor_id')=%s "
+                "AND (request->'context'->'scope_ids') @> %s::jsonb "
+                "AND %s::jsonb @> (request->'context'->'scope_ids')) "
                 "OR (request IS NULL AND context_key=%s)) ORDER BY material_key LIMIT %s",
                 (prefix, prefix, after, after, context.principal_id, context.actor_id,
                  scopes, scopes, self.context_key(context), limit))).fetchall()

@@ -101,3 +101,13 @@ Sources 扩权仅限 record_event 的 connection/support_refs，同步 `sources/
 根因是非流式 `ResponseCollector` 把物理终态识别放在 `output` 字段分支内，旧夹具只提供明确的 status/usage，没有 output。流式终态事件在独立分支识别，因而通过。现在明确 native status 为 completed/incomplete/failed 即登记终态及用量，输出项解析只负责内容；缺状态、queued 或 in_progress 仍不结算。`failed` 继续结算为物理失败并保留供应商错误；`incomplete` 仍是已结算的请求和不完整内容，不进入 unknown hold。
 
 `test_native_settlement.py` 保留原 failed/incomplete、error_code、容量释放无 hold 和 active 清理断言，增加 output=[] 与无 output 两种夹具，分别经过流式/非流式真实 Broker 路径，同时断言原 native、usage 和实际计费单位保留。`test_completion.py` 补缺失/非终态 status 不可结算的保护用例。以上仅编写，交 root 定向集中重验。
+
+## PG 集中验收后的旧 Growth 与维护调度返修
+
+承接同一分支的 `f980500`。root 的 backend-pg-01 首次业务执行中，三个旧 Growth 用例在 `GenerationRequests.pending_materials` 遇到 `boolean -> unknown`，一个维护调度用例保留初始 next_due_at 而未退避。MC-C 只阅读对应合成 trace、调用方和 diff，没有执行测试、构建、数据库或模型。
+
+- `pending_materials` 显式括起全部 JSON context 路径，修复右侧 `@>` 与 `->` 结合导致的 SQL 类型错误。仍按 principal、actor 和双向包含的完整 scope 集合隔离；仍保留 prefix/after/limit、原冻结上下文/attempt，以及 request 清除后只按精确 context_key 返回失效身份的分支。
+- 维护原初始 due 来自应用时钟，领取条件用 PG now；在分离主机时，“立即”可能被当作未来任务并跳过。现 `schedule(name, due=None)` / `wake_sync(..., due=None)` 明确使用 DB now，activate 与已经到期的业务变更走此语义；真正未来业务 due 保留绝对时间和领取门槛。空闲五分钟及未知族退避也按 DB now 计算，未缩短原 lease 或移除代次过滤。
+- 任务收尾在同一事务完成 owner CAS、释放 lease、保存观察、保留运行期间更早的业务 due、推进代次及入队；旧 owner 丢失 lease 后无法续排/覆盖新 owner。删除仅为原两段收尾使用的 force 分支，没有新增轮询器，保持关闭状态不入队后继任务。
+
+已有三个 Growth legacy 场景和维护代次场景仍保留；补写 actor/少量或过宽 scope 拒绝、scope 重排仍读取同一个原请求、失效请求精确上下文、应用时钟正负一小时、未来任务不提前执行、运行期间变更与 busy 旧代失效、owner 漂移不可续排用例。维护退避断言以实际调度权威 DB now 为参照，仍要求超过四分钟。相关文件为 `tests/companion/test_growth_legacy_recovery.py`、`tests/conversation/test_generation_recovery.py`、`tests/capabilities/test_runtime_observations.py`；全部未运行，交 root 收齐修复后集中定向复验。迁移和产品装配错误由其他任务负责，本返修未修改迁移或共享装配。

@@ -17,10 +17,16 @@ def wake_document(repository, connection, kind, body):
 
     if repository.runtime is None:
         return
+
+    def due_at(value):
+        # Immediate repository changes use the same DB clock as the queue/lease;
+        # authored future deadlines retain their absolute time.
+        return datetime.fromtimestamp(value, UTC) if value > repository.clock() else None
+
     if kind in SCAN_TASKS:
         if body.get("state") == "active":
             wake_sync(repository.runtime, connection, SCAN_TASKS[kind],
-                datetime.fromtimestamp(max(repository.clock(), body.get("next_scan_at", 0)), UTC))
+                due_at(body.get("next_scan_at", 0)))
         return
     timed = {
         "book_audio_job": ("book_audio", "next_at"),
@@ -34,8 +40,7 @@ def wake_document(repository, connection, kind, body):
         if kind == "book_audio_job" and body.get("state") not in {"queued", "waiting"}:
             return
         name, field = timed[kind]
-        wake_sync(repository.runtime, connection, name,
-            datetime.fromtimestamp(max(repository.clock(), body.get(field, 0)), UTC))
+        wake_sync(repository.runtime, connection, name, due_at(body.get(field, 0)))
         return
     from ..execution_context import CURRENT_ACTION
 
@@ -46,7 +51,7 @@ def wake_document(repository, connection, kind, body):
              else ("music_imports", "music_navidrome", "music_maintenance", "music_lyrics")
              if kind.startswith("music_") and CURRENT_ACTION.get() else ())
     for name in names:
-        wake_sync(repository.runtime, connection, name, datetime.fromtimestamp(repository.clock(), UTC))
+        wake_sync(repository.runtime, connection, name)
 
 
 async def scan_due(media, kind, identity_field, scan):

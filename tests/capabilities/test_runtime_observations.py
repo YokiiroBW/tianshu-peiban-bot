@@ -53,14 +53,130 @@ async def test_empty_maintenance_uses_next_due_and_change_wakes_replace_old_gene
     await background.activate()
     await background.run("subscriptions", wake_generation=1)
     async with database.transaction(read_only=True) as connection:
-        row = await (await connection.execute("SELECT * FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
-    assert row["next_due_at"] > datetime.now(UTC) + timedelta(minutes=4)
+        row = await (await connection.execute(
+            "SELECT *,now() AS database_now FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+    assert row["next_due_at"] > row["database_now"] + timedelta(minutes=4)
     assert row["wake_generation"] == 2
-    await background.schedule("subscriptions", datetime.now(UTC))
+    await background.schedule("subscriptions")
     await background.run("subscriptions", wake_generation=2)
     assert operation.await_count == 1
     await background.run("subscriptions", wake_generation=3)
     assert operation.await_count == 2
+    await background.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("skew", [-3600, 3600])
+async def test_immediate_maintenance_and_idle_delay_use_database_clock(database, monkeypatch, skew):
+    await prepare(database)
+
+    class SkewedDatetime(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return super().now(tz) + timedelta(seconds=skew)
+
+    monkeypatch.setattr("tianshu.capabilities.media.background.datetime", SkewedDatetime)
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+    operation = AsyncMock()
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start("subscriptions", operation)
+    await background.activate()
+    await background.run("subscriptions", wake_generation=1)
+    operation.assert_awaited_once()
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT *,now() AS database_now FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+    assert row["database_now"] + timedelta(minutes=4) < row["next_due_at"]
+    assert row["next_due_at"] < row["database_now"] + timedelta(minutes=6)
+    assert row["wake_generation"] == 2
+    await background.close()
+
+
+@pytest.mark.asyncio
+async def test_future_maintenance_cannot_run_before_its_database_deadline(database):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+    operation = AsyncMock()
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start("subscriptions", operation)
+    async with database.transaction(read_only=True) as connection:
+        due = (await (await connection.execute("SELECT now()+interval '1 hour' AS due")).fetchone())["due"]
+    await background.schedule("subscriptions", due)
+    await background.run("subscriptions", wake_generation=1)
+    operation.assert_not_awaited()
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT next_due_at,wake_generation FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+    assert row == {"next_due_at": due, "wake_generation": 1}
+    await background.close()
+
+
+@pytest.mark.asyncio
+async def test_running_maintenance_preserves_a_change_and_invalidates_busy_wakes(database):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+    changed = False
+
+    async def operation():
+        nonlocal changed
+        if not changed:
+            changed = True
+            await background.schedule("subscriptions")
+            # Its current lease still belongs to the first run. This wake is
+            # observed while busy and must not run the same operation twice.
+            await background.run("subscriptions", wake_generation=2)
+
+    observed = AsyncMock(side_effect=operation)
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start("subscriptions", observed)
+    await background.activate()
+    await background.run("subscriptions", wake_generation=1)
+    observed.assert_awaited_once()
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT *,now() AS database_now FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+    assert row["wake_generation"] == 3
+    assert row["next_due_at"] <= row["database_now"]
+    await background.run("subscriptions", wake_generation=2)
+    observed.assert_awaited_once()
+    await background.run("subscriptions", wake_generation=3)
+    assert observed.await_count == 2
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT *,now() AS database_now FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+    assert row["next_due_at"] > row["database_now"] + timedelta(minutes=4)
+    await background.close()
+
+
+@pytest.mark.asyncio
+async def test_lost_maintenance_owner_cannot_finish_or_reschedule_newer_owner(database):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    runtime = SimpleNamespace(database=database, jobs=jobs)
+
+    async def replaced_owner():
+        async with database.transaction() as connection:
+            await connection.execute(
+                "UPDATE capabilities.maintenance SET owner='new-owner',lease_until=now()+interval '1 minute',"
+                "next_due_at=now()+interval '30 seconds',wake_generation=2,body='{\"state\":\"running\"}' "
+                "WHERE name='subscriptions'")
+
+    background = Background(runtime, next_due=AsyncMock(return_value={"known": True, "due": None}))
+    background.start("subscriptions", replaced_owner)
+    await background.activate()
+    await background.run("subscriptions", wake_generation=1)
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT * FROM capabilities.maintenance WHERE name='subscriptions'")).fetchone()
+        queued = await (await connection.execute(
+            "SELECT key FROM runtime.job_keys WHERE task='capabilities.media.subscriptions'")).fetchall()
+    assert row["owner"] == "new-owner"
+    assert row["wake_generation"] == 2
+    assert row["body"] == {"state": "running"}
+    assert [item["key"] for item in queued] == ["media-maintenance:subscriptions:1"]
     await background.close()
 
 
