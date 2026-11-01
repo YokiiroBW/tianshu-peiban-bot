@@ -43,7 +43,7 @@
     },
     "MC-C": {
       "agent": "product_closure",
-      "state": "implementing",
+      "state": "finishing_saved_checkpoint_repair_port",
       "branch": "codex/product-closure-20261101",
       "interface_commits": [
         "3fe73bc",
@@ -59,8 +59,27 @@
         "a6bbd06",
         "74193f1",
         "29183b2",
-        "12cc765"
-      ]
+        "12cc765",
+        "1d4714c",
+        "d03185d",
+        "ae8f9ff",
+        "4675e13",
+        "b8f0bba",
+        "86f22e4",
+        "5190ff4",
+        "7c77ebf"
+      ],
+      "implementation_commits": [
+        "e95ffe7",
+        "a79e575",
+        "90ef791",
+        "4977585",
+        "c7bfba2",
+        "a14be27",
+        "dfc25d1",
+        "a9ab8c1"
+      ],
+      "followup": "Idempotent actor-original repair for already-completed imagined Episodes from saved Life checkpoints; no model/activity replay"
     },
     "MC-R": {
       "agent": "runtime_audit",
@@ -74,18 +93,28 @@
       "agent": "memory_domain"
     },
     "MC-F": {
-      "state": "implementing",
+      "state": "implemented_not_verified",
       "scope": "memory/history/recovery frontend and affected capability setup experience",
       "branch": "codex/memory-frontend-20261101",
       "worktree": "tianshu-cr-frontend",
       "agent": "memory_frontend",
-      "source_baseline": "e752d5c"
+      "source_baseline": "e752d5c",
+      "implementation_commits": [
+        "29bee05",
+        "a344d5d"
+      ],
+      "integrated_as": [
+        "1f0146c",
+        "e5ff7d5"
+      ]
     },
     "MC-G": {
-      "state": "planned",
+      "state": "preparing_runner_not_executing",
       "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts",
       "branch": "codex/memory-acceptance-20261101",
-      "worktree": "tianshu-cr-foundation"
+      "worktree": "tianshu-cr-foundation",
+      "agent": "memory_acceptance",
+      "source_baseline": "1f0146c"
     }
   },
   "issues": [

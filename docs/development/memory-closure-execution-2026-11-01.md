@@ -41,6 +41,10 @@ MC-A 主实现已合入后，由原 memory_domain 实现者继续 MC-D。D 独�
 
 MC-B 主实现与接口收口已交付，MC-F memory_frontend 已从 e752d5c 开始正式实现。MC-C 另获 conversation/generation.py 中 pending_materials 有界原请求读取端口归属，仅用于固定旧 Growth 请求转换；不改默认生成执行语义。MC-G 预备工作树 tianshu-cr-foundation / codex/memory-acceptance-20261101，尚未执行验收。
 
+MC-F 已交付并合入前端。MC-G memory_acceptance 已开始编写实际语义/成本对照 runner、必要验证映射和固定恢复清单工具，仍禁止执行。MC-C 追加 LifeService 的幂等已完成想象活动原件修复端口，仅从已保存活动 checkpoint 修订原 Episode，不创建新活动或模型请求；G 只准备明确 ID/版本清单的调用工具。
+
+B 结束后，D 获得必要收口单写权：memory/module.py 的 matters/get 当前 head 薄路由；recovery.py 对真实未完成旧错误码的有限转换及授权 targets 投影；service.py 群 targets 只读投影；workers.py 的索引完整来源闭包。其余职责不变，不并写。
+
 已明确的实现衔接：Memory.observe_episode 在同一事务通知 Growth；Growth 按实际 Episode 版本登记待处理集合，不能以 max(sequence) 推断已经看过所有提交。Episode 作者字段只保存来源能证实的唯一作者，多作者或历史未知不猜填。Fish 角色音色按用户回复暂不绑定，功能和设置入口仍完整实现。
 
 用户追加独立线上巡检，使用第四个具名子智能体 MC-R/runtime_audit；由于当前仅三个子智能体可同时执行，MC-C 暂停在稳定保存点，巡检结束后恢复。巡检只读取当前生产版本的状态、日志和账本，不调用模型、不发送消息、不验证候选代码。其确证问题加入本队列，配置缺项和没有运行证据分别记录。
