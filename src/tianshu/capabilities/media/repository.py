@@ -114,6 +114,34 @@ class Repository:
                 row for row in rows if kind not in SUBSCRIPTIONS or row.get("state") != "removed"
             ]
 
+    def maintenance_due(self, name):
+        from .scheduling import SCAN_TASKS
+
+        kind = next((kind for kind, task in SCAN_TASKS.items() if task == name), None)
+        with self.transaction() as db:
+            if kind:
+                row = db.execute("SELECT min(coalesce((body::jsonb->>'next_scan_at')::double precision,0)) AS due "
+                    "FROM documents WHERE kind=%s AND body::jsonb->>'state'='active'", (kind,)).fetchone()
+                return {"known": True, "due": row["due"]}
+            if name == "book_audio":
+                row = db.execute("SELECT min(coalesce((j.body::jsonb->>'next_at')::double precision,0)) AS due FROM documents j "
+                    "WHERE j.kind='book_audio_job' AND j.body::jsonb->>'state' IN ('queued','waiting') "
+                    "AND NOT EXISTS(SELECT 1 FROM documents p WHERE p.kind='book_audio_plan' "
+                    "AND p.id=j.body::jsonb->>'book_id' AND (p.body::jsonb->>'paused')::boolean IS TRUE)").fetchone()
+                return {"known": True, "due": row["due"]}
+            timed = {"comic_extensions": ("comic_extension_policy", "next_check_at"),
+                     "music_imports": ("music_import_scan", "next_scan_at"),
+                     "music_navidrome": ("music_navidrome_playlist", "next_sync_at"),
+                     "music_maintenance": ("music_quality_check", "next_check_at"),
+                     "music_lyrics": ("music_lyrics", "next_check_at")}
+            if name in timed:
+                kind, field = timed[name]
+                row = db.execute("SELECT min(coalesce((body::jsonb->>%s)::double precision,0)) AS due FROM documents "
+                    "WHERE kind=%s AND (body::jsonb->>'enabled')::boolean IS DISTINCT FROM false",
+                    (field, kind)).fetchone()
+                return {"known": True, "due": row["due"]}
+        return {"known": False}
+
     def document_page(self, kind, *, limit=64, after_id=None):
         """One bounded owner page; a filtered empty page still advances its cursor."""
         require(kind in {"book", "comic", "music_source", "subscription"}, "invalid_input", 400)
@@ -207,6 +235,9 @@ class Repository:
                 json.dumps(self.payloads.store(kind, result), ensure_ascii=False),
             ),
         )
+        from .scheduling import wake_document
+
+        wake_document(self, db, kind, result)
         return result
 
     def enqueue(self, payload, *, db=None):
@@ -393,6 +424,8 @@ class Repository:
                 "schema_version": schema,
                 "query_ms": round((time.monotonic() - started) * 1000, 1),
                 "size_bytes": size,
+                "size_scope": "schema",
+                "size_scope_name": "capability_media",
             },
         }
 

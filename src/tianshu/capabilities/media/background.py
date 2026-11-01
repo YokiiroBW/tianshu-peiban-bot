@@ -1,45 +1,150 @@
-"""Media maintenance uses the one Procrastinate scheduler, never private polling loops."""
-from datetime import UTC,datetime,timedelta
-from tianshu.types import ServiceClass
+"""Coalesced Procrastinate maintenance, persistent due times and worker observations."""
+
+import asyncio
+from datetime import UTC, datetime, timedelta
+from uuid import uuid4
+
 from tianshu.runtime.jobs import JobSpec
+from tianshu.types import ServiceClass
+from ..contracts import canonical
+
+
+SCHEDULE = (
+    "INSERT INTO capabilities.maintenance(name,owner,lease_until,next_due_at,wake_generation) "
+    "VALUES(%s,'',to_timestamp(0),%s,1) ON CONFLICT(name) DO UPDATE SET "
+    "next_due_at=LEAST(capabilities.maintenance.next_due_at,excluded.next_due_at),wake_generation=capabilities.maintenance.wake_generation+1 "
+    "WHERE %s OR capabilities.maintenance.next_due_at IS NULL OR capabilities.maintenance.next_due_at>excluded.next_due_at "
+    "RETURNING wake_generation,next_due_at"
+)
+
+
+def wake_sync(runtime, connection, name, due):
+    task = "capabilities.media." + name
+    if task not in runtime.jobs.sync_tasks:
+        return
+    row = connection.execute(SCHEDULE, (name, due, False)).fetchone()
+    if row:
+        generation = row["wake_generation"]
+        runtime.jobs.enqueue_sync(connection, JobSpec(task, f"media-maintenance:{name}:{generation}",
+            {"wake_generation": generation}, ServiceClass.ELASTIC, scheduled_at=row["next_due_at"]))
+
 
 class Background:
-    def __init__(self,runtime):
-        self.runtime=runtime;self.operations={};self.states={};self.closed=False
-    def start(self,name,operation,*args):
-        self.operations[name]=(operation,args)
-        self.states[name]={"state":"scheduled","restarts":0,"code":None}
-        task="capabilities.media."+name
+    def __init__(self, runtime, *, next_due=None, owner=None):
+        self.runtime, self.next_due, self.owner = runtime, next_due, owner
+        self.operations, self.states = {}, {}
+        self.closed = False
+
+    def start(self, name, operation, *args):
+        self.operations[name] = (operation, args)
+        self.states.setdefault(name, {"state": "scheduled", "restarts": 0, "code": None})
+        task = "capabilities.media." + name
         if task not in self.runtime.jobs.tasks:
-            async def run(**payload):await self.run(name,**payload)
-            self.runtime.jobs.register(task,run)
+            async def run(**payload):
+                await self.run(name, **payload)
+            self.runtime.jobs.register(task, run)
+
     async def activate(self):
-        for name in self.operations:await self.schedule(name,datetime.now(UTC))
-    async def schedule(self,name,due):
-        if self.closed:return
-        async with self.runtime.database.transaction() as conn:
-            await self.runtime.jobs.enqueue(conn,JobSpec("capabilities.media."+name,"media-maintenance:"+name+":"+str(int(due.timestamp())),{},ServiceClass.ELASTIC,scheduled_at=due))
-    async def run(self,name):
-        if self.closed:return
-        from uuid import uuid4
-        owner=str(uuid4())
-        await self.schedule(name,datetime.now(UTC)+timedelta(seconds=10 if "worker" not in name else 2))
-        async with self.runtime.database.transaction() as conn:
-            row=await (await conn.execute("INSERT INTO capabilities.maintenance(name,owner,lease_until) VALUES(%s,%s,now()+interval '60 seconds') ON CONFLICT(name) DO UPDATE SET owner=excluded.owner,lease_until=excluded.lease_until WHERE capabilities.maintenance.lease_until<now() RETURNING name",(name,owner))).fetchone()
-        if not row:return
-        import asyncio
+        for name in self.operations:
+            await self.schedule(name, datetime.now(UTC))
+
+    async def schedule(self, name, due, *, force=False):
+        if self.closed:
+            return
+        async with self.runtime.database.transaction() as connection:
+            row = await (await connection.execute(SCHEDULE, (name, due, force))).fetchone()
+            if row:
+                generation = row["wake_generation"]
+                await self.runtime.jobs.enqueue(connection, JobSpec("capabilities.media." + name,
+                    f"media-maintenance:{name}:{generation}", {"wake_generation": generation},
+                    ServiceClass.ELASTIC, scheduled_at=row["next_due_at"]))
+
+    async def run(self, name, wake_generation=None):
+        if self.closed:
+            return
+        owner = str(uuid4())
+        worker_owner = self.owner() if self.owner else None
+        async with self.runtime.database.transaction() as connection:
+            row = await (await connection.execute(
+                "UPDATE capabilities.maintenance SET owner=%s,lease_until=now()+interval '60 seconds',"
+                "next_due_at=NULL,body=body||%s::jsonb WHERE name=%s AND lease_until<=now() "
+                "AND (next_due_at IS NULL OR next_due_at<=now()) "
+                "AND (%s::bigint IS NULL OR wake_generation=%s) RETURNING body,wake_generation",
+                (owner, canonical({"state": "running", "worker_owner": worker_owner,
+                    "started_at": datetime.now(UTC).isoformat(), "code": None}), name,
+                 wake_generation, wake_generation))).fetchone()
+        if not row:
+            # A change can arrive while the current owner is busy. Preserve one
+            # due observation after its lease instead of dropping the wakeup.
+            async with self.runtime.database.transaction() as connection:
+                busy = await (await connection.execute(
+                    "SELECT lease_until,wake_generation FROM capabilities.maintenance WHERE name=%s AND lease_until>now() "
+                    "AND (%s::bigint IS NULL OR wake_generation=%s)", (name, wake_generation, wake_generation))).fetchone()
+                if busy:
+                    await self.runtime.jobs.enqueue(connection, JobSpec("capabilities.media." + name,
+                        f"media-maintenance-busy:{name}:{busy['wake_generation']}:{busy['lease_until'].isoformat()}",
+                        {"wake_generation": busy["wake_generation"]}, scheduled_at=busy["lease_until"] + timedelta(seconds=1)))
+            return
+
         async def renew():
             while True:
                 await asyncio.sleep(15)
-                async with self.runtime.database.transaction() as conn:await conn.execute("UPDATE capabilities.maintenance SET lease_until=now()+interval '60 seconds' WHERE name=%s AND owner=%s",(name,owner))
-        heartbeat=asyncio.create_task(renew());operation,args=self.operations[name]
-        self.states[name]["state"]="running"
-        try:await operation(*args)
-        except Exception:self.states[name].update(state="failed",code="media_background_failed");raise
-        else:self.states[name].update(state="scheduled",code=None)
+                async with self.runtime.database.transaction() as connection:
+                    await connection.execute("UPDATE capabilities.maintenance SET lease_until=now()+interval '60 seconds' "
+                        "WHERE name=%s AND owner=%s", (name, owner))
+
+        heartbeat = asyncio.create_task(renew())
+        operation, args = self.operations[name]
+        state = {**row["body"], "state": "running"}
+        self.states[name] = state
+        try:
+            await operation(*args)
+        except BaseException as error:
+            state.update(state="failed", code=getattr(error, "code", "media_background_failed"))
+            raise
+        else:
+            state.update(state="scheduled", code=None)
         finally:
-            heartbeat.cancel();await asyncio.gather(heartbeat,return_exceptions=True)
-            async with self.runtime.database.transaction() as conn:await conn.execute("UPDATE capabilities.maintenance SET lease_until=now() WHERE name=%s AND owner=%s",(name,owner))
-    def view(self):return [{"name":name,**state} for name,state in self.states.items()]
-    def healthy(self):return not self.closed and all(x["state"]!="failed" for x in self.states.values())
-    async def close(self):self.closed=True
+            heartbeat.cancel()
+            await asyncio.gather(heartbeat, return_exceptions=True)
+            now = datetime.now(UTC)
+            idle_runs = min(int(state.get("idle_runs", 0)) + 1, 5)
+            try:
+                plan = await self.next_due(name) if self.next_due else {"known": False}
+            except Exception:
+                plan = {"known": False}
+                state.update(state="failed", code="media_due_state_unavailable")
+            if plan.get("known"):
+                due = datetime.fromtimestamp(plan["due"], UTC) if plan.get("due") is not None else now + timedelta(minutes=5)
+                due = max(due, now + timedelta(seconds=10))
+            else:
+                due = now + timedelta(seconds=10 if self.next_due is None else min(300, 10 * 2**idle_runs))
+            state.update(idle_runs=idle_runs, observed_at=now.isoformat(), worker_owner=worker_owner)
+            async with self.runtime.database.transaction() as connection:
+                await connection.execute("UPDATE capabilities.maintenance SET lease_until=now(),body=%s::jsonb "
+                    "WHERE name=%s AND owner=%s", (canonical(state), name, owner))
+            await self.schedule(name, due, force=True)
+
+    async def snapshot(self):
+        async with self.runtime.database.transaction(read_only=True) as connection:
+            rows = await (await connection.execute(
+                "SELECT m.name,m.body,m.next_due_at,m.wake_generation,"
+                "coalesce(o.expires_at>now() AND o.stopped_at IS NULL,false) AS owner_live "
+                "FROM capabilities.maintenance m LEFT JOIN capabilities.execution_owners o ON o.id=m.body->>'worker_owner' "
+                "WHERE m.name=ANY(%s) ORDER BY m.name", (list(self.operations),))).fetchall()
+        saved = {row["name"]: row for row in rows}
+        return [{"name": name, **(saved[name]["body"] if name in saved else {}),
+                 "state": saved[name]["body"].get("state", "unknown") if name in saved and saved[name]["owner_live"] else "unknown",
+                 "code": saved[name]["body"].get("code") if name in saved and saved[name]["owner_live"] else "media_worker_observation_missing",
+                 "next_due_at": saved[name]["next_due_at"] if name in saved else None,
+                 "generation": saved[name]["wake_generation"] if name in saved else None,
+                 "owner_live": bool(name in saved and saved[name]["owner_live"])} for name in sorted(self.operations)]
+
+    def view(self):
+        return [{"name": name, **state} for name, state in self.states.items()]
+
+    def healthy(self):
+        return not self.closed and all(state["state"] != "failed" for state in self.states.values())
+
+    async def close(self):
+        self.closed = True

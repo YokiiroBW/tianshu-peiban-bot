@@ -293,8 +293,24 @@ class Infrastructure:
             )
         except (Fault, OSError):
             run.update(state="failed", reason_codes=["infrastructure_store_unavailable"])
+        except asyncio.CancelledError:
+            run.update(state="cancelled", reason_codes=["infrastructure_collection_cancelled"])
+            raise
+        except Exception as error:
+            run.update(state="failed", reason_codes=["infrastructure_collection_failed"], error_type=type(error).__name__)
         finally:
             run.update(stage="finished", finished_at=utc(self.clock()))
+            try:
+                observation = self.failure(node_id, "collection.run", "collection_finished")
+                observation.update(status="ok", data={"run": dict(run)}, reason_codes=list(run["reason_codes"]))
+                await self._publish(node_id, revision, "collection.run", observation)
+                events = getattr(self.storage_runtime, "events", None)
+                if events and run["state"] in {"failed", "cancelled"}:
+                    await events.emit("job.failed", run["state"], task_name="capabilities.infrastructure.collect",
+                        correlation_id=run["attempt_id"],
+                        error_code=(run["reason_codes"] or ["infrastructure_collection_failed"])[0])
+            except Exception:
+                run["reason_codes"] = sorted(set(run["reason_codes"]) | {"infrastructure_store_unavailable"})
             existing = self.jobs.get(node_id)
             if existing and existing[1] is asyncio.current_task():
                 self.jobs.pop(node_id, None)
@@ -504,6 +520,10 @@ class Infrastructure:
             "data": copy.deepcopy(sample["data"]) if sample else None,
         }
 
+    def _saved_run(self, node_id, revision):
+        saved = self.repo.read(node_id, "collection.run", revision) if self.repo else None
+        return ((saved["latest"].get("data") or {}).get("run")) if saved else None
+
     def node(self, node_id):
         row = self.definition(node_id)
         value = row["value"]
@@ -526,7 +546,7 @@ class Infrastructure:
             "connection_state": connection,
             "observed_at": snapshot["observed_at"],
             "last_attempt_at": snapshot["last_attempt_at"],
-            "refresh": copy.deepcopy(self.runs.get(node_id)),
+            "refresh": copy.deepcopy(self.runs.get(node_id)) or self._saved_run(node_id, value["connection_revision"]),
             "last_test": row["last_test"],
             "capabilities": snapshot["capabilities"],
             "snapshot": snapshot,

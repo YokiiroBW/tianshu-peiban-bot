@@ -154,7 +154,8 @@ class Media:
         self.config = validate_media(settings)
         self.local = local
         self.started = False
-        self.background = Background(runtime)
+        self.background = Background(runtime, next_due=self._maintenance_due,
+            owner=lambda: self.capabilities.actions.owners.id)
         self.previews = {}
         self.qr = {}
         self.wake = asyncio.Event()
@@ -172,6 +173,10 @@ class Media:
             self, file_defaults=comic_files.get("defaults") if comic_files else None
         )
         self.worker = Worker(self)
+        # Register durable task definitions in every process; only start()/activate()
+        # in the worker may check engines or run maintenance.
+        self.books.start_background(self.background)
+        self.comics.start_background(self.background)
         if self.config is None:
             return
         self.contract = PackageContract(self.config["package_contract_directory"])
@@ -200,21 +205,51 @@ class Media:
         )
         self.storage_breakdown = StorageBreakdown(self, clock=clock)
         self.runtime_sample = RuntimeSample(clock=clock)
+        self.background.start("subscriptions", self.subscriptions.pump)
+        self.music.start_background(self.background)
+        self.background.start("retention", self.retention.pump)
+
+    async def _maintenance_due(self, name):
+        return await self.local(self.repo.maintenance_due, name)
+
+    async def _publish_engine(self):
+        owner = self.capabilities.actions.owners.id
+        async with self.storage_runtime.database.transaction() as connection:
+            await connection.execute(
+                "INSERT INTO capabilities.runtime_observations(name,owner_id,body) "
+                "SELECT 'media.engine',id,%s::jsonb FROM capabilities.execution_owners "
+                "WHERE id=%s AND expires_at>now() AND stopped_at IS NULL "
+                "ON CONFLICT(name) DO UPDATE SET owner_id=excluded.owner_id,body=excluded.body,"
+                "observed_at=now(),revision=capabilities.runtime_observations.revision+1 "
+                "WHERE capabilities.runtime_observations.owner_id=excluded.owner_id OR NOT EXISTS "
+                "(SELECT 1 FROM capabilities.execution_owners old WHERE old.id=capabilities.runtime_observations.owner_id "
+                "AND old.expires_at>now() AND old.stopped_at IS NULL)",
+                (json.dumps(dict(self.engine.status)), owner))
+
+    async def _engine_observation(self):
+        async with self.storage_runtime.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT r.*,o.expires_at>now() AND o.stopped_at IS NULL AS owner_live "
+                "FROM capabilities.runtime_observations r JOIN capabilities.execution_owners o ON o.id=r.owner_id "
+                "WHERE r.name='media.engine'")).fetchone()
+        if not row:
+            return {"state": "not_verified", "version": None, "code": "media_worker_observation_missing",
+                    "owner_live": False, "observed_at": None}
+        return {**row["body"], "state": row["body"]["state"] if row["owner_live"] else "not_verified",
+                "code": row["body"].get("code") if row["owner_live"] else "media_worker_observation_stale",
+                "observed_at": row["observed_at"], "generation": row["revision"], "owner_id": row["owner_id"],
+                "owner_live": row["owner_live"], "stale": not row["owner_live"]}
 
     async def start(self):
         if self.started:
             return
         self.started = True
-        self.books.start_background(self.background)
-        self.comics.start_background(self.background)
         if self.config is None:
             return
         self.storage_breakdown.closed = False
         await self.connector.start()
         await self.engine.check()
-        self.background.start("subscriptions", self.subscriptions.pump)
-        self.music.start_background(self.background)
-        self.background.start("retention", self.retention.pump)
+        await self._publish_engine()
 
     async def quiesce(self):
         # Existing loops settle their cancellation/lease receipts. Their clients
@@ -290,13 +325,13 @@ class Media:
         )
         return {
             "configured": True,
-            "background": self.background.view(),
+            "background": await self.background.snapshot(),
             "capabilities": {
                 "provider": "bilibili",
                 "source_kinds": list(SOURCE_KINDS),
                 "destination_modes": list(DESTINATION_MODES),
             },
-            "engine": dict(self.engine.status),
+            "engine": await self._engine_observation(),
             "accounts": [public_account(account) for account in accounts],
             "targets": [
                 {
