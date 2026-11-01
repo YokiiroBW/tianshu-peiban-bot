@@ -114,8 +114,7 @@ export type GrowthView = {
     last_reviewed_at?: string | null;
     material_key?: string | null;
     attempt_id?: string | null;
-    recovery?: "observe_original_attempt" | "retire_unavailable_original" | null;
-    reason?: string | null;
+    recovery?: "observe_original_attempt" | null;
     cursor?: string | null;
     pending_inputs?: number;
     pending_original_requests?: number;
