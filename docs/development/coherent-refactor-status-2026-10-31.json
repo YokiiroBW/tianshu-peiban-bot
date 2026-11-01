@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "goal_thread": "01a18df4-9275-7411-b48b-32fd86889108",
-  "state": "production_ready_retirement_complete_nas_ssh_authorization_pending",
+  "state": "production_ready_retirement_complete",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "xhigh",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\tianshu-unified-refactor\\tianshu-peiban-bot",
@@ -389,9 +389,10 @@
         "CR19"
       ],
       "owner": "部署集成人",
-      "state": "deployed_verified_external_authorization_pending",
+      "state": "accepted_integrated",
       "implementation_agent": "foundation_models",
-      "pending": "Only the user decision on restoring the original NAS SSH public key remains; core deployment, two QQ peers, authored configuration and owned old-state retirement are complete."
+      "deployment_state": "production_ready_retirement_complete",
+      "closure": "Authored configuration preserved; two QQ peers connected; old owned runtime and business data retired; original NAS SSH authorization restored with human approval and .230-only source restriction; native observations verified."
     }
   ],
   "agents": {
@@ -1321,8 +1322,80 @@
       "media_read_only_external_checks": 6,
       "media_unverified_connections": 0,
       "final_qq_identity_reads": 2,
-      "nas_snapshot": "ssh_auth_failed; original key absent in server authorized_keys",
-      "full_suite_repeated": false
+      "nas_snapshot": "ok/current after authorized original-key restoration",
+      "full_suite_repeated": false,
+      "nas_final_readonly": {
+        "observed_at": "2026-11-01T04:31:32.122227+00:00",
+        "node_id": "nas-main",
+        "enabled": true,
+        "connection_revision": 3,
+        "snapshot": {
+          "status": "ok",
+          "freshness": "current",
+          "observed_at": "2026-11-01T04:30:55.565Z",
+          "reason_codes": [],
+          "completeness": {
+            "next_cursor": null,
+            "returned": 1,
+            "state": "complete",
+            "total": 1
+          }
+        },
+        "compose": {
+          "status": "partial",
+          "freshness": "current",
+          "observed_at": "2026-11-01T04:31:09.779Z",
+          "reason_codes": [
+            "compose_binding_unresolved",
+            "compose_comparison_partial",
+            "compose_discovery_partial",
+            "compose_file_unavailable",
+            "compose_image_unresolved",
+            "compose_invalid",
+            "compose_unsupported",
+            "permission_denied"
+          ],
+          "completeness": {
+            "next_cursor": null,
+            "returned": 72,
+            "state": "partial",
+            "total": 72
+          }
+        },
+        "inventory": {
+          "status": "ok",
+          "freshness": "current",
+          "observed_at": "2026-11-01T04:30:56.928Z",
+          "reason_codes": [],
+          "completeness": {
+            "next_cursor": null,
+            "returned": 112,
+            "state": "complete",
+            "total": 112
+          }
+        },
+        "metrics": {
+          "status": "partial",
+          "freshness": "current",
+          "observed_at": "2026-11-01T04:31:07.567Z",
+          "reason_codes": [
+            "block_io_unavailable",
+            "container_not_running",
+            "first_sample",
+            "network_counters_unavailable"
+          ],
+          "completeness": {
+            "next_cursor": null,
+            "returned": 112,
+            "state": "partial",
+            "total": 112
+          }
+        },
+        "containers": 112,
+        "applications": 64,
+        "control_actions_submitted": 0,
+        "verified": true
+      }
     }
   },
   "deployment": {
@@ -1371,7 +1444,7 @@
     }
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
-  "updated_at": "2026-11-01T02:07:11.005292+00:00",
+  "updated_at": "2026-11-01T04:33:55.534284+00:00",
   "accepted_source_sha": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
   "accepted_image": "sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc",
   "configuration_migration": {
@@ -1398,8 +1471,8 @@
     "memory_vector_enabled": true,
     "memory_rerank_enabled": true,
     "nas_registration_and_original_key_preserved": true,
-    "nas_collection_enabled": false,
-    "nas_authorization": "awaiting_user_choice; no authorized_keys mutation"
+    "nas_collection_enabled": true,
+    "nas_authorization": "restored_after_explicit_human_authorization; restrict and from=192.168.31.230; existing entries and permissions preserved"
   },
   "acceptance_summary": {
     "concentrated_acceptance": "prior passed unchanged evidence reused; actual defects repaired and affected checks repeated",
@@ -1413,7 +1486,8 @@
       "Infrastructure helper: 4 passed",
       "19 authored media rows reconstructed and native secret readback matched; 6 read-only external checks succeeded",
       "Two QQ identities verified after final image; SnowLuma and QQ process not restarted",
-      "Application ready, PG healthy, guard active after retirement"
+      "Application ready, PG healthy, guard active after retirement",
+      "Authorized NAS original-key restoration: source restricted to 192.168.31.230; current host snapshot and complete 112-container inventory verified; Compose/metrics partial reasons retained"
     ],
     "real_models": "Gemini native text/image/audio/video/tools; DeepSeek; Qwen1024 embedding/rerank previously accepted",
     "real_qq_messages_sent": 0,
@@ -1421,8 +1495,17 @@
       "Real QQ/TG test-message delivery",
       "All third-party paid generation/download/control operations",
       "Long-term companion quality",
-      "NAS SSH observation/control: original server authorization missing; user choice pending"
-    ]
+      "Real NAS container-control actions (0 submitted)",
+      "Complete Compose/metrics coverage for unrelated NAS projects; partial reasons exposed"
+    ],
+    "completion": {
+      "cards_accepted": 30,
+      "required_remaining": [],
+      "prior_valid_checks_reused": true,
+      "new_code_or_image_change": false,
+      "nas_readback_at": "2026-11-01T04:31:32.122227+00:00",
+      "manual_non_runtime_cleanup": "Three local generated build directories remain due to automatic policy rejection; manual script already provided; not deployed."
+    }
   },
   "retirement": {
     "cold_target_containers_removed": 13,

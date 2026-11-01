@@ -8,7 +8,7 @@
 
 应用位于 `.230:/srv/tianshu-core/app`，专属 PG 17/pgvector 0.8.7 位于 NAS `/volume2/Dockers/tianshu-core-postgres`、端口 25018。最终清理后应用 ready、PG healthy、容量守护 active，20 GiB 空间下限保持。11 个挂载包含原媒体目录 7 项和原专用 SSH 材料 2 项。
 
-两个 QQ 已正常热切换，最终镜像之后账号身份查询再次通过。SnowLuma 自 2026-10-27 的原进程未重启。旧 R67、专属业务库和本轮验收环境已退役。30 块实现、前端及集中验收完成；**仅 NAS 原公钥恢复的用户选择尚待答复**，整体目标未标为完全完成。
+两个 QQ 已正常热切换，最终镜像之后账号身份查询再次通过。SnowLuma 自 2026-10-27 的原进程未重启。旧 R67、专属业务库和本轮验收环境已退役。用户授权后，NAS 原专用公钥已恢复并限定来源，新版实际采集通过。30 块实现、前端、集中验收、配置迁移、正式部署和旧业务退役均已完成；下文单独记录真实外部验证的覆盖范围。
 
 ## 用户配置保留结果
 
@@ -68,10 +68,14 @@ QWeather 原 host/key 经旧 seal、5 行 MAC 与 AES-GCM 验证后迁入，使�
 
 Windows 三个生成构建目录的递归清理被自动审批返回 `blocked by policy`，没有换方式绕过；仍保留且不属于镜像输入。人工清理脚本位于原工作区 `.runtime/coherent-refactor-20261031/cleanup-local-build.ps1`。
 
-## 唯一待用户选择的接入项
+## NAS 授权恢复与最终只读核验
 
-NAS `agent` 账户授权列表不含原天枢公钥，实机返回 `ssh_auth_failed`；原指纹为 `SHA256:2CXMNkyNKiT+F7HnLGIaCBqhHtpXBI996oHAEEgvm8k`。原登记、专用密钥、known_hosts 和保护规则均已迁入，服务器授权列表没有擅自修改。
+原 NAS `agent` 授权列表缺失天枢专用公钥，首次实机返回 `ssh_auth_failed`，采集曾暂挂。用户随后明确回复“允许恢复这把专用公钥，并限定来源主机”。已重新核对当前应用私钥对应的公钥指纹 `SHA256:2CXMNkyNKiT+F7HnLGIaCBqhHtpXBI996oHAEEgvm8k`，仅追加该原公钥，并设置 `restrict,from="192.168.31.230"`。其他授权条目、文件 inode、所有者及权限保持；没有生成替代密钥或解除来源限制。
 
-已询问用户是否恢复该原公钥，并限定来源 `192.168.31.230`。等待期间 nas-main 采集暂挂，保留原配置及预期启用状态，避免持续失败认证。若允许，再恢复授权、启用节点并核验只读 snapshot/inventory；若选择暂不恢复，则保留配置。不会为验收执行 NAS 容器启停或其他控制操作。
+通过原生配置 API 将 `nas-main` 启用至 revision 3。2026-11-01 12:31（Asia/Shanghai）实际读取：主机 snapshot 为 `ok/current`，Docker inventory 为 `ok/current`，完整返回 112 个容器；专属 PG healthy，SnowLuma 原容器保持运行。Compose 返回 72 个栈（21 完整、40 部分、11 不可用），聚合状态为 `partial/current`，实际原因包括部分外部项目文件不可用、权限不足、未解析的绑定/镜像与不支持的字段。指标同为 `partial/current`，明确保留首次采样、43 个未运行容器及底层缺失的 I/O/网络计数，不把未知值填零，也不称全部外部项目已完整核验。
+
+基础设施实现子代理仅复核既有回执和源码，确认没有本次迁移造成的实质缺项。Compose 扫描仍限原 `/volume1/Download/dockge/stacks`；新版 PG 的 Compose 项目位于该根外，因此未列入 72 个栈，但其容器、Compose labels 和健康状态已在 Docker inventory 正确可见。没有为了消除部分状态去扩大扫描范围或修改其他项目权限。
+
+本次只恢复既有访问并读取状态，NAS 容器控制动作提交数为 0。原公钥恢复收据 `nas-ssh-restoration.json` 和原生读取摘要 `nas-final-readonly.json` 已保存；此前缺少授权的记录保留为历史，不再是未完成项。应用代码和镜像未变，复用已通过的集中验收，不重复构建或全套测试。
 
 原始回执、截图、私有配置存档和错误记录位于协调者原工作区 `.runtime/coherent-refactor-20261031/acceptance/`。真实发送、付费生成、所有外部平台及长期陪伴质量没有被这些配置/健康核验覆盖。
