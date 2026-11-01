@@ -7,7 +7,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 import aiohttp
-from tianshu.types import Action, Receipt, OriginKind, ServiceClass, SourceRef
+from tianshu.types import Action, Receipt, Coverage, OriginKind, ServiceClass, SourceRef
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..configuration import Configuration
@@ -354,5 +354,13 @@ class WeatherService:
             "succeeded",
             "none",
             "not_requested",
+            # This acquired response, rather than every location or a whole day's weather.
+            coverage=Coverage(
+                True,
+                total=len(locations) if operation == "search" else 1,
+                representation=(
+                    "weather_lookup_response" if operation == "search" else "weather_current_response"
+                ),
+            ),
             result=result,
         )

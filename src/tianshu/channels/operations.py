@@ -12,6 +12,28 @@ from .onebot.registry import BY_NAME, validate_call
 from .telegram import BOT_API_METHODS
 
 
+ONEBOT_PROBE_APIS = (
+    "get_login_info",
+    "get_version_info",
+    "get_status",
+    "can_send_image",
+    "can_send_record",
+)
+TELEGRAM_PROBE_APIS = ("getMe",)
+
+
+def probe_apis(adapter):
+    return TELEGRAM_PROBE_APIS if adapter == "telegram" else ONEBOT_PROBE_APIS
+
+
+def technical_api(name):
+    """Transport diagnostics/credentials/control, rather than content read operations."""
+    if name in ONEBOT_PROBE_APIS or name in TELEGRAM_PROBE_APIS:
+        return True
+    spec = BY_NAME.get(name)
+    return bool(spec and (spec.sensitive or spec.effect == "control"))
+
+
 class Operation:
     def __init__(self, service, name):
         self.service, self.name = service, name
@@ -49,17 +71,7 @@ class Operation:
             arguments["connection_id"], action.context
         )
         if self.name == "probe":
-            names = (
-                ("getMe",)
-                if connection["adapter"] == "telegram"
-                else (
-                    "get_login_info",
-                    "get_version_info",
-                    "get_status",
-                    "can_send_image",
-                    "can_send_record",
-                )
-            )
+            names = probe_apis(connection["adapter"])
             identifiers = [
                 await self.service.repository.prepare_call(
                     action,

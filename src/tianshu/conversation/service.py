@@ -79,10 +79,20 @@ class ConversationService:
         parts, refs = input_parts(row["original_parts"]), source_refs(row["original_source_refs"])
         await self.identity.check(context, refs)
         await self.contacts.received(context, row["occurred_at"], input_id=turn_id)
+        # Coverage describes accepted input parts, not whether attached media was understood.
+        received_all = len(refs) == len(parts)
+        coverage = Coverage(
+            received_all,
+            total=len(parts),
+            missing=() if received_all else ("source_parts_unavailable",),
+            ranges=({"start": 0, "end": len(parts), "unit": "parts"},) if received_all else (),
+            representation="received_input_parts",
+        )
         await self.memory.observe_episode(context, {"episode_id": "input:"+turn_id, "event_id": row["event_id"],
             "revision": row["event_revision"], "origin_kind": context.origin_kind, "actor_id": context.actor_id,
             "subject_id": context.person_id, "occurred_at": row["occurred_at"],
             "summary": "\n".join(part.text for part in parts if part.text)[:4000], "source_refs": refs,
+            "coverage": coverage,
             "actual_result": {"reply_owner": row["reply_owner"], "representation": "source_excerpt",
                               "modalities": [part.kind for part in parts]}})
         await self.growth.changed(context, f"input:{turn_id}:{row['event_revision']}")

@@ -549,8 +549,15 @@ class SourceService:
 
     async def capture(self, context, *, locator, raw, mime_type):
         await self.check(context)
+        base_type = mime_type.partition(";")[0].strip().lower()
+        textual = (
+            base_type.startswith("text/")
+            or base_type in {"application/json", "application/xml"}
+            or (base_type.startswith("application/") and base_type.endswith(("+json", "+xml")))
+        )
+        # Preserve the exact UTF-8 representation and original MIME, including structured text.
+        text = raw.decode("utf-8") if textual else None
         media = await asyncio.to_thread(self.files.put_bytes, raw, media_type=mime_type)
-        text = raw.decode("utf-8") if mime_type.startswith("text/") else None
         return await self._register_media(context, media, locator, OriginKind.TOOL_RESULT, text)
 
     async def register_media(self, context, media, *, locator, origin_kind=OriginKind.HUMAN):

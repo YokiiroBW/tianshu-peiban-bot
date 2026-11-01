@@ -3,6 +3,8 @@ from tianshu.sources.dependencies import unique_refs
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.types import ServiceClass
+from tianshu.capabilities.serialization import action_from
+from tianshu.channels.operations import technical_api
 from .codec import context_from_record, receipt, source_refs
 
 
@@ -22,6 +24,24 @@ class ResultConsumer:
         self.database, self.identity = database, identity
         self.actions, self.conversation, self.life_worker = actions, conversation, life_worker
         self.memory, self.growth,self.renderer = memory, growth,renderer
+
+    async def technical_result(self, action, result):
+        if action["capability_id"] == "channels.api":
+            # The original calls are owned by Channels, not by model-supplied arguments.
+            calls = result.result.get("calls", ())
+            return bool(calls) and all(technical_api(call["api_name"]) for call in calls)
+        try:
+            handler = await self.actions.handler(action_from(action))
+        except AppError as exc:
+            if exc.code != "adapter_not_installed":
+                raise
+            return False
+        definition = handler.definition
+        return "config.publish" in definition.permissions or (
+            "external.manage" in definition.permissions
+            and definition.model_tool is None
+            and definition.public_command is None
+        )
 
     async def consume(self, event):
         if event.get("type") != "capability.result" or event.get("version") != 1:
@@ -46,8 +66,7 @@ class ResultConsumer:
             await self.conversation.expression.channel_result(context,current["action"]["expression_id"],result)
         elif not rendered:
             await self.conversation.on_result(context, result, result_revision=current["result_revision"])
-        technical = current["action"]["capability_id"] in {"channels.read","channels.probe","channels.configure",
-            "capabilities.catalog.settings.save","capabilities.catalog.sources.save","capabilities.catalog.sources.refresh"}
+        technical = await self.technical_result(current["action"], result)
         owned_by_life = await self.life_worker.capability_result(context, result, result_revision=current["result_revision"], observed_at=current["result_observed_at"])
         if not owned_by_life and not rendered and not channel_result and not technical:
             await self.life_worker.detached_result(context,result,current["action"])
