@@ -48,6 +48,11 @@ class Memory:
     async def episodes_since(self, _context, _cursor, _limit):
         return EpisodePage(self.episodes, None, Coverage(True), self.episodes[-1].cursor)
 
+    async def episodes_by_refs(self, _context, refs):
+        selected = tuple(item for identifier, version in refs for item in self.episodes
+                         if item.episode_id == identifier and item.revision == version)
+        return EpisodePage(selected, None, Coverage(len(selected) == len(refs)), selected[-1].cursor if selected else "e:0")
+
     async def relationship(self, *_args):
         return {"frozen": False}
 
@@ -96,13 +101,13 @@ async def prepare(database, models):
         actor_registry=None, actor_changed=None, sources=authority, actor_activated=None)
     notifications = []
 
-    async def changed(*args):
+    async def changed(*args, **kwargs):
         notifications.append(args)
 
     growth = GrowthService(companion, jobs, models, ContextAssembler(authority, None, None), on_projection_changed=changed)
     async with database.transaction() as connection:
         await connection.execute("INSERT INTO companion.actors(actor_id,name,enabled) VALUES ('actor','角色',true)")
-    await growth.changed(context, "new-experience")
+    await growth.changed(context, "new-experience", episode=memory.episode)
     return growth, memory, jobs, context, notifications
 
 
@@ -149,7 +154,7 @@ async def test_whole_batch_rejects_before_memory_style_or_affect_writes(database
     await growth.organize("actor", scope, 1)
     assert len(jobs.items) == before
     # New ticks retain the refused generation instead of paying for or consuming it again.
-    await growth.changed(context, "another-tick")
+    await growth.changed(context, "another-tick", episode=replace(memory.episode, episode_id="another", sequence=2, cursor="e:2"))
     await growth.organize("actor", scope, 2)
     before = len(jobs.items)
     await growth.recover()
@@ -213,7 +218,8 @@ async def test_reflection_keeps_the_full_frozen_input_batch_as_dependencies(data
     growth, memory, _jobs, context, _notifications = await prepare(database, models)
     memory.episodes += (replace(memory.episode, episode_id="second", event_id="second-input",
         source_refs=(SourceRef("second-original", 1),), sequence=2, cursor="e:2"),)
-    await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
+    await growth.changed(context, "second-input", episode=memory.episodes[-1])
+    await growth.organize("actor", signature(sorted(context.scope_ids)), 2)
     proposal = memory.proposals[0]
     assert proposal.episode_ids == ("episode", "second")
     assert {ref.source_id for ref in proposal.source_refs} == {"original", "second-original"}
@@ -322,7 +328,7 @@ async def test_new_event_keeps_unresolved_original_batch_and_attempt(database):
     original = models.calls[0]
     active = (await state(database))["active_batch"]
     memory.episodes += (replace(memory.episode, episode_id="later", sequence=2, cursor="e:2"),)
-    await growth.changed(context, "later-event")
+    await growth.changed(context, "later-event", episode=memory.episodes[-1])
     await growth.organize("actor", scope, 2)
     assert len(models.calls) == 1
     assert models.reads == [original.attempt_id]
@@ -330,3 +336,22 @@ async def test_new_event_keeps_unresolved_original_batch_and_attempt(database):
     assert current["active_batch"] == active
     assert current["cursor"] is None
     assert current["watermark"] == "later-event"
+
+
+@pytest.mark.asyncio
+async def test_late_commit_with_lower_sequence_is_consumed_as_actual_version(database):
+    models = Models({"notes": []}, {"notes": []})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    memory.episodes = (replace(memory.episode, sequence=10, cursor="e:10"),)
+    await growth.organize("actor", scope, 1)
+    late = replace(memory.episode, episode_id="late-commit", event_id="late", sequence=5, cursor="e:5")
+    memory.episodes += (late,)
+    await growth.changed(context, "late-commit", episode=late)
+    current = await state(database)
+    await growth.organize("actor", scope, current["revision"])
+    assert len(models.calls) == 2
+    assert 'late-commit' in ''.join(part.text or '' for message in models.calls[1].messages for part in message.parts)
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute("SELECT revision,reviewed_revision FROM companion.growth_inputs WHERE episode_id='late-commit'")).fetchone()
+    assert row["reviewed_revision"] == row["revision"] == 1

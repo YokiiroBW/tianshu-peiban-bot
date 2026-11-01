@@ -470,8 +470,6 @@ class LifeWorker:
                     await self.life.memory.observe_episode(context, {"episode_id": f"fiction:{activity_id}:{expected_revision}", "event_id": f"fiction:{activity_id}:{expected_revision}",
                         "revision":1,"origin_kind":"actor","actor_id":context.actor_id,"occurred_at":now,"summary":"想象活动完成："+row["title"],
                         "source_refs":refs,"actual_result":completion},connection=connection)
-                    if self.growth:
-                        await self.growth.changed(context,f"fiction:{activity_id}:{expected_revision}",connection=connection)
                     await self.life.signal(context,f"activity-finished:{activity_id}:{expected_revision}",connection=connection)
                 else:
                     due = now+timedelta(minutes=int(data.get("duration_minutes",30)))
@@ -611,8 +609,6 @@ class LifeWorker:
                 "matter_id": row["matter_id"], "action_id": result.action_id, "receipt_id": result.receipt_id,
                 "coverage": result.coverage, "actual_result": {**result.result, "execution": result.execution, "effect": result.effect,
                     "delivery": result.delivery, "receipt_id": result.receipt_id, "capability_id": capability_id}}, connection=connection)
-            if self.growth:
-                await self.growth.changed(context, f"result:{result.action_id}:{result_revision}", connection=connection)
             if prepared is not None and row["state"] != "cancelled":
                 await self.persist_contact(connection, prepared)
             if result.execution != "unknown" and result.effect != "unknown":

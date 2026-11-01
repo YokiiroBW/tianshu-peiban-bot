@@ -47,6 +47,8 @@ class SourcePort(Protocol):
         occurred_at: datetime,
         parts: tuple[InputPart, ...],
         origin_kind: OriginKind,
+        connection=None,
+        support_refs: tuple[SourceRef, ...] = (),
     ) -> tuple[SourceRef, ...]: ...
     async def register_media(
         self,

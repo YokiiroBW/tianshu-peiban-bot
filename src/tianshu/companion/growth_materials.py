@@ -35,11 +35,17 @@ def material(episodes):
     }
 
 
+def reflectable(episode):
+    result = episode.actual_result or {}
+    return not result.get("internal") and result.get("derived_kind") not in {"reflection", "diary"}
+
+
 async def select_batch(assembler, context, page, persona_text, budget, revision):
     # Only a contiguous prefix can advance this cursor. A bad item is visible
     # and blocks once, rather than being silently skipped on every new message.
     eligible = []
-    for episode in page.items:
+    candidates = tuple(item for item in page.items if reflectable(item))
+    for episode in candidates:
         if not episode.source_refs:
             if not eligible:
                 raise AppError("reflection_material_source_required", details={
@@ -71,7 +77,7 @@ async def select_batch(assembler, context, page, persona_text, budget, revision)
                 }) from None
             count = max(1, count // 2)
             continue
-        more = len(selected) < len(page.items) or bool(page.next_cursor)
-        end_cursor = selected[-1].cursor if len(selected) < len(page.items) else page.watermark
+        more = len(selected) < len(candidates) or bool(page.next_cursor)
+        end_cursor = selected[-1].cursor if len(selected) < len(candidates) else page.watermark
         return selected, pack, end_cursor, more
     raise AppError("reflection_material_contract_invalid")
