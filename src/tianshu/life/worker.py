@@ -14,6 +14,7 @@ from tianshu.types import Action, OriginKind, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, artifacts, document, receipt, signature, source_refs
 from tianshu.conversation.types import ExpressionPlan, InputPart
 from tianshu.conversation.generation import GenerationRequests, attempt_for
+from tianshu.capabilities.actions import result_sources
 from .validation import timestamp
 from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
@@ -543,6 +544,17 @@ class LifeWorker:
             return activity or commitment
         return False
 
+    async def _receipt_sources(self, context, result, result_revision, observed_at, connection, dependencies):
+        refs = unique_refs(tuple(dependencies), result_sources(result))
+        original = await self.life.sources.record_event(context, producer="life:action",
+            event_id="result:" + result.action_id, revision=result_revision,
+            occurred_at=observed_at, origin_kind=OriginKind.TOOL_RESULT,
+            parts=(InputPart("text", json.dumps(wire(result), ensure_ascii=False), metadata={
+                "derived_kind": "action_receipt", "action_id": result.action_id,
+                "receipt_id": result.receipt_id, "execution": result.execution, "effect": result.effect}),),
+            support_refs=refs, connection=connection)
+        return unique_refs(refs, original)
+
     async def _activity_result(self, context, result, result_revision, observed_at, capability_id):
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as probe:
@@ -557,9 +569,7 @@ class LifeWorker:
             window = photo.get("window") or {}
             due = timestamp(window.get("due_at")) if window.get("due_at") else datetime.now(UTC)
             expires = timestamp(window.get("expires_at")) if window.get("expires_at") else datetime.now(UTC)+timedelta(hours=4)
-            refs = unique_refs(tuple(ref for ref in (
-                *source_refs(snapshot["source_refs"]), *source_refs(result.result.get("source_refs", ())),
-                *(ref for item in result.artifacts for ref in item.source_refs))))
+            refs = unique_refs(source_refs(snapshot["source_refs"]), result_sources(result))
             if result.execution == "succeeded" and result.artifacts and delivery_kind != "create_only" and context.conversation_id and snapshot["state"] != "cancelled":
                 prepared = await self.prepare_contact(ContactCandidate("action:"+result.action_id, context.actor_id, context.conversation_id,
                     "creation", snapshot["title"], due, expires, context,
@@ -567,14 +577,12 @@ class LifeWorker:
                     payload={"artifacts": wire(result.artifacts), "public_parts": [
                         {"kind": "image" if item.media.mime_type.startswith("image/") else "audio" if item.media.mime_type.startswith("audio/") else "file", "media": wire(item.media)} for item in result.artifacts]}))
         async with self.life.database.transaction() as connection:
-            row = await self.life.lock_row(connection,context,"SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id), additional_refs=unique_refs(source_refs(result.result.get("source_refs",())),tuple(ref for item in result.artifacts for ref in item.source_refs)))
+            row = await self.life.lock_row(connection,context,"SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id), additional_refs=result_sources(result))
             if not row:
                 return False
             if result_revision <= row["last_result_revision"]:
                 return True
-            refs = unique_refs(tuple(ref for ref in (
-                *source_refs(row["source_refs"]), *source_refs(result.result.get("source_refs", ())),
-                *(ref for item in result.artifacts for ref in item.source_refs))))
+            refs = unique_refs(source_refs(row["source_refs"]), result_sources(result))
             await self.life.validate_persistence(connection, context, refs)
             await connection.execute("UPDATE life.activities SET last_result_revision=%s,last_receipt_id=%s WHERE id=%s", (result_revision, result.receipt_id, row["id"]))
             if result.execution in {"pending", "running"}:
@@ -588,7 +596,8 @@ class LifeWorker:
                 elif result.execution == "succeeded":
                     consumption=result.result.get("consumption") if row["checkpoint_data"].get("capability_id")=="video.observe" else None
                     next_position=consumption["next_position"] if consumption else result.result.get("next_position")
-                    continuing=next_position is not None
+                    continuation=result.result.get("continuation")
+                    continuing=next_position is not None or continuation is not None
                     if consumption and consumption["analysis_completed"] is not True:
                         await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='analysis_unconfirmed',resume_condition='review_original_result',revision=revision+1 WHERE id=%s",(row["id"],))
                         return True
@@ -597,11 +606,14 @@ class LifeWorker:
                         "dormant" if continuing else "completed", "continuation_available" if continuing else None,
                         "continue_from_checkpoint" if continuing else None, step,
                         document({"completed_action_id": result.action_id, "actual_receipt_id": result.receipt_id,
-                                  "next_position": next_position, "consumption":consumption, "completion_basis":"requested_window_ended" if consumption and next_position is None else "actual_result", "coverage": wire(result.coverage)}), row["id"]))
+                                  "next_position": next_position, "continuation": continuation, "consumption":consumption,
+                                  "completion_basis":"partial_source_read" if continuing else "requested_window_ended" if consumption else "actual_result",
+                                  "coverage": wire(result.coverage)}), row["id"]))
                 else:
                     await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason=%s,resume_condition='review_failure',revision=revision+1 WHERE id=%s", (result.error_code or result.execution, row["id"]))
             await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s", (context.actor_id, row["id"]))
             summary = row["title"] if result.execution == "succeeded" and not uncertain else ("结果未确认：" if uncertain else "操作未完成：")+row["title"]
+            refs = await self._receipt_sources(context, result, result_revision, observed_at, connection, refs)
             await self.life.memory.observe_episode(context, {"episode_id": "action:"+result.action_id,
                 "event_id": "action:"+result.action_id, "revision": result_revision,
                 "origin_kind": "tool_result", "actor_id": context.actor_id, "subject_id": context.actor_id,
@@ -750,7 +762,7 @@ class LifeWorker:
     async def _commitment_result(self, context, result, result_revision, observed_at, capability_id):
         await self.life.identity.check(context)
         async with self.life.database.transaction() as connection:
-            row = await self.life.lock_row(connection,context,"SELECT * FROM life.commitments WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id), additional_refs=unique_refs(source_refs(result.result.get("source_refs",())),tuple(ref for item in result.artifacts for ref in item.source_refs)))
+            row = await self.life.lock_row(connection,context,"SELECT * FROM life.commitments WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id), additional_refs=result_sources(result))
             if not row:
                 return False
             if row["state"] in {"completed", "expired", "cancelled", "scheduled"}:
@@ -767,11 +779,12 @@ class LifeWorker:
                 if next_due:
                     await self._recur(connection, row, next_due)
             if state == "completed":
+                refs = await self._receipt_sources(context, result, result_revision, observed_at, connection, source_refs(row["source_refs"]))
                 await self.life.memory.observe_episode(context, {"episode_id": "action:"+result.action_id, "event_id": "action:"+result.action_id, "revision": result_revision,
                     "origin_kind": "tool_result", "actor_id": context.actor_id, "subject_id": context.actor_id,
-                    "occurred_at": observed_at, "summary": row["title"], "source_refs": source_refs(row["source_refs"]),
+                    "occurred_at": observed_at, "summary": row["title"], "source_refs": refs,
                     "matter_id": row["matter_id"], "action_id": result.action_id, "receipt_id": result.receipt_id,
-                    "coverage": result.coverage, "actual_result": {**result.result,"capability_id":capability_id,"execution":result.execution,"effect":result.effect,"delivery":result.delivery}}, connection=connection)
+                    "coverage": result.coverage, "actual_result": {**result.result,"receipt_id":result.receipt_id,"capability_id":capability_id,"execution":result.execution,"effect":result.effect,"delivery":result.delivery}}, connection=connection)
         return True
 
     async def _recur(self, connection, row, due):

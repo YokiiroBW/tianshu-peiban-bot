@@ -222,7 +222,12 @@ class LifeService:
             if target == "running" and row["waiting_reason"] == "continuation_available":
                 checkpoint = row["checkpoint_data"]
                 arguments=dict(checkpoint.get("arguments",{}))
-                if checkpoint.get("capability_id")=="video.observe":
+                if checkpoint.get("continuation"):
+                    continuation=checkpoint["continuation"]
+                    if continuation.get("capability_id") != checkpoint.get("capability_id") or not isinstance(continuation.get("arguments"),dict):
+                        raise AppError("activity_continuation_invalid",status=409)
+                    arguments=dict(continuation["arguments"])
+                elif checkpoint.get("capability_id")=="video.observe":
                     continuation=checkpoint["consumption"]["next_position"]
                     arguments.update({key:value for key,value in continuation.items() if key!="unit"})
                 elif checkpoint.get("capability_id")=="content.continue":

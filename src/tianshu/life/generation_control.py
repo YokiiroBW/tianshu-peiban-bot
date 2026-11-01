@@ -7,7 +7,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 from tianshu.conversation.codec import context_from_record, signature
 from .validation import revision
-from .writing import generated_text
+from .writing import generated_text, generation_error
 
 
 class GenerationControl:
@@ -81,10 +81,16 @@ class GenerationControl:
         if result is None and frozen is not None and frozen.budget.deadline_at<=datetime.now(UTC):
             state="cancelled" if row["generation_cancel_requested"] else "failed"
         table = "life.chapters" if kind=="chapter" else "life.diaries"
+        if result is not None:
+            reason = ("model_completed_after_cancel" if row["generation_cancel_requested"] and result.receipt.status == "succeeded"
+                      else generation_error(result, "generation_output_empty") if result.receipt.status == "succeeded"
+                      else result.receipt.error_code or "model_" + result.receipt.status)
+        else:
+            reason = "cancelled_before_model_registration" if state == "cancelled" else "generation_request_expired" if state == "failed" else "model_outcome_unknown"
         async with self.life.database.transaction() as connection:
             await self.life.validate_persistence(connection,context)
             await connection.execute(f"UPDATE {table} SET state=%s,reason=%s,revision=revision+1 WHERE id=%s AND generation_id=%s AND state IN ('generating','unknown','cancelling','collecting')",
-                (state,(result.receipt.error_code or "model_completed_after_cancel" if row["generation_cancel_requested"] and result.receipt.status=="succeeded" else result.receipt.error_code) if result else "cancelled_before_model_registration" if state=="cancelled" else "model_outcome_unknown",item_id,generation_id))
+                (state,reason,item_id,generation_id))
 
     async def recover(self):
         async with self.life.database.transaction() as connection:

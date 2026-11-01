@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from tianshu.models.types import ModelRequest
+from tianshu.models.completion import content_completion
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
@@ -21,8 +22,14 @@ def can_edit(context):
 
 
 def generated_text(result):
+    if content_completion(result).state == "incomplete":
+        return ""
     return "".join(part.text or "" for part in result.parts
                    if part.kind == "text" and not part.native.get("thought"))
+
+
+def generation_error(result, fallback):
+    return "generation_content_incomplete" if content_completion(result).state == "incomplete" else result.receipt.error_code or fallback
 
 
 class WritingService:
@@ -219,7 +226,7 @@ class WritingService:
             await self.life.identity.check(context, refs)
             content = generated_text(result)
             if result.receipt.status != "succeeded" or not content.strip():
-                raise AppError(result.receipt.error_code or "chapter_generation_failed", details={"dispatch": result.receipt.dispatch})
+                raise AppError(generation_error(result, "chapter_generation_failed"), details={"dispatch": result.receipt.dispatch})
         except BaseException as error:
             if getattr(error,"code",None)=="generation_request_expired":
                 observed_state="failed"
@@ -231,7 +238,7 @@ class WritingService:
     async def save_generated(self, context, chapter_id, generation_id, recipe, result, refs):
         content = generated_text(result)
         if result.receipt.status != "succeeded" or not content.strip():
-            raise AppError(result.receipt.error_code or "chapter_generation_failed")
+            raise AppError(generation_error(result, "chapter_generation_failed"))
         async with self.life.database.transaction() as connection:
             fresh = await self._chapter(context, chapter_id, connection, lock=True, additional_refs=refs)
             if fresh["generation_id"] != generation_id or fresh["generation_cancel_requested"] or fresh["state"] not in {"generating", "unknown"}:

@@ -13,7 +13,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from .validation import revision, text
-from .writing import can_edit, generated_text
+from .writing import can_edit, generated_text, generation_error
 from . import publications
 from tianshu.conversation.types import InputPart
 from tianshu.conversation.generation import GenerationRequests
@@ -117,6 +117,7 @@ class DiaryService:
         start,end = datetime.combine(day,time.min,zone),datetime.combine(day+timedelta(days=1),time.min,zone)
         page = await self.life.memory.episodes_between(context,start,end,limit=200,cursor=cursor)
         episodes = tuple(item for item in page.items if item.origin_kind in {"human","observation","tool_result","actor"}
+                         and not (item.actual_result or {}).get("internal")
                          and (item.actual_result or {}).get("derived_kind") not in {"reflection","diary"})
         selected = (recipe["episodes"]+list(wire(episodes)))[-64:]
         scanned = recipe["scanned"]+len(episodes)
@@ -160,7 +161,7 @@ class DiaryService:
             await self.life.identity.check(context, refs)
             actor = await self.life.companion.actor(context)
             persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
-            instruction = "Write a brief first-person diary for the supplied local day. Facts must come from actual episodes. Feelings are subjective. Do not invent missing time, events, reading coverage, promises or replies. A short diary is fine. Never reproduce hidden model reasoning."
+            instruction = "Write a brief first-person diary for the supplied local day. Facts must come from actual episodes. Feelings are subjective. Actor imagined/fictional_world episodes describe an imagined activity, never physical activity or a new human fact. Do not invent missing time, events, reading coverage, promises or replies. A short diary is fine. Never reproduce hidden model reasoning."
             budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=4))
             pack = await self.assembler.assemble(context, "diary", instruction, budget,
                 persona_text=persona.prompt_text if persona else "", reserved_output_tokens=3000,
@@ -181,7 +182,7 @@ class DiaryService:
             await self.life.identity.check(context, refs)
             content = generated_text(result)
             if result.receipt.status != "succeeded" or not content.strip():
-                raise AppError(result.receipt.error_code or "diary_generation_failed")
+                raise AppError(generation_error(result, "diary_generation_failed"))
         except BaseException as error:
             if getattr(error,"code",None)=="generation_request_expired":
                 observed_state="failed"
@@ -193,7 +194,7 @@ class DiaryService:
     async def save_generated(self, context, diary_id, generation_id, recipe, result, refs):
         content = generated_text(result)
         if result.receipt.status != "succeeded" or not content.strip():
-            raise AppError(result.receipt.error_code or "diary_generation_failed")
+            raise AppError(generation_error(result, "diary_generation_failed"))
         async with self.life.database.transaction() as connection:
             current = await self._diary(context, diary_id, connection, lock=True, additional_refs=refs)
             if current["generation_id"] != generation_id or current["generation_cancel_requested"] or current["state"] not in {"generating", "unknown"}:

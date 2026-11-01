@@ -224,6 +224,10 @@ def frozen_material(request):
 
 
 def decision(result, frozen):
+    from tianshu.models.completion import content_completion
+
+    if content_completion(result).state == "incomplete":
+        raise AppError("planner_output_incomplete")
     data = frozen_material(frozen)
     raw = "".join(
         part.text or ""

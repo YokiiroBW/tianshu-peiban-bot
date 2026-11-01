@@ -372,3 +372,52 @@ async def test_imagined_completion_registers_actual_actor_original_in_same_trans
     assert episode["actual_result"]["experience_kind"] == "imagined"
     assert episode["actual_result"]["software_action"] is False
     assert "execution" not in episode["actual_result"]
+
+
+@pytest.mark.asyncio
+async def test_web_pagination_continuation_resumes_the_exact_returned_arguments(database):
+    fixture = await setup(database, '{}')
+    checkpoint = {"capability_id": "content.read", "arguments": {"url": "https://example.invalid/1"},
+        "continuation": {"capability_id": "content.read", "arguments": {"url": "https://example.invalid/2", "mode": "continue"}}}
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.activities(id,actor_id,title,kind,state,waiting_reason,checkpoint_data,scope_ids) "
+            "VALUES ('reading','actor','继续阅读','reading','dormant','continuation_available',%s,ARRAY['actor-scope'])", (json.dumps(checkpoint),))
+    await fixture.worker.life.transition_activity(fixture.context,
+        {"id": "reading", "expected_revision": 1, "client_request_id": "continue-page"}, "running")
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute("SELECT checkpoint_data,action_id FROM life.activities WHERE id='reading'")).fetchone()
+    assert row["checkpoint_data"]["arguments"] == checkpoint["continuation"]["arguments"]
+    assert row["action_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_action_receipt_original_keeps_actual_consumed_source_and_execution():
+    original, consumed = SourceRef("actual-receipt", 1), SourceRef("video-original", 2)
+    sources = SimpleNamespace(record_event=AsyncMock(return_value=(original,)))
+    worker = LifeWorker.__new__(LifeWorker)
+    worker.life = SimpleNamespace(sources=sources)
+    result = Receipt("receipt", "action", "attempt", "succeeded", "none", "not_requested",
+        result={"consumption": {"source": wire(consumed), "analysis_completed": True}})
+    context, connection = object(), object()
+    refs = await worker._receipt_sources(context, result, 4, datetime.now(UTC), connection, ())
+    assert refs == (consumed, original)
+    call = sources.record_event.call_args
+    assert call.kwargs["origin_kind"] == OriginKind.TOOL_RESULT
+    assert call.kwargs["support_refs"] == (consumed,)
+    assert call.kwargs["connection"] is connection
+    metadata = call.kwargs["parts"][0].metadata
+    assert metadata["execution"] == "succeeded" and metadata["receipt_id"] == "receipt"
+
+
+def test_complete_physical_request_with_truncated_text_cannot_become_authored_draft_or_plan():
+    from tianshu.life.writing import generated_text, generation_error
+    from tianshu.models.types import ModelCompletion
+
+    result = ModelResult((ModelPart("text", text='{"activity":null,"reason":"partial"}'),),
+        ModelReceipt("a", "i", "succeeded", "submitted", "r", 1, "p", "m", "openai.chat", "q"),
+        completion=ModelCompletion("incomplete", ("length",)))
+    assert generated_text(result) == ""
+    assert generation_error(result, "fallback") == "generation_content_incomplete"
+    with pytest.raises(AppError) as rejected:
+        planner.decision(result, None)
+    assert rejected.value.code == "planner_output_incomplete"

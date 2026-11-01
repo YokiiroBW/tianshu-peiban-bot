@@ -18,7 +18,7 @@ PLANNING_STATUS_CODES = frozenset({
     "planned", "planned_with_reduced_context", "activity_planned",
     "no_meaningful_activity", "waiting_for_next_life_window",
     "existing_activity_continues", "current_activity_continues",
-    "planner_output_invalid", "planner_context_budget_exceeded",
+    "planner_output_invalid", "planner_output_incomplete", "planner_context_budget_exceeded",
     "planner_capability_unavailable", "planner_arguments_invalid", "planner_goal_unavailable",
     "planner_original_contract_missing", "planner_original_context_changed",
     "planner_original_request_missing", "original_planner_not_registered_before_deadline",
