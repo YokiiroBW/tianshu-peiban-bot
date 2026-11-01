@@ -8,6 +8,7 @@ import pytest
 
 from tianshu.memory.extraction_contract import SCHEMA_VERSION
 from tianshu.models.types import ModelCompletion,ModelMessage,ModelPart,ModelReceipt,ModelRequest,ModelResult
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind,RequestBudget,ServiceClass
 from psycopg.types.json import Jsonb

@@ -61,3 +61,9 @@ C 修复端口按 `3becfa4`（主协调集成 `7ae598b`）的最终签名准备�
 G 工具根据已有 cancel receipt 记录原状态；显式 observe 子命令只读已有 mapping 的原 unresolved ID，追加观测并生成 sidecar，compare 按同 run_id 取已对账 usage。真实 unknown 不重发，已确认 cancelled/not_started 分列，不再把它们混进 submitted_unknown；取消前排队耗时保留，缺失用量不推算费用。原答案/report/提案保持原记录，不因对账伪装语义通过。准确调用与挂载要求见 scripts/evaluation/memory_closure/README.md 末节。
 
 新增/扩展定向用例仅编写：tests/core/test_consolidation_pipeline.py、test_memory_evidence_retrieval.py、test_memory_closure_acceptance.py；现有 ContextAssembler/product 装配用例纳入本次 root 最小集中复验。G 只做静态 diff/空白检查，未运行 pytest、构建、类型检查、候选程序、模型、PG、网络或生产。开发提交供 root 集成后统一验证，不能报告本次运行通过。
+
+### 集中复验后的两处测试夹具修订
+
+root 在 `cb7dae9` 集中复验报告 92 项中 83 通过、9 失败，其中 G 的两处夹具问题由本提交修订：共享准备预算用例补齐 AppError 导入；原 rerank 撤回用例增加来源独立、不同 predicate 的第二条真实 Claim，确保确有重排收益而触发 callback。回调检查两条完整单元及联合 source_refs，并将随后撤回的单元排第一；最终仍须整条剔除坏单元、保留好单元与其真实来源，当前/known_at 查询都不返回已撤回单元。没有恢复单候选重排或修改产品代码。
+
+本次只静态 diff/空白检查，G 未运行测试。主协调可复用其余已通过结果，只重验 `tests/core/test_consolidation_pipeline.py::test_candidate_preparation_uses_one_lease_budget_across_input_shrinks` 与 `tests/core/test_memory_evidence_retrieval.py::test_rerank_rechecks_sources_and_drops_the_whole_unit`；其余失败由对应 owner 交付后由 root 集中处理。

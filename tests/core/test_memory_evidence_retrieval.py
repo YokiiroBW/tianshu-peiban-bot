@@ -427,19 +427,37 @@ async def test_conflict_has_both_complete_sides_and_whole_unit_budget(core, ordi
 async def test_rerank_rechecks_sources_and_drops_the_whole_unit(core, ordinary_users, monkeypatch):
     alice, _ = ordinary_users
     old = await fact(core, alice, "rerank_revoke", "咖啡", conditions={"after": "dinner"})
+    good = await fact(core, alice, "rerank_independent", "工作时咖啡", predicate="preference.work_break",
+                      conditions={"during": "work"})
     core.retrieval.settings = {"vector": False, "rerank": True}
+    calls = []
     async def rerank(request):
-        document = json.loads(request.native_payload["documents"][0])
+        documents = [json.loads(value) for value in request.native_payload["documents"]]
+        by_id = {document["id"]: document for document in documents}
+        assert set(by_id) == {old.claim_id, good.claim_id}
+        document = by_id[old.claim_id]
         assert document["conditions"] == {"after": "dinner"} and document["assertion"] == "self_confirmed"
+        assert by_id[good.claim_id]["conditions"] == {"during": "work"}
+        assert {ref.source_id for ref in request.source_refs} == {
+            ref.source_id for ref in (*old.source_refs, *good.source_refs)}
+        calls.append(request)
         await core.sources.invalidate(alice, {"source_id": old.source_refs[0].source_id,
             "expected_revision": 1, "client_request_id": "withdraw_during_rerank"}, forgotten=True)
-        return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"), native_response={"results": [{"index": 0}]})
+        order = [next(index for index, item in enumerate(documents) if item["id"] == claim_id)
+                 for claim_id in (old.claim_id, good.claim_id)]
+        return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"),
+            native_response={"results": [{"index": index} for index in order]})
     monkeypatch.setattr(core.models, "generate", rerank)
     page = await core.retrieval.query(alice, MemoryQueryPlan(query="咖啡", evidence_kinds=("claim",)), budget())
-    assert not page.items and "memory_revision_changed" in page.coverage.missing
+    assert len(calls) == 1 and [item.id for item in page.items] == [good.claim_id]
+    assert "memory_revision_changed" in page.coverage.missing
+    assert page.items[0].source_refs == good.source_refs
+    assert all(ref not in item.source_refs for item in page.items for ref in old.source_refs)
+    assert all(await core.sources.check_many(alice, tuple(item.source_refs for item in page.items)))
     historical = await core.retrieval.query(alice, MemoryQueryPlan(time_mode="known_at", known_at=datetime.now(UTC),
         evidence_kinds=("claim",), coverage_mode="list"), budget())
-    assert not historical.items
+    assert [item.id for item in historical.items] == [good.claim_id]
+    assert historical.items[0].source_refs == good.source_refs
 
 
 async def test_context_rechecks_background_revision_even_when_old_sources_remain_readable(core, ordinary_users, monkeypatch):
