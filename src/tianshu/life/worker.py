@@ -296,7 +296,9 @@ class LifeWorker:
                 if row["checkpoint_data"].get("planning_context"):
                     from .recovery import scheduled_context
                     goal_context=await scheduled_context(self.life,row["checkpoint_data"]["planning_context"],connection=connection)
-                if (await self.life.identity.check_many(goal_context,(refs,)))[0]:
+                # The receipt original was just registered on this connection.
+                # A separate reader cannot see it until this transaction commits.
+                if await self.life.sources.validate_persistence(connection,goal_context,refs):
                     await self.life.directions.observe_result(connection,goal_context,row,result,result_revision,capability_id,refs)
                 if not continuing:
                     await self.life.wake(context,kind="activity_completed",subject_id=row["id"],event_id=result.receipt_id,connection=connection)

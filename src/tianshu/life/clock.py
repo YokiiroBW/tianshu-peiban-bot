@@ -57,6 +57,21 @@ def awake_and_due(row, now):
     return awake, due.astimezone(UTC)
 
 
+def day_to_close(row, now):
+    """Close only an observed date or an observed awake-to-sleep boundary."""
+    previous=row.get('last_tick_at')
+    if previous is None or previous>=now:
+        return None
+    zone=ZoneInfo(row['timezone'])
+    previous_day=previous.astimezone(zone).date()
+    current_day=now.astimezone(zone).date()
+    if previous_day<current_day:
+        return previous_day
+    was_awake,_=awake_and_due(row,previous)
+    awake,_=awake_and_due(row,now)
+    return current_day if previous_day==current_day and was_awake and not awake else None
+
+
 def authorization_blocked(error):
     return isinstance(error, AppError) and (
         error.status in {401, 403} or error.code in {
@@ -234,9 +249,7 @@ class LifeClock:
                 if not fresh["enabled"] or fresh["revision"] != expected_revision or fresh["next_due_at"].isoformat() != due_at or fresh["next_due_at"] > now:
                     return
                 awake, due = awake_and_due(fresh, now)
-                local_day=now.astimezone(ZoneInfo(fresh["timezone"])).date()
-                previous_day=fresh["last_tick_at"].astimezone(ZoneInfo(fresh["timezone"])).date() if fresh["last_tick_at"] else local_day
-                closed=previous_day if previous_day<local_day else local_day if not awake else None
+                closed=day_to_close(fresh,now)
                 if closed is not None:
                     if self.day_plans:
                         await self.day_plans.close(connection,context,closed)
