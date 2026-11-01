@@ -78,7 +78,6 @@ class ResultConsumer:
                     "receipt_id": result.receipt_id, "actual_result": {**result.result,
                         "capability_id": current["action"]["capability_id"], "execution": result.execution,
                         "effect": result.effect, "delivery": result.delivery}}, connection=connection)
-                await self.growth.changed(context, f"action:{result.action_id}:{current['result_revision']}", connection=connection)
             await connection.execute("INSERT INTO conversation.result_consumption(receipt_id,action_id) VALUES (%s,%s) ON CONFLICT DO NOTHING", (result.receipt_id, result.action_id))
 
 
@@ -97,4 +96,3 @@ class ResultConsumer:
                         "revision":current["revision"],"origin_kind":"actor","actor_id":context.actor_id,"occurred_at":current["observed_at"],
                         "summary":"公开表达已投递" if actual.delivery=="delivered" else "公开表达投递待确认","source_refs":refs,
                         "actual_result":{"derived_kind":"expression","expression_id":expression_id,"delivery":actual.delivery,"receipt_id":actual.receipt_id}},connection=connection)
-                    await self.growth.changed(context,f"expression:{expression_id}:{current['revision']}",connection=connection)

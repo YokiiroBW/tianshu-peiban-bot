@@ -82,7 +82,7 @@ async def build_product(runtime):
     db, jobs, commands, models = runtime.database, runtime.jobs, runtime.commands, runtime.models
     authority = build_authority(runtime)
     identity, sources, artifacts = authority.identity, authority.sources, authority.artifacts
-    memory = MemoryService(db, identity, sources, commands, jobs, models)
+    memory = MemoryService(db, identity, sources, commands, jobs, models, settings=runtime.settings.get("memory", {}))
     claims = ClaimService(memory)
     memory.bind_claims(claims)
     steps = ModelSteps(db, models, sources)
@@ -90,6 +90,7 @@ async def build_product(runtime):
     retrieval = MemoryRetrieval(
         memory, embeddings, runtime.settings.get("memory", {}).get("retrieval", {})
     )
+    memory.bind_record_candidates(retrieval.candidates)
     assembler = ContextAssembler(
         identity, memory, retrieval, settings=runtime.settings.get("context", {})
     )
@@ -121,6 +122,7 @@ async def build_product(runtime):
     )
     presentation = LifePresentation(life, media=artifacts)
     growth = GrowthService(companion, jobs, models, assembler, on_projection_changed=life.signal)
+    memory.bind_episode_observer(growth.changed)
     result_events = ActionResultEvents(jobs)
 
     async def actor_directory(context):
@@ -198,6 +200,7 @@ async def build_product(runtime):
     results = ResultConsumer(
         db, identity, caps.actions, memory, growth, conversation, life_worker, renderer
     )
+    memory.bind_conversation(conversation.memory_neighborhood)
     channels.bind_conversation(conversation)
     register_tools(caps.catalog, memory, retrieval)
     register_handlers(

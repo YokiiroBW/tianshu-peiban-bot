@@ -54,7 +54,24 @@
       "owner_url": {"type": "string", "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]+$"},
       "owner_token_ref": {"type": "string", "minLength": 1}
     }},
-    "capabilities": {"type": "object"}, "context": {"type": "object"}, "memory": {"type": "object"},
+    "capabilities": {"type": "object"}, "context": {"type": "object"},
+    "memory": {"type": "object", "properties": {
+      "retrieval": {"type": "object"},
+      "consolidation": {"type": "object", "additionalProperties": false, "properties": {
+        "quiet_seconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+        "max_wait_seconds": {"type": "integer", "minimum": 0, "maximum": 86400},
+        "max_input_tokens": {"type": "integer", "minimum": 4000, "maximum": 128000},
+        "max_output_tokens": {"type": "integer", "minimum": 512, "maximum": 32000},
+        "reasoning_reserve_tokens": {"type": "integer", "minimum": 0, "maximum": 64000},
+        "max_episodes": {"type": "integer", "minimum": 1, "maximum": 64},
+        "max_subjects": {"type": "integer", "minimum": 1, "maximum": 64},
+        "max_materials": {"type": "integer", "minimum": 1, "maximum": 128},
+        "max_old_records": {"type": "integer", "minimum": 1, "maximum": 128},
+        "context_messages": {"type": "integer", "minimum": 0, "maximum": 32},
+        "max_source_characters": {"type": "integer", "minimum": 256, "maximum": 100000},
+        "time_zone": {"type": "string", "minLength": 1}
+      }}
+    }},
     "conversation": {"type": "object"},
     "observability": {"type": "object"}, "supervisor": {"type": "object"}
   },

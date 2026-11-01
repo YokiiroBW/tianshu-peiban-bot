@@ -6,7 +6,7 @@ import json
 from jsonschema import Draft202012Validator, FormatChecker
 
 from tianshu.runtime.errors import AppError
-from .claims import CLAIM_PREDICATE_PATTERN
+from .domain_utils import CLAIM_PREDICATE_PATTERN
 
 SCHEMA_VERSION = "memory.consolidation.v1"
 OPERATION_KINDS = ("add_claim", "add_support", "revise_claim", "upsert_matter", "link", "revise_hypothesis")
@@ -33,7 +33,7 @@ def _time():
 
 
 def _claim_payload(subject_ids):
-    return {"predicate": {**_text(128), "pattern": "^" + CLAIM_PREDICATE_PATTERN + "$"},
+    return {"predicate": {**_text(128), "pattern": "^(?:" + CLAIM_PREDICATE_PATTERN + r")$(?![\s\S])"},
             "value": {}, "speaker_id": {"enum": [None, *subject_ids]},
             "assertion": {"enum": ["self_confirmed", "reported", "quoted", "inferred", "observed"]},
             "polarity": {"type": "boolean"}, "conditions": {"type": "object", "maxProperties": 32},
@@ -78,8 +78,10 @@ def consolidation_schema(frozen):
             "counterexample_refs": {"type": "array", "maxItems": 16, "uniqueItems": True,
                                     "items": {"anyOf": [any_ref, {"enum": materials}]}}}),
     }
-    operations = [_object({**common, "kind": {"const": kind}, "payload": payloads[kind]})
-                  for kind in OPERATION_KINDS]
+    operation = _object({**common, "kind": {"enum": list(OPERATION_KINDS)}, "payload": {}})
+    operation["allOf"] = [{"if": {"properties": {"kind": {"const": kind}}},
+                          "then": {"properties": {"payload": payloads[kind]}}}
+                         for kind in OPERATION_KINDS]
     request_fields = {"request_id": _text(64), "kind": {"enum": ["material", "record", "conversation_range", "identity"]},
                       "ref": {"type": ["string", "null"], "maxLength": 128},
                       "start": _time(), "end": _time(),
@@ -92,7 +94,7 @@ def consolidation_schema(frozen):
                 "processed_material_ids": _ids(materials),
                 "operation_ids": {"type": "array", "maxItems": 64, "uniqueItems": True,
                                   "items": {**_text(64), "pattern": "^op[1-9][0-9]{0,4}$"}}})},
-        "operations": {"type": "array", "maxItems": 64, "items": {"oneOf": operations}},
+        "operations": {"type": "array", "maxItems": 64, "items": operation},
         "unresolved": {"type": "array", "maxItems": 32, "items": _object({
             "issue_id": _text(64), "subject_id": {"enum": [None, *subjects]},
             "material_ids": _ids(materials, minimum=1), "reason": _text(1500),
@@ -107,7 +109,8 @@ def validate_proposal(frozen, proposal):
     if errors:
         error = errors[0]
         raise AppError("memory_consolidation_invalid", status=502,
-                       details={"path": list(error.absolute_path), "reason": error.message[:500]})
+                       details={"path": list(error.absolute_path), "validator":error.validator,
+                                "category":"output_contract_violation"})
     if len(json.dumps(proposal, ensure_ascii=False).encode()) > 128000:
         raise AppError("memory_consolidation_output_too_large", status=502)
     results = {item["subject_id"]: item for item in proposal["target_results"]}
@@ -123,6 +126,10 @@ def validate_proposal(frozen, proposal):
             raise AppError("memory_consolidation_target_unprocessed", status=502)
         if "ref" in target:
             old = frozen["records"][target["ref"]]
+            if old.get("content_omitted"):
+                raise AppError("memory_consolidation_record_context_required",status=502)
+            if (old.get("head_revision") or old["revision"]) != old["revision"]:
+                raise AppError("memory_consolidation_historical_target",status=502)
             if target["expected_revision"] != old["revision"]:
                 raise AppError("memory_consolidation_revision_invalid", status=502)
             if target["ref"] not in operation["reads"]:
@@ -141,6 +148,8 @@ def validate_proposal(frozen, proposal):
             raise AppError("memory_consolidation_create_target", status=502)
         if operation["kind"] == "revise_claim" and "ref" not in target:
             raise AppError("memory_consolidation_revision_target", status=502)
+        if any(frozen["records"][ref].get("content_omitted") for ref in operation["reads"]):
+            raise AppError("memory_consolidation_record_context_required",status=502)
     assigned = []
     for subject_id, result in results.items():
         required = set(frozen["targets"][subject_id]["new_material_ids"])
@@ -198,6 +207,7 @@ def consolidation_instruction(frozen):
         "来源只用m标签，旧对象只用r标签，新对象只用n标签；不得自造真实ID、版本、来源或人物。"
         "每个目标都要精确覆盖其new_material_ids；无新增事实用no_change，缺关键依据用unresolved。"
         "需要关键原件时可请求一次有界补查；补查轮次必须返回最终结果，仍不确定就保留unresolved。"
+        "旧记录content_omitted=true时仅提供版本索引，不能据此修改或推断其正文；需要时以needs_context请求record。"
         "不得用重复复述增加独立支持。不要为了填满配额产出事实。相对日期以材料occurred_at和context.time_zone为锚。\n"
         "输出Schema：" + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
         + "\n无新增语义时的完整合法形状（这只是形状示例，必须实际判断材料）："
@@ -214,7 +224,7 @@ def legacy_extraction_schema(allowed_subject_ids):
     source_indexes = {"type": "array", "minItems": 1, "maxItems": 8,
                       "items": {"type": "integer", "minimum": 0}}
     claim = {"subject_id": {"enum": sorted(allowed_subject_ids)},
-             "predicate": {"type": "string", "pattern": "^" + CLAIM_PREDICATE_PATTERN + "$"},
+             "predicate": {"type": "string", "pattern": "^(?:" + CLAIM_PREDICATE_PATTERN + r")$(?![\s\S])"},
              "value": {}, "assertion": {"enum": ["self_confirmed", "reported", "quoted", "inferred", "observed"]},
              "polarity": {"type": "boolean"}, "conditions": {"type": "object"},
              "valid_from": {"type": ["string", "null"]}, "valid_until": {"type": ["string", "null"]},
@@ -231,4 +241,6 @@ def legacy_extraction_schema(allowed_subject_ids):
 
 def extraction_instruction(schema):
     """Kept only to interpret finite legacy fixtures; new work uses consolidation_instruction."""
-    return "已退役的单Episode抽取合同；不得用于新模型请求。" + json.dumps(deepcopy(schema), ensure_ascii=False)
+    return ("已退役的单Episode抽取合同；不得用于新模型请求。禁止为了满足enum把事实改绑给用户、群或角色。"
+            "无对应主体时返回claims:[]、matters:[]，原始工具观测仍保留。\n"
+            + json.dumps(deepcopy(schema), ensure_ascii=False))

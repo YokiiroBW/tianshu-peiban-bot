@@ -3,6 +3,7 @@
 import json
 import time
 from datetime import UTC, datetime, timedelta
+from dataclasses import replace
 
 import pytest
 
@@ -15,57 +16,52 @@ from tianshu.types import ContextContribution, OriginKind, RequestBudget, Source
 class Extractor:
     def __init__(self):
         self.requests = []
+        self.results = {}
 
     async def generate(self, request):
         self.requests.append(request)
-        material = next(
-            part.text.split("\n", 1)[1]
-            for message in request.messages
-            for part in message.parts
-            if part.text and part.text.startswith("材料 original_evidence")
-        )
-        sources = json.loads(material)["sources"]
-        claims = [
-            {
-                "subject_id": request.context.person_id,
-                "predicate": "interest",
-                "value": "尾部事实",
-                "assertion": "self_confirmed",
-                "source_indexes": [index],
-            }
-            for index, source in enumerate(sources)
-            if "尾部事实" in source["content"]
-        ]
-        receipt = ModelReceipt(
-            request.attempt_id,
-            request.intent_id,
-            "succeeded",
-            "submitted",
-            "fixture",
-            1,
-            "fixture",
-            "fixture",
-            "openai.chat",
-            "fixture",
-        )
-        return ModelResult(
-            (ModelPart("text", text=json.dumps({"claims": claims, "matters": []})),), receipt
-        )
+        material=json.loads(request.messages[0].parts[0].text)
+        operations=[]
+        results=[]
+        for target in material["targets"]:
+            op_ids=[]
+            for source in material["materials"]:
+                if source["id"] not in target["new_material_ids"] or "尾部事实" not in source["text"]:
+                    continue
+                op_id="op"+str(len(operations)+1)
+                op_ids.append(op_id)
+                operations.append({"op_id":op_id,"kind":"add_claim","subject_id":target["subject_id"],
+                    "target":{"create":"n"+str(len(operations)+1)},"payload":{
+                        "predicate":"interest","value":"尾部事实","speaker_id":source["speaker_id"],
+                        "assertion":"self_confirmed" if source["origin_kind"]=="human" else "observed",
+                        "polarity":True,"conditions":{},"valid_from":None,"valid_until":None},
+                    "support_groups":[[source["id"]]],"context_refs":[],"reads":[],"reason":"原件支持"})
+            results.append({"subject_id":target["subject_id"],"status":"changed" if op_ids else "no_change",
+                "processed_material_ids":target["new_material_ids"],"operation_ids":op_ids})
+        receipt=ModelReceipt(request.attempt_id,request.intent_id,"succeeded","submitted","fixture",1,
+            "fixture","fixture","openai.chat","fixture")
+        result=ModelResult((ModelPart("text",text=json.dumps({"schema_version":material["schema_version"],
+            "batch_id":material["batch_id"],"target_results":results,"operations":operations,"unresolved":[],"needs_context":[]})),),receipt)
+        self.results[request.attempt_id]=result
+        return result
+
+    async def result(self,attempt_id,*,context):
+        return self.results.get(attempt_id)
 
 
 async def run_pending(core, episode):
+    policy=replace(core.memory.consolidation.policy,quiet_seconds=0,max_wait_seconds=0)
+    core.memory.consolidation.policy=policy
+    core.memory.consolidation.materials.policy=policy
     for _ in range(80):
-        async with core.database.transaction(read_only=True) as conn:
-            row = await (
-                await conn.execute(
-                    "SELECT extraction_state FROM memory.episodes WHERE episode_id=%s",
-                    (episode.episode_id,),
-                )
-            ).fetchone()
-        if row["extraction_state"] != "pending":
-            return row["extraction_state"]
-        await core.workers.extract(episode.episode_id, episode.sequence)
-    pytest.fail("incremental extraction did not finish within its bounded material count")
+        async with core.database.transaction() as conn:
+            row=await (await conn.execute("SELECT extraction_state,consolidation_partition_id FROM memory.episodes WHERE episode_id=%s",
+                (episode.episode_id,))).fetchone()
+            if row["extraction_state"] != "pending":
+                return row["extraction_state"]
+            await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=now() WHERE partition_id=%s",(row["consolidation_partition_id"],))
+        await core.workers.consolidate(row["consolidation_partition_id"])
+    pytest.fail("incremental consolidation did not finish within its bounded material count")
 
 
 async def test_long_original_and_more_than_128_parts_reach_the_tail(core, ordinary_users):
@@ -98,11 +94,15 @@ async def test_long_original_and_more_than_128_parts_reach_the_tail(core, ordina
     items = (await core.claims.list(alice)).items
     tail = next(item for item in items if item.value == "尾部事实")
     assert tail.source_refs[0].source_id == refs[-1].source_id
-    assert any(
-        ref.source_id == refs[0].source_id and ref.locator.get("start") == 1600
-        for request in models.requests
-        for ref in request.source_refs
-    )
+    spans=sorted((ref.locator["start"],ref.locator["end"])
+        for request in models.requests for ref in request.source_refs
+        if ref.source_id==refs[0].source_id and "start" in ref.locator and "end" in ref.locator)
+    assert spans[0][0]==0 and max(end for _,end in spans)==1700
+    covered=0
+    for start,end in spans:
+        assert start<=covered
+        covered=max(covered,end)
+    assert covered==1700
     assert len({request.attempt_id for request in models.requests}) == len(models.requests)
 
 
@@ -138,7 +138,7 @@ async def test_video_actual_consumption_becomes_observed_evidence(core, ordinary
         },
     )
     core.steps.models = Extractor()
-    assert await run_pending(core, episode) == "completed"
+    assert await run_pending(core, episode) == "completed_with_missing"
     item = next(item for item in (await core.claims.list(alice)).items if item.value == "尾部事实")
     assert item.assertion == "observed"
     original = await core.sources.read(alice, item.source_refs[0], {})

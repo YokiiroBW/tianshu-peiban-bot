@@ -392,6 +392,39 @@ class IdentityService:
             else ()
         )
 
+    async def resolve_memory_subjects_on(
+        self, conn, context, subject_ids=(), *, aliases=(), include_group=True
+    ):
+        """Resolve actual authors/references without truncating a large group directory."""
+        await self.check_context(context, connection=conn)
+        selected = sorted(set(subject_ids))
+        names = sorted({value.casefold() for value in aliases if isinstance(value, str) and value})
+        if len(selected) > 128 or len(names) > 64:
+            raise AppError("memory_identity_candidates_too_large")
+        rows = await (await conn.execute(
+            "SELECT p.person_id,p.display_name,p.revision,ARRAY(SELECT alias FROM identity.person_aliases a "
+            "WHERE a.person_id=p.person_id ORDER BY alias) AS aliases FROM identity.people p "
+            "WHERE (p.person_id=ANY(%s::text[]) OR lower(p.display_name)=ANY(%s::text[]) "
+            "OR EXISTS(SELECT 1 FROM identity.person_aliases a WHERE a.person_id=p.person_id AND lower(a.alias)=ANY(%s::text[]))) "
+            "AND (p.person_id=%s OR EXISTS(SELECT 1 FROM identity.scopes s WHERE s.person_id=p.person_id AND s.scope_id=ANY(%s::text[])) "
+            "OR EXISTS(SELECT 1 FROM identity.conversation_members m WHERE m.person_id=p.person_id AND m.conversation_id=%s) "
+            "OR EXISTS(SELECT 1 FROM identity.events e WHERE e.speaker_id=p.person_id AND e.conversation_id=%s)) "
+            "ORDER BY p.person_id LIMIT 129",
+            (selected, names, names, context.person_id, list(context.scope_ids), context.conversation_id,context.conversation_id),
+        )).fetchall()
+        if len(rows) > 128:
+            raise AppError("memory_identity_candidates_too_large")
+        result = tuple({**row, "subject_id": row["person_id"], "kind": "person"} for row in rows)
+        actor_subject = "actor:" + context.actor_id if context.actor_id else None
+        if actor_subject in selected:
+            result += ({"person_id": actor_subject, "subject_id": actor_subject,
+                        "display_name": context.actor_id, "aliases": (), "revision": 1, "kind": "actor"},)
+        group = await self.group_on(conn, context) if include_group else None
+        if group:
+            result += ({"person_id": group["subject_id"], "subject_id": group["subject_id"],
+                        "display_name": group["label"], "aliases": (), "revision": group["revision"], "kind": "group"},)
+        return result
+
     async def group_on(self, conn, context):
         await self.check_context(context, connection=conn)
         if context.conversation_kind != "group" or not context.conversation_id:
@@ -1043,6 +1076,14 @@ class IdentityService:
                 )
             ).fetchall()
             people = {row["external_id"]: row["person_id"] for row in accounts}
+            original_author=people.get(event.original_author_external_id)
+            if event.reply_to_event_id:
+                original=await (await conn.execute(
+                    "SELECT speaker_id FROM identity.events WHERE connection_id=%s AND producer=%s "
+                    "AND event_id=%s AND conversation_id=%s ORDER BY revision DESC LIMIT 1",
+                    (connection_id,event.producer,event.reply_to_event_id,context.conversation_id))).fetchone()
+                # The outer sender's account field is not proof of a quoted author's identity.
+                original_author=original["speaker_id"] if original else None
             return AdmissionDecision(
                 mode,
                 context,
@@ -1052,6 +1093,6 @@ class IdentityService:
                 event.revision,
                 bool(old),
                 tuple(people[item] for item in event.mentioned_external_ids if item in people),
-                people.get(event.original_author_external_id),
+                original_author,
                 event.reply_to_event_id,
             )

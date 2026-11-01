@@ -1,6 +1,6 @@
 """Memory use cases, selected-source propagation and the incremental worker registry."""
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 from uuid import uuid4
 
@@ -10,7 +10,7 @@ from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.migrations import Migration
-from tianshu.types import ServiceClass
+from tianshu.types import RequestBudget,ServiceClass
 
 
 def create_module(memory, retrieval, workers, identity):
@@ -33,8 +33,18 @@ def create_module(memory, retrieval, workers, identity):
 
         route(
             "projection",
-            lambda ctx, body: memory.projection(ctx, body.get("person_id"), body.get("group_id")),
+            lambda ctx, body: memory.projection(ctx, body.get("person_id"), body.get("group_id"),
+                time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at")),
         )
+
+        async def query(context,body):
+            fields={"query","subject_ids","matter_refs","time_mode","valid_at","known_at","evidence_kinds","coverage_mode","budget"}
+            plan=body["plan"] if "plan" in body else {name:value for name,value in body.items() if name in fields}
+            seconds=min(10.0,max(0.1,float(memory.settings.get("retrieval",{}).get("request_seconds",5))))
+            budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=seconds))
+            return await retrieval.query(context,plan,budget,cursor=body.get("cursor"),limit=body.get("limit",50))
+
+        route("query",query)
         route(
             "claims",
             lambda ctx, body: memory.claims.list(
@@ -42,9 +52,13 @@ def create_module(memory, retrieval, workers, identity):
                 subject_id=body.get("subject_id"),
                 cursor=body.get("cursor"),
                 limit=body.get("limit", 50),
+                time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at"),
             ),
         )
-        route("claims/get", lambda ctx, body: memory.claims.get(ctx, body["claim_id"]))
+        route("claims/get", lambda ctx, body: memory.claims.get(ctx, body["claim_id"],
+            time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at")))
+        route("claims/history", lambda ctx, body: memory.claims.history(ctx,body["claim_id"],
+            cursor=body.get("cursor"),limit=body.get("limit",50)))
         route("claims/correct", memory.claims.correct, write=True)
         route("claims/share", memory.claims.share_ordinary, write=True, permission="memory.share")
         route(
@@ -54,9 +68,12 @@ def create_module(memory, retrieval, workers, identity):
                 subject_id=body.get("subject_id"),
                 cursor=body.get("cursor"),
                 limit=body.get("limit", 50),
+                time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at"),
             ),
         )
         route("matters/save", memory.claims.save_matter, write=True)
+        route("matters/history", lambda ctx, body: memory.claims.matter_history(ctx,body["matter_id"],
+            cursor=body.get("cursor"),limit=body.get("limit",50)))
         route("relationship", lambda ctx, body: memory.relationship(ctx, body["person_id"]))
         route("relationship/save", memory.save_relationship, write=True)
         route(
@@ -100,9 +117,9 @@ def create_module(memory, retrieval, workers, identity):
                     await memory.jobs.enqueue(
                         conn,
                         JobSpec(
-                            "memory.index",
+                            "memory.index_object",
                             "memory-explicit-reindex:" + str(uuid4()),
-                            dict(row),
+                            {"kind":"claim","id":row["claim_id"],"revision":row["revision"]},
                             ServiceClass.ELASTIC,
                         ),
                     )
@@ -130,68 +147,21 @@ def create_module(memory, retrieval, workers, identity):
         route("index/rebuild", rebuild, write=True)
 
         async def resume_extraction(context, body):
-            async def selected(conn):
-                row = await (
-                    await conn.execute(
-                        "SELECT * FROM memory.episodes WHERE episode_id=%s AND actor_id=%s AND active",
-                        (body["episode_id"], context.actor_id),
-                    )
-                ).fetchone()
-                if not row:
-                    raise AppError("episode_unavailable", status=404)
-                from .codec import refs
-
-                if not await memory.sources.validate_persistence(
-                    conn, context, refs(row["source_refs"])
-                ):
-                    raise AppError("source_unavailable", status=403)
-                return row
-
             async def apply(conn):
-                row = await selected(conn)
-                if body.get("expected_revision") != row["revision"]:
-                    raise AppError("revision_conflict", status=409)
-                updated = await (
-                    await conn.execute(
-                        "UPDATE memory.episodes SET extraction_state='pending',extraction_started_at=NULL "
-                        "WHERE episode_id=%s AND sequence=%s AND active AND extraction_state NOT IN ('running','completed','completed_with_missing') "
-                        "RETURNING episode_id,sequence",
-                        (row["episode_id"], row["sequence"]),
-                    )
-                ).fetchone()
-                if updated:
-                    await memory.jobs.enqueue(
-                        conn,
-                        JobSpec(
-                            "memory.extract",
-                            "memory-explicit-resume:" + body["client_request_id"],
-                            dict(updated),
-                            ServiceClass.ELASTIC,
-                        ),
-                    )
-                return CommandResult(
-                    body["client_request_id"],
-                    revision=row["revision"],
-                    data={"episode_id": row["episode_id"], "queued": bool(updated)},
-                )
-
-            async def replay(conn, result):
-                await selected(conn)
-                return result
-
-            return await memory.commands.execute(
-                context,
-                "memory.extraction.resume",
-                body["client_request_id"],
-                body_hash(body),
-                apply,
-                on_replay=replay,
-            )
+                return await workers.recovery.resume_on(conn,context,body)
+            async def replay(conn,result):
+                return await workers.recovery.replay_resume_on(conn,context,body,result)
+            return await memory.commands.execute(context,"memory.extraction.resume",body["client_request_id"],
+                body_hash(body),apply,on_replay=replay)
 
         route("extraction/resume", resume_extraction, write=True)
+        route("extraction/status",lambda ctx,body:memory.extraction_status(ctx,body["episode_id"]))
 
     def tasks(queue, _runtime):
         queue.register("memory.extract", workers.extract, retryable=False)
+        queue.register("memory.consolidate", workers.consolidate, retryable=False)
+        queue.register("memory.observe_legacy", workers.observe_legacy, retryable=False)
+        queue.register("memory.index_object", workers.index_object, retryable=False)
         queue.register("memory.index", workers.index, retryable=False)
         queue.register("memory.recover", workers.recover, retryable=True)
         queue.register("memory.purge_source", memory.claims.purge_source, retryable=True)
@@ -214,5 +184,6 @@ def create_module(memory, retrieval, workers, identity):
         register_tasks=tasks,
         migrations=(
             Migration("0020_memory", files("tianshu.memory").joinpath("schema.sql").read_text()),
+            Migration("0021_memory_consolidation", files("tianshu.memory").joinpath("0021_memory_consolidation.sql").read_text()),
         ),
     )

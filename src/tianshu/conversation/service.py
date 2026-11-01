@@ -95,7 +95,6 @@ class ConversationService:
             "coverage": coverage,
             "actual_result": {"reply_owner": row["reply_owner"], "representation": "source_excerpt",
                               "modalities": [part.kind for part in parts]}})
-        await self.growth.changed(context, f"input:{turn_id}:{row['event_revision']}")
 
     async def send(self, context, body):
         await self.identity.check(context)
@@ -128,6 +127,61 @@ class ConversationService:
         items = tuple(row for row, allowed in zip(rows[:limit], valid, strict=True) if allowed)
         more = len(rows)>limit
         return Page(items, str(rows[limit-1]["id"]) if more else None, Coverage(not more and all(valid), missing=() if all(valid) else ("source_unavailable",)))
+
+    async def memory_neighborhood(
+        self, context, *, cutoff=None, before_id=None, start=None, end=None, event_ids=(), limit=8
+    ):
+        """Authorized, fixed-cutoff read port for Memory's neighboring conversation material."""
+        await self.identity.check_context(context)
+        if not context.actor_id or not context.conversation_id:
+            return {"items": (), "cutoff": 0, "coverage": Coverage(True)}
+        limit = min(32, max(1, int(limit)))
+        if len(event_ids)>32 or any(not isinstance(value,str) or len(value)>512 for value in event_ids):
+            raise AppError("memory_context_references_invalid")
+        if start is not None:
+            start = datetime.fromisoformat(start) if isinstance(start, str) else start
+            end = datetime.fromisoformat(end) if isinstance(end, str) else end
+            if start.tzinfo is None or end is None or end.tzinfo is None or not start < end or (end-start).total_seconds() > 86400:
+                raise AppError("memory_context_range_invalid")
+        async with self.database.transaction(read_only=True) as connection:
+            if cutoff is None:
+                head = await (await connection.execute(
+                    "SELECT COALESCE(max(id),0) AS cutoff FROM conversation.messages WHERE actor_id=%s AND conversation_id=%s",
+                    (context.actor_id, context.conversation_id))).fetchone()
+                cutoff = head["cutoff"]
+            if type(cutoff) is not int or cutoff < 0:
+                raise AppError("invalid_conversation_cutoff")
+            rows = await (await connection.execute(
+                "SELECT m.*,t.occurred_at,t.context AS original_context,t.producer,t.event_id,t.event_revision "
+                "FROM conversation.messages m LEFT JOIN conversation.turns t USING(turn_id) "
+                "WHERE m.actor_id=%s AND m.conversation_id=%s AND m.scope_ids<@%s::text[] AND m.id<=%s "
+                "AND (%s::bigint IS NULL OR m.id<%s) AND (%s::timestamptz IS NULL OR COALESCE(t.occurred_at,m.created_at)>=%s) "
+                "AND (%s::timestamptz IS NULL OR COALESCE(t.occurred_at,m.created_at)<%s) "
+                "AND (%s::text[] IS NULL OR t.event_id=ANY(%s::text[])) ORDER BY m.id DESC LIMIT %s",
+                (context.actor_id, context.conversation_id, list(context.scope_ids), cutoff,
+                 before_id, before_id, start, start, end, end, list(event_ids) or None,list(event_ids),limit+1))).fetchall()
+            valid = []
+            groups, count = [], 0
+            for row in rows[:limit]:
+                refs = source_refs(row["source_refs"])
+                if groups and count+len(refs)>1800:
+                    valid.extend(await self.sources.check_many_on(connection, context, tuple(groups)))
+                    groups, count = [], 0
+                groups.append(refs)
+                count += len(refs)
+            if groups:
+                valid.extend(await self.sources.check_many_on(connection, context, tuple(groups)))
+        items = []
+        for row, allowed in reversed(tuple(zip(rows[:limit], valid, strict=True))):
+            if allowed:
+                items.append({"message_id": row["id"], "turn_id": row["turn_id"],
+                    "speaker": row["speaker"], "parts": row["parts"], "source_refs": row["source_refs"],
+                    "occurred_at": row["occurred_at"] or row["created_at"],
+                    "person_id": (row["original_context"] or {}).get("person_id"),
+                    "producer": row["producer"], "event_id": row["event_id"], "revision": row["event_revision"]})
+        return {"items": tuple(items), "cutoff": cutoff,
+                "coverage": Coverage(len(rows)<=limit and all(valid),
+                    missing=() if all(valid) else ("unavailable_conversation_sources",))}
 
     async def turn(self, context, turn_id):
         await self.identity.check(context)
@@ -589,13 +643,15 @@ class ConversationService:
 
     @staticmethod
     def _validate_parts(parts):
-        if not parts or len(parts)>64:
+        if not parts or len(parts)>256:
             raise AppError("invalid_input_parts")
         for part in parts:
-            if part.kind not in {"text", "image", "audio", "video", "file", "reply", "reference", "forward", "reaction","mention","mention_all","channel_segment"}:
+            if part.kind not in {"text", "quote", "image", "audio", "video", "file", "reply", "reference", "forward", "reaction","mention","mention_all","channel_segment"}:
                 raise AppError("invalid_input_part")
-            if part.kind == "text" and (not isinstance(part.text, str) or len(part.text)>100000):
+            if part.kind in {"text", "quote"} and (not isinstance(part.text, str) or len(part.text)>100000):
                 raise AppError("invalid_input_text")
+            if part.kind == "quote" and not isinstance(part.metadata, dict):
+                raise AppError("invalid_quote_metadata")
             if part.kind in {"image", "audio", "video", "file"} and part.media is None:
                 raise AppError("input_media_required")
 
