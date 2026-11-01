@@ -94,6 +94,11 @@ class MemoryService:
             raise AppError("human_episode_source_required")
         async with self.connection(connection) as conn:
             descriptions = await self.sources.describe_for_write_on(conn, context, source_refs)
+            direct_authors={item["speaker_id"] for item in descriptions
+                if item["origin_kind"] == "human" and item["speaker_id"]}
+            unknown_direct=any(item["origin_kind"] == "human" and not item["speaker_id"] for item in descriptions)
+            speaker_id=(next(iter(direct_authors)) if origin == OriginKind.HUMAN
+                and len(direct_authors)==1 and not unknown_direct else None)
             scope_ids = sorted({scope for item in descriptions for scope in item["scope_ids"]})
             if not scope_ids:
                 scope_ids = list((await self.identity.intake_scope(context, connection=conn))[0])
@@ -115,6 +120,9 @@ class MemoryService:
                 )
             ).fetchone()
             if existing and existing["content_hash"] == digest:
+                if existing.get("speaker_id") != speaker_id:
+                    existing=await (await conn.execute("UPDATE memory.episodes SET speaker_id=%s WHERE episode_id=%s RETURNING *",
+                        (speaker_id,existing["episode_id"]))).fetchone()
                 return await self._episode_observed_on(conn,context,existing)
             if existing and revision <= existing["revision"]:
                 raise AppError("episode_revision_conflict", status=409)
@@ -165,9 +173,9 @@ class MemoryService:
             from .domain_utils import lexical
             from .extraction_contract import SCHEMA_VERSION
             row = await (await conn.execute(
-                "UPDATE memory.episodes SET recorded_at=now(),lexical=%s,semantic_fingerprint=%s,"
+                "UPDATE memory.episodes SET recorded_at=now(),lexical=%s,semantic_fingerprint=%s,speaker_id=%s,"
                 "extraction_cursor=%s WHERE episode_id=%s RETURNING *",
-                (lexical(summary), digest, Jsonb({"protocol":SCHEMA_VERSION}),episode_id))).fetchone()
+                (lexical(summary), digest, speaker_id, Jsonb({"protocol":SCHEMA_VERSION}),episode_id))).fetchone()
             await self.consolidation.dirty_on(conn, context, row)
             await self.jobs.enqueue(conn,JobSpec("memory.index_object",
                 f"memory-episode-index:{episode_id}:{row['revision']}",
@@ -467,9 +475,12 @@ class MemoryService:
         return result
 
     async def reflection_page(
-        self, context, *, person_id=None, conversation_id=None, cursor=None, limit=40
+        self, context, *, person_id=None, conversation_id=None, cursor=None, limit=40,
+        time_mode="current",valid_at=None,known_at=None
     ):
         await self.identity.check_context(context)
+        from .evidence import temporal_selection
+        time_mode,valid_at,known_at=temporal_selection(time_mode=time_mode,valid_at=valid_at,known_at=known_at)
         if conversation_id is not None and conversation_id != context.conversation_id:
             raise AppError("group_projection_forbidden", status=403)
         limit = min(max(int(limit), 1), 100)
@@ -479,6 +490,8 @@ class MemoryService:
                     "SELECT * FROM memory.reflections WHERE actor_id=%s AND active "
                     "AND scope_ids<@%s::text[] AND (%s::text IS NULL OR person_id=%s) "
                     "AND (%s::text IS NULL OR conversation_id=%s) "
+                    "AND (%s::timestamptz IS NULL OR recorded_at IS NULL OR recorded_at<=%s) "
+                    "AND (%s::timestamptz IS NULL OR occurred_at<=%s) "
                     "AND (%s::text IS NULL OR proposal_id>%s) ORDER BY proposal_id LIMIT %s",
                     (
                         context.actor_id,
@@ -487,24 +500,71 @@ class MemoryService:
                         person_id,
                         conversation_id,
                         conversation_id,
+                        known_at,known_at,valid_at,valid_at,
                         cursor,
                         cursor,
                         limit + 1,
                     ),
                 )
             ).fetchall()
-            checked = await self.sources.check_many_on(
-                conn, context, tuple(codec.refs(row["source_refs"]) for row in rows[:limit])
-            )
+            from .evidence import select_supports_on
+            selected = await select_supports_on(self.sources,conn,context,rows[:limit])
+            checked = [bool(refs) for refs in selected]
         visible = tuple(codec.reflection(row) for row, valid in zip(rows[:limit], checked) if valid)
+        temporal_missing=[]
+        if any(item.recorded_at is None for item in visible):
+            temporal_missing.append("recorded_at_unknown")
+        if time_mode == "valid_at" and visible:
+            temporal_missing.append("reflection_valid_time_unknown")
         return Page(
             visible,
             rows[limit - 1]["proposal_id"] if len(rows) > limit else None,
             Coverage(
-                complete=len(rows) <= limit and all(checked),
-                missing=("unavailable_sources",) if not all(checked) else (),
+                complete=len(rows) <= limit and all(checked) and not temporal_missing,
+                missing=tuple((*(("unavailable_sources",) if not all(checked) else ()),*temporal_missing)),
             ),
         )
+
+    async def _group_consolidation(self,context):
+        """Recent authorized per-person receipts, distinct from a historical fact view."""
+        if self.pipeline_recovery is None:
+            return {"view":"current_processing","items":(),"subjects":(),"coverage":Coverage(False,missing=("pipeline_unavailable",))}
+        async with self.database.transaction(read_only=True) as conn:
+            rows=await (await conn.execute("SELECT * FROM memory.episodes WHERE actor_id=%s AND conversation_id=%s "
+                "AND active AND scope_ids<@%s::text[] ORDER BY sequence DESC LIMIT 17",
+                (context.actor_id,context.conversation_id,list(context.scope_ids)))).fetchall()
+            from .evidence import select_supports_on
+            selected=await select_supports_on(self.sources,conn,context,rows[:16])
+            visible=tuple(row for row,refs in zip(rows[:16],selected,strict=True) if refs)
+            statuses=await self.pipeline_recovery.statuses_on(conn,context,visible)
+            ids=sorted({item["subject_id"] for status in statuses.values() for item in status["target_results"]}
+                | {item["subject_id"] for status in statuses.values() for item in status["unresolved"] if item.get("subject_id")})
+            people={}
+            for start in range(0,len(ids),128):
+                for person in await self.identity.resolve_memory_subjects_on(conn,context,ids[start:start+128]):
+                    people[person["person_id"]]=person
+            items=[]
+            seen_batches=set()
+            for episode in visible:
+                status=statuses[episode["episode_id"]]
+                # One shared batch appears on several Episodes; do not duplicate
+                # its per-person result in a group view.
+                identity=status["batch_id"] or episode["episode_id"]
+                if identity in seen_batches:
+                    continue
+                seen_batches.add(identity)
+                items.append({"episode_id":episode["episode_id"],"revision":episode["revision"],**status,
+                    "target_results":[item for item in status["target_results"] if item["subject_id"] in people],
+                    "unresolved":[item for item in status["unresolved"] if item.get("subject_id") is None or item["subject_id"] in people]})
+        missing=[]
+        if len(rows)>16:
+            missing.append("recent_processing_window")
+        if len(visible)<len(rows[:16]):
+            missing.append("unavailable_sources")
+        if set(ids)-set(people):
+            missing.append("subjects_unavailable")
+        return {"view":"current_processing","items":tuple(items),"subjects":tuple(people.values()),
+            "coverage":Coverage(not missing,missing=tuple(missing))}
 
     async def projection(
         self,
@@ -538,11 +598,13 @@ class MemoryService:
             person_id=person_id if not group else None,
             conversation_id=group_id,
             limit=reflection_limit,
+            time_mode=time_mode,valid_at=valid_at,known_at=known_at,
         )
         from .evidence import build_evidence_unit
         hypotheses = tuple(item for item in claim_page.items if item.memory_kind == "hypothesis")
         facts = tuple(item for item in claim_page.items if item.memory_kind != "hypothesis")
-        evidence = tuple(build_evidence_unit(item,time_mode=time_mode)
+        evidence = tuple(build_evidence_unit(item,time_mode=time_mode,
+            temporal_missing=("reflection_valid_time_unknown",) if time_mode=="valid_at" and hasattr(item,"proposal_id") else ())
             for item in (*claim_page.items,*matters.items,*reflections.items))
         pages = (claim_page,matters,reflections)
         missing = tuple(dict.fromkeys(value for page in pages for value in page.coverage.missing))
@@ -550,6 +612,7 @@ class MemoryService:
             "person_id": person_id,
             "group_id": group_id,
             "group": group,
+            "group_consolidation": await self._group_consolidation(context) if group else None,
             "can_manage": "memory.manage" in context.permissions or "*" in context.permissions,
             "claims": facts,
             "hypotheses": hypotheses,

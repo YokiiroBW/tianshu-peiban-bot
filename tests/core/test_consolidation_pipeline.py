@@ -1,7 +1,7 @@
 """Real PG/source/queue consolidation stories, authored but not run during development."""
 
 from dataclasses import replace
-from datetime import UTC,datetime
+from datetime import UTC,datetime,timedelta
 import json
 
 import pytest
@@ -174,3 +174,34 @@ async def test_explicit_episode_versions_do_not_depend_on_a_max_sequence_waterma
     changed=await core.memory.episodes_by_refs(alice,((earlier.episode_id,earlier.revision+1),))
     assert not changed.items and not changed.coverage.complete
     assert 'episodes_unavailable_or_revised' in changed.coverage.missing
+
+
+async def test_episode_speaker_comes_from_original_sources_and_never_tool_prerequisites(core,ordinary_users):
+    alice,bob=ordinary_users
+    human=await observe(core,alice,'verified_author','唯一已核验作者')
+    assert human.speaker_id == alice.person_id
+    second=await observe(core,bob,'another_author','另一位真实作者')
+    owner=await core.identity.context(core.owner.principal_id,actor_id=core.actor)
+    mixed=await core.memory.observe_episode(owner,{'event_id':'mixed_authors','origin_kind':'human',
+        'occurred_at':datetime.now(UTC),'summary':'多作者材料',
+        'source_refs':(*human.source_refs,*second.source_refs)})
+    assert mixed.speaker_id is None
+    tool=await core.memory.observe_episode(alice,{'event_id':'human_prerequisite','origin_kind':'tool_result',
+        'occurred_at':datetime.now(UTC),'summary':'由人类请求触发的工具结果','source_refs':human.source_refs})
+    assert tool.speaker_id is None
+
+
+async def test_reflection_time_view_and_frozen_episode_version_are_explicit(core,ordinary_users):
+    from tianshu.companion.types import ReflectionProposal
+    from tianshu.runtime.errors import AppError
+    alice,_=ordinary_users
+    episode=await observe(core,alice,'reflection_original','反思的实际原件')
+    proposal=ReflectionProposal('synthetic_time_reflection',core.actor,(episode.episode_id,),
+        '这是一条主观理解','interaction',datetime.now(UTC),episode.source_refs,episode.scope_ids)
+    with pytest.raises(AppError,match='reflection_episode_revision_conflict'):
+        await core.memory.record_reflection(alice,proposal,episode_revisions={episode.episode_id:episode.revision+1})
+    await core.memory.record_reflection(alice,proposal,episode_revisions={episode.episode_id:episode.revision})
+    past=await core.memory.reflection_page(alice,time_mode='known_at',known_at=datetime.now(UTC)-timedelta(days=1))
+    assert not past.items
+    valid=await core.memory.reflection_page(alice,time_mode='valid_at',valid_at=datetime.now(UTC))
+    assert valid.items and not valid.coverage.complete and 'reflection_valid_time_unknown' in valid.coverage.missing

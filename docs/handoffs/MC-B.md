@@ -42,6 +42,11 @@ Memory 统一在 `observe_episode` 事务中通知 Growth，传实际 Episode �
 | `/api/v1/memory/extraction/status` | episode_id | episode_id / revision / batch_id / status / error_code / action / fragment_cursor / target_results / unresolved；来源可读时还有 step_ids / schema_version / context_unfulfilled |
 | `/api/v1/memory/extraction/resume` | episode_id, expected_revision, client_request_id | CommandResult.data:{episode_id,queued,action,batch_id}；重放不重发任务，复核后重建当前 consolidation，replayed=true |
 | `/api/v1/memory/projection` | person_id? 或 group_id?, time_mode?, valid_at?, known_at? | claims、hypotheses、matters、reflections、evidence_units、time、pages、coverage；假设与事实独立 |
+| `/api/v1/memory/index/rebuild` | client_request_id, kinds?（默认五类）或单 kind?, cursor? | CommandResult.data:{queued,kinds,next_cursor,coverage,replayed}；游标 `i1:` 绑定同一类型集合、kind 与实际稳定 ID，所有任务走唯一 index_object |
+
+群 projection 另有 `group_consolidation={view:'current_processing',items,subjects,coverage}`：按最近 16 条当前可读 Episode 的真实 batch 去重，返回被授权逐人 target_results 和 unresolved；窗口截断、来源与主体缺项均在 coverage 中。它是当前处理状态，不伪装成历史事实。需要完整处理记录时继续使用 episodes 分页。反思页也支持 time_mode / valid_at / known_at；首次知道时间未知或反思有效时间未知会明确降低 coverage。
+
+Episode.speaker_id 只取来源中可证明的唯一人类作者，多个作者、只有引用或工具前置的人类材料都留 NULL。它与 person_id（所讨论/所服务人物）不同。新重建入口默认覆盖 claim / hypothesis / matter / episode / reflection；重放只复核当前可读分页、不重新派任务，queued=0、replayed=true。
 
 `consolidation.status` 使用真实 batch 状态 `prepared/waiting_model/ready/applied/stale/failed/revoked`；尚无批时为 Episode extraction_state。`target_results` 含 subject_id、status=`changed/no_change/unresolved`、processed_material_ids、operation_ids；这些字段来自已原子提交的回执，未提交结果不展示为成功。
 
@@ -55,8 +60,8 @@ Memory 统一在 `observe_episode` 事务中通知 Growth，传实际 Episode �
 
 ## 编写但未运行的用例
 
-- `tests/memory/test_consolidation_contract.py`：逐人精确覆盖、错误人物/版本、群分区、固定授权序列化、短 manifest、来源区间去重、连续前缀、推理占用预算和证据关系端点 read_set。
-- `tests/core/test_consolidation_pipeline.py`：多 Episode 单请求、未知观察原 attempt、非法/截断全批不提交、301 人群稀疏身份、quote 原作者不冒认、按实际 Episode 版本读取。
+- `tests/memory/test_consolidation_contract.py`：逐人精确覆盖、错误人物/版本、群分区、固定授权序列化、短 manifest、来源区间去重、连续前缀、推理占用预算、证据关系端点 read_set 与五类索引游标。
+- `tests/core/test_consolidation_pipeline.py`：多 Episode 单请求、未知观察原 attempt、非法/截断全批不提交、301 人群稀疏身份、quote 原作者不冒认、按实际 Episode 版本读取、唯一可证作者、反思版本 CAS 与历史时间缺项。
 - `tests/core/test_incremental_consumers.py`：原增量场景切换到共享整理器、长原件尾部完整覆盖、真实视频分析与未消费模态缺项。
 
 ## 集成后必须核对的限制

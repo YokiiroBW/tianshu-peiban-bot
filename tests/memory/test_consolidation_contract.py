@@ -13,6 +13,7 @@ from tianshu.memory.extraction_contract import (
 )
 from tianshu.memory.materials import ConsolidationPolicy, frozen_mapping, partition_identity, prefix_boundary
 from tianshu.memory.authority import context_record, request_identity
+from tianshu.memory.module import index_cursor, next_index_cursor
 from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, TrustedContext
 
@@ -80,6 +81,14 @@ def test_fixed_request_authority_has_stable_set_order_after_restart():
     assert context_record(first) == context_record(second)
     assert request_identity({"context":first,"attempt_id":"same","budget":{"deadline_at":"old"}}) == request_identity(
         {"context":second,"attempt_id":"same","budget":{"deadline_at":"new"}})
+
+
+def test_index_rebuild_cursor_is_bound_to_actual_kinds_and_stable_object_id():
+    kinds=("claim","episode","hypothesis","matter","reflection")
+    cursor=next_index_cursor({"kind":"episode","id":"expression:synthetic"},kinds)
+    assert index_cursor(cursor,kinds) == ("episode","expression:synthetic")
+    with pytest.raises(AppError,match="invalid_memory_index_cursor"):
+        index_cursor(cursor,("claim",))
 
 
 def test_manifest_keeps_mapping_without_a_second_full_model_input():

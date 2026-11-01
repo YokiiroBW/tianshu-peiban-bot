@@ -1,8 +1,9 @@
 """Memory use cases, selected-source propagation and the incremental worker registry."""
 
+from base64 import urlsafe_b64decode, urlsafe_b64encode
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
-from uuid import uuid4
+import json
 
 from tianshu.runtime.api import CommandResult, command_body, json_response
 from tianshu.runtime.commands import body_hash
@@ -11,6 +12,28 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.migrations import Migration
 from tianshu.types import RequestBudget,ServiceClass
+
+
+_INDEX_KINDS = ("claim","episode","hypothesis","matter","reflection")
+
+
+def index_cursor(value,kinds):
+    if value is None:
+        return "",""
+    try:
+        if not isinstance(value,str) or not value.startswith("i1:") or len(value)>2048:
+            raise ValueError
+        selected=json.loads(urlsafe_b64decode(value[3:]).decode())
+        if selected["kinds"] != list(kinds) or selected["kind"] not in kinds or not isinstance(selected["id"],str):
+            raise ValueError
+        return selected["kind"],selected["id"]
+    except (ValueError,TypeError,KeyError,UnicodeError):
+        raise AppError("invalid_memory_index_cursor") from None
+
+
+def next_index_cursor(row,kinds):
+    return "i1:"+urlsafe_b64encode(json.dumps({"kind":row["kind"],"id":row["id"],"kinds":list(kinds)},
+        ensure_ascii=False,separators=(",",":")).encode()).decode()
 
 
 def create_module(memory, retrieval, workers, identity):
@@ -83,6 +106,7 @@ def create_module(memory, retrieval, workers, identity):
                 person_id=body.get("person_id"),
                 cursor=body.get("cursor"),
                 limit=body.get("limit", 40),
+                time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at"),
             ),
         )
         route(
@@ -97,43 +121,58 @@ def create_module(memory, retrieval, workers, identity):
         )
 
         async def rebuild(context, body):
-            async def apply(conn):
+            requested=body.get("kinds",[body["kind"]] if "kind" in body else list(_INDEX_KINDS))
+            if not isinstance(requested,list) or not requested or any(kind not in _INDEX_KINDS for kind in requested):
+                raise AppError("memory_index_kind_invalid")
+            kinds=tuple(sorted(set(requested)))
+            after_kind,after_id=index_cursor(body.get("cursor"),kinds)
+
+            async def page_on(conn,*,enqueue):
                 await identity.check_context(context, connection=conn)
                 rows = await (
                     await conn.execute(
-                        "SELECT c.claim_id,c.current_revision AS revision FROM memory.claims c JOIN memory.claim_revisions r "
+                        "WITH candidates AS (SELECT CASE WHEN r.memory_kind='hypothesis' THEN 'hypothesis' ELSE 'claim' END AS kind,"
+                        "c.claim_id AS id,c.current_revision AS revision,r.support_groups,r.source_refs FROM memory.claims c JOIN memory.claim_revisions r "
                         "ON r.claim_id=c.claim_id AND r.revision=c.current_revision WHERE c.actor_id=%s AND r.state='active' "
-                        "AND sources.any_support_usable(r.support_groups,%s::text[]) "
-                        "AND (%s::text IS NULL OR c.claim_id>%s) ORDER BY c.claim_id LIMIT 201",
+                        "AND r.current_status='current' AND sources.any_support_usable(r.support_groups,%s::text[]) "
+                        "UNION ALL SELECT 'matter',matter_id,revision,support_groups,source_refs FROM memory.matters WHERE actor_id=%s "
+                        "AND active AND current_status='current' AND sources.any_support_usable(support_groups,%s::text[]) "
+                        "UNION ALL SELECT 'episode',episode_id,revision,'[]'::jsonb,source_refs FROM memory.episodes WHERE actor_id=%s "
+                        "AND active AND scope_ids<@%s::text[] "
+                        "UNION ALL SELECT 'reflection',proposal_id,revision,'[]'::jsonb,source_refs FROM memory.reflections WHERE actor_id=%s "
+                        "AND active AND scope_ids<@%s::text[]) SELECT * FROM candidates WHERE kind=ANY(%s::text[]) "
+                        "AND (kind,id)>(%s,%s) ORDER BY kind,id LIMIT 201",
                         (
-                            context.actor_id,
-                            list(context.scope_ids),
-                            body.get("cursor"),
-                            body.get("cursor"),
+                            context.actor_id,list(context.scope_ids),context.actor_id,list(context.scope_ids),
+                            context.actor_id,list(context.scope_ids),context.actor_id,list(context.scope_ids),
+                            list(kinds),after_kind,after_id,
                         ),
                     )
                 ).fetchall()
-                for row in rows[:200]:
-                    await memory.jobs.enqueue(
-                        conn,
-                        JobSpec(
-                            "memory.index_object",
-                            "memory-explicit-reindex:" + str(uuid4()),
-                            {"kind":"claim","id":row["claim_id"],"revision":row["revision"]},
-                            ServiceClass.ELASTIC,
-                        ),
-                    )
+                from .evidence import select_supports_on
+                selected=await select_supports_on(memory.sources,conn,context,rows[:200])
+                queued=0
+                for row,refs in zip(rows[:200],selected,strict=True):
+                    if enqueue and refs:
+                        await memory.jobs.enqueue(conn,JobSpec("memory.index_object",
+                            f"memory-explicit-reindex:{context.principal_id}:{body['client_request_id']}:{row['kind']}:{row['id']}:{row['revision']}",
+                            {"kind":row["kind"],"id":row["id"],"revision":row["revision"]},ServiceClass.ELASTIC))
+                        queued+=1
                 return CommandResult(
                     body["client_request_id"],
                     data={
-                        "queued": min(len(rows), 200),
-                        "next_cursor": rows[199]["claim_id"] if len(rows) > 200 else None,
+                        "queued":queued,"kinds":kinds,"replayed":not enqueue,
+                        "next_cursor": next_index_cursor(rows[199],kinds) if len(rows)>200 else None,
+                        "coverage":{"complete":len(rows)<=200 and all(selected),
+                            "missing":[] if all(selected) else ["unavailable_sources"]},
                     },
                 )
 
+            async def apply(conn):
+                return await page_on(conn,enqueue=True)
+
             async def replay(conn, result):
-                await identity.check_context(context, connection=conn)
-                return result
+                return await page_on(conn,enqueue=False)
 
             return await memory.commands.execute(
                 context,
