@@ -1,6 +1,7 @@
 """Persistent owner observations and empty maintenance wakes, using isolated PG."""
 
 import asyncio
+import json
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 from types import SimpleNamespace
@@ -14,6 +15,7 @@ from tianshu.capabilities.infrastructure.runtime import Infrastructure
 from tianshu.capabilities.media.background import Background
 from tianshu.capabilities.media.books.audio.runtime import BookAudio
 from tianshu.capabilities.media.music.navidrome.sync import Navidrome
+from tianshu.capabilities.media.repository import Repository
 from tianshu.capabilities.media.scheduling import scan_due
 from tianshu.capabilities.media.runtime import Media
 from tianshu.capabilities.service import Capabilities
@@ -286,7 +288,7 @@ async def test_lost_maintenance_owner_cannot_finish_or_reschedule_newer_owner(da
 @pytest.mark.asyncio
 async def test_registered_maintenance_adapter_forwards_the_persisted_generation():
     handlers = {}
-    jobs = SimpleNamespace(tasks=handlers, register=lambda name, handler: handlers.update({name: handler}))
+    jobs = SimpleNamespace(tasks=handlers, register=lambda name, handler, **_options: handlers.update({name: handler}))
     capabilities = Capabilities.__new__(Capabilities)
     capabilities.runtime = SimpleNamespace(jobs=jobs)
     capabilities.actions = SimpleNamespace(register_tasks=lambda: None)
@@ -294,7 +296,7 @@ async def test_registered_maintenance_adapter_forwards_the_persisted_generation(
     capabilities.media = SimpleNamespace(background=background)
     capabilities.infrastructure = None
     capabilities.register_tasks()
-    assert handlers["capabilities.media.library_job"] is handlers["capabilities.media_job"]
+    assert "capabilities.media.library_job" not in handlers
     await handlers["capabilities.media.subscriptions"](wake_generation=23)
     background.dispatch.assert_awaited_once_with("subscriptions", wake_generation=23)
     background.run.assert_not_awaited()
@@ -559,3 +561,65 @@ async def test_waiting_on_one_infrastructure_node_does_not_consume_other_node_sl
             task.cancel()
         await asyncio.gather(*waiters, return_exceptions=True)
         held.release()
+
+
+@pytest.mark.asyncio
+async def test_legacy_media_job_routes_from_original_business_type_and_reuses_same_key(database):
+    await prepare(database)
+    jobs = JobQueue(database.config.dsn)
+    repository = Repository.__new__(Repository)
+    repository.runtime = SimpleNamespace(jobs=jobs)
+    capabilities = Capabilities.__new__(Capabilities)
+    capabilities.runtime = SimpleNamespace(jobs=jobs)
+    capabilities.actions = SimpleNamespace(register_tasks=lambda: None)
+    capabilities.media = SimpleNamespace(repo=repository, background=SimpleNamespace(operations={}))
+    capabilities.infrastructure = None
+    capabilities.initialize = AsyncMock()
+    capabilities.register_tasks()
+    assert "capabilities.media.library_job" not in jobs.tasks
+    due = datetime.now(UTC) + timedelta(hours=1)
+    business_jobs = [{"job_id": identity, "media_kind": "audio", "audio_operation": operation,
+        "generation": 7, "revision": 3, "state": "queued", "checkpoint": {"original": identity}}
+        for identity, operation in (("scan", "scan"), ("import", "import"), ("download", None))]
+    async with database.transaction() as connection:
+        for job in business_jobs:
+            await connection.execute(
+                "INSERT INTO capability_media.jobs(id,dedupe,state,created,updated,generation,body) "
+                "VALUES(%s,%s,'queued',1,1,7,%s)",
+                (job["job_id"], job["job_id"], json.dumps(job)))
+            args = {key: job[key] for key in ("job_id", "generation", "revision")}
+            original = await jobs.tasks["capabilities.media_job"].configure(
+                connection=connection, queue="elastic", schedule_at=due, priority=37).defer_async(**args)
+            await connection.execute(
+                "INSERT INTO runtime.job_keys(key,task,job_id) VALUES(%s,'capabilities.media_job',%s)",
+                (f"media-acquire:{job['job_id']}:7:3", original))
+        before = await (await connection.execute("SELECT * FROM procrastinate_jobs ORDER BY id")).fetchall()
+        native_before = await (await connection.execute("SELECT * FROM capability_media.jobs ORDER BY id")).fetchall()
+    result = await jobs.route_legacy_pending(database)
+    assert result["routed"] == 3 and result["blocked_count"] == 0
+    for job in business_jobs:
+        # The same old key and task must return the original native job, even
+        # though future sync writes now explicitly carry the resolved lane.
+        await database.run_sync(lambda connection, job=job: repository.schedule_job(connection, job))
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute("SELECT * FROM procrastinate_jobs ORDER BY id")).fetchall()
+        native_after = await (await connection.execute("SELECT * FROM capability_media.jobs ORDER BY id")).fetchall()
+    assert len(after) == len(before) == 3
+    assert [row["queue_name"] for row in after] == ["music_library", "music_library", "downloads"]
+    for old, current in zip(before, after, strict=True):
+        assert {key: value for key, value in old.items() if key != "queue_name"} == {
+            key: value for key, value in current.items() if key != "queue_name"}
+    assert native_after == native_before
+    fresh = {**business_jobs[0], "job_id": "new-scan", "checkpoint": {"original": "new-scan"}}
+    async with database.transaction() as connection:
+        await connection.execute(
+            "INSERT INTO capability_media.jobs(id,dedupe,state,created,updated,generation,body) "
+            "VALUES('new-scan','new-scan','queued',1,1,7,%s)", (json.dumps(fresh),))
+    await database.run_sync(lambda connection: repository.schedule_job(connection, fresh))
+    async with database.transaction(read_only=True) as connection:
+        created = await (await connection.execute(
+            "SELECT * FROM procrastinate_jobs WHERE args->>'job_id'='new-scan'")).fetchall()
+    assert len(created) == 1
+    assert created[0]["task_name"] == "capabilities.media_job"
+    assert created[0]["queue_name"] == "music_library"
+    capabilities.initialize.assert_not_awaited()

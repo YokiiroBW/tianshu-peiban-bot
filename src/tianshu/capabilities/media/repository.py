@@ -275,15 +275,30 @@ class Repository:
         dedupe = digest(canonical(dedupe_input))
         return self.insert_job(payload, dedupe, db)
 
+    @staticmethod
+    def _job_execution_lane(job):
+        from tianshu.runtime.execution import ExecutionLane
+
+        return (ExecutionLane.MUSIC_LIBRARY
+            if job.get("media_kind") == "audio" and job.get("audio_operation") in {"scan", "import"}
+            else ExecutionLane.DOWNLOADS)
+
+    async def job_execution_lane_on(self, connection, identity):
+        """Route an original job using only its persisted domain metadata."""
+        row = await (await connection.execute(
+            "SELECT body::jsonb->>'media_kind' AS media_kind,"
+            "body::jsonb->>'audio_operation' AS audio_operation "
+            "FROM capability_media.jobs WHERE id=%s", (identity,))).fetchone()
+        return self._job_execution_lane(row or {})
+
     def schedule_job(self,db,job):
         from datetime import datetime,UTC,timedelta
         from tianshu.runtime.jobs import JobSpec
         due=datetime.now(UTC)+timedelta(seconds=job.get("retry_delay",30) if job["state"]=="retry_wait" else 0)
         key="media-acquire:"+job["job_id"]+":"+str(job.get("generation",0))+":"+str(job.get("revision",1))
-        task = ("capabilities.media.library_job"
-            if job.get("media_kind") == "audio" and job.get("audio_operation") in {"scan", "import"}
-            else "capabilities.media_job")
-        self.runtime.jobs.enqueue_sync(db,JobSpec(task,key,{"job_id":job["job_id"],"generation":job.get("generation",0),"revision":job.get("revision",1)},scheduled_at=due))
+        self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.media_job",key,
+            {"job_id":job["job_id"],"generation":job.get("generation",0),"revision":job.get("revision",1)},
+            scheduled_at=due, execution_lane=self._job_execution_lane(job)))
 
     def insert_job(self, payload, dedupe, db):
         row = db.execute('SELECT body FROM jobs WHERE dedupe=%s', (dedupe,)).fetchone()

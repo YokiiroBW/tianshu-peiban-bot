@@ -378,11 +378,13 @@ class Capabilities:
         async def media_job(**payload):
             await process_job(self, **payload)
 
+        async def media_job_lane(connection, payload):
+            return await self.media.repo.job_execution_lane_on(connection, payload["job_id"])
+
         async def plugin_event(**payload):
             await process_event(self.plugins, **payload)
 
-        self.runtime.jobs.register("capabilities.media_job", media_job)
-        self.runtime.jobs.register("capabilities.media.library_job", media_job)
+        self.runtime.jobs.register("capabilities.media_job", media_job, lane_resolver=media_job_lane)
         self.runtime.jobs.register("capabilities.plugin_event", plugin_event)
 
         async def plugin_schedule(**payload):
