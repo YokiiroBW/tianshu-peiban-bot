@@ -550,13 +550,20 @@ class SourceService:
     async def capture(self, context, *, locator, raw, mime_type):
         await self.check(context)
         base_type = mime_type.partition(";")[0].strip().lower()
-        textual = (
-            base_type.startswith("text/")
-            or base_type in {"application/json", "application/xml"}
+        structured = (
+            base_type in {"application/json", "application/xml"}
             or (base_type.startswith("application/") and base_type.endswith(("+json", "+xml")))
         )
         # Preserve the exact UTF-8 representation and original MIME, including structured text.
-        text = raw.decode("utf-8") if textual else None
+        text = None
+        if base_type.startswith("text/"):
+            text = raw.decode("utf-8")
+        elif structured:
+            try:
+                text = raw.decode("utf-8")
+            except UnicodeDecodeError:
+                # Non-UTF8 structured originals remain readable as their original byte media.
+                pass
         media = await asyncio.to_thread(self.files.put_bytes, raw, media_type=mime_type)
         return await self._register_media(context, media, locator, OriginKind.TOOL_RESULT, text)
 

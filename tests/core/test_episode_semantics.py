@@ -22,7 +22,7 @@ from tianshu.conversation.types import InputMessage, InputPart
 from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.serialization import wire
-from tianshu.types import Action, Attempt, Coverage, OriginKind, Receipt
+from tianshu.types import Action, Attempt, Coverage, MediaRef, OriginKind, Receipt
 
 
 async def consumer(core):
@@ -234,6 +234,29 @@ async def test_structured_utf8_capture_preserves_the_original_representation(
     assert read["origin_kind"] == "tool_result"
     assert read["media"]["mime_type"] == mime
     assert read["coverage"].complete
+
+
+async def test_non_utf8_structured_capture_keeps_bytes_without_claiming_readable_text(
+    core, ordinary_users
+):
+    alice, _ = ordinary_users
+    originals = (
+        ("application/xml; charset=utf-16", "<事实>原始文本</事实>".encode("utf-16")),
+        ("application/problem+json", b'{"text":"\xff"}'),
+    )
+    for mime, raw in originals:
+        ref = await core.sources.capture(
+            alice, locator={"kind": "structured-original", "mime": mime}, raw=raw, mime_type=mime
+        )
+        read = await core.sources.read(alice, ref, {"max_characters": 2000})
+        assert read["content"] is None
+        assert read["origin_kind"] == "tool_result"
+        assert await core.sources.resolve(alice, MediaRef(**read["media"])) == (raw, mime)
+    # The established text/* contract still rejects invalid UTF8.
+    with pytest.raises(UnicodeDecodeError):
+        await core.sources.capture(
+            alice, locator={"kind": "strict-text"}, raw=b"\xff", mime_type="text/plain"
+        )
 
 
 class Permit:
