@@ -1,4 +1,6 @@
 from tianshu.life.publications import diary,chapter,version
+from datetime import date
+import json
 
 
 def test_published_reader_projection_excludes_new_draft_and_internal_material():
@@ -21,3 +23,13 @@ def test_published_chapter_metadata_is_the_published_snapshot():
          "disclosure_ref":{"source_id":"publication","revision":1,"locator":{}}}
     assert chapter(row)["title"]=="Published title"
     assert chapter(row)["position"]==1
+
+
+def test_published_diary_local_date_is_json_serializable_without_private_automation():
+    row={"id":"diary","actor_id":"actor","day":date(2026,11,2),"published_revision":1,
+         "automatic":{"context":"private"},
+         "disclosure_ref":{"source_id":"publication","revision":1,"locator":{}}}
+    from tianshu.runtime.serialization import wire
+    public=diary(row)
+    assert json.loads(json.dumps(wire(public)))["day"] == "2026-11-02"
+    assert "automatic" not in public

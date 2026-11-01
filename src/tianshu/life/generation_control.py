@@ -54,6 +54,8 @@ class GenerationControl:
 
     async def work(self, kind, item_id, generation_id, context, operation):
         context = context_from_record(context)
+        if kind == "diary":
+            return await self.diaries.control_generation(item_id,generation_id,context,operation)
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as connection:
             row = await (await connection.execute(self.query(kind), (item_id,context.actor_id,list(context.scope_ids)))).fetchone()

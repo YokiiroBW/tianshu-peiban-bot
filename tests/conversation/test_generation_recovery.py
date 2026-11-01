@@ -143,6 +143,8 @@ async def test_prepare_and_domain_pointer_commit_or_rollback_together_without_mo
             "JOIN conversation.plan_fixture p USING(attempt_id)")).fetchone()
     assert row == {"state": "prepared", "attempt_id": original.attempt_id}
     assert frozen == original and models.calls == models.observations == []
+    candidate = replace(original,attempt_id="unused-later-candidate")
+    assert await generations.prepare("atomic-plan",candidate) == original
 
 
 @pytest.mark.asyncio

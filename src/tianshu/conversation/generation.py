@@ -43,8 +43,6 @@ class GenerationRequests:
             "SELECT * FROM conversation.generation_requests WHERE material_key=%s FOR UPDATE", (material_key,))).fetchone()
         if row["context_key"] != self.context_key(context):
             raise AppError("generation_context_changed", status=409)
-        if row["attempt_id"] != request.attempt_id:
-            raise AppError("generation_identity_conflict", status=409)
         if row["state"] == "expired":
             raise AppError("generation_request_expired", status=409)
         if row["state"] == "invalidated" or row["request"] is None:
@@ -97,7 +95,7 @@ class GenerationRequests:
         frozen = await self.request(attempt_id, context)
         if frozen is None:
             return None
-        reader = self._observer(frozen.context, observer)
+        reader = self.observer_context(frozen.context, observer)
         # Models rechecks current Identity and the original source closure. Its
         # fingerprint remains the original semantic scene; epoch is not identity.
         return await self.models.result(attempt_id, context=reader)
@@ -112,7 +110,7 @@ class GenerationRequests:
         if row["state"] == "invalidated" or row["request"] is None:
             raise AppError("source_unavailable", status=409)
         frozen = request_from_wire(row["request"])
-        reader = self._observer(frozen.context, observer)
+        reader = self.observer_context(frozen.context, observer)
         # Request text is as sensitive as the result. Validate before returning it,
         # including when no Models attempt was ever admitted.
         async with self.database.transaction() as connection:
@@ -121,7 +119,7 @@ class GenerationRequests:
         return frozen
 
     @staticmethod
-    def _observer(original, current):
+    def observer_context(original, current):
         fields = ("principal_id", "actor_id", "person_id", "conversation_id",
                   "conversation_kind", "delivery_allowed")
         if (any(getattr(original, key) != getattr(current, key) for key in fields)

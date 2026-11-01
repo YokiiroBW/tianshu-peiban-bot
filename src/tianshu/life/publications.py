@@ -10,7 +10,8 @@ def reference(row):
 
 
 def diary(row):
-    return {"id": row["id"], "actor_id": row["actor_id"], "day": row["day"],
+    day = row["day"].isoformat() if hasattr(row["day"], "isoformat") else row["day"]
+    return {"id": row["id"], "actor_id": row["actor_id"], "day": day,
             "state": "published", "revision": row["published_revision"],
             "published_revision": row["published_revision"], "source_refs": reference(row)}
 

@@ -121,8 +121,21 @@ async def build_product(runtime):
         weather=weather,
     )
     presentation = LifePresentation(life, media=artifacts)
+    contacts.on_received = life.received
+    writing, diaries = (
+        WritingService(life, models, assembler),
+        DiaryService(life, models, assembler),
+    )
+    clock.bind_lifecycle(day_plans=life.days, on_day_closed=diaries.day_closed)
     growth = GrowthService(companion, jobs, models, assembler, on_projection_changed=life.signal)
-    memory.bind_episode_observer(growth.changed)
+
+    async def episode_changed(context, watermark, *, episode=None, connection=None):
+        # Both consumers register in the original Episode transaction. Neither
+        # assembles, generates or waits for a background model on this path.
+        await growth.changed(context,watermark,episode=episode,connection=connection)
+        await diaries.changed(context,watermark,episode=episode,connection=connection)
+
+    memory.bind_episode_observer(episode_changed)
     result_events = ActionResultEvents(jobs)
 
     async def actor_directory(context):
@@ -174,10 +187,6 @@ async def build_product(runtime):
         db, jobs, identity, sources, caps.actions, caps.speech, delivery=expression
     )
     life_worker = LifeWorker(life, models, assembler, caps.catalog, caps.actions, renderer, growth)
-    writing, diaries = (
-        WritingService(life, models, assembler),
-        DiaryService(life, models, assembler),
-    )
     reading = ReadingService(life, caps.reading)
     conversation = ConversationService(
         db,
@@ -214,7 +223,7 @@ async def build_product(runtime):
     for callback in (
         memory.source_changed,
         CompanionDependencies().invalidate,
-        LifeDependencies().invalidate,
+        LifeDependencies(life).invalidate,
         ConversationDependencies().invalidate,
         caps.withdraw_sources,
         channels.withdraw_sources,
