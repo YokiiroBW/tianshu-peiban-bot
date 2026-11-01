@@ -20,6 +20,10 @@ class Authority:
     async def check(self, *_args):
         pass
 
+    async def refresh_scheduled_context(self, context, *, permission=None, connection=None):
+        await self.check(context)
+        return context
+
     async def validate_persistence(self, *_args):
         return True
 
