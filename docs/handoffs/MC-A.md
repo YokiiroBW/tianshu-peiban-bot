@@ -210,7 +210,8 @@ separate MC-D integration scope and will consume these types/builders.
 - 协议 UTF-8 字节数使用 S09 checkpoint-3 已保存的实际 system 作为静态基准：
   原 Schema 紧凑 JSON 原样往返后按本次结构等价变换，并拼接新增指令常量；未
   import 或执行候选 Python。Schema 为 7,441→7,707 B（+266），完整 system
-  为 10,456→11,540 B（+1,084），其中指令增量为 818 B。此为协议字节量，不是
+  为 10,456→11,018 B（+562），其中指令净增为 296 B；通过合并同义规则、移除旧
+  Claim/Matter 举例和重复 target 解释，保留实质约束。此为协议字节量，不是
   模型实际 token/费用测量；max_input_tokens=12,000、缩窗/尾部和推理预留均未改。
 - 编写但未执行：
   - tests/memory/test_consolidation_contract.py::test_model_target_shape_matches_the_domain_operation
