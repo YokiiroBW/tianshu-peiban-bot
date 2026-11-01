@@ -54,6 +54,21 @@ class ForumAttribution(TestCase):
 
 
 class ExplorationContinuation(TestCase):
+    def test_no_new_forum_posts_preserve_later_check_without_consumption_or_polling(self):
+        arguments = {"url": "https://forum.example/t/42.json", "mode": "continue", "after_post_number": 45}
+        following = {"capability_id": "content.read", "arguments": arguments}
+        source = {"source_id": "last-real-page", "revision": 2}
+        previous = {"current_item": {"url": arguments["url"], "source": source, "follow_up": None},
+                    "consumed_sources": [source]}
+        result = {"read_basis": "no_new_content", "experience_eligible": False,
+                  "continuation": None, "follow_up": following}
+        checkpoint = exploration_checkpoint("content.read", arguments, result, previous)
+        self.assertEqual(checkpoint["current_item"]["follow_up"], following)
+        self.assertEqual(checkpoint["current_item"]["source"], source)
+        self.assertEqual(checkpoint["consumed_sources"], [source])
+        self.assertIsNone(checkpoint["continuation"])
+        self.assertIsNone(continuation_step("content.read", arguments, result))
+
     def test_discovery_selects_actual_read_without_marking_candidates_consumed(self):
         following = {"capability_id": "content.read", "arguments": {"url": "https://example.org/body",
             "content_key": "url:body", "mode": "research"}}

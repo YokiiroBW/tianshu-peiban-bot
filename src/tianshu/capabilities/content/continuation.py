@@ -91,6 +91,11 @@ def exploration_checkpoint(capability_id, arguments, result, previous=None):
     elif result.get("locator"):
         current = {"url": result["locator"]["url"], "source": result.get("source"),
                    "continuation": result.get("continuation"), "follow_up": result.get("follow_up")}
+    elif result.get("follow_up"):
+        # A forum check with no new replies has no new source/locator, but its
+        # receipt still proves the exact cursor for a later planned check.
+        current = {**(current or {}), "url": (current or {}).get("url", arguments.get("url")),
+                   "continuation": result.get("continuation"), "follow_up": deepcopy(result["follow_up"])}
     next_step = continuation_step(capability_id, arguments, result)
     return {**old, "mode": result.get("activity_mode", arguments.get("mode", old.get("mode", "research"))),
             "intention": progress.get("intention", arguments.get("intention", old.get("intention"))),
