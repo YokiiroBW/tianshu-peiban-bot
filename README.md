@@ -39,7 +39,7 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
   "schema_version": "tianshu.core.v1",
   "database": {
     "dsn_ref": "TIANSHU_DATABASE_URL",
-    "connection_budget": 40,
+    "connection_budget": 72,
     "roles": {
       "interactive": {"max_connections": 4, "control_connections": 2, "sync_connections": 2},
       "model-broker": {"max_connections": 4, "control_connections": 2, "sync_connections": 1},
@@ -47,8 +47,9 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
     }
   },
   "http": {"host": "127.0.0.1", "port": 8070, "max_body_bytes": 536870912},
-  "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071", "token_ref": "TIANSHU_BROKER_TOKEN"},
-  "worker": {"queue_connections": 8, "interactive_concurrency": 2, "due_concurrency": 1, "elastic_concurrency": 2},
+  "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071", "token_ref": "TIANSHU_BROKER_TOKEN",
+    "transport": {"foreground_connections": 8, "due_connections": 4, "background_connections": 24, "control_connections": 4}},
+  "worker": {"queue_connections": 8, "lanes": {}},
   "artifacts": "data/artifacts",
   "credentials": {"master_key_ref": "TIANSHU_MASTER_KEY"},
   "identity": {"installation_seal": "C:/Tianshu/data/state/installed", "setup_token_ref": "TIANSHU_SETUP_TOKEN"},
@@ -59,6 +60,9 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
 ```
 
 领域由 `runtime/product.py` 直接构造、注册，配置不能动态导入旧产品或空模块。
+`worker.lanes` 未覆盖的业务族使用固定默认值：34 个 lane、39 个执行槽，共享 8 个队列 SQL 连接，另有 34 个原生监听连接。
+默认数据库角色池加监听、队列池和 Broker owner 最多需要 67 条连接，配置预算为 72；HTTP 传输池不计入 PG 连接。
+完整 lane 配置见 `deploy/core/settings.example.json`；不再使用旧三类队列并发配置。模型服务优先级与执行 lane 分别选择。
 `migrate` 从唯一总注册安装所有领域 schema，之后才启动任一角色；不在领域启动过程中临时迁移。
 设置 `TIANSHU_SETUP_TOKEN` 和 `TIANSHU_CHANNEL_OWNER_TOKEN` 两个独立随机值；前者保护首次创建管理员，
 后者只供固定回环频道 owner RPC，不代替网页会话鉴权。

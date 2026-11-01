@@ -95,7 +95,7 @@ async def run(settings, role, *, initialize=False):
         database.config.dsn, max_connections=worker_settings.get("queue_connections", 8)
     )
     files = FileStore(settings.artifact_directory)
-    client = ModelClient(settings.broker_url, settings.broker_token)
+    client = ModelClient(settings.broker_url, settings.broker_token, **settings.model_transport)
     services = RuntimeServices(database, jobs, client, files, settings, role)
     services.commands = CommandStore(database)
     services.credentials = CredentialStore(
@@ -205,12 +205,12 @@ async def run(settings, role, *, initialize=False):
                     module.register_tasks(jobs, services)
             await jobs.open()
             stack.push_async_callback(jobs.close)
-            shares = {
-                "interactive": worker_settings.get("interactive_concurrency", 2),
-                "due": worker_settings.get("due_concurrency", 1),
-                "elastic": worker_settings.get("elastic_concurrency", 2),
+            shares = settings.worker_lanes
+            routed = await jobs.route_legacy_pending(database)
+            registration = {
+                "tasks": sorted(jobs.tasks), "queues": shares,
+                "queue_listeners": len(shares), "legacy_job_routing": routed,
             }
-            registration = {"tasks": sorted(jobs.tasks), "queues": shares}
             for module in modules:
                 if module.stop:
                     stack.push_async_callback(module.stop, services)
@@ -218,8 +218,6 @@ async def run(settings, role, *, initialize=False):
                     await module.start(services)
             workers = []
             for queue, count in shares.items():
-                if count < 1:
-                    raise ValueError("positive_worker_share_required")
                 workers.append(
                     asyncio.create_task(
                         jobs.app.run_worker_async(

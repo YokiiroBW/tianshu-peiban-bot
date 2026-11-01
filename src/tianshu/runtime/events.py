@@ -16,7 +16,7 @@ from .errors import AppError
 EVENTS = frozenset({"runtime.starting", "runtime.started", "runtime.stopping", "runtime.stopped",
     "runtime.failed", "http.started", "http.finished", "http.failed", "model.queued",
     "model.submitted", "model.finished", "model.cancelled", "resource.queued", "resource.submitted",
-    "resource.finished", "job.started", "job.finished", "job.failed", "config.changed"})
+    "resource.finished", "job.started", "job.finished", "job.failed", "job.routing_blocked", "config.changed"})
 OUTCOMES = frozenset({"started", "succeeded", "failed", "cancelled", "unknown", "rejected", "degraded"})
 
 

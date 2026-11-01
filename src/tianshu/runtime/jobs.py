@@ -4,15 +4,15 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import datetime
-from typing import Any, Mapping
+import inspect
 import json
+from typing import Any, Mapping
 
 import procrastinate
-import inspect
 
 from tianshu.types import ServiceClass
 from .errors import AppError
-from .execution import ExecutionLane, TASK_LANES
+from .execution import ExecutionLane, TASK_LANES, job_observation
 
 
 @dataclass(frozen=True, slots=True)
@@ -48,18 +48,21 @@ class JobQueue:
         await self.app.close_async()
 
     def register(self, name, handler, *, retryable=False, execution_lane=None,
-                 legacy_lane_resolver=None):
+                 lane_resolver=None):
         """Only explicitly reentrant computation handlers may retry automatically."""
         if name in self.tasks:
             raise ValueError("duplicate_task_registration")
         if not inspect.iscoroutinefunction(handler):
             raise TypeError("async_job_handler_required")
+        default_lane = TASK_LANES.get(name)
+        if execution_lane is None and default_lane is None and lane_resolver is None:
+            raise ValueError("task_execution_lane_required")
         lane = self._lane(execution_lane if execution_lane is not None
-                          else TASK_LANES.get(name, ExecutionLane.MAINTENANCE))
-        if legacy_lane_resolver is not None:
-            if not inspect.iscoroutinefunction(legacy_lane_resolver):
+                          else default_lane or ExecutionLane.MAINTENANCE)
+        if lane_resolver is not None:
+            if not inspect.iscoroutinefunction(lane_resolver):
                 raise TypeError("async_job_lane_resolver_required")
-            self.lane_resolvers[name] = legacy_lane_resolver
+            self.lane_resolvers[name] = lane_resolver
         self.task_lanes[name] = lane
 
         async def execute(job_context, **kwargs):
@@ -110,10 +113,6 @@ class JobQueue:
             raise AppError("task_not_registered", status=503)
         if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
             raise AppError("invalid_persistent_job_class")
-        if spec.execution_lane is None and spec.task in self.lane_resolvers:
-            raise AppError("dynamic_job_lane_required")
-        lane = self._lane(spec.execution_lane if spec.execution_lane is not None
-                          else self.task_lanes[spec.task])
         inserted = connection.execute(
             "INSERT INTO runtime.job_keys(key,task,subject_id,matter_id) VALUES (%s,%s,%s,%s) "
             "ON CONFLICT DO NOTHING RETURNING key",
@@ -126,6 +125,10 @@ class JobQueue:
             if row["cancelled_at"]:
                 raise AppError("job_cancelled", status=409)
             return row["job_id"]
+        if spec.execution_lane is None and spec.task in self.lane_resolvers:
+            raise AppError("dynamic_job_lane_required")
+        lane = self._lane(spec.execution_lane if spec.execution_lane is not None
+                          else self.task_lanes[spec.task])
         job_id = self.sync_tasks[spec.task].configure(connection=connection,
             queue=lane.value, schedule_at=spec.scheduled_at,
             priority=100 if spec.service_class == ServiceClass.DUE else 0).defer(**dict(spec.payload))
@@ -205,19 +208,7 @@ class JobQueue:
             (job_id, job_id, key, key))).fetchone()
         if row is None:
             return None
-        result = dict(row)
-        scheduled = result.pop("scheduled")
-        queue = result["queue_name"]
-        result["execution_lane"] = queue if queue in {lane.value for lane in ExecutionLane} else None
-        if result["job_state"] == "todo":
-            result["wait_reason"] = (
-                "legacy_route_pending" if queue in {"interactive", "due", "elastic"}
-                else "scheduled" if scheduled else "native_task_queue")
-        elif result["job_state"] == "doing":
-            result["wait_reason"] = "executing"
-        else:
-            result["wait_reason"] = None
-        return result
+        return job_observation(row)
 
     async def route_legacy_pending(self, database, *, batch_size=128):
         """One bounded-pass metadata conversion before starting lane consumers.
@@ -236,26 +227,54 @@ class JobQueue:
         cutoff = row["cutoff"]
         after = 0
         routed = 0
+        blocked_count = 0
+        blocked = []
         while cutoff is not None and after < cutoff:
-            async with database.transaction() as connection:
+            async with database.transaction(read_only=True) as connection:
                 rows = await (await connection.execute(
-                    "SELECT id,task_name,args FROM procrastinate_jobs "
+                    "SELECT id,task_name FROM procrastinate_jobs "
                     "WHERE status='todo' AND queue_name=ANY(%s) AND id>%s AND id<=%s "
-                    "ORDER BY id LIMIT %s FOR UPDATE",
+                    "ORDER BY id LIMIT %s",
                     (legacy, after, cutoff, batch_size))).fetchall()
-                if not rows:
-                    break
-                for row in rows:
-                    if row["task_name"] not in self.tasks:
-                        raise AppError("legacy_job_task_not_registered", status=503)
-                    lane = await self._resolve_lane(connection, row["task_name"], row["args"])
-                    await connection.execute(
-                        "UPDATE procrastinate_jobs SET queue_name=%s WHERE id=%s "
-                        "AND status='todo' AND queue_name=ANY(%s)",
-                        (lane.value, row["id"], legacy))
+            if not rows:
+                break
+            for candidate in rows:
+                try:
+                    # A resolver's SQL failure must roll back only this original
+                    # item, not poison the page or prevent unrelated workers.
+                    async with database.transaction() as connection:
+                        row = await (await connection.execute(
+                            "SELECT id,task_name,args FROM procrastinate_jobs WHERE id=%s "
+                            "AND status='todo' AND queue_name=ANY(%s) FOR UPDATE",
+                            (candidate["id"], legacy))).fetchone()
+                        if row is None:
+                            continue
+                        if row["task_name"] not in self.tasks:
+                            raise AppError("legacy_job_task_not_registered", status=503)
+                        lane = await self._resolve_lane(connection, row["task_name"], row["args"])
+                        await connection.execute(
+                            "UPDATE procrastinate_jobs SET queue_name=%s WHERE id=%s",
+                            (lane.value, row["id"]))
                     routed += 1
-                after = rows[-1]["id"]
-        return {"routed": routed, "cutoff": cutoff}
+                except Exception as error:
+                    code = error.code if isinstance(error, AppError) else "job_lane_resolution_failed"
+                    if (not isinstance(code, str) or not 1 <= len(code) <= 96 or not all(
+                        character.isalnum() or character in "_.-" for character in code
+                    )):
+                        code = "job_lane_resolution_failed"
+                    blocked_count += 1
+                    if len(blocked) < 128:
+                        blocked.append({"job_id": candidate["id"],
+                                        "task_name": candidate["task_name"], "error_code": code})
+                    if self.events:
+                        try:
+                            await self.events.emit("job.routing_blocked", "rejected",
+                                task_name=candidate["task_name"], job_id=candidate["id"], error_code=code)
+                        except AppError:
+                            pass
+            after = rows[-1]["id"]
+        return {"routed": routed, "cutoff": cutoff, "blocked_count": blocked_count,
+                "blocked": blocked, "blocked_complete": blocked_count == len(blocked)}
 
     async def cancel(self, connection, key: str):
         cursor = await connection.execute(

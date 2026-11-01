@@ -5,7 +5,7 @@ import pytest
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.events import EventLog
-from tianshu.runtime.jobs import JobQueue
+from tianshu.runtime.jobs import ExecutionLane, JobQueue
 
 
 async def test_complete_event_sequence_is_durable_and_contains_only_safe_metadata(tmp_path):
@@ -55,7 +55,7 @@ async def test_failed_registered_job_persists_only_sanitized_error_identity(
     async def failing(**_kwargs):
         raise failure
 
-    task = jobs.register("fixture.failure", failing)
+    task = jobs.register("fixture.failure", failing, execution_lane=ExecutionLane.MAINTENANCE)
     await events.open()
     try:
         with pytest.raises(type(failure)) as raised:

@@ -53,6 +53,7 @@ async def test_actual_product_has_one_artifact_owner_and_complete_registrations(
             "channels.ingest",
             "channels.cancel",
         } <= jobs.tasks.keys()
+        assert {"capabilities.execute", "conversation.run"} <= jobs.lane_resolvers.keys()
         app = create_app(runtime, (DomainModule("models", register_routes), *product.modules))
         paths = {route.resource.canonical for route in app.router.routes()}
         assert {

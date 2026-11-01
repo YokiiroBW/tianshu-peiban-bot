@@ -11,6 +11,7 @@ from jsonschema import Draft202012Validator
 
 from .database import DatabaseConfig
 from .errors import AppError
+from .execution import lane_concurrency
 
 ROLES = ("interactive", "model-broker", "worker")
 
@@ -73,10 +74,12 @@ class Settings:
             + item.get("sync_connections", 2)
             for item in (budgets.get(name, {}) for name in ROLES)
         )
-        # Procrastinate 3.10 creates one standalone LISTEN connection per consumer,
-        # outside its configured shared pool. The broker advisory owner is separate too.
-        total += self.document.get("worker", {}).get("queue_connections", 8) + 3 + 1
-        if total > value.get("connection_budget", 40):
+        # Each lane has one native Procrastinate worker/LISTEN connection,
+        # independent of its execution concurrency. All workers share one queue
+        # SQL pool; the broker's advisory owner uses one separate connection.
+        total += self.document.get("worker", {}).get("queue_connections", 8)
+        total += len(self.worker_lanes) + 1
+        if total > value.get("connection_budget", 72):
             raise ValueError("database_connection_budget_exceeded")
         return DatabaseConfig(
             self.secrets.resolve(value.get("dsn_ref", "TIANSHU_DATABASE_URL")),
@@ -85,6 +88,20 @@ class Settings:
             sync_connections=role_budget.get("sync_connections", 2),
             connect_timeout=value.get("connect_timeout", 5),
         )
+
+    @property
+    def worker_lanes(self):
+        return lane_concurrency(self.document.get("worker", {}))
+
+    @property
+    def model_transport(self):
+        configured = self.document.get("broker", {}).get("transport", {})
+        return {
+            "max_connections": configured.get("foreground_connections", 8),
+            "due_connections": configured.get("due_connections", 4),
+            "background_connections": configured.get("background_connections", 24),
+            "control_connections": configured.get("control_connections", 4),
+        }
 
     @property
     def broker_url(self):

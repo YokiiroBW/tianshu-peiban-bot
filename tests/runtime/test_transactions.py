@@ -5,7 +5,7 @@ import pytest
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.commands import CommandStore, body_hash
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobQueue, JobSpec
+from tianshu.runtime.jobs import ExecutionLane, JobQueue, JobSpec
 from tianshu.types import OriginKind, ServiceClass, TrustedContext
 
 
@@ -15,7 +15,7 @@ async def noop(**_kwargs):
 
 async def test_rollback_removes_business_write_and_actual_procrastinate_job(database):
     jobs = JobQueue(database.config.dsn)
-    jobs.register("fixture.noop", noop)
+    jobs.register("fixture.noop", noop, execution_lane=ExecutionLane.MAINTENANCE)
     with pytest.raises(RuntimeError):
         async with database.transaction() as conn:
             await conn.execute("INSERT INTO runtime.projection_cursors(consumer,subject_id) "
@@ -29,7 +29,7 @@ async def test_rollback_removes_business_write_and_actual_procrastinate_job(data
 
 async def test_duplicate_change_enqueues_once_and_cancellation_is_transactional(database):
     jobs = JobQueue(database.config.dsn)
-    jobs.register("fixture.noop", noop)
+    jobs.register("fixture.noop", noop, execution_lane=ExecutionLane.MAINTENANCE)
     spec = JobSpec("fixture.noop", "same-change", {}, ServiceClass.DUE,
                    datetime.now(UTC)+timedelta(hours=1), subject_id="person")
     async with database.transaction() as conn:

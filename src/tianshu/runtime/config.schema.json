@@ -19,6 +19,12 @@
       "port": {"type": "integer", "minimum": 1, "maximum": 65535},
       "url": {"type": "string", "pattern": "^http://(127\\.0\\.0\\.1|localhost|\\[::1\\]):[0-9]+$"},
       "token_ref": {"type": "string", "minLength": 1},
+      "transport": {"type": "object", "additionalProperties": false, "properties": {
+        "foreground_connections": {"type": "integer", "minimum": 1, "maximum": 64},
+        "due_connections": {"type": "integer", "minimum": 1, "maximum": 64},
+        "background_connections": {"type": "integer", "minimum": 1, "maximum": 128},
+        "control_connections": {"type": "integer", "minimum": 1, "maximum": 32}
+      }},
       "provider_credential_refs": {"type": "object", "additionalProperties": {"type": "string", "pattern": "^(env:)?TIANSHU_PROVIDER_[A-Z0-9_]+$"}},
       "external_keys": {"type": "array", "items": {"type": "object"}}
     }},
@@ -43,11 +49,17 @@
         "if": {"properties": {"enabled": {"const": true}}, "required": ["enabled"]},
         "then": {"required": ["port", "certificate_file", "key_file"]}}
     }},
-    "worker": {"type": "object", "properties": {
+    "worker": {"type": "object", "additionalProperties": false, "properties": {
       "queue_connections": {"type": "integer", "minimum": 3},
-      "interactive_concurrency": {"type": "integer", "minimum": 1},
-      "due_concurrency": {"type": "integer", "minimum": 1},
-      "elastic_concurrency": {"type": "integer", "minimum": 1}
+      "abort_poll_seconds": {"type": "number", "minimum": 0.1, "maximum": 60},
+      "lanes": {"type": "object", "propertyNames": {"enum": [
+        "control", "inbound", "delivery", "conversation", "proactive", "schedule", "life", "planning", "writing",
+        "memory_consolidation", "memory_index", "memory_recovery", "source_lifecycle",
+        "growth", "images", "reactions", "speech", "book_audio", "perception",
+        "downloads", "media", "book_sources", "comic_sources", "video_subscriptions", "music_playlists",
+        "music_navidrome", "music_lyrics", "comic_extensions", "comic_cleanup", "media_retention", "music_library",
+        "plugins", "infrastructure", "maintenance"
+      ]}, "additionalProperties": {"type": "integer", "minimum": 1, "maximum": 32}}
     }},
     "artifacts": {"type": "string", "minLength": 1},
     "channels": {"type": "object", "properties": {

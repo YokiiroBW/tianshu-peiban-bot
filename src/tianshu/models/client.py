@@ -11,14 +11,25 @@ import aiohttp
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.runtime.cancellation import finish_cleanup
+from tianshu.types import ServiceClass
 from .codec import event_from_wire, receipt_from_wire, result_from_wire
 
 
 class ModelClient:
-    def __init__(self, base_url, token, *, max_connections=16):
+    def __init__(self, base_url, token, *, max_connections=8,
+                 due_connections=4, background_connections=24, control_connections=4):
         self.base_url, self.token = base_url.rstrip("/"), token
+        if any(type(count) is not int or count < 1 for count in (
+            max_connections, due_connections, background_connections, control_connections,
+        )):
+            raise ValueError("positive_model_transport_capacity_required")
         self.max_connections = max_connections
+        self.due_connections = due_connections
+        self.background_connections = background_connections
+        self.control_connections = control_connections
         self.session = None
+        self.due_session = None
+        self.background_session = None
         self.control_session = None
 
     async def open(self):
@@ -26,16 +37,33 @@ class ModelClient:
         self.session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=self.max_connections),
             timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
+        self.due_session = aiohttp.ClientSession(headers=headers,
+            connector=aiohttp.TCPConnector(limit=self.due_connections),
+            timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
+        self.background_session = aiohttp.ClientSession(headers=headers,
+            connector=aiohttp.TCPConnector(limit=self.background_connections),
+            timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
         self.control_session = aiohttp.ClientSession(headers=headers,
-            connector=aiohttp.TCPConnector(limit=4), timeout=aiohttp.ClientTimeout(total=5))
+            connector=aiohttp.TCPConnector(limit=self.control_connections),
+            timeout=aiohttp.ClientTimeout(total=5))
 
     async def close(self):
-        for session in (self.session, self.control_session):
+        for session in (self.session, self.due_session, self.background_session, self.control_session):
             if session:
                 await session.close()
 
-    async def _json(self, path, *, body=None, control=False, timeout=None, method="POST"):
-        session = self.control_session if control else self.session
+    def _data_session(self, service_class):
+        if service_class == ServiceClass.ELASTIC:
+            return self.background_session
+        if service_class == ServiceClass.DUE:
+            return self.due_session
+        if service_class == ServiceClass.INTERACTIVE:
+            return self.session
+        raise AppError("invalid_model_service_class")
+
+    async def _json(self, path, *, body=None, control=False, timeout=None, method="POST",
+                    service_class=ServiceClass.INTERACTIVE):
+        session = self.control_session if control else self._data_session(service_class)
         async with session.request(method, self.base_url+path, json=wire(body),
             allow_redirects=False, timeout=aiohttp.ClientTimeout(total=(
                 timeout if timeout is not None else 5 if control else 120))) as response:
@@ -50,7 +78,8 @@ class ModelClient:
         request.budget.check()
         try:
             value = await self._json("/internal/v1/models/generate", body=request,
-                                     timeout=request.budget.remaining())
+                                     timeout=request.budget.remaining(),
+                                     service_class=request.service_class)
             return result_from_wire(value)
         except (asyncio.CancelledError, TimeoutError, aiohttp.ClientError):
             await self._cancel_cleanup(request.attempt_id)
@@ -60,7 +89,8 @@ class ModelClient:
         request.budget.check()
         complete = False
         try:
-            async with self.session.post(self.base_url+"/internal/v1/models/stream", json=wire(request),
+            async with self._data_session(request.service_class).post(
+                self.base_url+"/internal/v1/models/stream", json=wire(request),
                 timeout=aiohttp.ClientTimeout(total=request.budget.remaining())) as response:
                 if response.status >= 400:
                     value = await response.json()
@@ -114,7 +144,8 @@ class ModelClient:
     async def resource(self, request):
         request.budget.check()
         try:
-            await self._json("/internal/v1/resources", body=request, timeout=request.budget.remaining())
+            await self._json("/internal/v1/resources", body=request,
+                             timeout=request.budget.remaining(), service_class=request.service_class)
         except AppError as exc:
             # A definite duplicate identifies another owner of this original attempt.
             # It grants no new permit and must never cancel that owner's real work.

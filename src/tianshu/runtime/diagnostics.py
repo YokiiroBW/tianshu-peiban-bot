@@ -7,6 +7,7 @@ import re
 import aiohttp
 
 from .errors import AppError
+from .execution import job_observation
 
 
 class RuntimeDiagnostics:
@@ -18,7 +19,8 @@ class RuntimeDiagnostics:
         async with self.database.transaction(control=True, read_only=True) as conn:
             jobs = await (
                 await conn.execute(
-                    "SELECT id,task_name,queue_name,status,scheduled_at,attempts,abort_requested "
+                    "SELECT id,task_name,queue_name,status,scheduled_at,attempts,abort_requested,"
+                    "coalesce(scheduled_at>now(),false) AS scheduled "
                     "FROM procrastinate_jobs ORDER BY id DESC LIMIT %s",
                     (limit,),
                 )
@@ -29,7 +31,8 @@ class RuntimeDiagnostics:
                     "FROM procrastinate_jobs GROUP BY queue_name,status"
                 )
             ).fetchall()
-        return {"jobs": jobs, "counts": counts, "limit": limit, "complete": len(jobs) < limit}
+        return {"jobs": [job_observation(row) for row in jobs], "counts": counts,
+                "limit": limit, "complete": len(jobs) < limit}
 
     async def resources(self):
         async with self.database.transaction(control=True, read_only=True) as conn:

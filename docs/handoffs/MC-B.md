@@ -1,5 +1,66 @@
 # MC-B：共享材料整理、固定执行与恢复
 
+## RC28：业务执行并发隔离（本次交付，written_not_run）
+
+本次基线 `271ad96e21e0035e7f605b345114c10703542a0d`，分支 `codex/runtime-execution-lanes-rc28-20261101`。公共小提交 `4458c2da` 后的最终提交需要依次集成；A 已将小提交取为依赖，其业务提交不应重复集成该依赖。下方旧 Memory 交接保持历史，不是本次基线。
+
+执行容量由 `runtime/execution.py` 的 `ExecutionLane`、唯一 `TASK_LANES` 默认表决定，不再用 Models ServiceClass 选择 Procrastinate queue。保留原 JobSpec 位置参数，尾部新增 `execution_lane`。已注册任务通过 `lane_resolver(connection,payload)` 读取服务端业务身份，适用于新 enqueue 和旧 todo 原位转换；A 负责 capabilities.execute 与 conversation.run 的动态 resolver。未知新任务必须由服务端注册明确 lane 或 resolver，这只是内部接口约定，不增加用户流程门禁。
+
+最终 34 lane / 39 默认槽：control、inbound、delivery、conversation、book_sources 各 2，其余各 1。固定任务覆盖如下；能力 ID 的具体映射归 A 的唯一能力路由，媒体重活派工归 G。
+
+| lane | 默认固定任务（省略共同 task 前缀仅用于表述） |
+| --- | --- |
+| control | channels.cancel；conversation.cancel/reconcile/expire/expression_expire/expression_render/render_expire/expression_reconcile；life.generation_control/activate/clock/activity_cancel/activity_reconcile；capabilities.control |
+| inbound | channels.ingest；conversation.seal |
+| delivery | conversation.result/expression_release/expression_result |
+| conversation | conversation.run 默认；A 的 resolver 按持久化 turn.autonomous 分到 conversation 或 proactive |
+| proactive | conversation.participation；life.contact_due |
+| schedule | life.commitment_due |
+| life | life.activity_step：静态核对实际 Action 为 background=True，不等待完整外部执行 |
+| planning | life.plan |
+| writing | life.diary_collect/diary_generate/chapter_generate |
+| memory_consolidation | memory.extract/consolidate/observe_legacy |
+| memory_index | memory.index/index_object |
+| memory_recovery | memory.recover：原有长扫描独立，不占整理或短维护槽 |
+| source_lifecycle | sources.propagate；memory.purge_source |
+| growth | companion.organize |
+| images / reactions / speech / perception / media | capabilities.execute 由 A 按服务端 capability 身份路由；不按 long_running 或 origin 猜测；reactions 图库维护独立 |
+| downloads | capabilities.media_job；A 的下载能力动作 |
+| plugins | capabilities.plugin_event/plugin_schedule；A 的插件动作 |
+| infrastructure | capabilities.infrastructure_job；A 的采集能力动作 |
+| book_audio | capabilities.media.work.book_audio |
+| book_sources | capabilities.media.work.book_sources/book_subscriptions |
+| comic_sources | capabilities.media.work.comic_subscriptions |
+| video_subscriptions | capabilities.media.work.subscriptions |
+| music_playlists / music_navidrome / music_lyrics | capabilities.media.work 下对应同名任务 |
+| comic_extensions / comic_cleanup / media_retention | capabilities.media.work.comic_extensions/comic_cleanup/retention |
+| music_library | capabilities.media.library_job |
+| maintenance | capabilities.media 下原 14 种维护入口只做短派工；work.music_imports/work.music_maintenance/work.infrastructure_observe 只做原生派工或短计划。必须与 G 的完整派工实现同批集成 |
+
+process 为每个 lane 启动一个原生 Procrastinate worker，复用同一 App / schema / queue SQL pool / 原锁与取消机制。34 个真实 LISTEN 已入 Settings.database 计算，不按执行槽数增加监听，也不保留 interactive/due/elastic 旧消费者。默认角色池 24 + queue 8 + LISTEN 34 + Broker owner 1 = 67；现有显式角色池为 23 时需求 66。配置预算明确 72；不改变业务角色池大小、硬件或供应商真实配额。
+
+配置准确键值：`database.connection_budget=72`，`worker.queue_connections=8`，`worker.lanes` 使用 `deploy/core/settings.example.json` 的完整表；未覆盖项取上述默认。旧 `interactive_concurrency/due_concurrency/elastic_concurrency` 已退役，不保留解析。`broker.transport` 为 `foreground_connections=8 / due_connections=4 / background_connections=24 / control_connections=4`。README 的最小示例使用 `lanes={}` 并指向完整表。
+
+单个 ModelClient 中，INTERACTIVE、DUE、ELASTIC 分别使用独立有限 HTTP connector；status/result/cancel/外部 permit 确认保留原独立 control。generate、stream、external resource admission 都按已确定的 request.service_class 选择传输池；不会根据客户端 lane、能力是否长任务提升模型优先级。取消仍仅清理原 attempt，不自动重发；close 关闭全部四个 session。
+
+`route_legacy_pending(database,batch_size=128)` 在 lane worker 启动前固定 cutoff，分页、逐项事务将旧三队列中的 todo 原 ID 改到服务端业务 lane。保留 args、scheduled_at、priority、locks、job_keys、attempts（包括已重试但当前 todo 的记录），doing/terminal 与 Model/Action 账本不动。单项未知 task / resolver 拒绝 / SQL 失败留原行，发去敏 `job.routing_blocked`；正常项照常启动。process.registration.legacy_job_routing 含 routed / cutoff / blocked_count / blocked（最多 128）/ blocked_complete，全部阻断项另有现有持久 EventLog。没有无限旧队列消费者或自动重派循环。
+
+`reroute_pending(connection,job_id,*,execution_lane,task=None,service_class=None)->bool` 仅接受原 todo 且 attempts=0 的行，供 A 在来源与原 Action/Attempt 锁定事务中纠正未开始的动作；service_class 只调整原 job 的 DUE priority，不替代 A 的业务 class 账本。成功改 queue 同事务发 Procrastinate 原生通知，保持原 job / attempt / receipt。不是 resume、新 attempt 或重新执行 unknown。
+
+`observe_on(connection,job_id=None,*,key=None)` 只读 job_id/job_state/queue_name/execution_lane/attempts/priority/scheduled_at/wait_reason，不读任务参数或推导 ServiceClass。与 RuntimeDiagnostics.tasks 共用 job_observation：todo 未知 lane 为 execution_lane_unresolved，未来定时为 scheduled（DB 时钟），已到期为 native_task_queue，doing 为 executing，终态为 null。系统 tasks 保留原 jobs/counts/limit/complete，仅给 row 增加两个显示字段，A 已对齐 UI。
+
+本次只做源代码 / 调用链 / 完整 diff 静态阅读和提交。未运行任何测试、解析器、lint、构建、模型、网络、PG 或生产操作。新增未执行用例包括：实际 Procrastinate 占住 memory_consolidation + downloads 时十种其他业务队列取得任务；两条 chat 占用时入站/投递/控制可运行；旧坏项隔离与所有原身份/调度元数据保留；仅原 todo0 可纠正；sync enqueue；Model HTTP 后台 / due 饱和时前台 stream 与控制继续；取消回收与四 session close。旧测试夹具只补明确 lane / 已要求的 ServiceClass；实际产品装配用例要求两项动态 resolver 已注册。
+
+根在 A/G/B 全部集成后统一执行的最小相关命令（由根提供既有显式隔离 PG 管理 DSN，不使用生产默认）：
+
+```text
+python -m pytest -q tests/runtime/test_execution_lanes.py tests/runtime/test_model_transport.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_product_assembly.py tests/runtime/test_broker_recovery.py::test_second_broker_cannot_own_capacity_and_control_cancels_external_owner tests/models/test_configuration_lifecycle.py::test_duplicate_external_admission_cannot_cancel_original_owner
+```
+
+这条命令仅为待执行建议，不是通过记录。A/G 各自新增节点由根合并去重后一起执行；不追加未改变的模型调度算法全套、真实模型或 QQ 验收。root 继续唯一部署者。
+
+---
+
 本分支基线 `8bca244`，实现者 gpt-6.1-sol / max。用户要求全批代码完成后统一验收。本交接只说明代码与静态阅读结果，未运行测试、typecheck、build、模型或实机调用，未操作生产、账号或远程。
 
 ## 提交与依赖

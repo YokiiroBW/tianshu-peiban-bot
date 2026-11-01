@@ -12,8 +12,7 @@ from tianshu.models.discovery import native_request, parse_catalog
 from tianshu.runtime.commands import CommandStore
 from tianshu.runtime.config import Settings, Secrets
 from tianshu.runtime.errors import AppError
-from tianshu.types import OriginKind, TrustedContext
-from tianshu.types import RequestBudget
+from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 
 
 def test_native_catalog_pagination_never_invents_capability_evidence():
@@ -55,7 +54,8 @@ async def test_duplicate_external_admission_cannot_cancel_original_owner():
 
     client._json, client._cancel_cleanup = duplicate, cancel
     request = SimpleNamespace(
-        attempt_id="original", budget=RequestBudget(datetime.now(UTC) + timedelta(seconds=10))
+        attempt_id="original", budget=RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
+        service_class=ServiceClass.INTERACTIVE,
     )
     with pytest.raises(AppError, match="attempt_already_exists"):
         async with client.resource(request):

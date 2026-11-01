@@ -1,7 +1,7 @@
 {
   "schema_version": "tianshu.core.v1",
   "database": {
-    "dsn_ref": "TIANSHU_DATABASE_URL", "connection_budget": 40,
+    "dsn_ref": "TIANSHU_DATABASE_URL", "connection_budget": 72,
     "roles": {
       "interactive": {"max_connections": 4, "control_connections": 2, "sync_connections": 2},
       "model-broker": {"max_connections": 4, "control_connections": 2, "sync_connections": 1},
@@ -17,10 +17,19 @@
       "certificate_file": "/config/tls/server.crt", "key_file": "/config/tls/server.key"}
   },
   "broker": {"host": "127.0.0.1", "port": 8071, "url": "http://127.0.0.1:8071",
-    "token_ref": "TIANSHU_BROKER_TOKEN", "external_keys": []},
+    "token_ref": "TIANSHU_BROKER_TOKEN", "external_keys": [],
+    "transport": {"foreground_connections": 8, "due_connections": 4, "background_connections": 24, "control_connections": 4}},
   "credentials": {"master_key_ref": "TIANSHU_MASTER_KEY"},
   "identity": {"installation_seal": "/data/state/installed", "setup_token_ref": "TIANSHU_SETUP_TOKEN", "cookie_secure": true},
-  "worker": {"queue_connections": 8, "interactive_concurrency": 2, "due_concurrency": 1, "elastic_concurrency": 2},
+  "worker": {"queue_connections": 8, "lanes": {
+    "control": 2, "inbound": 2, "delivery": 2, "conversation": 2,
+    "proactive": 1, "schedule": 1, "life": 1, "planning": 1, "writing": 1,
+    "memory_consolidation": 1, "memory_index": 1, "memory_recovery": 1, "source_lifecycle": 1, "growth": 1, "images": 1, "reactions": 1,
+    "speech": 1, "book_audio": 1, "perception": 1, "downloads": 1, "media": 1,
+    "book_sources": 2, "comic_sources": 1, "video_subscriptions": 1, "music_playlists": 1,
+    "music_navidrome": 1, "music_lyrics": 1, "comic_extensions": 1, "comic_cleanup": 1,
+    "media_retention": 1, "music_library": 1, "plugins": 1, "infrastructure": 1, "maintenance": 1
+  }},
   "artifacts": "/data/files",
   "channels": {"state_directory": "/data/channels", "owner_url": "http://127.0.0.1:18446", "owner_token_ref": "TIANSHU_CHANNEL_OWNER_TOKEN",
     "listen": {"host": "0.0.0.0", "port": 18765}},
