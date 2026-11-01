@@ -2,6 +2,8 @@
 
 import asyncio
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import copy_context
 import copy
 import json
 from pathlib import Path
@@ -9,6 +11,7 @@ import time
 import uuid
 
 from ..contracts import Fault, require
+from ..local_work import settled
 from ..storage import run_repository
 from .packages import Packages, relative_path
 from .process import Process, RemoteError
@@ -97,6 +100,9 @@ class PluginManager:
         from .task_source import PluginTasks
 
         self.task_source = PluginTasks(self)
+        self.install_executor = ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="tianshu-plugin-install"
+        )
 
     @property
     def available_capabilities(self):
@@ -203,7 +209,10 @@ class PluginManager:
             self.workers.clear()
         finally:
             self.started = False
-            self.owner.close()
+            try:
+                self.owner.close()
+            finally:
+                self.install_executor.shutdown(wait=True, cancel_futures=True)
 
     async def reject_capability(self, method, params):
         raise Fault("permission_denied", 403)
@@ -290,12 +299,20 @@ class PluginManager:
         async with self.installation_lock:
             await self._prepare_install(operation, source)
 
+    async def _install_local(self, operation, *args, **kwargs):
+        # The installation lock bounds admission. Git/pip waits belong to this
+        # owner, independently of ordinary capability file reads and writes.
+        context = copy_context()
+        return await asyncio.get_running_loop().run_in_executor(
+            self.install_executor, lambda: context.run(operation, *args, **kwargs)
+        )
+
     async def _prepare_install(self, operation, source):
         process = None
         try:
             operation.update(execution="running")
             await self.local(self.repository.put, "operations", operation)
-            package = await self.local(self.packages.prepare, source)
+            package = await settled(self._install_local, self.packages.prepare, source)
             process = Process(package, self.reject_capability)
             await process.start()
             description = await process.call("plugin.describe", {}, timeout=15)

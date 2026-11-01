@@ -123,3 +123,23 @@ root 在 `cb7dae9` 集中复验报告 92 项中 83 通过、9 失败，其中 G 
 - `test_selection_rechecks_completion_and_selected_original_after_model_result`：完整JSON仍不能绕过MAX_TOKENS；模型完成后撤回原来源仍拒绝选中。
 
 共享helper自身的严格解码节点复用A本轮检查；未变RC28队列/前端结果由root复用。本块仅静态阅读、diff/空白检查及提交，未运行pytest、语法/类型检查、build、PG、网络、模型或生产动作，不宣称真实语义最终选图或QQ发送通过。
+
+## 插件安装不占普通文件槽的限定补充
+
+基线 `3143e54d195b269403a56184970019408393c5e5`，分支 `codex/plugin-install-isolation-20261102`。root在最后文件池核对后授权实现。此前私有queue inventory已列Capabilities文件池，但未追到Plugin Packages.prepare内的git/pip，原“文件池仅保护磁盘工作”的概括不完整；本块补齐该实际跨功能耦合，不重做全仓盘点。
+
+具体链路：`capabilities/service.py:236–240,325,350–364` 将普通local工作置于默认2线程/2槽，并注入PluginManager；原 `plugins/manager.py:298` 整体await Packages.prepare，后者git fetch等待上限90秒、pip install等待180秒（`plugins/packages.py:118–145,228–243`）。原installation_lock最多允许一项安装，因此不能声称插件单独占满两槽；但确实会把无关普通文件工作容量减半，与另一长文件活共同阻塞短读写。
+
+- PluginManager现在自有固定1线程 `tianshu-plugin-install` executor；仍沿原installation_lock进入原Packages.prepare，git/pip及安装目录准备不再申请共享file_slots。不使用默认asyncio.to_thread池、不增加配置/开关/全局调度器。
+- 复用原 `local_work.settled` 等待本次准备，copy_context保留原执行上下文。重复取消仍等原线程结束后才释放安装锁，既有安装operation/source/事务/错误状态与Process异步检查链不变，不另开新安装身份或重发unknown。
+- manager.close先收口原background/执行/子进程，再shutdown其安装executor；Capabilities.close对已prepared但未start的非worker owner也调用该清理，不启动新worker。普通file executor/slots数量及原取消持有规则不变。
+
+其余限定调用链已确认无需改动：book Sources.call→RuleEngine._call经独立async子进程运行同步规则/网络，feed/warehouse的网络to_thread不经service.file_executor；Infrastructure Executor.exchange异步启动supervisor，其Popen/sleep在独立子进程。媒体ffmpeg/musicdecode及插件运行RPC也为异步子进程。普通local其余族为Media文件扫描/copy/hash/打包、Projects目录/codec/readonly Git、Content原件落盘/本地目录、Plugins vault/页面及Infrastructure元数据。绑定DomainStore的方法直接走数据库同步池，部分组合元数据函数仍经local。Projects workdir.observe→run的Git为本地只读磁盘操作、每命令10秒上限；这些有界磁盘/CPU及原同资源锁保留，不把资源排队一概判成应拆新池。
+
+仅新增以下既有 `tests/capabilities/test_plugin_runtime.py::PluginRuntime` 节点，全部written_not_run，供root收齐本批后一次执行：
+
+- `test_installation_wait_leaves_both_capability_file_workers_available`：真实专属/普通ThreadPoolExecutor与线程屏障；安装未结束时两个普通文件工作都能进入，原context/安装ID及错误落账保留。
+- `test_installation_cancel_and_close_wait_for_original_preparation`：取消与close再次取消不提前释放安装锁；第二项不进入prepare，原线程完成后关闭executor。
+- `test_prepared_api_role_closes_its_plugin_owner_without_starting_workers`：prepared非worker关闭同owner及普通文件池。
+
+G仅静态diff/空白检查和提交，未运行测试、语法/类型检查、build、PG、网络、模型或生产。未变RC28队列、前端及其他子进程结果直接复用；不宣称本块已经运行或实机通过。

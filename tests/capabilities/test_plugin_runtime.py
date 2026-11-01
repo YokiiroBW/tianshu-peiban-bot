@@ -3,11 +3,18 @@
 import asyncio
 import unittest
 from collections import defaultdict
+from concurrent.futures import ThreadPoolExecutor
+from contextvars import ContextVar
+from pathlib import Path
+from tempfile import TemporaryDirectory
+from threading import Event
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, Mock
 
+from tianshu.capabilities.contracts import Fault
 from tianshu.capabilities.plugins.manager import PluginManager
 from tianshu.capabilities.plugins.runtime_state import RuntimeState
+from tianshu.capabilities.service import Capabilities
 
 
 async def local(operation, *args, **kwargs):
@@ -15,6 +22,18 @@ async def local(operation, *args, **kwargs):
 
 
 class PluginRuntime(unittest.IsolatedAsyncioTestCase):
+    def installation_host(self, local_work):
+        directory = TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        host = PluginManager(
+            {"database_path": str(Path(directory.name) / "library")},
+            runtime=SimpleNamespace(database=object(), credentials=object()),
+            local=local_work,
+        )
+        host.repository = SimpleNamespace(put=Mock())
+        self.addAsyncCleanup(host.close)
+        return host
+
     def projection_host(self, runtime=None):
         host = object.__new__(PluginManager)
         host.workers = {}
@@ -141,3 +160,106 @@ class PluginRuntime(unittest.IsolatedAsyncioTestCase):
         await host.watch_worker("plugin", old)
         host.stop_worker.assert_not_awaited()
         self.assertIs(host.workers["plugin"][0], replacement)
+
+    async def test_installation_wait_leaves_both_capability_file_workers_available(self):
+        loop = asyncio.get_running_loop()
+        file_executor = ThreadPoolExecutor(max_workers=2)
+        file_owner = SimpleNamespace(
+            file_executor=file_executor, file_slots=asyncio.Semaphore(2),
+            runtime=SimpleNamespace(database=object()),
+        )
+
+        async def file_local(operation, *args, **kwargs):
+            return await Capabilities.local(file_owner, operation, *args, **kwargs)
+
+        host = self.installation_host(file_local)
+        entered, release = asyncio.Event(), Event()
+        files_entered = [asyncio.Event(), asyncio.Event()]
+        files_release = Event()
+        execution = ContextVar("synthetic_installation_context", default=None)
+        seen = []
+
+        def prepare(source):
+            seen.append((source, execution.get()))
+            loop.call_soon_threadsafe(entered.set)
+            release.wait(5)
+            raise Fault("synthetic_preparation_failed", 400)
+
+        def file_work(index):
+            loop.call_soon_threadsafe(files_entered[index].set)
+            files_release.wait(5)
+            return index
+
+        host.packages.prepare = prepare
+        source = {"type": "synthetic", "id": "original-source"}
+        operation = {"id": "original-installation"}
+        token = execution.set("original-execution")
+        install = host.spawn(host._install(operation, source))
+        execution.reset(token)
+        files = []
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            files = [asyncio.create_task(file_local(file_work, index)) for index in range(2)]
+            await asyncio.wait_for(asyncio.gather(*(item.wait() for item in files_entered)), 1)
+            self.assertFalse(install.done())
+            self.assertEqual(seen, [(source, "original-execution")])
+        finally:
+            release.set()
+            files_release.set()
+            await asyncio.gather(install, *files, return_exceptions=True)
+            file_executor.shutdown(wait=True, cancel_futures=True)
+        self.assertEqual(operation["id"], "original-installation")
+        self.assertEqual(operation["execution"], "failed")
+        self.assertEqual(operation["error"], {"code": "synthetic_preparation_failed"})
+
+    async def test_installation_cancel_and_close_wait_for_original_preparation(self):
+        host = self.installation_host(local)
+        loop = asyncio.get_running_loop()
+        entered, release = asyncio.Event(), Event()
+        calls = []
+
+        def prepare(source):
+            calls.append(source["id"])
+            loop.call_soon_threadsafe(entered.set)
+            release.wait(5)
+            raise Fault("synthetic_preparation_failed", 400)
+
+        host.packages.prepare = prepare
+        first = host.spawn(host._install({"id": "first"}, {"id": "first-source"}))
+        second = closing = None
+        try:
+            await asyncio.wait_for(entered.wait(), 1)
+            first.cancel()
+            await asyncio.sleep(0)
+            self.assertFalse(first.done())
+            self.assertTrue(host.installation_lock.locked())
+            second = host.spawn(host._install({"id": "second"}, {"id": "second-source"}))
+            await asyncio.sleep(0)
+            self.assertEqual(calls, ["first-source"])
+            closing = asyncio.create_task(host.close())
+            await asyncio.sleep(0)
+            self.assertFalse(closing.done())
+            self.assertTrue(host.installation_lock.locked())
+        finally:
+            release.set()
+            await asyncio.gather(first, *([second] if second else []), return_exceptions=True)
+            if closing is not None:
+                await asyncio.wait_for(closing, 1)
+        self.assertTrue(first.cancelled())
+        self.assertTrue(second.cancelled())
+        self.assertEqual(calls, ["first-source"])
+        self.assertFalse(host.installation_lock.locked())
+        with self.assertRaises(RuntimeError):
+            host.install_executor.submit(lambda: None)
+
+    async def test_prepared_api_role_closes_its_plugin_owner_without_starting_workers(self):
+        host = SimpleNamespace(close=AsyncMock())
+        owner = SimpleNamespace(
+            actions=SimpleNamespace(close=AsyncMock()), plugin_host=host, worker=False,
+            media=None, infrastructure=None, file_executor=Mock(),
+        )
+        await Capabilities.close(owner)
+        host.close.assert_awaited_once_with()
+        owner.file_executor.shutdown.assert_called_once_with(wait=True, cancel_futures=True)
+        self.assertFalse(owner.initialized)
+        self.assertFalse(owner.prepared)

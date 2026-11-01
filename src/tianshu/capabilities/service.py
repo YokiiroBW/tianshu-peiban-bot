@@ -845,7 +845,7 @@ class Capabilities:
         # Cleanup also covers a prepared composition or partially failed initialize.
         try:
             await self.actions.close()
-            if getattr(self, "plugin_host", None) is not None and self.worker:
+            if getattr(self, "plugin_host", None) is not None:
                 await self.plugin_host.close()
             if self.media is not None:
                 await self.media.close()
