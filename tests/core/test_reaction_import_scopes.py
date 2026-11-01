@@ -10,6 +10,7 @@ from unittest.mock import AsyncMock
 import zipfile
 
 from PIL import Image
+from psycopg.errors import LockNotAvailable
 import pytest
 
 from tianshu.capabilities.api import invoke
@@ -256,3 +257,27 @@ async def test_current_import_copies_readable_public_media_and_keeps_withdrawal(
         await artifacts.reference(private_only, copied.media.media_id)
     assert revoked.value.code == "source_revoked"
     assert not (await core.sources.check_many(private_only, (copied.source_refs,)))[0]
+
+
+async def test_artifact_reads_allow_read_only_transactions_and_metadata_writes_lock_sources(core):
+    owner, reactions, artifacts = await library(core)
+    pack = await reactions.import_pack(owner, {
+        "id": "source-lock", "name": "Source lock", "import_scope": "actor",
+        "files": [{"filename": "shared.gif", "data_base64": base64.b64encode(gif_bytes()).decode()}],
+    })
+    asset = next(item for item in (await reactions.view(owner))["assets"] if item["pack_id"] == pack["id"])
+    async with core.database.transaction(read_only=True) as connection:
+        artifact = await artifacts.reference(owner, asset["media"]["media_id"], connection=connection)
+    async with core.database.transaction() as writer:
+        updated = await reactions.update(owner, {
+            "id": asset["id"], "expected_revision": asset["revision"], "description": "A synthetic shared GIF",
+        }, conn=writer)
+        assert updated["revision"] == asset["revision"] + 1
+        # Metadata and source validity commit together. Withdrawal's exclusive
+        # source lock must wait for this writer, even though reads take no lock.
+        with pytest.raises(LockNotAvailable):
+            async with core.database.transaction() as withdrawal:
+                await withdrawal.execute(
+                    "SELECT source_id FROM sources.originals WHERE source_id=%s FOR UPDATE NOWAIT",
+                    (artifact.source_refs[0].source_id,),
+                )

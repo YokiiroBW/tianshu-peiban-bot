@@ -64,10 +64,11 @@ class Artifacts:
             )
         return artifact
 
-    async def references(self, context, media_ids, *, connection=None):
+    async def references(self, context, media_ids, *, connection=None, for_write=False):
+        """Pass the write transaction and for_write=True when saving dependencies."""
         if connection is None:
-            async with self.database.transaction(read_only=True) as conn:
-                return await self.references(context, media_ids, connection=conn)
+            async with self.database.transaction(read_only=not for_write) as conn:
+                return await self.references(context, media_ids, connection=conn, for_write=for_write)
         from .serialization import artifact_from
 
         rows = await (
@@ -86,14 +87,18 @@ class Artifacts:
         if set(found) != set(media_ids):
             raise Fault("not_found", 404)
         refs = tuple(ref for artifact in found.values() for ref in artifact.source_refs)
-        if self.sources is None or not await self.sources.validate_persistence(
-            connection, context, refs
-        ):
+        if self.sources is None:
+            raise Fault("source_revoked", 410)
+        if for_write:
+            allowed = await self.sources.validate_persistence(connection, context, refs)
+        else:
+            allowed = (await self.sources.check_many_on(connection, context, (refs,)))[0]
+        if not allowed:
             raise Fault("source_revoked", 410)
         return found
 
-    async def reference(self, context, media_id, *, connection=None):
-        return (await self.references(context, (media_id,), connection=connection))[media_id]
+    async def reference(self, context, media_id, *, connection=None, for_write=False):
+        return (await self.references(context, (media_id,), connection=connection, for_write=for_write))[media_id]
 
     async def get(self, context, media_id):
         artifact = await self.reference(context, media_id)
@@ -144,7 +149,8 @@ class Artifacts:
                 context, media, locator=locator, source_refs=tuple(source_refs),
                 target="actor" if publish_to_actor else "current",
             )
-            async with self.database.transaction(read_only=True) as conn:
+            # describe_for_write_on locks selected roots/supports for persistence.
+            async with self.database.transaction() as conn:
                 descriptions = await self.sources.describe_for_write_on(conn, context, (source,))
             scopes = tuple(descriptions[0]["scope_ids"])
             context = replace(context, scope_ids=scopes, audience=scopes)

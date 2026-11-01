@@ -234,7 +234,9 @@ class Reactions:
         ).fetchone()
         if row is None:
             raise Fault("not_found", 404)
-        await self.artifacts.reference(context, row["body"]["media"]["media_id"], connection=conn)
+        await self.artifacts.reference(
+            context, row["body"]["media"]["media_id"], connection=conn, for_write=lock,
+        )
         if lock:
             locked = await (
                 await conn.execute(
@@ -342,6 +344,7 @@ class Reactions:
                 context,
                 tuple(row["body"]["media"]["media_id"] for row in originals),
                 connection=conn,
+                for_write=True,
             )
             updated = [
                 await self.update(context, item, conn=conn)
@@ -458,6 +461,9 @@ class Reactions:
             artifact = await self.artifacts.reference(context, item["media"]["media_id"])
             vector, profile, receipt = await self.embed(context, text, artifact.source_refs)
             async with self.database.transaction() as conn:
+                await self.artifacts.reference(
+                    context, item["media"]["media_id"], connection=conn, for_write=True,
+                )
                 await conn.execute(
                     "INSERT INTO capabilities.reaction_embedding_profiles(id,dimensions,model,active) VALUES(%s,%s,%s,true) ON CONFLICT(id) DO NOTHING",
                     (profile, len(vector), receipt.model),

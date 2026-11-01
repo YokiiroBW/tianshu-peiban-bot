@@ -40,6 +40,9 @@ class SourcePort(Protocol):
     async def check_many(
         self, context: TrustedContext, refs_groups: tuple[tuple[SourceRef, ...], ...]
     ) -> tuple[bool, ...]: ...
+    async def check_many_on(
+        self, connection, context: TrustedContext, refs_groups: tuple[tuple[SourceRef, ...], ...]
+    ) -> tuple[bool, ...]: ...
     async def record_event(
         self,
         context: TrustedContext,

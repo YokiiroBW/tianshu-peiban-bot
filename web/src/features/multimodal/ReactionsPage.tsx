@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useId, useState } from "react";
 import {
   useDomainCommand,
   useDomainResource,
@@ -24,6 +24,7 @@ function ReactionLibrary() {
   const { session } = useAuth();
   const scope = useDomainTarget();
   const { actor } = useRoleWorkspace();
+  const importScopeLabelId = useId();
   const [importScope, setImportScope] = useState<"actor" | "current">("actor");
   const [pack, setPack] = useState("");
   const [cursor, setCursor] = useState<string | null>(null);
@@ -242,8 +243,9 @@ function ReactionLibrary() {
                 />
               </label>
               <label>
-                导入范围
+                <span id={importScopeLabelId}>导入范围</span>
                 <select
+                  aria-labelledby={importScopeLabelId}
                   value={importScope}
                   disabled={uploading || importAction.busy}
                   onChange={(event) =>
