@@ -118,3 +118,91 @@ async def test_original_inventory_matches_scope_set_without_replacing_frozen_con
         assert await generations.pending_materials(replace(latest, scope_ids=scopes), prefix="organize:") == ()
     assert len(models.calls) == 1
     assert models.observations == []
+
+
+@pytest.mark.asyncio
+async def test_prepare_and_domain_pointer_commit_or_rollback_together_without_model_io(database):
+    context = await prepare(database)
+    models = Models()
+    generations = GenerationRequests(database, Sources(), models)
+    original = request("atomic-plan", context)
+    async with database.transaction() as connection:
+        await connection.execute("CREATE TABLE conversation.plan_fixture(attempt_id text)")
+    with pytest.raises(RuntimeError, match="domain write failed"):
+        async with database.transaction() as connection:
+            frozen = await generations.prepare("atomic-plan", original, connection=connection)
+            await connection.execute("INSERT INTO conversation.plan_fixture VALUES(%s)", (frozen.attempt_id,))
+            raise RuntimeError("domain write failed")
+    assert await generations.request(original.attempt_id, context) is None
+    async with database.transaction() as connection:
+        frozen = await generations.prepare("atomic-plan", original, connection=connection)
+        await connection.execute("INSERT INTO conversation.plan_fixture VALUES(%s)", (frozen.attempt_id,))
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT g.state,p.attempt_id FROM conversation.generation_requests g "
+            "JOIN conversation.plan_fixture p USING(attempt_id)")).fetchone()
+    assert row == {"state": "prepared", "attempt_id": original.attempt_id}
+    assert frozen == original and models.calls == models.observations == []
+
+
+@pytest.mark.asyncio
+async def test_current_epoch_observes_original_without_replacing_frozen_context(database):
+    original = request("plan-old-epoch", replace(await prepare(database),
+        scope_ids=("private", "actor"), audience=("person", "author")))
+    models = Models()
+    generations = GenerationRequests(database, Sources(), models)
+    await generations.prepare(original.intent_id, original)
+    reader = replace(original.context, access_epoch=2, origin_kind=OriginKind.TIMER,
+        scope_ids=tuple(reversed(original.context.scope_ids)),
+        audience=tuple(reversed(original.context.audience)))
+    frozen = await generations.observe_request(original.attempt_id, observer=reader)
+    result = await generations.read(original.attempt_id, frozen.context, observer=reader)
+    assert result.receipt.status == "unknown" and models.calls == []
+    observed = models.observations[0][1]
+    assert observed.access_epoch == 2 and observed.scope_ids == original.context.scope_ids
+    assert observed.audience == original.context.audience
+    assert frozen == original
+    assert await generations.request(original.attempt_id, original.context) == original
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("field,value", [
+    ("principal_id", "another-author"), ("actor_id", "another-actor"),
+    ("person_id", "another-person"), ("conversation_id", "another-chat"),
+    ("scope_ids", ("private", "additional")), ("scope_ids", ()),
+    ("audience", ("another-reader",)), ("delivery_allowed", True),
+    ("conversation_kind", "group"),
+])
+async def test_observation_refuses_a_changed_semantic_scene(database, field, value):
+    original = request("fixed-scene", await prepare(database))
+    models = Models()
+    generations = GenerationRequests(database, Sources(), models)
+    await generations.prepare(original.intent_id, original)
+    reader = replace(original.context, access_epoch=2, **{field: value})
+    with pytest.raises(AppError, match="generation_observation_context_mismatch"):
+        await generations.observe_request(original.attempt_id, observer=reader)
+    with pytest.raises(AppError, match="generation_observation_context_mismatch"):
+        await generations.read(original.attempt_id, original.context, observer=reader)
+    assert models.calls == models.observations == []
+
+
+@pytest.mark.asyncio
+async def test_observer_absence_never_submits_and_current_sources_gate_frozen_text(database):
+    original = request("unregistered-plan", await prepare(database))
+    class BeforeAdmission(Models):
+        async def result(self, attempt_id, *, context):
+            self.observations.append((attempt_id, context))
+            return None
+
+    sources, models = Sources(), BeforeAdmission()
+    generations = GenerationRequests(database, sources, models)
+    await generations.prepare(original.intent_id, original)
+    reader = replace(original.context, access_epoch=2)
+    assert await generations.run(original.intent_id, original, observer=reader) is None
+    assert models.calls == []
+    async def denied(*_args):
+        return False
+    sources.validate_persistence = denied
+    with pytest.raises(AppError, match="source_unavailable"):
+        await generations.observe_request(original.attempt_id, observer=reader)
+    assert models.calls == []
