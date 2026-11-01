@@ -32,6 +32,11 @@ const planningReasons: Record<string, string> = {
   planner_failed: "原规划请求未完成，请查看原任务的失败原因。",
   planner_cancelled: "原规划请求已取消。",
   activity_planned: "最近一次规划已完成，请查看活动的实际状态。",
+  actor_resting: "现在是休息时间，进度会保留到下次生活时间。",
+  unchanged_decision_material: "兴趣、目标和实际进度没有新变化，继续已有安排。",
+  day_arrangements_complete: "今天已经留好了少量安排，其余时间自由度过。",
+  planner_absent: "原规划请求尚未登记，仍保留原请求身份核对。",
+  source_unavailable: "规划依据已失效，等待当前有效的经历与安排。",
 };
 
 export function LifeScheduleStatus({ routine }: { routine: Routine }) {

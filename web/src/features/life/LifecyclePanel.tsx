@@ -11,9 +11,11 @@ import { SchemaFields } from "../plugins/SchemaFields";
 import type { JsonSchema } from "../plugins/types";
 import type { Activity, Goal } from "./domainTypes";
 import { CapabilityReadiness } from "../multimodal/CapabilityReadiness";
+import { ActivityProgress } from "./ActivityProgress";
 import {
   activityLabels,
   activityWaitingReason,
+  lifeCommandError,
   timeLabel,
 } from "./domainTypes";
 
@@ -31,9 +33,11 @@ type Choice = {
 export function LifecyclePanel({
   canManage,
   refreshState,
+  section = "all",
 }: {
   canManage: boolean;
   refreshState: () => Promise<void>;
+  section?: "all" | "goals" | "activities";
 }) {
   const [goalCursor, setGoalCursor] = useState<string | null>(null);
   const [activityCursor, setActivityCursor] = useState<string | null>(null);
@@ -46,12 +50,13 @@ export function LifecyclePanel({
   const activities = useDomainResource<Page<Activity>>(
     "life/activities",
     { cursor: activityCursor, limit: 40 },
-    true,
+    section !== "goals",
     15000,
   );
   const [goal, setGoal] = useState<Goal | "new" | null>(null);
   const [activity, setActivity] = useState<Activity | "new" | null>(null);
   const action = useDomainCommand("activity-controls");
+  const goalAction = useDomainCommand("goal-controls");
   useEffect(() => {
     if (goals.accessLost) setGoal(null);
   }, [goals.accessLost]);
@@ -67,237 +72,351 @@ export function LifecyclePanel({
         ids={["content.read", "images.generate"]}
         title="阅读与主动创作能力"
       />
-      <section className="life-card">
-        <div className="section-heading">
-          <div>
-            <h3>正在关心的目标</h3>
-            <p className="muted">
-              目标提供方向，实际完成仍取决于活动与执行结果。
-            </p>
-          </div>
-          {canManage && (
-            <button className="button" onClick={() => setGoal("new")}>
-              记下新目标
-            </button>
-          )}
-        </div>
-        {goals.error && <p role="alert">{goals.error}</p>}
-        <div className="domain-grid">
-          {goals.data?.items.map((item) => (
-            <article className="domain-record" key={item.id}>
-              <header>
-                <strong>{item.title}</strong>
-                <span className="badge">
-                  {(
-                    {
-                      active: "在意中",
-                      paused: "暂放一边",
-                      completed: "已完成",
-                      cancelled: "已取消",
-                    } as Record<string, string>
-                  )[item.state] ?? item.state}
-                </span>
-              </header>
-              <p>{item.motivation}</p>
-              {item.due_at && <small>计划时间：{timeLabel(item.due_at)}</small>}
-              <SourceEvidence sources={item.source_refs} />
-              {canManage && (
-                <button
-                  className="text-link"
-                  onClick={() => setGoal(structuredClone(item))}
-                >
-                  调整目标
-                </button>
-              )}
-            </article>
-          ))}
-        </div>
-        {goals.data && !goals.data.items.length && (
-          <p className="muted">
-            还没有单独记下目标，已配置的人格兴趣仍可成为生活动机。
-          </p>
-        )}
-        <div className="domain-actions">
-          {goalCursor && (
-            <button className="button" onClick={() => setGoalCursor(null)}>
-              回到首批目标
-            </button>
-          )}
-          {goals.data?.next_cursor && (
-            <button
-              className="button"
-              onClick={() => setGoalCursor(goals.data!.next_cursor)}
-            >
-              更多目标
-            </button>
-          )}
-        </div>
-        {goal && (
-          <GoalEditor
-            key={goal === "new" ? "new" : `${goal.id}:${goal.revision}`}
-            value={goal === "new" ? null : goal}
-            onClose={() => setGoal(null)}
-            onSaved={() => {
-              setGoal(null);
-              void reload();
-            }}
-          />
-        )}
-      </section>
-      <section className="life-card">
-        <div className="section-heading">
-          <div>
-            <h3>持续活动</h3>
-            <p className="muted">暂停保留进度；未知的原执行只核对原任务。</p>
-          </div>
-          {canManage && (
-            <button className="button" onClick={() => setActivity("new")}>
-              安排活动
-            </button>
-          )}
-        </div>
-        {activities.error && <p role="alert">{activities.error}</p>}
-        <div className="domain-grid">
-          {activities.data?.items.map((item) => (
-            <article className="domain-record" key={item.id}>
-              <header>
-                <strong>{item.title}</strong>
-                <span className="badge">
-                  {activityLabels[item.state] ?? item.state}
-                </span>
-              </header>
-              <p>
-                {item.waiting_reason
-                  ? activityWaitingReason(item.waiting_reason)
-                  : `已保存 ${item.checkpoint_step} 个步骤`}
+      {section !== "activities" && (
+        <section className="life-card">
+          <div className="section-heading">
+            <div>
+              <h3>正在关心的目标</h3>
+              <p className="muted">
+                目标提供方向，实际完成仍取决于活动与执行结果。
               </p>
-              {!item.checkpoint_data?.capability_id && (
+            </div>
+            {canManage && (
+              <button className="button" onClick={() => setGoal("new")}>
+                记下新目标
+              </button>
+            )}
+          </div>
+          {goals.error && <p role="alert">{goals.error}</p>}
+          <div className="domain-grid">
+            {goals.data?.items.map((item) => (
+              <article className="domain-record" key={item.id}>
+                <header>
+                  <strong>{item.title}</strong>
+                  <span className="badge">
+                    {(
+                      {
+                        active: "在意中",
+                        paused: "暂放一边",
+                        completed: "已完成",
+                        cancelled: "已取消",
+                      } as Record<string, string>
+                    )[item.state] ?? item.state}
+                  </span>
+                </header>
+                <p>{item.motivation}</p>
                 <p className="muted">
-                  角色主观活动，完成记录不表示发生了现实身体活动或真实工具执行。
+                  {item.origin === "autonomous"
+                    ? "随实际经历与兴趣形成"
+                    : "作者记下的方向"}
                 </p>
-              )}
-              {item.next_due_at && (
-                <p>下一时间：{timeLabel(item.next_due_at)}</p>
-              )}
-              {item.resume_condition && (
-                <p className="muted">
-                  继续条件：{activityWaitingReason(item.resume_condition)}
-                </p>
-              )}
-              <SourceEvidence sources={item.source_refs} />
-              <div className="domain-actions">
-                {item.action_id && (
-                  <a
-                    className="text-link"
-                    href={`#/system/tasks?action=${encodeURIComponent(item.action_id)}`}
-                  >
-                    查看原任务
-                  </a>
+                {item.reason && item.reason !== item.motivation && (
+                  <p>形成或调整的理由：{item.reason}</p>
                 )}
+                <div className="life-goal-progress">
+                  <progress
+                    aria-label={`${item.title}实际进度`}
+                    max={1}
+                    value={item.progress ?? 0}
+                  />
+                  <span>
+                    实际进度 {Math.round((item.progress ?? 0) * 100)}%
+                  </span>
+                </div>
+                <p className="muted">
+                  {goalCriteria(item)}。进度只随真实活动回执推进。
+                </p>
+                {item.due_at && (
+                  <small>计划时间：{timeLabel(item.due_at)}</small>
+                )}
+                <SourceEvidence sources={item.source_refs} />
                 {canManage && (
-                  <>
-                    {item.state === "running" && (
+                  <div className="domain-actions">
+                    <button
+                      className="text-link"
+                      onClick={() => setGoal(structuredClone(item))}
+                    >
+                      调整目标
+                    </button>
+                    {["active", "paused"].includes(item.state) && (
                       <button
                         className="button"
-                        disabled={action.busy}
-                        onClick={() =>
-                          void action
+                        disabled={goalAction.busy}
+                        onClick={() => {
+                          void goalAction
                             .run(
-                              "life/activities.pause",
-                              { id: item.id },
+                              "life/goals.save",
+                              {
+                                id: item.id,
+                                title: item.title,
+                                motivation: item.motivation,
+                                priority: item.priority,
+                                due_at: item.due_at,
+                                matter_id: item.matter_id,
+                                source_refs: item.source_refs,
+                                state:
+                                  item.state === "active" ? "paused" : "active",
+                                reason:
+                                  item.state === "active"
+                                    ? "作者暂放一边"
+                                    : "作者选择继续",
+                              },
                               item.revision,
                             )
-                            .then(reload)
-                        }
+                            .then((result) => {
+                              if (result) void reload();
+                            });
+                        }}
                       >
-                        暂停
+                        {item.state === "active" ? "暂放一边" : "继续这个目标"}
                       </button>
                     )}
-                    {["planned", "paused", "dormant"].includes(item.state) &&
-                      item.waiting_reason !== "outcome_unknown" && (
+                    {!["completed", "cancelled"].includes(item.state) && (
+                      <button
+                        className="button"
+                        disabled={goalAction.busy}
+                        onClick={() => {
+                          void goalAction
+                            .run(
+                              "life/goals.save",
+                              {
+                                id: item.id,
+                                title: item.title,
+                                motivation: item.motivation,
+                                priority: item.priority,
+                                due_at: item.due_at,
+                                matter_id: item.matter_id,
+                                source_refs: item.source_refs,
+                                state: "cancelled",
+                                reason: "作者选择放弃这个方向",
+                              },
+                              item.revision,
+                            )
+                            .then((result) => {
+                              if (result) void reload();
+                            });
+                        }}
+                      >
+                        放弃这个目标
+                      </button>
+                    )}
+                  </div>
+                )}
+              </article>
+            ))}
+          </div>
+          <CommandFeedback
+            {...goalAction}
+            error={lifeCommandError(goalAction.error)}
+          />
+          {goals.data && !goals.data.items.length && (
+            <p className="muted">
+              还没有单独记下目标，已配置的人格兴趣仍可成为生活动机。
+            </p>
+          )}
+          <div className="domain-actions">
+            {goalCursor && (
+              <button className="button" onClick={() => setGoalCursor(null)}>
+                回到首批目标
+              </button>
+            )}
+            {goals.data?.next_cursor && (
+              <button
+                className="button"
+                onClick={() => setGoalCursor(goals.data!.next_cursor)}
+              >
+                更多目标
+              </button>
+            )}
+          </div>
+          {goal && (
+            <GoalEditor
+              key={goal === "new" ? "new" : `${goal.id}:${goal.revision}`}
+              value={goal === "new" ? null : goal}
+              onClose={() => setGoal(null)}
+              onSaved={() => {
+                setGoal(null);
+                void reload();
+              }}
+            />
+          )}
+        </section>
+      )}
+      {section !== "goals" && (
+        <section className="life-card">
+          <div className="section-heading">
+            <div>
+              <h3>持续活动</h3>
+              <p className="muted">暂停保留进度；未知的原执行只核对原任务。</p>
+            </div>
+            {canManage && (
+              <button className="button" onClick={() => setActivity("new")}>
+                安排活动
+              </button>
+            )}
+          </div>
+          {activities.error && <p role="alert">{activities.error}</p>}
+          <div className="domain-grid">
+            {activities.data?.items.map((item) => (
+              <article className="domain-record" key={item.id}>
+                <header>
+                  <strong>{item.title}</strong>
+                  <span className="badge">
+                    {activityLabels[item.state] ?? item.state}
+                  </span>
+                </header>
+                <ActivityProgress activity={item} />
+                {!item.checkpoint_data?.capability_id && (
+                  <p className="muted">
+                    角色主观活动，完成记录不表示发生了现实身体活动或真实工具执行。
+                  </p>
+                )}
+                {item.resume_condition && (
+                  <p className="muted">
+                    继续条件：{activityWaitingReason(item.resume_condition)}
+                  </p>
+                )}
+                <SourceEvidence sources={item.source_refs} />
+                <div className="domain-actions">
+                  {item.action_id && (
+                    <a
+                      className="text-link"
+                      href={`#/system/tasks?action=${encodeURIComponent(item.action_id)}`}
+                    >
+                      查看原任务
+                    </a>
+                  )}
+                  {canManage && (
+                    <>
+                      {item.state === "running" && (
                         <button
                           className="button"
                           disabled={action.busy}
                           onClick={() =>
                             void action
                               .run(
-                                "life/activities.resume",
+                                "life/activities.pause",
                                 { id: item.id },
                                 item.revision,
                               )
                               .then(reload)
                           }
                         >
-                          {item.waiting_reason === "continuation_available"
-                            ? "从实际位置继续"
-                            : "开始或继续"}
+                          暂停
                         </button>
                       )}
-                    {!["completed", "cancelled"].includes(item.state) && (
-                      <button
-                        className="button"
-                        disabled={action.busy}
-                        onClick={() =>
-                          void action
-                            .run(
-                              "life/activities.cancel",
-                              { id: item.id },
-                              item.revision,
-                            )
-                            .then(reload)
-                        }
-                      >
-                        取消后续活动
-                      </button>
-                    )}
-                    {!item.action_id &&
-                      !["completed", "cancelled"].includes(item.state) && (
+                      {["planned", "paused", "dormant"].includes(item.state) &&
+                        ![
+                          "outcome_unknown",
+                          "capability_running",
+                          "capability_queued",
+                          "cancellation_outcome_unknown",
+                        ].includes(item.waiting_reason ?? "") && (
+                          <button
+                            className="button"
+                            disabled={action.busy}
+                            onClick={() =>
+                              void action
+                                .run(
+                                  "life/activities.resume",
+                                  { id: item.id },
+                                  item.revision,
+                                )
+                                .then(reload)
+                            }
+                          >
+                            {item.waiting_reason === "continuation_available"
+                              ? "从实际位置继续"
+                              : "开始或继续"}
+                          </button>
+                        )}
+                      {!["completed", "cancelled"].includes(item.state) && (
                         <button
-                          className="text-link"
-                          onClick={() => setActivity(structuredClone(item))}
+                          className="button"
+                          disabled={action.busy}
+                          onClick={() =>
+                            void action
+                              .run(
+                                "life/activities.cancel",
+                                { id: item.id },
+                                item.revision,
+                              )
+                              .then(reload)
+                          }
                         >
-                          编辑安排
+                          取消后续活动
                         </button>
                       )}
-                  </>
-                )}
-              </div>
-            </article>
-          ))}
-        </div>
-        <CommandFeedback {...action} />
-        {activity && (
-          <ActivityEditor
-            key={
-              activity === "new" ? "new" : `${activity.id}:${activity.revision}`
-            }
-            value={activity === "new" ? null : activity}
-            goals={goals.data?.items ?? []}
-            onClose={() => setActivity(null)}
-            onSaved={() => {
-              setActivity(null);
-              void reload();
-            }}
-          />
-        )}
-        <div className="domain-actions">
-          {activityCursor && (
-            <button className="button" onClick={() => setActivityCursor(null)}>
-              回到首批活动
-            </button>
+                      {!item.action_id &&
+                        !["completed", "cancelled"].includes(item.state) && (
+                          <button
+                            className="text-link"
+                            onClick={() => setActivity(structuredClone(item))}
+                          >
+                            编辑安排
+                          </button>
+                        )}
+                    </>
+                  )}
+                </div>
+              </article>
+            ))}
+          </div>
+          <CommandFeedback {...action} error={lifeCommandError(action.error)} />
+          {activity && (
+            <ActivityEditor
+              key={
+                activity === "new"
+                  ? "new"
+                  : `${activity.id}:${activity.revision}`
+              }
+              value={activity === "new" ? null : activity}
+              goals={goals.data?.items ?? []}
+              onClose={() => setActivity(null)}
+              onSaved={() => {
+                setActivity(null);
+                void reload();
+              }}
+            />
           )}
-          {activities.data?.next_cursor && (
-            <button
-              className="button"
-              onClick={() => setActivityCursor(activities.data!.next_cursor)}
-            >
-              更多活动
-            </button>
+          <div className="domain-actions">
+            {activityCursor && (
+              <button
+                className="button"
+                onClick={() => setActivityCursor(null)}
+              >
+                回到首批活动
+              </button>
+            )}
+            {activities.data?.next_cursor && (
+              <button
+                className="button"
+                onClick={() => setActivityCursor(activities.data!.next_cursor)}
+              >
+                更多活动
+              </button>
+            )}
+          </div>
+          {activities.data && !activities.data.items.length && (
+            <p className="muted">
+              还没有持续活动。新的实际经历或目标会影响下一次选择。
+            </p>
           )}
-        </div>
-      </section>
+        </section>
+      )}
     </div>
   );
+}
+
+function goalCriteria(goal: Goal) {
+  const criteria = goal.criteria;
+  if (!criteria?.kind) return "尚未约定自动完成条件，可在调整目标中补充";
+  const labels = {
+    completed_activity: "完成相关活动",
+    reading_complete: "完成约定阅读范围",
+    created_artifact: "取得实际创作产物",
+  };
+  return `完成条件：${labels[criteria.kind]} ${criteria.target_count} 次`;
 }
 
 function GoalEditor({
@@ -310,8 +429,19 @@ function GoalEditor({
   onSaved: () => void;
 }) {
   const action = useDomainCommand(`goal:${value?.id ?? "new"}`);
+  const choices = useDomainResource<{ items: Choice[] }>(
+    "capabilities/discover",
+  );
+  const [criteriaKind, setCriteriaKind] = useState(value?.criteria?.kind ?? "");
+  const fixedCriteria = (value?.progress ?? 0) > 0;
   return (
-    <DetailCard title={value ? "调整目标" : "记下新目标"}>
+    <DetailCard
+      title={value ? "调整目标" : "记下新目标"}
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <form
         className="domain-form"
         onSubmit={(event) => {
@@ -324,6 +454,21 @@ function GoalEditor({
                 ...(value ? { id: value.id, matter_id: value.matter_id } : {}),
                 title: form.get("title"),
                 motivation: form.get("motivation"),
+                reason: form.get("reason"),
+                ...(value ? { source_refs: value.source_refs } : {}),
+                ...(!fixedCriteria
+                  ? {
+                      criteria: criteriaKind
+                        ? {
+                            kind: criteriaKind,
+                            capability_id: String(
+                              form.get("capability_id") ?? "",
+                            ),
+                            target_count: Number(form.get("target_count")),
+                          }
+                        : {},
+                    }
+                  : {}),
                 priority: Number(form.get("priority")),
                 state: form.get("state"),
                 due_at: form.get("due_at")
@@ -354,6 +499,82 @@ function GoalEditor({
             maxLength={4000}
           />
         </label>
+        <label>
+          这次调整的理由
+          <textarea
+            name="reason"
+            defaultValue={value?.reason ?? ""}
+            maxLength={500}
+            placeholder="想继续、暂放一边，或为什么改变方向"
+          />
+        </label>
+        <fieldset className="life-goal-criteria" disabled={fixedCriteria}>
+          <legend>怎样算走到这一步</legend>
+          <label>
+            完成方式
+            <select
+              value={criteriaKind}
+              onChange={(event) =>
+                setCriteriaKind(event.target.value as typeof criteriaKind)
+              }
+            >
+              <option value="">暂不设自动完成条件</option>
+              <option value="completed_activity">完成相关活动</option>
+              <option value="reading_complete">读完约定范围</option>
+              <option value="created_artifact">取得实际创作产物</option>
+            </select>
+          </label>
+          {criteriaKind && (
+            <>
+              <label>
+                对应的活动能力
+                <select
+                  name="capability_id"
+                  defaultValue={value?.criteria?.capability_id ?? ""}
+                  required
+                >
+                  <option value="">选择当前可用的能力</option>
+                  {value?.criteria?.capability_id &&
+                    !choices.data?.items?.some(
+                      (item) =>
+                        item.definition.id === value.criteria?.capability_id,
+                    ) && (
+                      <option value={value.criteria.capability_id}>
+                        当前约定的能力
+                      </option>
+                    )}
+                  {choices.data?.items
+                    ?.filter(
+                      (item) => item.can_execute && item.definition.model_tool,
+                    )
+                    .map((item) => (
+                      <option
+                        key={item.definition.id}
+                        value={item.definition.id}
+                      >
+                        {item.definition.title}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <label>
+                实际完成次数
+                <input
+                  name="target_count"
+                  type="number"
+                  min={1}
+                  max={50}
+                  defaultValue={value?.criteria?.target_count ?? 1}
+                  required
+                />
+              </label>
+            </>
+          )}
+        </fieldset>
+        {fixedCriteria && (
+          <p className="muted">已有实际进度，完成方式沿用原来的约定。</p>
+        )}
+        {choices.error && <p role="alert">{choices.error}</p>}
         <label>
           状态
           <select name="state" defaultValue={value?.state ?? "active"}>
@@ -390,7 +611,7 @@ function GoalEditor({
             收起
           </button>
         </div>
-        <CommandFeedback {...action} />
+        <CommandFeedback {...action} error={lifeCommandError(action.error)} />
       </form>
     </DetailCard>
   );
@@ -421,7 +642,13 @@ function ActivityEditor({
     (choice) => choice.definition.id === capability,
   );
   return (
-    <DetailCard title="活动安排">
+    <DetailCard
+      title="活动安排"
+      open
+      onOpenChange={(open) => {
+        if (!open) onClose();
+      }}
+    >
       <form
         className="domain-form"
         onSubmit={(event) => {
@@ -555,7 +782,7 @@ function ActivityEditor({
             收起
           </button>
         </div>
-        <CommandFeedback {...action} />
+        <CommandFeedback {...action} error={lifeCommandError(action.error)} />
       </form>
     </DetailCard>
   );

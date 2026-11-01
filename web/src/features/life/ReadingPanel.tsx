@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../app/Auth";
 import {
   useDomainCommand,
@@ -37,6 +37,8 @@ export function ReadingPanel({ canManage }: { canManage: boolean }) {
   const [selected, setSelected] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
+  const upload = useRef<AbortController | null>(null);
+  useEffect(() => () => upload.current?.abort(), []);
   const row = view.data?.items.find((item) => item.id === selected);
   function acquired(source: SourceRef) {
     if (!canManage) return;
@@ -82,19 +84,31 @@ export function ReadingPanel({ canManage }: { canManage: boolean }) {
                 if (!file || !session?.authenticated) return;
                 setUploading(true);
                 setError("");
+                upload.current?.abort();
+                const controller = new AbortController();
+                upload.current = controller;
                 void uploadMedia(
                   file,
                   { ...target, actor_id: target.actor_id ?? undefined },
                   session.csrf,
-                  new AbortController().signal,
+                  controller.signal,
                 )
-                  .then((uploaded) => acquired(uploaded.source_ref))
-                  .catch((cause) =>
-                    setError(
-                      cause instanceof Error ? cause.message : "上传结果待确认",
-                    ),
+                  .then((uploaded) => {
+                    if (!controller.signal.aborted)
+                      acquired(uploaded.source_ref);
+                  })
+                  .catch(
+                    (cause) =>
+                      !controller.signal.aborted &&
+                      setError(
+                        cause instanceof Error
+                          ? cause.message
+                          : "上传结果待确认",
+                      ),
                   )
-                  .finally(() => setUploading(false));
+                  .finally(() => {
+                    if (!controller.signal.aborted) setUploading(false);
+                  });
               }}
             />
           </label>
@@ -242,7 +256,7 @@ export function ReadingPanel({ canManage }: { canManage: boolean }) {
             </button>
           )}
           <CommandFeedback {...read} />
-          {read.result?.data.id === row.id && (
+          {read.result?.data?.id === row.id && (
             <>
               <article className="life-revision">
                 <p style={{ whiteSpace: "pre-wrap" }}>

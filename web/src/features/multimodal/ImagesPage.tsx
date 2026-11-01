@@ -16,7 +16,12 @@ import { ExecutionStatus } from "../../components/ExecutionStatus";
 import type { Page } from "../../api/contracts";
 import { EngineEditor, ProfileEditor, engineNames } from "./ImageSettings";
 import { WorkflowEditor } from "./WorkflowEditor";
-import type { ImageView, ImagePreview, SceneSnapshot } from "./types";
+import type {
+  ImageView,
+  ImagePreview,
+  ImageResult,
+  SceneSnapshot,
+} from "./types";
 import "./multimodal.css";
 import { CapabilityReadiness } from "./CapabilityReadiness";
 const executionNames: Record<string, string> = {
@@ -398,10 +403,17 @@ function ImageJob({
   const actual = waiting.data?.receipt;
   const execution = actual?.execution ?? job.execution;
   const reason = actual ? actual.error_code : job.reason;
+  const result = (actual?.result ?? job.result) as ImageResult | undefined;
+  const delivery = actual?.delivery ?? job.delivery;
   const [reading, setReading] = useState(false);
   const [error, setError] = useState("");
+  const controller = useRef<AbortController | null>(null);
+  useEffect(() => () => controller.current?.abort(), []);
   async function control(operation: string) {
     if (!session) return;
+    controller.current?.abort();
+    const current = new AbortController();
+    controller.current = current;
     setReading(true);
     setError("");
     try {
@@ -409,8 +421,9 @@ function ImageJob({
         "capabilities/get",
         { ...scope, action_id: job.action_id },
         session.csrf,
-        new AbortController().signal,
+        current.signal,
       );
+      if (current.signal.aborted) return;
       if (typeof original.action.revision !== "number")
         throw new Error("原动作修订不可用。");
       await command.run(
@@ -418,11 +431,12 @@ function ImageJob({
         { ...scope, action_id: job.action_id },
         original.action.revision,
       );
-      await refresh();
+      if (!current.signal.aborted) await refresh();
     } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "原账本暂不可读。");
+      if (!current.signal.aborted)
+        setError(cause instanceof Error ? cause.message : "原账本暂不可读。");
     } finally {
-      setReading(false);
+      if (!current.signal.aborted) setReading(false);
     }
   }
   return (
@@ -449,8 +463,69 @@ function ImageJob({
       )}
       {waiting.error && <p className="muted">{waiting.error}</p>}
       {reason && <p>{reason}</p>}
-      <p>外部效果：{actual?.effect ?? job.effect}</p>
+      <p>
+        {(actual?.effect ?? job.effect) === "unknown"
+          ? "生成的外部效果尚未确认。"
+          : execution === "succeeded"
+            ? "已有原执行回执，下面展示实际保留的产物。"
+            : "生成是否完成以原执行回执为准。"}
+      </p>
       <ArtifactList artifacts={actual?.artifacts ?? job.artifacts} />
+      {result?.generated_at && (
+        <p className="muted">
+          产物确认时间：{new Date(result.generated_at).toLocaleString("zh-CN")}
+        </p>
+      )}
+      {result?.consistency && (
+        <section className="image-consistency" aria-label="成图场景核验">
+          <h4>
+            {result.consistency.state === "matched"
+              ? "已核对可见场景"
+              : result.consistency.state === "conflict"
+                ? "成图与当时场景有差异"
+                : "画面一致性尚未确认"}
+          </h4>
+          {result.consistency.state === "unknown" && (
+            <p>产物仍然保留，当前核验没有得到明确结论。</p>
+          )}
+          <ul>
+            {result.consistency.checks.map((check) => (
+              <li key={check.field}>
+                {(
+                  {
+                    local_time: "时间与光照",
+                    time: "时间与光照",
+                    lighting: "光照",
+                    outfit: "穿搭",
+                    place: "场景",
+                    weather: "天气",
+                    identity: "角色形象",
+                  } as Record<string, string>
+                )[check.field] ?? "可见画面"}
+                ：
+                {check.status === "matched"
+                  ? "吻合"
+                  : check.status === "conflict"
+                    ? "有差异"
+                    : "未确认"}
+                {check.observed ? ` · ${check.observed}` : ""}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+      {result?.sharing?.notice && <p role="status">{result.sharing.notice}</p>}
+      {result?.sharing?.decision === "archive" && (
+        <p>本次作品留在相册，没有因生成完成而自动分享。</p>
+      )}
+      {result?.sharing?.decision === "recheck" && (
+        <p>保留已有作品，等待重新核对分享时机。</p>
+      )}
+      {result?.sharing?.decision === "send" && delivery !== "delivered" && (
+        <p>已有分享意向，是否送达仍以原投递回执为准。</p>
+      )}
+      {delivery === "delivered" && <p>已确认投递。</p>}
+      {delivery === "unknown" && <p role="status">投递结果尚未确认。</p>}
       <div className="domain-actions">
         {["pending", "running"].includes(execution) && (
           <button

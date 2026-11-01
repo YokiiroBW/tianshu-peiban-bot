@@ -12,7 +12,8 @@ import {
   PublicationAudience,
   type PublicationSelection,
 } from "./PublicationAudience";
-import { timeLabel } from "./domainTypes";
+import { lifeCommandError, timeLabel, type Routine } from "./domainTypes";
+import { localDay } from "./scheduleTime";
 
 type Diary = {
   id: string;
@@ -24,6 +25,17 @@ type Diary = {
   generation_id?: string | null;
   reason?: string | null;
   source_refs: SourceRef[];
+  automatic?: {
+    state: string;
+    day: string;
+    timezone: string;
+    material_revision: number;
+    reviewed_revision: number;
+    attempt_id: string | null;
+    closed_at: string;
+    last_reviewed_at: string | null;
+    last_error: string | null;
+  } | null;
 };
 type DiaryRead = {
   diary: Diary;
@@ -46,7 +58,27 @@ const stateLabels: Record<string, string> = {
   empty: "没有新增材料",
   cancelled: "已停止本次生成",
 };
+function diaryReason(reason: string) {
+  const labels: Record<string, string> = {
+    diary_no_new_material: "没有新的有效经历，本次没有调用模型重写。",
+    source_unavailable: "部分原始依据已失效，需要以当前有效材料重新整理。",
+    result_source_unavailable: "原结果的依据已失效，没有写入这份日记。",
+    diary_episode_revised: "写作期间原经历已修订，旧正文没有覆盖新材料。",
+    generation_request_expired: "原写作请求已到截止时间，本次没有再次提交。",
+    diary_original_authorization_changed:
+      "原写作的授权版本已变化，保留原请求身份核对。",
+    generation_outcome_unknown:
+      "原模型任务的结果尚未确认，核对时会沿用原请求。",
+    model_completed_after_cancel: "原模型稍后完成，但已按取消要求停止写入。",
+    cancelled_before_model_registration: "在模型开始之前已停止本次写作。",
+    cancel_requested: "已请求停止后续写入，正在核对原模型任务。",
+    diary_generation_failed: "这次没有取得可用正文，可以查看原任务。",
+    generation_content_incomplete: "原正文不完整，没有保存为日记。",
+  };
+  return labels[reason] ?? "这次整理尚未完成，可核对原任务和当前材料。";
+}
 export function DiaryPanel({ canManage }: { canManage: boolean }) {
+  const routine = useDomainResource<Routine>("life/routine", {}, canManage);
   const [cursor, setCursor] = useState<string | null>(null);
   const list = useDomainResource<Page<Diary>>(
     "life/diaries",
@@ -64,6 +96,18 @@ export function DiaryPanel({ canManage }: { canManage: boolean }) {
   return (
     <>
       <section className="panel">
+        {canManage && (
+          <p className="muted">
+            角色会在日末按当地日期整理实际经历。有新材料才修订，内容少时可以短写或留白，生成后先保存为草稿。
+          </p>
+        )}
+        <button
+          className="button"
+          onClick={() => void list.refresh()}
+          disabled={list.loading}
+        >
+          刷新日记状态
+        </button>
         {canManage && (
           <form
             className="domain-form"
@@ -89,9 +133,12 @@ export function DiaryPanel({ canManage }: { canManage: boolean }) {
             <label>
               按角色时区记下哪一天
               <input
+                key={routine.data?.timezone ?? "Asia/Shanghai"}
                 name="day"
                 type="date"
-                defaultValue={new Date().toLocaleDateString("sv-SE")}
+                defaultValue={localDay(
+                  routine.data?.timezone ?? "Asia/Shanghai",
+                )}
                 required
               />
             </label>
@@ -101,7 +148,10 @@ export function DiaryPanel({ canManage }: { canManage: boolean }) {
             <p className="muted">
               只使用有权读取的实际经历，生成后先留作草稿。
             </p>
-            <CommandFeedback {...request} />
+            <CommandFeedback
+              {...request}
+              error={lifeCommandError(request.error)}
+            />
           </form>
         )}
         {list.error && <p role="alert">{list.error}</p>}
@@ -110,7 +160,12 @@ export function DiaryPanel({ canManage }: { canManage: boolean }) {
         entries={(list.data?.items ?? []).map((item) => ({
           id: item.id,
           title: item.day,
-          badge: stateLabels[item.state] ?? item.state,
+          badge:
+            item.automatic?.state === "pending"
+              ? "有新经历待整理"
+              : item.automatic?.state === "blocked"
+                ? "自动整理待处理"
+                : (stateLabels[item.state] ?? "状态待核对"),
           category: item.day.slice(0, 7).replace("-", " 年 ") + " 月",
           selected: selected?.id === item.id,
         }))}
@@ -178,7 +233,10 @@ function DiarySheet({
   useEffect(() => {
     if (read.accessLost) setEditing(null);
   }, [read.accessLost]);
-  const current = read.data?.diary ?? row;
+  const current =
+    read.data?.diary && read.data.diary.revision >= row.revision
+      ? read.data.diary
+      : row;
   const reload = () => {
     void read.refresh();
     void refreshList();
@@ -187,10 +245,49 @@ function DiarySheet({
     <section className="domain-workspace">
       <p>
         <span className="badge">
-          {stateLabels[current.state] ?? current.state}
+          {stateLabels[current.state] ?? "状态待核对"}
         </span>
-        {current.reason && <> · {current.reason}</>}
+        {current.reason && <> · {diaryReason(current.reason)}</>}
       </p>
+      {canManage && current.automatic && (
+        <section className="life-diary-automatic" aria-label="自动日记状态">
+          <h4>这一天的自动整理</h4>
+          <p>
+            {current.automatic.state === "reviewed"
+              ? "已经复核本批材料，之后有新经历再继续。"
+              : current.automatic.state === "pending"
+                ? "有新经历待整理，已排入后台。"
+                : current.automatic.state === "blocked"
+                  ? "自动整理暂时停在依据或授权检查处。"
+                  : (stateLabels[current.automatic.state] ??
+                    "正在核对这一批材料。")}
+          </p>
+          <p className="muted">
+            材料版本 {current.automatic.material_revision} · 已复核到{" "}
+            {current.automatic.reviewed_revision} · {current.automatic.timezone}
+          </p>
+          {current.automatic.last_reviewed_at && (
+            <p className="muted">
+              上次复核：
+              {timeLabel(
+                current.automatic.last_reviewed_at,
+                current.automatic.timezone,
+              )}
+            </p>
+          )}
+          {current.automatic.last_error && (
+            <p>{diaryReason(current.automatic.last_error)}</p>
+          )}
+        </section>
+      )}
+      {current.state === "unknown" && (
+        <p role="status">保留原模型请求，只核对原结果；尚未作为写作成功。</p>
+      )}
+      {!read.data && !read.error && !current.current_revision && (
+        <p className="muted">
+          这一页还没有可阅读的正文，整理状态会继续显示在这里。
+        </p>
+      )}
       {read.error && <p role="alert">{read.error}</p>}
       {read.data && (
         <>
@@ -214,7 +311,8 @@ function DiarySheet({
             !read.data.version.recipe.coverage.complete && (
               <p className="muted">
                 本版材料有明确省略：
-                {read.data.version.recipe.coverage.missing.join("、")}
+                {read.data.version.recipe.coverage.missing.length}{" "}
+                项原件范围未参与本版写作，可展开依据查看。
               </p>
             )}
         </>
@@ -381,7 +479,7 @@ function DiarySheet({
                 </button>
               </form>
             )}
-          <CommandFeedback {...action} />
+          <CommandFeedback {...action} error={lifeCommandError(action.error)} />
         </>
       )}
     </section>

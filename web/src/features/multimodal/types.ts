@@ -166,8 +166,30 @@ export type ImageView = {
     effect: string;
     artifacts: ArtifactRef[];
     reason: string | null;
+    delivery?: "not_requested" | "pending" | "delivered" | "failed" | "unknown";
+    result?: ImageResult;
   }[];
   album: ArtifactRef[];
+};
+export type ImageResult = {
+  consistency?: {
+    state: "matched" | "conflict" | "unknown";
+    checks: {
+      field: string;
+      status: "matched" | "conflict" | "unknown";
+      observed: string;
+    }[];
+    reason?: string;
+    scope?: string;
+    regeneration_attempts: number;
+  };
+  sharing?: {
+    decision: string;
+    reason?: string;
+    delivery_kind?: string;
+    notice?: string | null;
+  };
+  generated_at?: string;
 };
 export type ImagePreview = {
   source_refs: SourceRef[];

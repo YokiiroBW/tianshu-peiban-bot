@@ -15,6 +15,16 @@ export type Goal = {
   matter_id: string | null;
   due_at: string | null;
   source_refs: SourceRef[];
+  origin?: "authored" | "autonomous";
+  reason?: string | null;
+  progress?: number;
+  criteria?:
+    | {
+        kind: "completed_activity" | "reading_complete" | "created_artifact";
+        capability_id: string;
+        target_count: number;
+      }
+    | Record<string, never>;
 };
 export type Activity = {
   id: string;
@@ -28,10 +38,30 @@ export type Activity = {
   resume_condition: string | null;
   action_id: string | null;
   checkpoint_step: number;
+  checkpoint_position?: number;
+  checkpoint_unit?: string;
+  wake_condition?: {
+    kind:
+      | "user_reply"
+      | "activity_completed"
+      | "capability_available"
+      | "matter_changed";
+    subject_id: string;
+  } | null;
   checkpoint_data: {
     capability_id?: string;
     arguments?: Record<string, unknown>;
-    consumption?: { analysis_completed: boolean; next_position: unknown };
+    consumption?: Consumption | null;
+    continuation?: Continuation | null;
+    coverage?: Coverage | null;
+    completed_action_id?: string;
+    completion_basis?: string;
+    exploration?: {
+      mode?: string;
+      intention?: string;
+      stop_reason?: string;
+      unresolved_questions?: { question: string }[];
+    };
   };
   source_refs: SourceRef[];
 };
@@ -91,6 +121,64 @@ export type Routine = {
     generation_consumed: boolean;
     pending: boolean;
   } | null;
+};
+export type Continuation = {
+  capability_id: string;
+  arguments: Record<string, unknown>;
+};
+export type Consumption = {
+  source?: SourceRef;
+  requested?: { start: number; end: number };
+  ranges: { start: number; end: number }[];
+  frame_times?: number[];
+  model_input_modalities?: string[];
+  modalities?: string[];
+  omitted?: string[];
+  analysis_completed: boolean;
+  requested_completed?: boolean;
+  next_position: unknown;
+  unresolved_questions?: { question: string; reason?: string }[];
+};
+export type DaySlot = {
+  id: string;
+  actor_id: string;
+  day: string;
+  revision: number;
+  kind: "activity" | "free";
+  state:
+    | "planned"
+    | "running"
+    | "waiting_result"
+    | "partial"
+    | "completed"
+    | "cancelled"
+    | "carried";
+  starts_at: string;
+  ends_at: string;
+  activity_id: string | null;
+  title: string;
+  activity_kind: string | null;
+  goal_id: string | null;
+  waiting_reason: string | null;
+  checkpoint_data: Activity["checkpoint_data"];
+  source_refs?: SourceRef[];
+};
+export type DayPlanView = {
+  day: string;
+  plan: {
+    actor_id: string;
+    day: string;
+    revision: number;
+    timezone: string;
+    state: "open" | "closed";
+    reason: string | null;
+    source_refs: SourceRef[];
+    created_at: string;
+    updated_at: string;
+  } | null;
+  slots: DaySlot[];
+  unfinished: Activity[];
+  planning?: Routine["planning"];
 };
 export type GrowthItem = {
   id: string;
@@ -191,6 +279,13 @@ const activityWaitingReasons: Record<string, string> = {
   review_original_result: "先确认原任务的分析结果。",
   continue_from_checkpoint: "从已保存的位置继续。",
   review_failure: "先查看原任务的失败原因。",
+  day_plan_slot: "已留在今天的安排里，到时间再开始。",
+  day_finished: "今天的活动时间已结束，进度留待下次安排。",
+  scheduled_authorization_unavailable:
+    "原安排的授权已变化，正在等待有权管理的账号重新安排。",
+  user_reply: "等待对方回应，收到回应后再继续。",
+  activity_completed: "等待关联活动完成。",
+  matter_changed: "等待相关事项有新进展。",
 };
 export function activityWaitingReason(reason: string): string {
   return activityWaitingReasons[reason] ?? "活动暂未完成，可查看原任务结果。";
@@ -202,4 +297,25 @@ export function timeLabel(value: string | null, zone?: string) {
         zone ? { timeZone: zone } : undefined,
       )
     : "尚未确定";
+}
+
+export function lifeCommandError(message: string) {
+  const labels: Record<string, string> = {
+    revision_conflict: "这份安排已经更新，请刷新后按最新内容调整。",
+    day_slot_not_found: "这项安排已不存在，或当前范围无权读取，请刷新。",
+    day_slot_already_started:
+      "这项活动已经开始，进度会保留；请调整尚未开始的安排。",
+    invalid_day_slot_window:
+      "请选择这一天清醒时间内、尚未到来的开始时间，并为活动留够时长。",
+    day_slot_conflict: "这个时间与另一项已安排活动重叠，请换一个时间。",
+    invalid_goal_criteria:
+      "请完整选择完成方式、对应能力和 1 到 50 次的实际完成次数。",
+    goal_criteria_already_started: "目标已有实际进度，请保留原来的完成约定。",
+    activity_action_unresolved:
+      "原活动结果还没确认，请先读取原任务，进度没有丢失。",
+    diary_generation_unresolved:
+      "原日记任务仍在处理中，请核对或取消原任务后再整理。",
+    source_unavailable: "相关原始依据已经失效，请刷新当前材料。",
+  };
+  return labels[message] ?? message;
 }

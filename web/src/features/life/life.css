@@ -1334,3 +1334,149 @@
 .life-evidence ul {
   padding-inline-start: 1.25rem;
 }
+
+.life-day-plan {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.life-day-plan .section-heading,
+.life-day-slot header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.life-day-plan .section-heading p {
+  margin-bottom: 0;
+}
+.life-day-slots {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  gap: 12px;
+}
+.life-day-slot {
+  display: grid;
+  grid-template-columns: 110px minmax(0, 1fr);
+  gap: 18px;
+  padding: 18px;
+  border: 1px solid var(--color-line);
+  border-radius: 16px;
+}
+.life-day-slot.free {
+  border-style: dashed;
+  background: var(--color-surface);
+}
+.life-slot-time {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  color: var(--color-muted);
+  font-size: 0.9rem;
+}
+.life-slot-time time {
+  font-size: 1.15rem;
+  color: var(--color-text);
+}
+.life-slot-content {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.life-next-step,
+.life-diary-automatic {
+  padding: 16px 18px;
+  border-radius: 16px;
+  background: var(--color-surface-soft, #f6f4fc);
+  display: grid;
+  gap: 6px;
+}
+.life-next-step small,
+.life-next-step span {
+  color: var(--color-muted);
+}
+.life-slot-editor,
+.life-reconsider {
+  border-top: 1px solid var(--color-line);
+  padding-top: 18px;
+}
+.life-goal-progress {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+}
+.life-goal-progress progress {
+  accent-color: var(--color-accent);
+  max-width: 100%;
+}
+.life-goal-criteria {
+  display: grid;
+  gap: 14px;
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 16px;
+  min-width: 0;
+}
+.life-activity-progress {
+  min-width: 0;
+}
+.life-activity-progress details,
+.life-consumption {
+  margin-top: 12px;
+}
+.life-result-copy {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  max-height: 420px;
+  overflow: auto;
+}
+.life-forum-post {
+  border-top: 1px solid var(--color-line);
+  padding-block: 14px;
+}
+.life-forum-post blockquote {
+  margin-inline: 0;
+  padding-inline-start: 12px;
+  border-inline-start: 3px solid var(--color-line);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.image-consistency {
+  border: 1px solid var(--color-line);
+  border-radius: 12px;
+  padding: 12px 16px;
+  margin-block: 12px;
+}
+.image-consistency li {
+  overflow-wrap: anywhere;
+}
+@media (max-width: 720px) {
+  .life-day-slot {
+    grid-template-columns: 1fr;
+    padding: 14px;
+    gap: 10px;
+  }
+  .life-slot-time {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .life-day-plan .section-heading > .domain-actions {
+    width: 100%;
+    align-items: end;
+  }
+  .life-day-plan input,
+  .life-slot-editor input {
+    max-width: 100%;
+    min-width: 0;
+  }
+  .life-day-plan .domain-actions .button {
+    flex: 1 1 auto;
+  }
+  .life-next-step {
+    padding: 14px;
+  }
+}
