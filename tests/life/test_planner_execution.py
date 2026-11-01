@@ -55,6 +55,7 @@ class ReadPage:
             "additionalProperties": False,
         },
         {"type": "object"},
+        model_tool={"name": "content_read"},
     )
 
     async def availability(self, _context):
@@ -116,7 +117,7 @@ class Actions:
         }
 
 
-async def setup(database, output, *, lose_response=False):
+async def setup(database, output, *, lose_response=False, capability_id="content.read"):
     await migrate(
         database,
         (
@@ -155,7 +156,9 @@ async def setup(database, output, *, lose_response=False):
         memory=None,
     )
     catalog = Catalog()
-    catalog.register(ReadPage())
+    handler = ReadPage()
+    handler.definition = replace(handler.definition, id=capability_id)
+    catalog.register(handler)
     models = Models(output, lose_response=lose_response)
     worker = LifeWorker(
         life, models, ContextAssembler(identity, None, None), catalog, actions, None
@@ -184,14 +187,14 @@ async def mark(database):
         ).fetchone()
 
 
-def chosen_activity():
+def chosen_activity(capability_id="content.read"):
     return json.dumps(
         {
             "activity": {
                 "title": "Read the selected page",
                 "kind": "reading",
                 "goal_id": None,
-                "capability_id": "content.read",
+                "capability_id": capability_id,
                 "arguments": {"url": "https://example.test/page"},
                 "duration_minutes": 30,
             },
@@ -201,8 +204,11 @@ def chosen_activity():
 
 
 @pytest.mark.asyncio
-async def test_native_plan_creates_activity_then_dispatches_that_exact_action(database):
-    fixture = await setup(database, chosen_activity())
+@pytest.mark.parametrize("capability_id", ["content.read", "plugin.trailbook.observe"])
+async def test_native_plan_creates_activity_then_dispatches_that_exact_action(
+    database, capability_id
+):
+    fixture = await setup(database, chosen_activity(capability_id), capability_id=capability_id)
     await fixture.worker.plan("actor", 1, wire(fixture.context))
     request = fixture.models.calls[0]
     assert planner.TASK in request.system
@@ -220,7 +226,7 @@ async def test_native_plan_creates_activity_then_dispatches_that_exact_action(da
     action, dispatch = fixture.actions.calls[0]
     assert action.context == fixture.context and action.activity_id == rows[0]["id"]
     assert action.arguments == {"url": "https://example.test/page"}
-    assert action.capability_id == "content.read" and dispatch["background"] is True
+    assert action.capability_id == capability_id and dispatch["background"] is True
     async with database.transaction(read_only=True) as connection:
         row = await (
             await connection.execute("SELECT * FROM life.activities WHERE id=%s", (rows[0]["id"],))

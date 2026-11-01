@@ -5,6 +5,7 @@ import json
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
+from tianshu.capabilities.catalog import is_administrative
 from tianshu.models.types import ModelRequest
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -17,18 +18,6 @@ INPUT_TOKENS = 16000
 OUTPUT_TOKENS = 1500
 RESERVED_OUTPUT_TOKENS = 2048
 
-# Planning chooses activities. Installation, account/configuration management,
-# explicit reminders and device control remain in their own human-facing flows.
-LIFE_CAPABILITIES = (
-    "content.read",
-    "content.discover",
-    "content.continue",
-    "life.reading",
-    "video.observe",
-    "images.generate",
-    "writing.request",
-    "game.query",
-)
 FICTIONAL_KINDS = ("rest", "reflection", "room")
 
 
@@ -89,12 +78,13 @@ TASK = (
 
 
 def eligible_capabilities(choices):
-    available = {
-        item["definition"].id: item["definition"]
+    return [
+        item["definition"]
         for item in choices
         if item.get("can_execute") is True
-    }
-    return [available[name] for name in LIFE_CAPABILITIES if name in available]
+        and (item["definition"].model_tool or item["definition"].public_command)
+        and not is_administrative(item["definition"])
+    ]
 
 
 def material(context, state, routine, goals, commitments, choices, local_time):

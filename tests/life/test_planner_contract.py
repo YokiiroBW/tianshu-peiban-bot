@@ -35,7 +35,7 @@ def context():
     )
 
 
-def choice(name, schema=None, *, available=True):
+def choice(name, schema=None, *, available=True, exposed=True, command=False, administrative=False):
     definition = CapabilityDefinition(
         name,
         name,
@@ -48,6 +48,9 @@ def choice(name, schema=None, *, available=True):
             "additionalProperties": False,
         },
         {"type": "object"},
+        model_tool={"name": name.replace(".", "_")} if exposed and not command else None,
+        public_command={"name": name} if command else None,
+        permissions=frozenset({"config.publish"}) if administrative else frozenset(),
     )
     return {"definition": definition, "can_execute": available}
 
@@ -120,6 +123,7 @@ async def test_large_admin_catalog_cannot_remove_the_application_contract():
                 "type": "object",
                 "description": "irrelevant admin material " * 2000,
             },
+            administrative=True,
         )
         for index in range(200)
     )
@@ -134,6 +138,30 @@ async def test_large_admin_catalog_cannot_remove_the_application_contract():
         planner.decision(result(activity()), request)[0]["activity"]["capability_id"]
         == "content.read"
     )
+
+
+@pytest.mark.asyncio
+async def test_business_plugin_weather_and_public_commands_remain_available_to_planning():
+    request = await make_request(
+        [
+            choice("plugin.trailbook.observe"),
+            choice("weather.current"),
+            choice("plugin.journal.compose", command=True),
+            choice("plugin.disabled.observe", available=False),
+            choice("internal.undeclared", exposed=False),
+            choice("plugin.trailbook.settings.save", administrative=True),
+        ]
+    )
+    frozen = planner.frozen_material(request)
+    assert [row["id"] for row in frozen["capabilities"]] == [
+        "plugin.trailbook.observe",
+        "weather.current",
+        "plugin.journal.compose",
+    ]
+    decision, _ = planner.decision(
+        result(activity(capability_id="plugin.trailbook.observe")), request
+    )
+    assert decision["activity"]["capability_id"] == "plugin.trailbook.observe"
 
 
 @pytest.mark.asyncio
@@ -191,4 +219,6 @@ async def test_null_is_legitimate_and_action_arguments_are_strict():
             result(activity(capability_id=None, kind="reading", arguments={})), request
         )
     with pytest.raises(AppError, match="planner_original_contract_missing"):
-        planner.decision(result(activity()), replace(request, system="pre-upgrade application rules"))
+        planner.decision(
+            result(activity()), replace(request, system="pre-upgrade application rules")
+        )
