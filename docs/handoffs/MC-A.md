@@ -151,3 +151,31 @@ separate MC-D integration scope and will consume these types/builders.
   端点的 0020→0021 升级。检查合法关联重建、未知 recorded_at 和审计数组保持。
 - 本次只静态阅读错误日志、完整 SQL 和 diff，编写用例并提交；**没有运行测试、
   SQL/语言解析器、构建、模型或生产操作**。修复效果等待所有返修完成后的集中复测。
+
+## 第二轮集中验收后的私人纠正返修（2026-11-01）
+
+- 从已集成 `753eaa2a76c59d1091d755b9df32a702ce319bb0` 建立
+  `codex/memory-domain-repairs2-20261101`，原 A/D 及首轮迁移返修提交完整保留。
+- 协调者第二轮运行报告迁移已通过，领域节点
+  `test_private_correction_does_not_replace_public_head` 失败。全场在另一个预算故障处
+  被终止，尚无该节点完整 exception trace；本次没有重跑或从失败节点猜测错误。
+- 静态调用链可确定的根因：ordinary_users 的 Alice/Bob 分属独立私聊，Bob 可经公开
+  Sources 读取 Alice 的 shared Claim，但 Identity 的当前候选目录不包含 Alice。
+  原 writer 在读取真实目标、判断 scope fork 之前先调用 `_claim_values_on`，后者只接受
+  目录人物，因此在 `claim_subject_forbidden` 处结束，无法保存应有的私人解释。
+- writer 先以实际 ID/expected_revision 读取并锁定当前真实目标。同一目标 subject
+  不可替换；目录没有此主体时，仅当该真实旧目标仍 active 且 Sources 当前完整支持组
+  可读，才承认这个对象自身的不可变 subject。没有信任 frozen.subjects、放宽身份目录、
+  读取私人原件或为新对象任意 subject 赋权；actor 和原 CAS 检查继续适用。
+- 保留原 principal/scope fork 判断、稳定新 ID、expected=0 CAS 和 supersedes 关系。
+  fork 使用已核验的值在同一 writer 内保存，避免递归新建时失去旧目标的窄授权依据；
+  不修改公共 head、公共历史或公共来源。关系继续使用私人支持范围，公共读取看不到
+  私人解释/依据，原授权来源撤回后私人分支及历史也失效。
+- 原失败用例的两条断言保留，追加 Bob 目录缺项、实际公开读、私人作者/subject、
+  当前列表的范围内替代、公共 head/revision/来源不变、私人关系及历史隔离断言。
+  新增 `test_manual_private_correction_keeps_public_head_and_rechecks_source_on_replay`
+  覆盖手动命令共用 writer、幂等、公开来源撤回后的当前/历史/重放；新增
+  `test_public_target_subject_authority_cannot_be_reassigned_or_forged` 覆盖不可换 subject、
+  伪造冻结主体不能新增其他人事实及原公共 head 保持。均为 **written_not_run**。
+- 仅修改 revisions.py、对应领域测试和本交接；没有触碰 B 预算/分段、前端、模型或
+  生产。没有执行测试、语言解析、typecheck、build 或模型调用，等待整批集中复验。

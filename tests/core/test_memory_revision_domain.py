@@ -136,6 +136,10 @@ async def test_private_correction_does_not_replace_public_head(core, ordinary_us
     private = await fact(core, alice, await original(core, alice, "interest-publication", "我喜欢苹果"))
     shared = (await core.claims.share_ordinary(alice, {"claim_id": private.claim_id, "expected_revision": private.revision,
                                                     "client_request_id": "publish-interest"})).data
+    shared = await core.claims.get(bob, shared.claim_id)
+    async with core.database.transaction(read_only=True) as conn:
+        subjects = await core.identity.resolve_memory_subjects_on(conn, bob, (shared.subject_id,))
+    assert not subjects  # Published evidence is readable without adding Alice to Bob's directory.
     own_refs = await original(core, bob, "private-disagreement", "对我来说这份公开认识不适用")
     batch = await frozen(core, bob, own_refs, shared, batch_id="private-correction")
     batch["subjects"][shared.subject_id] = {"person_id": shared.subject_id}
@@ -145,6 +149,70 @@ async def test_private_correction_does_not_replace_public_head(core, ordinary_us
     result = await apply(core, bob, batch, [op])
     assert result["changed"][0]["id"] != shared.claim_id
     assert (await core.claims.get(alice, shared.claim_id)).value == "苹果"
+    branch_id = result["changed"][0]["id"]
+    branch = await core.claims.get(bob, branch_id)
+    assert branch.subject_id == shared.subject_id and branch.speaker_id == bob.person_id
+    assert branch.value == "私人解释" and branch.assertion == "reported"
+    assert branch.supersedes == (shared.claim_id,)
+    assert all(ref in branch.source_refs for ref in (*own_refs, *shared.source_refs))
+    public_head = await core.claims.get(alice, shared.claim_id)
+    assert public_head.revision == shared.revision and not public_head.relations
+    assert all(ref not in build_evidence_unit(public_head).source_refs for ref in own_refs)
+    assert {item.claim_id for item in (await core.claims.list(bob)).items} == {branch_id}
+    assert shared.claim_id in {item.claim_id for item in (await core.claims.list(alice)).items}
+    with pytest.raises(AppError, match="claim_unavailable"):
+        await core.claims.get(alice, branch_id)
+    assert not (await core.claims.history(alice, branch_id)).items
+    assert len((await core.claims.history(alice, shared.claim_id)).items) == 1
+
+
+async def test_manual_private_correction_keeps_public_head_and_rechecks_source_on_replay(core, ordinary_users):
+    alice, bob = ordinary_users
+    private = await fact(core, alice, await original(core, alice, "manual-publication", "我喜欢苹果"))
+    shared = (await core.claims.share_ordinary(alice, {"claim_id": private.claim_id, "expected_revision": private.revision,
+                                                    "client_request_id": "manual-publish-interest"})).data
+    body = {"claim_id": shared.claim_id, "expected_revision": shared.revision,
+            "value": "仅属于我的解释", "client_request_id": "private-manual-correction"}
+    corrected = await core.claims.correct(bob, body)
+    replayed = await core.claims.correct(bob, body)
+    branch = corrected.data
+    assert branch.claim_id != shared.claim_id and branch.subject_id == shared.subject_id
+    assert branch.speaker_id == bob.person_id and branch.assertion == "reported"
+    assert replayed.data.claim_id == branch.claim_id and replayed.revision == corrected.revision
+    assert len((await core.claims.history(bob, branch.claim_id)).items) == 1
+    assert (await core.claims.get(alice, shared.claim_id)).revision == shared.revision
+    assert (await core.claims.get(alice, shared.claim_id)).value == "苹果"
+    with pytest.raises(AppError, match="claim_unavailable"):
+        await core.claims.get(alice, branch.claim_id)
+
+    async with core.database.transaction() as conn:
+        await core.sources.retract_publication(alice, shared.source_refs[0], connection=conn)
+    for target in (shared.claim_id, branch.claim_id):
+        with pytest.raises(AppError, match="claim_unavailable"):
+            await core.claims.get(bob, target)
+        assert not (await core.claims.history(bob, target)).items
+    with pytest.raises(AppError, match="claim_unavailable"):
+        await core.claims.correct(bob, body)
+
+
+async def test_public_target_subject_authority_cannot_be_reassigned_or_forged(core, ordinary_users):
+    alice, bob = ordinary_users
+    private = await fact(core, alice, await original(core, alice, "narrow-publication", "我喜欢苹果"))
+    shared = (await core.claims.share_ordinary(alice, {"claim_id": private.claim_id, "expected_revision": private.revision,
+                                                    "client_request_id": "narrow-publish-interest"})).data
+    with pytest.raises(AppError, match="claim_subject_immutable"):
+        await core.claims.correct(bob, {"claim_id": shared.claim_id, "expected_revision": shared.revision,
+            "subject_id": bob.person_id, "value": "改成另一个人", "client_request_id": "invalid-subject-change"})
+    refs = await original(core, bob, "forged-subject", "这句话不能授予另一个人物的访问权限")
+    batch = await frozen(core, bob, refs, shared, batch_id="forged-subject")
+    forged_subject = "person_synthetic_not_authorized"
+    batch["subjects"][forged_subject] = {"person_id": forged_subject}
+    proposed = operation(bob, "add_claim", {"create": "n1"}, payload(bob, "无授权的人物", assertion="reported"))
+    proposed["subject_id"] = forged_subject
+    with pytest.raises(AppError, match="claim_subject_forbidden"):
+        await apply(core, bob, batch, [proposed])
+    assert {item.claim_id for item in (await core.claims.list(bob)).items} == {shared.claim_id}
+    assert (await core.claims.get(alice, shared.claim_id)).revision == shared.revision
 
 
 async def test_matter_history_completion_basis_and_missing_receipt(core, ordinary_users):

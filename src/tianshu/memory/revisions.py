@@ -65,10 +65,18 @@ class RevisionService:
             raise AppError("revision_conflict", status=409)
         return head
 
-    async def _claim_values_on(self, conn, context, body, support, *, verify_assertion=True):
+    async def _claim_values_on(self, conn, context, body, support, *, verify_assertion=True, previous=None):
         subject_id = body.get("subject_id") or context.person_id
+        if previous and previous["subject_id"] != subject_id:
+            raise AppError("claim_subject_immutable", status=409)
         if subject_id not in await self.claims.visible_subjects(context, conn, (subject_id,)):
-            raise AppError("claim_subject_forbidden", status=403)
+            # A readable published target can name someone outside the current
+            # conversation's directory. Only that actual target's immutable
+            # subject is authorized here, never a model-provided subject map.
+            selected = (await self.claims.selected_groups(conn, context, (previous,)))[0] if (
+                previous and previous["state"] == "active") else None
+            if selected is None:
+                raise AppError("claim_subject_forbidden", status=403)
         predicate = body.get("predicate")
         if not isinstance(predicate, str) or not re.fullmatch(CLAIM_PREDICATE_PATTERN, predicate):
             raise AppError("invalid_claim_predicate")
@@ -114,29 +122,19 @@ class RevisionService:
     async def write_claim_on(self, conn, context, body, *, support, claim_id, expected_revision,
                              change_kind="create", current_status="current", reason="", scope_fork_id=None,
                              effects=None):
-        values = await self._claim_values_on(conn, context, body, support,
-            verify_assertion=change_kind != "reinforce" and current_status not in {"retracted", "history_only"})
         previous = await self._claim_head_on(conn, context, claim_id, expected_revision)
-        if previous and previous["subject_id"] != values["subject_id"]:
-            raise AppError("claim_subject_immutable", status=409)
+        values = await self._claim_values_on(conn, context, body, support,
+            verify_assertion=change_kind != "reinforce" and current_status not in {"retracted", "history_only"},
+            previous=previous)
+        forked_from = None
         if previous and (previous["principal_id"] != context.principal_id or
                          change_kind != "reinforce" and not same_scope(previous, support)):
             if scope_fork_id is None:
                 raise AppError("memory_revision_scope_mismatch", status=409)
             # An authorized private interpretation is a separate object; the shared head is untouched.
-            result = await self.write_claim_on(
-                conn, context, {**values, "counterexample_refs": body.get("counterexample_refs", ())},
-                support=support, claim_id=scope_fork_id, expected_revision=0,
-                change_kind="create", current_status=current_status, reason=reason,
-                effects=effects,
-            )
-            await self.links.add_on(
-                conn, context, link_id=stable_id(context.actor_id, scope_fork_id, "scope_correction", "link"),
-                from_ref={"kind": "hypothesis" if result.memory_kind == "hypothesis" else "claim", "id": result.claim_id, "revision": result.revision},
-                to_ref={"kind": "hypothesis" if previous["memory_kind"] == "hypothesis" else "claim", "id": claim_id, "revision": previous["revision"]},
-                relation_kind="supersedes", support=support,
-            )
-            return result
+            forked_from = (claim_id, previous)
+            claim_id, expected_revision, change_kind = scope_fork_id, 0, "create"
+            previous = await self._claim_head_on(conn, context, claim_id, expected_revision)
         fingerprint = semantic_fingerprint(values)
         if not previous:
             await conn.execute(
@@ -184,7 +182,16 @@ class RevisionService:
             "SELECT r.*,c.actor_id FROM memory.claim_revisions r JOIN memory.claims c USING(claim_id) WHERE r.claim_id=%s AND r.revision=%s",
             (claim_id, revision),
         )).fetchone()
-        return codec.claim(row)
+        result = codec.claim(row)
+        if forked_from:
+            old_id, old = forked_from
+            await self.links.add_on(
+                conn, context, link_id=stable_id(context.actor_id, claim_id, "scope_correction", "link"),
+                from_ref={"kind": "hypothesis" if result.memory_kind == "hypothesis" else "claim", "id": result.claim_id, "revision": result.revision},
+                to_ref={"kind": "hypothesis" if old["memory_kind"] == "hypothesis" else "claim", "id": old_id, "revision": old["revision"]},
+                relation_kind="supersedes", support=support,
+            )
+        return result
 
     async def reinforce_on(self, conn, context, previous, support, *, reason=""):
         # Each alternative keeps its own necessary context. Turning their union into an AND
