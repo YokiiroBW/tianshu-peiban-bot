@@ -11,6 +11,8 @@ const coverageReasons: Record<string, string> = {
   observation_analysis_unavailable: "观察分析尚未形成可核验的材料。",
 };
 const extractionStates: Record<string, string> = {
+  claim_subject_forbidden: "抽取结果引用了未授权对象，本批未写入人物记忆。",
+  invalid_claim_predicate: "抽取结果的字段格式未通过校验，本批未写入人物记忆。",
   no_original_material:
     "这条记录没有可用于整理的原始材料，未从中抽取人物事实。",
   pending: "等待整理",
