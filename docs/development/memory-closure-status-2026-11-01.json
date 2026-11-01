@@ -10,10 +10,18 @@
   "owners": {
     "MC-A": {
       "agent": "memory_domain",
-      "state": "implementing",
+      "state": "implemented_not_verified",
       "branch": "codex/memory-domain-20261101",
       "interface_commits": [
         "4a70af8647f5f8d52915a1cfb1140188183bb4b8"
+      ],
+      "implementation_commit": "f668254be07e0457e54503ca85aaf5ea152eb0e4",
+      "integrated_as": [
+        "8320ade",
+        "7316b03"
+      ],
+      "followup_commits": [
+        "bad09f4eeb313bfcd5cfdc12e9d29977875782e7"
       ]
     },
     "MC-B": {
@@ -29,21 +37,41 @@
     },
     "MC-C": {
       "agent": "product_closure",
-      "state": "saved_for_audit_slot",
+      "state": "implementing",
       "branch": "codex/product-closure-20261101",
-      "uncommitted_changes": false
+      "interface_commits": [
+        "3fe73bc",
+        "16dccd4",
+        "38acd56",
+        "34da646",
+        "ce723b8",
+        "e64fb03"
+      ],
+      "integrated_as": [
+        "fda399b",
+        "47b74d4",
+        "a6bbd06",
+        "74193f1",
+        "29183b2",
+        "12cc765"
+      ]
     },
     "MC-R": {
       "agent": "runtime_audit",
-      "state": "read_only_production_audit"
+      "state": "complete_read_only",
+      "finding_count": 6,
+      "evidence": "private runtime-review-20261101/independent-audit/report.json"
     },
     "MC-D": {
-      "state": "planned",
-      "scope": "multi-type temporal retrieval, indexing, complete evidence in context and consumers"
+      "state": "implementing",
+      "scope": "multi-type temporal retrieval, indexing, complete evidence in context and consumers",
+      "agent": "memory_domain"
     },
     "MC-F": {
       "state": "planned",
-      "scope": "memory/history/recovery frontend and affected capability setup experience"
+      "scope": "memory/history/recovery frontend and affected capability setup experience",
+      "branch": "codex/memory-frontend-20261101",
+      "worktree": "tianshu-cr-frontend"
     },
     "MC-G": {
       "state": "planned",
@@ -85,7 +113,7 @@
       "id": "RC-06",
       "owner": "root+MC-C+MC-F",
       "state": "implement_connection_keep_voices_unbound",
-      "problem": "Fish connection and role voices absent; user voice selection requested",
+      "problem": "Fish connection readiness and role voice settings require complete setup; user explicitly chose to leave voices unbound.",
       "user_preference": "User explicitly replied: temporarily do not bind role voices."
     },
     {
@@ -132,10 +160,29 @@
       "owner": "MC-C+MC-F",
       "state": "confirmed",
       "problem": "Interactive media status reads its unstarted engine/background instead of actual worker state; need existing worker-owned durable observation projection."
+    },
+    {
+      "id": "RC-14",
+      "owner": "MC-C",
+      "state": "confirmed",
+      "problem": "Thirteen media background task kinds renew every 10 seconds without work; 845 persisted wakeups in observed 30 minutes, no proven starvation. Reuse next_due and idle backoff."
+    },
+    {
+      "id": "RC-15",
+      "owner": "MC-C",
+      "state": "bounded_operational_cleanup",
+      "problem": "Unbound-target group recall notices correctly denied but remain failed accepted inbox noise; consume as ignored without granting target access."
     }
   ],
   "blueprint_acceptance": {
     "M01-M18": "not_run_waiting_complete_implementation"
   },
-  "new_production_release": null
+  "new_production_release": null,
+  "semantic_acceptance_inputs": {
+    "stories": 24,
+    "development": 16,
+    "held_out": 8,
+    "state": "prepared_not_executed",
+    "additional_contract_scenarios": 12
+  }
 }

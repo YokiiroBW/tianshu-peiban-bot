@@ -32,10 +32,14 @@
 | 分派 | 负责范围 | 文件单写边界 |
 |---|---|---|
 | MC-A memory_domain | 蓝图 A/C：数据、正式领域类型、修订/事项/关系、时间历史、来源清理 | memory/types.py、codec.py、claims.py；新增 revisions.py、semantic_links.py、evidence.py 及迁移 SQL；runtime/migrations.py；对应新/既有定向测试 |
-| MC-B memory_pipeline | 蓝图 B 及装配：共享输入、分段、目标、原子 batch 生命周期、恢复/转换、读端口 | memory/service.py、workers.py、steps.py、extraction_contract.py、module.py；新增 consolidation/materials/contract/recovery 等按职责模块；identity/service.py；conversation/service.py 的邻近对话端口；runtime/product.py、runtime/config.schema.json；对应测试 |
-| MC-C product_closure | 明确线上故障、Growth/Life/渠道/能力闭环；消费新记忆约定 | companion/、life/、channels/、capabilities/、models/；sources/service.py 仅活动完成原件的来源登记及对应测试；不修改 memory/、identity/、conversation/、runtime/、web/ 共享文件 |
+| MC-B memory_pipeline | 蓝图 B 及装配：共享输入、分段、目标、原子 batch 生命周期、恢复/转换、读端口 | memory/service.py、workers.py、steps.py、extraction_contract.py、module.py；新增 consolidation/materials/contract/recovery 等按职责模块；identity/service.py；conversation/service.py 的邻近对话端口及 results.py 的 Episode 通知衔接；runtime/product.py、runtime/config.schema.json；对应测试 |
+| MC-C product_closure | 明确线上故障、Growth/Life/渠道/能力闭环；消费新记忆约定 | companion/、life/、channels/、capabilities/、models/；sources/service.py、ports.py 仅活动完成原件的来源登记及对应接口/测试；不修改 memory/、identity/、conversation/、runtime/、web/ 共享文件 |
 
 后续在同一批实施内安排 D：多类型检索/索引/ContextAssembler、F：前端及设置体验、G：语义和成本对照/切换工具。全部代码完成后才放行集中验证，不按工作包提前验收上线。
+
+MC-A 主实现已合入后，由原 memory_domain 实现者继续 MC-D。D 独占 memory/retrieval.py、embedding.py、tools.py、conversation/context/assembly.py 及其新辅助模块/测试；保留 A 的领域类型/具名迁移归属。F 复用干净的 tianshu-cr-frontend 工作树，分支 codex/memory-frontend-20261101，写 web/ 及自己的交接。
+
+已明确的实现衔接：Memory.observe_episode 在同一事务通知 Growth；Growth 按实际 Episode 版本登记待处理集合，不能以 max(sequence) 推断已经看过所有提交。Episode 作者字段只保存来源能证实的唯一作者，多作者或历史未知不猜填。Fish 角色音色按用户回复暂不绑定，功能和设置入口仍完整实现。
 
 用户追加独立线上巡检，使用第四个具名子智能体 MC-R/runtime_audit；由于当前仅三个子智能体可同时执行，MC-C 暂停在稳定保存点，巡检结束后恢复。巡检只读取当前生产版本的状态、日志和账本，不调用模型、不发送消息、不验证候选代码。其确证问题加入本队列，配置缺项和没有运行证据分别记录。
 
