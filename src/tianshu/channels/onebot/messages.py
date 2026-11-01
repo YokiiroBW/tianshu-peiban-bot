@@ -7,6 +7,7 @@ import json
 from tianshu.identity.types import IncomingEvent
 from tianshu.conversation.types import InputPart
 from ..contracts import ChannelError
+from ..text import database_text, database_value
 from .registry import SEGMENTS, qq_id, message_id
 
 MAX_SEGMENTS = 256
@@ -37,6 +38,7 @@ def segments(value):
 def input_parts(rows):
     result = []
     for segment in rows:
+        segment = database_value(segment)
         kind = segment["type"]
         data = segment["data"]
         if kind == "text":
@@ -145,9 +147,9 @@ def normalize_event(connection, raw, *, reply_owner="tianshu", archived=False):
             original_author_external_id=str(raw.get("sender", {}).get("user_id", raw["user_id"])),
             command=command,
             reply_owner=reply_owner,
-            sender_display_name=str(
+            sender_display_name=database_text(str(
                 raw.get("sender", {}).get("card") or raw.get("sender", {}).get("nickname") or ""
-            )[:256]
+            ))[:256]
             or None,
             archived=archived or post == "message_sent" or sender == connection["self_external_id"],
         )

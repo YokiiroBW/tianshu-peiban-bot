@@ -12,6 +12,22 @@ from tianshu.conversation.types import InputMessage, InputPart
 from .contracts import ChannelError
 from .onebot.messages import normalize_event
 from .telegram import normalize_update
+from .text import database_text, database_value, needs_normalization
+
+
+def verified_parts(parts, decision):
+    """Only Identity admission can attach person IDs; forwarded names remain attribution."""
+    result = []
+    for part in parts:
+        metadata = database_value(dict(part.metadata))
+        forwarded = "forward_source_ref" in metadata or "forward_node_index" in metadata
+        if not forwarded and part.kind in {"mention", "mention_all", "text"}:
+            metadata["verified_subject_ids"] = list(decision.mentioned_person_ids)
+        if not forwarded and part.kind == "reply":
+            metadata["reply_to_event_id"] = decision.reply_to_event_id
+            metadata["verified_original_author_person_id"] = decision.original_author_person_id
+        result.append(replace(part, text=database_text(part.text) if part.text is not None else None, metadata=metadata))
+    return tuple(result)
 
 
 def live_eligible(event, decision, row):
@@ -100,8 +116,7 @@ async def process_event(service, event_key):
         )
     refs = ()
     if event is None or not parts:
-        await operational_event(service, connection, raw, event)
-        outcome = {"disposition": "operational", "event_id": row["event_id"]}
+        outcome = await operational_event(service, connection, raw, event) or {"disposition": "operational", "event_id": row["event_id"]}
     else:
         decision = await service.identity.admit_event(connection["id"], event)
         if decision.disposition == "ignore" or decision.context is None:
@@ -128,6 +143,14 @@ async def process_event(service, event_key):
             else:
                 converted = []
                 refs = []
+                if needs_normalization(raw):
+                    # Preserve the exact transport representation before derived
+                    # display fields or message text are made database-safe.
+                    original = await service.sources.capture(context,
+                        locator={"kind": "channel_transport_original", "connection_id": connection["id"],
+                                 "event_id": event.event_id, "revision": event.revision},
+                        raw=canonical(raw).encode("utf-8", errors="backslashreplace"), mime_type="application/json")
+                    refs.append(original)
 
                 async def call_api(name, params):
                     if name == "__token__":
@@ -214,7 +237,7 @@ async def process_event(service, event_key):
                         refs.extend(extra)
                         continue
                     converted.append(part)
-                parts = tuple(converted)
+                parts = verified_parts(converted, decision)
                 refs = tuple(refs)
                 async with service.runtime.database.transaction() as conn:
                     if not await service.sources.validate_persistence(conn, context, refs):
@@ -236,6 +259,9 @@ async def process_event(service, event_key):
                     )
             if service.conversation is None:
                 raise ChannelError("conversation_ingress_not_bound", 503)
+            # Existing checkpoints predate this metadata. Add only the current
+            # admission's verified identities when resuming the original event.
+            parts = verified_parts(parts, decision)
             message = InputMessage(
                 event.producer,
                 event.event_id,
@@ -290,7 +316,8 @@ async def operational_event(service, connection, raw, event):
         subtype,
         {
             "event_id": event.event_id if event else str(raw.get("update_id")),
-            "payload": raw,
+            "payload": database_value(raw),
+            "original_json": canonical(raw) if needs_normalization(raw) else None,
             "observed_at": datetime.now(UTC).isoformat(),
             "verified_transport": True,
         },
@@ -300,7 +327,13 @@ async def operational_event(service, connection, raw, event):
         target = (
             "group:" + str(raw["group_id"]) if kind == "group" else "private:" + str(raw["user_id"])
         )
-        context = await service.identity.channel_context(connection["id"], target)
+        try:
+            context = await service.identity.channel_context(connection["id"], target)
+        except Exception as error:
+            if getattr(error, "code", None) == "channel_target_forbidden":
+                return {"disposition": "ignored", "reason": "recall_target_not_authorized",
+                        "event_id": event.event_id if event else None}
+            raise
         await service.sources.recall_event(
             context,
             connection["namespace"] + ":" + connection["id"],
@@ -379,9 +412,9 @@ async def expand_forward(
                 metadata = {
                     **child.metadata,
                     "original_author_external_id": author,
-                    "original_author_display_name": sender.get(
+                    "original_author_display_name": database_value(sender.get(
                         "nickname", node.get("nickname", node.get("name"))
-                    ),
+                    )),
                     "forward_node_index": node_index,
                     "forward_source_ref": wire(source),
                 }

@@ -3,6 +3,7 @@ from datetime import UTC, datetime
 from importlib.resources import files
 import json
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
 import pytest
@@ -18,7 +19,7 @@ from tianshu.runtime.commands import CommandStore
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobQueue
 from tianshu.runtime.migrations import Migration, migrate
-from tianshu.types import OriginKind, Receipt, TrustedContext, RequestBudget, ServiceClass
+from tianshu.types import OriginKind, Receipt, TrustedContext, RequestBudget, ServiceClass, SourceRef
 from tianshu.conversation.generation import attempt_for
 
 
@@ -348,3 +349,26 @@ async def test_recovery_does_not_enqueue_blocked_routine_context(database):
             )
         ).fetchall()
     assert not fixture.models.calls and not fixture.actions.calls
+
+
+@pytest.mark.asyncio
+async def test_imagined_completion_registers_actual_actor_original_in_same_transaction(database):
+    fixture = await setup(database, '{}')
+    original = SourceRef("imagined-completion", 1)
+    fixture.worker.life.sources.record_event = AsyncMock(return_value=(original,))
+    fixture.worker.life.memory = SimpleNamespace(observe_episode=AsyncMock())
+    fixture.worker.life.signal = AsyncMock()
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.activities(id,actor_id,title,kind,state,waiting_reason,next_due_at,scope_ids) "
+            "VALUES ('imagination','actor','在房间整理书架','room','running','fictional_activity',now()-interval '1 second',ARRAY['actor-scope'])")
+    await fixture.worker.activity_step("imagination", 1, wire(fixture.context))
+    call = fixture.worker.life.sources.record_event.call_args
+    assert call.kwargs["origin_kind"] == OriginKind.ACTOR
+    assert call.kwargs["connection"] is not None
+    assert call.kwargs["parts"][0].metadata["imagined"] is True
+    episode = fixture.worker.life.memory.observe_episode.call_args.args[1]
+    assert original in episode["source_refs"]
+    assert episode["origin_kind"] == "actor"
+    assert episode["actual_result"]["experience_kind"] == "imagined"
+    assert episode["actual_result"]["software_action"] is False
+    assert "execution" not in episode["actual_result"]

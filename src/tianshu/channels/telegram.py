@@ -9,6 +9,7 @@ from tianshu.identity.types import IncomingEvent
 from tianshu.conversation.types import InputPart
 from .contracts import ChannelError, TransportResult
 from .transports import bounded_json
+from .text import database_text, database_value
 
 BOT_API_METHODS = {
     "sendMessage",
@@ -164,7 +165,12 @@ def normalize_update(connection, update, *, reply_owner="tianshu"):
         or author.get("username"),
         archived=str(author["id"]) == connection["self_external_id"],
     )
-    return event, tuple(parts)
+    from dataclasses import replace
+
+    parts = tuple(replace(part, text=database_text(part.text) if part.text is not None else None,
+                          metadata=database_value(dict(part.metadata))) for part in parts)
+    return replace(event, sender_display_name=database_text(event.sender_display_name) if event.sender_display_name else None,
+        parts=tuple({"kind": part.kind, "text": part.text, "metadata": dict(part.metadata)} for part in parts)), parts
 
 
 class TelegramTransport:

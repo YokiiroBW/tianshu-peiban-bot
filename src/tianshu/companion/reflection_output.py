@@ -34,6 +34,11 @@ OUTPUT_ERRORS = frozenset({
 REVIEW_ERRORS = OUTPUT_ERRORS | {
     "generation_request_expired",
     "reflection_material_contract_invalid",
+    "reflection_material_budget_exceeded",
+    "reflection_material_source_required",
+    "reflection_content_incomplete",
+    "reflection_generation_failed",
+    "reflection_generation_cancelled",
 }
 
 

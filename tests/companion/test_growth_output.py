@@ -51,7 +51,7 @@ class Memory:
     async def relationship(self, *_args):
         return {"frozen": False}
 
-    async def record_reflection(self, _context, proposal):
+    async def record_reflection(self, _context, proposal, *, connection=None, episode_revisions=None):
         self.proposals.append(proposal)
 
     async def projection(self, *_args):
@@ -74,7 +74,7 @@ class Models:
         output = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
         result = ModelResult((ModelPart("text", text=output),) if self.status == "succeeded" else (),
             ModelReceipt(request.attempt_id, request.intent_id, self.status, "submitted" if self.status == "succeeded" else "unknown", "route", 1,
-                         "provider", "model", "openai.responses", "quota"), self.native_response)
+                         "provider", "model", "openai.chat" if self.native_response and "choices" in self.native_response else "openai.responses", "quota"), self.native_response)
         self.results[request.attempt_id] = result
         return result
 
@@ -87,6 +87,7 @@ async def prepare(database, models):
     await migrate(database, (
         Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),
         Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0034_companion_growth_batches", files("tianshu.companion").joinpath("growth_batches.sql").read_text()),
     ))
     context = TrustedContext("author", "actor", "person", "conversation", ("private",), ("private",),
         1, OriginKind.ACTOR, permissions=frozenset({"companion.manage"}))
@@ -250,9 +251,9 @@ async def test_unknown_attempt_cannot_be_replaced_by_explicit_review(database):
     growth, _memory, _jobs, context, _notifications = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
     for _ in range(2):
-        with pytest.raises(AppError) as unknown:
-            await growth.organize("actor", scope, 1)
-        assert unknown.value.code == "reflection_generation_unknown"
+        unknown = await growth.organize("actor", scope, 1)
+        assert unknown["state"] == "waiting"
+        assert unknown["error_code"] == "reflection_generation_unknown"
     with pytest.raises(AppError) as unresolved:
         await growth.request_review(context, {"client_request_id": "no-new-unknown-attempt", "expected_revision": 1})
     assert unresolved.value.code == "reflection_original_attempt_unresolved"
@@ -295,7 +296,7 @@ async def test_truncated_success_is_rejected_without_partial_writes_or_automatic
     growth, memory, jobs, context, notifications = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
     rejected = await growth.organize("actor", scope, 1)
-    assert rejected["error_code"] == "reflection_output_invalid"
+    assert rejected["error_code"] == "reflection_content_incomplete"
     assert memory.proposals == notifications == []
     async with database.transaction(read_only=True) as connection:
         assert (await (await connection.execute("SELECT count(*) AS n FROM companion.style_rules")).fetchone())["n"] == 0
@@ -309,3 +310,23 @@ async def test_truncated_success_is_rejected_without_partial_writes_or_automatic
     assert len(models.calls) == 1
     assert models.reads == []
     assert models.results[rejected["attempt_id"]].receipt.status == "succeeded"
+
+
+@pytest.mark.asyncio
+async def test_new_event_keeps_unresolved_original_batch_and_attempt(database):
+    models = Models({"notes": []})
+    models.status = "unknown"
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    await growth.organize("actor", scope, 1)
+    original = models.calls[0]
+    active = (await state(database))["active_batch"]
+    memory.episodes += (replace(memory.episode, episode_id="later", sequence=2, cursor="e:2"),)
+    await growth.changed(context, "later-event")
+    await growth.organize("actor", scope, 2)
+    assert len(models.calls) == 1
+    assert models.reads == [original.attempt_id]
+    current = await state(database)
+    assert current["active_batch"] == active
+    assert current["cursor"] is None
+    assert current["watermark"] == "later-event"

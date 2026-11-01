@@ -1,5 +1,6 @@
 """Authored persona versions and scoped affect; no scoring or hidden second model loop."""
 from __future__ import annotations
+from contextlib import asynccontextmanager
 from tianshu.sources.dependencies import unique_refs
 
 import math
@@ -190,7 +191,15 @@ class CompanionService:
         more = len(rows) > limit
         return Page(tuple(rows[:limit]), str(rows[limit - 1]["revision"]) if more else None, Coverage(not more))
 
-    async def apply_affect(self, context, update: AffectUpdate):
+    @asynccontextmanager
+    async def connection(self, connection=None):
+        if connection is not None:
+            yield connection
+        else:
+            async with self.database.transaction() as opened:
+                yield opened
+
+    async def apply_affect(self, context, update: AffectUpdate, *, connection=None):
         await self.identity.check(context, update.source_refs)
         values = (update.valence, update.arousal, update.stress, update.social_need, update.confidence)
         if any(not math.isfinite(value) for value in values) or not -1 <= values[0] <= 1 or any(not 0 <= value <= 1 for value in values[1:]):
@@ -199,7 +208,7 @@ class CompanionService:
             raise AppError("invalid_affect_half_life")
         if not -1 <= update.goal_relevance <= 1 or not 0 <= update.control <= 1 or update.attribution not in {"self", "other", "situation", "unknown"}:
             raise AppError("invalid_appraisal")
-        async with self.database.transaction() as connection:
+        async with self.connection(connection) as connection:
             await self.validate_persistence(connection, context, update.source_refs)
             changed = await (await connection.execute(
                 "INSERT INTO companion.affect_events(actor_id,event_id,event_revision,scope_ids,appraisal,valence,arousal,stress,social_need,confidence,half_life_seconds,occurred_at,source_refs,goal_id,goal_relevance,attribution,control) "

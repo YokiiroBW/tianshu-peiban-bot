@@ -84,6 +84,43 @@ class OneBotProtocol(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(ChannelError):
             normalize_event(CONNECTION, {"self_id": 999})
 
+    def test_nul_display_and_derived_parts_are_safe_without_mutating_transport(self):
+        raw = {"time": 1793440000, "self_id": 12345, "post_type": "message",
+               "message_type": "private", "message_id": 81, "user_id": 77,
+               "sender": {"card": "群\x00名片", "user_id": 77},
+               "message": [{"type": "text", "data": {"text": "保留\x00内容"}},
+                           {"type": "json", "data": {"data": "扩展\x00原件"}}]}
+        event, parts = normalize_event(CONNECTION, raw)
+        self.assertEqual(event.sender_display_name, "群\ufffd名片")
+        self.assertEqual(parts[0].text, "保留\ufffd内容")
+        self.assertNotIn("\x00", parts[1].text)
+        self.assertEqual(raw["sender"]["card"], "群\x00名片")
+
+    async def test_unbound_recall_is_consumed_as_ignored_without_source_access(self):
+        from tianshu.channels.ingress import operational_event
+        from tianshu.runtime.errors import AppError
+
+        service = SimpleNamespace(repository=SimpleNamespace(observe=AsyncMock()),
+            identity=SimpleNamespace(channel_context=AsyncMock(side_effect=AppError("channel_target_forbidden", status=403))),
+            sources=SimpleNamespace(recall_event=AsyncMock()))
+        outcome = await operational_event(service, CONNECTION,
+            {"post_type": "notice", "notice_type": "group_recall", "group_id": 999, "message_id": 22},
+            SimpleNamespace(event_id="notice"))
+        self.assertEqual(outcome["disposition"], "ignored")
+        service.sources.recall_event.assert_not_awaited()
+
+    def test_only_admitted_identities_are_attached_to_top_level_parts(self):
+        from tianshu.channels.ingress import verified_parts
+        from tianshu.conversation.types import InputPart
+
+        decision = SimpleNamespace(mentioned_person_ids=("person1",), original_author_person_id="person2",
+                                   reply_to_event_id="message:group:9")
+        parts = verified_parts((InputPart("mention"), InputPart("reply"),
+            InputPart("quote", "转述", metadata={"forward_node_index": 1, "original_author_external_id": "99"})), decision)
+        self.assertEqual(parts[0].metadata["verified_subject_ids"], ["person1"])
+        self.assertEqual(parts[1].metadata["verified_original_author_person_id"], "person2")
+        self.assertNotIn("verified_original_author_person_id", parts[2].metadata)
+
     async def test_plain_text_cannot_inject_cq_segments(self):
         calls = await compile_calls(
             SimpleNamespace(),

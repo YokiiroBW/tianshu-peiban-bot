@@ -110,7 +110,8 @@ class SourceService:
         return tuple(rows)
 
     async def record_event(
-        self, context, *, producer, event_id, revision, occurred_at, parts, origin_kind
+        self, context, *, producer, event_id, revision, occurred_at, parts, origin_kind,
+        connection=None, support_refs=(),
     ):
         if occurred_at.tzinfo is None or type(revision) is not int or revision < 1:
             raise AppError("invalid_source_event")
@@ -119,7 +120,7 @@ class SourceService:
         if len(parts) > 256:
             raise AppError("source_parts_too_many")
         refs = []
-        async with self.database.transaction() as conn:
+        async with self._event_connection(connection) as conn:
             intake, epochs = await self.identity.intake_scope(context, connection=conn)
             write_context = replace(context, scope_ids=intake, audience=intake)
             author = (
@@ -222,6 +223,7 @@ class SourceService:
                         media,
                         f"{producer}:{event_id}",
                         Coverage(True),
+                        (tuple(support_refs),) if support_refs else (),
                         speaker_id=author if part_origin == OriginKind.HUMAN else None,
                     )
                 )
@@ -244,6 +246,14 @@ class SourceService:
                 )
             await bind_event(conn, native_alias, tuple(refs))
         return tuple(refs)
+
+    @asynccontextmanager
+    async def _event_connection(self, connection):
+        if connection is not None:
+            yield connection
+        else:
+            async with self.database.transaction() as opened:
+                yield opened
 
     async def _register(
         self,
