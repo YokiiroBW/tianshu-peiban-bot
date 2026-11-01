@@ -16,7 +16,7 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, Tr
 from . import codec
 from .authority import context_record
 from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolidation_instruction, validate_proposal
-from .materials import ConsolidationPolicy, MaterialBuilder, append_context_material, expand_record_endpoints, frozen_mapping, model_material, partition_identity
+from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, expand_record_endpoints, frozen_mapping, model_material, partition_identity
 
 _ACTIVE = {"prepared", "waiting_model", "ready"}
 
@@ -118,9 +118,17 @@ class Consolidation:
         messages = (ModelMessage("user", (ModelPart("text", json.dumps(wire(payload), ensure_ascii=False, separators=(",", ":"))),)),)
         estimate = self.counter.measure(instruction, messages, ())[0]
         if estimate > self.policy.max_input_tokens:
+            # Measure the same schema, identity mappings and full metadata with
+            # text removed. Character count alone cannot budget UTF-8 evidence.
+            fixed=deepcopy(payload)
+            for material in fixed["materials"]:
+                material["text"]=""
+            fixed_messages=(ModelMessage("user",(ModelPart("text",json.dumps(wire(fixed),ensure_ascii=False,separators=(",",":"))),)),)
+            fixed_tokens=self.counter.measure(instruction,fixed_messages,())[0]
             raise AppError("memory_consolidation_input_budget", details={"estimated": estimate,
                 "input_budget": self.policy.max_input_tokens, "visible_output": self.policy.max_output_tokens,
-                "reasoning_reserve":self.policy.reasoning_reserve_tokens})
+                "reasoning_reserve":self.policy.reasoning_reserve_tokens,"fixed_tokens":fixed_tokens,
+                "new_characters":sum(len(item["text"]) for item in payload["materials"] if item["role"]=="new")})
         return ModelRequest(step_id, str(uuid5(NAMESPACE_URL, step_id)), "memory.extract", ServiceClass.ELASTIC,
             context, RequestBudget(datetime.now(UTC)+timedelta(seconds=120)), messages,
             system=instruction, max_output_tokens=self.policy.max_output_tokens+self.policy.reasoning_reserve_tokens, estimated_input_tokens=estimate,
@@ -152,9 +160,10 @@ class Consolidation:
         if (previous and previous["error_code"] == "memory_consolidation_output_truncated"
                 and previous["manifest"].get("budget",self._budget_record()) == self._budget_record()):
             text_ceiling = max(256,int(previous["manifest"].get("source_budget",text_ceiling))//2)
+        reads=PreparationReads(self.sources)
         while True:
             try:
-                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling)
+                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,reads=reads)
                 if not frozen:
                     await self._idle(state["partition_id"],owner)
                     return None
@@ -162,12 +171,25 @@ class Consolidation:
                 request=self._budgeted_request(context,frozen,step_id) if frozen["materials"] else None
                 break
             except AppError as exc:
-                if exc.code not in {"memory_consolidation_input_budget","memory_identity_candidates_too_large"} or text_ceiling<=256:
+                if exc.code not in {"memory_consolidation_input_budget","memory_identity_candidates_too_large"}:
                     raise
                 if len(rows) > 1:
                     rows = rows[:max(1,len(rows)//2)]
+                elif text_ceiling<=1:
+                    # A real minimum source prefix, its author and the protocol
+                    # still do not fit. No cursor or model attempt has advanced.
+                    raise
                 else:
-                    text_ceiling = max(256, text_ceiling//2)
+                    details=exc.details or {}
+                    fixed=details.get("fixed_tokens",0)
+                    estimate=details.get("estimated",0)
+                    if fixed and fixed<self.policy.max_input_tokens and estimate>fixed:
+                        available=self.policy.max_input_tokens-fixed
+                        text_ceiling=min(text_ceiling-1,max(1,int(details["new_characters"]*available/(estimate-fixed))))
+                    elif fixed>=self.policy.max_input_tokens and len(frozen["materials"])==1:
+                        text_ceiling=1
+                    else:
+                        text_ceiling=max(1,text_ceiling//2)
         dependencies = self.materials.dependencies(frozen)
         manifest = {"frozen": frozen_mapping(frozen), "episodes": frozen["episodes"], "source_budget":text_ceiling,
             "budget":self._budget_record(),
@@ -209,7 +231,8 @@ class Consolidation:
     def _input_budget_record(self):
         # These settings determine the smallest complete input we can prepare.
         # Scheduling changes alone do not make a rejected input fit its budget.
-        return {**self._budget_record(), **{name:getattr(self.policy,name) for name in
+        return {**self._budget_record(),"input_layout":"consolidation-shared-defs-v1",
+            **{name:getattr(self.policy,name) for name in
             ("max_episodes","max_subjects","max_materials","max_old_records",
              "context_messages","max_source_characters","time_zone")}}
 

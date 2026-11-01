@@ -23,21 +23,30 @@ def _text(maximum=4000, *, minimum=1):
     return {"type": "string", "minLength": minimum, "maxLength": maximum}
 
 
-def _ids(values, *, maximum=128, minimum=0):
+def _ids(values, *, maximum=128, minimum=0, definition=None):
     return {"type": "array", "minItems": minimum, "maxItems": maximum,
-            "uniqueItems": True, "items": {"enum": list(values)} if values else {"not": {}}}
+            "uniqueItems": True, "items": {"$ref":"#/$defs/"+definition} if definition else
+            {"enum": list(values)} if values else {"not": {}}}
 
 
 def _time():
     return {"anyOf": [{"type": "string", "format": "date-time"}, {"type": "null"}]}
 
 
-def _claim_payload(subject_ids):
+def _claim_payload():
     return {"predicate": {**_text(128), "pattern": "^(?:" + CLAIM_PREDICATE_PATTERN + r")$(?![\s\S])"},
-            "value": {}, "speaker_id": {"enum": [None, *subject_ids]},
+            "value": {}, "speaker_id": {"$ref":"#/$defs/subject_or_null"},
             "assertion": {"enum": ["self_confirmed", "reported", "quoted", "inferred", "observed"]},
             "polarity": {"type": "boolean"}, "conditions": {"type": "object", "maxProperties": 32},
-            "valid_from": _time(), "valid_until": _time()}
+            "valid_from": {"$ref":"#/$defs/time"}, "valid_until": {"$ref":"#/$defs/time"}}
+
+
+def _claim_variant(properties):
+    # Draft 2020's evaluated-property closure composes the same strict claim
+    # fields with the operation's extra fields, without duplicating that schema.
+    return {"allOf":[{"$ref":"#/$defs/claim_fields"},
+                     {"type":"object","properties":properties,"required":list(properties)}],
+            "unevaluatedProperties":False}
 
 
 def consolidation_schema(frozen):
@@ -45,38 +54,40 @@ def consolidation_schema(frozen):
     subjects = sorted(frozen["subjects"])
     materials = sorted(frozen["materials"])
     records = sorted(frozen["records"])
-    local = {"type": "string", "pattern": "^n[1-9][0-9]{0,4}$", "maxLength": 6}
-    record = {"enum": records} if records else {"not": {}}
-    any_ref = {"anyOf": [record, local]}
+    local = {"$ref":"#/$defs/local"}
+    record = {"$ref":"#/$defs/record"}
+    any_ref = {"$ref":"#/$defs/endpoint"}
+    time = {"$ref":"#/$defs/time"}
     target = {"oneOf": [_object({"create": local}), _object({
         "ref": record, "expected_revision": {"type": "integer", "minimum": 1}})]}
     common = {"op_id": {**_text(64), "pattern": "^op[1-9][0-9]{0,4}$"},
-              "subject_id": {"enum": subjects}, "target": target,
+              "subject_id": {"$ref":"#/$defs/subject"}, "target": target,
               "support_groups": {"type": "array", "minItems": 1, "maxItems": 8,
-                                 "items": _ids(materials, maximum=16, minimum=1)},
-              "context_refs": _ids(materials, maximum=32), "reads": _ids(records, maximum=64),
+                                 "items": _ids(materials, maximum=16, minimum=1,definition="material")},
+              "context_refs": _ids(materials, maximum=32,definition="material"),
+              "reads": _ids(records, maximum=64,definition="record"),
               "reason": _text(1000)}
-    claim = _claim_payload(subjects)
+    claim = _claim_payload()
     matter = {"title": _text(1000), "state": {"enum": ["planned", "active", "rescheduled", "completed", "cancelled", "uncertain"]},
-              "due_at": _time(), "summary": _text(8000, minimum=0),
+              "due_at": time, "summary": _text(8000, minimum=0),
               "conditions": {"type": "object", "maxProperties": 32},
               "completion_basis": {"oneOf": [{"type": "null"}, _object({
                   "kind": {"enum": ["human_report", "action_receipt"]},
-                  "material_refs": _ids(materials, maximum=16, minimum=1)})]}}
+                  "material_refs": _ids(materials, maximum=16, minimum=1,definition="material")})]}}
     payloads = {
-        "add_claim": _object(claim), "add_support": _object({}),
+        "add_claim": {"$ref":"#/$defs/claim"}, "add_support": _object({}),
         "revise_claim": {"oneOf": [
-            _object({"revision_mode": {"const": "correction"}, **claim}),
-            _object({"revision_mode": {"const": "transition"}, "successor_ref": local,
-                     "effective_at": _time(), **claim}),
+            _claim_variant({"revision_mode": {"const": "correction"}}),
+            _claim_variant({"revision_mode": {"const": "transition"}, "successor_ref": local,
+                            "effective_at": time}),
             _object({"revision_mode": {"const": "retract"}})]},
         "upsert_matter": _object(matter),
         "link": _object({"relation_kind": {"enum": list(RELATION_KINDS)},
                          "from_ref": any_ref, "to_ref": any_ref,
-                         "valid_from": _time(), "valid_until": _time()}),
-        "revise_hypothesis": _object({**claim,
+                         "valid_from": time, "valid_until": time}),
+        "revise_hypothesis": _claim_variant({
             "counterexample_refs": {"type": "array", "maxItems": 16, "uniqueItems": True,
-                                    "items": {"anyOf": [any_ref, {"enum": materials}]}}}),
+                                    "items": {"anyOf": [any_ref, {"$ref":"#/$defs/material"}]}}}),
     }
     operation = _object({**common, "kind": {"enum": list(OPERATION_KINDS)}, "payload": {}})
     operation["allOf"] = [{"if": {"properties": {"kind": {"const": kind}}},
@@ -84,23 +95,34 @@ def consolidation_schema(frozen):
                          for kind in OPERATION_KINDS]
     request_fields = {"request_id": _text(64), "kind": {"enum": ["material", "record", "conversation_range", "identity"]},
                       "ref": {"type": ["string", "null"], "maxLength": 128},
-                      "start": _time(), "end": _time(),
+                      "start": time, "end": time,
                       "query": {"type": ["string", "null"], "maxLength": 512}, "reason": _text(1000)}
-    return _object({
+    schema = _object({
         "schema_version": {"const": SCHEMA_VERSION}, "batch_id": {"const": frozen["batch_id"]},
         "target_results": {"type": "array", "minItems": len(frozen["targets"]), "maxItems": len(frozen["targets"]),
-            "items": _object({"subject_id": {"enum": sorted(frozen["targets"])},
+            "items": _object({"subject_id": {"$ref":"#/$defs/target_subject"},
                 "status": {"enum": ["changed", "no_change", "unresolved"]},
-                "processed_material_ids": _ids(materials),
+                "processed_material_ids": _ids(materials,definition="material"),
                 "operation_ids": {"type": "array", "maxItems": 64, "uniqueItems": True,
                                   "items": {**_text(64), "pattern": "^op[1-9][0-9]{0,4}$"}}})},
         "operations": {"type": "array", "maxItems": 64, "items": operation},
         "unresolved": {"type": "array", "maxItems": 32, "items": _object({
-            "issue_id": _text(64), "subject_id": {"enum": [None, *subjects]},
-            "material_ids": _ids(materials, minimum=1), "reason": _text(1500),
+            "issue_id": _text(64), "subject_id": {"$ref":"#/$defs/subject_or_null"},
+            "material_ids": _ids(materials, minimum=1,definition="material"), "reason": _text(1500),
             "needed_refs": {"type": "array", "maxItems": 16, "items": _text(128)}})},
         "needs_context": {"type": "array", "maxItems": 4, "items": _object(request_fields)},
     })
+    schema["$defs"]={
+        "subject":{"enum":subjects},"subject_or_null":{"enum":[None,*subjects]},
+        "target_subject":{"enum":sorted(frozen["targets"])},
+        "material":{"enum":materials} if materials else {"not":{}},
+        "record":{"enum":records} if records else {"not":{}},
+        "local":{"type":"string","pattern":"^n[1-9][0-9]{0,4}$","maxLength":6},
+        "endpoint":{"anyOf":[record,local]},"time":_time(),
+        "claim_fields":{"type":"object","properties":claim,"required":list(claim)},
+        "claim":{"allOf":[{"$ref":"#/$defs/claim_fields"}],"unevaluatedProperties":False},
+    }
+    return schema
 
 
 def validate_proposal(frozen, proposal):

@@ -1,7 +1,7 @@
 """Bounded shared material, true authorship and sparse old-record unions."""
 
 from copy import deepcopy
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import UTC,datetime,timedelta
 import json
 import re
@@ -62,6 +62,40 @@ def partition_identity(context, scope_ids):
 
 def reference_key(ref):
     return ref.source_id, ref.revision, json.dumps(ref.locator or {}, sort_keys=True)
+
+
+class PreparationReads:
+    """Scratch reads for one preparation, bounded by its original authorized requests."""
+
+    def __init__(self,sources):
+        self.sources=sources
+        self.windows={}
+        self.source_sets={}
+
+    async def source_set(self,builder,context,row):
+        key=(body_hash(context_record(context)),row["episode_id"],row["revision"],row["sequence"])
+        if key not in self.source_sets:
+            refs,missing=await builder._sources(context,row)
+            self.source_sets[key]=(refs,frozenset(missing))
+        refs,missing=self.source_sets[key]
+        return refs,set(missing)
+
+    async def read(self,context,source,requested):
+        position=requested.get("position",(source.locator or {}).get("start",0))
+        maximum=min(max(int(requested.get("max_characters",12000)),1),100000)
+        key=(body_hash(context_record(context)),reference_key(source),position)
+        cached=self.windows.get(key)
+        if cached is None or (cached["content"] is not None and cached["next_position"] is not None
+                and len(cached["content"])<maximum):
+            cached=await self.sources.read(context,source,requested)
+            self.windows[key]=deepcopy(cached)
+        result=deepcopy(cached)
+        if result["content"] is not None and len(result["content"])>maximum:
+            span=result["coverage"].ranges[0]
+            end=span["start"]+maximum
+            result.update(content=result["content"][:maximum],next_position=end,
+                coverage=replace(result["coverage"],complete=False,ranges=({"start":span["start"],"end":end},)))
+        return result
 
 
 def append_context_material(materials,read,*,extra=None):
@@ -256,16 +290,17 @@ class MaterialBuilder:
                 missing.add("observation_analysis_unavailable")
         return refs, missing
 
-    async def build(self, context, rows, batch_id, *, text_ceiling=None):
+    async def build(self, context, rows, batch_id, *, text_ceiling=None, reads=None):
         """Take a complete episode/source prefix; a huge source alone uses an exact range cursor."""
         text_ceiling = text_ceiling or min(self.policy.max_source_characters, self.policy.max_input_tokens // 2)
+        reads=reads or PreparationReads(self.sources)
         reserved=min(self.policy.context_messages,max(0,self.policy.max_materials-1))
         material_ceiling=max(1,min(self.policy.max_materials-reserved,max(1,text_ceiling//256)))
         materials, episodes, seen = {}, [], {}
         used = 0
         authors = set()
         for row in rows:
-            refs, missing = await self._sources(context, row)
+            refs, missing = await reads.source_set(self,context,row)
             before = row["extraction_cursor"] or {"source_index": 0, "position": None, "step": 0}
             index, position = before.get("source_index", 0), before.get("position")
             after = {"protocol": SCHEMA_VERSION, "source_index": index, "position": position, "step": before.get("step", 0)+1}
@@ -278,7 +313,7 @@ class MaterialBuilder:
                 requested = {"max_characters": min(self.policy.max_source_characters, max(1, text_ceiling-used))}
                 if source_index == index and position is not None:
                     requested["position"] = position
-                original = await self.sources.read(context, ref, requested)
+                original = await reads.read(context, ref, requested)
                 speaker = original["speaker_id"]
                 if not speaker and original["origin_kind"] == "actor":
                     speaker = "actor:" + context.actor_id
@@ -360,7 +395,7 @@ class MaterialBuilder:
                 for ref in codec.refs(message["source_refs"]):
                     if len(materials) >= self.policy.max_materials:
                         break
-                    original = await self.sources.read(context, ref, {"max_characters": min(1200,max(64,text_ceiling//4))})
+                    original = await reads.read(context, ref, {"max_characters": min(1200,max(64,text_ceiling//4))})
                     if not original["content"]:
                         continue
                     append_context_material(materials,original,extra={"message_id":message["message_id"],

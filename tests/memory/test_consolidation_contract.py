@@ -3,6 +3,8 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 import json
+from copy import deepcopy
+from types import SimpleNamespace
 
 import pytest
 from jsonschema import Draft202012Validator
@@ -62,6 +64,126 @@ def test_wrong_persons_material_and_unknown_revision_cannot_be_applied():
     operation["reads"]=[]
     with pytest.raises(AppError,match="read_missing"):
         validate_proposal(data,output)
+
+
+@pytest.mark.parametrize('kind',['add_claim','correction','transition','revise_hypothesis'])
+def test_shared_claim_schema_keeps_required_and_extra_property_validation(kind):
+    data=frozen()
+    output=consolidation_example(data)
+    payload={'predicate':'interest','value':'原文支持的事实','speaker_id':'a','assertion':'self_confirmed',
+        'polarity':True,'conditions':{},'valid_from':None,'valid_until':None}
+    target={'create':'n1'}
+    reads=[]
+    operation_kind=kind
+    if kind in {'correction','transition'}:
+        operation_kind='revise_claim'
+        target={'ref':'r0','expected_revision':3}
+        reads=['r0']
+        payload['revision_mode']=kind
+    if kind=='transition':
+        payload.update(successor_ref='n2',effective_at=None)
+    if kind=='revise_hypothesis':
+        payload['counterexample_refs']=[]
+    operation={'op_id':'op1','kind':operation_kind,'subject_id':'a','target':target,'payload':payload,
+        'support_groups':[['m1']],'context_refs':[],'reads':reads,'reason':'原件支持'}
+    output['operations']=[operation]
+    output['target_results'][0].update(status='changed',operation_ids=['op1'])
+    assert validate_proposal(data,output) is output
+    invalid=deepcopy(output)
+    invalid['operations'][0]['payload']['uncontracted_property']='forbidden'
+    with pytest.raises(AppError,match='memory_consolidation_invalid'):
+        validate_proposal(data,invalid)
+    invalid=deepcopy(output)
+    del invalid['operations'][0]['payload']['value']
+    with pytest.raises(AppError,match='memory_consolidation_invalid'):
+        validate_proposal(data,invalid)
+    invalid=deepcopy(output)
+    invalid['operations'][0]['support_groups']=[['m3']]
+    with pytest.raises(AppError,match='memory_consolidation_invalid'):
+        validate_proposal(data,invalid)
+
+
+def test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources():
+    from tianshu.conversation.context.assembly import TokenCounter
+    from tianshu.memory.consolidation import Consolidation
+    from tianshu.types import SourceRef
+    memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
+    pipeline=Consolidation(memory)
+    pipeline.counter=TokenCounter()
+    context=TrustedContext('principal','actor','a',None,('scope',),('scope',),1,OriginKind.HUMAN)
+    data=frozen()
+    data['context']={'actor_id':'actor','conversation_id':None,'time_zone':'Asia/Shanghai',
+        'cutoff_at':datetime.now(UTC).isoformat(),'message_cutoff':0}
+    for item in data['materials'].values():
+        item.update(occurred_at=datetime.now(UTC).isoformat(),reply_to=[])
+    data['materials']['m1']['text']='填'*256
+    data['episodes']=[{'source_refs':[{'source_id':'unselected_'+str(index),'revision':1} for index in range(129)]}]
+    request=pipeline._request(context,data,'synthetic_prefix')
+    assert request.estimated_input_tokens<=12000
+    assert SourceRef('unselected_128',1) in request.source_refs
+    assert 'unselected_128' not in request.messages[0].parts[0].text
+    small=deepcopy(data)
+    small['episodes'][0]['source_refs']=small['episodes'][0]['source_refs'][:1]
+    smaller=pipeline._request(context,small,'synthetic_prefix')
+    assert smaller.estimated_input_tokens==request.estimated_input_tokens
+
+
+def test_input_layout_change_rearms_only_a_known_blocked_receipt():
+    from tianshu.memory.consolidation import Consolidation
+    from tianshu.memory.recovery import ConsolidationRecovery
+    memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
+    memory.consolidation=Consolidation(memory)
+    recovery=ConsolidationRecovery(memory,None)
+    episode={'extraction_state':'pending','extraction_cursor':{'protocol':SCHEMA_VERSION},'extraction_missing':[]}
+    current=memory.consolidation._input_budget_record()
+    old={'configuration':{**current,'input_layout':'expanded-before-shared-defs'},'required_tokens':12803}
+    assert recovery._status_value(episode,None,{},'memory_consolidation_input_budget',old)['action']=='refresh_material'
+    unchanged={'configuration':current,'required_tokens':12803}
+    assert recovery._status_value(episode,None,{},'memory_consolidation_input_budget',unchanged)['action']=='configure_budget'
+    active={'batch_id':'original','status':'waiting_model','error_code':'model_outcome_unknown'}
+    assert recovery._status_value(episode,active,{},'memory_consolidation_input_budget',old)['action']=='observe_original_attempt'
+    finished={**episode,'extraction_state':'completed'}
+    assert recovery._status_value(finished,None,{},'memory_consolidation_input_budget',old)['action']=='wait_for_new_evidence'
+
+
+@pytest.mark.asyncio
+async def test_preparation_cache_keeps_exact_authority_revision_and_source_bounds():
+    from tianshu.memory.materials import PreparationReads
+    from tianshu.types import Coverage,SourceRef
+
+    class Sources:
+        def __init__(self):
+            self.calls=[]
+
+        async def read(self,context,source,requested):
+            self.calls.append((context,source,requested))
+            start=requested.get('position',(source.locator or {}).get('start',0))
+            lower=(source.locator or {}).get('start',0)
+            upper=min(10,(source.locator or {}).get('end',10))
+            if start<lower or start>upper:
+                raise AppError('source_position_outside_reference')
+            end=min(upper,start+requested['max_characters'])
+            return {'source_ref':source,'content':'abcdefghij'[start:end],
+                'coverage':Coverage(start==lower and end==upper,10,ranges=({'start':start,'end':end},)),
+                'next_position':end if end<upper else None}
+
+    sources=Sources()
+    cache=PreparationReads(sources)
+    context=TrustedContext('principal','actor','a',None,('scope',),('scope',),1,OriginKind.HUMAN)
+    source=SourceRef('exact',1,{'start':4,'end':10})
+    first=await cache.read(context,source,{'max_characters':6})
+    smaller=await cache.read(context,source,{'max_characters':3})
+    assert len(sources.calls)==1 and first['content']=='efghij' and smaller['content']=='efg'
+    assert smaller['coverage'].ranges==({'start':4,'end':7},) and smaller['next_position']==7
+    assert smaller['coverage'].complete is False
+    smaller['content']='tampered'
+    assert (await cache.read(context,source,{'max_characters':6}))['content']=='efghij'
+    await cache.read(context,replace(source,revision=2),{'max_characters':6})
+    await cache.read(context,replace(source,locator={'start':4,'end':8}),{'max_characters':6})
+    await cache.read(replace(context,scope_ids=('another',),audience=('another',)),source,{'max_characters':6})
+    assert len(sources.calls)==4
+    with pytest.raises(AppError,match='source_position_outside_reference'):
+        await cache.read(context,source,{'position':0,'max_characters':2})
 
 
 def test_group_partition_ignores_current_speaker_and_keeps_authority_domain():

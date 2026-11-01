@@ -209,6 +209,11 @@ class MemoryService:
                 count+=len(selected)
             if group:
                 valid.extend(await self.sources.check_many_on(conn,context,tuple(group)))
+            if self.pipeline_recovery is not None:
+                visible=tuple(row for row,allowed in zip(rows,valid,strict=True) if allowed)
+                statuses=await self.pipeline_recovery.statuses_on(conn,context,visible)
+                for row in visible:
+                    row["consolidation"]=statuses[row["episode_id"]]
         items=tuple(codec.episode(row) for row,allowed in zip(rows,valid,strict=True) if allowed)
         missing=[]
         if len(rows)!=len(refs):

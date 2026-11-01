@@ -55,10 +55,17 @@ async def run_pending(core, episode):
     core.memory.consolidation.materials.policy=policy
     for _ in range(80):
         async with core.database.transaction() as conn:
-            row=await (await conn.execute("SELECT extraction_state,consolidation_partition_id FROM memory.episodes WHERE episode_id=%s",
+            row=await (await conn.execute("SELECT e.extraction_state,e.extraction_cursor,e.consolidation_partition_id,"
+                "s.active_batch_id,s.last_error,s.budget_failure,s.wake_due_at FROM memory.episodes e "
+                "LEFT JOIN memory.consolidation_state s ON s.partition_id=e.consolidation_partition_id WHERE episode_id=%s",
                 (episode.episode_id,))).fetchone()
             if row["extraction_state"] != "pending":
                 return row["extraction_state"]
+            if (row["last_error"] == "memory_consolidation_input_budget" and row["active_batch_id"] is None
+                    and row["wake_due_at"] is None and row["budget_failure"]
+                    and row["budget_failure"].get("configuration") == core.memory.consolidation._input_budget_record()):
+                pytest.fail("unchanged blocked consolidation budget: "+json.dumps({
+                    "error":row["last_error"],"cursor":row["extraction_cursor"],"budget":row["budget_failure"]},ensure_ascii=False))
             await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=now() WHERE partition_id=%s",(row["consolidation_partition_id"],))
         await core.workers.consolidate(row["consolidation_partition_id"])
     pytest.fail("incremental consolidation did not finish within its bounded material count")
@@ -104,6 +111,11 @@ async def test_long_original_and_more_than_128_parts_reach_the_tail(core, ordina
         covered=max(covered,end)
     assert covered==1700
     assert len({request.attempt_id for request in models.requests}) == len(models.requests)
+    assert all(request.estimated_input_tokens<=core.memory.consolidation.policy.max_input_tokens for request in models.requests)
+    payloads=[json.loads(request.messages[0].parts[0].text) for request in models.requests]
+    assert ''.join(item['text'] for payload in payloads for item in payload['materials']
+        if item['role']=='new' and item['text'] and set(item['text'])=={'填'}) == '填'*1700
+    assert all('source_refs' not in item for payload in payloads for item in payload['materials'])
 
 
 async def test_video_actual_consumption_becomes_observed_evidence(core, ordinary_users):

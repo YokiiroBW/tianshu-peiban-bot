@@ -263,14 +263,26 @@ async def test_explicit_episode_versions_do_not_depend_on_a_max_sequence_waterma
 
 
 async def test_episode_speaker_comes_from_original_sources_and_never_tool_prerequisites(core,ordinary_users):
+    from tianshu.runtime.errors import AppError
     alice,bob=ordinary_users
     human=await observe(core,alice,'verified_author','唯一已核验作者')
     assert human.speaker_id == alice.person_id
     second=await observe(core,bob,'another_author','另一位真实作者')
     owner=await core.identity.context(core.owner.principal_id,actor_id=core.actor)
-    mixed=await core.memory.observe_episode(owner,{'event_id':'mixed_authors','origin_kind':'human',
+    proposal={'event_id':'mixed_authors','origin_kind':'human',
         'occurred_at':datetime.now(UTC),'summary':'多作者材料',
-        'source_refs':(*human.source_refs,*second.source_refs)})
+        'source_refs':(*human.source_refs,*second.source_refs)}
+    # Owning the actor does not disclose either person's private conversation.
+    with pytest.raises(AppError,match='source_unavailable'):
+        await core.memory.observe_episode(owner,proposal)
+    async with core.database.transaction() as conn:
+        for scope in sorted(set(human.scope_ids)|set(second.scope_ids)):
+            await conn.execute("INSERT INTO identity.scope_grants(scope_id,principal_id,permissions) "
+                "VALUES(%s,%s,ARRAY['read'])",(scope,owner.principal_id))
+    # This fixture now grants exactly these two source domains, without changing
+    # the owner's global permissions or relabeling either real original author.
+    shared_reader=await core.identity.context(owner.principal_id,actor_id=core.actor)
+    mixed=await core.memory.observe_episode(shared_reader,proposal)
     assert mixed.speaker_id is None
     tool=await core.memory.observe_episode(alice,{'event_id':'human_prerequisite','origin_kind':'tool_result',
         'occurred_at':datetime.now(UTC),'summary':'由人类请求触发的工具结果','source_refs':human.source_refs})

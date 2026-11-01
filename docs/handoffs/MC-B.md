@@ -67,3 +67,18 @@ Episode.speaker_id 只取来源中可证明的唯一人类作者，多个作者�
 ## 集成后必须核对的限制
 
 本批尚无执行证据。领域、Broker、Growth、检索和前端全部集成后再由协调者一次运行必要用例与装配验证。D 的规范索引 helper / speaker 字段和 C 的 Sources kwargs / Growth SQL 为成对依赖，不可只发布 B。模型语义、真实成本、跨进程故障和生产迁移均未在开发阶段验收。
+
+## 统一验收第二轮：B 集中静态修复
+
+分支 `codex/memory-pipeline-repairs2-20261101`，基线 `753eaa2`。协调者报告本轮已完成 85 pass / 3 fail，长原件用例在原地反复准备首批，另有 33 项未执行；这里不将这些上游结果当作本修复的验证。B 本轮只阅读、写代码/用例及审阅 diff，未运行测试、解析器、构建、模型或任何数据库命令。
+
+- 长原件首批的已知失败为 required 12803 / configured 12000，默认 Counter 用 UTF-8 字节作保守估算。原 Schema 重复展开 Claim 字段、时间和局部 ID 枚举，使最小 256 个汉字仍放不下。现在同一输出 Schema 以 `$defs/$ref` 复用公共定义，Claim 变体仍由 Draft 2020 的 `unevaluatedProperties=false` 严格关闭额外字段；人物、材料、读取版本、逐人 no_change 和所有操作语义不变，没有提高默认预算。
+- 本整理器的 Schema 仅由 `consolidation_instruction` 序列化进 `ModelRequest.system`，输出交本地 `Draft202012Validator`；`_request` 不传 provider 原生 `response_schema` / `response_format`。因此本次没有新增供应商适配要求或将本地 `$defs` 下发到原生结构化输出字段。
+- 缩窗以同一实际 request 的 Counter 测量值计算固定开销和正文余量，重新构造完整前缀后再次测量；超长单原件必要时可到精确一字符选择，保留 source_index / position 继续尾部。只有最小前缀、人物与协议仍放不下才返回 budget blocked。129 个未选来源引用保留在服务端依赖和 manifest，未进入模型正文，不能靠删引用或漏尾部绕预算。
+- 既有预算失败快照加入这次真实输入布局版本 `input_layout=consolidation-shared-defs-v1`。旧展开布局产生的 blocked receipt 在新布局下可沿既有 `refresh_material` 命令重新准备一次；它不是用户配置或第二套恢复器，原 unknown 的固定请求仍优先观察，不因布局变更重发。
+- `PreparationReads` 是单次 `_prepare` 的临时读集合，键含冻结授权上下文、source_id/revision、精确 locator 和起点；只复用本次已合法读到的窗口，缩短时同步 Coverage 与 next_position，不扩读无关原文，也不跨 batch/补查/恢复持久缓存。提交前原有来源/权限复核和 Episode/read_set CAS 全部保留。
+- `episodes_by_refs` 现在复用与普通 Episode 页同一个 `statuses_on` 注入可读批状态；未提交目标只列冻结主体，不生成 target_results，来源不可读时继续遮蔽。
+- 多作者用例的旧 owner 上下文没有 Alice/Bob 私有范围读取权，原失败发生在合法来源校验。夹具现在先保留该拒绝断言，再明确只给这两个来源范围的 read grant 后验证多作者；未改变全局权限、生产 Speaker 实现或原有唯一作者/tool 先决来源不得冒认的断言。
+- `run_pending` 对相同配置、无 active batch 且 wake 已关闭的 budget failure 立即带诊断失败，不再强行写 wake 连做 80 次 SQL。129 片段尾部断言保留，并增加实际请求预算及长原文只覆盖一次的断言。
+
+待协调者集中复验的现有合同文件：`tests/memory/test_consolidation_contract.py`（公共定义引用、每种 Claim 变体必填/多余字段、人物/材料引用、read_set/no_change）、`tests/memory/test_extraction_contract.py`（有限旧合同未变）。受影响调用链文件：`tests/core/test_consolidation_pipeline.py`（含本轮两个失败节点、原 unknown/原子性/版本）、`tests/core/test_incremental_consumers.py`（129 片段尾部、默认字节预算、视频派生来源）。新增的默认 Counter 最小前缀和临时缓存精确范围用例也在 contract 文件中，均 written_not_run。
