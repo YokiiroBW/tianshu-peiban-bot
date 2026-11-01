@@ -6,7 +6,11 @@ import { EpisodeTimeline } from "./EpisodeTimeline";
 import { actorScope, useDomainResource } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import type { Activity, LifeState, Routine, GrowthView } from "./domainTypes";
-import { activityLabels, timeLabel } from "./domainTypes";
+import {
+  activityLabels,
+  activityWaitingReason,
+  timeLabel,
+} from "./domainTypes";
 import { LifeScheduleStatus } from "./LifeScheduleStatus";
 import { SourceEvidence } from "../../components/SourceEvidence";
 
@@ -107,7 +111,11 @@ export function DailyLife({ state }: { state: LifeState }) {
                     {activityLabels[current.state] ?? current.state}
                   </span>
                 </div>
-                <p>{current.waiting_reason ?? "正在按已保存的活动继续。"}</p>
+                <p>
+                  {current.waiting_reason
+                    ? activityWaitingReason(current.waiting_reason)
+                    : "正在按已保存的活动继续。"}
+                </p>
                 <small>已保存 {current.checkpoint_step} 个实际步骤</small>
                 <SourceEvidence sources={current.source_refs} />
               </>
@@ -196,7 +204,9 @@ export function DailyLife({ state }: { state: LifeState }) {
                     </span>
                   </div>
                   {item.waiting_reason && (
-                    <p className="life-summary">{item.waiting_reason}</p>
+                    <p className="life-summary">
+                      {activityWaitingReason(item.waiting_reason)}
+                    </p>
                   )}
                   {item.action_id && (
                     <a

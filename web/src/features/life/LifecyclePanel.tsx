@@ -10,7 +10,11 @@ import { DetailCard } from "../../components/DetailCard";
 import { SchemaFields } from "../plugins/SchemaFields";
 import type { JsonSchema } from "../plugins/types";
 import type { Activity, Goal } from "./domainTypes";
-import { activityLabels, timeLabel } from "./domainTypes";
+import {
+  activityLabels,
+  activityWaitingReason,
+  timeLabel,
+} from "./domainTypes";
 
 type Choice = {
   definition: {
@@ -158,14 +162,17 @@ export function LifecyclePanel({
                 </span>
               </header>
               <p>
-                {item.waiting_reason ??
-                  `${item.kind} · 已保存 ${item.checkpoint_step} 个步骤`}
+                {item.waiting_reason
+                  ? activityWaitingReason(item.waiting_reason)
+                  : `已保存 ${item.checkpoint_step} 个步骤`}
               </p>
               {item.next_due_at && (
                 <p>下一时间：{timeLabel(item.next_due_at)}</p>
               )}
               {item.resume_condition && (
-                <p className="muted">继续条件：{item.resume_condition}</p>
+                <p className="muted">
+                  继续条件：{activityWaitingReason(item.resume_condition)}
+                </p>
               )}
               <SourceEvidence sources={item.source_refs} />
               <div className="domain-actions">
