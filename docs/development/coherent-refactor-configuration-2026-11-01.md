@@ -4,7 +4,7 @@
 
 ## 当前实际状态
 
-正式入口为 `http://192.168.31.230:18446`。实际源码 `08ef6cb303f7b054cbbdb34e3d16ff9c584fe024`，整镜像 `sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc`，无源码覆盖挂载；前端已随同一镜像发布。
+正式入口为 `http://192.168.31.230:18446`。最新源码 `214387a8b3c4f7c66e69e7360cf46e07be6441bb`，整镜像 `sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f`，无源码覆盖挂载；前端已随同一镜像发布。完整重构初次发布基线为 `08ef6cb303f7b054cbbdb34e3d16ff9c584fe024` / `sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc`，后述原验收证据保留。
 
 应用位于 `.230:/srv/tianshu-core/app`，专属 PG 17/pgvector 0.8.7 位于 NAS `/volume2/Dockers/tianshu-core-postgres`、端口 25018。最终清理后应用 ready、PG healthy、容量守护 active，20 GiB 空间下限保持。11 个挂载包含原媒体目录 7 项和原专用 SSH 材料 2 项。
 
@@ -79,3 +79,11 @@ Windows 三个生成构建目录的递归清理被自动审批返回 `blocked by
 本次只恢复既有访问并读取状态，NAS 容器控制动作提交数为 0。原公钥恢复收据 `nas-ssh-restoration.json` 和原生读取摘要 `nas-final-readonly.json` 已保存；此前缺少授权的记录保留为历史，不再是未完成项。应用代码和镜像未变，复用已通过的集中验收，不重复构建或全套测试。
 
 原始回执、截图、私有配置存档和错误记录位于协调者原工作区 `.runtime/coherent-refactor-20261031/acceptance/`。真实发送、付费生成、所有外部平台及长期陪伴质量没有被这些配置/健康核验覆盖。
+
+## 发布后修复：LAN HTTP 登录
+
+用户实际网页登录报告 `crypto.randomUUID is not a function`。登录请求在前端生成请求编号时抛错，未到达账号校验；此前 API 登录成功没有覆盖这一浏览器差异。该接口只在安全上下文提供，局域网普通 HTTP 不具备它；既有 `web/src/app/requestId.ts` 使用可在该环境运行的 `crypto.getRandomValues()`，本次将登录、通用命令、intent、ProviderManager 和 Matters 的 5 处遗漏统一接入，不新增编号机制。
+
+前端子代理交付 `214387a8b3c4f7c66e69e7360cf46e07be6441bb`。build（含 typecheck）通过，`session-transport.spec.ts` 定向 5 项通过，其中新增真实非 loopback HTTP origin 的登录和 unknown 后原 intent ID 保留验证。协调者核对 diff 后快进集成，无装配差异，不重复已通过的测试。
+
+按精确源码构建整镜像并串行部署，正式容器为 `d62af5ed598909f5e48188c150dd215f035413680687d8a7f41a099fbd92de83`。应用 ready、守护 active，11 个挂载和全部 config 文件摘要保持；未改后端、数据库迁移或 QQ 配置。正式 Chrome HTTP 标签页刷新后，现有账号提交登录成功并到达工作台；截图与发布收据位于原工作区 `.runtime/coherent-refactor-20261031/http-login-fix-20261101/`。只核验本次受影响行为，没有发送聊天或调用模型。

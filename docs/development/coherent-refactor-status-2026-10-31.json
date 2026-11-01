@@ -1404,7 +1404,7 @@
     "application_root": "/srv/tianshu-core/app",
     "postgres_root": "/volume2/Dockers/tianshu-core-postgres",
     "postgres_port": 25018,
-    "container_id": "0d835024c9953774d13fbd9754236371ea13582c9d537658faf0707b726fe826",
+    "container_id": "d62af5ed598909f5e48188c150dd215f035413680687d8a7f41a099fbd92de83",
     "old_application_running": false,
     "old_business_data_deleted": true,
     "transport_enabled": true,
@@ -1441,10 +1441,18 @@
           "tianshu-core"
         ]
       }
+    },
+    "current_source_sha": "214387a8b3c4f7c66e69e7360cf46e07be6441bb",
+    "current_image": "sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f",
+    "last_update_health": {
+      "ready": "ready",
+      "guard": "active",
+      "configuration_unchanged": true,
+      "mounts_unchanged": true
     }
   },
   "planning_commit": "e034276dfb757b7dd64cd2f56e952d81193a5248",
-  "updated_at": "2026-11-01T04:33:55.534284+00:00",
+  "updated_at": "2026-11-01T04:58:35.662183+00:00",
   "accepted_source_sha": "08ef6cb303f7b054cbbdb34e3d16ff9c584fe024",
   "accepted_image": "sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc",
   "configuration_migration": {
@@ -1827,5 +1835,30 @@
       ]
     }
   ],
-  "source_review_followups_history_note": "Historical dispatch snapshots; intermediate states are superseded by the accepted card states and concentrated acceptance records, not outstanding implementation tasks."
+  "source_review_followups_history_note": "Historical dispatch snapshots; intermediate states are superseded by the accepted card states and concentrated acceptance records, not outstanding implementation tasks.",
+  "post_release_updates": [
+    {
+      "state": "production_ready",
+      "source_sha": "214387a8b3c4f7c66e69e7360cf46e07be6441bb",
+      "image_id": "sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f",
+      "old_container_id": "0d835024c9953774d13fbd9754236371ea13582c9d537658faf0707b726fe826",
+      "old_image": "sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc",
+      "container_id": "d62af5ed598909f5e48188c150dd215f035413680687d8a7f41a099fbd92de83",
+      "configuration_unchanged": true,
+      "mounts_unchanged": true,
+      "database_migration_change": false,
+      "guard": "active",
+      "ready": "ready",
+      "kind": "lan_http_request_id_fix",
+      "validation": {
+        "browser_regression_passed": 5,
+        "build_and_typecheck": "passed",
+        "concentrated_acceptance_repeated": false,
+        "real_browser_origin": "http://192.168.31.230:18446",
+        "real_browser_result": "existing user login reached #/workbench",
+        "screenshot": "production-login-success.png"
+      },
+      "recorded_at": "2026-11-01T04:58:35.662183+00:00"
+    }
+  ]
 }

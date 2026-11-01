@@ -1,6 +1,10 @@
 # 天枢单产品部署
 
-## 2026-11-01 实际发布回执
+## 2026-11-01 HTTP 登录修复补丁
+
+当前源码 `214387a8b3c4f7c66e69e7360cf46e07be6441bb`，整镜像 `sha256:551cce7d76a14cb55fe879aa2881235d5a0836f9ad91e533765f4872c464da0f`。5 处 UUID 调用已复用 LAN HTTP 兼容入口；定向浏览器 5 项、build/typecheck 与正式 HTTP 网页登录验证通过。配置/11 个挂载保持，应用 ready、守护 active；未变更数据库迁移。下文保留完整重构首发回执，最新细节见[发布记录](../../docs/development/coherent-refactor-configuration-2026-11-01.md)。
+
+## 2026-11-01 完整重构首发回执
 
 实际源码 `08ef6cb303f7b054cbbdb34e3d16ff9c584fe024`，镜像 `sha256:559ef862da33ee81456b017c14d51ef66bf404e47cf9a3a3ec168428dbeb48bc`；正式入口 `http://192.168.31.230:18446`。应用 ready、PG healthy、容量守护 active，两个 QQ 已接通且网关未重启。25 个旧 schema、6 组 Redis 前缀和旧运行环境已退役。作者人格、模型、机器人、天气及 19 条媒体配置已迁入；共享媒体使用 7 个明确挂载，不复制旧运行时。
 
