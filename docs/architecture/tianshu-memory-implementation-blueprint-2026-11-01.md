@@ -1,12 +1,12 @@
 # 天枢记忆系统落地实施图纸
 
-版本：设计稿 v1。日期：2026-11-01。面向 Memory、Conversation、Companion、Life、前端开发者及集成人。
+版本：实施跟踪 v2。日期：2026-11-01。面向 Memory、Conversation、Companion、Life、前端开发者及集成人。
 
 本图纸确定一次完整交付的实现目标：在现有统一架构内，恢复群聊共享片段一次多人整理，补齐旧记忆对照、事实修订、事项历史、多类型检索、人物认识及实际回答消费。所有能力完整装配和验证后一次切换上线。
 
-**改造规模为 Memory 内部的中等规模演进。** PostgreSQL、Sources、Identity、模型 Broker、Procrastinate 和现有产品边界继续复用，已有原件和记忆不重新初始化。本文为开发规范，不表示产品代码已经实现。
+**改造规模为 Memory 内部的中等规模演进。** PostgreSQL、Sources、Identity、模型 Broker、Procrastinate 和现有产品边界继续复用，已有原件和记忆不重新初始化。A/B/C/D/F 产品代码已于本日合入，评测和发布工具正在准备；集中验收与生产切换尚未执行。实际提交、状态和验证记录以[实施队列](../development/memory-closure-status-2026-11-01.json)及[实施说明](../development/memory-closure-execution-2026-11-01.md)为准。
 
-核对的源码基准为 `7aac7746ed0a4d12cd8b596de156b6f3a745f8ad`，所在工作树：`C:/Users/Administrator/.codex/worktrees/tianshu-unified-refactor/tianshu-peiban-bot`。下文源码相对路径均基于此工作树；正式开发从届时最新、已吸收相关修复的统一重构提交建立隔离分支。
+设计时核对的源码基准为 `7aac7746ed0a4d12cd8b596de156b6f3a745f8ad`，所在工作树：`C:/Users/Administrator/.codex/worktrees/tianshu-unified-refactor/tianshu-peiban-bot`。下文已有基础与差距表描述该设计基线；实际生产成本对照使用 `dcdf729b5d22f451093e3658d131fd6757a00dde`，不把设计差距当成本日集成代码的当前状态。
 
 ## 阅读顺序
 
@@ -173,6 +173,7 @@ Life 背景读取与实际执行分开：Memory 可以知道用户说某事取�
 | `active_batch_id` | text NULL | 指向唯一未结束的整理作业 |
 | `lease_owner/lease_until` | text / timestamptz | 短期执行占有；过期不意味着可重发模型 |
 | `last_error/updated_at` | text / timestamptz | 状态与诊断 |
+| `budget_failure` | jsonb NULL | 实际失败时的输入预算配置与所需 token；配置变化后允许从原未推进材料显式继续，未变化时不空转 |
 
 分区键不含群内发言人的 `person_id`，也不含会频繁变化的全局 sequence。不同权限域不自动合并；不同群或角色不能因人物相同而拼成一份原文池。
 
@@ -418,6 +419,8 @@ sequenceDiagram
 
 最大输出也参与分段。不能以“每人最多两条事实”制造低成本；预计超限提前拆段，确认输出截断后不提交部分人或推进完整游标。最多一次必要补查，不默认增加主题分类、逐人摘要或逐人裁判模型。
 
+实施时将语义输出预算与推理预留分别配置，当前起始值为 4096 和 8192 token，合计请求上限 12288，并受实际路线能力约束。原生 stop reason/content completion 与物理请求结算分开：已完成计费但输出截断不会被标成完整业务结果；已知截断有界缩窗，最小窗仍不足时返回真实 configure_budget 动作，未知 attempt 只观察原身份。
+
 ### 8.4 成本比较
 
 共享段输入约为 `H + T + D + R`，分别为指令、原文、人物/引用信息、旧记忆并集；按 P 人重复整段则仅共同部分就会变成 `P × (H + T + D)`。这解释重复输入的节省，不代表当前生产成本或实际收费。
@@ -525,6 +528,10 @@ apply_proposal(frozen, proposal):
 
 精确原话、关键依据缺失或未解分歧允许一次预算内原文追查。达到前台总 deadline 后明确材料不完整，不无限循环搜索。旧外部档案的导入授权不因这项能力而改变。
 
+实施入口共用 MemoryQueryPlan。`list` 游标绑定身份、范围、计划和首批截止时点；有查询文本时完整性限于词法条件范围。`ranked` 明示有界选材，不能当成全集。模型工具可用 `subject_aliases` 调用 Identity 的精确授权解析，未知或重名保留缺项/歧义，不退回全域猜测。`memory.source.trace` 复用真实 Action、CommandStore 和 Sources，仅补读已经选中的相同来源及更窄范围；同一前台表达或活动只分配一次补查。
+
+Episode/Reflection 沿用现有最新记录，不制造过去未保存的修订快照。无法证明旧版本的 known_at 返回历史缺项。Episode.speaker_id 只写 Sources 可证的唯一实际作者，多作者、纯引用和历史未知保留 NULL。完整证据闭包同时包括仍被表达的派生依据、反例及完成依据；这些必要来源撤回后，整条认识及其索引退出当前消费。
+
 ## 11 人物认识 成长和行动消费
 
 人物认识分为明确偏好、条件习惯、近期处境、共同经历和未解分歧。分类用于组织与读取，不是根据某几个词自动生成性格结论。
@@ -534,6 +541,8 @@ apply_proposal(frozen, proposal):
 同次整理只更新受影响的人物和维度。`GrowthService` 复用相关原始经历与变化身份，继续产生主观反思；不为每条 Claim 再调用一次模型，也不把 Reflection 当作另一套事实权威。
 
 `projection()` 组合当前相关事实、事项和可修订认识；Companion、ContextAssembler 和 Life 背景读取共同消费。冻结关系暂停对应相处风格自动变化，事实纠正与原件保存继续有效。稳定人格、权限和工具能力不由画像改写。
+
+实施中聊天、参与判断、Life 规划、日记和写作共用完整证据 Assembler。Growth 使用自身固定 Episode 批次进行主观反思，避免混入无关可选记忆作为反思依据。Memory.observe_episode 在同一事务登记 Growth 的实际 Episode 版本待处理集合；sequence 最大值不再代表消费完整性，晚提交的较小序号也可处理。已完成想象活动缺原件时，只允许根据仍可证明的完成 checkpoint 修订原 Episode，不重新执行活动或模型。
 
 用户报告“维修完成”可形成有真人来源的已报告状态。天枢自己执行是否成功仍读取真实 Action/Receipt；后台整理不得因为语义相似就制造任务、提醒或动作成功。
 
@@ -550,11 +559,16 @@ apply_proposal(frozen, proposal):
 | `matters`、`matters/save` | 当前状态与事项历史同事务，完成依据可解释 |
 | `episodes`、`episodes/between` | 显示实际处理覆盖、未决和来源缺项 |
 | `extraction/resume` | 从 Episode 定位相关作业；返回恢复原 attempt、重取材料或等待新证据等真实动作 |
-| `claims/history`、`matters/history` 计划新增 | 有界历史读取，继续过滤当前权限和来源 |
+| `claims/history`、`matters/history` | 有界历史读取，继续过滤当前权限和来源 |
+| `matters/get` | 历史编辑前读取当前 head，复用相同事项领域读取 |
+| `query` | 五类型、三种时间模式、清单/排序范围与完整单元 |
+| `index/rebuild` | 默认五类或显式类型集合，有界游标和幂等派发 |
 
 聊天模型的 `memory.claim.correct`、`memory.matter.save` 继续通过现有工具调用，不暴露后台自由 SQL 或任意修改提案入口。
 
 页面显示当前事实、原话依据、谁的说法、有效时间、修订原因、分歧和未决；群视图同时可看共享事项及逐人结果。恢复按钮依据服务器返回的动作类别，不再仅凭 failed/unknown/interrupted 三个字符串猜测。
+
+恢复动作实际为 observe_original_attempt、refresh_material、wait_for_new_evidence、configure_budget、legacy_application_abandoned。处理中的 targets 来自来源可读的冻结映射，提交后的 target_results 来自原子回执；目标名单不能冒充已完成。群 projection.group_consolidation 同时返回当前授权身份、目标和逐人结果。前端历史编辑先获取当前 head，再走既有 CAS。
 
 现有工作流程中可直接修正记忆，正常后台整理不新增逐条审批弹窗。技术状态转为清楚的用户文案，但未知结果不能包装成失败或成功。
 
@@ -563,6 +577,8 @@ apply_proposal(frozen, proposal):
 ### 13.1 迁移方式
 
 在 `runtime/migrations.py` 追加新的具名 Memory 迁移。当前 `0020_memory` 已按名称记账，不能只修改其 SQL 文件期待已安装数据库自动执行。
+
+本批实际具名迁移为 0021_memory_consolidation、0034_companion_growth_batches、capabilities-0002-runtime-observations。后两者分别承接实际经历消费/有限旧请求转换，以及 worker 运行投影/维护到期时间；没有另建消息队列或前台后台执行器。新产品输入只走新默认路径，旧协议处理限于固定存量清单。
 
 新增表、字段和索引只作用于受影响 Memory 数据域。已有 Claim/Matter/Episode ID 保持。现有 Matter 以已知当前版本建立历史起点，无法还原的更早版本和系统得知时间保留未知。
 

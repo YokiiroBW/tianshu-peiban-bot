@@ -34,11 +34,15 @@
       "integrated_as": [
         "ac05b4f",
         "b5fb4bb",
-        "e752d5c"
+        "e752d5c",
+        "5b98714"
       ],
       "implementation_commits": [
         "913d106",
         "6bebf03"
+      ],
+      "followup_commits": [
+        "b0dddb3"
       ]
     },
     "MC-C": {
@@ -82,7 +86,7 @@
         "3becfa4"
       ],
       "followup": "Idempotent actor-original repair for already-completed imagined Episodes from saved Life checkpoints; no model/activity replay",
-      "operational_preparation": "Writing only private affected-domain backup and single-cutover script; no execution"
+      "operational_preparation": "Private cutover.py saved and statically read; no execution"
     },
     "MC-R": {
       "agent": "runtime_audit",
@@ -218,6 +222,12 @@
       "owner": "MC-C",
       "state": "bounded_operational_cleanup",
       "problem": "Unbound-target group recall notices correctly denied but remain failed accepted inbox noise; consume as ignored without granting target access."
+    },
+    {
+      "id": "RC-16",
+      "owner": "MC-B",
+      "state": "implemented_not_verified",
+      "problem": "Input-budget failure before batch persistence prevented resume after configuration changed; now records actual failure budget and exposes refresh_material after relevant change without new Episode or automatic paid retry."
     }
   ],
   "blueprint_acceptance": {
@@ -231,5 +241,5 @@
     "state": "prepared_not_executed",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All A/B/C/D/F product changes integrated; G runner and private cutover script pending; no validation executed"
+  "product_implementation": "All A/B/C/D/F product changes and static integration repair integrated; G runner pending; no validation executed"
 }
