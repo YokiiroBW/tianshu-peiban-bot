@@ -95,10 +95,10 @@ class EvaluationModels:
         from tianshu.runtime.errors import AppError
         from tianshu.runtime.serialization import wire
 
-        if request.function not in {"memory.extract", "chat", "embed", "reflect"}:
+        if request.function not in {"memory.extract", "chat", "embed", "rerank", "reflect"}:
             raise ValueError("evaluation_function_not_in_scope")
         if (any(part.media for message in request.messages for part in message.parts)
-                or request.required_capabilities - {"text", "tools", "embed"}
+                or request.required_capabilities - {"text", "tools", "embed", "rerank"}
                 or getattr(request, "capability_probe", False)):
             raise ValueError("evaluation_only_supports_synthetic_text")
         await self._validate(request.context, request.source_refs)

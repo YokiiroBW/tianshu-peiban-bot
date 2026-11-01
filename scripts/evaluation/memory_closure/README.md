@@ -4,7 +4,7 @@
 
 ## 一次定向验证
 
-复用 `tests/conftest.py` 的 `database` 夹具：只有显式 `TIANSHU_TEST_POSTGRES_ADMIN_DSN` 才创建 `tianshu_test_UUID`，没有生产 DSN 默认值。旧测试 PG 25019 已退役；由主协调另建一次隔离 PG+pgvector，不使用生产 25018。下列是**待执行清单**，不是已通过记录。缺少 DSN 导致 PG 用例 skip 时，不得报告对应行为通过。
+复用 `tests/conftest.py` 的 `database` 夹具：只有显式 `TIANSHU_TEST_POSTGRES_ADMIN_DSN` 才创建 `tianshu_test_UUID`，没有生产 DSN 默认值。旧实例退役后，主协调本轮已另备 NAS `192.168.31.210:25019` 的隔离 PG17+pgvector；不使用生产 25018。工具作者没有连接或核验该实例。下列是**待执行清单**，不是已通过记录。缺少 DSN 导致 PG 用例 skip 时，不得报告对应行为通过。
 
 全部后端适用用例放在同一次 pytest 调用，避免不同窗口重复跑同一输入。PowerShell 中 `$python` 指主协调选定的候选虚拟环境解释器；在最终集成仓库根执行：
 
@@ -87,6 +87,7 @@ $targets = @(
   "model_context": {"<生产实际授权TrustedContext>": "由主协调提供完整字段"},
   "keep_database": false,
   "stream": {"anchor": "2026-11-01T09:00:00+08:00", "message_interval_seconds": 60},
+  "context": {"tokenizer": "o200k_base", "structured_seconds": 1.0, "retrieval_seconds": 2.0},
   "retrieval": {},
   "answer_seconds": 120,
   "max_answer_rounds": 4
@@ -95,7 +96,7 @@ $targets = @(
 
 `model_context` 与合成应用上下文严格分开。adapter 先在隔离 Sources 复核请求依赖，再将合成文本请求映射到实际授权 `model_context`，发送生产 Broker 的 `source_refs=()`；生产 DB 没有合成来源，不能伪造其授权。收到结果将 receipt 恢复为原合成 step/attempt 身份，仍由本地原生 pipeline 按原合成引用提交。映射在网络前保存；unknown 后没有换身份重发路径。无来源/非法上下文在请求前拒绝。只支持合成文本，不上传真实私人材料或媒体。它是显式评测适配，不能放进产品。
 
-在对应候选进程/容器内挂载同一 runner；`--code-root` 指所选源码的实际根（必须含 `src/tianshu/runtime/product.py`），`--source-sha`/`--image-digest` 填主协调已核实值。旧镜像可直接复用 `.230` 保留的完整 production image，无需重建或运行生产服务进程。`--network container:tianshu-core` 可访问其已有内部 Broker，不新增公网端口。下列 `$runner/$private/$codeRoot/$sha/$imageDigest` 均由主协调按实际容器路径赋值：
+在对应候选进程/容器内挂载同一 runner；`--code-root` 指只读挂载的精确同 SHA 源码归档根（必须含 `src/tianshu/runtime/product.py`），`--source-sha`/`--image-digest` 填主协调已核实值。**实际 Dockerfile 最终阶段只有已安装的 `.venv`，没有 `/opt/tianshu/src`，不能把 `/opt/tianshu` 填成源码根。** 旧镜像可复用 `.230` 保留的 production image 作为其依赖环境，配合实际旧 SHA 完整归档；候选也挂它自己的最终同 SHA 归档。执行镜像时覆盖 ENTRYPOINT 为 `/opt/tianshu/.venv/bin/python`，不沿用默认 `python -m tianshu serve`。`--network container:tianshu-core` 访问已有内部 Broker，不新增端口。下列 `$runner/$private/$codeRoot/$sha/$imageDigest` 均由主协调按实际容器路径赋值，后文给本批具体命令：
 
 ```powershell
 & $python $runner semantic --config "$private/config.json" --corpus "$private/semantic-stories.json" --private-root $private --output "$private/optimized-24" --variant optimized --stories all --code-root $codeRoot --source-sha $sha --image-digest $imageDigest
@@ -139,3 +140,66 @@ QQ 项必须提供原 `event_key/connection_id/producer/event_id/event_revision/
 ```
 
 恢复配置由主协调提供 `recovery_postgres_env`（必须显式，无默认 DSN）与实际 `app_settings`。plan 不需要配置。apply 也不打印/导出 DSN 或秘密配置。恢复结果/配置/真实材料全部留在私有目录，不能入库。
+
+## 本批真实运行命令与兼容核对（静态准备）
+
+阅读基线为集成 `5c4d738` 和真实旧生产 `dcdf729b5d22f451093e3658d131fd6757a00dde`。这里没有执行命令。候选迁移/集中返修完成后，主协调使用**最终已核实的源码 SHA 和镜像**，不把本次阅读基线当作最终候选。
+
+主协调已提供远端 `/srv/tianshu-core/evaluation-memory-closure-20261101`：`config.private.json`、`postgres.env`、`semantic-stories.json`、精确旧归档 `legacy-code/src`。配置的必要字段为 synthetic_material_only、isolated_postgres、postgres_admin_env、broker_url、broker_token、model_context；context/retrieval 使用主协调已从实际设置复制的值。model_context 需要实际 principal_id、actor_id、person_id、conversation_id、scope_ids、audience、access_epoch、origin_kind、permissions、conversation_kind、delivery_allowed，不接受合成人物或猜造 epoch。秘密值不出现在命令行/报告。postgres.env 只需实际隔离 TIANSHU_TEST_POSTGRES_ADMIN_DSN，不复用整份生产 .env。该 NAS 地址可由 `.230` 访问；container namespace 中的 localhost 不是宿主 loopback。
+
+`build_product(RuntimeServices(..., role='interactive'))` 复用原生图。隔离身份显式 setup_token_ref=null，避免读取生产注册 token；没有复制账号/供应商/QQ 配置，CredentialStore 不需要生产 master key。caps.prepare 只构造原生域/注册任务，不调用 module.start、caps.initialize、channels.start、queue worker 或 supervisor。只读 Memory Action 会启动其本地 execution-owner 心跳并在 close 停止；业务写入和状态文件都在隔离 DB/输出目录。真实 Broker 会正常记录本次授权请求/usage/配额，这是预期模型结算，不是“生产完全无写入”。
+
+| 原生请求 | 保留的选择方式/要求 |
+| --- | --- |
+| memory.extract / elastic | 两版均 route_id/route_revision/protocol=None，由实际 actor 的 function 或 `*` binding 选择，要求 text；候选 visible+reasoning 输出预算来自原生 policy |
+| chat / interactive | 实际 chat binding；带原生只读 Memory ToolSpec，要求 text+tools，不把它改绑为独立付费模型 |
+| embed / elastic、interactive | 同一真实 embedding_profile 的 route，1024 维、none/l2 normalization；索引与查询保留原 service class |
+| rerank / 原调用 class | 仅实际 retrieval.rerank=true 才走原生 rerank binding/capability，adapter 已支持；默认 false 时不额外调用 |
+
+两版 ModelRequest 字段一致；旧结果没有 completion/hold_until，adapter 只过滤旧 ModelReceipt 不认识的新 wire 字段，保留完整实际 wire 回执用于计量。旧图/旧迁移/单 Episode worker/旧检索/旧工具均从旧完整归档导入。旧工具目录提供 memory.search/claims/matters，候选增加 memory.source.trace；schema/name/availability 均取真实 Catalog。改写类 Memory 工具不提供给评测回答，不提供外部能力工具。driver 的 nativehandler 进度同时观察 Episode 与 batch（包括已知截断缩窗），不把 batch 状态不变的 unknown 反复当新请求。Windows CLI 在 asyncio.run 前启用 Selector policy。
+
+下面是 `.230` 上的 Bash 命令；只准备文本，由主协调在完整集中复验和候选 build 后执行。主协调另把**与候选镜像相同的最终 SHA 完整归档**展开到 candidate-code；runner 跟随该归档，保持 evaluation/memory_closure 目录结构，所有臂共用同一 runner。
+
+```bash
+EVAL_ROOT=/srv/tianshu-core/evaluation-memory-closure-20261101
+OLD_SHA=dcdf729b5d22f451093e3658d131fd6757a00dde
+OLD_IMAGE=sha256:679e08db330d32973e40d32f07007ee5b0b3442a1f6e8fc86af550ed39aaa40c
+CANDIDATE_SHA='<最终已核实的40位SHA>'
+CANDIDATE_IMAGE='<对应候选image的完整sha256 ID>'
+CANDIDATE_CODE="$EVAL_ROOT/candidate-code"
+RUNNER_HOST="$CANDIDATE_CODE/scripts/evaluation"
+mkdir -p "$EVAL_ROOT/results"
+
+run_arm() {
+  local arm="$1" code="$2" image="$3" source_sha="$4" stories="$5"
+  docker run --rm --name "tianshu-memory-eval-$arm" \
+    --network container:tianshu-core --no-healthcheck --read-only --user 0:10001 \
+    --tmpfs /tmp:rw,noexec,nosuid,size=128m \
+    --entrypoint /opt/tianshu/.venv/bin/python \
+    --env-file "$EVAL_ROOT/postgres.env" \
+    --mount "type=bind,src=$code,dst=/code,readonly" \
+    --mount "type=bind,src=$RUNNER_HOST,dst=/runner/evaluation,readonly" \
+    --mount "type=bind,src=$EVAL_ROOT/config.private.json,dst=/evaluation-input/config.private.json,readonly" \
+    --mount "type=bind,src=$EVAL_ROOT/semantic-stories.json,dst=/evaluation-input/semantic-stories.json,readonly" \
+    --mount "type=bind,src=$EVAL_ROOT/results,dst=/evaluation-output" \
+    "$image" /runner/evaluation/memory_closure/run.py semantic \
+    --config /evaluation-input/config.private.json --corpus /evaluation-input/semantic-stories.json \
+    --private-root /evaluation-output --output "/evaluation-output/$arm" \
+    --variant "$arm" --stories "$stories" --code-root /code \
+    --source-sha "$source_sha" --image-digest "$image"
+}
+
+run_arm optimized "$CANDIDATE_CODE" "$CANDIDATE_IMAGE" "$CANDIDATE_SHA" all
+run_arm conservative "$CANDIDATE_CODE" "$CANDIDATE_IMAGE" "$CANDIDATE_SHA" cost
+run_arm legacy "$EVAL_ROOT/legacy-code" "$OLD_IMAGE" "$OLD_SHA" cost
+
+docker run --rm --network none --read-only --entrypoint /opt/tianshu/.venv/bin/python \
+  --mount "type=bind,src=$RUNNER_HOST,dst=/runner/evaluation,readonly" \
+  --mount "type=bind,src=$EVAL_ROOT/results,dst=/evaluation-output" \
+  "$CANDIDATE_IMAGE" /runner/evaluation/memory_closure/run.py compare \
+  --legacy /evaluation-output/legacy --conservative /evaluation-output/conservative \
+  --optimized /evaluation-output/optimized --private-root /evaluation-output \
+  --output /evaluation-output/cost-comparison.json
+```
+
+run_arm 的 output 必须全新；失败已有目录不删除/重跑，不把同一 unknown 换请求身份。root 根据 report/attempt-map/database 保留原账本恢复。cost compare 直接取 optimized 中相同8份结果；它不联网、不调模型。命令没有挂生产 config/data/socket，没有调用 tianshu serve；不启动普通 worker、QQ 网关或发送流程。Source archive 与镜像/迁移的真实可用性仍由主协调本轮集中结果证明，不能由本文静态核对冒称运行成功。

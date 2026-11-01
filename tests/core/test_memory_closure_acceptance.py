@@ -14,7 +14,7 @@ from scripts.evaluation.memory_closure.dataset import (COST_STORY_IDS, OLD_PRODU
 from scripts.evaluation.memory_closure.metering import aggregate_calls
 from scripts.evaluation.memory_closure.recovery import validate_manifest
 from scripts.evaluation.memory_closure.run import compare
-from scripts.evaluation.memory_closure.runtime import content_incomplete
+from scripts.evaluation.memory_closure.runtime import content_incomplete, progress_key
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -66,6 +66,15 @@ def test_old_result_truncation_is_reported_without_replacing_old_product_semanti
     assert not content_incomplete(SimpleNamespace(native_response={"choices": [{"finish_reason": "stop"}]}))
 
 
+def test_native_shrink_progress_is_not_lost_when_episode_cursor_is_unchanged():
+    first = {"episode_id": "first", "revision": 1, "extraction_state": "pending", "extraction_cursor": {}}
+    second = {**first, "episode_id": "second"}
+    batch = {"batch_id": "original", "status": "waiting_model", "manifest": {"source_budget": 4096}}
+    shrunk = {**batch, "status": "failed", "error_code": "memory_consolidation_output_truncated"}
+    assert progress_key([first, second], [batch]) == progress_key([second, first], [batch])
+    assert progress_key([first, second], [batch]) != progress_key([first, second], [shrunk])
+
+
 def synthetic_context(principal="synthetic-local"):
     return TrustedContext(principal, "synthetic-actor", None, "synthetic-room",
         ("synthetic-scope",), ("synthetic-scope",), 1, OriginKind.HUMAN, frozenset({"*"}), "group")
@@ -98,7 +107,9 @@ class LostResponseClient:
         return None
 
 
-async def test_adapter_validates_local_sources_maps_authority_and_never_resubmits_unknown(tmp_path):
+@pytest.mark.parametrize("function,capabilities", [("chat", frozenset({"text"})),
+                                                 ("rerank", frozenset({"rerank"}))])
+async def test_adapter_validates_local_sources_maps_authority_and_never_resubmits_unknown(tmp_path, function, capabilities):
     config = {"broker_url": "http://127.0.0.1:9", "broker_token": "synthetic-not-a-secret",
               "model_context": wire(synthetic_context("synthetic-authorized-model-owner"))}
     sources = SyntheticSources(False)
@@ -106,9 +117,11 @@ async def test_adapter_validates_local_sources_maps_authority_and_never_resubmit
     client = LostResponseClient()
     models.client = client
     models.allowed_actors.add("synthetic-actor")
-    request = ModelRequest("synthetic-intent", "synthetic-attempt", "chat", ServiceClass.INTERACTIVE,
+    request = ModelRequest("synthetic-intent", "synthetic-attempt", function, ServiceClass.INTERACTIVE,
         synthetic_context(), RequestBudget(datetime.now(UTC) + timedelta(minutes=1)),
-        (ModelMessage("user", (ModelPart("text", text="合成原件"),)),),
+        (ModelMessage("user", (ModelPart("text", text="合成原件"),)),) if function == "chat" else (),
+        required_capabilities=capabilities,
+        native_payload={"query": "合成查询", "documents": ["合成原件"], "top_n": 1} if function == "rerank" else None,
         source_refs=(SourceRef("synthetic-source", 1, {}),))
     with pytest.raises(ValueError, match="evaluation_synthetic_sources_unavailable"):
         await models.generate(request)
@@ -118,6 +131,7 @@ async def test_adapter_validates_local_sources_maps_authority_and_never_resubmit
         await models.generate(request)
     assert len(client.requests) == 1
     remote = client.requests[0]
+    assert remote.function == function and remote.required_capabilities == capabilities
     assert remote.context.principal_id == "synthetic-authorized-model-owner"
     assert remote.source_refs == () and remote.attempt_id != request.attempt_id
     assert models.mapping[request.attempt_id]["state"] == "unknown"

@@ -86,10 +86,11 @@ async def build_graph(database, config, output, run_id, variant):
     policy = dict(CONSERVATIVE_POLICY if variant == "conservative" else OPTIMIZED_POLICY)
     policy.update(config.get("policies", {}).get(variant, {}))
     policy["quiet_seconds"] = 0
-    document = {"identity": {"installation_seal": str(output / "installed")},
+    document = {"identity": {"installation_seal": str(output / "installed"), "setup_token_ref": None},
         "artifacts": str(output / "files"),
         "capabilities": {"state_directory": str(output / "capabilities")},
         "channels": {"owner_url": "http://127.0.0.1:9", "owner_token_ref": "EVAL_OWNER"},
+        "context": config.get("context", {}),
         "memory": {"consolidation": policy, "retrieval": config.get("retrieval", {})}}
     settings = Settings(document, Secrets({"EVAL_OWNER": "synthetic-unused-channel-owner"}), output)
     models = EvaluationModels(database, None, config, output, run_id)
@@ -179,13 +180,25 @@ async def database_statistics(database):
     return dict(row)
 
 
+def progress_key(episodes, batches=()):
+    # A known truncation creates native shrink work without advancing an Episode
+    # cursor. Batch progress matters too; timestamps/physical row order do not.
+    return digest({"episodes": [{key: row.get(key) for key in (
+        "episode_id", "revision", "extraction_state", "extraction_cursor", "extraction_missing")}
+        for row in sorted(episodes, key=lambda item: item["episode_id"])],
+        "batches": [{"batch_id": row["batch_id"], "status": row["status"],
+            "error_code": row.get("error_code"), "step_ids": row.get("step_ids"),
+            "source_budget": (row.get("manifest") or {}).get("source_budget")}
+            for row in sorted(batches, key=lambda item: item["batch_id"])]})
+
+
 async def flush_memory(database, jobs, variant, output, stage, maximum=128):
     """Native handlers, bounded progress, no arbitrary changes to cursors/states."""
     traces = []
     for iteration in range(maximum):
         episodes = await table_rows(database, "memory", "episodes")
-        before = digest([{key: row.get(key) for key in ("episode_id", "revision", "extraction_state",
-                         "extraction_cursor", "extraction_missing")} for row in episodes])
+        batches = await table_rows(database, "memory", "consolidation_batches") if variant != "legacy" else ()
+        before = progress_key(episodes, batches)
         pending = [row for row in episodes if row.get("active")
                    and row.get("extraction_state") in {"pending", "running"}]
         if variant == "legacy":
@@ -203,8 +216,8 @@ async def flush_memory(database, jobs, variant, output, stage, maximum=128):
             traces.append({"stage": stage, "iteration": iteration, "task": task,
                            "arguments": arguments, "elapsed_ms": (perf_counter() - started) * 1000})
         after_rows = await table_rows(database, "memory", "episodes")
-        after = digest([{key: row.get(key) for key in ("episode_id", "revision", "extraction_state",
-                        "extraction_cursor", "extraction_missing")} for row in after_rows])
+        after_batches = await table_rows(database, "memory", "consolidation_batches") if variant != "legacy" else ()
+        after = progress_key(after_rows, after_batches)
         if after == before:
             # In particular do not spin/reissue a submitted unknown or failed batch.
             traces.append({"stage": stage, "state": "no_progress_observe_original_or_review_error"})
@@ -382,6 +395,7 @@ async def run_story(story, corpus_hash, config, output, run_id, variant, provena
         "index_timings": [], "stream_checkpoints": [], "error_code": None}
     report["execution_config_fingerprint"] = digest({"model_context": config["model_context"],
         "persona_text": config.get("persona_text", "你是天枢的合成评测角色。按授权记忆回答，缺少依据时说明未知。"),
+        "context": config.get("context", {}),
         "retrieval": config.get("retrieval", {}), "answer_seconds": config.get("answer_seconds", 120),
         "max_answer_rounds": config.get("max_answer_rounds", 4),
         "answer_input_tokens": config.get("answer_input_tokens", 16000),

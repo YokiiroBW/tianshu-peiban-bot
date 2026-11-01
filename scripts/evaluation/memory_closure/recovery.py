@@ -208,6 +208,8 @@ def main():
         else:
             if args.config is None or args.code_root is None:
                 raise ValueError("apply_requires_private_config_and_integrated_code_root")
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             asyncio.run(apply(manifest, load_json(args.config), output, args.code_root))
     except Exception as error:
         print(getattr(error, "code", str(error) if isinstance(error, ValueError)

@@ -37,3 +37,15 @@ C 修复端口按 `3becfa4`（主协调集成 `7ae598b`）的最终签名准备�
 生产三个具名迁移、受影响域备份、Memory/Growth 固定转换清单和单写切换由 C 私有 cutover 准备与主协调负责。QQ 原 inbox 可能正常排队回复，最终执行前由主协调按实际清单和已有授权决定/一次具体询问；观察或 ignored 项与可能 reply 分列，不以猜测默认允许。GIF/自拍/Fish 配置不在本包，用户暂不绑定音色的决定保持。
 
 当前只有静态 diff/空白检查证据，不能报告工具可执行、测试通过、真实模型语义/成本可接受、迁移成功或业务上线。后续由主协调完整集成后统一启动集中验收。
+
+## 集中返修后的静态兼容准备
+
+按主协调要求，以集成 `5c4d738` 与实际旧生产 `dcdf729` 只读核对，没有执行测试、模型、网络、PG 或生产。首次集中收集发现的 Python 3.12 嵌套 walrus 语法问题已在 `77eb5dd` 改为普通循环，本轮不宣称重新运行通过。
+
+本轮纯工具修复：隔离 Settings 显式 setup_token_ref=null（否则原生 setup 会默认索取真实注册 token）；透传实际 context 配置并纳入共同指纹（否则 tokenizer 预算回退字节）；Windows CLI 的 asyncio.run 使用 Selector；允许原生可选 rerank 文本函数/capability；进度指纹同时检查真实 batch，防止 Episode cursor 不变时过早停止已知截断缩窗，并按 ID 排序避免物理行序造成假进展。相关评测用例仅编写，由主协调纳入受影响集中复验。
+
+静态确认：Dockerfile runtime 只带 installed .venv/web/dist/deploy，缺 `/opt/tianshu/src`。遵照主协调偏好，不增加第二套 installed-source loader；旧/候选均挂各自精确同 SHA 完整 git archive 为 `/code:ro`，同一最终 runner 挂 `/runner/evaluation:ro`，显式覆盖 ENTRYPOINT 为 `/opt/tianshu/.venv/bin/python`。两版 ModelRequest 字段/原生产品入口匹配，旧 receipt 的新字段过滤仅在 adapter；没有改旧 Memory 默认逻辑。当前依赖 manifest/lock/plugin package 在两个阅读提交间没有变化，但实际仍使用各自对应镜像。
+
+主协调已提供 `.230` 的 `/srv/tianshu-core/evaluation-memory-closure-20261101` 私有 config/postgres.env/stories/legacy-code，NAS 隔离 PG `192.168.31.210:25019` 可达。只记录必需字段名和路径，不读取/复述秘密；没有读取 held_out 正文。README 末节给三组准确 Docker 命令、目录层次、ModelCatalog bindings/capabilities、ModelClient wire 及 native初始化/无普通worker的边界。候选 source/image 由 root 在所有产品返修及集中复验、build 后填最终值；不用阅读基线冒充最终候选。
+
+业务写入/文件限定于隔离数据库与私有结果目录；模型请求仍由唯一生产 Broker 正常记录审计/usage/配额，不能称“生产完全无写入”。没有绑定 Fish 音色或驱动外部能力。root 等 C 最后启动修复后统一复验/构建/运行，G 不提前试跑。

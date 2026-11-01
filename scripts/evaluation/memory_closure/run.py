@@ -197,6 +197,8 @@ def main():
     args = parser().parse_args()
     try:
         if args.command == "semantic":
+            if sys.platform == "win32":
+                asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
             return asyncio.run(semantic(args))
         elif args.command == "compare":
             compare(args)
