@@ -1,5 +1,27 @@
 # MC-B：共享材料整理、固定执行与恢复
 
+## C7 Growth 原结果恢复收尾（本次补充，written_not_run）
+
+仅改 `companion/growth.py`、`growth_recovery.py`、`growth_materials.py`、两份既有定向用例和本交接；在本分支 RC28 的 `132b24ef` 后追加，独立提交供根串行集成。没有 DDL、Identity/Models 算法、提示、前端或生产改动。
+
+旧 active batch 的 `context`、material key、attempt、GenerationRequest、冻结 Episode 版本和原游标保持不变。复用 Identity.refresh_scheduled_context 从原 principal/actor/person/conversation 与原授权上界派生当前合法 reader，只用它读取同一个 Models.result；旧 context 仍用于查原 GenerationRequest。legacy / 显式授权恢复始终调用只读 `GenerationRequests.read`，即使原结果未知或不存在也不进入 run/generate。权限或来源拒绝保留 `reflection_recovery_authorization_required` 和原拒绝码，不归为输出格式错误。
+
+review 命令的已锁事务仅做短 PG 授权、原 revision CAS 和原生 enqueue，不等待 Broker。读取原结果在后续 organize 的事务外阶段；提交事务重新核验完整来源闭包、整批冻结 Episode 版本，再执行原 Memory Reflection CAS 与 Growth 原批结束。旧结果仍有效可直接消费；Episode 已修订、来源不再可用或原输出已知无效分别保留拒绝，已知过时结果走原 REVIEW_ERRORS 的显式重新审阅，绝不自动重新生成。
+
+无 active batch 时，真实缺失/撤回的 Episode 与可读但 source_refs 为空的旧版本逐项记 `growth_inputs.state=unavailable`、`reviewed_revision=revision` 和 missing。这里的 revision 标记仅关闭不可用版本的排队状态，不生成反思，也不把它称为 reviewed 成功；Episode ID、正文、原发生时间均不修改。有来源的后续版本可继续；合法补源产生更高 revision 后复用原输入登记自动重入。预算超限仍保持原阻断，不能当 unavailable 跳过。
+
+现有 Growth view/review 增补准确动作：同原场景的 active 授权恢复或 legacy 观察为 `can_request_review=true,recovery=observe_original_attempt`；无 active 的授权恢复为 `reauthorize_original_scope`；旧 `reflection_material_source_required` 为 `continue_available_material`。各项均给具体 reason；known REVIEW_ERRORS 保留既有显式 review。view 新增 `unavailable_inputs`，当前输入缺项并入已有 `legacy_missing` 投影，高版本修复后可以消除该输入缺项。不同 person/conversation 的调用者不会获得原 active 观察按钮；实际恢复再次执行原场景及授权检查。
+
+新增/更新未执行回归覆盖：旧 epoch 已知成功与 unknown 均只读原 attempt（禁止 run）；review 内无模型读取；原请求 JSON/批次/版本/游标/nonce 不变；成功原结果正常提交；Episode 改版保留显式 review；source 拒绝不降级输出错误；缺原件头部不挡有来源尾部、高版本补源可重入且缺项消除；source-backed 预算失败不被跳过。现有启动分区隔离及旧转换正常成功用例继续适用。
+
+只完成静态源代码/调用链/diff 阅读，未运行测试、解析器、构建、模型、网络、PG 或生产操作。根在整批收齐后统一执行本块精确必要范围：
+
+```text
+python -m pytest -q tests/companion/test_growth_legacy_recovery.py tests/companion/test_growth_output.py tests/companion/test_growth_budget.py
+```
+
+---
+
 ## RC28：业务执行并发隔离（本次交付，written_not_run）
 
 本次基线 `271ad96e21e0035e7f605b345114c10703542a0d`，分支 `codex/runtime-execution-lanes-rc28-20261101`。公共小提交 `4458c2da` 后的最终提交需要依次集成；A 已将小提交取为依赖，其业务提交不应重复集成该依赖。下方旧 Memory 交接保持历史，不是本次基线。

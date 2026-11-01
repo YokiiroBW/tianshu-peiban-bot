@@ -17,7 +17,7 @@ AUTHORIZATION_BLOCKED = "reflection_recovery_authorization_required"
 
 def authorization_error(error):
     return isinstance(error, AppError) and (error.status in {401, 403} or error.code in {
-        "access_changed", "delivery_access_changed", "actor_disabled",
+        "access_changed", "delivery_access_changed", "actor_disabled", "source_unavailable",
     })
 
 
@@ -41,6 +41,16 @@ class GrowthRecovery:
     def __init__(self, growth):
         self.growth = growth
         self.companion = growth.companion
+
+    @staticmethod
+    def observes_original(batch, blocked_material):
+        return bool(batch and (batch.get("legacy_material") or
+            (blocked_material or {}).get("recovery") == "observe_original_attempt"))
+
+    @staticmethod
+    def same_scene(left, right):
+        return ((left.principal_id, left.actor_id, left.person_id, left.conversation_id)
+                == (right.principal_id, right.actor_id, right.person_id, right.conversation_id))
 
     async def step(self, state):
         """Read at most one page, persist progress, and use the existing job queue."""
@@ -73,7 +83,13 @@ class GrowthRecovery:
     @staticmethod
     def blocked(state):
         return {"state": "blocked", "error_code": AUTHORIZATION_BLOCKED,
-                "phase": state["legacy_state"], "recovery": "reauthorize_original_scope"}
+                "phase": state["legacy_state"], "recovery": (
+                    "observe_original_attempt" if state["active_batch"] else "reauthorize_original_scope")}
+
+    async def reader(self, original, *, connection=None):
+        """Current bounded authorization for reading; never rekey an old intent."""
+        return await self.companion.identity.refresh_scheduled_context(
+            original, permission=recovery_permission(original), connection=connection)
 
     async def block(self, state, error):
         async with self.companion.database.transaction() as connection:
@@ -95,22 +111,26 @@ class GrowthRecovery:
         return self.blocked(state)
 
     async def resume(self, connection, current, caller):
-        """Explicitly reauthorize a scan, without abandoning an original attempt."""
-        if current["active_batch"]:
-            raise AppError("reflection_original_attempt_unresolved", status=409)
-        previous = context_from_record(current["context"])
-        if ((caller.principal_id, caller.actor_id, caller.person_id, caller.conversation_id)
-                != (previous.principal_id, previous.actor_id, previous.person_id, previous.conversation_id)):
+        """Reauthorize inventory or observation, without replacing an attempt."""
+        batch = current["active_batch"]
+        previous = context_from_record(batch["context"] if batch else current["context"])
+        if not self.same_scene(caller, previous):
             raise AppError("reflection_recovery_context_mismatch", status=403)
-        refreshed = await self.companion.identity.refresh_scheduled_context(
-            previous, permission=recovery_permission(previous), connection=connection)
+        refreshed = await self.reader(previous, connection=connection)
         blocked = current["blocked_material"] or {}
+        previous_error = blocked.get("previous_error")
+        restored = blocked.get("previous_blocked_material")
+        if batch:
+            # Control metadata is separate from immutable batch.context/inputs.
+            # Even an authoritative absence may only be observed on this path.
+            restored = {"recovery": "observe_original_attempt",
+                "reason": "在原权限范围读取原请求结果；不会提交新请求或替换未知结果。"}
         next_revision = current["revision"] + 1
         await connection.execute(
             "UPDATE companion.organize_state SET last_error=%s,blocked_material=%s,context=%s,revision=%s,updated_at=now() "
             "WHERE actor_id=%s AND scope_key=%s",
-            (blocked.get("previous_error"), document(blocked.get("previous_blocked_material")),
-             document(previous if current["legacy_state"] == "requests" else refreshed), next_revision,
+            (previous_error, document(restored),
+             document(previous if not batch and current["legacy_state"] == "requests" else refreshed), next_revision,
              current["actor_id"], current["scope_key"]))
         await self.growth._enqueue(connection, current["actor_id"], current["scope_key"], next_revision,
                                    "authorization-resume")

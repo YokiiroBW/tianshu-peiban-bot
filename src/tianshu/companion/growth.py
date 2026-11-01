@@ -9,7 +9,7 @@ from tianshu.runtime.api import CommandResult
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import ContextContribution, RequestBudget, ServiceClass
+from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from tianshu.life.validation import revision
 from tianshu.conversation.generation import GenerationRequests, attempt_for
@@ -87,16 +87,33 @@ class GrowthService:
         batch = state["active_batch"]
         if not batch and state["revision"] != expected_revision:
             return
-        context = context_from_record(batch["context"] if batch else state["context"])
+        original_context = context_from_record(batch["context"] if batch else state["context"])
+        context = original_context
+        observe_only = self.recovery.observes_original(batch, state["blocked_material"])
         try:
             await self.companion.identity.check(context)
         except AppError as error:
             if not authorization_error(error):
                 raise
-            return await self.recovery.block(state, error)
+            if not batch:
+                return await self.recovery.block(state, error)
+            try:
+                context = await self.recovery.reader(original_context)
+            except AppError as denied:
+                if not authorization_error(denied):
+                    raise
+                return await self.recovery.block(state, denied)
+            observe_only = True
         if batch:
             material_key = batch["material_key"]
-            request = await self.generations.request(attempt_for(material_key), context)
+            try:
+                # The current reader does not replace the original request key,
+                # epoch, source closure or frozen Episode revisions.
+                request = await self.generations.request(attempt_for(material_key), original_context)
+            except AppError as error:
+                if not authorization_error(error):
+                    raise
+                return await self.recovery.block(state, error)
             if request is None:
                 await self._rejected(actor_id, scope_key, material_key, "reflection_material_contract_invalid")
                 return
@@ -109,15 +126,25 @@ class GrowthService:
             available = await self.companion.memory.episodes_by_refs(context, refs)
             found = {(item.episode_id, item.revision) for item in available.items}
             missing = tuple(ref for ref in refs if ref not in found)
-            if missing:
-                async with self.companion.database.transaction() as connection:
-                    for identifier, version in missing:
-                        await connection.execute(
-                            "UPDATE companion.growth_inputs SET reviewed_revision=revision,state='unavailable',missing=%s,updated_at=now() "
-                            "WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s",
-                            (list(available.coverage.missing) or ["episode_unavailable_or_revised"], actor_id, scope_key, identifier, version))
-            page = EpisodePage(tuple(available.items), "pending" if len(pending)>32 else None, available.coverage,
-                available.items[-1].cursor if available.items else state["cursor"] or "e:0")
+            source_less = tuple(item for item in available.items if reflectable(item) and not item.source_refs)
+            unavailable = [(identifier, version, available.coverage.missing or ("episode_unavailable_or_revised",))
+                           for identifier, version in missing]
+            unavailable.extend((item.episode_id, item.revision, ("original_source_missing",)) for item in source_less)
+            if unavailable:
+                try:
+                    if not await self._unavailable(context, state, unavailable):
+                        return {"state": "changed_since_material_read"}
+                except AppError as error:
+                    if not authorization_error(error):
+                        raise
+                    return await self.recovery.block(state, error)
+            without_sources = {(item.episode_id, item.revision) for item in source_less}
+            items = tuple(item for item in available.items if (item.episode_id, item.revision) not in without_sources)
+            coverage = available.coverage
+            if source_less:
+                coverage = Coverage(False, missing=tuple(sorted(set(coverage.missing) | {"original_source_missing"})))
+            page = EpisodePage(items, "pending" if len(pending)>32 else None, coverage,
+                items[-1].cursor if items else state["cursor"] or "e:0")
             if not any(reflectable(item) for item in page.items):
                 async with self.companion.database.transaction() as connection:
                     current = await (await connection.execute(
@@ -125,7 +152,7 @@ class GrowthService:
                     if current and current["revision"] == expected_revision and not current["active_batch"]:
                         await self._finish(connection, current, {"end_cursor": page.watermark,
                             "watermark": state["watermark"], "has_more": bool(page.next_cursor),
-                            "inputs": [(item.episode_id, item.revision) for item in available.items]}, False)
+                            "inputs": [(item.episode_id, item.revision) for item in items]}, False)
                 return
             actor = await self.companion.actor(context)
             persona = await self.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
@@ -168,10 +195,15 @@ class GrowthService:
                 "WHERE actor_id=%s AND scope_key=%s", (document(batch), actor_id, scope_key))
             return True
         try:
-            result = await self.generations.run(material_key, request, guard=current_material)
+            if observe_only:
+                result = await self.generations.read(request.attempt_id, context)
+            else:
+                result = await self.generations.run(material_key, request, guard=current_material)
         except AppError as error:
             if error.code == "generation_no_longer_current":
                 return
+            if authorization_error(error):
+                return await self.recovery.block(state, error)
             if error.code != "generation_request_expired":
                 raise
             await self._rejected(actor_id, scope_key, material_key, error.code)
@@ -190,22 +222,33 @@ class GrowthService:
                     await self._enqueue(connection, actor_id, scope_key, state["revision"], "observe:" + material_key, delay=30)
             return {"state": "waiting", "error_code": code, "attempt_id": request.attempt_id,
                     "recovery": "observe_original_attempt"}
-        frozen = await self.generations.request(request.attempt_id, context)
-        generated_refs = frozen.source_refs
-        await self.companion.identity.check(context, generated_refs)
+        state = {**state, "active_batch": batch}
         try:
+            frozen = await self.generations.request(request.attempt_id, original_context)
+            if frozen is None:
+                raise AppError("reflection_material_contract_invalid")
+            generated_refs = frozen.source_refs
+            await self.companion.identity.check(context, generated_refs)
             completion = result.completion
             if completion.state == "unknown":
                 completion = completion_from_native(result.receipt.protocol, result.native_response)
             if completion.state == "incomplete":
                 raise AppError("reflection_content_incomplete", details={"stop_reasons": completion.stop_reasons})
             episodes = frozen_episodes(frozen)
+            if any(not item.source_refs for item in episodes.values()):
+                raise AppError("reflection_original_evidence_required")
             prepared = prepare_reflections(result, context, episodes, generated_refs)
             relationship = (await self.companion.memory.relationship(context, context.person_id)
                             if context.person_id and any(item.proposal.kind == "style" for item in prepared) else None)
             changed = bool(prepared)
             async with self.companion.database.transaction() as connection:
                 await self.companion.validate_persistence(connection, context, generated_refs)
+                versions = tuple((item.episode_id, item.revision) for item in episodes.values())
+                readable = await self.companion.memory.episodes_by_refs(context, versions, connection=connection)
+                if set(versions) != {(item.episode_id, item.revision) for item in readable.items}:
+                    if "unavailable_sources" in readable.coverage.missing:
+                        raise AppError("source_unavailable", status=403)
+                    raise AppError("reflection_episode_unavailable", status=409)
                 # Match Memory's source -> Episode -> projection lock order.
                 # Any later batch guard failure rolls back these writes too.
                 for item in prepared:
@@ -236,6 +279,8 @@ class GrowthService:
         except AppError as error:
             if error.code == "generation_no_longer_current":
                 return
+            if authorization_error(error):
+                return await self.recovery.block(state, error)
             if error.code not in REVIEW_ERRORS | {"reflection_not_original_evidence", "reflection_original_evidence_required", "reflection_episode_unavailable", "reflection_episode_revision_conflict"}:
                 raise
             code = error.code if error.code in REVIEW_ERRORS else "reflection_material_contract_invalid"
@@ -252,11 +297,23 @@ class GrowthService:
             if not row:
                 raise AppError("reflection_material_not_found",status=404)
             revision(row,body.get("expected_revision"))
-            if row["last_error"] == AUTHORIZATION_BLOCKED:
+            if row["last_error"] == AUTHORIZATION_BLOCKED or (
+                row["last_error"] not in REVIEW_ERRORS and
+                self.recovery.observes_original(row["active_batch"], row["blocked_material"])
+            ):
                 current = await self.recovery.resume(connection, row, context)
-                return CommandResult(body["client_request_id"], {"state": "queued", "recovery": "reauthorize_original_scope"}, current)
+                return CommandResult(body["client_request_id"], {"state": "queued", "recovery": (
+                    "observe_original_attempt" if row["active_batch"] else "reauthorize_original_scope")}, current)
             if row["last_error"] not in REVIEW_ERRORS:
                 raise AppError("reflection_original_attempt_unresolved",status=409)
+            if row["last_error"] == "reflection_material_source_required" and not row["active_batch"]:
+                current = row["revision"] + 1
+                await connection.execute(
+                    "UPDATE companion.organize_state SET revision=%s,last_error=NULL,blocked_material=NULL,context=%s,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s", (current, document(context), context.actor_id, scope_key))
+                await self._enqueue(connection, context.actor_id, scope_key, current, "available-material-resume")
+                return CommandResult(body["client_request_id"],
+                    {"state": "queued", "recovery": "continue_available_material"}, current)
             if row["active_batch"] and row["active_batch"].get("legacy_material"):
                 await connection.execute(
                     "UPDATE companion.growth_legacy_requests SET state='abandoned',error_code=%s,updated_at=now() "
@@ -267,6 +324,22 @@ class GrowthService:
             await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-explicit:{body['client_request_id']}",{"actor_id":context.actor_id,"scope_key":scope_key,"expected_revision":current},subject_id=context.actor_id))
             return CommandResult(body["client_request_id"],{"state":"queued"},current)
         return await self.companion.commands.execute(context,"companion.growth.review",body["client_request_id"],signature(body),apply)
+
+    async def _unavailable(self, context, state, versions):
+        """Close unavailable versions as coverage gaps, never successful reviews."""
+        async with self.companion.database.transaction() as connection:
+            await self.companion.validate_persistence(connection, context)
+            current = await (await connection.execute(
+                "SELECT revision,active_batch FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
+                (state["actor_id"], state["scope_key"]))).fetchone()
+            if not current or current["revision"] != state["revision"] or current["active_batch"]:
+                return False
+            for identifier, version, missing in versions:
+                await connection.execute(
+                    "UPDATE companion.growth_inputs SET reviewed_revision=revision,state='unavailable',missing=%s,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s AND reviewed_revision<revision",
+                    (list(missing), state["actor_id"], state["scope_key"], identifier, version))
+        return True
 
     async def recover(self):
         async with self.companion.database.transaction(read_only=True) as connection:
@@ -340,18 +413,35 @@ class GrowthService:
         async with self.companion.database.transaction(read_only=True) as connection:
             review=await (await connection.execute(
                 "SELECT revision,last_error,last_reviewed_at,blocked_material,active_batch->>'material_key' AS material_key,"
-                "active_batch-'context' AS batch,cursor,legacy_state,legacy_request_cursor,legacy_episode_cursor,legacy_missing,"
+                "active_batch-'context' AS batch,coalesce(active_batch->'context',context) AS recovery_context,"
+                "cursor,legacy_state,legacy_request_cursor,legacy_episode_cursor,legacy_missing,"
                 "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND reviewed_revision<i.revision) AS pending_inputs,"
+                "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='unavailable') AS unavailable_inputs,"
+                "ARRAY(SELECT DISTINCT gap.reason FROM companion.growth_inputs i CROSS JOIN LATERAL unnest(i.missing) gap(reason) "
+                "WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='unavailable' ORDER BY gap.reason) AS input_missing,"
                 "(SELECT count(*) FROM companion.growth_legacy_requests r WHERE r.actor_id=s.actor_id AND r.scope_key=s.scope_key AND r.state='pending') AS pending_original_requests "
                 "FROM companion.organize_state s WHERE actor_id=%s AND scope_key=%s",
                 (context.actor_id,signature(sorted(context.scope_ids))))).fetchone()
         if review:
+            original = context_from_record(review.pop("recovery_context"))
+            same_scene = self.recovery.same_scene(context, original)
             review = {**review, "attempt_id": attempt_for(review["material_key"]) if review["material_key"] else None,
                 "can_request_review": review["legacy_state"] == "complete" and review["last_error"] in REVIEW_ERRORS,
                 "recovery": "observe_original_attempt" if review["material_key"] and review["last_error"] not in REVIEW_ERRORS else None}
+            review["legacy_missing"] = sorted(set(review["legacy_missing"]) | set(review.pop("input_missing")))
+            if (review["last_error"] not in REVIEW_ERRORS and
+                    self.recovery.observes_original(review["batch"], review["blocked_material"])):
+                review["can_request_review"] = same_scene
+                review["recovery"] = "observe_original_attempt"
+                review["reason"] = "只读取原请求结果并复核原版本；不会提交新请求或替换未知结果。"
+            if review["last_error"] == "reflection_material_source_required" and not review["material_key"]:
+                review["recovery"] = "continue_available_material"
+                review["reason"] = "逐项记录原件缺项，继续有来源的后续经历；不补造原件。"
             if review["last_error"] == AUTHORIZATION_BLOCKED:
-                review["recovery"] = "reauthorize_original_scope"
-                review["can_request_review"] = not review["material_key"]
+                review["recovery"] = "observe_original_attempt" if review["material_key"] else "reauthorize_original_scope"
+                review["can_request_review"] = same_scene
+                review["reason"] = ("在原权限范围重新授权后，只读取原请求结果；不会提交新请求。"
+                    if review["material_key"] else "在原权限范围重新授权后，从原扫描位置继续。")
                 # Existing UI must show the saved blocker rather than falsely
                 # claiming an unauthorized conversion is still running.
                 review.pop("legacy_state")  # Its exact phase remains in blocked_material.

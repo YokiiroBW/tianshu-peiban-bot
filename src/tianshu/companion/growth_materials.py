@@ -43,7 +43,9 @@ def reflectable(episode):
 async def select_batch(assembler, context, page, persona_text, budget, revision):
     # Consume a complete prefix of actual pending versions. The cursor is only
     # diagnostic; the version ledger also covers late commits below that cursor.
-    # A bad first item is visible and blocks once instead of being silently lost.
+    # Growth records confirmed source-less versions as explicit unavailable
+    # coverage before selection. Keep this guard for any unclassified caller;
+    # budget failures remain blocking and must never be treated as unavailable.
     eligible = []
     candidates = tuple(item for item in page.items if reflectable(item))
     for episode in candidates:

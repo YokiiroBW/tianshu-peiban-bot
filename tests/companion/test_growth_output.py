@@ -9,7 +9,7 @@ import pytest
 from tianshu.companion.growth import GrowthService
 from tianshu.companion.reflection_output import output_example
 from tianshu.companion.service import CompanionService
-from tianshu.conversation.codec import signature
+from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.memory.types import Episode, EpisodePage
 from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
@@ -52,7 +52,7 @@ class Memory:
         end = items[-1].cursor if items else _cursor or "e:0"
         return EpisodePage(items, end if len(pending)>_limit else None, Coverage(len(pending)<=_limit), end)
 
-    async def episodes_by_refs(self, _context, refs):
+    async def episodes_by_refs(self, _context, refs, *, connection=None):
         selected = tuple(item for identifier, version in refs for item in self.episodes
                          if item.episode_id == identifier and item.revision == version)
         return EpisodePage(selected, None, Coverage(len(selected) == len(refs)), selected[-1].cursor if selected else "e:0")
@@ -76,6 +76,7 @@ class Models:
 
     def __init__(self, *payloads):
         self.payloads, self.calls, self.reads, self.results = payloads, [], [], {}
+        self.read_contexts = []
 
     async def generate(self, request):
         payload = self.payloads[len(self.calls)]
@@ -89,6 +90,7 @@ class Models:
 
     async def result(self, attempt_id, *, context):
         self.reads.append(attempt_id)
+        self.read_contexts.append(context)
         return self.results.get(attempt_id)
 
 
@@ -359,3 +361,67 @@ async def test_late_commit_with_lower_sequence_is_consumed_as_actual_version(dat
     async with database.transaction(read_only=True) as connection:
         row = await (await connection.execute("SELECT revision,reviewed_revision FROM companion.growth_inputs WHERE episode_id='late-commit'")).fetchone()
     assert row["reviewed_revision"] == row["revision"] == 1
+
+
+@pytest.mark.asyncio
+async def test_source_less_head_is_a_coverage_gap_tail_continues_and_repaired_version_reenters(database):
+    models = Models({"notes": []}, {"notes": []})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    missing = replace(memory.episode, source_refs=())
+    tail = replace(memory.episode, episode_id="source-backed-tail", event_id="tail", sequence=2, cursor="e:2",
+        source_refs=(SourceRef("tail-original", 1),))
+    memory.episode, memory.episodes = missing, (missing, tail)
+    await growth.changed(context, "tail", episode=tail)
+    async with database.transaction() as connection:
+        await connection.execute(
+            "UPDATE companion.organize_state SET last_error='reflection_material_source_required',blocked_material=%s",
+            (document({"episode_id": missing.episode_id, "revision": missing.revision}),))
+    view = (await growth.view(context))["review"]
+    assert view["can_request_review"] and view["recovery"] == "continue_available_material"
+    resumed = await growth.request_review(context,
+        {"client_request_id": "continue-source-backed-tail", "expected_revision": view["revision"]})
+    assert resumed.data["recovery"] == "continue_available_material"
+    assert (await state(database))["generation_revision"] == 0
+    await growth.organize("actor", signature(sorted(context.scope_ids)), resumed.revision)
+    async with database.transaction(read_only=True) as connection:
+        inputs = await (await connection.execute(
+            "SELECT episode_id,revision,reviewed_revision,state,missing FROM companion.growth_inputs ORDER BY sequence")).fetchall()
+    assert inputs[0] == {"episode_id": "episode", "revision": 1, "reviewed_revision": 1,
+                         "state": "unavailable", "missing": ["original_source_missing"]}
+    assert inputs[1]["state"] == "reviewed" and inputs[1]["reviewed_revision"] == 1
+    assert len(models.calls) == 1 and models.calls[0].source_refs == tail.source_refs
+    assert memory.episodes[0] == missing and missing.occurred_at == memory.episode.occurred_at
+    view = (await growth.view(context))["review"]
+    assert view["unavailable_inputs"] == 1 and "original_source_missing" in view["legacy_missing"]
+    # A legitimate native repair supplies a new Episode version, not a fabricated
+    # dependency for the old version. Its original occurrence time is retained.
+    repaired = replace(missing, revision=2, source_refs=(SourceRef("repaired-original", 1),))
+    memory.episode, memory.episodes = repaired, (repaired, tail)
+    await growth.changed(context, "native-repaired-version", episode=repaired)
+    current = await state(database)
+    await growth.organize("actor", signature(sorted(context.scope_ids)), current["revision"])
+    assert len(models.calls) == 2 and repaired.occurred_at == missing.occurred_at
+    async with database.transaction(read_only=True) as connection:
+        recovered = await (await connection.execute(
+            "SELECT revision,reviewed_revision,state,missing FROM companion.growth_inputs WHERE episode_id='episode'")).fetchone()
+    assert recovered == {"revision": 2, "reviewed_revision": 2, "state": "reviewed", "missing": []}
+    view = (await growth.view(context))["review"]
+    assert view["unavailable_inputs"] == 0 and "original_source_missing" not in view["legacy_missing"]
+
+
+@pytest.mark.asyncio
+async def test_source_backed_budget_failure_is_not_converted_to_unavailable_or_skipped(database):
+    models = Models({"notes": []})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    huge = replace(memory.episode, summary="完整但过大材料" * 24000)
+    tail = replace(memory.episode, episode_id="tail", event_id="tail", sequence=2, cursor="e:2")
+    memory.episodes = (huge, tail)
+    await growth.changed(context, "tail", episode=tail)
+    current = await state(database)
+    result = await growth.organize("actor", signature(sorted(context.scope_ids)), current["revision"])
+    assert result["error_code"] == "reflection_material_budget_exceeded"
+    assert models.calls == []
+    async with database.transaction(read_only=True) as connection:
+        inputs = await (await connection.execute("SELECT state,reviewed_revision,missing FROM companion.growth_inputs")).fetchall()
+    assert len(inputs) == 2 and all(row == {"state": "pending", "reviewed_revision": 0, "missing": []} for row in inputs)
+    assert (await state(database))["cursor"] is None
