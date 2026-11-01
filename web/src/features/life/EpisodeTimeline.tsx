@@ -18,6 +18,7 @@ const extractionStates: Record<string, string> = {
   running: "正在整理",
   extracting: "正在整理",
   completed: "本批整理已完成",
+  completed_with_missing: "本批整理已结束，部分原始材料仍有缺失",
   complete: "本批整理已完成",
   extracted: "本批整理已完成",
   partial: "部分材料已整理，仍有后续内容",
