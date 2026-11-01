@@ -28,6 +28,10 @@
           "source": "decadd5",
           "integrated": "bcd53c8",
           "scope": "migration aggregate ownership and proven legacy links"
+        },
+        {
+          "source": "b4ef871",
+          "scope": "private corrections from current authorized public targets"
         }
       ]
     },
@@ -50,6 +54,12 @@
       ],
       "followup_commits": [
         "b0dddb3"
+      ],
+      "acceptance_fix_commits": [
+        {
+          "source": "0ecfca2",
+          "scope": "bounded long originals, shared protocol definitions and exact Episode status"
+        }
       ]
     },
     "MC-C": {
@@ -147,6 +157,10 @@
           "source": "73c8144",
           "integrated": "49224d1",
           "scope": "scoped URL fixtures and missing-material descriptions"
+        },
+        {
+          "source": "db02852",
+          "scope": "explicit accessible names for current-head editing and query mode"
         }
       ]
     },
@@ -291,7 +305,7 @@
   "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
   "unified_validation": {
     "implementation_head": "5c4d738",
-    "status": "first_pass_repairs_integrated_targeted_rerun",
+    "status": "second_repair_batch_integrated_targeted_continuation",
     "backend": {
       "first_collection": "blocked_by_evaluation_tool_syntax_fixed_5c4d738",
       "first_run": {
@@ -315,6 +329,17 @@
       "page_case_count": 36
     },
     "semantic": "private_inputs_prepared_not_started",
-    "production_changed": false
+    "production_changed": false,
+    "second_pass": {
+      "backend_completed": 88,
+      "backend_passed": 85,
+      "backend_failed": 3,
+      "backend_remaining": 33,
+      "interruption": "unchanged input-budget failure in 129-part tail case; 12803 required against 12000 configured; stopped repeated no-progress fixture work",
+      "frontend_build": "passed",
+      "frontend_pages_passed": 20,
+      "frontend_pages_failed": 4,
+      "page_failures": "two accessible-label issues, repeated desktop/mobile; unchanged 12 native page cases reused"
+    }
   }
 }
