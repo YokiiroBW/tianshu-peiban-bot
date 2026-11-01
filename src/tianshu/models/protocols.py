@@ -295,6 +295,94 @@ class ResponseCollector:
         self.native_response = None
         self.completed = False
         self.calls = {}
+        self.chat_finished = {}
+
+    def _chat_parts(self, value):
+        if not isinstance(value, dict) or not isinstance(value.get("choices"), list):
+            raise AppError("invalid_native_chat_response", status=502)
+        usage = value.get("usage")
+        if usage is not None:
+            if not isinstance(usage, dict):
+                raise AppError("invalid_native_chat_response", status=502)
+            self.raw_usage = usage
+        added = []
+        for choice in value["choices"]:
+            if not isinstance(choice, dict):
+                raise AppError("invalid_native_chat_response", status=502)
+            choice_index = choice.get("index")
+            if type(choice_index) is not int or choice_index < 0:
+                raise AppError("invalid_native_chat_response", status=502)
+            streaming = "message" not in choice
+            message = choice.get("delta") if streaming else choice["message"]
+            if not isinstance(message, dict):
+                raise AppError("invalid_native_chat_response", status=502)
+            if not streaming and message.get("role") != "assistant":
+                raise AppError("invalid_native_chat_response", status=502)
+            content = message.get("content")
+            if content is not None:
+                if not isinstance(content, str):
+                    raise AppError("invalid_native_chat_response", status=502)
+                added.append(ModelPart("text", text=content))
+            # These fields are explicitly nullable in ChatCompletionMessage and
+            # ChoiceDelta. Required choices/message/delta structures are not.
+            calls = message.get("tool_calls")
+            if calls is not None:
+                if not isinstance(calls, list):
+                    raise AppError("invalid_native_chat_response", status=502)
+                for call in calls:
+                    self._chat_call(choice_index, call, streaming=streaming)
+            finish = choice.get("finish_reason")
+            if finish is not None and (
+                not isinstance(finish, str)
+                or finish not in {"stop", "length", "tool_calls", "content_filter", "function_call"}
+            ):
+                raise AppError("invalid_native_chat_response", status=502)
+            self.chat_finished[choice_index] = (
+                self.chat_finished.get(choice_index, False) or finish is not None
+            )
+        # A usage-only trailer has choices=[] and must neither fabricate a
+        # finish nor erase a finish observed on earlier chunks.
+        self.completed = bool(self.chat_finished) and all(self.chat_finished.values())
+        return added
+
+    def _chat_call(self, choice_index, call, *, streaming):
+        if not isinstance(call, dict):
+            raise AppError("invalid_native_chat_response", status=502)
+        identity = call.get("id")
+        function = call.get("function")
+        kind = call.get("type")
+        if (kind is not None and kind != "function") or (not streaming and kind is None):
+            raise AppError("invalid_native_chat_response", status=502)
+        if streaming:
+            index = call.get("index")
+            if type(index) is not int or index < 0:
+                raise AppError("invalid_native_chat_response", status=502)
+        else:
+            if not isinstance(identity, str) or not identity or not isinstance(function, dict):
+                raise AppError("invalid_native_chat_response", status=502)
+            index = identity
+        current = self.calls.setdefault(
+            (choice_index, index), {"id": None, "name": "", "arguments": ""}
+        )
+        if identity is not None:
+            if (
+                not isinstance(identity, str)
+                or not identity
+                or current["id"] not in {None, identity}
+            ):
+                raise AppError("invalid_native_chat_response", status=502)
+            current["id"] = identity
+        if function is None and streaming:
+            return
+        if not isinstance(function, dict):
+            raise AppError("invalid_native_chat_response", status=502)
+        for field in ("name", "arguments"):
+            fragment = function.get(field)
+            if fragment is None and streaming:
+                continue
+            if not isinstance(fragment, str):
+                raise AppError("invalid_native_chat_response", status=502)
+            current[field] += fragment
 
     def feed(self, value):
         self.native_response = value
@@ -313,19 +401,7 @@ class ResponseCollector:
                         added.append(ModelPart("tool_call", call_id=call.get("id"),
                             name=call["name"], arguments=call.get("args", {}), native=part))
         elif self.protocol == "openai.chat":
-            if value.get("usage") is not None:
-                self.raw_usage = value["usage"]
-            for choice in value.get("choices", []):
-                self.completed |= bool(choice.get("finish_reason"))
-                message = choice.get("message", choice.get("delta", {}))
-                if isinstance(message.get("content"), str):
-                    added.append(ModelPart("text", text=message["content"]))
-                for call in message.get("tool_calls", []):
-                    index = call.get("index", call.get("id", 0))
-                    current = self.calls.setdefault(index, {"id": None, "name": "", "arguments": ""})
-                    current["id"] = call.get("id", current["id"])
-                    current["name"] += call.get("function", {}).get("name", "")
-                    current["arguments"] += call.get("function", {}).get("arguments", "")
+            added.extend(self._chat_parts(value))
         elif self.protocol == "openai.responses":
             if value.get("type") in {"response.completed", "response.failed", "response.incomplete"}:
                 response = value.get("response", {})
@@ -380,6 +456,29 @@ class ResponseCollector:
         return added
 
     def tool_parts(self):
-        return tuple(ModelPart("tool_call", call_id=value["id"], name=value["name"],
-                               arguments=json.loads(value["arguments"] or "{}"))
-                     for value in self.calls.values())
+        if self.protocol == "openai.chat":
+            parts = []
+            for value in self.calls.values():
+                if not self.completed or not value["id"] or not value["name"]:
+                    raise AppError("incomplete_native_tool_call", status=502)
+                try:
+                    arguments = json.loads(value["arguments"])
+                except (ValueError, TypeError):
+                    raise AppError("invalid_native_tool_call", status=502) from None
+                if not isinstance(arguments, dict):
+                    raise AppError("invalid_native_tool_call", status=502)
+                parts.append(
+                    ModelPart(
+                        "tool_call", call_id=value["id"], name=value["name"], arguments=arguments
+                    )
+                )
+            return tuple(parts)
+        return tuple(
+            ModelPart(
+                "tool_call",
+                call_id=value["id"],
+                name=value["name"],
+                arguments=json.loads(value["arguments"] or "{}"),
+            )
+            for value in self.calls.values()
+        )
