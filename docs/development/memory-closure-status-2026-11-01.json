@@ -1,8 +1,8 @@
 {
-  "phase": "product_repairs_frozen_candidate10_preparing_user_requested_old_test_batch_cleanup",
+  "phase": "delivered_deployed_cleanup_verified_clean_source_packaging",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
-  "production_source": "706760f5d585be299fc5fd19ecc4c794bc6df080",
+  "production_source": "c04c8d26adfbd99e9834efc1ec711ae79f7fd1c4",
   "validation_policy": "Only after all implementation and integration; no incremental tests, builds or model/live acceptance",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "max",
@@ -10,7 +10,7 @@
   "owners": {
     "MC-A": {
       "agent": "memory_domain",
-      "state": "integrated_targeted_validation_passed_not_deployed",
+      "state": "integrated_deployed_scoped_validation_complete",
       "branch": "codex/memory-domain-20261101",
       "interface_commits": [
         "4a70af8647f5f8d52915a1cfb1140188183bb4b8"
@@ -37,7 +37,7 @@
     },
     "MC-B": {
       "agent": "memory_pipeline",
-      "state": "integrated_targeted_validation_passed_not_deployed",
+      "state": "integrated_deployed_scoped_validation_complete",
       "branch": "codex/memory-pipeline-20261101",
       "interface_commits": [
         "32625c3"
@@ -64,7 +64,7 @@
     },
     "MC-C": {
       "agent": "product_closure",
-      "state": "integrated_targeted_validation_passed_not_deployed",
+      "state": "integrated_deployed_scoped_validation_complete",
       "branch": "codex/product-closure-20261101",
       "interface_commits": [
         "3fe73bc",
@@ -124,12 +124,12 @@
     },
     "MC-R": {
       "agent": "runtime_audit",
-      "state": "complete_read_only",
+      "state": "integrated_deployed_scoped_validation_complete",
       "finding_count": 6,
       "evidence": "private runtime-review-20261101/independent-audit/report.json"
     },
     "MC-D": {
-      "state": "integrated_targeted_validation_passed_not_deployed",
+      "state": "integrated_deployed_scoped_validation_complete",
       "scope": "multi-type temporal retrieval, indexing, complete evidence in context and consumers",
       "agent": "memory_domain",
       "implementation_commit": "9d75b61bfdd3a4d149f6c52a1c151fa0f02b0353",
@@ -149,7 +149,7 @@
       ]
     },
     "MC-F": {
-      "state": "integrated_targeted_validation_passed_not_deployed",
+      "state": "integrated_deployed_scoped_validation_complete",
       "scope": "memory/history/recovery frontend and affected capability setup experience",
       "branch": "codex/memory-frontend-20261101",
       "worktree": "tianshu-cr-frontend",
@@ -176,7 +176,7 @@
       ]
     },
     "MC-G": {
-      "state": "tool_validation_passed_real_semantic_and_cutover_pending",
+      "state": "integrated_deployed_scoped_validation_complete",
       "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts",
       "branch": "codex/memory-acceptance-20261101",
       "worktree": "tianshu-cr-foundation",
@@ -204,209 +204,249 @@
     {
       "id": "RC-01",
       "owner": "MC-C",
-      "state": "confirmed",
+      "state": "deployed_native_original_inbox_recovery_and_three_user_skips_verified",
       "problem": "QQ sender.card NUL causes durable inbox processing DataError; original events retained",
-      "historical_recovery_decision": "Direct user skip decision applied by native JobQueue.cancel to the three original jobs; messages, failed status and attempts=1 retained; no historical replies."
+      "historical_recovery_decision": "Direct user skip decision applied by native JobQueue.cancel to the three original jobs; messages, failed status and attempts=1 retained; no historical replies.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-02",
       "owner": "MC-C",
-      "state": "confirmed",
-      "problem": "Growth mandatory episode batch exceeds context budget and repeatedly fails before model"
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Growth mandatory episode batch exceeds context budget and repeatedly fails before model",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-03",
       "owner": "MC-C+MC-B",
-      "state": "confirmed",
-      "problem": "imagined activity completion lacks actor source refs for subjective reflection"
+      "state": "deployed_seven_original_imagined_episode_repairs_verified",
+      "problem": "imagined activity completion lacks actor source refs for subjective reflection",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-04",
       "owner": "MC-C",
-      "state": "inspect_and_close",
-      "problem": "weather queues behind prior unknown resource hold; hold expired, fresh successful read not yet observed"
+      "state": "fresh_native_weather_observed_original_unknown_retained",
+      "problem": "weather queues behind prior unknown resource hold; hold expired, fresh successful read not yet observed",
+      "previous_phase_state": "inspect_and_close"
     },
     {
       "id": "RC-05",
       "owner": "MC-B+MC-C",
-      "state": "confirmed",
-      "problem": "Five extraction_unavailable episodes are successful physical model calls with finish_reason length and exhausted 4096 output tokens; classify truncation and budget reasoning without partial apply."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Five extraction_unavailable episodes are successful physical model calls with finish_reason length and exhausted 4096 output tokens; classify truncation and budget reasoning without partial apply.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-06",
       "owner": "root+MC-C+MC-F",
-      "state": "implement_connection_keep_voices_unbound",
+      "state": "implementation_deployed_credentials_absent_and_user_voice_binding_deferred",
       "problem": "Fish connection readiness and role voice settings require complete setup; user explicitly chose to leave voices unbound.",
-      "user_preference": "User explicitly replied: temporarily do not bind role voices."
+      "user_preference": "User explicitly replied: temporarily do not bind role voices.",
+      "previous_phase_state": "implement_connection_keep_voices_unbound"
     },
     {
       "id": "RC-07",
       "owner": "root+MC-C+MC-F",
-      "state": "assets_staged_await_final_native_import",
+      "state": "112_actor_assets_imported_both_indices_succeeded_native_semantic_selection_verified",
       "problem": "reaction pack empty; inspect authorized AstrBot library for native import",
       "assets": 67,
       "bytes": 53525197,
-      "production_imported": false
+      "production_imported": true,
+      "previous_phase_state": "assets_staged_await_final_native_import",
+      "unique_assets_per_actor": 56,
+      "imported_actor_count": 2
     },
     {
       "id": "RC-08",
       "owner": "root+MC-C+MC-F",
-      "state": "configuration_and_acceptance",
-      "problem": "selfie capability and proactive path require actual configuration and outcome; no successful image work yet"
+      "state": "native_single_image_generated_scene_fidelity_limitation_recorded",
+      "problem": "selfie capability and proactive path require actual configuration and outcome; no successful image work yet",
+      "previous_phase_state": "configuration_and_acceptance"
     },
     {
       "id": "RC-09",
       "owner": "MC-C+MC-G",
-      "state": "trace_and_acceptance",
-      "problem": "content reading/video, proactive expression, diary, relationship and OneBot rich-message closure require evidence"
+      "state": "native_HTTP_browser_audio_video_verified_no_external_message_send_acceptance",
+      "problem": "content reading/video, proactive expression, diary, relationship and OneBot rich-message closure require evidence",
+      "previous_phase_state": "trace_and_acceptance"
     },
     {
       "id": "RC-10",
       "owner": "MC-B+MC-C",
-      "state": "confirmed",
-      "problem": "Merged-forward quote InputPart emitted by channels is rejected by Conversation validator; preserve quote author/observational semantics and resume original inbox identity."
+      "state": "deployed_native_original_observe_jobs_recovered",
+      "problem": "Merged-forward quote InputPart emitted by channels is rejected by Conversation validator; preserve quote author/observational semantics and resume original inbox identity.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-11",
       "owner": "MC-C",
-      "state": "confirmed",
-      "problem": "Infrastructure collector calls absent ExternalCatalog.record_test; observations persist but recent-test metadata absent, repeated unhandled subtask exceptions only in INFO process.output."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Infrastructure collector calls absent ExternalCatalog.record_test; observations persist but recent-test metadata absent, repeated unhandled subtask exceptions only in INFO process.output.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-12",
       "owner": "MC-F",
-      "state": "confirmed",
-      "problem": "Media runtime UI hardcodes SQLite/main-file size while backend reports PostgreSQL schema pg_total_relation_size."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Media runtime UI hardcodes SQLite/main-file size while backend reports PostgreSQL schema pg_total_relation_size.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-13",
       "owner": "MC-C+MC-F",
-      "state": "confirmed",
-      "problem": "Interactive media status reads its unstarted engine/background instead of actual worker state; need existing worker-owned durable observation projection."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Interactive media status reads its unstarted engine/background instead of actual worker state; need existing worker-owned durable observation projection.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-14",
       "owner": "MC-C",
-      "state": "confirmed",
-      "problem": "Thirteen media background task kinds renew every 10 seconds without work; 845 persisted wakeups in observed 30 minutes, no proven starvation. Reuse next_due and idle backoff."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Thirteen media background task kinds renew every 10 seconds without work; 845 persisted wakeups in observed 30 minutes, no proven starvation. Reuse next_due and idle backoff.",
+      "previous_phase_state": "confirmed"
     },
     {
       "id": "RC-15",
       "owner": "MC-C",
-      "state": "bounded_operational_cleanup",
-      "problem": "Unbound-target group recall notices correctly denied but remain failed accepted inbox noise; consume as ignored without granting target access."
+      "state": "deployed_ten_original_jobs_consumed_without_historical_replies",
+      "problem": "Unbound-target group recall notices correctly denied but remain failed accepted inbox noise; consume as ignored without granting target access.",
+      "previous_phase_state": "bounded_operational_cleanup"
     },
     {
       "id": "RC-16",
       "owner": "MC-B",
-      "state": "implemented_not_verified",
-      "problem": "Input-budget failure before batch persistence prevented resume after configuration changed; now records actual failure budget and exposes refresh_material after relevant change without new Episode or automatic paid retry."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Input-budget failure before batch persistence prevented resume after configuration changed; now records actual failure budget and exposes refresh_material after relevant change without new Episode or automatic paid retry.",
+      "previous_phase_state": "implemented_not_verified"
     },
     {
       "id": "RC-17",
       "owner": "MC-B",
-      "state": "integrated_targeted_validation_passed_not_deployed",
-      "problem": "First-time explicit arrangements were extracted only as claims; clarify native Matter selection and stable identity without creating reminders or external tasks."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "First-time explicit arrangements were extracted only as claims; clarify native Matter selection and stable identity without creating reminders or external tasks.",
+      "previous_phase_state": "integrated_targeted_validation_passed_not_deployed"
     },
     {
       "id": "RC-18",
       "owner": "MC-A",
-      "state": "integrated_targeted_validation_passed_not_deployed",
-      "problem": "Reaction pack publication scopes diverged from raw Source and Artifact authority, preventing normal QQ role usage after UI import; make explicit per-actor import consistent across all layers."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Reaction pack publication scopes diverged from raw Source and Artifact authority, preventing normal QQ role usage after UI import; make explicit per-actor import consistent across all layers.",
+      "previous_phase_state": "integrated_targeted_validation_passed_not_deployed"
     },
     {
       "id": "RC-19",
       "owner": "MC-G",
-      "state": "integrated_targeted_validation_passed_not_deployed",
-      "problem": "Subsecond optional retrieval deadlines could create submitted unknown holds and occupy both elastic slots; use actual lease preparation budget, full remote execution window and bounded admission, preserve all unknown protections and foreground deadline."
+      "state": "deployed_directed_admission_checks_passed_original_unknowns_retained",
+      "problem": "Subsecond optional retrieval deadlines could create submitted unknown holds and occupy both elastic slots; use actual lease preparation budget, full remote execution window and bounded admission, preserve all unknown protections and foreground deadline.",
+      "previous_phase_state": "integrated_targeted_validation_passed_not_deployed"
     },
     {
       "id": "RC-20",
       "owner": "MC-B",
-      "state": "integrated_deterministic_verified_real_semantic_pending",
-      "problem": "Readable Episode-only speakers had no authorized display identity in answer context; hydrate current permitted subject/speaker labels inside complete source-checked evidence for projection, retrieval, tools and source trace."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Readable Episode-only speakers had no authorized display identity in answer context; hydrate current permitted subject/speaker labels inside complete source-checked evidence for projection, retrieval, tools and source trace.",
+      "previous_phase_state": "integrated_deterministic_verified_real_semantic_pending"
     },
     {
       "id": "RC-21",
       "owner": "MC-A",
-      "state": "integrated_deterministic_verified_real_semantic_pending",
-      "problem": "Visible consolidation schema allowed existing-record link targets that the domain rejects; unify create/ref shape per operation while preserving atomicity, fixed read sets and original source checks."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Visible consolidation schema allowed existing-record link targets that the domain rejects; unify create/ref shape per operation while preserving atomicity, fixed read sets and original source checks.",
+      "previous_phase_state": "integrated_deterministic_verified_real_semantic_pending"
     },
     {
       "id": "RC-22",
       "owner": "MC-A+MC-B",
-      "state": "integrated_deterministic_verified_real_semantic_pending",
-      "problem": "Common schedules were assigned to a speaker and ordinary confirmation/relay statements became new tasks; clarify group versus personal subjects and independently trackable Matter boundaries."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Common schedules were assigned to a speaker and ordinary confirmation/relay statements became new tasks; clarify group versus personal subjects and independently trackable Matter boundaries.",
+      "previous_phase_state": "integrated_deterministic_verified_real_semantic_pending"
     },
     {
       "id": "RC-23",
       "owner": "MC-A",
-      "state": "integrated_deterministic_verified_real_semantic_pending",
-      "problem": "Explicit transition date was kept only in conditions while effective_at/valid_from/valid_until were null. Specify formal temporal boundaries and do not substitute utterance/recorded timestamps for unknown onset."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Explicit transition date was kept only in conditions while effective_at/valid_from/valid_until were null. Specify formal temporal boundaries and do not substitute utterance/recorded timestamps for unknown onset.",
+      "previous_phase_state": "integrated_deterministic_verified_real_semantic_pending"
     },
     {
       "id": "RC-24",
       "owner": "MC-A",
-      "state": "integrated_deterministic_verified_real_semantic_pending",
-      "problem": "Model wrapped link endpoint aliases in create/ref objects despite correct schema. Clarify target versus endpoint representation; preserve strict rejection and all-or-nothing batch application."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Model wrapped link endpoint aliases in create/ref objects despite correct schema. Clarify target versus endpoint representation; preserve strict rejection and all-or-nothing batch application.",
+      "previous_phase_state": "integrated_deterministic_verified_real_semantic_pending"
     },
     {
       "id": "RC-25",
       "owner": "MC-A",
-      "state": "integrated_targeted_10_cases_passed_real_evaluation_running",
-      "problem": "Known-truncation recovery halves nominal source budget even when selected material is unchanged, causing repeated paid reasoning; querying latest failed batch also reuses old reduced budget after later successful consumption. Shrink must reduce actual pending material and reset when no longer a contiguous relevant failure."
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
+      "problem": "Known-truncation recovery halves nominal source budget even when selected material is unchanged, causing repeated paid reasoning; querying latest failed batch also reuses old reduced budget after later successful consumption. Shrink must reduce actual pending material and reset when no longer a contiguous relevant failure.",
+      "previous_phase_state": "integrated_targeted_10_cases_passed_real_evaluation_running"
     },
     {
       "id": "RC-26",
       "owner": "MC-A",
-      "state": "four_targeted_checks_and_final_S03_native_semantics_passed",
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
       "problem": "The model-visible transition description omits that successor_ref declares a new Claim and payload contains successor fields; a reasonable add-then-transition interpretation is correctly rejected as duplicate_create. Clarify one existing instruction, preserving strict validator, native creation, old closure and supersedes behavior.",
       "source_commit": "aa2707f9c1fd326572fb6d300cb9ac8574553cc4",
-      "integrated_as": "8c70c90167080ecd12e9e321ee25aaffc1b7b7e9"
+      "integrated_as": "8c70c90167080ecd12e9e321ee25aaffc1b7b7e9",
+      "previous_phase_state": "four_targeted_checks_and_final_S03_native_semantics_passed"
     },
     {
       "id": "RC-27",
       "owner": "MC-B",
-      "state": "deployed_startup_and_native_health_verified",
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
       "problem": "Growth startup awaited legacy recovery under a stale saved Context, causing access_changed to abort both interactive and worker startup; one old partition must not take down application. Reuse queued per-partition recovery and bounded scheduled-context refresh for scanning only; retain original model request authority/identity and visible blocked states.",
-      "integration_commit": "9bbd4e901392778abfb87c168e376b0356337fcb"
+      "integration_commit": "9bbd4e901392778abfb87c168e376b0356337fcb",
+      "previous_phase_state": "deployed_startup_and_native_health_verified"
     },
     {
       "id": "RC-28",
       "owner": "MC-Q1 runtime / MC-Q2 capability / MC-Q3 media",
-      "state": "implemented_unified_verified_deployed_native_registration_confirmed",
+      "state": "implemented_deployed_applicable_scoped_validation_complete",
       "problem": "Three physical queues conflate model service class with business execution capacity; background consolidation occupies both elastic slots and manual image/index remain todo attempts0. Whole-repo queue/lock audit additionally found heavy media coordinators, node-lock slot capture and shared model HTTP transport congestion.",
-      "user_scope": "All independent functions run concurrently; retain only proven per-conversation/action/file/resource dependencies. Finish whole patch then unified necessary validation."
+      "user_scope": "All independent functions run concurrently; retain only proven per-conversation/action/file/resource dependencies. Finish whole patch then unified necessary validation.",
+      "previous_phase_state": "implemented_unified_verified_deployed_native_registration_confirmed"
     },
     {
       "id": "RC-29",
       "owner": "MC-Q2 images",
-      "state": "integrated_unified_targets_passed_not_yet_deployed",
-      "problem": "Complete successful image plan is fenced JSON; direct json.loads rejects it, while general sub-model dispatch makes pre-image parse failure look like unknown image execution. Original image_work absent and original planner succeeded; correct parsing and explicit known-not-submitted reconciliation/resume required."
+      "state": "deployed_original_action_safe_recovery_and_native_image_verified",
+      "problem": "Complete successful image plan is fenced JSON; direct json.loads rejects it, while general sub-model dispatch makes pre-image parse failure look like unknown image execution. Original image_work absent and original planner succeeded; correct parsing and explicit known-not-submitted reconciliation/resume required.",
+      "previous_phase_state": "integrated_unified_targets_passed_not_yet_deployed"
     },
     {
       "id": "RC-30",
       "owner": "MC-Q1 growth",
-      "state": "integrated_unified_targets_passed_not_yet_deployed",
-      "problem": "Reflection ID only uses actor/kind/selected Episode IDs; same selected support across full frozen batches collides. Native old 12-Episode interest shares ID with current one-Episode revision2 result but has different content and dependencies. Bind identity to immutable generation and full frozen material, retain strict CAS and visible real conflicts."
+      "state": "deployed_original_generation_v2_conversion_and_new_reflections_verified",
+      "problem": "Reflection ID only uses actor/kind/selected Episode IDs; same selected support across full frozen batches collides. Native old 12-Episode interest shares ID with current one-Episode revision2 result but has different content and dependencies. Bind identity to immutable generation and full frozen material, retain strict CAS and visible real conflicts.",
+      "previous_phase_state": "integrated_unified_targets_passed_not_yet_deployed"
     },
     {
       "id": "RC-31",
       "owner": "MC-Q3 plugins",
-      "state": "integrated_unified_targets_passed_not_yet_deployed",
-      "problem": "Plugin git/pip package preparation occupied the shared two file-worker slots while waiting on network/subprocesses. PluginManager now owns one bounded preparation thread and retains installation lock, cancellation settlement and lifecycle; normal file work is isolated."
+      "state": "deployed_plugin_preparation_pool_isolated_directed_checks_passed",
+      "problem": "Plugin git/pip package preparation occupied the shared two file-worker slots while waiting on network/subprocesses. PluginManager now owns one bounded preparation thread and retains installation lock, cancellation settlement and lifecycle; normal file work is isolated.",
+      "previous_phase_state": "integrated_unified_targets_passed_not_yet_deployed"
+    },
+    {
+      "id": "RC-32",
+      "owner": "MC-G",
+      "state": "deployed_native_browser_rendered_DOM_verified",
+      "problem": "Chromium sandbox namespace chroot was blocked by host-cap-conditional seccomp rule; explicitly allow the syscall while retaining non-root child identity, sandbox, no-new-privileges and original host capabilities.",
+      "integration_commit": "552cc8136d6eb92088bf36c2956f68abbca9971c"
     }
   ],
   "blueprint_acceptance": {
-    "M01-M18": "Applicable deterministic domain/pipeline/context/authorization/source/model/channel/capability/migration checks passed, including final 38-case display/protocol scope across its receipts; earlier 36 frontend scenarios plus 4 reaction import scenarios remain valid. Final semantic/cost and production outcomes pending."
+    "M01-M18": "Implemented and deployed. Applicable deterministic checks plus 24 distinct reviewed semantic stories and RC26 final S03 native supplement are recorded in original receipts. Correct answers do not imply every model batch committed; original unknowns, refusals and cost limitations remain explicit."
   },
   "new_production_release": {
     "state": "production_ready",
-    "source_sha": "47df9a92c503bd7a2dbbc6c8402f411325f4bbe5",
-    "image_id": "sha256:21bdb56b2f0e7b1d84d6fe8ed73e7f5df9d5f4a32c50935c0c8bcfc8cccab8a8",
-    "old_container_id": "3b9b67237935499c8ab343820476499d1af2768d07e8f1911dc3f2f438918c73",
-    "old_image": "sha256:2ed573ddbbdec0a398537107fb01bcdc44971c706e35af10b48905391a2693a8",
-    "container_id": "0c0877e801123dca8fec9a5cc1603ca1d0f158123d76ae566d2d28329f8f19e8",
+    "source_sha": "c04c8d26adfbd99e9834efc1ec711ae79f7fd1c4",
+    "image_id": "sha256:6dcb705408090252d177e8425329de9598a46512d9288969d5f79011950bd91c",
+    "old_container_id": "83a306f0834528c0bd5c6ebde628c6ad252c6a34962d17272ae84fb475db9aeb",
+    "old_image": "sha256:674a978b1163042e5d47e56e44a731353a20fb090abcb9331554264f2b2c540a",
+    "container_id": "79ea915833ba909b9fcba4ab3a8ffeec0750768f0f000d6403a612704095b1de",
     "configuration_unchanged": true,
     "mounts_unchanged": true,
     "database_migration_change": false,
@@ -451,7 +491,11 @@
       "mount_count": 11,
       "database_migration_change": false,
       "receipt": "candidate-09/acceptance/postdeploy-02.json"
-    }
+    },
+    "started_at": "2026-11-01T18:15:15.11167477Z",
+    "seccomp_profile_sha256": "07b5fbc0fb83061b5730693e77d453c853fb2784fce57426a7de13d7416f3e6e",
+    "final_receipt": "candidate-10/acceptance/postdeploy-final.json",
+    "native_browser_receipt": "candidate-10/acceptance/native-browser-readback.private.json"
   },
   "semantic_acceptance_inputs": {
     "stories": 24,
@@ -460,10 +504,10 @@
     "state": "24 unique stories covered by 17 candidate05 and7 unchanged candidate04 results; 8 heldout answers reviewed only after candidate05 freeze. All 24 answers correct in these root-reviewed runs, not a universal accuracy claim. Native failures/unknowns remain explicit. Candidate06 only clarifies the existing transition operation after development S03 cost-arm failure and supplements S03; candidate05 cost benchmark remains labeled pre-clarification.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All final product code is integrated through 552cc813. Chromium sandbox chroot rule fixed without granting host capabilities; exact-image isolated baseline failed and candidate launched/closed as UID10001 with sandbox enabled. User requested discarding broken old test data, so the proposed permanent Growth retirement API was not integrated and its narrow frontend change was reverted. Remaining operations are one-time fixed old-test-batch cleanup and ordinary final deployment; no broad code refactor remains.",
+  "product_implementation": "Final scoped implementation and deployment complete. 34 execution lanes/39 slots, separate model transports and plugin preparation pool are active. Chromium sandbox fix verified with real rendered-DOM read. Three broken old test Growth batches (10 exact versions) were explicitly discarded in one transaction, with original model audit retained and later work continuing. No new permanent Growth compatibility API was added; proposed UI was reverted.",
   "unified_validation": {
     "implementation_head": "5c4d738",
-    "status": "deterministic_targets_passed_real_model_pending",
+    "status": "completed_with_scoped_evidence_and_documented_external_model_limits",
     "backend": {
       "first_collection": "blocked_by_evaluation_tool_syntax_fixed_5c4d738",
       "first_run": {
@@ -565,7 +609,7 @@
         "backend-semantic-09"
       ]
     },
-    "production_change_scope": "Three migrations applied; candidate06 startup failed and is stopped. Original seven-schema backup retained. New startup-only replacement pending.",
+    "production_change_scope": "16 recorded migrations remain; no C8-C10 DDL. Final C10 ready and guarded, configuration and 11 mounts preserved. The only last configuration repair is the new sandbox seccomp file referenced when creating the container.",
     "candidate02_semantic": {
       "source_sha": "ba2b95daf6eb1d62ade0e14f5f8d71c38f484cd4",
       "image_id": "sha256:6ed87a23bdf71fd8e64ffd827018a3b2deba9fb73f652c20851f0e569163221a",
@@ -777,7 +821,7 @@
     "fish": "no_native_credentials; voice_binding_deferred_by_user",
     "audio_video": "actual_Gemini_native_parts_consumed; video red_to_blue correct; public_audio_transcript_matches_original_record; sampled_coverage_retained",
     "webpage": "actual_HTTP_body_and_original_Source_succeeded",
-    "browser": "sandbox chroot root cause confirmed; repaired profile passed exact-image isolated launch; final production switch pending",
+    "browser": "final native rendered-DOM read succeeded with original Source readback and sandbox enabled; original known no-effect failure retained",
     "onebot": "two_existing_connections_identity_online_and_five_read_only_APIs_verified; no_QQ_send"
   },
   "queue_isolation_execution": {
@@ -818,7 +862,7 @@
       "desktop_mobile_cases": 4,
       "tests_started_after_all_changes_integrated": true
     },
-    "deployment_state": "candidate08_ready_native34_lanes_original19_jobs_routed_no_blockers",
+    "deployment_state": "final_candidate10_ready_34_lanes_39_slots_no_legacy_routing_blockers",
     "deployment_source": "47df9a92c503bd7a2dbbc6c8402f411325f4bbe5",
     "observed_native": {
       "workers_ready": true,
@@ -827,8 +871,9 @@
       "slots": 39,
       "legacy_jobs_routed": 19,
       "routing_blocked": 0,
-      "receipt": "candidate-08/acceptance/queue-readback-01.private.json"
-    }
+      "receipt": "candidate-10/acceptance/final-resources.private.json"
+    },
+    "final_deployment_source": "c04c8d26adfbd99e9834efc1ec711ae79f7fd1c4"
   },
   "old_test_cleanup": {
     "authorization": "2026-11-02 user: old unusable data may be deleted because it is test data; repair/cleanup before final clean source package",
@@ -839,7 +884,22 @@
     ],
     "scope": "fixed unusable original Growth batches; persona/provider/bot configuration preserved",
     "permanent_compatibility_api_added": false,
-    "state": "one_time_manifest_preparing",
-    "source_package": "after final repairs and cleanup only"
+    "state": "three_fixed_batches_ten_versions_discarded_and_readback_verified",
+    "source_package": "after final repairs and cleanup only",
+    "semantics": "Removed from pending Growth using existing unavailable/abandoned states with explicit user_discarded_test_material; not falsely marked normally reviewed. Shared Episodes/Sources/Memory and settled request/model audit were preserved, avoiding broken references. This is not a full database reset.",
+    "receipt": "candidate-10/acceptance/growth-test-discard-02/coordinator-verification.json",
+    "new_permanent_product_code": false
+  },
+  "remaining_limits": [
+    "Fish credentials are not configured and user explicitly deferred role voice binding; no TTS call claimed.",
+    "No real QQ test sends, forum login/post or real Bilibili whole-part viewing acceptance.",
+    "One generated selfie has correct night instructions in the compiled graph but daylight appearance; visual scene fidelity is not proven.",
+    "Original model unknown outcomes remain auditable and are not reissued. At final snapshot a separate Growth partition reported transport_unknown; it does not mean global worker/queue failure.",
+    "24 reviewed semantic stories are scoped results, not a universal memory-quality guarantee; cost matrix has incomplete usage and no exact paid cost."
+  ],
+  "source_archive": {
+    "policy": "After final repair, deployment and test-batch cleanup, archive the final committed tracked source only. No runtime data, credentials, .git, virtualenv, node_modules or build output. Exact package commit is recorded in the ZIP comment and external package receipt.",
+    "deployed_application_source": "c04c8d26adfbd99e9834efc1ec711ae79f7fd1c4",
+    "later_source_changes": "delivery documentation only; product code must remain identical to deployed application source"
   }
 }

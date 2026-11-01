@@ -194,3 +194,14 @@ RC-29/30/31完整集成为`5ec70e127a4a22f4037a53826efecda407fb231c`。模型JSO
 浏览器问题已定位并合入552cc813：实际业务UID10001运行，原Chromium文件存在；旧seccomp只有持CAP_SYS_CHROOT时才允许chroot，而当前cap_drop ALL的约束阻止浏览器在子用户命名空间收缩root。仅将chroot移到显式允许组，删除旧重复条件，不增加宿主cap、不关sandbox。既有配置合同1项通过；首轮缺本地已声明PyYAML依赖导致collection失败，补锁定6.0.3后仅复验该项。相同C9镜像、非root、sandbox=true、无网络/生产挂载：旧profile复现失败，候选启动/关闭成功。正式切换必须更新宿主被新容器引用的profile；镜像文件变化本身不足。
 
 d8b新反思输出为完整但混有可见推演的散文+JSON，严格拒绝正确；不是截断或预算不足。无需抽尾JSON放宽验证，也不继续付费重试，该旧测试批列入用户授权清理。自拍夜间一致性仍按原样本限制报告，不据此扩大代码改造。
+
+
+## 最终部署、旧测试批清理与源码交付
+
+C10应用源码c04c8d26、镜像sha256:6dcb705408090252d177e8425329de9598a46512d9288969d5f79011950bd91c于2026-11-01T18:15:15Z启动，ready/healthy、guard active、原配置及11挂载一致，16迁移无新增。新容器引用已校验hash为07b5fbc0fb83061b5730693e77d453c853fb2784fce57426a7de13d7416f3e6e的宿主seccomp；非root业务身份、sandbox与原cap保持。原生content.read render=browser新Action成功返回rendered_dom、实际正文及原件Source；C9原failed/effect=none回执保留。
+
+同一切换窗口，用户授权的3个旧测试批、10冻结版本以单事务退出Growth待处理，缺行补最小防重登记标记。现有unavailable/abandoned明确user_discarded_test_material；不把丢弃写成正常reviewed，不改cursor/generation nonce/reviewed watermark，也不改共享Episode/Source/Memory或原GenerationRequest/Models。正式读回确认3个manifest abandoned、10版本均退出、原请求hash/attempt不变、三个旧阻断清除，后续合法材料继续。这里只清理有问题的测试处理批，不宣称整库历史已物理删除。新永久退休产品分支未集成，前端入口已撤销。
+
+最终worker原生注册仍34lane/39slot、routing_blocked=0，三个角色ready，两个QQ在交互角色available/transport_bound。原未知模型结果保留；另一个成长分区的transport_unknown是局部原请求状态，不伪报为整理成功。此前音视频/表情/生成、24故事和成本结果按适用源码复用，未为打包重跑整套测试。Fish未绑定/未配凭据、真实QQ富媒体发送/B站/论坛、自拍光照质量及长期语义效果仍按明确边界报告。
+
+源码包在修复、部署、清理读回后由最终Git提交导出。归档只含受版本控制的源码、前端、SDK、测试、锁文件、部署模板与文档；运行数据、真实账号密钥、.git、.venv、node_modules及未跟踪构建目录不进入。ZIP完整性、文件名清单及SHA256在本地单独核对；应用代码与上述线上源码保持一致，最后差异仅交付文档。
