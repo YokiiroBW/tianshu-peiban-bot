@@ -5,6 +5,7 @@ import {
   type DomainTarget,
 } from "../../api/useDomainResource";
 import { SourceEvidence } from "../../components/SourceEvidence";
+import { DetailCard } from "../../components/DetailCard";
 import { useMemoryCursor } from "./pagination";
 import {
   assertionNames,
@@ -38,6 +39,8 @@ const statuses: Record<string, string> = {
 };
 export const memoryLabel = (value: string) => statuses[value] ?? value;
 const missingNames: Record<string, string> = {
+  coverage_unknown: "本次记录没有提供素材覆盖范围，不能据此认定已读完或看完。",
+  observation_analysis_unavailable: "观察分析尚未形成可核验的材料。",
   legacy_recorded_time_unknown: "部分旧记录的首次记录时间未知",
   valid_time_unknown: "部分证据的有效时间未知",
   reflection_valid_time_unknown: "反思的适用时间未知",
@@ -70,10 +73,9 @@ export function CoverageNote({ coverage }: { coverage?: Coverage | null }) {
         </ul>
       )}
       {!!coverage.missing.length && (
-        <details>
-          <summary>覆盖诊断</summary>
+        <DetailCard title="覆盖诊断">
           <pre>{showValue(coverage)}</pre>
-        </details>
+        </DetailCard>
       )}
     </div>
   );

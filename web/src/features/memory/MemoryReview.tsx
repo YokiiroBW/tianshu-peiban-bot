@@ -116,6 +116,7 @@ export default function MemoryReview({
                     episodeId={item.episode_id}
                     revision={item.revision}
                     initial={item.consolidation}
+                    extractionState={item.extraction_state}
                     scope={scope}
                     refresh={view.refresh}
                     identities={identities}

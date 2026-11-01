@@ -52,3 +52,14 @@
 协调者在 A/B/C/D/F/G 全部代码完成且接口集成后，再运行受影响构建（已有 build 包含 typecheck）及本 spec、既有相关原生页面/Life 状态用例。开发阶段没有执行这些命令，没有运行截图、移动端或真实权限/来源撤回浏览器验证，不能据静态阅读声称已通过。
 
 人物/群页依据合法服务器返回显示名称；无法证明的作者与旧时间明确未知。实际模型语义、费用、跨进程恢复、真实 QQ/外部能力、图片成品与 GIF 原生导入仍由协调者统一验收和唯一生产接线。用户暂不绑定 Fish 音色这一明确选择仍保留。
+
+## 第一轮统一验收后的集中返修
+
+返修分支 `codex/memory-frontend-fixes-20261101`，基线 `5c4d738`。协调者已完成原批构建（含 typecheck）及 36 个桌面/移动端页面场景，原记录为 16 通过、20 失败。本次只读取该批日志、error-context 与 trace.network，不在返修工作树运行测试、构建、候选程序或浏览器。
+
+- 9 个新增场景共同被夹具拦截规则阻断：真实 `client.selectedEndpoint` 会把 actor/person/conversation 选择器附加到 POST URL；原 spec 只匹配无查询参数的完整 URL。现有 trace 显示 `memory/claims?actor_id=actor` 取得默认 200 空页、`memory/index/rebuild?actor_id=actor` 落入默认 404、`capabilities/catalog/view?actor_id=actor` 取得默认空目录。全局 Media 没有 actor 选择器，故原 Media 场景通过。
+- 在既有 native-fixture 增加精确 API pathname matcher，并让新增 spec 统一使用它；查询参数与真实 URL/body 选择器全部保留，claims 与 claims/history 也不会因前缀匹配互相覆盖。额外保留 Claim 读取和索引写入的 URL actor 与 body actor 一致性断言；没有删场景或放宽原业务断言。
+- Life 的旧场景还发现真实展示回归：共用 CoverageNote 遗漏 coverage_unknown 的原有说明，EpisodeProcessing 没有展示旧 Episode 的 no_original_material。现补回清楚的覆盖/无原件说明，在 Life 和 Memory 共用展示；旧 extraction_state 只用于说明记录，恢复按钮仍完全依据服务器 action，不按旧失败字符串构造动作。
+- 覆盖原始诊断改为按需打开现有 DetailCard，日常页面保留人类可读的缺项说明；技术码和原 JSON 在用户打开诊断时仍可查看。来源读取权限失效后不会回退展示旧提取状态。
+
+本次只做代码修复、格式整理与静态 diff 阅读；当前返修代码尚未复验。协调者收齐本轮各包修复后，统一重验这批受影响页面场景及必要构建，不复跑未受影响的真实模型/生产操作。

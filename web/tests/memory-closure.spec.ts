@@ -7,6 +7,7 @@ import {
   nativeSession,
   conversation,
   state,
+  apiPath,
 } from "./native-fixture";
 
 const claim = {
@@ -67,8 +68,11 @@ test("time queries and bounded history keep corrections on the latest claim head
   const reads: Record<string, unknown>[] = [];
   const writes: Record<string, unknown>[] = [];
   const historyCursors: unknown[] = [];
-  await page.route("**/api/v1/memory/claims", (route) => {
+  await page.route(apiPath("memory/claims"), (route) => {
     const body = route.request().postDataJSON();
+    expect(new URL(route.request().url()).searchParams.get("actor_id")).toBe(
+      body.actor_id,
+    );
     reads.push(body);
     return answer(route, {
       ...emptyPage,
@@ -84,7 +88,7 @@ test("time queries and bounded history keep corrections on the latest claim head
       ],
     });
   });
-  await page.route("**/api/v1/memory/claims/history", (route) => {
+  await page.route(apiPath("memory/claims/history"), (route) => {
     const body = route.request().postDataJSON();
     historyCursors.push(body.cursor);
     return answer(route, {
@@ -99,7 +103,7 @@ test("time queries and bounded history keep corrections on the latest claim head
       next_cursor: body.cursor ? null : "history-page-2",
     });
   });
-  await page.route("**/api/v1/memory/claims/get", (route) =>
+  await page.route(apiPath("memory/claims/get"), (route) =>
     answer(route, {
       ...claim,
       revision: 3,
@@ -107,7 +111,7 @@ test("time queries and bounded history keep corrections on the latest claim head
       value: "当前认识",
     }),
   );
-  await page.route("**/api/v1/memory/claims/correct", (route) => {
+  await page.route(apiPath("memory/claims/correct"), (route) => {
     const body = route.request().postDataJSON();
     writes.push(body);
     return answer(route, command(body, { ...claim, revision: 4 }, 4));
@@ -179,10 +183,10 @@ test("matter completion basis and history remain distinct from the current edita
     completion_basis: { kind: "human_report", source_refs: [] },
     relations: [],
   };
-  await page.route("**/api/v1/memory/matters", (route) =>
+  await page.route(apiPath("memory/matters"), (route) =>
     answer(route, { ...emptyPage, items: [matter] }),
   );
-  await page.route("**/api/v1/memory/matters/history", (route) => {
+  await page.route(apiPath("memory/matters/history"), (route) => {
     const body = route.request().postDataJSON();
     historyCursors.push(body.cursor);
     return answer(route, {
@@ -203,7 +207,7 @@ test("matter completion basis and history remain distinct from the current edita
       next_cursor: body.cursor ? null : "matter-history-2",
     });
   });
-  await page.route("**/api/v1/memory/matters/get", (route) =>
+  await page.route(apiPath("memory/matters/get"), (route) =>
     answer(route, {
       ...matter,
       revision: 4,
@@ -212,7 +216,7 @@ test("matter completion basis and history remain distinct from the current edita
       completion_basis: null,
     }),
   );
-  await page.route("**/api/v1/memory/matters/save", (route) => {
+  await page.route(apiPath("memory/matters/save"), (route) => {
     const body = route.request().postDataJSON();
     writes.push(body);
     return answer(route, command(body, { ...matter, revision: 5 }, 5));
@@ -278,7 +282,7 @@ test("episode recovery follows server actions and unknown only observes the orig
     extraction_state: "unknown",
     consolidation: pending,
   };
-  await page.route("**/api/v1/memory/episodes", (route) =>
+  await page.route(apiPath("memory/episodes"), (route) =>
     answer(route, {
       ...emptyPage,
       watermark: "2",
@@ -298,10 +302,10 @@ test("episode recovery follows server actions and unknown only observes the orig
       ],
     }),
   );
-  await page.route("**/api/v1/memory/extraction/status", (route) =>
+  await page.route(apiPath("memory/extraction/status"), (route) =>
     answer(route, { ...pending, episode_id: "pending", revision: 2 }),
   );
-  await page.route("**/api/v1/memory/extraction/resume", (route) => {
+  await page.route(apiPath("memory/extraction/resume"), (route) => {
     const body = route.request().postDataJSON();
     writes.push(body);
     return answer(
@@ -355,10 +359,10 @@ test("group processing shows authorized targets separately from committed no-cha
     target_ref: "qq:group",
     label: "群聊",
   };
-  await page.route("**/api/v1/identity/conversations", (route) =>
+  await page.route(apiPath("identity/conversations"), (route) =>
     answer(route, { ...emptyPage, items: [group] }),
   );
-  await page.route("**/api/v1/memory/projection", (route) =>
+  await page.route(apiPath("memory/projection"), (route) =>
     answer(route, {
       person_id: null,
       group_id: group.conversation_id,
@@ -401,7 +405,7 @@ test("group processing shows authorized targets separately from committed no-cha
       },
     }),
   );
-  await page.route("**/api/v1/memory/matters", (route) => {
+  await page.route(apiPath("memory/matters"), (route) => {
     reads.push(route.request().postDataJSON());
     return answer(route, emptyPage);
   });
@@ -425,8 +429,11 @@ test("index rebuild keeps all five kinds and follows the opaque server cursor", 
   page,
 }) => {
   const writes: Record<string, unknown>[] = [];
-  await page.route("**/api/v1/memory/index/rebuild", (route) => {
+  await page.route(apiPath("memory/index/rebuild"), (route) => {
     const body = route.request().postDataJSON();
+    expect(new URL(route.request().url()).searchParams.get("actor_id")).toBe(
+      body.actor_id,
+    );
     writes.push(body);
     return answer(
       route,
@@ -466,7 +473,7 @@ test("evidence queries preserve both relation endpoints and distinguish ranked c
   page,
 }) => {
   const reads: Record<string, unknown>[] = [];
-  await page.route("**/api/v1/memory/query", (route) => {
+  await page.route(apiPath("memory/query"), (route) => {
     const body = route.request().postDataJSON();
     reads.push(body);
     const ranked = body.plan.coverage_mode === "ranked";
@@ -545,7 +552,7 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
   page,
 }) => {
   let writes = 0;
-  await page.route("**/api/v1/companion/growth/view", (route) =>
+  await page.route(apiPath("companion/growth/view"), (route) =>
     answer(route, {
       items: [],
       reflections: [],
@@ -575,7 +582,7 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
       },
     }),
   );
-  await page.route("**/api/v1/companion/growth/review", (route) => {
+  await page.route(apiPath("companion/growth/review"), (route) => {
     writes += 1;
     return answer(route, {});
   });
@@ -597,7 +604,7 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
 test("media runtime describes PostgreSQL schema bytes and stale worker observations honestly", async ({
   page,
 }) => {
-  await page.route("**/api/v1/media/view", (route) =>
+  await page.route(apiPath("media/view"), (route) =>
     answer(route, {
       configured: true,
       capabilities: { provider: "bilibili", source_kinds: [] },
@@ -662,7 +669,7 @@ test("unbound Fish voice is a role readiness state and never saves a profile aut
   page,
 }) => {
   let writes = 0;
-  await page.route("**/api/v1/speech/view", (route) =>
+  await page.route(apiPath("speech/view"), (route) =>
     answer(route, {
       connections: [],
       profiles: [],
@@ -670,11 +677,11 @@ test("unbound Fish voice is a role readiness state and never saves a profile aut
       default_route: null,
     }),
   );
-  await page.route("**/api/v1/speech/profiles.save", (route) => {
+  await page.route(apiPath("speech/profiles.save"), (route) => {
     writes += 1;
     return answer(route, {});
   });
-  await page.route("**/api/v1/capabilities/catalog/view", (route) =>
+  await page.route(apiPath("capabilities/catalog/view"), (route) =>
     answer(route, {
       actor_id: "actor",
       revision: 1,
@@ -723,10 +730,10 @@ test("weather keeps stale readings and only queries the unresolved original requ
   page,
 }) => {
   let observations = 0;
-  await page.route("**/api/v1/life/state", (route) =>
+  await page.route(apiPath("life/state"), (route) =>
     answer(route, { ...state, weather_location: "location" }),
   );
-  await page.route("**/api/v1/weather/current", (route) => {
+  await page.route(apiPath("weather/current"), (route) => {
     observations += 1;
     return answer(route, {
       location: {

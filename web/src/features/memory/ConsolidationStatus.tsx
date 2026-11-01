@@ -24,6 +24,12 @@ const stateNames: Record<string, string> = {
   completed: "已完成本次材料",
   completed_with_missing: "本次材料已处理，仍有证据缺项",
   legacy_abandoned: "旧结果映射无法证明",
+  no_original_material:
+    "这条记录没有可用于整理的原始材料，未从中抽取人物事实。",
+  claim_subject_forbidden: "整理结果引用了未授权对象，本批未写入人物记忆。",
+  invalid_claim_predicate: "整理结果的字段格式未通过校验，本批未写入人物记忆。",
+  no_extractable_text: "当前材料没有可用于整理的文字内容。",
+  source_unavailable: "原始依据已不可用。",
 };
 const actions: Record<string, { label: string; description: string }> = {
   observe_original_attempt: {
@@ -148,6 +154,7 @@ export function EpisodeProcessing({
   episodeId,
   revision,
   initial,
+  extractionState,
   scope,
   refresh,
   identities = {},
@@ -155,6 +162,7 @@ export function EpisodeProcessing({
   episodeId: string;
   revision: number;
   initial?: Consolidation;
+  extractionState?: string;
   scope: DomainTarget;
   refresh: () => Promise<void>;
   identities?: Record<string, string>;
@@ -182,10 +190,14 @@ export function EpisodeProcessing({
   const value = status.accessLost ? undefined : (observed ?? initial);
   return (
     <div>
-      {value ? (
+      {value?.status ? (
         <ConsolidationStatus value={value} identities={identities} />
       ) : (
-        <p>尚未取得实际整理批次和恢复动作。</p>
+        <p>
+          {extractionState && !status.accessLost
+            ? `记忆整理：${stateNames[extractionState] ?? "原记录的整理状态尚未确认"}`
+            : "尚未取得实际整理批次和恢复动作。"}
+        </p>
       )}
       <button
         className="text-link"

@@ -104,6 +104,11 @@ export async function answer(route: Route, value: unknown) {
   await route.fulfill({ json: value });
 }
 
+/** Domain selectors stay in the real URL; match only the exact API pathname. */
+export function apiPath(path: string) {
+  return (url: URL) => url.pathname === `/api/v1/${path}`;
+}
+
 /** Synthetic fixtures use the actual contracts and reject undeclared operations. */
 export async function nativeSession(page: Page) {
   await page.route("**/api/v1/**", async (route) => {
