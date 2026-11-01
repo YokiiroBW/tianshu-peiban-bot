@@ -244,7 +244,7 @@ def consolidation_instruction(frozen):
         "认同/确认安排非参加承诺；个人Matter须明示自身安排/后续委托承诺/既有进展；转述/表态不自建或完成待办。"
         "Matter身份据主体/上下文/来源；改名/改期/进展/取消用原r+expected_revision追加版本并列reads；"
         "同名/同日不证同一事项，个人独立事项分开；身份不明补查或unresolved。"
-        "生效界写valid_from/valid_until，不只conditions；transition:effective_at=新valid_from=旧valid_until。"
+        "生效界写valid_from/valid_until，不只conditions；transition:target指旧r,payload为新Claim;successor_ref声明未用n勿另add;自动关旧区间并supersedes;effective_at=新valid_from=旧valid_until。"
         "日粒度用原时区日界，粒度留conditions；未知null，不以发言/入库时间代填；相对时间据occurred_at/context.time_zone。"
         "due_at仅有据约定/截止，缺时刻null，粒度/条件留conditions/summary；Claim可about_matter关联，勿重复。"
         "completed须真人明确报告完成(human_report，仅报告)或材料内成功Action/Receipt(action_receipt，真实执行)。"

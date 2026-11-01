@@ -357,3 +357,33 @@ separate MC-D integration scope and will consume these types/builders.
   本次修改默认重跑已通过的 129 片段、前端或整套语义评测。
 - 仅静态阅读相关调用链和完整 diff；没有执行测试、解析/typecheck/build、模型、
   网络、PG、生产或 QQ，也未读取 heldout。实际效果与成本仍待根任务统一必要验证。
+
+## transition successor 声明语义补齐（2026-11-01）
+
+- 基于冻结集成 `228c1d7b0fab559c982083cb2332e1f97b036489` 在原 worktree 建立
+  `codex/memory-transition-contract-20261101`。候选05的既有不可变结果与成本对照
+  仍属于旧源码；本分支没有执行或改写评测、源数据、共享文档和保留集。
+- 静态核对指定 conservative/S03 第9行真实请求：successor_ref 仅指向 local 字符串
+  定义，没有创建归属说明；短指令仅给 transition 的时间等式。领域与 validator 则
+  一直把 successor_ref 当作本操作的新声明，将 payload 写入新 Claim，再关闭旧
+  区间并建立 supersedes。第10行先 add 同一个 n、再 transition 的提案被严格拒绝
+  是正确行为；可见合同缺少操作语义，不能仅归为模型忽略了已有明示规则。
+- 只替换同源 transition 短说明：target 指旧 r、payload 为新 Claim，successor_ref
+  声明未用 n 且勿另 add，系统自动关旧区间并 supersedes。保留正式生效字段要求、
+  effective_at=新 valid_from=旧 valid_until，以及紧随其后的未知 null、原时区与
+  不借发言/入库时间代填规则。没有新增故事词、示例、分类器或其他提示调整。
+- Schema 形状、validator、领域、来源/CAS、预算、计数器及调度均未改。静态 UTF-8
+  比较该说明净增101 B；沿原字节夹具静态基准预计11872+101=11973，距12000余27。
+  这不是运行候选或测试的结果，也不是实际供应商 token/费用测量。
+- 既有 `test_correction_and_transition_have_different_history` 已检查不同新 Claim、旧
+  区间关闭与 supersedes，直接复用；未发现实际 duplicate-create 负向覆盖，因此只
+  编写一条完整合同用例：Schema形状合法、来源/reads/目标覆盖合法的先 add 后
+  transition 重复 n，仍由原 validator 拒绝为 memory_consolidation_duplicate_create。
+  没有编写复述说明文案的断言，也没有放宽或自动归一化无效输出。
+- 根任务统一必要验证的最少4个节点：
+  - tests/core/test_memory_revision_domain.py::test_correction_and_transition_have_different_history
+  - tests/memory/test_consolidation_contract.py::test_transition_cannot_redeclare_a_successor_created_by_another_operation
+  - tests/memory/test_consolidation_contract.py::test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources
+  - tests/core/test_incremental_consumers.py::test_long_original_and_more_than_128_parts_reach_the_tail
+- 上述新增用例仅编写未运行；本次未执行测试、解析/typecheck/build、模型、网络、PG
+  或部署操作，未读取 heldout。实际语义与成本待根任务收完本批后统一必要验证。

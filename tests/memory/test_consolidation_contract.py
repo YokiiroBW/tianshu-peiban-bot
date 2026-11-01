@@ -172,6 +172,26 @@ def test_shared_claim_schema_keeps_required_and_extra_property_validation(kind):
         validate_proposal(data,invalid)
 
 
+def test_transition_cannot_redeclare_a_successor_created_by_another_operation():
+    data = frozen()
+    proposal = consolidation_example(data)
+    claim = {'predicate':'interest', 'value':'原文支持的新状态', 'speaker_id':'a',
+        'assertion':'self_confirmed', 'polarity':True, 'conditions':{},
+        'valid_from':None, 'valid_until':None}
+    proposal['operations'] = [
+        {'op_id':'op1', 'kind':'add_claim', 'subject_id':'a', 'target':{'create':'n1'},
+            'payload':claim, 'support_groups':[['m1']], 'context_refs':[], 'reads':[], 'reason':'原件支持'},
+        {'op_id':'op2', 'kind':'revise_claim', 'subject_id':'a',
+            'target':{'ref':'r0', 'expected_revision':3},
+            'payload':{**claim, 'revision_mode':'transition', 'successor_ref':'n1', 'effective_at':None},
+            'support_groups':[['m1']], 'context_refs':[], 'reads':['r0'], 'reason':'后来变化'},
+    ]
+    proposal['target_results'][0].update(status='changed', operation_ids=['op1', 'op2'])
+    assert not list(Draft202012Validator(consolidation_schema(data)).iter_errors(proposal))
+    with pytest.raises(AppError, match='memory_consolidation_duplicate_create'):
+        validate_proposal(data, proposal)
+
+
 def test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources():
     from tianshu.conversation.context.assembly import TokenCounter
     from tianshu.memory.consolidation import Consolidation
