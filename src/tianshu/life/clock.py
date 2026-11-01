@@ -205,7 +205,7 @@ class LifeClock:
             "life.clock", key,
             {"actor_id": row["actor_id"], "expected_revision": row["revision"],
              "due_at": row["next_due_at"].isoformat()},
-            ServiceClass.ELASTIC, row["next_due_at"], row["actor_id"],
+            ServiceClass.DUE, row["next_due_at"], row["actor_id"],
         ))
 
     async def tick(self, actor_id, expected_revision, due_at):
