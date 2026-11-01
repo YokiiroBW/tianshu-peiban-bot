@@ -53,7 +53,7 @@
       "queue_connections": {"type": "integer", "minimum": 3},
       "abort_poll_seconds": {"type": "number", "minimum": 0.1, "maximum": 60},
       "lanes": {"type": "object", "propertyNames": {"enum": [
-        "control", "inbound", "delivery", "conversation", "proactive", "schedule", "life", "planning", "writing",
+        "control", "inbound", "delivery", "conversation", "proactive", "schedule", "life", "planning", "diary", "writing",
         "memory_consolidation", "memory_index", "memory_recovery", "source_lifecycle",
         "growth", "images", "reactions", "speech", "book_audio", "perception",
         "downloads", "media", "book_sources", "comic_sources", "video_subscriptions", "music_playlists",

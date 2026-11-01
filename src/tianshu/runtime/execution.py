@@ -12,6 +12,7 @@ class ExecutionLane(StrEnum):
     SCHEDULE = "schedule"
     LIFE = "life"
     PLANNING = "planning"
+    DIARY = "diary"
     WRITING = "writing"
     MEMORY_CONSOLIDATION = "memory_consolidation"
     MEMORY_INDEX = "memory_index"
@@ -78,9 +79,9 @@ TASK_LANES = {
     "life.activity_step": ExecutionLane.LIFE,
     "life.activity_cancel": ExecutionLane.CONTROL,
     "life.activity_reconcile": ExecutionLane.CONTROL,
-    "life.diary_collect": ExecutionLane.WRITING,
-    "life.diary_review": ExecutionLane.WRITING,
-    "life.diary_generate": ExecutionLane.WRITING,
+    "life.diary_collect": ExecutionLane.DIARY,
+    "life.diary_review": ExecutionLane.DIARY,
+    "life.diary_generate": ExecutionLane.DIARY,
     "life.chapter_generate": ExecutionLane.WRITING,
     "memory.extract": ExecutionLane.MEMORY_CONSOLIDATION,
     "memory.consolidate": ExecutionLane.MEMORY_CONSOLIDATION,

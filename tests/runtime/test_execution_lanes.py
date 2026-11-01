@@ -11,7 +11,7 @@ import pytest
 from tianshu.runtime.config import Secrets, Settings
 from tianshu.runtime.diagnostics import RuntimeDiagnostics
 from tianshu.runtime.events import EventLog
-from tianshu.runtime.execution import ExecutionLane
+from tianshu.runtime.execution import ExecutionLane, TASK_LANES
 from tianshu.runtime.jobs import JobQueue, JobSpec
 from tianshu.types import ServiceClass
 
@@ -35,6 +35,11 @@ from tianshu.types import ServiceClass
         ("conversation.expression_release", ExecutionLane.DELIVERY),
         ("conversation.cancel", ExecutionLane.CONTROL),
     )),
+    ((("life.chapter_generate", 1, ExecutionLane.WRITING),), (
+        ("life.diary_review", ExecutionLane.DIARY),
+        ("life.diary_collect", ExecutionLane.DIARY),
+        ("life.diary_generate", ExecutionLane.DIARY),
+    )),
 ])
 async def test_busy_business_family_does_not_claim_other_families(
     database, busy_tasks, ready_tasks,
@@ -52,9 +57,11 @@ async def test_busy_business_family_does_not_claim_other_families(
         completed.append(identity)
 
     for name, _count, lane in busy_tasks:
-        jobs.register(name, busy, execution_lane=lane)
+        jobs.register(name, busy, execution_lane=None if name in TASK_LANES else lane)
+        assert jobs.task_lanes[name] == lane
     for name, lane in ready_tasks:
-        jobs.register(name, ready, execution_lane=lane)
+        jobs.register(name, ready, execution_lane=None if name in TASK_LANES else lane)
+        assert jobs.task_lanes[name] == lane
     async with database.transaction() as conn:
         for name, count, _lane in busy_tasks:
             for index in range(count):
@@ -204,21 +211,23 @@ async def test_task_diagnostics_and_action_observation_use_the_same_database_clo
 def test_connection_budget_counts_listeners_once_per_lane_and_keeps_schema_aligned(tmp_path):
     document = json.loads((Path(__file__).resolve().parents[2] /
         "deploy/core/settings.example.json").read_text(encoding="utf-8"))
+    document["worker"]["lanes"]["diary"] = 1
     settings_file = tmp_path / "settings.json"
     settings_file.write_text(json.dumps(document), encoding="utf-8")
     loaded = Settings.load(settings_file)
     settings = replace(loaded, secrets=Secrets({"TIANSHU_DATABASE_URL":
         "postgresql://fixture:fixture@127.0.0.1:1/not-opened"}))
     document = settings.document
-    assert len(settings.worker_lanes) == 34 and sum(settings.worker_lanes.values()) == 39
+    assert len(settings.worker_lanes) == 35 and sum(settings.worker_lanes.values()) == 40
     assert settings.database("worker").max_connections == 4
-    # The example has 23 role-pool connections: 23+8+34+1 = 66, not 39 listeners.
-    document["database"]["connection_budget"] = 65
+    # The example has 23 role-pool connections: 23+8+35+1 = 67, not 40 listeners.
+    document["database"]["connection_budget"] = 66
     with pytest.raises(ValueError, match="database_connection_budget_exceeded"):
         settings.database("worker")
-    document["database"]["connection_budget"] = 66
+    document["database"]["connection_budget"] = 67
     assert settings.database("worker").max_connections == 4
     document["worker"]["lanes"] = {"images": 8}
+    assert settings.worker_lanes["diary"] == 1
     assert settings.database("worker").max_connections == 4
     settings_file.write_text(json.dumps({**document, "worker": {"elastic_concurrency": 2}}), encoding="utf-8")
     with pytest.raises(ValueError, match="invalid_configuration:worker:additionalProperties"):
