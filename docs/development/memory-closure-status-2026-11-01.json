@@ -1,0 +1,32 @@
+{
+  "phase": "implementation",
+  "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
+  "planning_commit": "8bca244",
+  "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
+  "validation_policy": "Only after all implementation and integration; no incremental tests, builds or model/live acceptance",
+  "model": "gpt-6.1-sol",
+  "reasoning_effort": "max",
+  "fast_setting": "No separate tool parameter available",
+  "owners": {
+    "MC-A": {"agent": "memory_domain", "state": "implementing", "branch": "codex/memory-domain-20261101", "interface_commits": ["4a70af8647f5f8d52915a1cfb1140188183bb4b8"]},
+    "MC-B": {"agent": "memory_pipeline", "state": "implementing", "branch": "codex/memory-pipeline-20261101", "interface_commits": ["32625c3"], "integrated_as": ["ac05b4f"]},
+    "MC-C": {"agent": "product_closure", "state": "saved_for_audit_slot", "branch": "codex/product-closure-20261101", "uncommitted_changes": false},
+    "MC-R": {"agent": "runtime_audit", "state": "read_only_production_audit"},
+    "MC-D": {"state": "planned", "scope": "multi-type temporal retrieval, indexing, complete evidence in context and consumers"},
+    "MC-F": {"state": "planned", "scope": "memory/history/recovery frontend and affected capability setup experience"},
+    "MC-G": {"state": "planned", "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts"}
+  },
+  "issues": [
+    {"id": "RC-01", "owner": "MC-C", "state": "confirmed", "problem": "QQ sender.card NUL causes durable inbox processing DataError; original events retained"},
+    {"id": "RC-02", "owner": "MC-C", "state": "confirmed", "problem": "Growth mandatory episode batch exceeds context budget and repeatedly fails before model"},
+    {"id": "RC-03", "owner": "MC-C+MC-B", "state": "confirmed", "problem": "imagined activity completion lacks actor source refs for subjective reflection"},
+    {"id": "RC-04", "owner": "MC-C", "state": "inspect_and_close", "problem": "weather queues behind prior unknown resource hold; hold expired, fresh successful read not yet observed"},
+    {"id": "RC-05", "owner": "MC-B+MC-C", "state": "confirmed", "problem": "extraction_unavailable and multimedia coverage gaps"},
+    {"id": "RC-06", "owner": "root+MC-C+MC-F", "state": "configuration_and_integration", "problem": "Fish connection and role voices absent; user voice selection requested"},
+    {"id": "RC-07", "owner": "root+MC-C+MC-F", "state": "configuration_and_integration", "problem": "reaction pack empty; inspect authorized AstrBot library for native import"},
+    {"id": "RC-08", "owner": "root+MC-C+MC-F", "state": "configuration_and_acceptance", "problem": "selfie capability and proactive path require actual configuration and outcome; no successful image work yet"},
+    {"id": "RC-09", "owner": "MC-C+MC-G", "state": "trace_and_acceptance", "problem": "content reading/video, proactive expression, diary, relationship and OneBot rich-message closure require evidence"}
+  ],
+  "blueprint_acceptance": {"M01-M18": "not_run_waiting_complete_implementation"},
+  "new_production_release": null
+}
