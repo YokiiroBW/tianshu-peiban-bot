@@ -57,6 +57,15 @@ class Memory:
 
 async def fixture(database, *, empty=False, unknown=False):
     value = await setup(database,"今天只记下实际完成的小事。",lose_response=unknown)
+    # This diary scenario owns its calendar instead of inheriting planner defaults.
+    async with database.transaction() as connection:
+        await connection.execute(
+            "UPDATE life.actor_state SET timezone=%s WHERE actor_id=%s",
+            ("Asia/Shanghai",value.context.actor_id))
+        await connection.execute(
+            "UPDATE life.routines SET timezone=%s,wake_at='08:00',sleep_at='23:00',"
+            "enabled=true,idle_seconds=5400 WHERE actor_id=%s",
+            ("Asia/Shanghai",value.context.actor_id))
     life = value.worker.life
     identity, jobs = Authority(), Jobs()
     episode = Episode("actual","activity:completed",1,"actor",OriginKind.ACTOR,
