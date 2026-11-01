@@ -43,7 +43,7 @@
     },
     "MC-C": {
       "agent": "product_closure",
-      "state": "finishing_saved_checkpoint_repair_port",
+      "state": "implemented_not_verified",
       "branch": "codex/product-closure-20261101",
       "interface_commits": [
         "3fe73bc",
@@ -67,7 +67,8 @@
         "b8f0bba",
         "86f22e4",
         "5190ff4",
-        "7c77ebf"
+        "7c77ebf",
+        "7ae598b"
       ],
       "implementation_commits": [
         "e95ffe7",
@@ -77,9 +78,11 @@
         "c7bfba2",
         "a14be27",
         "dfc25d1",
-        "a9ab8c1"
+        "a9ab8c1",
+        "3becfa4"
       ],
-      "followup": "Idempotent actor-original repair for already-completed imagined Episodes from saved Life checkpoints; no model/activity replay"
+      "followup": "Idempotent actor-original repair for already-completed imagined Episodes from saved Life checkpoints; no model/activity replay",
+      "operational_preparation": "Writing only private affected-domain backup and single-cutover script; no execution"
     },
     "MC-R": {
       "agent": "runtime_audit",
@@ -88,9 +91,13 @@
       "evidence": "private runtime-review-20261101/independent-audit/report.json"
     },
     "MC-D": {
-      "state": "implementing",
+      "state": "implemented_not_verified",
       "scope": "multi-type temporal retrieval, indexing, complete evidence in context and consumers",
-      "agent": "memory_domain"
+      "agent": "memory_domain",
+      "implementation_commit": "9d75b61bfdd3a4d149f6c52a1c151fa0f02b0353",
+      "integrated_as": [
+        "eb7817c"
+      ]
     },
     "MC-F": {
       "state": "implemented_not_verified",
@@ -223,5 +230,6 @@
     "held_out": 8,
     "state": "prepared_not_executed",
     "additional_contract_scenarios": 12
-  }
+  },
+  "product_implementation": "All A/B/C/D/F product changes integrated; G runner and private cutover script pending; no validation executed"
 }
