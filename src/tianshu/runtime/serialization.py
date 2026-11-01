@@ -1,7 +1,7 @@
-"""One JSON representation for shared dataclasses, UTC times and unknown values."""
+"""One JSON representation for shared dataclasses, dates, UTC times and unknown values."""
 
 from dataclasses import fields, is_dataclass
-from datetime import datetime
+from datetime import date, datetime
 from enum import Enum
 from collections.abc import Mapping
 
@@ -15,6 +15,8 @@ def wire(value):
     if isinstance(value, datetime):
         if value.tzinfo is None:
             raise ValueError("naive_datetime")
+        return value.isoformat()
+    if isinstance(value, date):
         return value.isoformat()
     if isinstance(value, Mapping):
         return {str(key): wire(item) for key, item in value.items()}
