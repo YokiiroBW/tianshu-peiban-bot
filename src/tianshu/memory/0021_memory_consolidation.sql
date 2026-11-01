@@ -8,12 +8,14 @@ ALTER TABLE memory.claim_revisions
         CHECK (current_status IN ('current','history_only','retracted')),
     ADD COLUMN semantic_fingerprint text,
     ADD COLUMN derivation_refs jsonb NOT NULL DEFAULT '[]',
+    ADD COLUMN counterexample_refs jsonb NOT NULL DEFAULT '[]',
     ADD COLUMN change_reason text NOT NULL DEFAULT '';
 CREATE INDEX claim_revision_recording ON memory.claim_revisions(claim_id,recorded_at,revision);
 CREATE INDEX claim_derivations ON memory.claim_revisions USING gin(derivation_refs);
 
 ALTER TABLE memory.episodes
     ADD COLUMN recorded_at timestamptz,
+    ADD COLUMN consolidation_partition_id text,
     ADD COLUMN lexical text NOT NULL DEFAULT '',
     ADD COLUMN search_vector tsvector GENERATED ALWAYS AS(to_tsvector('simple',lexical)) STORED,
     ADD COLUMN embedding vector(1024),
@@ -62,6 +64,8 @@ CREATE TABLE memory.consolidation_state (
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX consolidation_due ON memory.consolidation_state(wake_due_at,partition_id);
+CREATE INDEX episodes_pending_partition ON memory.episodes(actor_id,consolidation_partition_id,sequence)
+    WHERE active AND extraction_state='pending';
 CREATE TABLE memory.consolidation_batches (
     batch_id text PRIMARY KEY,
     partition_id text NOT NULL REFERENCES memory.consolidation_state,
@@ -160,5 +164,31 @@ CREATE INDEX episodes_embedding ON memory.episodes USING hnsw(embedding vector_c
 CREATE INDEX matters_embedding ON memory.matters USING hnsw(embedding vector_cosine_ops) WHERE embedding IS NOT NULL;
 CREATE INDEX reflections_embedding ON memory.reflections USING hnsw(embedding vector_cosine_ops) WHERE embedding IS NOT NULL;
 -- Old contradiction arrays remain audit data. No semantic links are inferred from unequal values.
--- matter_claims is rebuilt exclusively from authorized semantic about_matter links.
+-- Preserve explicit, sourced legacy associations; unequal values are never evidence.
+INSERT INTO memory.semantic_links(link_id,actor_id,principal_id,from_kind,from_id,from_revision,
+    to_kind,to_id,to_revision,relation_kind,recorded_at,support_groups,scope_groups,
+    derivation_refs,source_refs,scope_ids)
+SELECT 'legacy_about_'||md5(c.claim_id||':'||r.revision||':'||m.matter_id),
+    c.actor_id,c.principal_id,CASE WHEN r.memory_kind='hypothesis' THEN 'hypothesis' ELSE 'claim' END,
+    c.claim_id,r.revision,'matter',m.matter_id,m.revision,'about_matter',NULL,
+    supports.groups,supports.scopes,'[]',supports.refs,r.scope_ids||m.scope_ids
+FROM (SELECT matter_id,claim_id FROM memory.matter_claims UNION
+      SELECT matter_id,claim_id FROM memory.claim_revisions WHERE matter_id IS NOT NULL) old
+JOIN memory.claims c ON c.claim_id=old.claim_id
+JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision
+JOIN memory.matters m ON m.matter_id=old.matter_id AND m.actor_id=c.actor_id
+CROSS JOIN LATERAL (
+    SELECT jsonb_agg(g.refs) AS groups,
+           jsonb_agg(to_jsonb(r.scope_ids||m.scope_ids)) AS scopes,
+           (SELECT COALESCE(jsonb_agg(DISTINCT element),'[]') FROM
+               jsonb_array_elements(r.source_refs||m.source_refs) element) AS refs
+    FROM (SELECT cg.value||mg.value AS refs FROM jsonb_array_elements(r.support_groups) cg
+          CROSS JOIN jsonb_array_elements(m.support_groups) mg
+          WHERE sources.any_support_usable(jsonb_build_array(cg.value||mg.value),r.scope_ids||m.scope_ids)) g
+) supports
+WHERE r.state='active' AND m.active AND supports.groups IS NOT NULL
+ON CONFLICT DO NOTHING;
+-- matter_claims is rebuilt exclusively from semantic about_matter links.
 TRUNCATE memory.matter_claims;
+INSERT INTO memory.matter_claims(matter_id,claim_id)
+SELECT to_id,from_id FROM memory.semantic_links WHERE relation_kind='about_matter';

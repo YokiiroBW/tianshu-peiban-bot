@@ -30,6 +30,7 @@ class Episode:
     recorded_at: datetime | None = None
     speaker_id: str | None = None
     conversation_id: str | None = None
+    consolidation: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -66,6 +67,8 @@ class ClaimRevision:
     derivation_refs: tuple[SourceRef, ...] = ()
     support_groups: tuple[tuple[SourceRef, ...], ...] = ()
     change_reason: str = ""
+    counterexample_refs: tuple[SourceRef, ...] = ()
+    relations: tuple["SemanticLink", ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -91,6 +94,7 @@ class MatterView:
     support_groups: tuple[tuple[SourceRef, ...], ...] = ()
     current_status: str = "current"
     change_reason: str = ""
+    relations: tuple["SemanticLink", ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +138,8 @@ class SemanticLink:
     support_groups: tuple[tuple[SourceRef, ...], ...] = ()
     derivation_refs: tuple[SourceRef, ...] = ()
     current_status: str = "current"
+    from_evidence: Mapping[str, Any] | None = None
+    to_evidence: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -181,3 +187,10 @@ class MemoryEvidenceUnit:
     completion_basis: Mapping[str, Any] | None = None
     derivation_refs: tuple[SourceRef, ...] = ()
     change_reason: str = ""
+    counterexample_refs: tuple[SourceRef, ...] = ()
+    due_at: datetime | None = None
+    origin_kind: str | None = None
+    actual_result: Mapping[str, Any] | None = None
+    episode_ids: tuple[str, ...] = ()
+    counterexamples: tuple[str, ...] = ()
+    semantic_fingerprint: str | None = None

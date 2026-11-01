@@ -1,717 +1,362 @@
-"""Typed claim revisions, explicit matter changes and authorized complete lists."""
+"""Authorized claim/matter use cases over one shared revision writer."""
 
 from dataclasses import replace
 from datetime import UTC, datetime
 import json
-import re
-
-from psycopg.types.json import Jsonb
 
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import Coverage, OriginKind, ServiceClass
+from tianshu.types import Coverage, OriginKind
 from . import codec
-from .service import parse_time
+from .domain_utils import CLAIM_PREDICATE_PATTERN as CLAIM_PREDICATE_PATTERN, lexical as lexical
+from .evidence import build_evidence_unit, select_supports_on, temporal_selection, valid_for_time
+from .revisions import CLAIM_FIELDS, RevisionService, stable_id
+from .types import RecordRef
 
 
 ELIGIBLE_SCOPES = """EXISTS(SELECT 1 FROM jsonb_array_elements(r.scope_groups) g
     WHERE ARRAY(SELECT jsonb_array_elements_text(g))<@%s::text[])"""
-CLAIM_PREDICATE_PATTERN = r"[a-zA-Z0-9_.-]{1,128}"
 
 
 def command_fingerprint(body, evidence_refs=None):
-    if evidence_refs is None:
-        return body_hash(body)
-    return body_hash(
-        {"body": body, "interpretation": "model_tool", "current_input_refs": evidence_refs}
-    )
+    return body_hash(body) if evidence_refs is None else body_hash(
+        {"body": body, "interpretation": "model_tool", "current_input_refs": evidence_refs})
 
 
-def lexical(text):
-    """Native simple-TS lexemes plus Chinese characters/bigrams and intact proper names."""
-    words = re.findall(r"[A-Za-z0-9_]+|[\u3400-\u9fff]+", text.casefold())
-    tokens = []
-    for word in words:
-        tokens.append(word)
-        if re.fullmatch(r"[\u3400-\u9fff]+", word):
-            tokens.extend(word)
-            tokens.extend(word[index : index + 2] for index in range(len(word) - 1))
-    return " ".join(dict.fromkeys(tokens))
+def revision_cursor(cursor):
+    if cursor is None:
+        return None
+    if not isinstance(cursor, str) or not cursor.startswith("r:") or not cursor[2:].isdigit():
+        raise AppError("invalid_memory_history_cursor")
+    return int(cursor[2:])
 
 
 class ClaimService:
     def __init__(self, memory):
         self.memory = memory
-        self.database, self.identity, self.sources = (
-            memory.database,
-            memory.identity,
-            memory.sources,
-        )
+        self.database, self.identity, self.sources = memory.database, memory.identity, memory.sources
         self.commands, self.jobs = memory.commands, memory.jobs
+        self.revisions = RevisionService(self)
 
-    async def visible_subjects(self, context, conn):
-        rows = await self.identity.memory_subjects_on(conn, context)
-        return {row["person_id"] for row in rows if row["person_id"]} | {
-            "actor:" + context.actor_id
-        }
+    async def visible_subjects(self, context, conn, subject_ids=None):
+        if not context.actor_id:
+            return set()
+        if subject_ids is not None and hasattr(self.identity, "resolve_memory_subjects_on"):
+            rows = await self.identity.resolve_memory_subjects_on(conn, context, subject_ids)
+        else:
+            rows = await self.identity.memory_subjects_on(conn, context)
+        return {row["person_id"] for row in rows if row.get("person_id")} | {"actor:" + context.actor_id}
 
     async def put_on(self, conn, context, body, *, automatic=False):
-        source_refs = codec.refs(body.get("source_refs", ()))
-        if not source_refs or not context.actor_id:
+        """Explicit callers and finite legacy results reuse the same revision primitive."""
+        refs = codec.refs(body.get("source_refs", ()))
+        if not refs or not context.actor_id:
             raise AppError("claim_original_sources_required")
-        descriptions = await self.sources.describe_for_write_on(conn, context, source_refs)
-        subject_id = body.get("subject_id") or context.person_id
-        if subject_id not in await self.visible_subjects(context, conn):
-            raise AppError("claim_subject_forbidden", status=403)
-        predicate = body.get("predicate")
-        if not isinstance(predicate, str) or not re.fullmatch(CLAIM_PREDICATE_PATTERN, predicate):
-            raise AppError("invalid_claim_predicate")
-        assertion = body.get("assertion", "reported")
-        if assertion not in {"self_confirmed", "reported", "quoted", "inferred", "observed"}:
-            raise AppError("invalid_claim_assertion")
-        speaker_id = body.get("speaker_id", context.person_id)
-        evidence_speakers = {item["speaker_id"] for item in descriptions if item["speaker_id"]}
-        if speaker_id not in evidence_speakers | {"actor:" + context.actor_id, None}:
-            raise AppError("claim_speaker_mismatch", status=403)
-        if assertion == "self_confirmed" and (
-            speaker_id != subject_id
-            or any(
-                item["origin_kind"] != "human" or item["speaker_id"] != subject_id
-                for item in descriptions
-            )
-        ):
-            raise AppError("claim_self_confirmation_unproven", status=403)
-        value, conditions = body.get("value"), body.get("conditions", {})
-        if (
-            not isinstance(conditions, dict)
-            or len(json.dumps(wire(value), ensure_ascii=False)) > 16000
-        ):
-            raise AppError("invalid_claim_value")
-        observed_at = parse_time(body.get("observed_at", datetime.now(UTC)))
-        valid_from = parse_time(body["valid_from"]) if body.get("valid_from") else None
-        valid_until = parse_time(body["valid_until"]) if body.get("valid_until") else None
-        if valid_from and valid_until and valid_until <= valid_from:
-            raise AppError("invalid_claim_validity")
-        polarity = body.get("polarity", True)
-        if type(polarity) is not bool:
-            raise AppError("invalid_claim_polarity")
-        directory = await self.identity.memory_subjects_on(conn, context)
-        subject = next((item for item in directory if item["person_id"] == subject_id), {})
-        names = " ".join((subject.get("display_name", ""), *(subject.get("aliases") or ())))
-        content = (
-            f"{subject_id} {names} {predicate}: {json.dumps(wire(value), ensure_ascii=False)}; "
-        )
-        content += f"assertion={assertion}; polarity={polarity}; conditions={json.dumps(conditions, ensure_ascii=False)}"
-        units = sorted({item["evidence_unit"] for item in descriptions})
-        scope_ids = sorted({scope for item in descriptions for scope in item["scope_ids"]})
-        semantic = {
-            "actor_id": context.actor_id,
-            "subject_id": subject_id,
-            "predicate": predicate,
-            "value": value,
-            "conditions": conditions,
-            "polarity": polarity,
-            "speaker_id": speaker_id,
-            "assertion": assertion,
-            "valid_from": valid_from,
-            "valid_until": valid_until,
-        }
-        claim_id = body.get("claim_id") or "claim_" + body_hash(semantic)[:48]
-        await conn.execute(
-            "INSERT INTO memory.claims(claim_id,current_revision,actor_id,principal_id) VALUES(%s,0,%s,%s) "
-            "ON CONFLICT DO NOTHING",
-            (claim_id, context.actor_id, context.principal_id),
-        )
-        head = await (
-            await conn.execute(
-                "SELECT * FROM memory.claims WHERE claim_id=%s FOR UPDATE", (claim_id,)
-            )
-        ).fetchone()
-        if head["actor_id"] != context.actor_id or head["principal_id"] != context.principal_id:
-            raise AppError("claim_forbidden", status=403)
-        previous = await (
-            await conn.execute(
-                "SELECT * FROM memory.claim_revisions WHERE claim_id=%s AND revision=%s",
-                (claim_id, head["current_revision"]),
-            )
-        ).fetchone()
-        expected = body.get("expected_revision")
-        if expected is not None and expected != head["current_revision"]:
-            raise AppError("revision_conflict", status=409)
-        support_groups, scope_groups = [wire(source_refs)], [scope_ids]
-        if previous and automatic:
-            if (
-                previous["value"] != wire(value)
-                or previous["predicate"] != predicate
-                or previous["subject_id"] != subject_id
-            ):
+        support = await self.revisions.support_on(conn, context, body.get("support_groups") or (refs,), body.get("derivation_refs", ()))
+        values = await self.revisions._claim_values_on(conn, context, body, support)
+        legacy_semantic = {key: values[key] for key in (
+            "actor_id", "subject_id", "predicate", "value", "conditions", "polarity",
+            "speaker_id", "assertion", "valid_from", "valid_until")}
+        claim_id = body.get("claim_id") or "claim_" + body_hash(legacy_semantic)[:48]
+        # New proposals use frozen CAS through apply_operations_on, never this legacy head lookup.
+        head = await (await conn.execute("SELECT c.*,r.* FROM memory.claims c JOIN memory.claim_revisions r "
+            "ON r.claim_id=c.claim_id AND r.revision=c.current_revision WHERE c.claim_id=%s FOR UPDATE OF c", (claim_id,))).fetchone()
+        expected = body.get("expected_revision", head["revision"] if automatic and head else 0)
+        if head and automatic:
+            if any(wire(head.get(key)) != wire(values.get(key)) for key in CLAIM_FIELDS if key != "observed_at"):
                 raise AppError("claim_identity_conflict", status=409)
-            known_refs = {body_hash(ref) for ref in codec.refs(previous["source_refs"])}
-            if (
-                set(units) <= set(previous["evidence_units"])
-                and {body_hash(ref) for ref in source_refs} <= known_refs
-                and previous["state"] == "active"
-            ):
-                return codec.claim({**previous, "actor_id": context.actor_id})
-            support_groups = previous["support_groups"] + [wire(source_refs)]
-            scope_groups = previous["scope_groups"] + [scope_ids]
-            units = sorted(set(units) | set(previous["evidence_units"]))
-            source_refs = tuple(
-                {
-                    body_hash(ref): ref for group in support_groups for ref in codec.refs(group)
-                }.values()
-            )
-            scope_ids = sorted({scope for group in scope_groups for scope in group})
-            observed_at = max(observed_at, previous["observed_at"])
-        contradictions = await (
-            await conn.execute(
-                "SELECT c.claim_id FROM memory.claims c JOIN memory.claim_revisions r "
-                "ON r.claim_id=c.claim_id AND r.revision=c.current_revision WHERE c.actor_id=%s AND r.subject_id=%s "
-                "AND r.predicate=%s AND r.state='active' AND (r.value<>%s OR r.polarity<>%s) AND c.claim_id<>%s AND "
-                + ELIGIBLE_SCOPES
-                + " AND sources.any_support_usable(r.support_groups,%s::text[]) LIMIT 64",
-                (
-                    context.actor_id,
-                    subject_id,
-                    predicate,
-                    Jsonb(wire(value)),
-                    polarity,
-                    claim_id,
-                    list(context.scope_ids),
-                    list(context.scope_ids),
-                ),
-            )
-        ).fetchall()
-        revision = head["current_revision"] + 1
-        await conn.execute(
-            "INSERT INTO memory.claim_revisions(claim_id,revision,speaker_id,subject_id,predicate,value,assertion,polarity,conditions,"
-            "valid_from,valid_until,observed_at,state,source_refs,support_groups,scope_groups,scope_ids,matter_id,supersedes,contradictions,evidence_units,content,lexical) "
-            "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active',%s,%s,%s,%s,%s,%s,%s,%s,%s,%s)",
-            (
-                claim_id,
-                revision,
-                speaker_id,
-                subject_id,
-                predicate,
-                Jsonb(wire(value)),
-                assertion,
-                polarity,
-                Jsonb(conditions),
-                valid_from,
-                valid_until,
-                observed_at,
-                Jsonb(wire(source_refs)),
-                Jsonb(support_groups),
-                Jsonb(scope_groups),
-                scope_ids,
-                body.get("matter_id"),
-                list(body.get("supersedes", ())),
-                [row["claim_id"] for row in contradictions],
-                units,
-                content,
-                lexical(content),
-            ),
-        )
-        await conn.execute(
-            "UPDATE memory.claims SET current_revision=%s WHERE claim_id=%s", (revision, claim_id)
-        )
-        await self.jobs.enqueue(
-            conn,
-            JobSpec(
-                "memory.index",
-                f"memory-index:{claim_id}:{revision}",
-                {"claim_id": claim_id, "revision": revision},
-                ServiceClass.ELASTIC,
-                subject_id=subject_id,
-            ),
-        )
-        row = await (
-            await conn.execute(
-                "SELECT r.*,c.actor_id FROM memory.claim_revisions r JOIN memory.claims c USING(claim_id) "
-                "WHERE r.claim_id=%s AND r.revision=%s",
-                (claim_id, revision),
-            )
-        ).fetchone()
-        return codec.claim(row)
+            if expected != head["revision"]:
+                raise AppError("revision_conflict", status=409)
+            return await self.revisions.reinforce_on(conn, context, head, support, reason=body.get("change_reason", ""))
+        return await self.revisions.write_claim_on(conn, context, values, support=support, claim_id=claim_id,
+            expected_revision=expected, change_kind="correct" if head else "create", reason=body.get("change_reason", ""))
 
     async def selected_groups(self, conn, context, rows):
-        # Check selected alternatives in batches, stopping once each row has a valid support.
-        alternatives = [iter(reversed(row["support_groups"])) for row in rows]
-        result, exhausted = [None] * len(rows), set()
-        while True:
-            groups, owners, units = [], [], 0
-            for index, iterator in enumerate(alternatives):
-                if result[index] is not None or index in exhausted:
-                    continue
-                group = next(iterator, None)
-                if group is None:
-                    exhausted.add(index)
-                    continue
-                group = codec.refs(group)
-                if len(group) > 2048:
-                    raise AppError("claim_support_budget_exceeded", status=503)
-                if groups and units + len(group) > 2048:
-                    # Flush this batch before advancing the remaining row iterators.
-                    checked = await self.sources.check_many_on(conn, context, tuple(groups))
-                    for owner, candidate, valid in zip(owners, groups, checked):
-                        if valid:
-                            result[owner] = candidate
-                    groups, owners, units = [], [], 0
-                groups.append(group)
-                owners.append(index)
-                units += len(group)
-            if groups:
-                checked = await self.sources.check_many_on(conn, context, tuple(groups))
-                for owner, candidate, valid in zip(owners, groups, checked):
-                    if valid:
-                        result[owner] = candidate
-            if all(result[index] is not None or index in exhausted for index in range(len(rows))):
-                break
-        return result
+        return await select_supports_on(self.sources, conn, context, rows)
 
-    async def list(self, context, *, subject_id=None, cursor=None, limit=50):
+    async def _claim_rows_on(self, conn, context, *, claim_id=None, subject_id=None, cursor=None,
+                             limit=50, time_mode="current", known_at=None):
+        if time_mode == "known_at":
+            version = "JOIN LATERAL (SELECT * FROM memory.claim_revisions v WHERE v.claim_id=c.claim_id AND v.recorded_at<=%s ORDER BY v.revision DESC LIMIT 1) r ON true "
+            arguments = [known_at]
+        else:
+            version = "JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision "
+            arguments = []
+        return await (await conn.execute("SELECT r.*,c.actor_id,c.current_revision FROM memory.claims c " + version +
+            "WHERE c.actor_id=%s AND " + ELIGIBLE_SCOPES +
+            " AND (%s::text IS NULL OR c.claim_id=%s) AND (%s::text IS NULL OR r.subject_id=%s) "
+            "AND (%s::text IS NULL OR c.claim_id>%s) ORDER BY c.claim_id LIMIT %s",
+            (*arguments, context.actor_id, list(context.scope_ids), claim_id, claim_id,
+             subject_id, subject_id, cursor, cursor, limit))).fetchall()
+
+    async def _claim_views_on(self, conn, context, rows, *, historical=False, known_at=None):
+        selected = await self.selected_groups(conn, context, rows)
+        refs = [RecordRef("hypothesis" if row["memory_kind"] == "hypothesis" else "claim", row["claim_id"], row["revision"])
+                for row, sources in zip(rows, selected) if sources is not None and row["state"] == "active"]
+        links = await self.revisions.links.for_records_on(conn, context, refs, historical=historical, known_at=known_at)
+        return tuple(codec.claim({**row, "scope_ids": sorted(set(row["scope_ids"]) & set(context.scope_ids))}, sources,
+                                 relations=links.get(row["claim_id"], ()))
+                     for row, sources in zip(rows, selected) if sources is not None and row["state"] == "active"), selected, links
+
+    @staticmethod
+    def _superseded(object_id, links, moment):
+        return any(link.relation_kind == "supersedes" and link.to_ref.id == object_id
+                   and (link.valid_from is None or link.valid_from <= moment)
+                   and (link.valid_until is None or moment < link.valid_until) for link in links)
+
+    async def list(self, context, *, subject_id=None, cursor=None, limit=50,
+                   time_mode="current", valid_at=None, known_at=None):
         await self.identity.check_context(context)
+        time_mode, valid_at, known_at = temporal_selection(time_mode=time_mode, valid_at=valid_at, known_at=known_at)
         limit = min(max(int(limit), 1), 200)
         async with self.database.transaction(read_only=True) as conn:
-            rows = await (
-                await conn.execute(
-                    "SELECT r.*,c.actor_id FROM memory.claims c JOIN memory.claim_revisions r "
-                    "ON r.claim_id=c.claim_id AND r.revision=c.current_revision WHERE c.actor_id=%s AND r.state='active' AND "
-                    + ELIGIBLE_SCOPES
-                    + " AND (%s::text IS NULL OR r.subject_id=%s) AND (%s::text IS NULL OR c.claim_id>%s) "
-                    "ORDER BY c.claim_id LIMIT %s",
-                    (
-                        context.actor_id,
-                        list(context.scope_ids),
-                        subject_id,
-                        subject_id,
-                        cursor,
-                        cursor,
-                        limit + 1,
-                    ),
-                )
-            ).fetchall()
-            selected = await self.selected_groups(conn, context, rows[:limit])
-        items = tuple(
-            codec.claim(row, refs) for row, refs in zip(rows[:limit], selected) if refs is not None
-        )
-        return Page(
-            items,
-            rows[limit - 1]["claim_id"] if len(rows) > limit else None,
-            Coverage(
-                complete=len(rows) <= limit and all(item is not None for item in selected),
-                missing=("unavailable_sources",) if any(item is None for item in selected) else (),
-            ),
-        )
+            rows = await self._claim_rows_on(conn, context, subject_id=subject_id, cursor=cursor, limit=limit + 1,
+                time_mode=time_mode, known_at=known_at)
+            values, selected, links = await self._claim_views_on(conn, context, rows[:limit],
+                historical=time_mode != "current", known_at=known_at)
+            unknown_recording = False
+            if time_mode == "known_at":
+                unknown_recording = await (await conn.execute(
+                    "SELECT 1 FROM memory.claims c JOIN memory.claim_revisions r ON r.claim_id=c.claim_id "
+                    "WHERE c.actor_id=%s AND r.recorded_at IS NULL AND r.state='active' AND " + ELIGIBLE_SCOPES +
+                    " AND (%s::text IS NULL OR r.subject_id=%s) AND NOT EXISTS(SELECT 1 FROM memory.claim_revisions known "
+                    "WHERE known.claim_id=c.claim_id AND known.recorded_at<=%s) "
+                    "AND sources.any_support_usable(r.support_groups,%s::text[]) "
+                    "AND sources.any_support_usable(jsonb_build_array(r.derivation_refs),%s::text[]) LIMIT 1",
+                    (context.actor_id, list(context.scope_ids), subject_id, subject_id, known_at,
+                     list(context.scope_ids), list(context.scope_ids)))).fetchone() is not None
+        moment = valid_at or known_at or datetime.now(UTC)
+        items = tuple(value for value in values if valid_for_time(value, time_mode=time_mode, valid_at=moment)
+                      and not self._superseded(value.claim_id, links.get(value.claim_id, ()), moment))
+        missing = ("unavailable_sources",) if any(refs is None for refs in selected) else ()
+        if unknown_recording:
+            missing += ("legacy_recorded_time_unknown",)
+        return Page(items, rows[limit - 1]["claim_id"] if len(rows) > limit else None,
+                    Coverage(len(rows) <= limit and not missing, missing=missing))
 
-    async def get(self, context, claim_id):
+    async def get(self, context, claim_id, *, time_mode="current", valid_at=None, known_at=None):
         await self.identity.check_context(context)
+        time_mode, valid_at, known_at = temporal_selection(time_mode=time_mode, valid_at=valid_at, known_at=known_at)
         async with self.database.transaction(read_only=True) as conn:
-            row = await (
-                await conn.execute(
-                    "SELECT r.*,c.actor_id FROM memory.claims c JOIN memory.claim_revisions r "
-                    "ON r.claim_id=c.claim_id AND r.revision=c.current_revision WHERE c.claim_id=%s AND c.actor_id=%s AND "
-                    + ELIGIBLE_SCOPES,
-                    (claim_id, context.actor_id, list(context.scope_ids)),
-                )
-            ).fetchone()
-            selected = (await self.selected_groups(conn, context, (row,)))[0] if row else None
-        if selected is None:
+            rows = await self._claim_rows_on(conn, context, claim_id=claim_id, limit=1, time_mode=time_mode, known_at=known_at)
+            values, _, _ = await self._claim_views_on(conn, context, rows, historical=time_mode != "current", known_at=known_at)
+        if not values or time_mode != "current" and not valid_for_time(values[0], time_mode=time_mode, valid_at=valid_at or known_at):
             raise AppError("claim_unavailable", status=404)
-        return codec.claim(row, selected)
+        return values[0]
 
     async def correct(self, context, body, *, evidence_refs=None):
         old = await self.get(context, body["claim_id"])
         if evidence_refs is None:
-            command_refs = await self.sources.record_event(
-                context,
-                producer="web.claim.correct",
-                event_id=body["client_request_id"],
-                revision=1,
-                occurred_at=datetime.now(UTC),
-                parts=(
-                    {
-                        "text": json.dumps(
-                            {
-                                "claim_id": old.claim_id,
-                                "value": body.get("value"),
-                                "polarity": body.get("polarity", old.polarity),
-                                "conditions": body.get("conditions", old.conditions),
-                            },
-                            ensure_ascii=False,
-                        )
-                    },
-                ),
-                origin_kind=OriginKind.HUMAN,
-            )
+            command_refs = await self.sources.record_event(context, producer="web.claim.correct",
+                event_id=body["client_request_id"], revision=1, occurred_at=datetime.now(UTC),
+                parts=({"text": json.dumps({"claim_id": old.claim_id, "value": body.get("value"),
+                    "polarity": body.get("polarity", old.polarity), "conditions": body.get("conditions", old.conditions)}, ensure_ascii=False)},),
+                origin_kind=OriginKind.HUMAN)
         else:
             command_refs = tuple(evidence_refs)
             if not command_refs:
                 raise AppError("memory_current_input_required", status=422)
 
         async def apply(conn):
-            await self.sources.revoke_projection(
-                conn,
-                context,
-                f"{old.claim_id}:{old.revision}",
-                source_refs=(*old.source_refs, *command_refs),
-            )
-            authors = await self.sources.describe_for_write_on(conn, context, command_refs)
+            await self.sources.revoke_projection(conn, context, f"{old.claim_id}:{old.revision}",
+                                                  source_refs=(*old.source_refs, *command_refs))
+            support = await self.revisions.support_on(conn, context, (command_refs,), old.source_refs)
+            authors = support["descriptions"]
             speakers = {item["speaker_id"] for item in authors if item["speaker_id"]}
             speaker = next(iter(speakers)) if len(speakers) == 1 else None
-            if not await self.sources.validate_persistence(
-                conn, context, (*old.source_refs, *command_refs)
-            ):
-                raise AppError("source_unavailable", status=403)
-            updated = await self.put_on(
-                conn,
-                context,
-                {
-                    **wire(old),
-                    **body,
-                    "source_refs": command_refs,
-                    "speaker_id": speaker,
-                    "assertion": (
-                        "inferred"
-                        if evidence_refs is not None
-                        else "self_confirmed"
-                        if speaker == old.subject_id
-                        and all(
-                            item["origin_kind"] == "human" and item["speaker_id"] == speaker
-                            for item in authors
-                        )
-                        else "reported"
-                    ),
-                    "observed_at": datetime.now(UTC),
-                },
-            )
-            return CommandResult(body["client_request_id"], data=updated, revision=updated.revision)
+            payload = {**wire(old), **body, "speaker_id": speaker,
+                       "assertion": "inferred" if evidence_refs is not None or old.memory_kind == "hypothesis" else "self_confirmed" if speaker == old.subject_id
+                       and all(item["origin_kind"] == "human" and item["speaker_id"] == speaker for item in authors) else "reported",
+                       "observed_at": datetime.now(UTC)}
+            effects = []
+            updated = await self.revisions.write_claim_on(conn, context, payload, support=support, claim_id=old.claim_id,
+                expected_revision=body["expected_revision"], change_kind="correct", reason=body.get("reason", "用户纠正"),
+                scope_fork_id=stable_id(context.actor_id, body["client_request_id"], old.claim_id + ":scope", "claim"), effects=effects)
+            await self.memory.domain_changed_on(conn, context,
+                ({"kind": "hypothesis" if updated.memory_kind == "hypothesis" else "claim",
+                  "id": updated.claim_id, "revision": updated.revision},), source_refs=command_refs,
+                affected_subject_ids=tuple({updated.subject_id, *(row["subject_id"] for row in effects if row["subject_id"])}))
+            return CommandResult(body["client_request_id"], data={"claim_id": updated.claim_id}, revision=updated.revision)
 
         async def replay(conn, original):
             await self.identity.check_context(context, connection=conn)
             return original
-
-        result = await self.commands.execute(
-            context,
-            "memory.claim.correct",
-            body["client_request_id"],
-            command_fingerprint(body, evidence_refs),
-            apply,
-            on_replay=replay,
-        )
-        return replace(result, data=await self.get(context, old.claim_id))
+        result = await self.commands.execute(context, "memory.claim.correct", body["client_request_id"],
+            command_fingerprint(body, evidence_refs), apply, on_replay=replay)
+        target = result.data["claim_id"] if isinstance(result.data, dict) else result.data.claim_id
+        return replace(result, data=await self.get(context, target))
 
     async def share_ordinary(self, context, body):
         original = await self.get(context, body["claim_id"])
-        if original.predicate not in {
-            "interest",
-            "hobby",
-            "preference.ordinary",
-            "public_interest",
-        }:
+        if original.predicate not in {"interest", "hobby", "preference.ordinary", "public_interest"}:
             raise AppError("claim_not_ordinary_interest", status=422)
-        if (
-            original.assertion != "self_confirmed"
-            or original.conditions
-            or not isinstance(original.value, (str, list))
-        ):
+        if original.assertion != "self_confirmed" or original.conditions or not isinstance(original.value, (str, list)):
             raise AppError("claim_sharing_requires_explicit_ordinary_unit", status=422)
+        if original.memory_kind != "fact" or original.current_status != "current":
+            raise AppError("claim_sharing_requires_current_fact", status=422)
         if len(json.dumps(original.value, ensure_ascii=False)) > 1000:
             raise AppError("claim_sharing_unit_too_large")
         if body.get("expected_revision") != original.revision:
             raise AppError("revision_conflict", status=409)
+        shared_id = f"shared_{original.claim_id}_{original.revision}"
 
         async def apply(conn):
-            source = await self.sources.publish_projection(
-                context,
-                projection_id=f"{original.claim_id}:{original.revision}",
+            source = await self.sources.publish_projection(context, projection_id=f"{original.claim_id}:{original.revision}",
                 content=f"{original.subject_id} {original.predicate}: {json.dumps(original.value, ensure_ascii=False)}",
-                source_refs=original.source_refs,
-                connection=conn,
-            )
-            value = {
-                **wire(original),
-                "claim_id": f"shared_{original.claim_id}_{original.revision}",
-                "source_refs": (source,),
-                "expected_revision": None,
-                "assertion": "observed",
-                "speaker_id": None,
-            }
-            shared = await self.put_on(conn, context, value, automatic=True)
-            return CommandResult(body["client_request_id"], data=shared, revision=shared.revision)
-
-        async def replay(conn, identity):
-            await self.identity.check_context(context, connection=conn)
-            return identity
-
-        result = await self.commands.execute(
-            context,
-            "memory.claim.share",
-            body["client_request_id"],
-            body_hash(body),
-            apply,
-            on_replay=replay,
-        )
-        return replace(
-            result, data=await self.get(context, f"shared_{original.claim_id}_{original.revision}")
-        )
-
-    async def matters(self, context, *, subject_id=None, cursor=None, limit=50):
-        await self.identity.check_context(context)
-        limit = min(max(int(limit), 1), 200)
-        async with self.database.transaction(read_only=True) as conn:
-            rows = await (
-                await conn.execute(
-                    "SELECT * FROM memory.matters WHERE actor_id=%s AND scope_ids<@%s::text[] "
-                    "AND (%s::text IS NULL OR subject_id=%s) AND (%s::text IS NULL OR matter_id>%s) ORDER BY matter_id LIMIT %s",
-                    (
-                        context.actor_id,
-                        list(context.scope_ids),
-                        subject_id,
-                        subject_id,
-                        cursor,
-                        cursor,
-                        limit + 1,
-                    ),
-                )
-            ).fetchall()
-            checked = await self.sources.check_many_on(
-                conn, context, tuple(codec.refs(row["source_refs"]) for row in rows[:limit])
-            )
-            links = await (
-                await conn.execute(
-                    "SELECT matter_id,claim_id FROM memory.matter_claims WHERE matter_id=ANY(%s)",
-                    ([row["matter_id"] for row in rows[:limit]],),
-                )
-            ).fetchall()
-        items = tuple(
-            codec.matter(
-                row, (link["claim_id"] for link in links if link["matter_id"] == row["matter_id"])
-            )
-            for row, valid in zip(rows[:limit], checked)
-            if valid
-        )
-        return Page(
-            items,
-            rows[limit - 1]["matter_id"] if len(rows) > limit else None,
-            Coverage(complete=len(rows) <= limit and all(checked)),
-        )
-
-    async def matter_on(self, conn, context, body, *, automatic=False):
-        source_refs = codec.refs(body["source_refs"])
-        descriptions = await self.sources.describe_for_write_on(conn, context, source_refs)
-        if not source_refs:
-            raise AppError("matter_sources_required")
-        matter_id, title = body["matter_id"], body["title"]
-        state = body.get("state", "planned")
-        if state not in {"planned", "active", "rescheduled", "cancelled", "uncertain", "completed"}:
-            raise AppError("invalid_matter_state")
-        if state == "completed" and (
-            automatic or any(item["origin_kind"] != "human" for item in descriptions)
-        ):
-            raise AppError("matter_completion_requires_human_confirmation")
-        if not isinstance(title, str) or not 1 <= len(title) <= 1000:
-            raise AppError("invalid_matter_title")
-        observed_at = parse_time(body.get("observed_at", datetime.now(UTC)))
-        due_at = parse_time(body["due_at"]) if body.get("due_at") else None
-        existing = await (
-            await conn.execute(
-                "SELECT * FROM memory.matters WHERE matter_id=%s FOR UPDATE", (matter_id,)
-            )
-        ).fetchone()
-        if existing and (
-            existing["actor_id"] != context.actor_id
-            or not set(existing["scope_ids"]) <= set(context.scope_ids)
-        ):
-            raise AppError("matter_forbidden", status=403)
-        if existing and automatic and observed_at < existing["observed_at"]:
-            return codec.matter(existing)
-        if (
-            existing
-            and automatic
-            and observed_at == existing["observed_at"]
-            and all(
-                existing[key] == wire(body.get(key, default))
-                for key, default in (
-                    ("title", None),
-                    ("state", "planned"),
-                    ("due_at", None),
-                    ("summary", ""),
-                    ("conditions", {}),
-                )
-                if key != "due_at"
-            )
-        ):
-            if existing["due_at"] == due_at:
-                return codec.matter(existing)
-        expected = body.get(
-            "expected_revision", existing["revision"] if automatic and existing else 0
-        )
-        if expected != (existing["revision"] if existing else 0):
-            raise AppError("revision_conflict", status=409)
-        scopes = sorted({scope for item in descriptions for scope in item["scope_ids"]})
-        subject_id = body.get("subject_id", context.person_id)
-        if subject_id not in await self.visible_subjects(context, conn):
-            raise AppError("matter_subject_forbidden", status=403)
-        row = await (
-            await conn.execute(
-                "INSERT INTO memory.matters(matter_id,actor_id,principal_id,subject_id,title,state,due_at,summary,conditions,source_refs,scope_ids,observed_at,interpretation) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(matter_id) DO UPDATE SET subject_id=excluded.subject_id,title=excluded.title,"
-                "state=excluded.state,due_at=excluded.due_at,summary=excluded.summary,conditions=excluded.conditions,source_refs=excluded.source_refs,"
-                "scope_ids=excluded.scope_ids,observed_at=excluded.observed_at,interpretation=excluded.interpretation,revision=memory.matters.revision+1 "
-                "WHERE memory.matters.revision=%s RETURNING *",
-                (
-                    matter_id,
-                    context.actor_id,
-                    context.principal_id,
-                    subject_id,
-                    title,
-                    state,
-                    due_at,
-                    body.get("summary", ""),
-                    Jsonb(body.get("conditions", {})),
-                    Jsonb(wire(source_refs)),
-                    scopes,
-                    observed_at,
-                    bool(automatic or body.get("interpretation", False)),
-                    expected,
-                ),
-            )
-        ).fetchone()
-        if row is None:
-            raise AppError("revision_conflict", status=409)
-        return codec.matter(row)
-
-    async def save_matter(self, context, body, *, evidence_refs=None):
-        source_refs = (
-            tuple(evidence_refs)
-            if evidence_refs is not None
-            else codec.refs(body.get("source_refs", ()))
-        )
-        if evidence_refs is not None and not source_refs:
-            raise AppError("memory_current_input_required", status=422)
-        if not source_refs:
-            source_refs = await self.sources.record_event(
-                context,
-                producer="web.matter",
-                event_id=body["client_request_id"],
-                revision=1,
-                occurred_at=datetime.now(UTC),
-                parts=(
-                    {
-                        "text": json.dumps(
-                            {
-                                key: body.get(key)
-                                for key in ("title", "state", "due_at", "summary", "conditions")
-                            },
-                            ensure_ascii=False,
-                        )
-                    },
-                ),
-                origin_kind=context.origin_kind,
-            )
-
-        async def apply(conn):
-            result = await self.matter_on(
-                conn,
-                context,
-                {**body, "source_refs": source_refs, "interpretation": evidence_refs is not None},
-            )
-            return CommandResult(body["client_request_id"], data=result, revision=result.revision)
+                source_refs=original.source_refs, connection=conn)
+            shared = await self.put_on(conn, context, {**wire(original), "claim_id": shared_id,
+                "source_refs": (source,), "support_groups": ((source,),), "derivation_refs": (),
+                "expected_revision": 0, "assertion": "observed", "speaker_id": None})
+            return CommandResult(body["client_request_id"], data={"claim_id": shared.claim_id}, revision=shared.revision)
 
         async def replay(conn, original):
             await self.identity.check_context(context, connection=conn)
-            row = await (
-                await conn.execute(
-                    "SELECT * FROM memory.matters WHERE matter_id=%s AND actor_id=%s",
-                    (body["matter_id"], context.actor_id),
-                )
-            ).fetchone()
-            if (
-                not row
-                or not (
-                    await self.sources.check_many_on(
-                        conn, context, (codec.refs(row["source_refs"]),)
-                    )
-                )[0]
-            ):
-                return original
-            return replace(original, data=codec.matter(row))
+            return original
+        result = await self.commands.execute(context, "memory.claim.share", body["client_request_id"], body_hash(body), apply, on_replay=replay)
+        return replace(result, data=await self.get(context, shared_id))
 
-        return await self.commands.execute(
-            context,
-            "memory.matter.save",
-            body["client_request_id"],
-            command_fingerprint(body, evidence_refs),
-            apply,
-            on_replay=replay,
-        )
+    async def matters(self, context, *, subject_id=None, cursor=None, limit=50,
+                      time_mode="current", valid_at=None, known_at=None):
+        await self.identity.check_context(context)
+        time_mode, valid_at, known_at = temporal_selection(time_mode=time_mode, valid_at=valid_at, known_at=known_at)
+        limit = min(max(int(limit), 1), 200)
+        async with self.database.transaction(read_only=True) as conn:
+            if time_mode == "known_at":
+                selection = "JOIN LATERAL(SELECT * FROM memory.matter_revisions v WHERE v.matter_id=m.matter_id AND v.recorded_at<=%s ORDER BY revision DESC LIMIT 1) r ON true "
+                arguments = [known_at]
+            elif time_mode == "valid_at":
+                selection = "JOIN LATERAL(SELECT * FROM memory.matter_revisions v WHERE v.matter_id=m.matter_id AND v.observed_at<=%s ORDER BY observed_at DESC,revision DESC LIMIT 1) r ON true "
+                arguments = [valid_at]
+            else:
+                selection = "JOIN memory.matter_revisions r ON r.matter_id=m.matter_id AND r.revision=m.revision "
+                arguments = []
+            rows = await (await conn.execute("SELECT r.* FROM memory.matters m " + selection +
+                "WHERE m.actor_id=%s AND r.active AND " + ELIGIBLE_SCOPES + " AND (%s::text IS NULL OR r.subject_id=%s) "
+                "AND (%s::text IS NULL OR r.matter_id>%s) ORDER BY r.matter_id LIMIT %s",
+                (*arguments, context.actor_id, list(context.scope_ids), subject_id, subject_id, cursor, cursor, limit + 1))).fetchall()
+            selected = await select_supports_on(self.sources, conn, context, rows[:limit])
+            links = await self.revisions.links.for_records_on(conn, context,
+                [RecordRef("matter", row["matter_id"], row["revision"]) for row, refs in zip(rows[:limit], selected) if refs],
+                historical=time_mode != "current", known_at=known_at)
+            values = []
+            for row, refs in zip(rows[:limit], selected):
+                if refs is None:
+                    continue
+                related = links.get(row["matter_id"], ())
+                if self._superseded(row["matter_id"], related, valid_at or known_at or datetime.now(UTC)):
+                    continue
+                claim_ids = [link.to_ref.id if link.from_ref.kind == "matter" else link.from_ref.id
+                             for link in related if link.relation_kind == "about_matter"]
+                values.append(codec.matter({**row, "scope_ids": sorted(set(row["scope_ids"]) & set(context.scope_ids))}, claim_ids, refs, relations=related))
+            unknown_recording = False
+            if time_mode == "known_at":
+                unknown_recording = await (await conn.execute(
+                    "SELECT 1 FROM memory.matter_revisions r WHERE r.actor_id=%s AND r.recorded_at IS NULL "
+                    "AND r.active AND " + ELIGIBLE_SCOPES +
+                    " AND (%s::text IS NULL OR r.subject_id=%s) AND NOT EXISTS(SELECT 1 FROM memory.matter_revisions known "
+                    "WHERE known.matter_id=r.matter_id AND known.recorded_at<=%s) "
+                    "AND sources.any_support_usable(r.support_groups,%s::text[]) "
+                    "AND sources.any_support_usable(jsonb_build_array(r.derivation_refs),%s::text[]) LIMIT 1",
+                    (context.actor_id, list(context.scope_ids), subject_id, subject_id, known_at,
+                     list(context.scope_ids), list(context.scope_ids)))).fetchone() is not None
+        missing = ("unavailable_sources",) if any(refs is None for refs in selected) else ()
+        if time_mode == "valid_at":
+            missing += ("matter_effective_time_inferred_from_report",)
+        if unknown_recording:
+            missing += ("legacy_recorded_time_unknown",)
+        return Page(tuple(values), rows[limit - 1]["matter_id"] if len(rows) > limit else None,
+                    Coverage(len(rows) <= limit and not missing, missing=missing))
+
+    async def matter_on(self, conn, context, body, *, automatic=False):
+        refs = codec.refs(body.get("source_refs", ()))
+        support = await self.revisions.support_on(conn, context, body.get("support_groups") or (refs,), body.get("derivation_refs", ()))
+        return await self.revisions.write_matter_on(conn, context, body, support=support,
+            matter_id=body["matter_id"], expected_revision=body.get("expected_revision", 0),
+            change_kind=body.get("change_kind", "transition" if body.get("expected_revision", 0) else "create"),
+            reason=body.get("change_reason", ""))
+
+    async def get_matter(self, context, matter_id, *, revision=None):
+        await self.identity.check_context(context)
+        async with self.database.transaction(read_only=True) as conn:
+            row = await (await conn.execute("SELECT r.* FROM memory.matter_revisions r JOIN memory.matters m USING(matter_id) "
+                "WHERE r.matter_id=%s AND r.revision=COALESCE(%s,m.revision) AND r.actor_id=%s AND r.active",
+                (matter_id, revision, context.actor_id))).fetchone()
+            selected = (await select_supports_on(self.sources, conn, context, (row,)))[0] if row else None
+            if selected is None:
+                raise AppError("matter_unavailable", status=404)
+            links = await self.revisions.links.for_records_on(conn, context, (RecordRef("matter", matter_id, row["revision"]),), historical=revision is not None)
+            claim_ids = [link.to_ref.id if link.from_ref.kind == "matter" else link.from_ref.id
+                         for link in links.get(matter_id, ()) if link.relation_kind == "about_matter"]
+            return codec.matter({**row, "scope_ids": sorted(set(row["scope_ids"]) & set(context.scope_ids))}, claim_ids, selected, relations=links.get(matter_id, ()))
+
+    async def save_matter(self, context, body, *, evidence_refs=None):
+        refs = tuple(evidence_refs) if evidence_refs is not None else codec.refs(body.get("source_refs", ()))
+        if evidence_refs is not None and not refs:
+            raise AppError("memory_current_input_required", status=422)
+        if not refs:
+            refs = await self.sources.record_event(context, producer="web.matter", event_id=body["client_request_id"],
+                revision=1, occurred_at=datetime.now(UTC),
+                parts=({"text": json.dumps({key: body.get(key) for key in ("title", "state", "due_at", "summary", "conditions")}, ensure_ascii=False)},),
+                origin_kind=context.origin_kind)
+
+        async def apply(conn):
+            support = await self.revisions.support_on(conn, context, (refs,))
+            effects = []
+            result = await self.revisions.write_matter_on(conn, context, {**body, "interpretation": evidence_refs is not None},
+                support=support, matter_id=body["matter_id"], expected_revision=body.get("expected_revision", 0),
+                change_kind="transition" if body.get("expected_revision", 0) else "create", reason=body.get("reason", "用户更新事项"),
+                scope_fork_id=stable_id(context.actor_id, body["client_request_id"], body["matter_id"] + ":scope", "matter"), effects=effects)
+            await self.memory.domain_changed_on(conn, context,
+                ({"kind": "matter", "id": result.matter_id, "revision": result.revision},), source_refs=refs,
+                affected_subject_ids=tuple({result.subject_id, *(row["subject_id"] for row in effects if row["subject_id"])} - {None}))
+            return CommandResult(body["client_request_id"], data={"matter_id": result.matter_id}, revision=result.revision)
+
+        async def replay(conn, original):
+            await self.identity.check_context(context, connection=conn)
+            return original
+        result = await self.commands.execute(context, "memory.matter.save", body["client_request_id"],
+            command_fingerprint(body, evidence_refs), apply, on_replay=replay)
+        return replace(result, data=await self.get_matter(context, result.data["matter_id"]))
+
+    async def history(self, context, claim_id, *, cursor=None, limit=50):
+        return await self._history(context, "claim", claim_id, cursor=cursor, limit=limit)
+
+    async def matter_history(self, context, matter_id, *, cursor=None, limit=50):
+        return await self._history(context, "matter", matter_id, cursor=cursor, limit=limit)
+
+    async def _history(self, context, kind, object_id, *, cursor=None, limit=50):
+        await self.identity.check_context(context)
+        limit, before = min(max(int(limit), 1), 200), revision_cursor(cursor)
+        async with self.database.transaction(read_only=True) as conn:
+            if kind == "claim":
+                query = "SELECT r.*,c.actor_id,c.current_revision FROM memory.claim_revisions r JOIN memory.claims c USING(claim_id) WHERE c.actor_id=%s AND r.claim_id=%s "
+            else:
+                query = "SELECT r.*,m.revision AS current_revision FROM memory.matter_revisions r JOIN memory.matters m USING(matter_id) WHERE r.actor_id=%s AND r.matter_id=%s "
+            rows = await (await conn.execute(query + "AND " + ELIGIBLE_SCOPES +
+                " AND (%s::bigint IS NULL OR r.revision<%s) ORDER BY r.revision DESC LIMIT %s",
+                (context.actor_id, object_id, list(context.scope_ids), before, before, limit + 1))).fetchall()
+            selected = await select_supports_on(self.sources, conn, context, rows[:limit])
+            units = []
+            for row, refs in zip(rows[:limit], selected):
+                if refs is None or row.get("state") == "unsupported" or row.get("active") is False:
+                    continue
+                reference_kind = "hypothesis" if kind == "claim" and row["memory_kind"] == "hypothesis" else kind
+                links = await self.revisions.links.for_records_on(conn, context, (RecordRef(reference_kind, object_id, row["revision"]),), historical=True)
+                related = links.get(object_id, ())
+                public_row = {**row, "scope_ids": sorted(set(row["scope_ids"]) & set(context.scope_ids))}
+                value = codec.claim(public_row, refs, relations=related) if kind == "claim" else codec.matter(public_row, selected_refs=refs)
+                if row["revision"] != row["current_revision"]:
+                    value = replace(value, current_status="history_only")
+                units.append(build_evidence_unit(value, relations=related, time_mode="history"))
+        missing = ("unavailable_sources",) if any(refs is None for refs in selected) else ()
+        return Page(tuple(units), "r:" + str(rows[limit - 1]["revision"]) if len(rows) > limit else None,
+                    Coverage(len(rows) <= limit and not missing, missing=missing))
 
     async def source_changed(self, conn, sources, kind, cursor=None):
-        last_id, last_revision = (
-            (cursor["claim_id"], cursor["revision"]) if cursor else (None, None)
-        )
-        rows = await (
-            await conn.execute(
-                "SELECT r.*,c.actor_id,c.principal_id FROM memory.claim_revisions r JOIN memory.claims c "
-                "ON c.claim_id=r.claim_id WHERE r.state='active' AND r.source_refs @> ANY(%s::jsonb[]) "
-                "AND (%s::text IS NULL OR (r.claim_id,r.revision)>(%s,%s)) ORDER BY r.claim_id,r.revision LIMIT 129",
-                (
-                    [
-                        Jsonb([{"source_id": source.source_id, "revision": source.revision}])
-                        for source in sources
-                    ],
-                    last_id,
-                    last_id,
-                    last_revision,
-                ),
-            )
-        ).fetchall()
-        # Retention validity is distinct from the current viewer's access. Independent supports survive
-        # even if their owner is disabled; this predicate returns no source content or additional rights.
-        selected = rows[:128]
-        if selected:
-            validity = await (
-                await conn.execute(
-                    "SELECT claim_id,revision,sources.any_support_usable(support_groups,scope_ids) AS valid "
-                    "FROM memory.claim_revisions WHERE (claim_id,revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
-                    ([row["claim_id"] for row in selected], [row["revision"] for row in selected]),
-                )
-            ).fetchall()
-            invalid = [row for row in validity if not row["valid"]]
-            if invalid:
-                await conn.execute(
-                    "UPDATE memory.claim_revisions SET state='unsupported',content='',value='null',conditions='{}',"
-                    "embedding=NULL,lexical='' WHERE (claim_id,revision) IN(SELECT * FROM unnest(%s::text[],%s::bigint[]))",
-                    ([row["claim_id"] for row in invalid], [row["revision"] for row in invalid]),
-                )
-        if len(rows) > 128:
-            from uuid import uuid4
-
-            await self.jobs.enqueue(
-                conn,
-                JobSpec(
-                    "memory.purge_source",
-                    "memory-purge:" + uuid4().hex,
-                    {
-                        "sources": wire(sources),
-                        "kind": kind,
-                        "cursor": {
-                            "claim_id": rows[127]["claim_id"],
-                            "revision": rows[127]["revision"],
-                        },
-                    },
-                    ServiceClass.DUE,
-                ),
-            )
+        return await self.revisions.source_changed_on(conn, sources, kind)
 
     async def purge_source(self, sources, kind, cursor=None):
-        from tianshu.types import SourceRef
-
         async with self.database.transaction() as conn:
-            await self.source_changed(
-                conn, tuple(SourceRef(**source) for source in sources), kind, cursor
-            )
+            return await self.source_changed(conn, codec.refs(sources), kind, cursor)
