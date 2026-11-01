@@ -9,13 +9,19 @@ from .types import ContactCandidate
 from .validation import timestamp
 
 
-async def prepare(worker, context, result, dependencies, summary):
+def eligible(result):
     photo=result.result.get("photo_intent") or {}
     sharing=result.result.get("sharing") or {}
-    if (result.execution!="succeeded" or result.effect=="unknown" or result.delivery=="delivered"
-            or not result.artifacts or not photo or photo.get("delivery_kind")=="create_only"
-            or sharing.get("decision")=="archive"):
+    return (result.execution=="succeeded" and result.effect!="unknown" and result.delivery!="delivered"
+            and bool(result.artifacts) and bool(photo) and photo.get("delivery_kind")!="create_only"
+            and sharing.get("decision")!="archive")
+
+
+async def prepare(worker, context, result, dependencies, summary):
+    if not eligible(result):
         return None
+    photo=result.result["photo_intent"]
+    sharing=result.result.get("sharing") or {}
     if photo.get("target_ref")!=context.conversation_id or not context.delivery_allowed:
         raise AppError("contact_target_mismatch",status=403)
     from tianshu.capabilities.actions import result_sources

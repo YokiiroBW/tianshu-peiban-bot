@@ -561,9 +561,9 @@ class LifeWorker:
 
 
     async def detached_result(self,context,result,action):
-        if action["capability_id"]!="images.generate":
+        from .photo_contacts import eligible,prepare
+        if action["capability_id"]!="images.generate" or not eligible(result):
             return
-        from .photo_contacts import prepare
         prepared=await prepare(self,context,result,source_refs(action["source_refs"]),
             (result.result.get("photo_intent") or {}).get("motivation") or "图片已完成")
         if prepared:
