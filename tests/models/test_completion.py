@@ -42,6 +42,17 @@ def test_terminal_responses_incomplete_is_a_finished_physical_response():
     assert collector.raw_usage["output_tokens"] == 4096
 
 
+def test_explicit_provider_failure_remains_known_failure_metadata():
+    collector = ResponseCollector("openai.responses")
+    collector.feed({"type": "response.failed", "response": {
+        "status": "failed", "error": {"code": "server_error"}, "usage": {"output_tokens": 30},
+    }})
+    assert collector.completed
+    assert collector.completion.provider_status == "failed"
+    assert collector.completion.state == "incomplete"
+    assert collector.completion.stop_reasons == ("server_error",)
+
+
 def test_old_saved_result_recovers_completion_without_changing_receipt():
     result = result_from_wire({"parts": [], "native_response": {"choices": [{"finish_reason": "length"}]},
         "receipt": {"attempt_id": "a", "intent_id": "i", "status": "succeeded", "dispatch": "submitted",

@@ -451,12 +451,15 @@ class ModelBroker:
                 "native_response": collector.native_response,
                 "completion": wire(collector.completion),
             }
+            settled_status = "failed" if collector.completion.provider_status == "failed" else "succeeded"
+            provider_error = ((collector.native_response or {}).get("error") or {}).get("code")
             row = await self.ledger.finish(
                 request.attempt_id,
-                "succeeded",
+                settled_status,
                 usage=usage,
                 result=result_data,
                 charged_units={"tokens": charged},
+                error_code=(provider_error or "upstream_generation_failed") if settled_status == "failed" else None,
                 provider_handle=(collector.native_response or {}).get(
                     "id", (collector.native_response or {}).get("responseId")
                 ),
@@ -475,7 +478,7 @@ class ModelBroker:
                 collector.completion,
             )
             try:
-                await self.event("model.finished", "succeeded", request.attempt_id)
+                await self.event("model.finished", settled_status, request.attempt_id)
             except AppError:
                 pass
             yield ModelEvent("receipt", receipt=result.receipt, data=result)

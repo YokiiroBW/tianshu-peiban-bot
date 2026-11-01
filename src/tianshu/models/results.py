@@ -25,6 +25,6 @@ async def read_result(broker, attempt_id, *, context):
         if exc.status not in {401, 403, 409}:
             raise
         return ModelResult((), receipt(row))
-    if row["protocol"] == "external" or row["result"] is None or row["status"] != "succeeded":
+    if row["protocol"] == "external" or row["result"] is None or row["status"] not in {"succeeded", "failed"}:
         return ModelResult((), receipt(row))
     return result_from_wire({**row["result"], "receipt": wire(receipt(row))})
