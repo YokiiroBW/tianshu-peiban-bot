@@ -229,3 +229,35 @@ separate MC-D integration scope and will consume these types/builders.
 - 只修改 extraction_contract.py、上述定向测试和本交接；B 的 materials/display
   单写边界保持。没有运行任何测试、候选语言解析、typecheck、build、模型、网络、
   生产或 QQ 操作；原失败/未知请求没有重放。
+
+## 集中预算检查后的同源指令去重（2026-11-01）
+
+- 协调者最终报告 backend-semantic-08 的 38 个节点中 36 个通过。原有
+  test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources
+  失败，details 为 estimated=12354、input_budget=12000、fixed_tokens=11577、
+  new_characters=259；129 片段尾部节点在 188.3 秒达到原 80 次处理上界仍未完成，
+  没有硬预算 blocked，和可用原文空间过小一致。根集成 bca8b0e 的协议与本分支
+  90e6cc5 一致，因此在原分支
+  继续，只修改 extraction_contract.py 与本交接；不改已通过的显示、权限或关系领域。
+- 只压短重复连接语和 Schema 已明确的 state 枚举说明。完整 Schema 及所有字段、
+  枚举、create/ref 限制和程序校验原样保留。作者/事实对象、转述不冒充确认、条件、
+  纠正/变化、Matter 稳定身份及 CAS、群/个人归属、表态/转述非任务、真人报告与真实
+  执行区分、OR/AND 支持与读取依赖、未决/有界补查等实质要求均仍在同源指令中。
+- system 不再附加逐冻结目标重复序列化的完整 no_change JSON 形状示例。其字段、
+  status 枚举、目标数量与形状已在完整 Schema 中，实际目标与材料仍完整提供；
+  no_change/unresolved 与覆盖要求仍明确。consolidation_example 函数及程序空变化
+  分支原样保留，没有删除业务 API、原文正文、身份映射或来源依赖。
+- 静态字节计算（没有 import/执行候选代码或测试）：规则文字比 90e6cc5 减少 296 B；
+  原测试 a/b 两目标、batch_synthetic 的重复形状示例为 374 B，共减少 670 B。
+  默认 TokenCounter 源码按 UTF-8 字节计文本，消息与材料均未变，因此依据协调者
+  实际 reported estimate 推算为 12354-670=11684，距 12000 约 316 的余量；
+  fixed_tokens 同理预计 10907。这是静态推算，不是重新运行测试的结果。
+- 以已保存 S09 checkpoint-3 实际 system 作另一静态口径：Schema 仍为 7707 B，
+  完整 system 从 11018→9980 B；该样例目标数较多，重复示例更长，因此此口径
+  节省 1038 B，不能将它直接代入两目标原测试。两种口径均未动模型实际 token、
+  原 12k 限制、计数器、分段、材料正文或断言。
+- 根任务仅重验上述预算节点及
+  tests/core/test_incremental_consumers.py::test_long_original_and_more_than_128_parts_reach_the_tail，
+  复用其他 36 个成功结果。原 80 次上限、129 个 parts、来源完整性及断言不改。
+  作者没有运行测试、语言解析/typecheck/build、模型、网络、
+  生产或 QQ 操作，也没有新增测试或降低原验收条件。
