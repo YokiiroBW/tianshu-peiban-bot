@@ -1,5 +1,5 @@
 {
-  "phase": "final_candidate_real_semantic_acceptance",
+  "phase": "final_repair_candidate_build_and_real_semantic_acceptance",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
@@ -206,7 +206,7 @@
       "owner": "MC-C",
       "state": "confirmed",
       "problem": "QQ sender.card NUL causes durable inbox processing DataError; original events retained",
-      "historical_recovery_decision": "User explicitly chose to retain and skip the three NUL-name inputs; no historical replies. Original job cancellation pending deployment."
+      "historical_recovery_decision": "Direct user skip decision applied by native JobQueue.cancel to the three original jobs; messages, failed status and attempts=1 retained; no historical replies."
     },
     {
       "id": "RC-02",
@@ -319,20 +319,38 @@
       "owner": "MC-G",
       "state": "integrated_targeted_validation_passed_not_deployed",
       "problem": "Subsecond optional retrieval deadlines could create submitted unknown holds and occupy both elastic slots; use actual lease preparation budget, full remote execution window and bounded admission, preserve all unknown protections and foreground deadline."
+    },
+    {
+      "id": "RC-20",
+      "owner": "MC-B",
+      "state": "integrated_deterministic_verified_real_semantic_pending",
+      "problem": "Readable Episode-only speakers had no authorized display identity in answer context; hydrate current permitted subject/speaker labels inside complete source-checked evidence for projection, retrieval, tools and source trace."
+    },
+    {
+      "id": "RC-21",
+      "owner": "MC-A",
+      "state": "integrated_deterministic_verified_real_semantic_pending",
+      "problem": "Visible consolidation schema allowed existing-record link targets that the domain rejects; unify create/ref shape per operation while preserving atomicity, fixed read sets and original source checks."
+    },
+    {
+      "id": "RC-22",
+      "owner": "MC-A+MC-B",
+      "state": "integrated_deterministic_verified_real_semantic_pending",
+      "problem": "Common schedules were assigned to a speaker and ordinary confirmation/relay statements became new tasks; clarify group versus personal subjects and independently trackable Matter boundaries."
     }
   ],
   "blueprint_acceptance": {
-    "M01-M18": "Applicable domain, pipeline, source, context, growth, model, channel, capability, migration and product-assembly checks passed; 36 frontend scenarios passed. Real semantic/cost and production receipts pending."
+    "M01-M18": "Applicable deterministic domain/pipeline/context/authorization/source/model/channel/capability/migration checks passed, including final 38-case display/protocol scope across its receipts; earlier 36 frontend scenarios plus 4 reaction import scenarios remain valid. Final semantic/cost and production outcomes pending."
   },
   "new_production_release": null,
   "semantic_acceptance_inputs": {
     "stories": 24,
     "development": 16,
     "held_out": 8,
-    "state": "ready_for_final_candidate_run; first candidate evidence preserved, no held_out yet",
+    "state": "Candidate02 completed 24 executions; only development S01-S16 reviewed, no held-out content used for tuning. Candidate02 rejected for RC20-RC22; final candidate will rerun semantic and cost arms.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All implementation and followup fixes integrated; necessary deterministic validation passed; final immutable image and real semantic/cost acceptance pending.",
+  "product_implementation": "All product repairs integrated through ff5717b; applicable deterministic checks passed. Final immutable image, semantic/cost comparison and production cutover remain.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -375,7 +393,7 @@
         "Short retrieval deadlines yielded unknown embedding/rerank attempts; exact cause under bounded analysis"
       ]
     },
-    "production_changed": false,
+    "production_changed": true,
     "second_pass": {
       "backend_completed": 88,
       "backend_passed": 85,
@@ -421,6 +439,55 @@
       "frontend_reaction_import_scenarios": 4,
       "frontend_reaction_import_passed": 4,
       "scope": "Only failed or changed paths; unchanged earlier successful receipts retained. The 129-part tail completed at original 12000 input limit."
+    },
+    "display_protocol_repair": {
+      "implementation_head": "ff5717bdfc1763ab3108782df22faa6dab5c4716",
+      "first_pass_source": "bca8b0e51f73bf6e69e04f83f1aeca4ab2d19ec6",
+      "first_pass_cases": 38,
+      "first_pass_passed": 36,
+      "first_pass_failed": 2,
+      "followup_cases": 2,
+      "followup_passed": 2,
+      "followup_skipped": 0,
+      "scope": "Authorized display identity, source withdrawal, whole evidence budgets, native tools, target-shape/domain agreement, original 12000 input budget and complete 129-part original; unchanged earlier successful checks reused.",
+      "receipts": [
+        "backend-semantic-08",
+        "backend-semantic-09"
+      ]
+    },
+    "production_change_scope": "Only the directly authorized original-job cancellation below; production source/image and schemas remain unchanged.",
+    "candidate02_semantic": {
+      "source_sha": "ba2b95daf6eb1d62ade0e14f5f8d71c38f484cd4",
+      "image_id": "sha256:6ed87a23bdf71fd8e64ffd827018a3b2deba9fb73f652c20851f0e569163221a",
+      "execution_completed": 24,
+      "development_reviewed": 16,
+      "held_out_content_reviewed": 0,
+      "development_physical_requests": 156,
+      "development_unsettled_requests": 0,
+      "reviewer": "root_coordinator_assistant",
+      "release_accepted": false,
+      "findings": [
+        "RC-20",
+        "RC-21",
+        "RC-22"
+      ],
+      "cost_arms_launched": false,
+      "evidence": "private candidate-02/acceptance/coordinator-development-review.json and original immutable native receipts"
     }
-  }
+  },
+  "production_recovery_actions": [
+    {
+      "action": "native_cancel_original_jobs",
+      "job_ids": [
+        17150,
+        17151,
+        17153
+      ],
+      "at_utc": "2026-11-01T11:07:53.846812Z",
+      "state": "commit_confirmed",
+      "original_messages_and_failed_jobs": "retained",
+      "runtime_job_keys": "cancelled_at persisted",
+      "historical_reply_attempts": 0
+    }
+  ]
 }

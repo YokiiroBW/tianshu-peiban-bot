@@ -4,7 +4,7 @@
 
 本图纸确定一次完整交付的实现目标：在现有统一架构内，恢复群聊共享片段一次多人整理，补齐旧记忆对照、事实修订、事项历史、多类型检索、人物认识及实际回答消费。所有能力完整装配和验证后一次切换上线。
 
-**改造规模为 Memory 内部的中等规模演进。** PostgreSQL、Sources、Identity、模型 Broker、Procrastinate 和现有产品边界继续复用，已有原件和记忆不重新初始化。A/B/C/D/F 产品代码已于本日合入，评测和发布工具正在准备；集中验收与生产切换尚未执行。实际提交、状态和验证记录以[实施队列](../development/memory-closure-status-2026-11-01.json)及[实施说明](../development/memory-closure-execution-2026-11-01.md)为准。
+**改造规模为 Memory 内部的中等规模演进。** PostgreSQL、Sources、Identity、模型 Broker、Procrastinate 和现有产品边界继续复用，已有原件和记忆不重新初始化。全部工作包及真实开发样例发现的共享协议/显示返修已合入，适用确定性与前端检查通过；最终不可变候选的真实语义、成本对照和生产切换仍待执行。实际提交、状态和验证记录以[实施队列](../development/memory-closure-status-2026-11-01.json)及[实施说明](../development/memory-closure-execution-2026-11-01.md)为准。
 
 设计时核对的源码基准为 `7aac7746ed0a4d12cd8b596de156b6f3a745f8ad`，所在工作树：`C:/Users/Administrator/.codex/worktrees/tianshu-unified-refactor/tianshu-peiban-bot`。下文已有基础与差距表描述该设计基线；实际生产成本对照使用 `dcdf729b5d22f451093e3658d131fd6757a00dde`，不把设计差距当成本日集成代码的当前状态。
 
