@@ -1,8 +1,8 @@
 {
-  "phase": "final_repairs_integrated_verified_candidate09_release_preparing",
+  "phase": "product_repairs_frozen_candidate10_preparing_user_requested_old_test_batch_cleanup",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
-  "production_source": "271ad96e21e0035e7f605b345114c10703542a0d",
+  "production_source": "706760f5d585be299fc5fd19ecc4c794bc6df080",
   "validation_policy": "Only after all implementation and integration; no incremental tests, builds or model/live acceptance",
   "model": "gpt-6.1-sol",
   "reasoning_effort": "max",
@@ -440,7 +440,18 @@
     },
     "migrations_total": 16,
     "original_three_migrations_applied": true,
-    "mounts": 11
+    "mounts": 11,
+    "candidate09": {
+      "source_sha": "706760f5d585be299fc5fd19ecc4c794bc6df080",
+      "image_id": "sha256:674a978b1163042e5d47e56e44a731353a20fb090abcb9331554264f2b2c540a",
+      "started_at": "2026-11-01T17:22:56.210416135Z",
+      "state": "ready",
+      "guard": "active",
+      "configuration_unchanged_from_candidate08": true,
+      "mount_count": 11,
+      "database_migration_change": false,
+      "receipt": "candidate-09/acceptance/postdeploy-02.json"
+    }
   },
   "semantic_acceptance_inputs": {
     "stories": 24,
@@ -449,7 +460,7 @@
     "state": "24 unique stories covered by 17 candidate05 and7 unchanged candidate04 results; 8 heldout answers reviewed only after candidate05 freeze. All 24 answers correct in these root-reviewed runs, not a universal accuracy claim. Native failures/unknowns remain explicit. Candidate06 only clarifies the existing transition operation after development S03 cost-arm failure and supplements S03; candidate05 cost benchmark remains labeled pre-clarification.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All scoped final repairs integrated through 5ec70e127a4a22f4037a53826efecda407fb231c: strict complete model JSON, multiline image prompts, original-image reconciliation and explicit safe resume, immutable generation-bound Reflection identities, and isolated plugin installation. Candidate08 production queue isolation remains healthy. Candidate09 release preparing; no schema/configuration change.",
+  "product_implementation": "All final product code is integrated through 552cc813. Chromium sandbox chroot rule fixed without granting host capabilities; exact-image isolated baseline failed and candidate launched/closed as UID10001 with sandbox enabled. User requested discarding broken old test data, so the proposed permanent Growth retirement API was not integrated and its narrow frontend change was reverted. Remaining operations are one-time fixed old-test-batch cleanup and ordinary final deployment; no broad code refactor remains.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -675,6 +686,13 @@
       "repair_skipped": 0,
       "frontend": "unchanged; reuse RC28 typecheck/build and four desktop/mobile cases",
       "test_timing": "after complete repair batch; only failed/new affected cases rerun"
+    },
+    "browser_profile_repair": {
+      "source_sha": "552cc8136d6eb92088bf36c2956f68abbca9971c",
+      "portable_check": "acceptance/backend-native-18.json; 1 passed, 0 skipped",
+      "original_collection_failure": "backend-native-17: local test venv lacked already-declared locked PyYAML6.0.3; installed that exact dependency and repeated only affected node",
+      "actual_same_image_comparison": "candidate-10/acceptance/browser-sandbox-comparison.json; old profile failed at namespace chroot, candidate launched and closed; no network/production mounts",
+      "unchanged_code": "reuse RC28-31 backend/frontend/native receipts; no repeated model cases"
     }
   },
   "production_recovery_actions": [
@@ -717,6 +735,25 @@
       "episode_revision": "1_to_2",
       "activity_and_original_time": "preserved",
       "original_activity_or_model_replay": false
+    },
+    {
+      "action": "seven_original_growth_partition_commands",
+      "state": "submitted_once_each_with_original_identity_and_CAS",
+      "additional_known_invalid_review": "d8b original known-invalid output reviewed once; subsequent invalid result retained for diagnosis",
+      "caught_up_partitions": [
+        "b44b72c9",
+        "d893e863",
+        "2ce1a678"
+      ],
+      "progressing_partitions": [
+        "4202273d",
+        "9bf0755b"
+      ],
+      "still_blocked": [
+        "fe94cd26 and 01bd5b68: original frozen Episode has no Source",
+        "d8b0bbd2: new result reflection_output_invalid"
+      ],
+      "receipt": "candidate-09/acceptance/growth-inspection-03, growth-inspection-04 and postdeploy-02.json"
     }
   ],
   "capability_operational_progress": {
@@ -724,12 +761,24 @@
       "chengxi": 56,
       "chino": 56,
       "original_paths_per_actor": 67,
-      "metadata": "original_categories",
-      "index": "first_original_action_pending_in_elastic_queue"
+      "metadata": "original_categories_not_full_visual_reannotation",
+      "index": "both_original_native_actions_succeeded",
+      "chino_selection": "actual_semantic_selection_and_original_GIF_source_hash_readback_passed"
     },
     "chino_image_profile": "revision1_native_saved",
-    "selfie": "original_action_pending_not_started_at_queue_diagnostic",
-    "fish": "no_native_credentials; voice_binding_deferred_by_user"
+    "selfie": {
+      "state": "original_action_reconciled_as_no_image_effect_then_explicit_new_attempt_succeeded",
+      "delivery": "not_requested",
+      "artifact_count": 1,
+      "scene_time": "2026-11-02T01:23:56+08:00",
+      "weather": "unavailable_in_original_frozen_scene",
+      "visual_limitation": "night instructions reached compiled graph; actual output has daylight, so scene fidelity not passed"
+    },
+    "fish": "no_native_credentials; voice_binding_deferred_by_user",
+    "audio_video": "actual_Gemini_native_parts_consumed; video red_to_blue correct; public_audio_transcript_matches_original_record; sampled_coverage_retained",
+    "webpage": "actual_HTTP_body_and_original_Source_succeeded",
+    "browser": "sandbox chroot root cause confirmed; repaired profile passed exact-image isolated launch; final production switch pending",
+    "onebot": "two_existing_connections_identity_online_and_five_read_only_APIs_verified; no_QQ_send"
   },
   "queue_isolation_execution": {
     "source_baseline": "271ad96e21e0035e7f605b345114c10703542a0d",
@@ -780,5 +829,17 @@
       "routing_blocked": 0,
       "receipt": "candidate-08/acceptance/queue-readback-01.private.json"
     }
+  },
+  "old_test_cleanup": {
+    "authorization": "2026-11-02 user: old unusable data may be deleted because it is test data; repair/cleanup before final clean source package",
+    "targets": [
+      "fe94cd26",
+      "01bd5b68",
+      "d8b0bbd2"
+    ],
+    "scope": "fixed unusable original Growth batches; persona/provider/bot configuration preserved",
+    "permanent_compatibility_api_added": false,
+    "state": "one_time_manifest_preparing",
+    "source_package": "after final repairs and cleanup only"
   }
 }
