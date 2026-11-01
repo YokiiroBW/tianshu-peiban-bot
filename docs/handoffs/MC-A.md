@@ -294,3 +294,23 @@ separate MC-D integration scope and will consume these types/builders.
   只做必要预算与 M16 实际字段/valid_at 两侧及未知时间复验；不能只凭回答能复述
   日期判定时间查询正确。已正确工作的领域时间解析、权限、CAS、来源与显示路径
   可按未变输入复用已有结果。未执行测试/typecheck/build、网络、模型、生产或 QQ。
+
+## 关系 target 与端点 alias 结构澄清（2026-11-01）
+
+- 在 `316e942` 后继续同一分支，只修改同源指令、已有合同测试与本交接。根任务和
+  B 对 candidate-03 开发 S12 的定位一致：Schema 已要求端点为冻结 r alias 或本批
+  n alias 字符串，但真实模型提案把两个 from_ref 写成 create 对象；target 的
+  create 对象本身合法。这是模型输出结构错误，不是 Schema/验证器错接。
+- 短说明明确：link.target 的 `{create:nN}` 创建独立关系；payload.from_ref/to_ref
+  只填 nN/rN 字符串，不包对象；旧 r 仍必须列 reads。Schema、validate_proposal、
+  来源闭包、CAS、目标覆盖和事务均未修改，不自动归一化非法输出。
+- 编写但未执行
+  `tests/memory/test_consolidation_contract.py::test_link_endpoints_are_alias_strings_while_target_creates_the_relation`
+  的 local-create-object / record-ref-object 两个参数节点：完整提案同时创建新 Claim
+  和新关系，先检查真实模型 Schema 与程序验证接受 n1/r0 字符串，再逐项检查拒绝
+  create/ref 包装对象、错误路径准确且输入对象未经修改。既有 fixture/断言保持。
+- 静态 UTF-8 字节比较：只替换这一条说明，相对 `316e942` 净增 23 B；Schema 和
+  材料未变。沿前次原字节夹具静态估计为 11849+23=11872，距原 12000 余量约 128。
+  这是源码字符串字节计算和已有基准推算，未运行候选代码、解析器或测试；没有更换
+  计数器、增加预算或删除原文。根任务统一复验新增合同、原预算和受影响尾部节点。
+- 未运行测试/typecheck/build、模型、网络、生产或 QQ，也未读取 heldout。

@@ -252,7 +252,7 @@ def consolidation_instruction(frozen):
         "hypothesis保留条件/支持/反例，不改稳定人格/权限；置信度非概率。"
         "操作含support_groups(组内AND/组间OR)、必要context_refs、全部旧读取reads及理由；"
         "m来源/r旧记录/n新对象，不造真实ID/版本/来源/人物。"
-        "link.target仅{create:nN}建独立关系，端点在payload.from_ref/to_ref，旧r列reads。"
+        "link.target仅{create:nN}建独立关系；payload.from_ref/to_ref仅nN/rN字符串，不包对象；旧r列reads。"
         "精确覆盖各目标new_material_ids；无新增事实用no_change，缺关键依据unresolved。"
         "原件最多有界补查一次，后给最终结果或unresolved；content_omitted不可凭索引推断/修改，需用则needs_context请求record。"
         "重复转述不算独立支持，不为配额造事实。\n"

@@ -102,6 +102,39 @@ def test_model_target_shape_matches_the_domain_operation(kind):
         validate_proposal(data, invalid)
 
 
+@pytest.mark.parametrize(("field", "wrapped"), [
+    pytest.param("from_ref", {"create": "n1"}, id="local-create-object"),
+    pytest.param("to_ref", {"ref": "r0", "expected_revision": 3}, id="record-ref-object"),
+])
+def test_link_endpoints_are_alias_strings_while_target_creates_the_relation(field, wrapped):
+    data = frozen()
+    proposal = consolidation_example(data)
+    proposal["operations"] = [
+        {"op_id": "op1", "kind": "add_claim", "subject_id": "a", "target": {"create": "n1"},
+            "payload": {"predicate": "interest", "value": "有原件支持的新事实", "speaker_id": "a",
+                "assertion": "self_confirmed", "polarity": True, "conditions": {},
+                "valid_from": None, "valid_until": None},
+            "support_groups": [["m1"]], "context_refs": [], "reads": [], "reason": "原件支持"},
+        {"op_id": "op2", "kind": "link", "subject_id": "a", "target": {"create": "n2"},
+            "payload": {"relation_kind": "supports", "from_ref": "n1", "to_ref": "r0",
+                "valid_from": None, "valid_until": None},
+            "support_groups": [["m1"]], "context_refs": [], "reads": ["r0"], "reason": "新事实补证旧记录"},
+    ]
+    proposal["target_results"][0].update(status="changed", operation_ids=["op1", "op2"])
+    validator = Draft202012Validator(consolidation_schema(data))
+    assert not list(validator.iter_errors(proposal))
+    assert validate_proposal(data, proposal) is proposal
+
+    invalid = deepcopy(proposal)
+    invalid["operations"][1]["payload"][field] = wrapped
+    unchanged = deepcopy(invalid)
+    assert any(list(error.absolute_path) == ["operations", 1, "payload", field]
+        for error in validator.iter_errors(invalid))
+    with pytest.raises(AppError, match="memory_consolidation_invalid"):
+        validate_proposal(data, invalid)
+    assert invalid == unchanged
+
+
 @pytest.mark.parametrize('kind',['add_claim','correction','transition','revise_hypothesis'])
 def test_shared_claim_schema_keeps_required_and_extra_property_validation(kind):
     data=frozen()
