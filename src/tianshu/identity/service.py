@@ -453,6 +453,33 @@ class IdentityService:
         )
         return self._limit_context(selected, context)
 
+    async def refresh_scheduled_context(self, previous, *, permission, connection=None):
+        """Reauthorize a timer's author configuration, never an in-flight execution.
+
+        The saved scene and grants are an upper bound. An epoch change alone may
+        be a password/other-role edit; lost scopes, permission or an inactive
+        principal/actor cannot restart a timer.
+        """
+        async def refresh(conn):
+            if not previous.actor_id:
+                raise AppError("scheduled_actor_required", status=403)
+            current = await self.context_on(
+                conn, previous.principal_id, actor_id=previous.actor_id,
+                person_id=previous.person_id, conversation_id=previous.conversation_id,
+                permission=permission, origin_kind=OriginKind.TIMER,
+            )
+            await self.check_active_actor(current, connection=conn)
+            if not set(previous.scope_ids) <= set(current.scope_ids):
+                raise AppError("scheduled_scope_unavailable", status=403)
+            limited = self._limit_context(current, previous)
+            require_permission(limited.permissions, permission)
+            return limited
+
+        if connection is not None:
+            return await refresh(connection)
+        async with self.database.transaction(read_only=True) as conn:
+            return await refresh(conn)
+
     async def for_participation(self, context, *, source_refs=()):
         """B's explicit participation use case may select a currently reply-owned group."""
         if context.conversation_kind != "group" or not context.conversation_id:

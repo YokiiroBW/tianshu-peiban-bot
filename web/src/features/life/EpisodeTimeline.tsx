@@ -5,6 +5,27 @@ import { SourceEvidence } from "../../components/SourceEvidence";
 import type { Episode } from "./domainTypes";
 import { timeLabel } from "./domainTypes";
 
+const coverageReasons: Record<string, string> = {
+  coverage_unknown: "本次记录没有提供素材覆盖范围，不能据此认定已读完或看完。",
+  source_unavailable: "部分原始依据已不可用。",
+  observation_analysis_unavailable: "观察分析尚未形成可核验的材料。",
+};
+const extractionStates: Record<string, string> = {
+  no_original_material:
+    "这条记录没有可用于整理的原始材料，未从中抽取人物事实。",
+  pending: "等待整理",
+  queued: "等待整理",
+  running: "正在整理",
+  extracting: "正在整理",
+  completed: "本批整理已完成",
+  complete: "本批整理已完成",
+  extracted: "本批整理已完成",
+  partial: "部分材料已整理，仍有后续内容",
+  failed: "本次整理未完成",
+  no_extractable_text: "当前材料没有可抽取的文字内容",
+  source_unavailable: "原始依据已不可用",
+};
+
 export function EpisodeTimeline() {
   const [cursor, setCursor] = useState<string | null>(null);
   const page = useDomainResource<Page<Episode> & { watermark: string }>(
@@ -42,12 +63,23 @@ export function EpisodeTimeline() {
               </p>
               {item.coverage && !item.coverage.complete && (
                 <p>
-                  记录范围有缺口：
-                  {item.coverage.missing.join("、") || "覆盖尚未完整确认"}
+                  {item.coverage.missing.length
+                    ? item.coverage.missing
+                        .map(
+                          (reason) =>
+                            coverageReasons[reason] ??
+                            "部分素材的覆盖范围尚未确认。",
+                        )
+                        .join(" ")
+                    : "覆盖范围尚未完整确认。"}
                 </p>
               )}
               {item.extraction_state && (
-                <small>记忆整理：{item.extraction_state}</small>
+                <small>
+                  记忆整理：
+                  {extractionStates[item.extraction_state] ??
+                    "整理状态尚未确认"}
+                </small>
               )}
               <SourceEvidence sources={item.source_refs} />
             </div>

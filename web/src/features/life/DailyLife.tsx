@@ -3,10 +3,11 @@ import { MapPin, Smile, BookOpen } from "lucide-react";
 import { DayPeriodArt } from "./DayPeriodArt";
 import { WeatherCard } from "./WeatherCard";
 import { EpisodeTimeline } from "./EpisodeTimeline";
-import { useDomainResource } from "../../api/useDomainResource";
+import { actorScope, useDomainResource } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
-import type { Activity, LifeState } from "./domainTypes";
+import type { Activity, LifeState, Routine, GrowthView } from "./domainTypes";
 import { activityLabels, timeLabel } from "./domainTypes";
+import { LifeScheduleStatus } from "./LifeScheduleStatus";
 import { SourceEvidence } from "../../components/SourceEvidence";
 
 export function DailyLife({ state }: { state: LifeState }) {
@@ -22,6 +23,24 @@ export function DailyLife({ state }: { state: LifeState }) {
     30000,
   );
   const current = state.activity;
+  const routine = useDomainResource<Routine>(
+    "life/routine",
+    actorScope(state.actor_id),
+    true,
+    30000,
+  );
+  const growth = useDomainResource<GrowthView>(
+    "companion/growth/view",
+    { limit: 20 },
+    true,
+    30000,
+  );
+  const notes = (growth.data?.reflections ?? [])
+    .filter((item) => item.kind === "reflection")
+    .sort((left, right) =>
+      (right.occurred_at ?? "").localeCompare(left.occurred_at ?? ""),
+    )
+    .slice(0, 3);
   const feelings = state.affect.feelings.filter((feeling) =>
     feeling.appraisal.trim(),
   );
@@ -64,7 +83,9 @@ export function DailyLife({ state }: { state: LifeState }) {
           <div>
             <small>角色生活中的地点</small>
             <strong>
-              {state.world_id} · {state.room_id}
+              {state.world_id === "default" && state.room_id === "room"
+                ? "日常小屋"
+                : "角色的生活空间"}
             </strong>
             <span className="muted">想象空间</span>
           </div>
@@ -91,10 +112,28 @@ export function DailyLife({ state }: { state: LifeState }) {
                 <SourceEvidence sources={current.source_refs} />
               </>
             ) : (
-              <p className="muted">
-                当前没有正在进行的活动。生活会按已配置的作息与动机继续安排。
-              </p>
+              <p className="muted">当前没有正在进行的活动。</p>
             )}
+          </section>
+          <section className="life-card life-subjective-notes">
+            <h3 className="life-card-title">最近的主观手记</h3>
+            <p className="muted">
+              来自角色对真实经历的整理，与此刻的情绪分开记录。
+            </p>
+            {growth.error && (
+              <p role="alert">暂时无法读取当前范围的主观手记。</p>
+            )}
+            {notes.map((note) => (
+              <article key={`${note.id}:${note.revision}`}>
+                <strong>{note.title}</strong>
+                <p>{note.content}</p>
+                <SourceEvidence sources={note.evidence} />
+              </article>
+            ))}
+            {growth.data && !notes.length && (
+              <p className="muted">当前可读范围还没有主观手记。</p>
+            )}
+            <a href="#/roles/growth">查看经历与成长</a>
           </section>
           <section className="life-card life-mood-card">
             <h3 className="life-card-title">心情与感想</h3>
@@ -129,6 +168,8 @@ export function DailyLife({ state }: { state: LifeState }) {
             </button>
           </div>
           {activities.error && <p role="alert">{activities.error}</p>}
+          {routine.error && <p role="alert">暂时无法读取生活调度状态。</p>}
+          {routine.data && <LifeScheduleStatus routine={routine.data} />}
           <ol className="life-plan">
             {activities.data?.items.map((item) => (
               <li

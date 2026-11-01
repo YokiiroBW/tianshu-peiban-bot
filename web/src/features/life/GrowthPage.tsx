@@ -2,16 +2,10 @@ import { useState } from "react";
 import { useDomainResource, useDomainCommand } from "../../api/useDomainResource";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { CommandFeedback } from "../../components/CommandFeedback";
-import { SourceEvidence, type SourceRef } from "../../components/SourceEvidence";
+import { SourceEvidence } from "../../components/SourceEvidence";
+import type { GrowthView } from "./domainTypes";
 import { DetailCard } from "../../components/DetailCard";
 import "../multimodal/multimodal.css";
-
-type GrowthItem = {
-  id: string; revision: number; kind: "reflection" | "interest" | "style";
-  title: string; content: string; state: string; occurred_at: string | null;
-  reason: string | null; evidence: SourceRef[]; can_modify: boolean; conditions: Record<string, unknown>; counterexamples: string[];
-};
-type GrowthView = { review: {revision:number;last_error:string|null;can_request_review:boolean} | null; can_review:boolean; items: GrowthItem[]; reflections: GrowthItem[]; next_cursor: string | null; missing: string[] };
 
 export default function GrowthPage() {
   const { actor } = useRoleWorkspace();

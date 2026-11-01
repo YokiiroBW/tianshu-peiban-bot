@@ -7,7 +7,7 @@ import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { WeatherLocationSettings } from "./WeatherSettings";
 import type { LifeState, Routine } from "./domainTypes";
-import { timeLabel } from "./domainTypes";
+import { LifeScheduleStatus } from "./LifeScheduleStatus";
 
 type ContactPreferences = {
   revision: number;
@@ -129,10 +129,7 @@ export function LifeRoutinePanel({
                 />
               </label>
             </div>
-            <p>
-              下一次生活时间：
-              {timeLabel(routine.data.next_due_at, routine.data.timezone)}
-            </p>
+            <LifeScheduleStatus routine={routine.data} />
             {canManage && (
               <button className="button primary" disabled={clock.busy}>
                 保存作息

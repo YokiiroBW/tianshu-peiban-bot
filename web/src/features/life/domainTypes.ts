@@ -79,6 +79,44 @@ export type Routine = {
   idle_seconds: number;
   next_due_at: string | null;
   last_tick_at: string | null;
+  schedule_status:
+    "not_started" | "disabled" | "blocked" | "overdue" | "waiting";
+  schedule_reason: string | null;
+  observed_at: string;
+  planning: {
+    revision: number;
+    reason: string | null;
+    next_due_at: string | null;
+    last_planned_at: string | null;
+    generation_consumed: boolean;
+    pending: boolean;
+  } | null;
+};
+export type GrowthItem = {
+  id: string;
+  revision: number;
+  kind: "reflection" | "interest" | "style";
+  title: string;
+  content: string;
+  state: string;
+  occurred_at: string | null;
+  reason: string | null;
+  evidence: SourceRef[];
+  can_modify: boolean;
+  conditions: Record<string, unknown>;
+  counterexamples: string[];
+};
+export type GrowthView = {
+  review: {
+    revision: number;
+    last_error: string | null;
+    can_request_review: boolean;
+  } | null;
+  can_review: boolean;
+  items: GrowthItem[];
+  reflections: GrowthItem[];
+  next_cursor: string | null;
+  missing: string[];
 };
 export type Episode = {
   episode_id: string;
