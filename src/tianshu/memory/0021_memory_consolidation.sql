@@ -62,6 +62,7 @@ CREATE TABLE memory.consolidation_state (
     lease_owner text,
     lease_until timestamptz,
     last_error text,
+    budget_failure jsonb,
     updated_at timestamptz NOT NULL DEFAULT now()
 );
 CREATE INDEX consolidation_due ON memory.consolidation_state(wake_due_at,partition_id);

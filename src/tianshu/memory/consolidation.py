@@ -194,7 +194,8 @@ class Consolidation:
                 "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s)",
                 (batch_id, state["partition_id"], SCHEMA_VERSION, "prepared" if request else "ready", Jsonb(wire(manifest)),
                  Jsonb(wire(frozen["read_set"])), Jsonb(wire(dependencies)), body_hash(context_record(context)), [step_id] if request else []))
-            await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=%s WHERE partition_id=%s", (batch_id,state["partition_id"]))
+            await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=%s,last_error=NULL,budget_failure=NULL "
+                "WHERE partition_id=%s", (batch_id,state["partition_id"]))
             for episode in frozen["episodes"]:
                 await conn.execute(
                     "UPDATE memory.episodes SET extraction_state='running',extraction_started_at=now(),extraction_sources=%s "
@@ -204,6 +205,13 @@ class Consolidation:
     def _budget_record(self):
         return {"input_tokens":self.policy.max_input_tokens,"output_tokens":self.policy.max_output_tokens,
                 "reasoning_tokens":self.policy.reasoning_reserve_tokens}
+
+    def _input_budget_record(self):
+        # These settings determine the smallest complete input we can prepare.
+        # Scheduling changes alone do not make a rejected input fit its budget.
+        return {**self._budget_record(), **{name:getattr(self.policy,name) for name in
+            ("max_episodes","max_subjects","max_materials","max_old_records",
+             "context_messages","max_source_characters","time_zone")}}
 
     def _budgeted_request(self,context,frozen,step_id):
         """Keep whole old records when possible; explicit stubs can be expanded once."""
@@ -224,7 +232,7 @@ class Consolidation:
     async def _idle(self, partition_id, owner):
         async with self.database.transaction() as conn:
             await conn.execute(
-                "UPDATE memory.consolidation_state SET first_pending_at=NULL,wake_due_at=NULL,last_error=NULL "
+                "UPDATE memory.consolidation_state SET first_pending_at=NULL,wake_due_at=NULL,last_error=NULL,budget_failure=NULL "
                 "WHERE partition_id=%s AND lease_owner=%s AND active_batch_id IS NULL", (partition_id,owner))
 
     async def _execute(self, batch_id, context):
@@ -423,7 +431,7 @@ class Consolidation:
                 "context_unfulfilled":proposal["needs_context"],"batch_id":batch["batch_id"]}
             await conn.execute("UPDATE memory.consolidation_batches SET status='applied',proposal_digest=%s,commit_refs=%s,committed_at=now(),updated_at=now(),error_code=NULL WHERE batch_id=%s",
                 (digest,Jsonb(wire(result)),batch["batch_id"]))
-            await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=NULL,lease_owner=NULL,lease_until=NULL,updated_at=now() WHERE partition_id=%s",(batch["partition_id"],))
+            await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=NULL,budget_failure=NULL,lease_owner=NULL,lease_until=NULL,updated_at=now() WHERE partition_id=%s",(batch["partition_id"],))
             pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
                 "AND active AND extraction_state='pending' LIMIT 1",(batch["partition_id"],))).fetchone()
             if pending:
@@ -456,7 +464,12 @@ class Consolidation:
                             await conn.execute("UPDATE memory.episodes SET extraction_state=%s,extraction_started_at=NULL WHERE episode_id=%s AND sequence=%s AND active",
                                 (state,episode["episode_id"],episode["sequence"]))
                         await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL WHERE partition_id=%s",(partition_id,))
-            await conn.execute("UPDATE memory.consolidation_state SET last_error=%s,updated_at=now() WHERE partition_id=%s",(code,partition_id))
+            budget_failure=None
+            if not batch_id and code == "memory_consolidation_input_budget":
+                budget_failure={"configuration":self._input_budget_record(),
+                    "required_tokens":details.get("estimated"),"configured_tokens":self.policy.max_input_tokens}
+            await conn.execute("UPDATE memory.consolidation_state SET last_error=%s,budget_failure=%s,updated_at=now() "
+                "WHERE partition_id=%s",(code,Jsonb(budget_failure) if budget_failure else None,partition_id))
             if not batch_id and terminal:
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=NULL,first_pending_at=NULL WHERE partition_id=%s",(partition_id,))
                 if revoked:

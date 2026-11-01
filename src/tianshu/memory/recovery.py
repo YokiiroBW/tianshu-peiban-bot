@@ -31,8 +31,9 @@ class ConsolidationRecovery:
         if not episodes:
             return {}
         partitions=sorted({episode["consolidation_partition_id"] for episode in episodes if episode.get("consolidation_partition_id")})
-        states=await (await conn.execute("SELECT partition_id,last_error FROM memory.consolidation_state WHERE partition_id=ANY(%s::text[])",(partitions,))).fetchall()
+        states=await (await conn.execute("SELECT partition_id,last_error,budget_failure FROM memory.consolidation_state WHERE partition_id=ANY(%s::text[])",(partitions,))).fetchall()
         errors={state["partition_id"]:state["last_error"] for state in states}
+        budgets={state["partition_id"]:state["budget_failure"] for state in states}
         selectors=[Jsonb([{"episode_id":episode["episode_id"],"sequence":episode["sequence"]}]) for episode in episodes]
         batches=await (await conn.execute(
             "SELECT b.* FROM memory.consolidation_batches b JOIN memory.consolidation_state s USING(partition_id) "
@@ -59,20 +60,36 @@ class ConsolidationRecovery:
                 by_episode.setdefault((episode["episode_id"],episode["sequence"]),batch)
         await check_chunk()
         return {episode["episode_id"]:self._status_value(episode,by_episode.get((episode["episode_id"],episode["sequence"])),visible,
-            errors.get(episode.get("consolidation_partition_id")))
+            errors.get(episode.get("consolidation_partition_id")),budgets.get(episode.get("consolidation_partition_id")))
             for episode in episodes}
 
     async def status_on(self,conn,context,episode):
         return (await self.statuses_on(conn,context,(episode,)))[episode["episode_id"]]
 
-    def _status_value(self,episode,batch,visible,pipeline_error=None):
+    def _status_value(self,episode,batch,visible,pipeline_error=None,budget_failure=None):
         action="wait_for_new_evidence" if episode["extraction_state"] in {"completed","completed_with_missing"} else "refresh_material"
         if episode["extraction_state"] == "legacy_abandoned":
             action="legacy_application_abandoned"
-        if batch and batch["status"] in {"prepared","waiting_model","ready"}:
+        active = batch and batch["status"] in {"prepared","waiting_model","ready"}
+        if active:
             action="observe_original_attempt"
+        unfinished=episode["extraction_state"] not in {"completed","completed_with_missing","legacy_abandoned"}
         error=batch["error_code"] if batch else pipeline_error
-        if error == "memory_consolidation_input_budget" or (error == "memory_consolidation_output_truncated"
+        if not batch and not unfinished:
+            error=None
+        budget=None
+        if not active and unfinished and pipeline_error == "memory_consolidation_input_budget":
+            # This failure has no model attempt/batch. Its persisted observed
+            # configuration, rather than an older batch's error, controls recovery.
+            error=pipeline_error
+            current=self.memory.consolidation._input_budget_record()
+            changed=bool(budget_failure and budget_failure.get("configuration") is not None
+                and budget_failure["configuration"] != current)
+            budget={"configuration_changed":changed,"failed_configuration":
+                budget_failure.get("configuration") if budget_failure else None,"current_configuration":current,
+                "required_tokens":budget_failure.get("required_tokens") if budget_failure else None}
+            action="refresh_material" if changed else "configure_budget"
+        elif (not active and error == "memory_consolidation_output_truncated"
                 and batch and batch["manifest"].get("source_budget",256)<=256
                 and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
             action="configure_budget"
@@ -81,6 +98,8 @@ class ConsolidationRecovery:
             "error_code":error,"action":action,
             "fragment_cursor":episode["extraction_cursor"],"targets":[],"target_results":[],"unresolved":[],
             "coverage":{"state":episode["extraction_state"],"missing":episode["extraction_missing"]}}
+        if budget is not None:
+            result["budget_failure"]=budget
         if batch and visible.get(batch["batch_id"]):
             manifest=batch["manifest"]
             fixed=(manifest.get("steps",{}).get(batch["step_ids"][-1]) if batch["step_ids"] else None)

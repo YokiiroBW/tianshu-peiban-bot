@@ -83,6 +83,90 @@ async def row(core,episode):
         return await (await conn.execute('SELECT * FROM memory.episodes WHERE episode_id=%s',(episode.episode_id,))).fetchone()
 
 
+async def test_input_budget_change_resumes_the_same_unadvanced_material_without_a_new_episode(core,ordinary_users):
+    alice,_=ordinary_users
+    model=FixedConsolidator()
+    configure(core,model)
+    pipeline=core.memory.consolidation
+    low=replace(pipeline.policy,max_input_tokens=4000)
+    pipeline.policy=pipeline.materials.policy=low
+
+    class FixedCounter:
+        def measure(self,*_args):
+            return (10000,None)
+
+    pipeline.counter=FixedCounter()
+    episode=await observe(core,alice,'budget_original_material','尾部事实')
+    original=await row(core,episode)
+    partition=original['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    stopped=await core.memory.extraction_status(alice,episode.episode_id)
+    assert stopped['action']=='configure_budget'
+    assert stopped['budget_failure']['configuration_changed'] is False
+    assert stopped['budget_failure']['required_tokens']==10000
+    assert (await row(core,episode))['extraction_cursor']==original['extraction_cursor']
+    async with core.database.transaction(read_only=True) as conn:
+        state=await (await conn.execute('SELECT * FROM memory.consolidation_state WHERE partition_id=%s',(partition,))).fetchone()
+        count_before=await (await conn.execute("SELECT count(*) AS total FROM runtime.job_keys WHERE task='memory.consolidate' AND key LIKE %s",
+            ('memory-consolidate:'+partition+':%',))).fetchone()
+    assert state['wake_due_at'] is None and state['active_batch_id'] is None
+    assert state['budget_failure']['configuration']['input_tokens']==4000
+
+    # Neither a periodic recovery pass nor an unchanged explicit command submits
+    # a model or re-arms the rejected material every 30 seconds.
+    async with core.database.transaction() as conn:
+        unchanged=await core.workers.recovery.resume_on(conn,alice,{'episode_id':episode.episode_id,
+            'expected_revision':episode.revision,'client_request_id':'budget_unchanged'})
+    await core.workers.recover()
+    await core.workers.consolidate(partition)
+    async with core.database.transaction(read_only=True) as conn:
+        count_after=await (await conn.execute("SELECT count(*) AS total FROM runtime.job_keys WHERE task='memory.consolidate' AND key LIKE %s",
+            ('memory-consolidate:'+partition+':%',))).fetchone()
+    assert unchanged.data['action']=='configure_budget' and unchanged.data['queued'] is False
+    assert count_after['total']==count_before['total'] and not model.requests
+
+    # Quiet/max-wait settings do not change input capacity.
+    pipeline.policy=pipeline.materials.policy=replace(low,quiet_seconds=10,max_wait_seconds=700)
+    assert (await core.memory.extraction_status(alice,episode.episode_id))['action']=='configure_budget'
+    pipeline.policy=pipeline.materials.policy=replace(low,max_input_tokens=16000)
+    changed=await core.memory.extraction_status(alice,episode.episode_id)
+    assert changed['action']=='refresh_material'
+    assert changed['budget_failure']['configuration_changed'] is True
+    async with core.database.transaction() as conn:
+        resumed=await core.workers.recovery.resume_on(conn,alice,{'episode_id':episode.episode_id,
+            'expected_revision':episode.revision,'client_request_id':'budget_corrected'})
+    assert resumed.data['action']=='refresh_material' and resumed.data['queued'] is True
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==1
+    assert (await row(core,episode))['extraction_state']=='completed'
+    assert (await row(core,episode))['extraction_cursor']!=original['extraction_cursor']
+    async with core.database.transaction(read_only=True) as conn:
+        state=await (await conn.execute('SELECT * FROM memory.consolidation_state WHERE partition_id=%s',(partition,))).fetchone()
+    assert state['budget_failure'] is None
+
+
+async def test_budget_configuration_change_keeps_an_unknown_original_attempt(core,ordinary_users):
+    alice,_=ordinary_users
+    model=FixedConsolidator(unknown=True)
+    configure(core,model)
+    episode=await observe(core,alice,'unknown_before_budget_change','尾部事实')
+    original=await row(core,episode)
+    partition=original['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    first_attempt=model.requests[0].attempt_id
+    pipeline=core.memory.consolidation
+    pipeline.policy=pipeline.materials.policy=replace(pipeline.policy,max_input_tokens=32000)
+    status=await core.memory.extraction_status(alice,episode.episode_id)
+    assert status['action']=='observe_original_attempt'
+    async with core.database.transaction() as conn:
+        result=await core.workers.recovery.resume_on(conn,alice,{'episode_id':episode.episode_id,
+            'expected_revision':episode.revision,'client_request_id':'unknown_budget_observation'})
+    assert result.data['action']=='observe_original_attempt'
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==1 and model.requests[0].attempt_id==first_attempt
+    assert (await row(core,episode))['extraction_state']=='completed'
+
+
 async def test_shared_prefix_uses_one_model_request_for_several_new_episodes(core,ordinary_users):
     alice,_=ordinary_users
     model=FixedConsolidator()
