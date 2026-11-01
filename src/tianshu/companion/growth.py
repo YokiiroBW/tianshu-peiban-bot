@@ -16,7 +16,7 @@ from tianshu.conversation.generation import GenerationRequests, attempt_for
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.models.completion import completion_from_native
 from .growth_materials import select_batch, reflectable
-from .growth_recovery import GrowthRecovery
+from .growth_recovery import AUTHORIZATION_BLOCKED, GrowthRecovery, authorization_error
 from .reflection_output import (OUTPUT_TOKEN_BUDGET, REVIEW_ERRORS, frozen_episodes, prepare_reflections)
 
 
@@ -53,10 +53,10 @@ class GrowthService:
             "AND blocked_material->>'episode_id'=%s AND (blocked_material->>'revision')::bigint<%s",
             (context.actor_id, scope_key, episode.episode_id, episode.revision))
         row = await (await connection.execute(
-            "UPDATE companion.organize_state SET watermark=%s,context=%s,revision=revision+%s,updated_at=now() "
+            "UPDATE companion.organize_state SET watermark=%s,context=CASE WHEN last_error=%s THEN context ELSE %s END,revision=revision+%s,updated_at=now() "
             "WHERE actor_id=%s AND scope_key=%s RETURNING revision,last_error",
-            (watermark, document(context), 0 if created else 1, context.actor_id, scope_key))).fetchone()
-        if row["last_error"] not in REVIEW_ERRORS:
+            (watermark, AUTHORIZATION_BLOCKED, document(context), 0 if created else 1, context.actor_id, scope_key))).fetchone()
+        if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED}:
             await self.jobs.enqueue(connection, JobSpec("companion.organize", f"organize:{context.actor_id}:{scope_key}:{row['revision']}",
                 {"actor_id": context.actor_id, "scope_key": scope_key, "expected_revision": row["revision"]},
                 scheduled_at=datetime.now(UTC)+timedelta(seconds=30), subject_id=context.actor_id))
@@ -76,9 +76,10 @@ class GrowthService:
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
         if not state:
             return
+        if state["last_error"] == AUTHORIZATION_BLOCKED:
+            return self.recovery.blocked(state)
         if state["legacy_state"] != "complete":
-            await self.recovery.step(state)
-            return {"state": "recovering", "phase": state["legacy_state"]}
+            return await self.recovery.step(state)
         if not state["active_batch"] and state["last_error"] not in REVIEW_ERRORS:
             state = await self.recovery.activate(state)
         if state["last_error"] in REVIEW_ERRORS:
@@ -87,7 +88,12 @@ class GrowthService:
         if not batch and state["revision"] != expected_revision:
             return
         context = context_from_record(batch["context"] if batch else state["context"])
-        await self.companion.identity.check(context)
+        try:
+            await self.companion.identity.check(context)
+        except AppError as error:
+            if not authorization_error(error):
+                raise
+            return await self.recovery.block(state, error)
         if batch:
             material_key = batch["material_key"]
             request = await self.generations.request(attempt_for(material_key), context)
@@ -246,6 +252,9 @@ class GrowthService:
             if not row:
                 raise AppError("reflection_material_not_found",status=404)
             revision(row,body.get("expected_revision"))
+            if row["last_error"] == AUTHORIZATION_BLOCKED:
+                current = await self.recovery.resume(connection, row, context)
+                return CommandResult(body["client_request_id"], {"state": "queued", "recovery": "reauthorize_original_scope"}, current)
             if row["last_error"] not in REVIEW_ERRORS:
                 raise AppError("reflection_original_attempt_unresolved",status=409)
             if row["active_batch"] and row["active_batch"].get("legacy_material"):
@@ -262,15 +271,14 @@ class GrowthService:
     async def recover(self):
         async with self.companion.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM companion.organize_state s WHERE legacy_state<>'complete' OR "
+                "SELECT * FROM companion.organize_state s WHERE (last_error IS NULL OR last_error<>%s) AND (legacy_state<>'complete' OR "
                 "((last_error IS NULL OR last_error<>ALL(%s)) AND (active_batch IS NOT NULL OR reviewed_watermark<>watermark OR "
                 "EXISTS(SELECT 1 FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND reviewed_revision<i.revision) OR "
-                "EXISTS(SELECT 1 FROM companion.growth_legacy_requests r WHERE r.actor_id=s.actor_id AND r.scope_key=s.scope_key AND r.state='pending')))",
-                (sorted(REVIEW_ERRORS),))).fetchall()
+                "EXISTS(SELECT 1 FROM companion.growth_legacy_requests r WHERE r.actor_id=s.actor_id AND r.scope_key=s.scope_key AND r.state='pending'))))",
+                (AUTHORIZATION_BLOCKED, sorted(REVIEW_ERRORS)))).fetchall()
         for row in rows:
-            if row["legacy_state"] != "complete":
-                await self.recovery.step(row)
-                continue
+            # Startup only registers work. Each old context/material is handled
+            # by its own nonretrying job; it cannot abort another domain's start.
             async with self.companion.database.transaction() as connection:
                 await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
                     {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"]},subject_id=row["actor_id"]))
@@ -341,6 +349,12 @@ class GrowthService:
             review = {**review, "attempt_id": attempt_for(review["material_key"]) if review["material_key"] else None,
                 "can_request_review": review["legacy_state"] == "complete" and review["last_error"] in REVIEW_ERRORS,
                 "recovery": "observe_original_attempt" if review["material_key"] and review["last_error"] not in REVIEW_ERRORS else None}
+            if review["last_error"] == AUTHORIZATION_BLOCKED:
+                review["recovery"] = "reauthorize_original_scope"
+                review["can_request_review"] = not review["material_key"]
+                # Existing UI must show the saved blocker rather than falsely
+                # claiming an unauthorized conversion is still running.
+                review.pop("legacy_state")  # Its exact phase remains in blocked_material.
         return {"can_review":bool(context.permissions & {"*","companion.manage"}),"review":review,"items": items, "next_cursor": rows[limit-1]["id"] if len(rows)>limit else None,
                 "reflections": notes, "missing": [] if all(permitted) else ["source_unavailable"],
                 "evidence": await self.companion.memory.style_view(context, context.person_id)}

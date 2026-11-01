@@ -129,3 +129,22 @@ python -m pytest -q tests/core/test_memory_evidence_retrieval.py -k "episode_onl
 根已安排 A 单写通用整理协议/schema 与 S09/S12 后续语义规则；本分支不改 `extraction_contract.py`，避免并写。S12 已按实际请求将共同主体与已表态/未来承诺的证据交 A，最终同批集成后再由根选择必要开发故事复验，不修改现有冻结结果。
 
 静态附查：candidate-02/S07 的 `memory_unavailable` 来自可选 search 总分支的通用异常捕获，实际 model-calls 有 answer 阶段 query embed 成功（858.5ms），无 rerank；原文材料只导出通用缺项而没有异常类型，不能证明具体 SQL 错误或供应商失败，本次不泛化修改该路径。评测 `disposable_database` 默认 `keep_database=false`，成功故事 finally 删除自建 UUID 库；失败或原 attempt 未决才自动保留，显式 keep 仅原已有配置。runner 没有仅复验回答的正式入口，observe 只读取原未决 attempt。本分支未修改评测工具、数据库保留策略或既有数据库。
+
+## f7dd305 启动时旧 Growth 授权阻断修复
+
+分支 `codex/growth-startup-recovery-20261101`，基线 `f7dd3055de603fbfa40c6a96874c57076d840d57`。root 已确认三项迁移成功；interactive/worker 的 module.start 直接调用 `Growth.recover → recovery.step → Identity.check`，一个旧 epoch context 的 `access_changed` 因而中断整个应用启动。本修复不改迁移、不回滚库、不手工改运行数据，也不扩大为调度或模型架构重构。
+
+- `recover` 只用既有 JobQueue 登记逐分区 `companion.organize`，不在 module.start 做身份或旧材料转换。一个恢复 job 的旧 context 不再影响另一个分区或应用启动。
+- legacy worker 仍一页一事务推进。仅 inventory/经历版本登记在 `access_changed` 且没有 active batch 时复用 `Identity.refresh_scheduled_context`，由现行主体/角色/权限校验并受原 scope/audience/permission 上界限制。原 requests 阶段始终按旧 context（含 epoch）发现原请求及 request=NULL tombstone，避免改 epoch 后漏清单；请求扫描结束后，经历登记可保存已合法重核的有限 context。没有修改任何 GenerationRequest、原 attempt、旧请求 manifest context 或原游标。
+- 无法合法续接时用已有 `last_error/blocked_material` 留下 `reflection_recovery_authorization_required`、原错误、原阻断材料和精确 phase，不推进位置、不登记已审核、不自动重排。已阻断项的新 Episode 只登记实际版本，不覆盖旧授权 context，不反复派工作。正常 worker 的 frozen active batch 也按项记录同类授权阻断，不借 timer refresh 改写执行授权。
+- 现有 Growth view 使用 `recovery=reauthorize_original_scope`；授权阻断时省略可选的 `legacy_state` 以免已有页面显示“正在转换”，真实 phase 仍在 blocked_material。无 active batch 时既有 review 按钮可重核原权限后续接原扫描，仅增加 command/state revision，不增加 generation_revision、不放弃 legacy 原请求、不清游标。有 active batch（包括原 unknown）时该按钮不可用，命令明确拒绝替换；原模型结果只能沿合法原身份另行观察，不能把 epoch 刷新当作结果读取/执行授权。
+
+新增三项定向回归（仅编写）：启动不校验 context、失权项阻断且另一分区可推进/新消息不覆盖旧权限；合法 epoch 续接保留原 unknown/tombstone 的 context/attempt/发现身份；现有 review 命令重核权后按原位置完成旧转换且 generation_revision 不变。原两项 legacy 用例随启动从同步推进改为队列推进，增加显式 worker 步骤，原业务断言保留。`test_growth_output.py` 的 unknown 不可替换、已拒绝结果不自激等既有用例未修改。
+
+本分支没有运行测试、解析器、构建、网络、PG、生产或模型，未读取 heldout。只阅读授权源码/现有用例，编辑并静态审阅完整 diff。root 收齐后最小统一验证命令（未执行）：
+
+```powershell
+python -m pytest -q tests/companion/test_growth_legacy_recovery.py tests/companion/test_growth_output.py
+```
+
+Identity 的原权限上界机制无修改，已有真实领域定向验证可复用；本分支不另外重跑全套。实际容器启动、已迁移状态下的替换镜像与 guard 恢复、八个分区进展由 root 单写发布和读回确认；此交付不声称服务已经恢复。没有 active batch 的受限扫描续接不能解锁一个旧 epoch 的在途模型请求，这是保留原身份的明确边界。

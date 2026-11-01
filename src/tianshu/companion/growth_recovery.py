@@ -12,6 +12,17 @@ from .reflection_output import frozen_episodes
 
 
 PAGE_SIZE = 128
+AUTHORIZATION_BLOCKED = "reflection_recovery_authorization_required"
+
+
+def authorization_error(error):
+    return isinstance(error, AppError) and (error.status in {401, 403} or error.code in {
+        "access_changed", "delivery_access_changed", "actor_disabled",
+    })
+
+
+def recovery_permission(context):
+    return "companion.manage" if context.permissions & {"*", "companion.manage"} else "companion.read"
 
 
 def sequence(cursor):
@@ -33,12 +44,77 @@ class GrowthRecovery:
 
     async def step(self, state):
         """Read at most one page, persist progress, and use the existing job queue."""
-        context = context_from_record(state["context"])
-        await self.companion.identity.check(context)
-        if state["legacy_state"] == "requests":
-            await self._requests(state, context)
-        elif state["legacy_state"] == "episodes":
-            await self._episodes(state, context)
+        if state["last_error"] == AUTHORIZATION_BLOCKED:
+            return self.blocked(state)
+        original = context_from_record(state["context"])
+        try:
+            try:
+                await self.companion.identity.check(original)
+                context = original
+            except AppError as error:
+                if error.code != "access_changed" or state["active_batch"]:
+                    raise
+                # Only authorize inventory/seed reads. Never replace the context
+                # of an existing GenerationRequest, active batch or model read.
+                context = await self.companion.identity.refresh_scheduled_context(
+                    original, permission=recovery_permission(original))
+            if state["legacy_state"] == "requests":
+                # Null-request tombstones still use the ORIGINAL context key,
+                # including its epoch. Keep that discovery identity across pages.
+                await self._requests(state, original)
+            elif state["legacy_state"] == "episodes":
+                await self._episodes(state, context)
+        except AppError as error:
+            if not authorization_error(error):
+                raise
+            return await self.block(state, error)
+        return {"state": "recovering", "phase": state["legacy_state"]}
+
+    @staticmethod
+    def blocked(state):
+        return {"state": "blocked", "error_code": AUTHORIZATION_BLOCKED,
+                "phase": state["legacy_state"], "recovery": "reauthorize_original_scope"}
+
+    async def block(self, state, error):
+        async with self.companion.database.transaction() as connection:
+            current = await (await connection.execute(
+                "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
+                (state["actor_id"], state["scope_key"]))).fetchone()
+            if (not current or current["revision"] != state["revision"]
+                    or current["context"] != state["context"] or current["active_batch"] != state["active_batch"]):
+                return {"state": "changed_since_recovery_read"}
+            if current["last_error"] != AUTHORIZATION_BLOCKED:
+                blocked = {"recovery": "reauthorize_original_scope", "phase": current["legacy_state"],
+                    "error_code": error.code, "previous_error": current["last_error"],
+                    "previous_blocked_material": current["blocked_material"],
+                    "reason": "原授权已失效；原处理位置和原请求已保留，需在原权限范围恢复后继续。"}
+                await connection.execute(
+                    "UPDATE companion.organize_state SET last_error=%s,blocked_material=%s,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s",
+                    (AUTHORIZATION_BLOCKED, document(blocked), state["actor_id"], state["scope_key"]))
+        return self.blocked(state)
+
+    async def resume(self, connection, current, caller):
+        """Explicitly reauthorize a scan, without abandoning an original attempt."""
+        if current["active_batch"]:
+            raise AppError("reflection_original_attempt_unresolved", status=409)
+        previous = context_from_record(current["context"])
+        if ((caller.principal_id, caller.actor_id, caller.person_id, caller.conversation_id)
+                != (previous.principal_id, previous.actor_id, previous.person_id, previous.conversation_id)):
+            raise AppError("reflection_recovery_context_mismatch", status=403)
+        refreshed = await self.companion.identity.refresh_scheduled_context(
+            previous, permission=recovery_permission(previous), connection=connection)
+        blocked = current["blocked_material"] or {}
+        next_revision = current["revision"] + 1
+        await connection.execute(
+            "UPDATE companion.organize_state SET last_error=%s,blocked_material=%s,context=%s,revision=%s,updated_at=now() "
+            "WHERE actor_id=%s AND scope_key=%s",
+            (blocked.get("previous_error"), document(blocked.get("previous_blocked_material")),
+             document(previous if current["legacy_state"] == "requests" else refreshed), next_revision,
+             current["actor_id"], current["scope_key"]))
+        await self.growth._enqueue(connection, current["actor_id"], current["scope_key"], next_revision,
+                                   "authorization-resume")
+        return next_revision
 
     async def _requests(self, state, context):
         materials = await self.growth.generations.pending_materials(
@@ -100,10 +176,10 @@ class GrowthRecovery:
             missing = sorted(set(current["legacy_missing"]) | set(page.coverage.missing))
             await connection.execute(
                 "UPDATE companion.organize_state SET legacy_episode_cursor=%s,legacy_state=%s,legacy_missing=%s,"
-                "last_error=CASE WHEN active_batch IS NULL THEN NULL ELSE last_error END,updated_at=now() "
+                "last_error=CASE WHEN active_batch IS NULL THEN NULL ELSE last_error END,context=%s,updated_at=now() "
                 "WHERE actor_id=%s AND scope_key=%s",
                 (page.next_cursor or page.watermark, "episodes" if page.next_cursor else "complete",
-                 missing, state["actor_id"], state["scope_key"]))
+                 missing, document(context), state["actor_id"], state["scope_key"]))
             await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], current["revision"], "legacy-episodes")
 
     async def _locked(self, connection, state):
