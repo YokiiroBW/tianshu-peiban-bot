@@ -1,5 +1,5 @@
 {
-  "phase": "unified_validation",
+  "phase": "real_model_semantic_acceptance",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
@@ -10,7 +10,7 @@
   "owners": {
     "MC-A": {
       "agent": "memory_domain",
-      "state": "implemented_not_verified",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "branch": "codex/memory-domain-20261101",
       "interface_commits": [
         "4a70af8647f5f8d52915a1cfb1140188183bb4b8"
@@ -37,7 +37,7 @@
     },
     "MC-B": {
       "agent": "memory_pipeline",
-      "state": "implemented_not_verified",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "branch": "codex/memory-pipeline-20261101",
       "interface_commits": [
         "32625c3"
@@ -64,7 +64,7 @@
     },
     "MC-C": {
       "agent": "product_closure",
-      "state": "implemented_not_verified",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "branch": "codex/product-closure-20261101",
       "interface_commits": [
         "3fe73bc",
@@ -129,16 +129,27 @@
       "evidence": "private runtime-review-20261101/independent-audit/report.json"
     },
     "MC-D": {
-      "state": "implemented_not_verified",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "scope": "multi-type temporal retrieval, indexing, complete evidence in context and consumers",
       "agent": "memory_domain",
       "implementation_commit": "9d75b61bfdd3a4d149f6c52a1c151fa0f02b0353",
       "integrated_as": [
         "eb7817c"
+      ],
+      "acceptance_fix_commits": [
+        {
+          "source": "6df4e94",
+          "integrated": "a02b253"
+        },
+        {
+          "source": "ebaa417",
+          "integrated": "1be0b3f",
+          "scope": "fixture only: preserve real command-observation Episode and unknown coverage"
+        }
       ]
     },
     "MC-F": {
-      "state": "implemented_not_verified",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "scope": "memory/history/recovery frontend and affected capability setup experience",
       "branch": "codex/memory-frontend-20261101",
       "worktree": "tianshu-cr-frontend",
@@ -165,7 +176,7 @@
       ]
     },
     "MC-G": {
-      "state": "implemented_not_verified",
+      "state": "tool_validation_passed_real_semantic_and_cutover_pending",
       "scope": "full targeted acceptance, held-out semantic and cost comparison, cutover and actual receipts",
       "branch": "codex/memory-acceptance-20261101",
       "worktree": "tianshu-cr-foundation",
@@ -292,20 +303,20 @@
     }
   ],
   "blueprint_acceptance": {
-    "M01-M18": "deterministic validation nearly complete; one sparse vector query failure; real semantic/cost validation and production cutover not started"
+    "M01-M18": "Applicable domain, pipeline, source, context, growth, model, channel, capability, migration and product-assembly checks passed; 36 frontend scenarios passed. Real semantic/cost and production receipts pending."
   },
   "new_production_release": null,
   "semantic_acceptance_inputs": {
     "stories": 24,
     "development": 16,
     "held_out": 8,
-    "state": "prepared_not_executed",
+    "state": "prepared_ready_for_real_broker_run",
     "additional_contract_scenarios": 12
   },
   "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
   "unified_validation": {
     "implementation_head": "5c4d738",
-    "status": "one_vector_retrieval_failure_remaining",
+    "status": "deterministic_targets_passed_real_model_pending",
     "backend": {
       "first_collection": "blocked_by_evaluation_tool_syntax_fixed_5c4d738",
       "first_run": {
@@ -353,6 +364,14 @@
       "frontend_retested_cases": 4,
       "frontend_passed": 4,
       "frontend_all_36_cases": "passed across unchanged applicable receipts"
+    },
+    "remaining_deterministic_failures": 0,
+    "vector_followup": {
+      "source": "a02b253",
+      "four_of_five_passed": "original sparse authorized case, knowledge time, revoked counterexample and rerank source recheck",
+      "fixture_correction": "1be0b3f",
+      "final_five_type_case": "passed including public OR support, matter relation and source revocation",
+      "increased_timeouts": false
     }
   }
 }
