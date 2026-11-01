@@ -240,7 +240,7 @@ class Consolidation:
     def _input_budget_record(self):
         # These settings determine the smallest complete input we can prepare.
         # Scheduling changes alone do not make a rejected input fit its budget.
-        return {**self._budget_record(),"input_layout":"consolidation-shared-defs-v1",
+        return {**self._budget_record(),"input_layout":"consolidation-matter-semantics-v2",
             **{name:getattr(self.policy,name) for name in
             ("max_episodes","max_subjects","max_materials","max_old_records",
              "context_messages","max_source_characters","time_zone")}}

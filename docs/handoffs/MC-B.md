@@ -97,3 +97,13 @@ Episode.speaker_id 只取来源中可证明的唯一人类作者，多个作者�
 实际只做代码/调用链阅读、完整 diff 审阅与 PowerShell 静态字符串字节计数；未运行测试、构建、产品代码、模型、PG 或生产操作。此次没有新程序约束，未新增仅复述提示字符串的测试；现有来源/CAS/Schema 验证结果可复用，模型是否按新指引选择 Matter 必须由新开发样本运行确认。
 
 建议协调者整批交付后最小复验：`tests/memory/test_consolidation_contract.py::test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources`、`::test_manifest_keeps_mapping_without_a_second_full_model_input`，以及 `tests/core/test_incremental_consumers.py::test_long_original_and_more_than_128_parts_reach_the_tail`（固定提示开销改变涉及的实际预算与完整尾部）。真实语义用新 SHA、新 run 保留原 S01 输入，检查各自 Matter 的 planned/due_at、C 的 no_change 和逐人覆盖；若继续核对改期/完成，复用开发集已有相应样本。保留 `3153c53` 冻结证据，未知 rerank 仅允许原 attempt 观察。本分支未执行上述复验。
+
+## 语义提示预算回归收敛
+
+分支 `codex/memory-semantic-budget-repair-20261101`，基线 `cb7dae9`。协调者统一复验记录 `acceptance/backend-semantic-06-events.jsonl` 确认默认字节 Counter 合同和 129 片段尾部两个回归；后者首字符前的固定输入已需 12089 / 12000，现有 helper 已立即报 blocked，没有重复空转。本轮仅压缩同源提示、更新既有输入布局标记及本交接，不改 Counter、Schema、预算上限、人物数量、原件、测试输入或断言。
+
+- 提示合并重复的身份、时间、完成和补查说明，状态值直接引用 Schema 枚举。首次具体安排/约定/承诺/待办使用 Matter，事实/偏好使用 Claim；愿望或建议不自动成计划。旧事项的主体/上下文/来源身份、同一 `r` 的 `expected_revision/reads` 延续、改期取消、时间粒度、真人完成报告与真实成功回执、ACTOR 虚构边界全部保留。来源 m / 旧记录 r / 新对象 n、支持组 AND/OR、逐人覆盖、no_change/unresolved 和最多一次补查也保留；原子应用与完整 read_set 仍由同一未改 Schema/领域流程执行。
+- 固定提示从 1524 字符 / 3472 UTF-8 字节缩至 1080 字符 / 2326 字节，节省 444 字符 / 1146 字节。相对 `3153c53` 的 740 字符 / 1712 字节，Matter 语义净增量从 1760 字节收敛为 614 字节。动态 Schema、合法无变化示例和所有原文未删减，因此同一完整输入在默认无 tokenizer Counter 下减少 1146 个估算 token；已知 12089 的固定输入可按该差值静态推算为 10943，留 1057 单位余量，此为静态算术，未执行请求或宣称用例通过。供应商实际 token 和配置 tokenizer 的差值未测。
+- `_input_budget_record` 只将既有 `input_layout` 从 `consolidation-shared-defs-v1` 更新为 `consolidation-matter-semantics-v2`，无新恢复层。旧布局下无 batch 的已知预算失败经原比较规则返回 `refresh_material`，可从未推进材料继续；新布局和配置不变的再次阻断仍返回 `configure_budget`。已有 active batch 优先观察原 attempt，原请求的提示、映射和结果不改变、不重发。
+
+本轮只静态阅读、审阅完整 diff、用 PowerShell 计数字符/字节并提交；未运行测试、构建、产品代码、模型、PG 或生产命令，未读取 held_out。未新增提示字符串测试。协调者与 A/G 整批集成后最小复验沿原两失败节点，加 `tests/memory/test_consolidation_contract.py::test_input_layout_change_rearms_only_a_known_blocked_receipt`（含同配置 configure_budget、布局变更 refresh_material、原 active attempt 观察断言）；继续既定开发样本语义确认，保留原冻结评测记录。本节计数覆盖前节首次语义提示和完成歧义补充后的当前版本。
