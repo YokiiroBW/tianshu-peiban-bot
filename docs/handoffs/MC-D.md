@@ -48,3 +48,43 @@
 
 - Episode/Reflection 复用现有最新记录与 Sources；未捏造不存在的旧修订快照。known_at 遇到被改写、无法证明的更早记录版本会显式 `*_revision_history_unavailable`，未知 recorded_at 不进入已知事实集合。Matter 的过去有效时间来自报告时点时明确标记推断。
 - 单个完整证据超过工具预算返回 413 与所需预算，未截断条件或冲突一侧。列表非空 query 的完整性限于词法筛选范围。所有模型和真实使用质量仍待父级整批集中验收；本文不表示检查通过、已部署或实机完成。
+
+## 第三轮集中验收后的向量候选返修（2026-11-01）
+
+- 基于集成 `f742edcc9547c780941a4d3a60f0b622fe079104` 新建
+  `codex/memory-vector-repairs-20261101`；原 A/D 和前两轮返修分支/提交保留。
+- 父级完整第三轮报告 97 项、96 pass、1 fail；旧 private fork、新增两节点与长消息
+  尾部已经通过，不再修改。读取 `acceptance/backend-repairs-03.log` 的剩余失败：
+  `test_sparse_authorized_vector_candidates_are_not_starved`，2100 Alice 私域近邻与
+  96 Bob 范围远邻的夹具/12 条完整可读证据要求保持。原日志实际只有 vector_ann
+  一条计时，5.171 秒 CancelledError，结果 0、missing=vector_query_timeout。
+- 根因已由当前/历史实现静态对照定位：D 替换 `c80107b` 既有向量路径时，丢失了
+  便宜 scope/profile 上界计数、小范围先 exact，以及 distinct 来源证明去重。
+  新路径一律先运行带多次递归 Sources 谓词的 ANN 排序 SQL，仅正常返回不足 limit
+  后才 exact；这次 SQL 已耗尽阶段预算，后置 fallback 无法执行。没有把未取得的
+  EXPLAIN 计划或新性能结果当作已证实事实。
+- 在同一 CandidateStore 恢复上述机制并推广至五类型：每 family 按 actor/state、
+  业务/知识版本、profile、主体/事项以及真实 scope OR 条件计数，上界仍是既有
+  2000/2001；计数不调用递归 Sources，不返回给模型，也不作为授权结论。
+  Claim/Matter 加 scope_ids 重叠的必要条件，复用既有 claims_scopes GIN；实际 OR
+  组授权继续执行，不能用 union scopes 全包含误伤可读独立支持。没有 principal 分区。
+- 小域先 `scoped AS MATERIALIZED`，只保留 ID/revision/vector 和证明字段；
+  再按 `(support_groups,derivation_refs,counterexample_refs 或 completion refs)` 的
+  完整 tuple 去重，在 materialized support_sets 内核验真实 Sources，授权集合
+  materialized 后才算距离。空的必要依赖等同于没有依赖，不重复构建空来源闭包。
+  事项关系的结构预筛与实际关系 Sources 校验分开；其真实授权仍在距离排名之前。
+- 大域继续现有 ANN、ef_search/max_scan_tuples；不足 limit 时复用同一个 exact
+  实现。未修改向量 SQL 秒数、前台总 deadline、embedding profile、RRF/MMR/rerank
+  或最后的版本/关系端点/完整来源复核；未新增索引系统、DDL 或第二份权限账本。
+- 原稀疏用例的 2100/96 行和原断言保持，只加计数/exact 被选中且未先 ANN 的回归
+  断言。新增 `test_vector_exact_keeps_five_types_and_public_or_support_across_owners`：
+  不匹配词面的真实五类型向量证据、跨 owner 公开及 OR 支持、事实/推断保真，另涵盖
+  matter_refs 的向量/清单与关系来源撤回。新增
+  `test_vector_exact_uses_selected_knowledge_revision_before_validity`：无词面兜底时
+  current/valid_at/known_at 真正选择不同向量版本。新增用例均 **written_not_run**。
+- 父级最小受影响复验列表：上述稀疏原节点和两个新增向量节点；既有
+  `test_withdrawn_counterexample_retires_interpretation_despite_independent_new_or_support`、
+  `test_rerank_rechecks_sources_and_drops_the_whole_unit`，确认共享来源谓词和最终撤回
+  边界。无需重复无关前端、private fork、长原文或全套产品用例。
+- 仅静态阅读当前/旧源码、既有失败日志和差异，编写用例/交接；没有执行测试、
+  解析、typecheck、build、PG、模型或生产操作。实际修复时延和通过状态待统一复验。

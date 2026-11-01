@@ -404,3 +404,6 @@ async def test_sparse_authorized_vector_candidates_are_not_starved(
     }
     assert all(item.source_refs == templates[1][2] for item in material)
     assert all("private" not in item.text for item in material)
+    assert any(item["phase"] == "vector_count" for item in measured), measured
+    assert any(item["phase"] == "vector_exact" for item in measured), measured
+    assert not any(item["phase"] == "vector_ann" for item in measured), measured

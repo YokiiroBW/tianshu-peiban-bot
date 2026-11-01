@@ -17,7 +17,7 @@ from tianshu.memory.types import MemoryQueryPlan, RecordRef
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import Action, Attempt, ContextContribution, OriginKind, RequestBudget, SourceRef
+from tianshu.types import Action, Attempt, ContextContribution, Coverage, OriginKind, RequestBudget, SourceRef
 
 
 def budget():
@@ -35,6 +35,27 @@ async def fact(core, context, key, value, **extra):
         return await core.claims.put_on(conn, context, {"subject_id": context.person_id,
             "speaker_id": context.person_id, "predicate": "preference.drink", "value": value,
             "assertion": "self_confirmed", "source_refs": refs, **extra}, automatic=True)
+
+
+async def indexed_vectors(core, records):
+    from pgvector import Vector
+    from pgvector.psycopg import register_vector_async
+
+    values = [1.0] + [0.0] * 1023
+    tables = {"claim": ("claim_revisions", "claim_id"), "hypothesis": ("claim_revisions", "claim_id"),
+              "matter": ("matters", "matter_id"), "episode": ("episodes", "episode_id"),
+              "reflection": ("reflections", "proposal_id")}
+    async with core.database.transaction() as conn:
+        await register_vector_async(conn)
+        for record in records:
+            table, key = tables[record.kind]
+            await conn.execute(f"UPDATE memory.{table} SET embedding=%s,embedding_profile='fixture' "
+                f"WHERE {key}=%s AND revision=%s", (Vector(values), record.id, record.revision))
+    class QueryEmbedding:
+        async def vector(self, *args, **kwargs):
+            return values, "fixture"
+    core.retrieval.embeddings = QueryEmbedding()
+    core.retrieval.settings = {"vector": True, "vector_sql_seconds": 5}
 
 
 async def test_all_five_types_are_real_candidates_and_hypotheses_keep_their_status(core, ordinary_users):
@@ -58,6 +79,82 @@ async def test_all_five_types_are_real_candidates_and_hypotheses_keep_their_stat
     actual = next(item for item in page.items if item.id == factual.claim_id)
     assert actual.conditions == {"day": "weekend"} and actual.speaker_id == alice.person_id
     assert not page.coverage.complete and "ranked_selection" in page.coverage.missing
+
+
+async def test_vector_exact_keeps_five_types_and_public_or_support_across_owners(core, ordinary_users):
+    alice, bob = ordinary_users
+    private = await fact(core, alice, "vector_private", "苹果", predicate="preference.ordinary")
+    shared = (await core.claims.share_ordinary(alice, {"claim_id": private.claim_id,
+        "expected_revision": private.revision, "client_request_id": "vector_publish"})).data
+    async with core.database.transaction() as conn:
+        alternatives = await core.claims.put_on(conn, alice, {"subject_id": alice.person_id,
+            "speaker_id": None, "predicate": "preference.ordinary", "value": "独立公开依据",
+            "assertion": "observed", "source_refs": (*private.source_refs, *shared.source_refs),
+            "support_groups": (private.source_refs, shared.source_refs)})
+    hypothesis = await fact(core, bob, "vector_guess", "周末咖啡", memory_kind="hypothesis", assertion="inferred",
+                            conditions={"day": "weekend"})
+    episode = await core.memory.observe_episode(bob, {"event_id": "vector_episode", "summary": "周末交谈",
+        "occurred_at": datetime.now(UTC), "origin_kind": "human", "source_refs": hypothesis.source_refs,
+        "coverage": Coverage(True)})
+    reflection = await core.memory.record_reflection(bob, ReflectionProposal("vector_reflection", core.actor,
+        (episode.episode_id,), "对周末交谈的主观理解", "interest", datetime.now(UTC),
+        hypothesis.source_refs, hypothesis.scope_ids, conditions={"certainty": "tentative"}))
+    matter = (await core.claims.save_matter(bob, {"matter_id": "vector_matter", "title": "周末约定",
+        "state": "planned", "expected_revision": 0, "source_refs": hypothesis.source_refs,
+        "client_request_id": "vector_matter"})).data
+    records = (RecordRef("claim", private.claim_id, private.revision),
+        RecordRef("claim", shared.claim_id, shared.revision), RecordRef("claim", alternatives.claim_id, alternatives.revision),
+        RecordRef("hypothesis", hypothesis.claim_id, hypothesis.revision), RecordRef("matter", matter.matter_id, matter.revision),
+        RecordRef("episode", episode.episode_id, episode.revision), RecordRef("reflection", reflection.proposal_id, reflection.revision))
+    await indexed_vectors(core, records)
+    page = await core.retrieval.query(bob, MemoryQueryPlan(query="qzxv_unmatched_semantic_probe"), budget(), limit=12)
+    assert {(item.kind, item.id) for item in page.items} == {(ref.kind, ref.id) for ref in records[1:]}
+    assert page.coverage.missing == ("ranked_selection",)
+    public = next(item for item in page.items if item.id == alternatives.claim_id)
+    assert public.source_refs == shared.source_refs and public.subject_id == alice.person_id
+    guessed = next(item for item in page.items if item.id == hypothesis.claim_id)
+    assert guessed.assertion == "inferred" and guessed.conditions == {"day": "weekend"}
+    assert next(item for item in page.items if item.kind == "reflection").interpretation
+    assert all(ref not in item.source_refs for item in page.items for ref in private.source_refs)
+    assert all(await core.sources.check_many(bob, tuple(item.source_refs for item in page.items)))
+
+    link_refs = await original(core, bob, "vector_matter_link", "这条认识属于同一个周末约定")
+    async with core.database.transaction() as conn:
+        support = await core.claims.revisions.support_on(conn, bob, (link_refs,), (*hypothesis.source_refs, *matter.source_refs))
+        await core.claims.revisions.links.add_on(conn, bob, link_id="vector_about_matter",
+            from_ref=RecordRef("hypothesis", hypothesis.claim_id, hypothesis.revision),
+            to_ref=RecordRef("matter", matter.matter_id, matter.revision), relation_kind="about_matter", support=support)
+    related_plan = MemoryQueryPlan(query="qzxv_unmatched_semantic_probe", matter_refs=(matter.matter_id,))
+    related = await core.retrieval.query(bob, related_plan, budget())
+    assert {(item.kind, item.id) for item in related.items} == {
+        ("hypothesis", hypothesis.claim_id), ("matter", matter.matter_id)}
+    listing = await core.retrieval.query(bob, replace(related_plan, query="", coverage_mode="list"), budget())
+    assert {item.id for item in listing.items} == {hypothesis.claim_id, matter.matter_id} and listing.coverage.complete
+    await core.sources.invalidate(bob, {"source_id": link_refs[0].source_id, "expected_revision": 1,
+        "client_request_id": "withdraw_vector_relation"}, forgotten=True)
+    withdrawn = await core.retrieval.query(bob, related_plan, budget())
+    assert [(item.kind, item.id) for item in withdrawn.items] == [("matter", matter.matter_id)]
+
+
+async def test_vector_exact_uses_selected_knowledge_revision_before_validity(core, ordinary_users):
+    alice, _ = ordinary_users
+    then = datetime.now(UTC) - timedelta(days=2)
+    asked = then + timedelta(days=1)
+    old = await fact(core, alice, "vector_time", "旧错误", valid_from=then)
+    corrected = (await core.claims.correct(alice, {"claim_id": old.claim_id, "expected_revision": old.revision,
+        "value": "纠正后的认识", "client_request_id": "vector_time_correction"})).data
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.claim_revisions SET recorded_at=%s WHERE claim_id=%s AND revision=1",
+                           (then, old.claim_id))
+    await indexed_vectors(core, (RecordRef("claim", old.claim_id, old.revision),
+                                 RecordRef("claim", corrected.claim_id, corrected.revision)))
+    base = MemoryQueryPlan(query="qzxv_unmatched_temporal_probe", evidence_kinds=("claim",))
+    for plan, revision, value in ((base, corrected.revision, "纠正后的认识"),
+        (replace(base, time_mode="valid_at", valid_at=asked), corrected.revision, "纠正后的认识"),
+        (replace(base, time_mode="known_at", known_at=asked), old.revision, "旧错误")):
+        page = await core.retrieval.query(alice, plan, budget())
+        assert len(page.items) == 1 and page.items[0].revision == revision and page.items[0].value == value
+        assert page.coverage.missing == ("ranked_selection",)
 
 
 async def test_legacy_empty_lexical_remains_readable_before_optional_reindex(core, ordinary_users):
