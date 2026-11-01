@@ -9,13 +9,13 @@ from datetime import UTC, datetime, timedelta
 from hashlib import sha256
 from uuid import uuid4
 from PIL import Image
-from tianshu.types import MediaRef, RequestBudget, ServiceClass, SourceRef
+from tianshu.types import MediaRef, RequestBudget, SourceRef
 from tianshu.sources.dependencies import unique_refs
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
 from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
 from ..contracts import Fault, canonical, digest
-from ..external import ProviderError
+from ..external import ProviderError, execution_service_class
 from ..dto import ReactionIntent
 
 
@@ -401,7 +401,7 @@ class Reactions:
                 intent_id=str(uuid4()),
                 attempt_id=str(uuid4()),
                 function="embed",
-                service_class=ServiceClass.ELASTIC,
+                service_class=execution_service_class(context),
                 context=context,
                 budget=RequestBudget(datetime.now(UTC) + timedelta(minutes=2)),
                 messages=(ModelMessage("user", (ModelPart("text", text=text),)),),
@@ -553,7 +553,7 @@ class Reactions:
                 intent_id=str(uuid4()),
                 attempt_id=str(uuid4()),
                 function="reaction.search",
-                service_class=ServiceClass.INTERACTIVE,
+                service_class=execution_service_class(context),
                 context=context,
                 budget=RequestBudget(datetime.now(UTC) + timedelta(seconds=30)),
                 messages=(

@@ -719,11 +719,8 @@ class LifeWorker:
                 action = Action(action_id, f"commitment:{commitment_id}:{expected_revision}", row["capability_id"], context.actor_id,
                     context, arguments, OriginKind.TIMER, source_refs(row["source_refs"]), matter_id=row["matter_id"],
                     deadline_at=row["due_at"]+timedelta(seconds=row["grace_seconds"]))
-                service_class = (ServiceClass.ELASTIC
-                                 if definition is not None and definition.long_running
-                                 else ServiceClass.DUE)
                 result = receipt(await self.actions.invoke(
-                    action, background=True, service_class=service_class))
+                    action, background=True, service_class=ServiceClass.DUE))
                 await self.capability_result(context, result)
                 return
             # A promise at an explicit time outranks the default unsolicited quiet period.
@@ -809,7 +806,7 @@ class LifeWorker:
             tuple(candidate["payload"].get("public_parts", ({"kind": "text", "text": candidate["summary"]},))),
             source_refs(candidate["source_refs"]), OriginKind.ACTOR,
             artifacts=artifacts(candidate["payload"].get("artifacts", ())), candidate_id=candidate_id)
-        output = await self.expression.send(context, plan)
+        output = await self.expression.send(context, plan, service_class=ServiceClass.ELASTIC)
         async with self.life.database.transaction() as connection:
             await connection.execute("UPDATE life.contact_candidates SET state=%s,expression_id=%s,reason=%s,revision=revision+1 WHERE id=%s AND state='sending'", ("delivered" if output.state=="delivered" else "waiting_expression" if output.state in {"waiting_render","ready","waiting_order","delivering","waiting_delivery"} else "unknown" if output.state in {"render_unknown","delivery_unknown"} else "failed", plan.expression_id, output.reason, candidate_id))
 

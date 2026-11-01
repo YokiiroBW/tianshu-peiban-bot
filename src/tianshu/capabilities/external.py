@@ -32,6 +32,7 @@ class ProviderError(Fault):
 
 
 def execution_service_class(action):
+    """Nested work inherits its admitted class; a direct caller supplies trusted origin."""
     from .execution_context import CURRENT_EXECUTION
 
     current = CURRENT_EXECUTION.get()

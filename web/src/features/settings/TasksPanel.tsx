@@ -12,6 +12,7 @@ import {
   recoverCommand,
   taskHref,
   type ActionView,
+  type ExecutionObservation,
   type OriginalCommand,
 } from "../../api/commandRecovery";
 import type {
@@ -24,6 +25,10 @@ import { ArtifactList, MediaPreview } from "../../components/MediaPreview";
 import { SourceEvidence } from "../../components/SourceEvidence";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { DetailCard } from "../../components/DetailCard";
+import {
+  ExecutionStatus,
+  executionLaneName,
+} from "../../components/ExecutionStatus";
 import "./tasks.css";
 
 type Query = {
@@ -33,6 +38,9 @@ type Query = {
   capability_id?: string;
 };
 const states: Record<string, string> = {
+  todo: "等待执行",
+  doing: "正在执行",
+  aborted: "已停止",
   pending: "等待执行",
   queued: "等待资源",
   running: "正在执行",
@@ -289,6 +297,10 @@ function ActionTask({ id, scope }: { id: string; scope: DomainTarget }) {
           ) : (
             <p>原动作存在，当前尚无回执。</p>
           )}
+          <ExecutionStatus
+            execution={row.execution}
+            state={row.receipt?.execution}
+          />
           <SourceEvidence
             sources={(row.action.source_refs ?? []) as SourceRef[]}
             scope={scope}
@@ -381,6 +393,12 @@ function CommandLookup({ value }: { value: OriginalCommand }) {
         (answer.found ? (
           <>
             <p>已找到原登记。登记本身不代表后续任务完成。</p>
+            {answer.action && (
+              <ExecutionStatus
+                execution={answer.action.execution}
+                state={receipt?.execution}
+              />
+            )}
             {receipt && (
               <ReceiptView
                 receipt={receipt}
@@ -603,7 +621,7 @@ function ExpressionTask({ id, scope }: { id: string; scope: DomainTarget }) {
   );
 }
 export type RuntimeTasksView = {
-  jobs: {
+  jobs: (ExecutionObservation & {
     id: number;
     task_name: string;
     queue_name: string;
@@ -611,7 +629,7 @@ export type RuntimeTasksView = {
     scheduled_at: string | null;
     attempts: number;
     abort_requested: boolean;
-  }[];
+  })[];
   counts: { queue_name: string; status: string; count: number }[];
   complete: boolean;
   limit: number;
@@ -680,7 +698,7 @@ export function RuntimeTasks({
       <div className="domain-grid">
         {tasks.data?.counts.map((row) => (
           <p key={row.queue_name + row.status}>
-            {row.queue_name} · {row.status} · {row.count}项
+            {executionLaneName(row.queue_name)} · {label(row.status)} · {row.count}项
           </p>
         ))}
       </div>
@@ -689,7 +707,7 @@ export function RuntimeTasks({
           <thead>
             <tr>
               <th>任务</th>
-              <th>实际份额</th>
+              <th>执行通道</th>
               <th>状态</th>
               <th>计划时间</th>
               <th>执行次数</th>
@@ -701,9 +719,13 @@ export function RuntimeTasks({
                 <td>
                   {job.task_name} <small>#{job.id}</small>
                 </td>
-                <td>{job.queue_name}</td>
+                <td>{executionLaneName(job.execution_lane)}</td>
                 <td>
-                  {job.status}
+                  <ExecutionStatus
+                    execution={{ ...job, job_id: job.id, job_state: job.status }}
+                    state={job.status}
+                    compact
+                  />
                   {job.abort_requested ? " · 已请求停止" : ""}
                 </td>
                 <td>

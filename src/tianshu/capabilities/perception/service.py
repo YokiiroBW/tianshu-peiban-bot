@@ -7,7 +7,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 from PIL import Image, ImageSequence
-from tianshu.types import MediaRef, SourceRef, Coverage, RequestBudget, ServiceClass, Receipt
+from tianshu.types import MediaRef, SourceRef, Coverage, RequestBudget, Receipt
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
 from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
@@ -137,7 +137,7 @@ class Perception:
                 intent_id=str(uuid4()),
                 attempt_id=str(uuid4()),
                 function=function,
-                service_class=ServiceClass.ELASTIC,
+                service_class=execution_service_class(context),
                 context=context,
                 budget=budget or RequestBudget(datetime.now(UTC) + timedelta(minutes=3)),
                 messages=(ModelMessage("user", (ModelPart("text", text=question), *parts)),),

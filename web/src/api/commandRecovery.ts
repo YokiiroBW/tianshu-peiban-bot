@@ -15,6 +15,18 @@ export type ActionView = {
   receipt: Receipt | null;
   result_revision: number;
   result_observed_at: string | null;
+  execution?: ExecutionObservation;
+};
+export type ExecutionObservation = {
+  execution_lane?: string | null;
+  service_class?: string | null;
+  job_id?: number;
+  job_state?: string;
+  queue_name?: string;
+  attempts?: number;
+  scheduled_at?: string | null;
+  priority?: number;
+  wait_reason?: string | null;
 };
 const capabilityDomains = new Set([
   "capabilities",

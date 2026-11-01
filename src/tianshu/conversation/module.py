@@ -35,7 +35,8 @@ def create_module(service, expression, identity, result_consumer, renderer):
         queue.register("conversation.expression_result",result_consumer.expression_progress,retryable=True)
         queue.register("conversation.expression_reconcile",service.reconcile_expression_work,retryable=False)
         queue.register("conversation.participation",service.participation.decide,retryable=False)
-        queue.register("conversation.run", service.run, retryable=False)
+        queue.register("conversation.run", service.run, retryable=False,
+                       lane_resolver=service.execution_lane_on)
         queue.register("conversation.seal", service.collector.seal, retryable=False)
         queue.register("conversation.cancel", service.cancel_work, retryable=False)
         queue.register("conversation.reconcile", service.reconcile, retryable=False)

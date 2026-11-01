@@ -7,12 +7,12 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 import aiohttp
-from tianshu.types import Action, Receipt, Coverage, OriginKind, ServiceClass, SourceRef
+from tianshu.types import Action, Receipt, Coverage, OriginKind, SourceRef
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..configuration import Configuration
 from ..contracts import Fault, digest, canonical, require
-from ..external import request as resource_request, ProviderError
+from ..external import request as resource_request, ProviderError, execution_service_class
 from ..tracking import TrackedBroker
 from ..serialization import context_from
 from .protocol import host_url, location_view, current_view
@@ -218,7 +218,7 @@ class WeatherService:
                 deadline_at=datetime.now(UTC) + timedelta(seconds=60),
             ),
             background=False,
-            service_class=ServiceClass.INTERACTIVE,
+            service_class=execution_service_class(context),
         )
         if receipt.execution != "succeeded":
             raise Fault(receipt.error_code or "weather_unavailable", 503)

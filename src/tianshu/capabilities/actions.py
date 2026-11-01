@@ -9,10 +9,13 @@ from jsonschema import Draft202012Validator, ValidationError
 from tianshu.types import Action, Attempt, Receipt, ServiceClass
 from tianshu.sources.dependencies import unique_refs
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.serialization import wire
 from .contracts import Fault, digest, canonical
 from .serialization import action_from, attempt_from, receipt_from
 from .execution_context import CURRENT_ACTION, CURRENT_EXECUTION
+from .external import execution_service_class
+from .routing import execution_lane
 
 
 class Actions:
@@ -49,13 +52,10 @@ class Actions:
 
     async def invoke(self, action: Action, *, background=False, service_class=None):
         handler = await self.handler(action)
-        service_class = service_class or (
-            ServiceClass.ELASTIC if handler.definition.long_running else ServiceClass.INTERACTIVE
-        )
+        service_class = service_class or execution_service_class(action)
+        lane = execution_lane(action.capability_id)
         if getattr(handler, "requires_worker", False) and not self.worker:
             background = True
-        if handler.definition.long_running and service_class == ServiceClass.INTERACTIVE:
-            service_class = ServiceClass.ELASTIC
         if action.actor_id != action.context.actor_id:
             raise Fault("actor_mismatch", 403)
         if (
@@ -115,7 +115,8 @@ class Actions:
                         encoded(action),
                         encoded(attempt),
                         encoded(receipt),
-                        canonical({"service_class": service_class.value}),
+                        canonical({"service_class": service_class.value, "execution_lane": lane.value,
+                                   "job_key": action.action_id if background else None}),
                     ),
                 )
                 if background:
@@ -128,6 +129,7 @@ class Actions:
                             service_class=service_class,
                             subject_id=action.actor_id,
                             matter_id=action.matter_id,
+                            execution_lane=lane,
                         ),
                     )
         if old:
@@ -170,10 +172,38 @@ class Actions:
         ):
             raise Fault("forbidden", 403)
         await self.authority.check(context, result_sources(receipt_from(row["receipt"])))
-        return {
+        async with self.database.transaction(read_only=True) as conn:
+            execution = await self._execution_on(conn, row)
+        result = {
             k: row[k]
             for k in ("action", "attempt", "receipt", "result_revision", "result_observed_at")
         }
+        return {**result, "execution": execution}
+
+    async def _execution_on(self, connection, row):
+        document = json.loads(row["document"])
+        key = document.get("job_key")
+        observation = None
+        keys = (key,) if key else (
+            row["id"] + ":resume:" + row["attempt"]["attempt_id"], row["id"],
+        )
+        for candidate in keys:
+            observation = await self.jobs.observe_on(connection, key=candidate)
+            if observation is not None:
+                break
+        return {
+            "execution_lane": document.get("execution_lane") or execution_lane(row["kind"]).value,
+            "service_class": document.get("service_class", ServiceClass.ELASTIC.value),
+            "wait_reason": None,
+            **(observation or {}),
+        }
+
+    async def execution_lane_on(self, connection, payload):
+        row = await (await connection.execute(
+            "SELECT kind FROM capabilities.actions WHERE id=%s", (payload["action_id"],)
+        )).fetchone()
+        # An orphan job still reaches the existing not_found outcome in its own lane.
+        return execution_lane(row["kind"]) if row else ExecutionLane.MAINTENANCE
 
     async def _load(self, action_id):
         async with self.database.transaction(read_only=True) as conn:
@@ -548,14 +578,88 @@ class Actions:
                 receipt = await handler.cancel(action, attempt)
         return await self.save(receipt, attempt)
 
-    async def resume(self, action_id, context, *, client_request_id):
+    async def reroute_pending(self, action_id, context, *, client_request_id,
+                              expected_attempt_id, expected_job_id):
+        """Move an accepted, never-started job without issuing another attempt."""
+        if not client_request_id:
+            raise Fault("client_request_id_required", 400)
+        await self.get(action_id, context)
+        action, _, _ = await self._load(action_id)
+        await self.authority.check(action.context, action.source_refs)
+        service_class = execution_service_class(context)
+        lane = execution_lane(action.capability_id)
+        key = digest([context.principal_id, action_id, "resume", client_request_id])
+        async with self.database.transaction() as conn:
+            from .withdrawal import validate_sources
+
+            if not await validate_sources(conn, action.context, action.source_refs, self.sources):
+                raise Fault("source_revoked", 410)
+            await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
+            row = await (await conn.execute(
+                "SELECT * FROM capabilities.actions WHERE id=%s AND principal_id=%s FOR UPDATE",
+                (action_id, context.principal_id),
+            )).fetchone()
+            if row is None:
+                raise Fault("not_found", 404)
+            prior = await (await conn.execute(
+                "SELECT attempt_id FROM capabilities.action_controls WHERE id=%s", (key,)
+            )).fetchone()
+            if prior:
+                if expected_attempt_id is not None and prior["attempt_id"] != expected_attempt_id:
+                    raise Fault("idempotency_conflict", 409)
+                saved = await (await conn.execute(
+                    "SELECT receipt FROM capabilities.attempts WHERE id=%s", (prior["attempt_id"],)
+                )).fetchone()
+                return receipt_from(saved["receipt"] if saved else row["receipt"])
+            if not expected_attempt_id or type(expected_job_id) is not int:
+                raise Fault("pending_reroute_identity_required", 400)
+            if row["attempt"]["attempt_id"] != expected_attempt_id:
+                raise Fault("attempt_changed", 409)
+            attempt = attempt_from(row["attempt"])
+            receipt = receipt_from(row["receipt"])
+            document = json.loads(row["document"])
+            if (receipt.execution != "pending" or attempt.dispatch != "not_started"
+                    or attempt.provider_handle is not None or attempt.started_at is not None
+                    or attempt.finished_at is not None or row.get("execution_owner") is not None):
+                raise Fault("action_already_started", 409)
+            if document.get("source_revoked") or document.get("cancel_requested"):
+                raise Fault("pending_reroute_unavailable", 409)
+            observation = await self._execution_on(conn, row)
+            if observation.get("job_id") != expected_job_id:
+                raise Fault("job_changed", 409)
+            moved = await self.jobs.reroute_pending(
+                conn, expected_job_id, execution_lane=lane,
+                task="capabilities.execute", service_class=service_class,
+            )
+            if not moved:
+                raise Fault("action_already_started", 409)
+            document.update(service_class=service_class.value, execution_lane=lane.value)
+            await conn.execute(
+                "UPDATE capabilities.actions SET document=%s WHERE id=%s",
+                (canonical(document), action_id),
+            )
+            await conn.execute(
+                "INSERT INTO capabilities.action_controls(id,action_id,attempt_id) VALUES(%s,%s,%s)",
+                (key, action_id, attempt.attempt_id),
+            )
+        return receipt
+
+    async def resume(self, action_id, context, *, client_request_id,
+                     expected_attempt_id=None, expected_job_id=None):
         if not client_request_id:
             raise Fault("client_request_id_required", 400)
         await self.get(action_id, context)
         action, old, current = await self._load(action_id)
+        if current.execution == "pending" or expected_job_id is not None or expected_attempt_id is not None:
+            return await self.reroute_pending(
+                action_id, context, client_request_id=client_request_id,
+                expected_attempt_id=expected_attempt_id, expected_job_id=expected_job_id,
+            )
         handler = await self.handler(action)
         if not hasattr(handler, "resume"):
             raise Fault("resume_unavailable", 409)
+        service_class = execution_service_class(context)
+        lane = execution_lane(action.capability_id)
         key = digest([context.principal_id, action_id, "resume", client_request_id])
         async with self.database.transaction() as conn:
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
@@ -587,8 +691,13 @@ class Actions:
             )
             claimed = await (
                 await conn.execute(
-                    "UPDATE capabilities.actions SET attempt=%s::jsonb,receipt=%s::jsonb,document=(document::jsonb-'cancel_requested')::text,result_revision=result_revision+1,result_observed_at=now() WHERE id=%s AND attempt->>'attempt_id'=%s AND NOT coalesce((document::jsonb->>'source_revoked')::boolean,false) RETURNING id",
-                    (encoded(attempt), encoded(receipt), action_id, old.attempt_id),
+                    "UPDATE capabilities.actions SET attempt=%s::jsonb,receipt=%s::jsonb,"
+                    "document=((document::jsonb-'cancel_requested') || %s::jsonb)::text,"
+                    "result_revision=result_revision+1,result_observed_at=now() WHERE id=%s "
+                    "AND attempt->>'attempt_id'=%s AND NOT coalesce((document::jsonb->>'source_revoked')::boolean,false) RETURNING id",
+                    (encoded(attempt), encoded(receipt), canonical({"service_class": service_class.value,
+                     "execution_lane": lane.value, "job_key": action_id + ":resume:" + attempt.attempt_id}),
+                     action_id, old.attempt_id),
                 )
             ).fetchone()
             if not claimed:
@@ -607,9 +716,10 @@ class Actions:
                     "capabilities.execute",
                     action_id + ":resume:" + attempt.attempt_id,
                     {"action_id": action_id, "mode": "resume"},
-                    service_class=ServiceClass.ELASTIC
-                    if handler.definition.long_running
-                    else ServiceClass.INTERACTIVE,
+                    service_class=service_class,
+                    subject_id=action.actor_id,
+                    matter_id=action.matter_id,
+                    execution_lane=lane,
                 ),
             )
         return receipt
@@ -638,8 +748,9 @@ class Actions:
         raise Fault("invalid_control", 400)
 
     def register_tasks(self):
-        self.jobs.register("capabilities.execute", self.run)
-        self.jobs.register("capabilities.control", self.control)
+        self.jobs.register("capabilities.execute", self.run,
+                           lane_resolver=self.execution_lane_on)
+        self.jobs.register("capabilities.control", self.control, execution_lane=ExecutionLane.CONTROL)
 
 
 def encoded(value):

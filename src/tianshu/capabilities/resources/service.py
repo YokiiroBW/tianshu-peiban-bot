@@ -6,11 +6,11 @@ from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import uuid4
 import aiohttp
-from tianshu.types import Action, Receipt, OriginKind, ServiceClass
+from tianshu.types import Action, Receipt, OriginKind
 from tianshu.runtime.serialization import wire
 from ..catalog import Availability, CapabilityDefinition
 from ..contracts import Fault, require, canonical, loads, digest
-from ..external import request as resource_request, ProviderError
+from ..external import request as resource_request, ProviderError, execution_service_class
 from . import asset_queries as query
 
 
@@ -239,7 +239,7 @@ class Resources:
                 deadline_at=datetime.now(UTC) + timedelta(seconds=10),
             ),
             background=False,
-            service_class=ServiceClass.INTERACTIVE,
+            service_class=execution_service_class(context),
         )
         if receipt.execution != "succeeded":
             raise Fault(receipt.error_code or "asset_read_unavailable", 503)

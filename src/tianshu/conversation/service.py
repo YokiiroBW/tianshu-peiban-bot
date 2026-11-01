@@ -12,6 +12,7 @@ from tianshu.models.types import ModelMessage, ModelPart, ModelRequest, ToolSpec
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.serialization import wire
 from tianshu.types import Action, ContextContribution, Coverage, OriginKind, RequestBudget, ServiceClass
 from .codec import (artifacts, context_from_record, document, input_parts, model_parts, receipt,
@@ -36,6 +37,12 @@ class ConversationService:
         self.catalog, self.actions, self.expression, self.contacts = catalog, actions, expression, contacts
         self.collector = ConversationCollector(database, jobs, policy)
         self.participation = GroupParticipation(self)
+
+    async def execution_lane_on(self, connection, payload):
+        row = await (await connection.execute(
+            "SELECT autonomous FROM conversation.turns WHERE turn_id=%s", (payload["turn_id"],)
+        )).fetchone()
+        return ExecutionLane.PROACTIVE if row and row["autonomous"] else ExecutionLane.CONVERSATION
 
     async def _prepare_input(self, context, message: InputMessage):
         await self.identity.check(context, message.source_refs)
@@ -375,7 +382,8 @@ class ConversationService:
         output_artifacts = artifacts(row["artifacts"])
         expression_refs = unique_refs(tuple(ref for ref in (*pack.source_refs, *(ref for item in output_artifacts for ref in item.source_refs))))
         delivered = await self.expression.send(context, ExpressionPlan(expression_id, context.actor_id, context.conversation_id,
-            public, expression_refs, OriginKind.ACTOR, turn_id=row["turn_id"], artifacts=output_artifacts))
+            public, expression_refs, OriginKind.ACTOR, turn_id=row["turn_id"], artifacts=output_artifacts),
+            service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE)
         state = expression_turn_state(delivered.state)
         async with self.database.transaction() as connection:
             await connection.execute(
@@ -441,7 +449,7 @@ class ConversationService:
             current_input_refs=current_input_refs)
         # Background work releases the dialogue lane; the persisted action owns its actual completion.
         result = receipt(await self.actions.invoke(action, background=definition.long_running,
-            service_class=ServiceClass.ELASTIC if definition.long_running or row.get("autonomous") else ServiceClass.INTERACTIVE))
+            service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE))
         await self._tool_receipt(context, result)
 
     async def _command(self, context, row, choices):

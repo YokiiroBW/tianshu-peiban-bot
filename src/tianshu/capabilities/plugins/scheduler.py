@@ -181,7 +181,7 @@ class Scheduler:
         action=Action(key,key,capability,context.actor_id,context,schedule["input"],OriginKind.TIMER)
         if should_run:
             from tianshu.types import ServiceClass
-            result=await self.host.domain_ports.actions.invoke(action,background=True,service_class=ServiceClass.ELASTIC if self.host.domain_ports.catalog.handler(capability).definition.long_running else ServiceClass.DUE)
+            result=await self.host.domain_ports.actions.invoke(action,background=True,service_class=ServiceClass.DUE)
             schedule["last_invocation"]=result.action_id
         schedule["next_run"]=next_run(schedule["trigger"],max(time.time(),due))
         await self.host.local(repo.save_schedule,schedule,revision,self.enqueue)

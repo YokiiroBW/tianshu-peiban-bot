@@ -8,6 +8,7 @@ from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..contracts import Fault, canonical, digest
 from ..execution_context import CURRENT_ACTION
+from ..external import execution_service_class
 from .actor_bridge import PluginActorBridge
 
 
@@ -275,7 +276,6 @@ class Plugins:
             MediaRef,
             SourceRef,
             RequestBudget,
-            ServiceClass,
             OriginKind,
         )
         from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
@@ -318,9 +318,7 @@ class Plugins:
                         intent_id=action.action_id + ":" + value["request_key"],
                         attempt_id=attempt.attempt_id + ":" + value["request_key"],
                         function=value["function"],
-                        service_class=ServiceClass.INTERACTIVE
-                        if action.origin_kind == OriginKind.HUMAN
-                        else ServiceClass.ELASTIC,
+                        service_class=execution_service_class(action),
                         context=action.context,
                         budget=RequestBudget(
                             action.deadline_at or datetime.now(UTC) + timedelta(minutes=3)

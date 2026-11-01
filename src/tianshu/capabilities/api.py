@@ -67,6 +67,8 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
             "actor_id",
             "person_id",
             "conversation_id",
+            "service_class",
+            "execution_lane",
         }
     }
     if contains_secret(arguments):
@@ -121,10 +123,10 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
         "connections.disconnect",
     }:
         background = False
-    definition = (await service.actions.handler(action)).definition
+    background = background or (await service.actions.handler(action)).definition.long_running
     service_class = (
         ServiceClass.ELASTIC
-        if definition.long_running or context.origin_kind != OriginKind.HUMAN
+        if context.origin_kind != OriginKind.HUMAN
         else ServiceClass.INTERACTIVE
     )
     receipt = await service.actions.invoke(
@@ -223,7 +225,9 @@ def register_routes(app, service):
                 receipt = await getattr(service.actions, op)(
                     body["action_id"],
                     context,
-                    **({"client_request_id": body["client_request_id"]} if op == "resume" else {}),
+                    **({"client_request_id": body["client_request_id"],
+                        "expected_attempt_id": body.get("expected_attempt_id"),
+                        "expected_job_id": body.get("expected_job_id")} if op == "resume" else {}),
                 )
                 return json_response(
                     CommandResult(

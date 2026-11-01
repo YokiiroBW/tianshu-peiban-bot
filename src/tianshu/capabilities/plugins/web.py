@@ -177,9 +177,7 @@ class WebPlugins:
                         OriginKind.HUMAN,
                     ),
                     background=True,
-                    service_class=ServiceClass.ELASTIC
-                    if self.service.catalog.handler(identifier).definition.long_running
-                    else ServiceClass.INTERACTIVE,
+                    service_class=ServiceClass.INTERACTIVE,
                 )
             )
         elif operation == "invocations":
@@ -196,7 +194,9 @@ class WebPlugins:
         elif operation in {"reconcile", "resume"}:
             result = (
                 await self.service.actions.resume(
-                    body["id"], session, client_request_id=body["client_request_id"]
+                    body["id"], session, client_request_id=body["client_request_id"],
+                    expected_attempt_id=body.get("expected_attempt_id"),
+                    expected_job_id=body.get("expected_job_id"),
                 )
                 if operation == "resume"
                 else await self.service.actions.reconcile(body["id"], session)

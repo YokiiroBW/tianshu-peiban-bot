@@ -53,7 +53,7 @@ class ExpressionRenderer:
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,plan.source_refs):
                 raise AppError("source_unavailable",status=409)
-            added=await (await connection.execute("INSERT INTO conversation.expression_plans(expression_id,actor_id,conversation_id,fingerprint,context,plan,source_refs,profile,state,service_class,steps,deadline_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",(plan.expression_id,context.actor_id,context.conversation_id,fingerprint,document(context),document(plan),document(plan.source_refs),document(profile),"waiting_render" if steps else "ready",("due" if service_class==ServiceClass.DUE else "elastic"),document(steps),deadline))).fetchone()
+            added=await (await connection.execute("INSERT INTO conversation.expression_plans(expression_id,actor_id,conversation_id,fingerprint,context,plan,source_refs,profile,state,service_class,steps,deadline_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",(plan.expression_id,context.actor_id,context.conversation_id,fingerprint,document(context),document(plan),document(plan.source_refs),document(profile),"waiting_render" if steps else "ready",service_class.value,document(steps),deadline))).fetchone()
             if not added:
                 existing=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s",(plan.expression_id,))).fetchone()
                 if existing["fingerprint"]!=fingerprint:
@@ -61,7 +61,7 @@ class ExpressionRenderer:
                 return progress(existing)
             if steps:
                 for step in steps:
-                    await self.jobs.enqueue(connection,JobSpec("conversation.expression_render",f"expression-render:{step['action_id']}",{"expression_id":plan.expression_id,"index":step["index"]},ServiceClass.DUE if service_class==ServiceClass.DUE else ServiceClass.ELASTIC,subject_id=context.actor_id))
+                    await self.jobs.enqueue(connection,JobSpec("conversation.expression_render",f"expression-render:{step['action_id']}",{"expression_id":plan.expression_id,"index":step["index"]},service_class,subject_id=context.actor_id))
             await self.jobs.enqueue(connection,JobSpec("conversation.render_expire","render-expire:"+plan.expression_id,{"expression_id":plan.expression_id},ServiceClass.INTERACTIVE,deadline,context.actor_id))
         if not steps:
             return await self._deliver(context,plan)

@@ -12,6 +12,7 @@ import { CommandFeedback } from "../../components/CommandFeedback";
 import { ArtifactList, MediaPreview } from "../../components/MediaPreview";
 import { SourceEvidence } from "../../components/SourceEvidence";
 import { DetailCard } from "../../components/DetailCard";
+import { ExecutionStatus } from "../../components/ExecutionStatus";
 import type { Page } from "../../api/contracts";
 import { EngineEditor, ProfileEditor, engineNames } from "./ImageSettings";
 import { WorkflowEditor } from "./WorkflowEditor";
@@ -387,6 +388,16 @@ function ImageJob({
   const { session } = useAuth();
   const scope = useDomainTarget();
   const command = useDomainCommand("image-action:" + job.action_id);
+  const waiting = useDomainResource<ActionView>(
+    "capabilities/get",
+    { ...scope, action_id: job.action_id },
+    ["pending", "running", "unknown"].includes(job.execution),
+    5000,
+    (value) => ["pending", "running"].includes(value.receipt?.execution ?? ""),
+  );
+  const actual = waiting.data?.receipt;
+  const execution = actual?.execution ?? job.execution;
+  const reason = actual ? actual.error_code : job.reason;
   const [reading, setReading] = useState(false);
   const [error, setError] = useState("");
   async function control(operation: string) {
@@ -417,7 +428,7 @@ function ImageJob({
   return (
     <article className="domain-record">
       <header>
-        <strong>{executionNames[job.execution] ?? job.execution}</strong>
+        <strong>{executionNames[execution] ?? execution}</strong>
         <a
           className="text-link"
           href={taskHref({
@@ -430,11 +441,18 @@ function ImageJob({
           原任务与投递详情
         </a>
       </header>
-      {job.reason && <p>{job.reason}</p>}
-      <p>外部效果：{job.effect}</p>
-      <ArtifactList artifacts={job.artifacts} />
+      {["pending", "running", "unknown"].includes(job.execution) && (
+        <ExecutionStatus
+          execution={waiting.data?.execution}
+          state={execution}
+        />
+      )}
+      {waiting.error && <p className="muted">{waiting.error}</p>}
+      {reason && <p>{reason}</p>}
+      <p>外部效果：{actual?.effect ?? job.effect}</p>
+      <ArtifactList artifacts={actual?.artifacts ?? job.artifacts} />
       <div className="domain-actions">
-        {["pending", "running"].includes(job.execution) && (
+        {["pending", "running"].includes(execution) && (
           <button
             className="button"
             disabled={command.busy || reading}
@@ -443,7 +461,7 @@ function ImageJob({
             请求取消后续生成
           </button>
         )}
-        {job.execution === "unknown" && (
+        {execution === "unknown" && (
           <button
             className="button"
             disabled={command.busy || reading}
