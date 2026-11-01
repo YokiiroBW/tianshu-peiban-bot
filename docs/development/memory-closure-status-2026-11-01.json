@@ -1,5 +1,5 @@
 {
-  "phase": "final_repair_candidate_build_and_real_semantic_acceptance",
+  "phase": "single_transition_contract_clarification_before_final_cutover",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
@@ -353,8 +353,16 @@
     {
       "id": "RC-25",
       "owner": "MC-A",
-      "state": "implementing_effective_truncation_shrink",
+      "state": "integrated_targeted_10_cases_passed_real_evaluation_running",
       "problem": "Known-truncation recovery halves nominal source budget even when selected material is unchanged, causing repeated paid reasoning; querying latest failed batch also reuses old reduced budget after later successful consumption. Shrink must reduce actual pending material and reset when no longer a contiguous relevant failure."
+    },
+    {
+      "id": "RC-26",
+      "owner": "MC-A",
+      "state": "integrated_pending_four_focused_checks_and_S03_supplement",
+      "problem": "The model-visible transition description omits that successor_ref declares a new Claim and payload contains successor fields; a reasonable add-then-transition interpretation is correctly rejected as duplicate_create. Clarify one existing instruction, preserving strict validator, native creation, old closure and supersedes behavior.",
+      "source_commit": "aa2707f9c1fd326572fb6d300cb9ac8574553cc4",
+      "integrated_as": "8c70c90167080ecd12e9e321ee25aaffc1b7b7e9"
     }
   ],
   "blueprint_acceptance": {
@@ -365,10 +373,10 @@
     "stories": 24,
     "development": 16,
     "held_out": 8,
-    "state": "Candidate04 development 16 reviewed; all held-out content remains unread for tuning. Candidate05 will retest 8 shared cost stories (including affected S14) and 8 held-out stories; reuse 8 unaffected development results with their original limitations, plus native S04 recovery as separate evidence.",
+    "state": "24 unique stories covered by 17 candidate05 and7 unchanged candidate04 results; 8 heldout answers reviewed only after candidate05 freeze. All 24 answers correct in these root-reviewed runs, not a universal accuracy claim. Native failures/unknowns remain explicit. Candidate06 only clarifies the existing transition operation after development S03 cost-arm failure and supplements S03; candidate05 cost benchmark remains labeled pre-clarification.",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "Candidate04 product through a85bb7c has 4/4 targeted temporal/endpoint/input checks; all 16 development answers match questions. A bounded real truncation scheduling flaw is now being repaired (RC-25). No prompt/schema/default-budget change. Production source remains dcdf729.",
+  "product_implementation": "All scoped product/frontend changes now integrated through 8c70c90167080ecd12e9e321ee25aaffc1b7b7e9. RC26 changes one model-visible transition description only; strict schema/validator/domain/permissions/default budgets unchanged. Root focused verification and S03 supplement pending; prior applicable deterministic and semantic evidence retained with limitations.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -531,6 +539,35 @@
         "S14 three reasoning-only truncations before native smaller batches, then answer correct but personal Matter attribution remains a semantic limitation"
       ],
       "evidence": "private candidate-04/acceptance/coordinator-semantic-review.json; all original reports preserved"
+    },
+    "truncation_scheduling_repair": {
+      "source_sha": "228c1d7b0fab559c982083cb2332e1f97b036489",
+      "integration_commit": "228c1d7",
+      "agent_commit": "119186ee311f81e579005f29d4e2604e31dd7278",
+      "focused_cases": 10,
+      "passed": 10,
+      "failed": 0,
+      "skipped": 0,
+      "receipt": ".runtime/coherent-refactor-20261031/memory-closure-20261101/acceptance/backend-semantic-11.json",
+      "unchanged_successes": "Reused; no repeat of the broader backend/frontend checks."
+    },
+    "candidate05_semantic": {
+      "source_sha": "228c1d7b0fab559c982083cb2332e1f97b036489",
+      "image_id": "sha256:36fa0c118f3d6312f921421d43a6a4cb9ea9907bfa487f98e7e2eee2e124c5a0",
+      "state": "17_completed_root_answers_reviewed_native_limits_retained",
+      "optimized_stories": 17,
+      "unchanged_candidate04_reused": 7,
+      "heldout_read_for_tuning": false,
+      "conservative_and_legacy_cost_arms": "pending",
+      "optimized_attempts": 172,
+      "submitted_unknown": 2,
+      "native_limits": [
+        "S14 second batch waiting_model unknown; answer recovered 08:30 from original",
+        "H07 first material-coverage proposal rejected; later native group Matter correct"
+      ],
+      "heldout_reviewed_after_freeze": 8,
+      "conservative": "8 completed, 90 requests,4 unknown; S03 exposes RC26, S14 native owner/unknown limits",
+      "legacy": "running frozen old production code"
     }
   },
   "production_recovery_actions": [
