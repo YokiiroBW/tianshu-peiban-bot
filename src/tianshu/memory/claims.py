@@ -19,6 +19,7 @@ from .service import parse_time
 
 ELIGIBLE_SCOPES = """EXISTS(SELECT 1 FROM jsonb_array_elements(r.scope_groups) g
     WHERE ARRAY(SELECT jsonb_array_elements_text(g))<@%s::text[])"""
+CLAIM_PREDICATE_PATTERN = r"[a-zA-Z0-9_.-]{1,128}"
 
 
 def command_fingerprint(body, evidence_refs=None):
@@ -66,7 +67,7 @@ class ClaimService:
         if subject_id not in await self.visible_subjects(context, conn):
             raise AppError("claim_subject_forbidden", status=403)
         predicate = body.get("predicate")
-        if not isinstance(predicate, str) or not re.fullmatch(r"[a-zA-Z0-9_.-]{1,128}", predicate):
+        if not isinstance(predicate, str) or not re.fullmatch(CLAIM_PREDICATE_PATTERN, predicate):
             raise AppError("invalid_claim_predicate")
         assertion = body.get("assertion", "reported")
         if assertion not in {"self_confirmed", "reported", "quoted", "inferred", "observed"}:

@@ -17,69 +17,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import ContextContribution, OriginKind, RequestBudget, ServiceClass, SourceRef
 from tianshu.sources.dependencies import unique_refs
 from . import codec
-
-
-EXTRACTION = {
-    "type": "object",
-    "required": ["claims", "matters"],
-    "additionalProperties": False,
-    "properties": {
-        "claims": {
-            "type": "array",
-            "maxItems": 64,
-            "items": {
-                "type": "object",
-                "required": ["subject_id", "predicate", "value", "source_indexes"],
-                "properties": {
-                    "subject_id": {"type": "string"},
-                    "predicate": {"type": "string"},
-                    "value": {},
-                    "assertion": {
-                        "enum": ["self_confirmed", "reported", "quoted", "inferred", "observed"]
-                    },
-                    "polarity": {"type": "boolean"},
-                    "conditions": {"type": "object"},
-                    "valid_from": {"type": ["string", "null"]},
-                    "valid_until": {"type": ["string", "null"]},
-                    "source_indexes": {
-                        "type": "array",
-                        "minItems": 1,
-                        "maxItems": 8,
-                        "items": {"type": "integer", "minimum": 0},
-                    },
-                },
-                "additionalProperties": False,
-            },
-        },
-        "matters": {
-            "type": "array",
-            "maxItems": 16,
-            "items": {
-                "type": "object",
-                "required": ["matter_id", "subject_id", "title", "state", "source_indexes"],
-                "properties": {
-                    "matter_id": {"type": "string"},
-                    "subject_id": {"type": "string"},
-                    "title": {"type": "string"},
-                    "state": {
-                        "enum": ["planned", "active", "rescheduled", "cancelled", "uncertain"]
-                    },
-                    "due_at": {"type": ["string", "null"]},
-                    "summary": {"type": "string"},
-                    "conditions": {"type": "object"},
-                    "source_indexes": {
-                        "type": "array",
-                        "minItems": 1,
-                        "maxItems": 8,
-                        "items": {"type": "integer", "minimum": 0},
-                    },
-                },
-                "additionalProperties": False,
-            },
-        },
-    },
-}
-VALIDATOR = Draft202012Validator(EXTRACTION)
+from .extraction_contract import extraction_instruction, extraction_schema
 
 
 class MemoryWorkers:
@@ -105,13 +43,13 @@ class MemoryWorkers:
                 )
             ).fetchone()
             if not row or row["extraction_state"] not in {"pending", "running"}:
-                return None, None, ()
+                return None, None, (), ()
             if (
                 row["extraction_state"] == "running"
                 and row["extraction_started_at"]
                 and row["extraction_started_at"] > datetime.now(UTC) - timedelta(minutes=3)
             ):
-                return None, None, ()
+                return None, None, (), ()
             context = await self.identity.context_on(
                 conn,
                 row["principal_id"],
@@ -121,11 +59,12 @@ class MemoryWorkers:
                 origin_kind=OriginKind(row["origin_kind"]),
             )
             subjects = await self.identity.memory_subjects_on(conn, context)
+            allowed_subject_ids = await self.memory.claims.visible_subjects(context, conn)
             await conn.execute(
                 "UPDATE memory.episodes SET extraction_state='running',extraction_started_at=now() WHERE episode_id=%s AND sequence=%s",
                 (episode_id, sequence),
             )
-        return row, context, subjects
+        return row, context, subjects, allowed_subject_ids
 
     async def _material_sources(self, row, context):
         existing = codec.refs(row["extraction_sources"])
@@ -195,7 +134,7 @@ class MemoryWorkers:
         return refs, tuple(missing)
 
     async def extract(self, episode_id, sequence):
-        row, context, subjects = await self._episode(episode_id, sequence)
+        row, context, subjects, allowed_subject_ids = await self._episode(episode_id, sequence)
         if not row:
             return
         try:
@@ -254,19 +193,15 @@ class MemoryWorkers:
                 material = {
                     "speaker_id": None,
                     "subjects": subjects,
+                    "allowed_subject_ids": sorted(allowed_subject_ids),
                     "actor_id": "actor:" + context.actor_id,
                     "origin_kind": row["origin_kind"],
                     "occurred_at": row["occurred_at"],
                     "current_matters": matters.items,
                     "sources": material_sources,
                 }
-                instruction = (
-                    "从本批实际原件或有消费回执的派生观察抽取事实与事项，按JSON Schema返回唯一对象。"
-                    "保留说话者/对象、本人确认/转述/引用、否定、条件、时间与改期取消。工具/网页/观看分析/角色自述不能成为用户本人确认。"
-                    "媒体只能描述consumption实际ranges/frame_times/modalities，保留omitted和采样限制，不能声称看过整段或听见缺失音轨。"
-                    "旧材料不能覆盖新当前态；无明确证据返回空数组，不推断已完成。source_indexes只选本批。\n"
-                    + json.dumps(EXTRACTION, ensure_ascii=False)
-                )
+                schema = extraction_schema(allowed_subject_ids)
+                instruction = extraction_instruction(schema)
                 dependencies = unique_refs(
                     selected, (ref for item in matters.items for ref in item.source_refs)
                 )
@@ -307,7 +242,7 @@ class MemoryWorkers:
                 parsed = json.loads(
                     "".join(part.text or "" for part in result.parts if part.kind == "text")
                 )
-                if not VALIDATOR.is_valid(parsed):
+                if not Draft202012Validator(schema).is_valid(parsed):
                     raise AppError("memory_extraction_invalid", status=502)
                 dependencies = recorded.source_refs
             async with self.database.transaction() as conn:
