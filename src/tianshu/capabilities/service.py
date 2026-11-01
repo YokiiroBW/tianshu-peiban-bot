@@ -411,16 +411,17 @@ class Capabilities:
             "infrastructure_observe",
         ):
 
-            async def maintenance(_name=name):
+            async def maintenance(_name=name, wake_generation=None):
                 owner = (
                     getattr(self.infrastructure, "background", None)
                     if _name == "infrastructure_observe"
                     else self.media.background
                 )
                 if owner is not None and _name in owner.operations:
-                    await owner.run(_name)
+                    await owner.run(_name, wake_generation=wake_generation)
 
-            self.runtime.jobs.register("capabilities.media." + name, maintenance)
+            if "capabilities.media." + name not in self.runtime.jobs.tasks:
+                self.runtime.jobs.register("capabilities.media." + name, maintenance)
 
     def register_operations(self):
         from .plugins.control import OPERATIONS

@@ -13,6 +13,7 @@ from tianshu.capabilities.external_catalog import ExternalCatalog
 from tianshu.capabilities.infrastructure.runtime import Infrastructure
 from tianshu.capabilities.media.background import Background
 from tianshu.capabilities.media.runtime import Media
+from tianshu.capabilities.service import Capabilities
 from tianshu.runtime.jobs import JobQueue
 from tianshu.runtime.migrations import Migration, migrate
 
@@ -61,6 +62,21 @@ async def test_empty_maintenance_uses_next_due_and_change_wakes_replace_old_gene
     await background.run("subscriptions", wake_generation=3)
     assert operation.await_count == 2
     await background.close()
+
+
+@pytest.mark.asyncio
+async def test_registered_maintenance_adapter_forwards_the_persisted_generation():
+    handlers = {}
+    jobs = SimpleNamespace(tasks=handlers, register=lambda name, handler: handlers.update({name: handler}))
+    capabilities = Capabilities.__new__(Capabilities)
+    capabilities.runtime = SimpleNamespace(jobs=jobs)
+    capabilities.actions = SimpleNamespace(register_tasks=lambda: None)
+    background = SimpleNamespace(operations={"subscriptions": object()}, run=AsyncMock())
+    capabilities.media = SimpleNamespace(background=background)
+    capabilities.infrastructure = None
+    capabilities.register_tasks()
+    await handlers["capabilities.media.subscriptions"](wake_generation=23)
+    background.run.assert_awaited_once_with("subscriptions", wake_generation=23)
 
 
 @pytest.mark.asyncio
