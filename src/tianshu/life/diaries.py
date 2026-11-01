@@ -56,25 +56,26 @@ class DiaryService:
                 "AND (%s::text IS NULL OR id>%s) ORDER BY id LIMIT %s",
                 (context.actor_id, list(context.scope_ids), can_edit(context), cursor, cursor, limit+1))).fetchall()
         page = await self.life._page(context, rows, limit)
-        automatic = await self._automatic(context,page.items)
-        return replace(page,items=tuple({**row,"day":row["day"].isoformat(),
-                                       "automatic":automatic.get(row["id"])} for row in page.items))
+        raw_by_id = {row["id"]:row for row in rows[:limit]}
+        automatic = await self._automatic(context,tuple(raw_by_id[item["id"]] for item in page.items))
+        return replace(page,items=tuple({**item,"automatic":automatic.get(item["id"])} for item in page.items))
 
-    async def _automatic(self, context, diaries):
-        if not diaries:
+    async def _automatic(self, context, diary_rows):
+        """Join source-checked database dates before exposing the public diary DTO."""
+        if not diary_rows:
             return {}
         async with self.life.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
                 "SELECT day,timezone,revision,reviewed_revision,generation_id,closed_at,last_reviewed_at,last_error,scope_key "
                 "FROM life.diary_days WHERE actor_id=%s AND day=ANY(%s::date[]) AND scope_ids<@%s::text[] "
                 "ORDER BY (scope_key=%s) DESC,closed_at DESC",
-                (context.actor_id,[row["day"] for row in diaries],list(context.scope_ids),
+                (context.actor_id,[row["day"] for row in diary_rows],list(context.scope_ids),
                  signature(sorted(context.scope_ids))))).fetchall()
         by_day = {}
         for row in rows:
             by_day.setdefault(row["day"],row)
         return {diary["id"]:automatic_view(by_day[diary["day"]],diary)
-                for diary in diaries if diary["day"] in by_day}
+                for diary in diary_rows if diary["day"] in by_day}
 
     async def _diary(self, context, diary_id, connection, *, lock=False, additional_refs=()):
         query = "SELECT * FROM life.diaries WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]"

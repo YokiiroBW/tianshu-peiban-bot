@@ -116,9 +116,13 @@ async def test_closed_local_day_creates_a_source_backed_draft_and_same_material_
     assert covered["reviewed_revision"] == covered["revision"] == 1
     assert covered["material_revisions"] == {"actual":1} and covered["generation_id"] is None
     page = await value.diaries.list(value.context)
+    assert page.items[0]["day"] == day
     assert page.items[0]["automatic"]["state"] == "reviewed"
     assert page.items[0]["automatic"]["day"] == day
     assert "material_revisions" not in page.items[0]["automatic"]
+    read = await value.diaries.read(value.context,{"id":first["id"]})
+    assert read["diary"]["day"] == day
+    assert read["diary"]["automatic"] == page.items[0]["automatic"]
     start,end = value.memory.windows[0]
     assert start.astimezone(UTC) == datetime(2026,11,1,16,tzinfo=UTC)
     assert end.astimezone(UTC) == datetime(2026,11,2,16,tzinfo=UTC)
