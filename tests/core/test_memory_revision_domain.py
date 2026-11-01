@@ -317,6 +317,49 @@ async def test_about_matter_keeps_event_identity_and_authorized_derived_projecti
     assert build_evidence_unit(current).relations[0].to_ref.revision == 1
 
 
+async def test_consolidation_links_new_evidence_to_frozen_matter_without_revising_it(core, ordinary_users):
+    from tianshu.memory.extraction_contract import SCHEMA_VERSION, validate_proposal
+
+    alice, _ = ordinary_users
+    matter = (await core.claims.save_matter(alice, {"matter_id": "library-visit", "expected_revision": 0,
+        "title": "图书馆参访", "state": "planned", "client_request_id": "library-visit-create"})).data
+    refs = await original(core, alice, "library-registration", "我负责访客登记，这是图书馆参访的接待安排")
+    batch = await frozen(core, alice, refs, batch_id="library-registration-links")
+    batch["records"]["r0"] = {"kind": "matter", "id": matter.matter_id, "revision": matter.revision,
+        "subject_id": matter.subject_id, "source_refs": wire(matter.source_refs), "scope_ids": list(matter.scope_ids)}
+    batch["read_set"] = list(batch["records"].values())
+    batch["targets"] = {alice.person_id: {"new_material_ids": ["m1"]}}
+    about = operation(alice, "link", {"create": "n3"}, {"relation_kind": "about_matter",
+        "from_ref": "n1", "to_ref": "r0", "valid_from": None, "valid_until": None}, reads=("r0",), op_id="op3")
+    same_event = operation(alice, "link", {"create": "n4"}, {"relation_kind": "same_event",
+        "from_ref": "n2", "to_ref": "r0", "valid_from": None, "valid_until": None}, reads=("r0",), op_id="op4")
+    # Relations can precede the new objects in JSON: the frozen proposal declares
+    # every local identity before the writer resolves any relationship endpoint.
+    operations = [about, same_event,
+        operation(alice, "add_claim", {"create": "n1"}, payload(alice, "负责访客登记")),
+        operation(alice, "upsert_matter", {"create": "n2"}, {"title": "参访接待安排", "state": "planned",
+            "due_at": None, "summary": "负责访客登记", "conditions": {}, "completion_basis": None}, op_id="op2")]
+    proposal = {"schema_version": SCHEMA_VERSION, "batch_id": batch["batch_id"],
+        "target_results": [{"subject_id": alice.person_id, "status": "changed",
+            "processed_material_ids": ["m1"], "operation_ids": [op["op_id"] for op in operations]}],
+        "operations": operations, "unresolved": [], "needs_context": []}
+    validate_proposal(batch, proposal)
+    result = await apply(core, alice, batch, proposal["operations"])
+
+    old = await core.claims.get_matter(alice, matter.matter_id)
+    claim = await core.claims.get(alice, result["local_refs"]["n1"]["id"])
+    other = await core.claims.get_matter(alice, result["local_refs"]["n2"]["id"])
+    assert old.revision == matter.revision and old.title == matter.title and old.source_refs == matter.source_refs
+    assert claim.matter_id == matter.matter_id and other.matter_id != matter.matter_id
+    assert {result["local_refs"][alias]["kind"] for alias in ("n3", "n4")} == {"link"}
+    links = build_evidence_unit(claim).relations + build_evidence_unit(other).relations
+    assert {link.relation_kind for link in links} == {"about_matter", "same_event"}
+    assert {link.to_ref.id for link in links} == {matter.matter_id}
+    assert {link.to_ref.revision for link in links} == {matter.revision}
+    required = {(ref.source_id, ref.revision) for ref in (*refs, *matter.source_refs)}
+    assert all(required <= {(ref.source_id, ref.revision) for ref in link.source_refs} for link in links)
+
+
 async def test_supersedes_cycle_rolls_back_the_whole_proposal(core, ordinary_users):
     alice, _ = ordinary_users
     first = await fact(core, alice, await original(core, alice, "cycle-first", "认识一"), "一")

@@ -66,6 +66,42 @@ def test_wrong_persons_material_and_unknown_revision_cannot_be_applied():
         validate_proposal(data,output)
 
 
+@pytest.mark.parametrize("kind", ["add_claim", "add_support", "revise_claim", "link"])
+def test_model_target_shape_matches_the_domain_operation(kind):
+    data = frozen()
+    data["records"]["r1"] = {"kind": "claim", "id": "claim_2", "revision": 1,
+        "subject_id": "b", "source_refs": [{"source_id": "other_old", "revision": 1}]}
+    data["read_set"].append({"kind": "claim", "id": "claim_2", "revision": 1})
+    claim = {"predicate": "interest", "value": "有原件支持的事实", "speaker_id": "a",
+        "assertion": "self_confirmed", "polarity": True, "conditions": {},
+        "valid_from": None, "valid_until": None}
+    payloads = {"add_claim": claim, "add_support": {},
+        "revise_claim": {**claim, "revision_mode": "correction"},
+        "link": {"relation_kind": "supports", "from_ref": "r0", "to_ref": "r1",
+            "valid_from": None, "valid_until": None}}
+    creates = kind in {"add_claim", "link"}
+    create_target = {"create": "n1"}
+    record_target = {"ref": "r0", "expected_revision": 3}
+    proposal = consolidation_example(data)
+    proposal["operations"] = [{"op_id": "op1", "kind": kind, "subject_id": "a",
+        "target": create_target if creates else record_target, "payload": payloads[kind],
+        "support_groups": [["m1"]], "context_refs": [], "reads": ["r0", "r1"],
+        "reason": "有原件支持的操作"}]
+    proposal["target_results"][0].update(status="changed", operation_ids=["op1"])
+    validator = Draft202012Validator(consolidation_schema(data))
+    assert not list(validator.iter_errors(proposal))
+    assert validate_proposal(data, proposal) is proposal
+
+    invalid = deepcopy(proposal)
+    invalid["operations"][0]["target"] = record_target if creates else create_target
+    # The actual model-visible schema must reject this shape before any write;
+    # sources, old revision, reads and target coverage are otherwise unchanged.
+    assert any(list(error.absolute_path) == ["operations", 0, "target"]
+        for error in validator.iter_errors(invalid))
+    with pytest.raises(AppError, match="memory_consolidation_invalid"):
+        validate_proposal(data, invalid)
+
+
 @pytest.mark.parametrize('kind',['add_claim','correction','transition','revise_hypothesis'])
 def test_shared_claim_schema_keeps_required_and_extra_property_validation(kind):
     data=frozen()

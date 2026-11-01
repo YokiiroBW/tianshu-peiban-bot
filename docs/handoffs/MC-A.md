@@ -179,3 +179,52 @@ separate MC-D integration scope and will consume these types/builders.
   伪造冻结主体不能新增其他人事实及原公共 head 保持。均为 **written_not_run**。
 - 仅修改 revisions.py、对应领域测试和本交接；没有触碰 B 预算/分段、前端、模型或
   生产。没有执行测试、语言解析、typecheck、build 或模型调用，等待整批集中复验。
+
+## 真实开发样例后的整理协议 target 收口（2026-11-01）
+
+- 从集成 `ba2b95daf6eb1d62ade0e14f5f8d71c38f484cd4` 在原独立 worktree 建立
+  `codex/memory-link-contract-repairs-20261101`，此前 A/D/能力返修提交和分支完整保留。
+- 仅静态读取协调者授权的 candidate-02/acceptance/semantic-optimized/S09 真实开发
+  model-calls、final-state 与报告，以及 B 明确转交的同目录 S12、根任务补充授权的
+  S13 model-calls；没有读取 heldout，也没有把故事原文、人物 ID 或模型输出写进仓库。
+- S09 第二批三条 link 将真实旧记录及其固定 revision 放在 target，payload 的新旧
+  端点、reads 和来源覆盖齐全。模型可见的六类操作共用 create/ref union，且
+  validate_proposal 未收紧 link target，因此该提案通过合同检查，到领域最后创建
+  关系时才收到 memory_link_create_required，整批原子回滚。领域保持 create-only
+  是正确约束；缺口在模型可见 Schema 与领域对象身份合同不一致。
+- Schema 现在共享 create_target/record_target 两个 $defs，并在既有按 kind 的
+  payload 条件里加短 $ref：add_claim/link 只能 create，add_support/revise_claim
+  只能 ref+expected_revision；upsert_matter/revise_hypothesis 保留两种合法形式。
+  不复制六份 payload，不自动改写模型提案，不生成猜测关系 ID，也不放宽来源、
+  read_set、原 revision、主体覆盖、范围或原子事务。revisions/semantic_links 的
+  稳定 ID、端点复核和最终领域防护保持原样。
+- 同一协议明确 link.target 是新关系本身，端点放 payload.from_ref/to_ref，旧端点
+  仍须列 reads。与 B 协调后同时补充蓝图已有的共同事项/当前态度规则：有原文依据
+  的群共同事项用冻结 group 主体；个人出席/分工单独归本人；已经表达的同意/确认
+  是当前态度或既有事项支持，不能凭歧义另造未来待办。S13 还显示本次转述动作被
+  同时当作新事项及完成依据，因此与 B 统一了语义边界：日常转述/当前表态本身不
+  新建或完成传话/确认事项；须有独立可跟踪事项、明确后续委托/承诺或既有事项
+  进展。保持已有真人 human_report 完成报告与真实执行 receipt 的原有区别；未知
+  被转述者保留 reported/quoted 原文或未决，不造 ID 或改绑发言者。没有故事关键词
+  分支、每消息分类模型、身份/权限扩张或新增业务类型。
+- 协议 UTF-8 字节数使用 S09 checkpoint-3 已保存的实际 system 作为静态基准：
+  原 Schema 紧凑 JSON 原样往返后按本次结构等价变换，并拼接新增指令常量；未
+  import 或执行候选 Python。Schema 为 7,441→7,707 B（+266），完整 system
+  为 10,456→11,540 B（+1,084），其中指令增量为 818 B。此为协议字节量，不是
+  模型实际 token/费用测量；max_input_tokens=12,000、缩窗/尾部和推理预留均未改。
+- 编写但未执行：
+  - tests/memory/test_consolidation_contract.py::test_model_target_shape_matches_the_domain_operation
+    四个参数节点，让实际模型 Schema 与 validate_proposal 在写前共同拒绝错误
+    create/ref 形状，来源、旧 revision、reads、目标覆盖保持相同。
+  - tests/core/test_memory_revision_domain.py::test_consolidation_links_new_evidence_to_frozen_matter_without_revising_it
+    先列关系再列新 Claim/Matter，合法新关系 ID 原子关联冻结旧 Matter；检查旧 head/
+    来源不变、两个关系的独立 ID、固定端点 revision 和完整新旧来源闭包。
+- 根任务统一必要复验还可复用既有 claim payload 严格验证节点、
+  test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources，
+  若这次协议输入增加触及实际分片边界，再运行
+  tests/core/test_incremental_consumers.py::test_long_original_and_more_than_128_parts_reach_the_tail；
+  不因此默认重跑全库、前端或其他成功能力。S09/S12/S13 真实语义效果仍由根任务统一
+  评测，当前不宣称已修到模型必然正确。
+- 只修改 extraction_contract.py、上述定向测试和本交接；B 的 materials/display
+  单写边界保持。没有运行任何测试、候选语言解析、typecheck、build、模型、网络、
+  生产或 QQ 操作；原失败/未知请求没有重放。
