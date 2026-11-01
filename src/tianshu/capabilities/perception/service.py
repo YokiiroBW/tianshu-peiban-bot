@@ -9,10 +9,11 @@ from uuid import uuid4
 from PIL import Image, ImageSequence
 from tianshu.types import MediaRef, SourceRef, Coverage, RequestBudget, ServiceClass, Receipt
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
+from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..contracts import Fault, canonical
-from ..external import execution_service_class
+from ..external import ProviderError, execution_service_class
 from ..dto import ConsumptionReceipt
 from .decode import prepare, _video, _audio
 from ..local_work import settled
@@ -151,8 +152,13 @@ class Perception:
                 source_refs=source_refs,
             )
         )
+        text = "".join(part.text or "" for part in result.parts if part.kind == "text")
+        completion = content_completion(result)
+        if result.receipt.status != "succeeded" or completion.state == "incomplete" or not text.strip():
+            raise ProviderError("media_analysis_incomplete", 502,
+                effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
         return {
-            "text": "".join(part.text or "" for part in result.parts),
+            "text": text,
             "coverage": coverage,
             "model_receipt": wire(result.receipt),
         }
@@ -242,8 +248,10 @@ class Perception:
             )
         )
         text = "".join(part.text or "" for part in result.parts if part.kind == "text")
-        if result.receipt.status != "succeeded" or not text:
-            raise Fault("video_analysis_incomplete", 502)
+        completion = content_completion(result)
+        if result.receipt.status != "succeeded" or completion.state == "incomplete" or not text.strip():
+            raise ProviderError("video_analysis_incomplete", 502,
+                effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
         await self.authority.check(action.context, (source,))
         analysis = await self.artifacts.put(
             action.context,

@@ -43,7 +43,15 @@ class Speech:
     async def availability(self, context):
         connections = await self.config.list("speech_connection")
         ready = any(item.get("enabled") and item.get("configured") for item in connections)
-        return Availability(True, ready, reason=None if ready else "speech_not_configured")
+        if not ready:
+            return Availability(True, False, reason="speech_not_configured")
+        selected = await self.expression_profile(context)
+        if selected is None:
+            return Availability(True, False, reason="voice_profile_not_configured")
+        profile = await self.config.get("voice_profile", selected["profile_id"])
+        ready = bool(profile and profile.get("voice_id") and any(
+            item["id"] == profile.get("connection_id") and item.get("enabled") and item.get("configured") for item in connections))
+        return Availability(True, ready, reason=None if ready else "speech_profile_connection_unavailable")
 
     async def view(self, context):
         return {
@@ -277,6 +285,8 @@ class Speech:
 
     async def execute(self, action, attempt):
         profile, connection, model = await self.selected(action)
+        if not action.arguments.get("voice_id", profile.get("voice_id")):
+            raise Fault("voice_profile_not_configured", 503)
         body, spoken, versions = await self.compile(action, profile, model)
         cache_key = digest(
             [

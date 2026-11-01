@@ -147,6 +147,8 @@ class WeatherService:
                 "stale": False,
                 "code": error.code,
                 "source_refs": [],
+                "recovery": (error.details or {}).get("recovery"),
+                "retry_after": (error.details or {}).get("retry_after"),
             }
             async with self.runtime.database.transaction(read_only=True) as conn:
                 rows = await (
@@ -168,7 +170,9 @@ class WeatherService:
                     if getattr(denied, "status", None) in {403, 404, 410}:
                         continue
                     raise
-                result = {**previous, "stale": True, "code": error.code}
+                result = {**previous, "stale": True, "code": error.code,
+                          "recovery": (error.details or {}).get("recovery"),
+                          "retry_after": (error.details or {}).get("retry_after")}
                 break
         return {
             **result,
@@ -184,6 +188,7 @@ class WeatherService:
         if self.actions is None:
             raise Fault("weather_actions_unbound", 503)
         connection = await self.configuration.get("weather_connection", "qweather") or {}
+        await self._original_read_pending(context, operation, arguments)
         bucket = int(datetime.now(UTC).timestamp() // 300)
         key = digest(
             [
@@ -209,6 +214,7 @@ class WeatherService:
                 context,
                 arguments,
                 OriginKind.OBSERVATION,
+                deadline_at=datetime.now(UTC) + timedelta(seconds=60),
             ),
             background=False,
             service_class=ServiceClass.INTERACTIVE,
@@ -216,6 +222,27 @@ class WeatherService:
         if receipt.execution != "succeeded":
             raise Fault(receipt.error_code or "weather_unavailable", 503)
         return dict(receipt.result)
+
+    async def _original_read_pending(self, context, operation, arguments):
+        async with self.runtime.database.transaction(read_only=True) as connection:
+            rows = await (await connection.execute(
+                "SELECT action,receipt FROM capabilities.actions WHERE principal_id=%s AND kind=%s "
+                "AND action->>'actor_id'=%s AND action->'arguments'=%s::jsonb "
+                "AND receipt->>'execution' IN ('pending','running','unknown') ORDER BY created_at DESC LIMIT 8",
+                (context.principal_id, "weather." + operation, context.actor_id, canonical(arguments)))).fetchall()
+        for row in rows:
+            if row["action"]["context"] != wire(context):
+                continue
+            physical = await self.models.status(row["receipt"]["attempt_id"])
+            if physical and physical.status == "unknown" and physical.hold_until and physical.hold_until <= datetime.now(UTC):
+                continue  # A new periodic reading is distinct from replaying that old attempt.
+            if physical and physical.status in {"succeeded", "failed", "cancelled"}:
+                continue
+            code = "weather_read_result_unknown" if row["receipt"]["execution"] == "unknown" else "weather_read_pending"
+            error = Fault(code, 503)
+            error.details = {"recovery": "observe_original_attempt", "attempt_id": row["receipt"]["attempt_id"],
+                             "retry_after": physical.hold_until.isoformat() if physical and physical.hold_until else None}
+            raise error
 
     async def request(self, connection, secret, path, query):
         try:

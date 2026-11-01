@@ -9,6 +9,7 @@ from uuid import uuid4, uuid5, NAMESPACE_URL
 from PIL import Image
 from tianshu.types import Receipt, Attempt, MediaRef, RequestBudget, ServiceClass, SourceRef
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
+from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..contracts import Fault, canonical, digest
@@ -64,7 +65,14 @@ class Images:
     async def availability(self, context):
         engines = await self.config.list("image_engine")
         ready = any(x.get("enabled") and x.get("configured") for x in engines)
-        return Availability(True, ready, reason=None if ready else "image_engine_not_configured")
+        if not ready:
+            return Availability(True, False, reason="image_engine_not_configured")
+        profiles = [p for p in await self.config.list("image_profile") if p.get("actor_id") == context.actor_id]
+        if not profiles:
+            return Availability(True, False, reason="image_profile_not_configured")
+        ready = any(x["id"] == profile.get("engine_id") and x.get("enabled") and x.get("configured")
+                    for profile in profiles for x in engines)
+        return Availability(True, ready, reason=None if ready else "image_profile_engine_unavailable")
 
     async def save_engine(self, body):
         engine = body.get("engine")
@@ -247,6 +255,9 @@ class Images:
             delivery_kind=kind,
         )
         profile = await self.config.get("image_profile", args.get("profile_id", action.actor_id))
+        if not profile and not args.get("profile_id"):
+            owned = [p for p in await self.config.list("image_profile") if p.get("actor_id") == action.actor_id]
+            profile = owned[0] if len(owned) == 1 else None
         if not profile or profile["actor_id"] != action.actor_id:
             raise Fault("image_profile_not_configured", 503)
         engine = await self.config.get("image_engine", args.get("engine_id", profile["engine_id"]))
@@ -354,6 +365,9 @@ class Images:
                 )
             )
             text = "".join(part.text or "" for part in result.parts if part.kind == "text")
+            if result.receipt.status != "succeeded" or content_completion(result).state == "incomplete":
+                raise ProviderError("image_plan_incomplete", 502,
+                    effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
             try:
                 planned = json.loads(text)
             except ValueError:

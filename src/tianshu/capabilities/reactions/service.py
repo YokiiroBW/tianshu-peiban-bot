@@ -10,8 +10,10 @@ from PIL import Image
 from tianshu.types import MediaRef, RequestBudget, ServiceClass
 from tianshu.sources.dependencies import unique_refs
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
+from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
 from ..contracts import Fault, canonical, digest
+from ..external import ProviderError
 from ..dto import ReactionIntent
 
 
@@ -364,6 +366,9 @@ class Reactions:
             )
         )
         native = result.native_response or {}
+        if result.receipt.status != "succeeded":
+            raise ProviderError("embedding_result_unavailable", 503,
+                effect="none" if result.receipt.status in {"failed", "cancelled"} else "unknown")
         data = native.get("data", [])
         vector = data[0].get("embedding") if data else native.get("embedding")
         if (
@@ -442,7 +447,6 @@ class Reactions:
             ]
         )
         await self.authority.check(context, source_refs)
-        vector, profile, _ = await self.embed(context, text, source_refs)
         packs = [
             x["id"]
             for x in await self.config.list("reaction_pack")
@@ -453,6 +457,7 @@ class Reactions:
         ]
         if not packs:
             return {"selected": None, "reason": "no_suitable_reaction", "candidates": []}
+        vector, profile, _ = await self.embed(context, text, source_refs)
         async with self.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
@@ -532,6 +537,9 @@ class Reactions:
                 source_refs=unique_refs(refs),
             )
         )
+        if result.receipt.status != "succeeded" or content_completion(result).state == "incomplete":
+            raise ProviderError("reaction_selection_incomplete", 502,
+                effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
         try:
             identifier = json.loads("".join(p.text or "" for p in result.parts)).get("id")
         except ValueError:
