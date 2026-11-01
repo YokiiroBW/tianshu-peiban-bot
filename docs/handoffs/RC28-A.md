@@ -77,3 +77,67 @@ A 没有写这些文件。G 确认的书源、漫画、视频、歌单 scan 已�
 
 本代理只做源码阅读、静态 diff 复核及提交；未运行测试、解析、typecheck、构建、模型、网络、PG
 或生产动作。并行隔离与实际吞吐需由 root 在 B/G 全部集成后验证，不能由本地实现宣称已实机完成。
+
+## Candidate08：图像规划围栏与原 Attempt 恢复返修
+
+本块基线 `47df9a92c503bd7a2dbbc6c8402f411325f4bbe5`，独立分支
+`codex/image-plan-recovery-20261102`。仅修改 Images 及其必要 Contracts/Actions 接点。
+原授权私有证据显示：规划模型 `:plan` 已 succeeded/submitted、完成 STOP，正文是单个完整
+JSON 围栏；原 Images.prepare 直接 json.loads 拒绝它。TrackedBroker 如实记录了规划模型的
+提交，而通用 Action 异常据此把图片结果判成 unknown；实际 image_work 尚未创建。
+证据只用于诊断，未把人格、原规划正文或凭据写入仓库。
+
+- 共享小提交 `0646c4f7` 提供 `capabilities.contracts.model_json(raw)`。原 `loads` 不变；
+  新函数只接受整文 JSON 或整文单个 JSON/无语言三反引号围栏，仍拒绝重复键、非有限数、
+  多文档、围栏外垃圾和截断围栏。Reactions 调用方与其测试由 G 独占。
+- `images/planning.py` 检查物理 succeeded、内容 complete、纯文本可见输出，忽略 thought；
+  四个必填字符串与可选字符串数组 negative_constraints 严格验证，拒绝额外字段。
+  已终结的无效/不完整规划返回 failed/none；物理规划未知仍是 execution=unknown。
+  两者都明确 image_submission=not_started，并保留规划 receipt/usage/completion，不能把
+  模型付费解释为图片已提交。图片提供方提交顺序与 image_work 耐久边界不变。
+- `images/recovery.py` 只证明本次规划失败的可恢复分支：原 Action/Attempt 未换、Attempt
+  已结束、无执行 owner/产物/已确认效果、无撤回或取消、无 image_work；原 `:plan` 已终结且
+  原生授权 result 可读；裸 Attempt ID 的独立图片请求确实不存在。缺工作行单独不构成证明。
+  任何已有图片请求或工作行、未知规划、缺少结果、来源失效或版本变化都拒绝创建 Attempt。
+- 原生 reconcile 对证明充分的旧 unknown 返回同 Action/Attempt 的 failed/none，附
+  image_submission=not_started、规划回执与 resume_available；证据不足继续 unknown。
+  已有工作行仍走原提供方观察路径。原 Action、Attempt dispatch、模型身份和回执均保留，
+  Action 观察结果只经原 save/事件机制更新，不直接翻状态或删除旧执行。
+- Actions.resume 仅为实现了 `resume_preflight` 的 handler 加两阶段接点：事务外读取
+  Models；锁内 `validate_resume_on` 先 Sources 再原 Action/image_work CAS，仅本地核验。
+  同 control 的既有结果先按原账本重读，锁内仍重复幂等校验；其余 handler 行为不变。
+  Images 显式 resume 使用 Actions 新建的 Attempt、当前真实 scene、新 `Attempt:plan`，
+  不把新 scene 配给旧模型身份。无新状态表、迁移、资源池或自动重试。
+
+### Root 执行的原生恢复顺序
+
+部署并完成必要验收后，使用原合法会话及 actor/context 调用现有
+`/api/v1/capabilities/reconcile`（原 action_id）；先读回同原 Attempt 的
+failed/none 与 image_submission=not_started，再显式调用现有
+`/api/v1/capabilities/resume`，携原 action_id 和一个稳定 client_request_id。
+这条终态恢复不传 pending 重分流的 expected_job_id/expected_attempt_id。
+网络结果不明先 get/find 或用同控制身份重读，不创建另一请求。
+本例原 Action.deadline_at=null，恢复保持现有各阶段默认 10min；没有修改绝对 deadline，
+也没有无期限续期。真正未知模型或已提交图片只观察，不可借该分支重发。
+
+### 编写但未运行的最小验证节点
+
+`tests/capabilities/test_image_protocol.py` 新增 9 个节点：
+
+- `ImageProtocol::test_model_json_accepts_only_one_complete_document`
+- `ImageProtocol::test_complete_fenced_plan_ignores_thought_and_enforces_domain_shape`
+- `ImageProtocol::test_unfinished_or_invalid_planning_never_enters_image_stage`
+- `test_original_plan_reconciles_and_explicit_resume_uses_new_identity`
+- `test_image_resume_refusal_keeps_original_head_and_attempt`（5 参数：unknown_plan、
+  image_request、submitted_work、revoked、changed）
+
+正向节点走真实 Images.prepare、TrackedBroker、Actions 与隔离 PG；提供方/模型是明确替身，
+验证旧回执保留、事务外证明、显式一次生成、null deadline 默认、新 scene/模型身份、
+同 control 在 pending 与成功后重读不重复生成。拒绝节点检查原 head/Attempt/Receipt/
+control/作业不被新建，changed 参数只保留并发者的真实 result_revision 变化。
+共享接点补验既有
+`tests/capabilities/test_action_routing.py::test_explicit_resume_persists_the_new_class_for_nested_provider_work`
+即可覆盖无领域 hook 的原恢复调用方；最小合计 10 节点。已通过且未变的其他路由/前端结果复用。
+
+本代理未运行测试、解析、构建、typecheck、模型、网络、PG、部署或生产恢复；仅静态阅读、
+实现、完整 diff 复核与提交。真实 ComfyUI 成品与原线上 Action 恢复仍由 root 集中执行。

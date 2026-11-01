@@ -661,6 +661,23 @@ class Actions:
         service_class = execution_service_class(context)
         lane = execution_lane(action.capability_id)
         key = digest([context.principal_id, action_id, "resume", client_request_id])
+        preflight = getattr(handler, "resume_preflight", None)
+        if preflight is not None:
+            # A completed control remains an idempotent read, even when the new
+            # head no longer qualifies for the original domain recovery proof.
+            async with self.database.transaction(read_only=True) as conn:
+                replay = await (await conn.execute(
+                    "SELECT coalesce(t.receipt,a.receipt) AS receipt FROM capabilities.action_controls c "
+                    "JOIN capabilities.actions a ON a.id=c.action_id "
+                    "LEFT JOIN capabilities.attempts t ON t.id=c.attempt_id WHERE c.id=%s",
+                    (key,),
+                )).fetchone()
+            if replay:
+                receipt = receipt_from(replay["receipt"])
+                await self.authority.check(context, result_sources(receipt))
+                return receipt
+            # Models/provider observation must not hold a domain write lock.
+            proof = await preflight(action, old, current)
         async with self.database.transaction() as conn:
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
             prior = await (
@@ -685,6 +702,8 @@ class Actions:
                 return receipt_from(row["receipt"])
             if current.execution not in {"unknown", "failed", "cancelled"}:
                 raise Fault("resume_state_invalid", 409)
+            if preflight is not None:
+                await handler.validate_resume_on(conn, action, old, current, proof)
             attempt = Attempt(str(uuid4()), action_id)
             receipt = Receipt(
                 str(uuid4()), action_id, attempt.attempt_id, "pending", "none", "not_requested"

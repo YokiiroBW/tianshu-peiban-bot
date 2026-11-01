@@ -2,14 +2,12 @@
 
 import asyncio
 import io
-import json
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4, uuid5, NAMESPACE_URL
 from PIL import Image
 from tianshu.types import Receipt, Attempt, MediaRef, RequestBudget, ServiceClass, SourceRef
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
-from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..contracts import Fault, canonical, digest
@@ -19,6 +17,8 @@ from .engines import Engines, reference_name
 from .comfy import ComfyUI
 from .workflow import Workflow
 from .provider import ImageRejected
+from .planning import ImagePlanError, image_plan, planning_evidence
+from .recovery import ImageRecovery
 
 
 class Images:
@@ -61,6 +61,7 @@ class Images:
             life,
             authority,
         )
+        self.recovery = ImageRecovery(self)
 
     async def availability(self, context):
         engines = await self.config.list("image_engine")
@@ -331,6 +332,7 @@ class Images:
             "purpose": args.get("purpose", "selfie"),
             "requested_change": args.get("prompt"),
         }
+        planning = None
         if plan:
             result = await self.broker.generate(
                 ModelRequest(
@@ -364,24 +366,8 @@ class Images:
                     source_refs=refs,
                 )
             )
-            text = "".join(part.text or "" for part in result.parts if part.kind == "text")
-            if result.receipt.status != "succeeded" or content_completion(result).state == "incomplete":
-                raise ProviderError("image_plan_incomplete", 502,
-                    effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
-            try:
-                planned = json.loads(text)
-            except ValueError:
-                raise Fault("image_plan_invalid", 502) from None
-            if (
-                not isinstance(planned, dict)
-                or any(
-                    not isinstance(planned.get(k, ""), str)
-                    for k in ("pose", "expression", "camera", "light")
-                )
-                or not isinstance(planned.get("negative_constraints", []), list)
-                or any(not isinstance(x, str) for x in planned.get("negative_constraints", []))
-            ):
-                raise Fault("image_plan_invalid", 502)
+            planned = image_plan(result)
+            planning = planning_evidence(result)
             for key in ("pose", "expression", "camera", "light", "negative_constraints"):
                 if key in planned:
                     intent[key] = planned[key]
@@ -400,6 +386,7 @@ class Images:
             "engine": engine,
             "compiled": compiled,
             "warnings": [],
+            "planning": planning,
         }
 
     async def execute(self, action, attempt):
@@ -412,7 +399,10 @@ class Images:
             old = await cursor.fetchone()
         if old and old["submitted"]:
             return await self.reconcile(action, attempt)
-        prepared = old["body"] if old else await self.prepare(action, attempt)
+        try:
+            prepared = old["body"] if old else await self.prepare(action, attempt)
+        except ImagePlanError as error:
+            return error.receipt(action, attempt)
         submission_id = str(uuid5(NAMESPACE_URL, "tianshu:image:" + action.action_id))
         if not old:
             async with self.config.database.transaction() as conn:
@@ -541,6 +531,7 @@ class Images:
                 "sharing": sharing,
                 "usage": usage,
                 "generated_at": datetime.now(UTC).isoformat(),
+                "planning": prepared.get("planning"),
             },
         )
 
@@ -577,7 +568,35 @@ class Images:
             )
             row = await cursor.fetchone()
         if not row:
-            raise Fault("not_found", 404)
+            async with self.config.database.transaction(read_only=True) as conn:
+                current = await (await conn.execute(
+                    "SELECT receipt FROM capabilities.actions WHERE id=%s AND attempt->>'attempt_id'=%s",
+                    (action.action_id, attempt.attempt_id),
+                )).fetchone()
+            if current is None:
+                raise Fault("attempt_changed", 409)
+            from ..serialization import receipt_from
+
+            current = receipt_from(current["receipt"])
+            try:
+                proof = await self.resume_preflight(action, attempt, current)
+                async with self.config.database.transaction() as conn:
+                    await self.validate_resume_on(conn, action, attempt, current, proof)
+            except Fault as error:
+                if error.code in {"source_revoked", "attempt_changed", "image_recovery_changed"}:
+                    raise
+                return Receipt(
+                    str(uuid4()), action.action_id, attempt.attempt_id,
+                    "unknown", "unknown", "not_requested", error_code=current.error_code,
+                    result={"phase": "planning", "image_submission": "unverified",
+                            "recovery_reason": error.code},
+                )
+            return Receipt(
+                str(uuid4()), action.action_id, attempt.attempt_id,
+                "failed", "none", "not_requested", error_code=current.error_code,
+                result={"reconciled": True, "phase": "planning", "image_submission": "not_started",
+                        "planning": proof.planning, "resume_available": True},
+            )
         prepared = row["body"]
         engine = prepared["engine"]
         action = replace(
@@ -650,6 +669,17 @@ class Images:
             )
         finally:
             await adapter.close()
+
+    async def resume_preflight(self, action, attempt, current):
+        return await self.recovery.prove(action, attempt, current)
+
+    async def validate_resume_on(self, connection, action, attempt, current, proof):
+        await self.recovery.validate_on(connection, action, attempt, current, proof)
+
+    async def resume(self, action, attempt):
+        # Actions admitted a new Attempt only after the original image was proven
+        # unsubmitted. Rebuild its current scene with this new planning identity.
+        return await self.execute(action, attempt)
 
     async def cancel(self, action, attempt):
         async with self.config.database.transaction(read_only=True) as conn:
