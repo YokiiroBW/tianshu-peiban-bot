@@ -17,6 +17,8 @@ from tianshu.capabilities.api import invoke
 from tianshu.capabilities.artifacts import Artifacts
 from tianshu.capabilities.configuration import Configuration
 from tianshu.capabilities.contracts import Fault
+from tianshu.capabilities.dto import ReactionIntent
+from tianshu.capabilities.external import ProviderError
 from tianshu.capabilities.reactions.service import Reactions
 from tianshu.capabilities.service import Operation
 from tianshu.life.capabilities import ReactionSelectionHandler
@@ -24,7 +26,7 @@ from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, Model
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.serialization import wire
-from tianshu.types import Action, Attempt, OriginKind
+from tianshu.types import Action, Attempt, OriginKind, ServiceClass
 
 
 pytestmark = pytest.mark.asyncio
@@ -49,6 +51,45 @@ async def library(core):
     reactions = Reactions(Configuration(core.database, None), artifacts, None, None, core.identity)
     owner = await core.identity.context(core.owner.principal_id, actor_id=core.actor)
     return owner, reactions, artifacts
+
+
+async def imported_reaction(core):
+    owner, reactions, artifacts = await library(core)
+    pack = await reactions.import_pack(owner, {
+        "id": "model-json", "name": "Synthetic reaction", "import_scope": "actor",
+        "files": [{"filename": "happy.gif", "data_base64": base64.b64encode(gif_bytes()).decode()}],
+    })
+    asset = next(item for item in (await reactions.view(owner))["assets"] if item["pack_id"] == pack["id"])
+    return owner, reactions, artifacts, asset
+
+
+async def indexed_reaction(core):
+    owner, reactions, artifacts, asset = await imported_reaction(core)
+    vector = [1.0] + [0.0] * 1023
+    async with core.database.transaction() as connection:
+        await connection.execute(
+            "INSERT INTO capabilities.reaction_embedding_profiles(id,dimensions,model) VALUES('model-json',1024,'synthetic')"
+        )
+        await connection.execute(
+            "UPDATE capabilities.reaction_assets SET embedding=%s::vector,profile_id='model-json' WHERE id=%s",
+            (str(vector), asset["id"]),
+        )
+    reactions.embed = AsyncMock(return_value=(vector, "model-json", None))
+    reactions.broker = SimpleNamespace(generate=AsyncMock())
+    intent = ReactionIntent(
+        meaning="happy", purpose="reply", attitude="gentle", intensity=0.5,
+        actor_id=core.actor, scope_ids=owner.scope_ids,
+    )
+    return owner, reactions, artifacts, asset, intent
+
+
+def selection_result(text, *, completion="complete"):
+    return ModelResult(
+        (ModelPart("text", text=text),),
+        ModelReceipt("select", "select", "succeeded", "submitted", "fixture", 1,
+            "fixture", "fixture", "gemini.generate", "fixture"),
+        completion=ModelCompletion(completion, ("STOP" if completion == "complete" else "MAX_TOKENS",)),
+    )
 
 
 async def import_http_arguments(reactions, context, body):
@@ -122,7 +163,11 @@ async def test_actor_import_native_selection_uses_shared_original_in_another_cha
         )
     reactions.embed = AsyncMock(return_value=(vector, "fixture", None))
     reactions.broker = SimpleNamespace(generate=AsyncMock(return_value=ModelResult(
-        (ModelPart("text", text=json.dumps({"id": asset["id"]})),),
+        (
+            ModelPart("text", text='{"id":"reasoning-only"}', native={"thought": True}),
+            ModelPart("tool_result", text='{"id":"tool-only"}', result={"id": "tool-only"}),
+            ModelPart("text", text="```json\n" + json.dumps({"id": asset["id"]}) + "\n```"),
+        ),
         ModelReceipt("select", "select", "succeeded", "submitted", "fixture", 1, "fixture", "fixture", "openai.chat", "fixture"),
         completion=ModelCompletion("complete", ("stop",)),
     )))
@@ -134,6 +179,84 @@ async def test_actor_import_native_selection_uses_shared_original_in_another_cha
     assert receipt.artifacts[0].media.media_id == selected_original.media.media_id
     assert receipt.result["selected"]["id"] == asset["id"]
     assert await artifacts.get(bot, receipt.artifacts[0].media.media_id) == (raw, "image/gif")
+    request = reactions.broker.generate.call_args.args[0]
+    assert request.function == "reaction.search" and request.max_output_tokens == 1000
+    assert request.service_class == ServiceClass.ELASTIC
+    assert all(ref in request.source_refs for ref in selected_original.source_refs)
+
+
+async def test_annotation_accepts_complete_model_json_and_keeps_original_media(core):
+    owner, reactions, artifacts, asset = await imported_reaction(core)
+    original = await artifacts.reference(owner, asset["media"]["media_id"])
+    annotation = {"description": "A gentle congratulations", "ocr": "Great!",
+        "actions": ["claps"], "purposes": ["congratulate"]}
+    document = json.dumps(annotation)
+    reactions.perception = SimpleNamespace(describe=AsyncMock())
+    for text in (document, "```json\n" + document + "\n```", "```\n" + document + "\n```"):
+        reactions.perception.describe.return_value = {"text": text}
+        previous = await reactions.asset(owner, asset["id"])
+        updated = await reactions.annotate(owner, {"id": asset["id"]})
+        assert updated["revision"] == previous["revision"] + 1
+        assert all(updated[key] == value for key, value in annotation.items())
+        assert updated["media"] == asset["media"] and updated["index_state"] == "pending"
+        assert (await artifacts.reference(owner, asset["media"]["media_id"])).source_refs == original.source_refs
+
+
+async def test_annotation_rejects_invalid_model_json_without_changing_metadata(core):
+    owner, reactions, _, asset = await imported_reaction(core)
+    reactions.perception = SimpleNamespace(describe=AsyncMock())
+    for text in ("[]", '```json\n{"description":"one","description":"two"}\n```'):
+        reactions.perception.describe.return_value = {"text": text}
+        with pytest.raises(ProviderError) as invalid:
+            await reactions.annotate(owner, {"id": asset["id"]})
+        assert invalid.value.code == "reaction_annotation_invalid" and invalid.value.status == 502
+        assert invalid.value.effect == "none"
+    assert (await reactions.asset(owner, asset["id"]))["body"] == asset
+
+
+async def test_selection_distinguishes_explicit_null_from_invalid_model_choices(core):
+    owner, reactions, _, asset, intent = await indexed_reaction(core)
+    reactions.broker.generate.return_value = selection_result('```json\n{"id":null}\n```')
+    result = await reactions.search(owner, intent)
+    assert result == {"selected": None, "reason": "no_suitable_reaction", "candidates": [asset["id"]]}
+    for text, code in (
+        ("null", "reaction_selection_invalid"),
+        ("[]", "reaction_selection_invalid"),
+        ("{}", "reaction_selection_invalid"),
+        ('{"id":false}', "reaction_selection_invalid"),
+        ('{"id":[]}', "reaction_selection_invalid"),
+        ('{"id":{}}', "reaction_selection_invalid"),
+        ('{"id":"not-an-authorized-candidate"}', "reaction_selection_out_of_range"),
+        ('```json\n{"id":null}\n```\nextra', "reaction_selection_invalid"),
+    ):
+        reactions.broker.generate.return_value = selection_result(text)
+        with pytest.raises(ProviderError) as invalid:
+            await reactions.search(owner, intent)
+        assert invalid.value.code == code and invalid.value.status == 502
+        assert invalid.value.effect == "none"
+
+
+async def test_selection_rechecks_completion_and_selected_original_after_model_result(core):
+    owner, reactions, artifacts, asset, intent = await indexed_reaction(core)
+    document = "```json\n" + json.dumps({"id": asset["id"]}) + "\n```"
+    reactions.broker.generate.return_value = selection_result(document, completion="incomplete")
+    with pytest.raises(ProviderError) as incomplete:
+        await reactions.search(owner, intent)
+    assert incomplete.value.code == "reaction_selection_incomplete" and incomplete.value.effect == "none"
+    original = await artifacts.reference(owner, asset["media"]["media_id"])
+
+    async def revoke_selected_original(_request):
+        await core.sources.invalidate(owner, {
+            "source_id": original.source_refs[0].source_id,
+            "expected_revision": original.source_refs[0].revision,
+            "client_request_id": "withdraw-selected-reaction",
+        }, forgotten=True)
+        return selection_result(document)
+
+    reactions.broker.generate.side_effect = revoke_selected_original
+    with pytest.raises(Fault) as withdrawn:
+        await reactions.search(owner, intent)
+    assert withdrawn.value.code == "source_revoked"
 
 
 async def test_default_import_and_ordinary_upload_remain_private_and_actor_bound(core, ordinary_users):

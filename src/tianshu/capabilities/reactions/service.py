@@ -2,7 +2,6 @@
 
 import base64
 import io
-import json
 import zipfile
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
@@ -14,7 +13,7 @@ from tianshu.sources.dependencies import unique_refs
 from tianshu.models.types import ModelRequest, ModelMessage, ModelPart
 from tianshu.models.completion import content_completion
 from tianshu.runtime.serialization import wire
-from ..contracts import Fault, canonical, digest
+from ..contracts import Fault, canonical, digest, model_json
 from ..external import ProviderError, execution_service_class
 from ..dto import ReactionIntent
 
@@ -371,9 +370,9 @@ class Reactions:
             function="reaction.annotate",
         )
         try:
-            value = json.loads(result["text"])
-        except ValueError:
-            raise Fault("reaction_annotation_invalid", 502) from None
+            value = model_json(result["text"])
+        except Fault:
+            raise ProviderError("reaction_annotation_invalid", 502, effect="none") from None
         if (
             not isinstance(value, dict)
             or any(
@@ -383,7 +382,7 @@ class Reactions:
             )
             or any(not isinstance(value.get(k, ""), str) for k in ("description", "ocr"))
         ):
-            raise Fault("reaction_annotation_invalid", 502)
+            raise ProviderError("reaction_annotation_invalid", 502, effect="none")
         return await self.update(
             context,
             {
@@ -581,23 +580,35 @@ class Reactions:
                     ),
                 ),
                 system="Choose a reaction for the assistant reply's purpose and attitude, not the user's keywords. Preserve irony/text meaning. Return JSON {id: candidate ID or null}; null when none fits.",
-                max_output_tokens=100,
+                # Provider reasoning shares the output limit with the JSON answer.
+                max_output_tokens=1000,
                 source_refs=unique_refs(refs),
             )
         )
         if result.receipt.status != "succeeded" or content_completion(result).state == "incomplete":
             raise ProviderError("reaction_selection_incomplete", 502,
                 effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
+        text = "".join(
+            part.text or "" for part in result.parts
+            if part.kind == "text" and not part.native.get("thought")
+        )
         try:
-            identifier = json.loads("".join(p.text or "" for p in result.parts)).get("id")
-        except ValueError:
-            raise Fault("reaction_selection_invalid", 502) from None
-        if identifier not in candidates:
+            selection = model_json(text)
+        except Fault:
+            raise ProviderError("reaction_selection_invalid", 502, effect="none") from None
+        if not isinstance(selection, dict) or "id" not in selection:
+            raise ProviderError("reaction_selection_invalid", 502, effect="none")
+        identifier = selection["id"]
+        if identifier is not None and not isinstance(identifier, str):
+            raise ProviderError("reaction_selection_invalid", 502, effect="none")
+        if identifier is None:
             return {
                 "selected": None,
                 "reason": "no_suitable_reaction",
                 "candidates": list(candidates),
             }
+        if identifier not in candidates:
+            raise ProviderError("reaction_selection_out_of_range", 502, effect="none")
         fresh = await self.asset(context, identifier)
         if fresh["revision"] != candidates[identifier]["revision"]:
             raise Fault("reaction_changed", 409)

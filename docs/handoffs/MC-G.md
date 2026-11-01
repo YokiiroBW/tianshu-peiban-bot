@@ -104,3 +104,22 @@ root 在 `cb7dae9` 集中复验报告 92 项中 83 通过、9 失败，其中 G 
 - `build_product` 在product.py:172已await caps.prepare，由_owners创建media.repo；注册/route_legacy_pending虽在module.start前，resolver可用且不依赖workerloop、Models、网络或另一DB连接。
 - 原Repository.schedule_job复用同一分类，未来同步enqueue显式带execution_lane，保持同一个media_job task和job_id/generation/revision key；删除尚未部署的library_job别名/重复注册。这样不会因添加动态resolver而出现dynamic_job_lane_required，也不把旧task同key误换成新别名导致job_identity_conflict。MUSIC_LIBRARY资源lane仍由B保留。
 - 新增 `tests/capabilities/test_runtime_observations.py::test_legacy_media_job_routes_from_original_business_type_and_reuses_same_key`：实际隔离PG业务表分别保存scan/import/外部音频下载，旧elastic native job按原元数据路由；再用同原key同步登记，断言无新ID、task/args/attempt/时间和业务完整checkpoint均不变；另验证首次新scan同步登记同task直入music_library，无需initialize。原 `test_registered_maintenance_adapter_forwards_the_persisted_generation` 适配resolver参数并断言无library_job别名。两节点均written_not_run，供root统一验证；本补丁未执行测试/语法检查/网络/模型/PG/生产。
+
+## RC29：Reactions消费完整模型JSON及有界选择预算
+
+本块基线 `47df9a92c503bd7a2dbbc6c8402f411325f4bbe5`，分支 `codex/reactions-model-json-20261102`。仅改 `capabilities/reactions/service.py`、既有 `tests/core/test_reaction_import_scopes.py` 及本交接。A拥有共享解码器：原提交 `0646c4f7`，G本地仅作为依赖cherry-pick为 `5016a440`；root先集成A原helper，再只取G实际Reactions提交，不重复集成这个依赖提交。
+
+- annotate/search均消费 `capabilities.contracts.model_json`：只接受完整原生JSON或完整单一JSON/空language围栏，重复键、非有限数、前后垃圾及多文档仍由原严格loads拒绝。未修改contracts、Perception、Models或Actions共享实现。
+- search只读取非thought的text parts，不用工具输出或原生thought文本构造选择ID；结果必须是带id字段的object。只有id=null表示真实无合适，其他id必须是已授权候选集合中的字符串。非object、缺字段和错误类型为reaction_selection_invalid；集合外ID为reaction_selection_out_of_range，均502。没有把非法结果伪装成无候选。
+- annotation解析/字段验证、selection解析/结构/越界验证均在资产更新或选择返回前停止，用现有 `ProviderError(effect='none')` 标明功能效果未发生；模型已完成/扣量不等于功能已执行。原模型status/content_completion分类保持，真正unknown、incomplete及Source失效异常不吞、不换attempt、不自动重试。原候选授权、SourceRefs、选后原Artifact/Source与revision/pack复核及ServiceClass保持。
+- root批准将reaction.search固定max_output_tokens从100改为1000，30秒deadline不变，路由、model、thinking参数和配置均不改。依据为root保存的实际image.plan回执：1000上限下总output769，其中reasoning539；Models原生Gemini编译直接传maxOutputTokens，归一化output为candidatesTokenCount+thoughtsTokenCount。因此100不能合理容纳已观察的正常思考，1000沿用现有小规划调用的有界上限，不保证模型必成。annotation仍走Perception原1800上限，不扩本块范围。G只读顶层live-capability-inspect私有快照，确认Gemini3.8-flash-high；root负责当前C8原回执的实际配置证据，未读取凭据/正文。
+
+必要集中验证沿用既有隔离PG夹具，由root在A/G完整集成后一次执行以下节点（G全部written_not_run）：
+
+- `tests/core/test_reaction_import_scopes.py::test_actor_import_native_selection_uses_shared_original_in_another_chat`：原跨会话授权GIF真实选中/原图读回，加完整围栏、thought/tool排除、ServiceClass/SourceRefs及有界输出合同。
+- `test_annotation_accepts_complete_model_json_and_keeps_original_media`：原生/两种完整围栏落原资产修订，媒体/来源保留。
+- `test_annotation_rejects_invalid_model_json_without_changing_metadata`：非object与重复键拒绝，准确502/effect=none且原metadata不变。
+- `test_selection_distinguishes_explicit_null_from_invalid_model_choices`：null保留无合适；非object/缺id/错误类型/越界/围栏尾部垃圾明确失败且effect=none。
+- `test_selection_rechecks_completion_and_selected_original_after_model_result`：完整JSON仍不能绕过MAX_TOKENS；模型完成后撤回原来源仍拒绝选中。
+
+共享helper自身的严格解码节点复用A本轮检查；未变RC28队列/前端结果由root复用。本块仅静态阅读、diff/空白检查及提交，未运行pytest、语法/类型检查、build、PG、网络、模型或生产动作，不宣称真实语义最终选图或QQ发送通过。
