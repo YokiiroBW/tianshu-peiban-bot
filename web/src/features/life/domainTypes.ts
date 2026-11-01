@@ -1,5 +1,18 @@
 import type { MediaRef, SourceRef, Coverage } from "../../api/contracts";
 
+export type GoalCriteria =
+  | {
+      kind: "completed_activity" | "reading_complete" | "created_artifact";
+      capability_id: string;
+      target_count: number;
+    }
+  | {
+      kind: "chapter_saved";
+      capability_id: "writing.request";
+      target_count: number;
+      work_id: string;
+    };
+
 export type LifeAccessView = {
   can_manage: boolean;
   can_read: boolean;
@@ -18,13 +31,7 @@ export type Goal = {
   origin?: "authored" | "autonomous";
   reason?: string | null;
   progress?: number;
-  criteria?:
-    | {
-        kind: "completed_activity" | "reading_complete" | "created_artifact";
-        capability_id: string;
-        target_count: number;
-      }
-    | Record<string, never>;
+  criteria?: GoalCriteria | Record<string, never>;
 };
 export type Activity = {
   id: string;
@@ -41,11 +48,7 @@ export type Activity = {
   checkpoint_position?: number;
   checkpoint_unit?: string;
   wake_condition?: {
-    kind:
-      | "user_reply"
-      | "activity_completed"
-      | "capability_available"
-      | "matter_changed";
+    kind: "user_reply" | "activity_completed" | "capability_available";
     subject_id: string;
   } | null;
   checkpoint_data: {
@@ -285,7 +288,6 @@ const activityWaitingReasons: Record<string, string> = {
     "原安排的授权已变化，正在等待有权管理的账号重新安排。",
   user_reply: "等待对方回应，收到回应后再继续。",
   activity_completed: "等待关联活动完成。",
-  matter_changed: "等待相关事项有新进展。",
 };
 export function activityWaitingReason(reason: string): string {
   return activityWaitingReasons[reason] ?? "活动暂未完成，可查看原任务结果。";
@@ -309,7 +311,7 @@ export function lifeCommandError(message: string) {
       "请选择这一天清醒时间内、尚未到来的开始时间，并为活动留够时长。",
     day_slot_conflict: "这个时间与另一项已安排活动重叠，请换一个时间。",
     invalid_goal_criteria:
-      "请完整选择完成方式、对应能力和 1 到 50 次的实际完成次数。",
+      "请完整选择完成方式、对应能力或作品，并填写 1 到 50 的实际完成数量。",
     goal_criteria_already_started: "目标已有实际进度，请保留原来的完成约定。",
     activity_action_unresolved:
       "原活动结果还没确认，请先读取原任务，进度没有丢失。",

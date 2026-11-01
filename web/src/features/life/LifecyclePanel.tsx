@@ -124,7 +124,7 @@ export function LifecyclePanel({
                   </span>
                 </div>
                 <p className="muted">
-                  {goalCriteria(item)}。进度只随真实活动回执推进。
+                  {goalCriteria(item)}。进度只随真实活动回执或章节保存推进。
                 </p>
                 {item.due_at && (
                   <small>计划时间：{timeLabel(item.due_at)}</small>
@@ -411,6 +411,9 @@ export function LifecyclePanel({
 function goalCriteria(goal: Goal) {
   const criteria = goal.criteria;
   if (!criteria?.kind) return "尚未约定自动完成条件，可在调整目标中补充";
+  if (criteria.kind === "chapter_saved") {
+    return `完成条件：实际保存所选作品章节 ${criteria.target_count} 章`;
+  }
   const labels = {
     completed_activity: "完成相关活动",
     reading_complete: "完成约定阅读范围",
@@ -433,6 +436,16 @@ function GoalEditor({
     "capabilities/discover",
   );
   const [criteriaKind, setCriteriaKind] = useState(value?.criteria?.kind ?? "");
+  const [workCursor, setWorkCursor] = useState<string | null>(null);
+  const [workId, setWorkId] = useState(
+    value?.criteria?.kind === "chapter_saved" ? value.criteria.work_id : "",
+  );
+  const [workTitle, setWorkTitle] = useState("");
+  const works = useDomainResource<Page<{ id: string; title: string }>>(
+    "life/works",
+    { cursor: workCursor, limit: 30 },
+    criteriaKind === "chapter_saved",
+  );
   const fixedCriteria = (value?.progress ?? 0) > 0;
   return (
     <DetailCard
@@ -461,10 +474,14 @@ function GoalEditor({
                       criteria: criteriaKind
                         ? {
                             kind: criteriaKind,
-                            capability_id: String(
-                              form.get("capability_id") ?? "",
-                            ),
+                            capability_id:
+                              criteriaKind === "chapter_saved"
+                                ? "writing.request"
+                                : String(form.get("capability_id") ?? ""),
                             target_count: Number(form.get("target_count")),
+                            ...(criteriaKind === "chapter_saved"
+                              ? { work_id: workId }
+                              : {}),
                           }
                         : {},
                     }
@@ -522,43 +539,117 @@ function GoalEditor({
               <option value="completed_activity">完成相关活动</option>
               <option value="reading_complete">读完约定范围</option>
               <option value="created_artifact">取得实际创作产物</option>
+              <option value="chapter_saved">实际保存作品章节</option>
             </select>
           </label>
           {criteriaKind && (
             <>
-              <label>
-                对应的活动能力
-                <select
-                  name="capability_id"
-                  defaultValue={value?.criteria?.capability_id ?? ""}
-                  required
-                >
-                  <option value="">选择当前可用的能力</option>
-                  {value?.criteria?.capability_id &&
-                    !choices.data?.items?.some(
-                      (item) =>
-                        item.definition.id === value.criteria?.capability_id,
-                    ) && (
-                      <option value={value.criteria.capability_id}>
-                        当前约定的能力
-                      </option>
-                    )}
-                  {choices.data?.items
-                    ?.filter(
-                      (item) => item.can_execute && item.definition.model_tool,
-                    )
-                    .map((item) => (
-                      <option
-                        key={item.definition.id}
-                        value={item.definition.id}
+              {criteriaKind === "chapter_saved" ? (
+                <>
+                  <label>
+                    对应作品
+                    <select
+                      name="work_id"
+                      value={workId}
+                      onChange={(event) => {
+                        setWorkId(event.target.value);
+                        setWorkTitle(
+                          works.data?.items.find(
+                            (item) => item.id === event.target.value,
+                          )?.title ?? "",
+                        );
+                      }}
+                      required
+                    >
+                      <option value="">选择这次想继续写的作品</option>
+                      {workId &&
+                        !works.data?.items.some(
+                          (item) => item.id === workId,
+                        ) && (
+                          <option value={workId}>
+                            {workTitle || "当前约定的作品（不在此页）"}
+                          </option>
+                        )}
+                      {works.data?.items.map((item) => (
+                        <option key={item.id} value={item.id}>
+                          {item.title}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p className="muted">
+                    只在所选作品的章节正文实际保存后计入进度，创作请求排队不算完成。
+                  </p>
+                  {works.loading && !works.data && (
+                    <p role="status">正在读取作品…</p>
+                  )}
+                  {works.error && <p role="alert">{works.error}</p>}
+                  {works.data && !works.data.items.length && !workCursor && (
+                    <p className="muted">
+                      还没有可选作品，请先在创作中建立作品。
+                    </p>
+                  )}
+                  <div className="domain-actions">
+                    {workCursor && (
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={works.loading}
+                        onClick={() => setWorkCursor(null)}
                       >
-                        {item.definition.title}
-                      </option>
-                    ))}
-                </select>
-              </label>
+                        回到首批作品
+                      </button>
+                    )}
+                    {works.data?.next_cursor && (
+                      <button
+                        className="button"
+                        type="button"
+                        disabled={works.loading}
+                        onClick={() => setWorkCursor(works.data!.next_cursor)}
+                      >
+                        更多作品
+                      </button>
+                    )}
+                  </div>
+                </>
+              ) : (
+                <label>
+                  对应的活动能力
+                  <select
+                    name="capability_id"
+                    defaultValue={value?.criteria?.capability_id ?? ""}
+                    required
+                  >
+                    <option value="">选择当前可用的能力</option>
+                    {value?.criteria?.capability_id &&
+                      !choices.data?.items?.some(
+                        (item) =>
+                          item.definition.id === value.criteria?.capability_id,
+                      ) && (
+                        <option value={value.criteria.capability_id}>
+                          当前约定的能力
+                        </option>
+                      )}
+                    {choices.data?.items
+                      ?.filter(
+                        (item) =>
+                          item.can_execute && item.definition.model_tool,
+                      )
+                      .map((item) => (
+                        <option
+                          key={item.definition.id}
+                          value={item.definition.id}
+                        >
+                          {item.definition.title}
+                        </option>
+                      ))}
+                  </select>
+                </label>
+              )}
               <label>
-                实际完成次数
+                {criteriaKind === "chapter_saved"
+                  ? "实际保存章数"
+                  : "实际完成次数"}
                 <input
                   name="target_count"
                   type="number"

@@ -297,6 +297,111 @@ test("life workspace switches goals, local day arrangements and real checkpoint 
   ).toBeTruthy();
 });
 
+test("chapter goals bind a real work and count saved chapters without authoring progress", async ({
+  page,
+}) => {
+  await setup(page);
+  let chapterGoal = {
+    ...goal,
+    title: "写完两章旅行故事",
+    criteria: {
+      kind: "chapter_saved",
+      capability_id: "writing.request",
+      work_id: "travel-work",
+      target_count: 2,
+    },
+    progress: 0,
+  };
+  const writes: Record<string, unknown>[] = [];
+  await page.route(apiPath("life/goals"), (route) =>
+    answer(route, { ...emptyPage, items: [chapterGoal] }),
+  );
+  await page.route(apiPath("life/works"), (route) => {
+    const body = route.request().postDataJSON();
+    expect(body.actor_id).toBe("actor");
+    return answer(route, {
+      ...emptyPage,
+      items: body.cursor
+        ? [{ id: "next-work", title: "下一程" }]
+        : [{ id: "travel-work", title: "旅行故事" }],
+      next_cursor: body.cursor ? null : "work-page-2",
+    });
+  });
+  await page.route(apiPath("life/goals.save"), (route) => {
+    const body = route.request().postDataJSON();
+    writes.push(body);
+    chapterGoal = {
+      ...chapterGoal,
+      revision: chapterGoal.revision + 1,
+      criteria: body.criteria ?? chapterGoal.criteria,
+    };
+    return answer(
+      route,
+      command(body, { id: chapterGoal.id }, chapterGoal.revision),
+    );
+  });
+  await page.goto("/#/roles/life");
+  await page.getByRole("tab", { name: "长期目标", exact: true }).click();
+  await expect(
+    page.getByText("完成条件：实际保存所选作品章节 2 章", { exact: false }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "调整目标", exact: true }).click();
+  const editor = page.getByRole("dialog", { name: "调整目标", exact: true });
+  await expect(editor.getByLabel("完成方式", { exact: true })).toHaveValue(
+    "chapter_saved",
+  );
+  await expect(editor.getByLabel("对应作品", { exact: true })).toHaveValue(
+    "travel-work",
+  );
+  await expect(
+    editor.getByText(
+      "只在所选作品的章节正文实际保存后计入进度，创作请求排队不算完成。",
+    ),
+  ).toBeVisible();
+  await expect(
+    editor.getByLabel("对应的活动能力", { exact: true }),
+  ).toHaveCount(0);
+  await editor.getByRole("button", { name: "更多作品", exact: true }).click();
+  await editor
+    .getByLabel("对应作品", { exact: true })
+    .selectOption("next-work");
+  await editor.getByLabel("实际保存章数", { exact: true }).fill("3");
+  await editor.getByRole("button", { name: "保存目标", exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0]).toMatchObject({
+    id: chapterGoal.id,
+    expected_revision: 4,
+  });
+  expect(writes[0].criteria).toEqual({
+    kind: "chapter_saved",
+    capability_id: "writing.request",
+    work_id: "next-work",
+    target_count: 3,
+  });
+  expect(writes[0]).not.toHaveProperty("progress");
+  expect(writes[0]).not.toHaveProperty("origin");
+  await expect(page.getByText("实际进度 0%", { exact: true })).toBeVisible();
+
+  chapterGoal = { ...chapterGoal, revision: 6, progress: 1 / 3 };
+  await page.reload();
+  await page.getByRole("tab", { name: "长期目标", exact: true }).click();
+  await expect(page.getByText("实际进度 33%", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "调整目标", exact: true }).click();
+  await expect(editor.getByLabel("完成方式", { exact: true })).toBeDisabled();
+  await expect(editor.getByLabel("对应作品", { exact: true })).toBeDisabled();
+  await expect(
+    editor.getByLabel("实际保存章数", { exact: true }),
+  ).toBeDisabled();
+  await editor
+    .getByLabel("为什么在意", { exact: true })
+    .fill("继续完成这部作品");
+  await editor.getByRole("button", { name: "保存目标", exact: true }).click();
+  await expect.poll(() => writes.length).toBe(2);
+  expect(writes[1].expected_revision).toBe(6);
+  expect(writes[1]).not.toHaveProperty("criteria");
+  expect(writes[1]).not.toHaveProperty("progress");
+});
+
 test("automatic diary unknown remains unknown and controls use original diary CAS", async ({
   page,
 }) => {
