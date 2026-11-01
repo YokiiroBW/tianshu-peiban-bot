@@ -88,3 +88,27 @@
   边界。无需重复无关前端、private fork、长原文或全套产品用例。
 - 仅静态阅读当前/旧源码、既有失败日志和差异，编写用例/交接；没有执行测试、
   解析、typecheck、build、PG、模型或生产操作。实际修复时延和通过状态待统一复验。
+
+## 第四轮集中验收后的清单夹具修正（2026-11-01）
+
+- 父级在 `a02b253` 完成五个定向节点，四项通过；原 2100/96 稀疏向量已返回所需证据，
+  本包不重改、不重跑该通过结果。仅新五类型节点的完整清单集合断言失败，实际多出
+  一条 Episode；后续关系来源撤回段尚未运行。
+- 静态对照失败日志和真实调用链确认：`save_matter` 在领域事务内调用
+  `domain_changed_on`，以正式 Matter ID/revision 和实际命令依据生成稳定
+  memory-revision Episode，`matter_id` 明确就是该 Matter，actual_result 保存
+  internal/event_kind/changed_records/affected_subject_ids。Episode 查询的
+  matter_refs 条件正确使用 `r.matter_id`，没有查询漏筛。夹具只索引显式记录，
+  这条真实命令观察尚无 embedding，所以向量结果没有它，完整清单应包含它。
+- 夹具现在通过现有授权 Episodes 接口取得唯一匹配 Matter 的观察，精确核对
+  origin、当前人物、实际 changed ref、来源、scope 和 Sources 当前合法性，再以
+  实际 ID 断言完整清单恰为 Hypothesis、Matter、命令 Episode 三项；另核对该
+  Episode 在此夹具仍未索引，解释两条查询路径的差异。
+- 命令观察默认没有原始覆盖报告，coverage_unknown 继续显式保留；清单没有下一页，
+  但不能把这条证据的未知覆盖写成完整。此点在原集合先失败后尚未执行，现一起修正
+  为精确缺项断言，没有改动产品 coverage 或隐去缺项。
+- 保留原关系来源撤回后的向量 Matter 单项断言，另精确核对撤回后清单仍有独立来源
+  支持的命令 Episode，旧 Hypothesis 的事项关系消失；再次验证观察的当前来源。
+- 仅修改该定向用例和本交接，没有改产品行为或放宽为任意额外项。**代理未运行测试、
+  解析、build、PG 或模型**。最小待复验仅
+  `tests/core/test_memory_evidence_retrieval.py::test_vector_exact_keeps_five_types_and_public_or_support_across_owners`。

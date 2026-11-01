@@ -102,6 +102,19 @@ async def test_vector_exact_keeps_five_types_and_public_or_support_across_owners
     matter = (await core.claims.save_matter(bob, {"matter_id": "vector_matter", "title": "周末约定",
         "state": "planned", "expected_revision": 0, "source_refs": hypothesis.source_refs,
         "client_request_id": "vector_matter"})).data
+    observations = [item for item in (await core.memory.episodes_since(bob, None, 20)).items
+                    if item.matter_id == matter.matter_id]
+    assert len(observations) == 1
+    command_observation = observations[0]
+    assert command_observation.event_id.startswith("memory-revision:")
+    assert str(command_observation.origin_kind) == "observation" and command_observation.person_id == bob.person_id
+    assert command_observation.actual_result == {"internal": True, "event_kind": "memory_revision",
+        "changed_records": [{"kind": "matter", "id": matter.matter_id, "revision": matter.revision}],
+        "affected_subject_ids": [bob.person_id]}
+    assert command_observation.source_refs == matter.source_refs
+    assert set(command_observation.scope_ids) <= set(bob.scope_ids)
+    assert all(await core.sources.check_many(bob, (command_observation.source_refs,)))
+    assert not command_observation.coverage.complete and tuple(command_observation.coverage.missing) == ("coverage_unknown",)
     records = (RecordRef("claim", private.claim_id, private.revision),
         RecordRef("claim", shared.claim_id, shared.revision), RecordRef("claim", alternatives.claim_id, alternatives.revision),
         RecordRef("hypothesis", hypothesis.claim_id, hypothesis.revision), RecordRef("matter", matter.matter_id, matter.revision),
@@ -128,12 +141,29 @@ async def test_vector_exact_keeps_five_types_and_public_or_support_across_owners
     related = await core.retrieval.query(bob, related_plan, budget())
     assert {(item.kind, item.id) for item in related.items} == {
         ("hypothesis", hypothesis.claim_id), ("matter", matter.matter_id)}
+    async with core.database.transaction(read_only=True) as conn:
+        command_index = await (await conn.execute(
+            "SELECT embedding IS NULL AND embedding_profile IS NULL AS unindexed FROM memory.episodes WHERE episode_id=%s",
+            (command_observation.episode_id,))).fetchone()
+    assert command_index["unindexed"]  # The fixture indexed only the explicit records above.
     listing = await core.retrieval.query(bob, replace(related_plan, query="", coverage_mode="list"), budget())
-    assert {item.id for item in listing.items} == {hypothesis.claim_id, matter.matter_id} and listing.coverage.complete
+    assert {(item.kind, item.id) for item in listing.items} == {("hypothesis", hypothesis.claim_id),
+        ("matter", matter.matter_id), ("episode", command_observation.episode_id)}
+    command_unit = next(item for item in listing.items if item.kind == "episode")
+    assert command_unit.matter_id == matter.matter_id and command_unit.assertion == "observed"
+    assert command_unit.actual_result == command_observation.actual_result and command_unit.source_refs == matter.source_refs
+    assert listing.next_cursor is None and not listing.coverage.complete
+    assert listing.coverage.missing == command_unit.coverage.missing == ("coverage_unknown",)
     await core.sources.invalidate(bob, {"source_id": link_refs[0].source_id, "expected_revision": 1,
         "client_request_id": "withdraw_vector_relation"}, forgotten=True)
     withdrawn = await core.retrieval.query(bob, related_plan, budget())
     assert [(item.kind, item.id) for item in withdrawn.items] == [("matter", matter.matter_id)]
+    withdrawn_listing = await core.retrieval.query(bob, replace(related_plan, query="", coverage_mode="list"), budget())
+    assert {(item.kind, item.id) for item in withdrawn_listing.items} == {
+        ("matter", matter.matter_id), ("episode", command_observation.episode_id)}
+    remaining_observation = next(item for item in withdrawn_listing.items if item.kind == "episode")
+    assert remaining_observation.actual_result == command_observation.actual_result and remaining_observation.source_refs == matter.source_refs
+    assert all(await core.sources.check_many(bob, (remaining_observation.source_refs,)))
 
 
 async def test_vector_exact_uses_selected_knowledge_revision_before_validity(core, ordinary_users):
