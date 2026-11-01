@@ -292,7 +292,7 @@
     }
   ],
   "blueprint_acceptance": {
-    "M01-M18": "unified_validation_in_progress; SQL migration blocks 65 initial case bodies; semantic not run"
+    "M01-M18": "deterministic validation nearly complete; one sparse vector query failure; real semantic/cost validation and production cutover not started"
   },
   "new_production_release": null,
   "semantic_acceptance_inputs": {
@@ -305,7 +305,7 @@
   "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
   "unified_validation": {
     "implementation_head": "5c4d738",
-    "status": "second_repair_batch_integrated_targeted_continuation",
+    "status": "one_vector_retrieval_failure_remaining",
     "backend": {
       "first_collection": "blocked_by_evaluation_tool_syntax_fixed_5c4d738",
       "first_run": {
@@ -340,6 +340,19 @@
       "frontend_pages_passed": 20,
       "frontend_pages_failed": 4,
       "page_failures": "two accessible-label issues, repeated desktop/mobile; unchanged 12 native page cases reused"
+    },
+    "third_pass": {
+      "source_sha": "f742edcc9547c780941a4d3a60f0b622fe079104",
+      "backend_cases": 97,
+      "backend_passed": 96,
+      "backend_failed": 1,
+      "backend_skipped": 0,
+      "remaining_failure": "sparse_authorized_vector_candidates_are_not_starved: 0 results after 5-second vector SQL deadline with many unauthorized neighbors",
+      "long_129_part_tail": "passed; 97.26 seconds on Windows-to-isolated-NAS PG fixture",
+      "frontend_build": "passed",
+      "frontend_retested_cases": 4,
+      "frontend_passed": 4,
+      "frontend_all_36_cases": "passed across unchanged applicable receipts"
     }
   }
 }
