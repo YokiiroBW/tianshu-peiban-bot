@@ -14,6 +14,7 @@ from ..configuration import Configuration
 from ..contracts import Fault, digest, canonical, require
 from ..external import request as resource_request, ProviderError
 from ..tracking import TrackedBroker
+from ..serialization import context_from
 from .protocol import host_url, location_view, current_view
 
 
@@ -231,7 +232,7 @@ class WeatherService:
                 "AND receipt->>'execution' IN ('pending','running','unknown') ORDER BY created_at DESC LIMIT 8",
                 (context.principal_id, "weather." + operation, context.actor_id, canonical(arguments)))).fetchall()
         for row in rows:
-            if row["action"]["context"] != wire(context):
+            if context_from(row["action"]["context"]) != context:
                 continue
             physical = await self.models.status(row["receipt"]["attempt_id"])
             if physical and physical.status == "unknown" and physical.hold_until and physical.hold_until <= datetime.now(UTC):

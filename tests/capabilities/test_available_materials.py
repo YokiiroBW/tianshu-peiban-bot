@@ -60,9 +60,12 @@ async def test_empty_reaction_library_does_not_spend_query_embedding():
 
 @pytest.mark.asyncio
 async def test_weather_reports_original_unknown_hold_without_new_read():
-    context = TrustedContext("p", "actor", None, None, ("scope",), ("scope",), 1, OriginKind.ACTOR)
+    context = TrustedContext("p", "actor", None, None, ("scope",), ("scope",), 1, OriginKind.ACTOR,
+        permissions=frozenset({"weather.read", "life.read"}))
     physical = SimpleNamespace(status="unknown", hold_until=datetime.now(UTC) + timedelta(minutes=4))
     row = {"action": {"context": wire(context)}, "receipt": {"attempt_id": "original", "execution": "unknown"}}
+    # Frozenset serialization order can differ between HTTP and worker processes.
+    row["action"]["context"]["permissions"].reverse()
 
     @asynccontextmanager
     async def transaction(**_kwargs):
