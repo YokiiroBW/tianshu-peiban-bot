@@ -1,5 +1,6 @@
 """One multi-type evidence query for chat, tools and bounded consolidation reads."""
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import math
 from uuid import uuid4
@@ -72,6 +73,56 @@ class MemoryRetrieval:
         deadline = min(parent.deadline_at, datetime.now(UTC) + timedelta(seconds=seconds))
         return RequestBudget(deadline, trace_id=parent.trace_id, cancellation_id=parent.cancellation_id)
 
+    @staticmethod
+    def remote_phase(parent, execution_seconds):
+        """Reserve a whole execution window before admitting optional remote work.
+
+        The parent's deadline is unchanged. Spare time can pay for queueing;
+        queueing must not consume the target execution window or final rechecks.
+        A background caller supplies its longer preparation budget to this same
+        path, rather than receiving a foreground-sized request timeout.
+        """
+        if not math.isfinite(execution_seconds) or execution_seconds <= 0:
+            raise AppError("invalid_memory_retrieval_phase_budget")
+        spare = parent.remaining() - 0.5 - execution_seconds
+        if spare <= 0.05:
+            return None
+        deadline = parent.deadline_at - timedelta(seconds=0.5)
+        return (RequestBudget(deadline, trace_id=parent.trace_id, cancellation_id=parent.cancellation_id),
+                spare - 0.05)
+
+    async def _vectors(self, context, plan, budget, source_refs, service_class):
+        seconds = float(self.settings.get("embedding_seconds", 1.0))
+        if self.remote_phase(budget, seconds) is None:
+            return [], ("embedding_budget_insufficient",)
+        phase = "embedding_profile"
+        try:
+            # Profile is a control read, but its client's default five seconds
+            # must not escape this query's smaller overall deadline.
+            async with self.phase_budget(budget, seconds).timeout():
+                profile = await self.embeddings.profile()
+            phase = "vector_candidates"
+            self.store.settings = self.settings
+            if not await self.store.has_vectors(context, plan, profile[1],
+                    self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8)))):
+                return [], ()
+            remote = self.remote_phase(budget, seconds)
+            if remote is None:
+                return [], ("embedding_budget_insufficient",)
+            phase = "embedding"
+            remote_budget, queue_wait = remote
+            values, fingerprint = await self.embeddings.vector(context, plan.query, remote_budget,
+                intent="memory-query:" + str(uuid4()), query=True, profile_snapshot=profile,
+                max_queue_wait=queue_wait, service_class=service_class, source_refs=source_refs)
+            phase = "vector"
+            rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
+                self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8))))
+            return rows, ("vector_candidate_budget",) if incomplete else ()
+        except (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error) as exc:
+            reason = ("vector_query_timeout" if phase == "vector" and isinstance(
+                exc, (TimeoutError, psycopg.errors.QueryCanceled)) else getattr(exc, "code", phase + "_unavailable"))
+            return [], (reason,)
+
     async def _hydrate_on(self, conn, context, plan, rows):
         selected = await select_supports_on(self.memory.sources, conn, context, rows)
         usable = [(row, refs) for row, refs in zip(rows, selected) if refs is not None]
@@ -138,22 +189,9 @@ class MemoryRetrieval:
         missing = []
         lexical_rows = await self.store.lexical(context, plan, budget)
         vector_rows = []
-        if plan.query and self.settings.get("vector", True) and budget.remaining() > 0.1:
-            phase = "embedding"
-            try:
-                values, fingerprint = await self.embeddings.vector(context, plan.query,
-                    self.phase_budget(budget, float(self.settings.get("embedding_seconds", 1.0))),
-                    intent="memory-query:" + str(uuid4()), query=True,
-                    service_class=service_class, source_refs=source_refs)
-                phase = "vector"
-                self.store.settings = self.settings
-                vector_rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
-                    self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8))))
-                if incomplete:
-                    missing.append("vector_candidate_budget")
-            except (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error) as exc:
-                missing.append("vector_query_timeout" if phase == "vector" and isinstance(
-                    exc, (TimeoutError, psycopg.errors.QueryCanceled)) else getattr(exc, "code", phase + "_unavailable"))
+        if plan.query and self.settings.get("vector", True):
+            vector_rows, unavailable = await self._vectors(context, plan, budget, source_refs, service_class)
+            missing.extend(unavailable)
         fused = {}
         for route in (lexical_rows, vector_rows):
             for rank, row in enumerate(route):
@@ -169,13 +207,20 @@ class MemoryRetrieval:
         checked, unavailable = await self._checked(context, plan, ranked, budget)
         missing.extend(unavailable)
         ranked = list(checked)
-        if plan.query and self.settings.get("rerank", False) and ranked and budget.remaining() > 0.1:
+        if plan.query and self.settings.get("rerank", False) and len(ranked) > 1:
+            documents = [evidence_text(unit) for _, unit in ranked]
+            remote = self.remote_phase(budget, float(self.settings.get("rerank_seconds", 0.8)))
+            if remote is None:
+                missing.append("rerank_budget_insufficient")
+        else:
+            remote = None
+        if remote is not None:
+            remote_budget, queue_wait = remote
             request = ModelRequest("memory-rerank:" + str(uuid4()), str(uuid4()), "rerank",
-                service_class, context,
-                self.phase_budget(budget, float(self.settings.get("rerank_seconds", 0.8))), (),
-                required_capabilities=frozenset({"rerank"}), max_output_tokens=0,
-                native_payload={"query": plan.query, "documents": [evidence_text(unit) for _, unit in ranked], "top_n": limit},
+                service_class, context, remote_budget, (), required_capabilities=frozenset({"rerank"}),
+                max_output_tokens=0, native_payload={"query": plan.query, "documents": documents, "top_n": limit},
                 source_refs=unique_refs(source_refs, *(unit.source_refs for _, unit in ranked)))
+            request = replace(request, max_queue_wait=min(request.max_queue_wait, queue_wait))
             try:
                 result = await self.models.generate(request)
                 indexes = (result.native_response or {}).get("results", ()) if result.receipt.status == "succeeded" else ()

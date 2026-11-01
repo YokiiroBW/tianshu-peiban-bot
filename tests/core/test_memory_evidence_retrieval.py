@@ -1,5 +1,6 @@
 """Multi-type/time/source stories authored for the final integrated validation run."""
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import json
@@ -10,14 +11,16 @@ import pytest
 from tianshu.capabilities.catalog import Catalog
 from tianshu.companion.types import ReflectionProposal
 from tianshu.memory.indexing import evidence_text, index_text
+from tianshu.memory.embedding import Embeddings
 from tianshu.memory.evidence import build_evidence_unit
+from tianshu.memory.retrieval import MemoryRetrieval
 from tianshu.memory.source_trace import SourceTrace
 from tianshu.memory.tools import register_tools
 from tianshu.memory.types import MemoryQueryPlan, RecordRef
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import Action, Attempt, ContextContribution, Coverage, OriginKind, RequestBudget, SourceRef
+from tianshu.types import Action, Attempt, ContextContribution, Coverage, OriginKind, RequestBudget, ServiceClass, SourceRef
 
 
 def budget():
@@ -52,10 +55,105 @@ async def indexed_vectors(core, records):
             await conn.execute(f"UPDATE memory.{table} SET embedding=%s,embedding_profile='fixture' "
                 f"WHERE {key}=%s AND revision=%s", (Vector(values), record.id, record.revision))
     class QueryEmbedding:
+        async def profile(self):
+            return {}, "fixture"
         async def vector(self, *args, **kwargs):
             return values, "fixture"
     core.retrieval.embeddings = QueryEmbedding()
     core.retrieval.settings = {"vector": True, "vector_sql_seconds": 5}
+
+
+def test_optional_remote_requires_a_full_execution_window_inside_the_original_deadline():
+    short = RequestBudget(datetime.now(UTC) + timedelta(seconds=1.2))
+    assert MemoryRetrieval.remote_phase(short, 1.0) is None
+    foreground = RequestBudget(datetime.now(UTC) + timedelta(seconds=2))
+    remote, queue_wait = MemoryRetrieval.remote_phase(foreground, 1.0)
+    assert remote.deadline_at == foreground.deadline_at - timedelta(seconds=0.5)
+    assert 0 < queue_wait < 0.5 and remote.remaining() - queue_wait >= 1.0
+    background = RequestBudget(datetime.now(UTC) + timedelta(seconds=55))
+    remote, queue_wait = MemoryRetrieval.remote_phase(background, 1.0)
+    assert remote.remaining() > 50 and queue_wait > 30
+
+
+async def test_profile_control_read_obeys_the_query_budget_without_starting_a_model():
+    class SlowProfile:
+        async def profile(self):
+            await asyncio.Event().wait()
+        async def vector(self, *args, **kwargs):
+            raise AssertionError("an unavailable control read must not start an embedding")
+    retrieval = MemoryRetrieval(SimpleNamespace(database=None, models=None), SlowProfile(),
+                                {"embedding_seconds": 0.01})
+    async with asyncio.timeout(0.5):
+        rows, missing = await retrieval._vectors(None, MemoryQueryPlan(query="synthetic"),
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=2)), (), ServiceClass.INTERACTIVE)
+    assert not rows and missing == ("embedding_profile_unavailable",)
+
+
+async def test_query_reuses_one_profile_and_leaves_provider_execution_time_after_queueing():
+    class Models:
+        def __init__(self):
+            self.profile_reads, self.requests = 0, []
+        async def embedding_profile(self):
+            self.profile_reads += 1
+            return {"dimensions": 1024, "normalization": "none"}
+        async def generate(self, request):
+            self.requests.append(request)
+            return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"),
+                native_response={"data": [{"embedding": [1.0] + [0.0] * 1023}]})
+    class Store:
+        async def has_vectors(self, *args):
+            return True
+        async def vectors(self, *args):
+            return [], False
+    models = Models()
+    retrieval = MemoryRetrieval(SimpleNamespace(database=None, models=models), Embeddings(None, models, None))
+    retrieval.store = Store()
+    parent = RequestBudget(datetime.now(UTC) + timedelta(seconds=55))
+    rows, missing = await retrieval._vectors(None, MemoryQueryPlan(query="synthetic"), parent, (), ServiceClass.ELASTIC)
+    assert not rows and not missing and models.profile_reads == len(models.requests) == 1
+    request = models.requests[0]
+    assert request.service_class == ServiceClass.ELASTIC and request.max_queue_wait == 30
+    assert request.budget.deadline_at == parent.deadline_at - timedelta(seconds=0.5)
+    assert request.budget.remaining() - request.max_queue_wait > 20
+
+
+async def test_empty_authorized_profile_lane_skips_embedding_without_using_lexical_results(core, ordinary_users):
+    alice, bob = ordinary_users
+    value = await fact(core, alice, "budget_vector_original", "咖啡")
+    await indexed_vectors(core, (RecordRef("claim", value.claim_id, value.revision),))
+    class ProfileOnly:
+        async def profile(self):
+            return {}, "fixture"
+        async def vector(self, *args, **kwargs):
+            raise AssertionError("no eligible indexed vector may be sent to a model")
+    core.retrieval.embeddings = ProfileOnly()
+    plan = MemoryQueryPlan(query="unmatched_semantic_probe", evidence_kinds=("claim",))
+    assert await core.retrieval.store.has_vectors(alice, plan, "fixture", budget())
+    assert not await core.retrieval.store.has_vectors(alice, plan, "other-profile", budget())
+    assert not await core.retrieval.store.has_vectors(bob, plan, "fixture", budget())
+    assert not await core.retrieval.store.has_vectors(alice, replace(plan, subject_ids=(bob.person_id,)), "fixture", budget())
+    assert not await core.retrieval.store.has_vectors(alice, replace(plan, evidence_kinds=("hypothesis",)), "fixture", budget())
+    page = await core.retrieval.query(bob, plan, budget())
+    assert not page.items and page.coverage.missing == ("ranked_selection",)
+    await core.sources.invalidate(alice, {"source_id": value.source_refs[0].source_id, "expected_revision": 1,
+        "client_request_id": "budget_vector_withdraw"}, forgotten=True)
+    assert not await core.retrieval.store.has_vectors(alice, plan, "fixture", budget())
+    assert not (await core.retrieval.query(alice, plan, budget())).items
+
+
+async def test_budget_skip_preserves_all_lexical_units_and_single_candidate_needs_no_rerank(core, ordinary_users):
+    alice, _ = ordinary_users
+    first = await fact(core, alice, "budget_lexical_first", "咖啡甲 firstonlymarker", predicate="preference.first")
+    second = await fact(core, alice, "budget_lexical_second", "咖啡乙", predicate="preference.second")
+    core.retrieval.settings = {"vector": True, "rerank": True, "embedding_seconds": 20, "rerank_seconds": 20}
+    page = await core.retrieval.query(alice, MemoryQueryPlan(query="咖啡", evidence_kinds=("claim",)),
+        budget())
+    assert {item.id for item in page.items} == {first.claim_id, second.claim_id}
+    assert {"embedding_budget_insufficient", "rerank_budget_insufficient"} <= set(page.coverage.missing)
+    core.retrieval.settings = {"vector": False, "rerank": True}
+    page = await core.retrieval.query(alice, MemoryQueryPlan(query="firstonlymarker", evidence_kinds=("claim",)), budget())
+    assert [item.id for item in page.items] == [first.claim_id]
+    assert "rerank_unavailable" not in page.coverage.missing
 
 
 async def test_all_five_types_are_real_candidates_and_hypotheses_keep_their_status(core, ordinary_users):

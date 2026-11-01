@@ -45,7 +45,8 @@ def receipt_metrics(receipt):
         "estimated_input_tokens": usage.get("estimated_input_tokens"),
         "metering": usage.get("metering", "unknown"),
         "reported_cost_usd": number(provider.get("cost_usd")),
-        "queue_ms": milliseconds(receipt.get("queued_at"), receipt.get("started_at")),
+        "queue_ms": milliseconds(receipt.get("queued_at"), receipt.get("started_at") or (
+            receipt.get("finished_at") if receipt.get("dispatch") == "not_started" else None)),
         "provider_ms": milliseconds(receipt.get("started_at"), receipt.get("finished_at")),
         "status": receipt.get("status"),
         "error_code": receipt.get("error_code"),
@@ -66,9 +67,15 @@ def aggregate_calls(calls):
     metrics = [receipt_metrics(call["receipt"]) if call.get("receipt") else {}
                for call in latest.values()]
     result = {"attempt_identities": len(latest), "confirmed_broker_attempts": sum(bool(x) for x in metrics),
-              "physical_dispatch_confirmed": sum((call.get("receipt") or {}).get("dispatch") == "submitted"
+              "physical_dispatch_confirmed": sum(bool((call.get("receipt") or {}).get("started_at"))
+                                                  or (call.get("receipt") or {}).get("dispatch") == "submitted"
                                                   for call in latest.values()),
-              "dispatch_unknown": sum(not call.get("receipt") or call["receipt"].get("dispatch") == "unknown"
+              "not_started": sum((call.get("receipt") or {}).get("dispatch") == "not_started"
+                                  and not (call.get("receipt") or {}).get("started_at") for call in latest.values()),
+              "submitted_unknown": sum((call.get("receipt") or {}).get("status") == "unknown"
+                                        and bool((call.get("receipt") or {}).get("started_at")) for call in latest.values()),
+              "dispatch_unknown": sum(not call.get("receipt") or (call["receipt"].get("dispatch") == "unknown"
+                                       and not call["receipt"].get("started_at"))
                                        for call in latest.values()),
               "failed_or_unknown": sum(x.get("status") != "succeeded" for x in metrics)}
     for field in ("input_tokens", "output_tokens", "reasoning_tokens", "cached_input_tokens",

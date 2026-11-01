@@ -203,3 +203,27 @@ docker run --rm --network none --read-only --entrypoint /opt/tianshu/.venv/bin/p
 ```
 
 run_arm 的 output 必须全新；失败已有目录不删除/重跑，不把同一 unknown 换请求身份。root 根据 report/attempt-map/database 保留原账本恢复。cost compare 直接取 optimized 中相同8份结果；它不联网、不调模型。命令没有挂生产 config/data/socket，没有调用 tianshu serve；不启动普通 worker、QQ 网关或发送流程。Source archive 与镜像/迁移的真实可用性仍由主协调本轮集中结果证明，不能由本文静态核对冒称运行成功。
+
+## 本次模型预算修复与原回执对账（基线 e95cc45）
+
+这是后续已授权实现，仍只编写、静态检查，未执行测试/模型/PG/网络。后台候选读取从数据库返回的当前三分钟 lease 分配同一准备 deadline：减去原有 120 秒模型窗口及 5 秒提交余量，首次最多约 55 秒，所有输入缩窗共享这一个 deadline。材料层不再自行建立 2 秒窗口。没有延长前台总期限或修改生产配置。
+
+embedding_seconds/rerank_seconds 用于判断能否预留一个完整远端执行窗口；排队只使用剩余余量，保留原有 max_queue_wait 上限。实际远端 deadline 不超过父 deadline 减 0.5 秒，给版本/Sources 终检留时间。预算不足标记 embedding_budget_insufficient/rerank_budget_insufficient；profile 控制读取也受检索 child deadline 约束。一次查询复用同一个已验证 profile；向量 EXISTS 完整复用原授权/类型/主体/时态版本/依赖/profile 条件，不以词法结果或第一页代替。SQL 超时是预检不可用，不是空集合。单候选不调用重排。原 Broker unknown 保留、配额和服务等级没有变化。
+
+异常后的原生 cancel 回执若已在 Client 内存中，adapter 立即据它记录真实状态；不为此添加前台控制请求。需要后续对账时，root 使用**同一旧 run 的现存目录和 attempt-map**，显式调用新增 observe 命令。沿用本次 Docker 的 `/code`、`/runner/evaluation`、`/evaluation-input`、`/evaluation-output` 挂载与唯一 Broker 网络；下面 `--run-root` 必须与原来 `semantic --output` 的容器内路径相同（示例为 optimized），不能新建 run 或清空旧目录：
+
+```bash
+/opt/tianshu/.venv/bin/python /runner/evaluation/memory_closure/run.py observe \
+  --code-root /code --config /evaluation-input/config.private.json \
+  --private-root /evaluation-output --run-root /evaluation-output/optimized --stories S01,S03
+```
+
+observe 不读 corpus、不创建应用图/数据库、不调用 generate/result/cancel，只按原 mapping 查询 unresolved 原 ID 的 status。它追加原 `model-calls.jsonl`、更新 mapping 的观测状态、生成每个故事的 `receipt-reconciliation.json`，保留原 report/答案/提案与来源证据。compare 仅在 sidecar.run_id 与原 report.run_id 相同且 calls 日志 SHA256 未变后使用对账 usage，避免后续新调用被旧 sidecar 漏计；未知用量继续 null。计量分列 not_started、submitted_unknown、无法确认 dispatch，已取消未提交的排队耗时也保留。真实 submitted_unknown 不重发，不因 300 秒保留期已过而伪装失败。
+
+本次最小集中复验范围（仅由 root 在完整集成后执行，复用其显式隔离 PG/Selector 环境）：
+
+```powershell
+& $python -m pytest -q tests/core/test_consolidation_pipeline.py tests/core/test_memory_evidence_retrieval.py tests/core/test_memory_closure_acceptance.py tests/context/test_memory_evidence_units.py tests/runtime/test_product_assembly.py
+```
+
+前三文件覆盖 lease/缩窗共同期限、完整执行窗口、profile 控制读取期限/单次复用、授权空向量预检、词法完整降级、单候选跳过、原 ID 回执对账和命令不生成；后两文件覆盖现有 Assembler/原生装配。没有修改 Broker/供应商协议、迁移或前端，无需据本补丁重跑那些未变范围。真实语义重启由 root 另安排，旧调用/原 unknown 始终保留。

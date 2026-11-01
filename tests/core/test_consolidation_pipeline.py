@@ -83,6 +83,41 @@ async def row(core,episode):
         return await (await conn.execute('SELECT * FROM memory.episodes WHERE episode_id=%s',(episode.episode_id,))).fetchone()
 
 
+async def test_candidate_preparation_uses_one_lease_budget_across_input_shrinks(core, ordinary_users, monkeypatch):
+    from tianshu.memory.consolidation import COMMIT_RESERVE_SECONDS, MODEL_REQUEST_SECONDS
+
+    alice, _ = ordinary_users
+    model = FixedConsolidator()
+    configure(core, model)
+    pipeline = core.memory.consolidation
+    first = await observe(core, alice, "candidate_budget_first", "前文")
+    await observe(core, alice, "candidate_budget_last", "尾部事实")
+    partition = (await row(core, first))["consolidation_partition_id"]
+    budgets = []
+    async def candidates(context, query, budget, **kwargs):
+        async with core.database.transaction(read_only=True) as conn:
+            state = await (await conn.execute(
+                "SELECT lease_until FROM memory.consolidation_state WHERE partition_id=%s", (partition,))).fetchone()
+        assert budget.deadline_at == state["lease_until"] - timedelta(
+            seconds=MODEL_REQUEST_SECONDS + COMMIT_RESERVE_SECONDS)
+        budgets.append(budget)
+        return ()
+    pipeline.materials.record_candidates = candidates
+    request = pipeline._budgeted_request
+    attempts = 0
+    def shrink_once(*args, **kwargs):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            raise AppError("memory_consolidation_input_budget")
+        return request(*args, **kwargs)
+    monkeypatch.setattr(pipeline, "_budgeted_request", shrink_once)
+    await core.workers.consolidate(partition)
+    assert len(budgets) == 2 and budgets[0] is budgets[1]
+    assert 0 < budgets[0].remaining() <= 55
+    assert len(model.requests) == 1 and model.requests[0].budget.remaining() > 100
+
+
 async def test_input_budget_change_resumes_the_same_unadvanced_material_without_a_new_episode(core,ordinary_users):
     alice,_=ordinary_users
     model=FixedConsolidator()

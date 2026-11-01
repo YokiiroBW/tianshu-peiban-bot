@@ -290,7 +290,7 @@ class MaterialBuilder:
                 missing.add("observation_analysis_unavailable")
         return refs, missing
 
-    async def build(self, context, rows, batch_id, *, text_ceiling=None, reads=None):
+    async def build(self, context, rows, batch_id, *, text_ceiling=None, reads=None, budget: RequestBudget | None = None):
         """Take a complete episode/source prefix; a huge source alone uses an exact range cursor."""
         text_ceiling = text_ceiling or min(self.policy.max_source_characters, self.policy.max_input_tokens // 2)
         reads=reads or PreparationReads(self.sources)
@@ -443,7 +443,7 @@ class MaterialBuilder:
             actor_subject = "actor:"+context.actor_id
             subjects[actor_subject] = {"subject_id": actor_subject, "name": context.actor_id, "aliases": [], "kind": "actor", "revision": 1}
             targets[actor_subject] = {"new_material_ids": [key for key,item in materials.items() if item["role"] == "new"]}
-        records = expand_record_endpoints(await self.old_records(context, subjects, matter_ids, materials))
+        records = expand_record_endpoints(await self.old_records(context, subjects, matter_ids, materials, budget=budget))
         referenced_subjects = {item.get("subject_id") for item in records.values()} - set(subjects) - {None}
         if referenced_subjects:
             async with self.database.transaction(read_only=True) as conn:
@@ -472,7 +472,7 @@ class MaterialBuilder:
                           "head_revision":item.get("head_revision") or item["revision"]} for item in records.values()],
             "episodes": episodes}
 
-    async def old_records(self, context, subjects, matter_ids, materials):
+    async def old_records(self, context, subjects, matter_ids, materials, *, budget=None):
         """Per-subject candidates plus explicit matters plus lexical candidates, deduped by stable ID."""
         candidates = {}
         query = " ".join(item["text"] for item in materials.values() if item["role"] == "new")
@@ -520,10 +520,9 @@ class MaterialBuilder:
                 if refs:
                     value=codec.matter(row,selected_refs=refs,relations=links.get(row["matter_id"],()))
                     candidates.setdefault(("matter",row["matter_id"]),wire(build_evidence_unit(value)))
-        if self.record_candidates and query:
+        if self.record_candidates and query and budget is not None and budget.remaining() > 0:
             try:
-                values=await self.record_candidates(context,query,
-                    RequestBudget(datetime.now(UTC)+timedelta(seconds=2)),subject_ids=tuple(subjects),
+                values=await self.record_candidates(context,query,budget,subject_ids=tuple(subjects),
                     matter_refs=tuple(matter_ids),kinds=("claim","hypothesis","matter"),limit=self.policy.max_old_records)
                 for value in values:
                     item=wire(value)

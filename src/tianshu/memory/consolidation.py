@@ -19,6 +19,8 @@ from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolid
 from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, expand_record_endpoints, frozen_mapping, model_material, partition_identity
 
 _ACTIVE = {"prepared", "waiting_model", "ready"}
+MODEL_REQUEST_SECONDS = 120
+COMMIT_RESERVE_SECONDS = 5
 
 
 def context_from_bound(value):
@@ -93,15 +95,16 @@ class Consolidation:
             if not state["active_batch_id"] and state["wake_due_at"] and state["wake_due_at"] > now:
                 await self._schedule_on(conn, partition_id, state["wake_due_at"])
                 return
-            await conn.execute(
-                "UPDATE memory.consolidation_state SET lease_owner=%s,lease_until=now()+interval '3 minutes',updated_at=now() WHERE partition_id=%s",
-                (owner, partition_id))
+            lease = await (await conn.execute(
+                "UPDATE memory.consolidation_state SET lease_owner=%s,lease_until=now()+interval '3 minutes',updated_at=now() "
+                "WHERE partition_id=%s RETURNING lease_until", (owner, partition_id))).fetchone()
         batch_id = state["active_batch_id"]
         try:
             context = context_from_bound(state["authority_bound"])
             await self.identity.check_context(context)
             if not batch_id:
-                batch_id = await self._prepare(state, context, owner)
+                batch_id = await self._prepare(state, context, owner,
+                    budget=self.preparation_budget(lease["lease_until"]))
             if batch_id:
                 await self._execute(batch_id, context)
         except (AppError, TimeoutError, ValueError, TypeError) as exc:
@@ -111,6 +114,12 @@ class Consolidation:
                 await conn.execute(
                     "UPDATE memory.consolidation_state SET lease_owner=NULL,lease_until=NULL WHERE partition_id=%s AND lease_owner=%s",
                     (partition_id, owner))
+
+    @staticmethod
+    def preparation_budget(lease_until):
+        # Optional candidate reads must leave the existing full model request
+        # window and a commit margin inside this same writer's lease.
+        return RequestBudget(lease_until - timedelta(seconds=MODEL_REQUEST_SECONDS + COMMIT_RESERVE_SECONDS))
 
     def _request(self, context, frozen, step_id, *, context_round=0, requests=()):
         payload = model_material(frozen, self.policy, context_round=context_round, requests=requests)
@@ -130,11 +139,11 @@ class Consolidation:
                 "reasoning_reserve":self.policy.reasoning_reserve_tokens,"fixed_tokens":fixed_tokens,
                 "new_characters":sum(len(item["text"]) for item in payload["materials"] if item["role"]=="new")})
         return ModelRequest(step_id, str(uuid5(NAMESPACE_URL, step_id)), "memory.extract", ServiceClass.ELASTIC,
-            context, RequestBudget(datetime.now(UTC)+timedelta(seconds=120)), messages,
+            context, RequestBudget(datetime.now(UTC)+timedelta(seconds=MODEL_REQUEST_SECONDS)), messages,
             system=instruction, max_output_tokens=self.policy.max_output_tokens+self.policy.reasoning_reserve_tokens, estimated_input_tokens=estimate,
             source_refs=self.materials.dependencies(frozen))
 
-    async def _prepare(self, state, context, owner):
+    async def _prepare(self, state, context, owner, *, budget):
         # Source scopes, not the current person selection, identify eligible episodes.
         scopes = state["authority_bound"].get("write_scope_ids")
         if scopes is None:
@@ -163,7 +172,7 @@ class Consolidation:
         reads=PreparationReads(self.sources)
         while True:
             try:
-                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,reads=reads)
+                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,reads=reads,budget=budget)
                 if not frozen:
                     await self._idle(state["partition_id"],owner)
                     return None

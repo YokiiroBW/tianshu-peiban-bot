@@ -6,6 +6,8 @@ image. --code-root selects that image/checkout's src before any product import.
 
 import argparse
 import asyncio
+from hashlib import sha256
+import json
 from pathlib import Path
 import subprocess
 import sys
@@ -38,6 +40,12 @@ def parser():
     semantic.add_argument("--variant", choices=("legacy", "conservative", "optimized"), required=True)
     semantic.add_argument("--stories", default="all", help="all, cost, development, or comma-separated IDs")
     semantic.add_argument("--run-id", default=None)
+    observe = commands.add_parser("observe", help="Read only original unresolved Broker attempt IDs; never generates")
+    observe.add_argument("--config", required=True, type=Path)
+    observe.add_argument("--code-root", required=True, type=Path)
+    observe.add_argument("--run-root", required=True, type=Path)
+    observe.add_argument("--private-root", required=True, type=Path)
+    observe.add_argument("--stories", required=True, help="Explicit existing story IDs, e.g. S01,S03; no corpus is read")
     compare = commands.add_parser("compare", help="Read and pair existing results; never calls a model")
     for name in ("legacy", "conservative", "optimized"):
         compare.add_argument("--" + name, required=True, type=Path)
@@ -135,12 +143,75 @@ async def semantic(args):
     return 2 if failed else 0
 
 
+async def observe(args):
+    # This command intentionally builds no application graph, opens no synthetic
+    # database, reads no corpus, and has no route to ModelClient.generate.
+    sys.path.insert(0, str(args.code_root.resolve() / "src"))
+    if __package__ in {None, ""}:
+        from evaluation.memory_closure.broker import EvaluationModels
+        from evaluation.memory_closure.metering import aggregate_calls
+    else:
+        from .broker import EvaluationModels
+        from .metering import aggregate_calls
+
+    root = private_output(args.run_root, args.private_root)
+    story_ids = args.stories.split(",")
+    if not story_ids or len(set(story_ids)) != len(story_ids) or any(
+            not value or not value.isalnum() for value in story_ids):
+        raise ValueError("explicit_existing_story_ids_required")
+    config = load_json(args.config)
+    errors = 0
+    for story_id in story_ids:
+        directory = root / story_id
+        report = load_json(directory / "report.json")
+        if not (directory / "attempt-map.json").is_file():
+            raise ValueError("original_attempt_map_required:" + story_id)
+        models = EvaluationModels(None, None, config, directory, report["run_id"])
+        models.stage = "original_attempt_observation"
+        observations = []
+        try:
+            await models.open()
+            for local_id, entry in tuple(models.mapping.items()):
+                if entry["state"] not in {"dispatching", "queued", "running", "unknown"}:
+                    continue
+                item = {"local_attempt_id": local_id, "broker_attempt_id": entry["broker_attempt_id"]}
+                try:
+                    await models.status(local_id)
+                    item["receipt"] = entry.get("last_receipt")
+                except Exception as error:
+                    errors += 1
+                    item["observation_error"] = getattr(error, "code", type(error).__name__)
+                observations.append(item)
+        finally:
+            await models.close()
+        calls_raw = (directory / "model-calls.jsonl").read_bytes()
+        calls = [json.loads(line) for line in calls_raw.decode("utf-8").splitlines() if line.strip()]
+        write_json(directory / "receipt-reconciliation.json", {"run_id": report["run_id"],
+            "story_id": story_id, "observations": observations, "model_usage": aggregate_calls(calls),
+            "model_calls_sha256": sha256(calls_raw).hexdigest(),
+            "operation": "status_original_ids_only", "generate_calls": 0,
+            "semantic_verdict": "unchanged; original report and evidence remain authoritative"})
+    return 2 if errors else 0
+
+
 def read_results(directory, variant):
     manifest = load_json(directory / "run.json")
     if manifest["variant"] != variant:
         raise ValueError("cost_variant_manifest_mismatch")
-    return {item["story_id"]: load_json(directory / item["report"])
-            for item in manifest["reports"]}
+    results = {}
+    for item in manifest["reports"]:
+        path = directory / item["report"]
+        report = load_json(path)
+        sidecar = path.parent / "receipt-reconciliation.json"
+        if sidecar.exists():
+            reconciled = load_json(sidecar)
+            if reconciled["run_id"] != report["run_id"]:
+                raise ValueError("receipt_reconciliation_run_identity_mismatch")
+            if sha256((path.parent / "model-calls.jsonl").read_bytes()).hexdigest() != reconciled["model_calls_sha256"]:
+                raise ValueError("receipt_reconciliation_stale")
+            report = {**report, "model_usage": reconciled["model_usage"]}
+        results[item["story_id"]] = report
+    return results
 
 
 def compare(args):
@@ -196,10 +267,10 @@ def prepare_baseline(args):
 def main():
     args = parser().parse_args()
     try:
-        if args.command == "semantic":
+        if args.command in {"semantic", "observe"}:
             if sys.platform == "win32":
                 asyncio.set_event_loop_policy(asyncio.WindowsSelectorEventLoopPolicy())
-            return asyncio.run(semantic(args))
+            return asyncio.run(semantic(args) if args.command == "semantic" else observe(args))
         elif args.command == "compare":
             compare(args)
         else:

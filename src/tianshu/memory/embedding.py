@@ -1,5 +1,6 @@
 """One configured, versioned 1024-dimensional profile; no local-model assumptions."""
 
+from dataclasses import replace
 import math
 from uuid import NAMESPACE_URL, uuid5
 
@@ -32,8 +33,14 @@ class Embeddings:
         query=False,
         source_refs=(),
         service_class=ServiceClass.ELASTIC,
+        profile_snapshot=None,
+        max_queue_wait=None,
     ):
-        profile, fingerprint = await self.profile()
+        # A query's existence check and its embedding use the same profile.
+        # This is request-local reuse, never a second profile cache.
+        budget.check()
+        profile, fingerprint = profile_snapshot if profile_snapshot is not None else await self.profile()
+        budget.check()
         prefix = profile.get("query_instruction", "") if query else ""
         request = ModelRequest(
             intent,
@@ -48,6 +55,8 @@ class Embeddings:
             native_payload={"input": [prefix + text]},
             source_refs=tuple(source_refs),
         )
+        if max_queue_wait is not None:
+            request = replace(request, max_queue_wait=min(request.max_queue_wait, max_queue_wait))
         result = (
             await self.models.generate(request)
             if query

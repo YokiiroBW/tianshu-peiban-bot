@@ -176,6 +176,23 @@ class CandidateStore:
                     " ORDER BY relevance DESC,recorded_at DESC NULLS LAST," + parts["key"] + " LIMIT %s", args)).fetchall())
         return sorted(rows, key=lambda row: (row["relevance"], row.get("recorded_at") or datetime.min.replace(tzinfo=UTC)), reverse=True)[:256]
 
+    async def has_vectors(self, context, plan, fingerprint, budget):
+        """Only a complete authorized selection may prove this vector lane empty.
+
+        EXISTS bounds returned rows, not the searched authorization domain; an
+        SQL timeout is unknown, never evidence that the domain has no vectors.
+        """
+        async with self.database.transaction(budget, read_only=True) as conn:
+            for family in families(plan.evidence_kinds):
+                p = self.selection(context, plan, family)
+                row = await (await conn.execute(
+                    "SELECT EXISTS(SELECT 1 FROM " + p["table"] + " WHERE " + p["where"] +
+                    " AND " + p["profile"] + "=%s AND " + p["embedding"] + " IS NOT NULL LIMIT 1) AS present",
+                    (*p["args"], fingerprint))).fetchone()
+                if row["present"]:
+                    return True
+        return False
+
     async def _exact_vectors_on(self, conn, context, parts, values, fingerprint, limit):
         p = parts
         # Materialization separates cheap scope/version filtering from recursive

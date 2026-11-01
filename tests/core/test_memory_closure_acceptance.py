@@ -3,6 +3,7 @@
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from hashlib import sha256
 from types import SimpleNamespace
 import json
 
@@ -13,9 +14,9 @@ from scripts.evaluation.memory_closure.dataset import (COST_STORY_IDS, OLD_PRODU
     Story, comparison_key, stream_plan, write_json)
 from scripts.evaluation.memory_closure.metering import aggregate_calls
 from scripts.evaluation.memory_closure.recovery import validate_manifest
-from scripts.evaluation.memory_closure.run import compare
+from scripts.evaluation.memory_closure.run import compare, observe, read_results
 from scripts.evaluation.memory_closure.runtime import content_incomplete, progress_key
-from tianshu.models.types import ModelMessage, ModelPart, ModelRequest
+from tianshu.models.types import ModelMessage, ModelPart, ModelReceipt, ModelRequest
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
@@ -147,6 +148,83 @@ async def test_adapter_validates_local_sources_maps_authority_and_never_resubmit
     saved = (tmp_path / "attempt-map.json").read_text(encoding="utf-8")
     assert "synthetic-not-a-secret" not in saved
     assert "synthetic-authorized-model-owner" not in saved
+
+
+@pytest.mark.parametrize("status,dispatch,started", [("cancelled", "not_started", None),
+    ("unknown", "unknown", "2026-11-01T10:00:01+00:00")])
+async def test_original_receipt_observation_settles_local_dispatch_without_new_generation(tmp_path, status, dispatch, started):
+    config = {"broker_url": "http://127.0.0.1:9", "broker_token": "synthetic-not-a-secret",
+              "model_context": wire(synthetic_context())}
+    models = EvaluationModels(SyntheticDatabase(), SyntheticSources(True), config, tmp_path, "original-run")
+    client = LostResponseClient()
+    models.client = client
+    models.allowed_actors.add("synthetic-actor")
+    request = ModelRequest("original-intent", "original-attempt", "embed", ServiceClass.ELASTIC,
+        synthetic_context(), RequestBudget(datetime.now(UTC) + timedelta(seconds=120)), (),
+        required_capabilities=frozenset({"embed"}), max_output_tokens=0)
+    with pytest.raises(TimeoutError):
+        await models.generate(request)
+    remote = client.requests[0].attempt_id
+    receipt = ModelReceipt(remote, "remote-intent", status, dispatch, "route", 1, "provider", "model",
+        "openai.embedding", "original-quota", queued_at=datetime.fromisoformat("2026-11-01T10:00:00+00:00"),
+        started_at=datetime.fromisoformat(started) if started else None,
+        finished_at=datetime.fromisoformat("2026-11-01T10:00:30+00:00"))
+    observed = []
+    async def read_status(attempt_id):
+        observed.append(attempt_id)
+        return receipt
+    client.status = read_status
+    actual = await models.status(request.attempt_id)
+    assert observed == [remote] and actual.attempt_id == request.attempt_id and len(client.requests) == 1
+    assert models.mapping[request.attempt_id]["state"] == status
+    assert models.mapping[request.attempt_id]["dispatch"] == dispatch
+    metrics = aggregate_calls(models.calls)
+    assert metrics["attempt_identities"] == 1 and metrics["not_started"] == (status == "cancelled")
+    assert metrics["submitted_unknown"] == (status == "unknown")
+    assert metrics["physical_dispatch_confirmed"] == bool(started) and metrics["dispatch_unknown"] == 0
+    assert metrics["input_tokens"]["known_sum"] is None
+    if not started:
+        assert metrics["queue_ms"]["known_sum"] == 30000
+        assert metrics["provider_ms"]["known_sum"] is None
+    write_json(tmp_path / "run.json", {"variant": "optimized", "reports": [{"story_id": "S01", "report": "S01/report.json"}]})
+    write_json(tmp_path / "S01/report.json", {"run_id": "same-run", "model_usage": {"stale": True}})
+    log = tmp_path / "S01/model-calls.jsonl"
+    log.write_text("\n".join(json.dumps(call) for call in models.calls) + "\n", encoding="utf-8")
+    write_json(tmp_path / "S01/receipt-reconciliation.json", {"run_id": "same-run", "model_usage": metrics,
+        "model_calls_sha256": sha256(log.read_bytes()).hexdigest()})
+    assert read_results(tmp_path, "optimized")["S01"]["model_usage"] == metrics
+    with log.open("a", encoding="utf-8") as stream:
+        stream.write(json.dumps({"broker_attempt_id": "later-original", "receipt": None}) + "\n")
+    with pytest.raises(ValueError, match="receipt_reconciliation_stale"):
+        read_results(tmp_path, "optimized")
+
+
+async def test_observe_cli_reads_only_saved_unresolved_ids_and_keeps_original_report(tmp_path, monkeypatch):
+    directory = tmp_path / "original-run" / "S01"
+    config = tmp_path / "config.json"
+    write_json(config, {"broker_url": "http://127.0.0.1:9", "broker_token": "synthetic-not-a-secret",
+                        "model_context": wire(synthetic_context())})
+    write_json(directory / "report.json", {"run_id": "original-run:S01", "answer": "saved answer"})
+    write_json(directory / "attempt-map.json", {"local-original": {"state": "unknown",
+        "broker_attempt_id": "broker-original", "local_attempt_id": "local-original", "local_intent_id": "intent"}})
+    (directory / "model-calls.jsonl").write_text(json.dumps({"broker_attempt_id": "broker-original",
+                                                          "receipt": None}) + "\n", encoding="utf-8")
+    reads = []
+    async def status(attempt_id):
+        reads.append(attempt_id)
+        return ModelReceipt(attempt_id, "intent", "cancelled", "not_started", "route", 1,
+                            "provider", "model", "openai.embedding", "quota")
+    async def close():
+        pass
+    async def open_status_client(models):
+        models.client = SimpleNamespace(status=status, receipts={}, close=close)
+    monkeypatch.setattr(EvaluationModels, "open", open_status_client)
+    result = await observe(SimpleNamespace(code_root=tmp_path, private_root=tmp_path,
+        run_root=directory.parent, config=config, stories="S01"))
+    assert result == 0 and reads == ["broker-original"]
+    assert json.loads((directory / "report.json").read_text())["answer"] == "saved answer"
+    reconciled = json.loads((directory / "receipt-reconciliation.json").read_text())
+    assert reconciled["generate_calls"] == 0 and reconciled["model_usage"]["not_started"] == 1
 
 
 def test_cost_comparison_reuses_same_inputs_and_refuses_a_fictional_old_baseline(tmp_path):

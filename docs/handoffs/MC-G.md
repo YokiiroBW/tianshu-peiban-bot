@@ -49,3 +49,15 @@ C 修复端口按 `3becfa4`（主协调集成 `7ae598b`）的最终签名准备�
 主协调已提供 `.230` 的 `/srv/tianshu-core/evaluation-memory-closure-20261101` 私有 config/postgres.env/stories/legacy-code，NAS 隔离 PG `192.168.31.210:25019` 可达。只记录必需字段名和路径，不读取/复述秘密；没有读取 held_out 正文。README 末节给三组准确 Docker 命令、目录层次、ModelCatalog bindings/capabilities、ModelClient wire 及 native初始化/无普通worker的边界。候选 source/image 由 root 在所有产品返修及集中复验、build 后填最终值；不用阅读基线冒充最终候选。
 
 业务写入/文件限定于隔离数据库与私有结果目录；模型请求仍由唯一生产 Broker 正常记录审计/usage/配额，不能称“生产完全无写入”。没有绑定 Fish 音色或驱动外部能力。root 等 C 最后启动修复后统一复验/构建/运行，G 不提前试跑。
+
+## 模型预算与原 attempt 对账修复
+
+本轮基线 `e95cc45b5825fde99450065d4b831363f540c53e`，分支 `codex/memory-model-budget-20261101`。root 已确认 S01/S03 开发证据中的亚秒远端超时与同 quota 后台 hold 链为本批实际缺口并授权实现。没有读取 held_out。生产模型状态只依据 root 保存的原回执与 policy 读取，未由 G 连接/操作。
+
+预算归属：Consolidation 租约更新 RETURNING 数据库真实 lease_until；准备截止时间为该值减既有 `MODEL_REQUEST_SECONDS=120` 及明确 `COMMIT_RESERVE_SECONDS=5`，初始约 55 秒。传到 MaterialBuilder.build/old_records 的同一个 RequestBudget 覆盖所有缩窗，原硬编码两秒去除。MemoryRetrieval 在原 parent 内预留完整 embedding/rerank 执行窗口、排队余量与 0.5 秒终检，不再将不足时限压成亚秒请求；背景使用其较长 parent，原 service_class 不变。profile 的控制请求包在原 query child timeout 内，并在当次查询的存在性判断/向量生成之间复用。没有配置改写、第二套缓存/线程/模型系统或 Broker unknown/并发调整。
+
+候选存在性：CandidateStore.has_vectors 逐类型使用 selection 的完整 where 与 profile/embedding IS NOT NULL 做 EXISTS，范围包括主体、时态、选中版本、来源授权和完整依赖；没有词法/分页/采样推断。只有完整查询返回 false 才认定空，数据库预算失败记录不可用。现有精确/词法、多人物合并、整条 evidence unit 与提交 CAS/终检保留；短预算缺失原因明确，单候选无排序收益时跳过。
+
+G 工具根据已有 cancel receipt 记录原状态；显式 observe 子命令只读已有 mapping 的原 unresolved ID，追加观测并生成 sidecar，compare 按同 run_id 取已对账 usage。真实 unknown 不重发，已确认 cancelled/not_started 分列，不再把它们混进 submitted_unknown；取消前排队耗时保留，缺失用量不推算费用。原答案/report/提案保持原记录，不因对账伪装语义通过。准确调用与挂载要求见 scripts/evaluation/memory_closure/README.md 末节。
+
+新增/扩展定向用例仅编写：tests/core/test_consolidation_pipeline.py、test_memory_evidence_retrieval.py、test_memory_closure_acceptance.py；现有 ContextAssembler/product 装配用例纳入本次 root 最小集中复验。G 只做静态 diff/空白检查，未运行 pytest、构建、类型检查、候选程序、模型、PG、网络或生产。开发提交供 root 集成后统一验证，不能报告本次运行通过。

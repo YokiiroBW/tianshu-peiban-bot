@@ -91,6 +91,12 @@ class EvaluationModels:
         return replace(result, receipt=replace(result.receipt,
             attempt_id=mapping["local_attempt_id"], intent_id=mapping["local_intent_id"]))
 
+    def _observed(self, entry, receipt):
+        if receipt is not None:
+            entry.update(state=receipt["status"], dispatch=receipt["dispatch"],
+                         last_receipt=receipt, observed_at=datetime.now(UTC).isoformat())
+            self._save()
+
     async def generate(self, request):
         from tianshu.runtime.errors import AppError
         from tianshu.runtime.serialization import wire
@@ -130,13 +136,16 @@ class EvaluationModels:
         except BaseException as error:
             entry["state"] = "unknown"
             self._save()
+            # Native ModelClient may already have a cancellation receipt. Use
+            # that observation, without adding control I/O to the query deadline.
+            receipt = self.client.receipts.get(entry["broker_attempt_id"])
+            self._observed(entry, receipt)
             self._audit({"operation": "generate", "stage": self.stage,
                 "broker_attempt_id": entry["broker_attempt_id"], "function": request.function,
-                "receipt": None, "error_code": getattr(error, "code", type(error).__name__),
+                "receipt": receipt, "error_code": getattr(error, "code", type(error).__name__),
                 "elapsed_ms": (perf_counter() - started) * 1000})
             raise
-        entry["state"] = result.receipt.status
-        self._save()
+        self._observed(entry, self.client.receipts.get(entry["broker_attempt_id"], wire(result.receipt)))
         self._audit({"operation": "generate", "stage": self.stage,
             "broker_attempt_id": entry["broker_attempt_id"], "function": request.function,
             "receipt": self.client.receipts.get(entry["broker_attempt_id"], wire(result.receipt)),
@@ -159,8 +168,7 @@ class EvaluationModels:
             "receipt": self.client.receipts.get(entry["broker_attempt_id"], wire(result.receipt)) if result else None,
             "result": wire(result) if result else None})
         if result is not None:
-            entry["state"] = result.receipt.status
-            self._save()
+            self._observed(entry, self.client.receipts.get(entry["broker_attempt_id"], wire(result.receipt)))
             return self._restore(result, entry)
         return None
 
@@ -171,9 +179,11 @@ class EvaluationModels:
         if not entry:
             return None
         receipt = await self.client.status(entry["broker_attempt_id"])
+        observed = self.client.receipts.get(entry["broker_attempt_id"], wire(receipt)) if receipt else None
+        self._observed(entry, observed)
         self._audit({"operation": "status", "stage": self.stage,
             "broker_attempt_id": entry["broker_attempt_id"],
-            "receipt": self.client.receipts.get(entry["broker_attempt_id"], wire(receipt))})
+            "receipt": observed, "observed_at": datetime.now(UTC).isoformat()})
         return replace(receipt, attempt_id=attempt_id, intent_id=entry["local_intent_id"]) if receipt else None
 
     async def embedding_profile(self):
