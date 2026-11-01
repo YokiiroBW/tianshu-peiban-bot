@@ -1,5 +1,5 @@
 {
-  "phase": "real_model_semantic_acceptance",
+  "phase": "real_semantic_and_resource_import_repairs",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
@@ -300,6 +300,18 @@
       "owner": "MC-B",
       "state": "implemented_not_verified",
       "problem": "Input-budget failure before batch persistence prevented resume after configuration changed; now records actual failure budget and exposes refresh_material after relevant change without new Episode or automatic paid retry."
+    },
+    {
+      "id": "RC-17",
+      "owner": "MC-B",
+      "state": "repair_in_progress",
+      "problem": "First-time explicit arrangements were extracted only as claims; clarify native Matter selection and stable identity without creating reminders or external tasks."
+    },
+    {
+      "id": "RC-18",
+      "owner": "MC-A",
+      "state": "repair_in_progress",
+      "problem": "Reaction pack publication scopes diverged from raw Source and Artifact authority, preventing normal QQ role usage after UI import; make explicit per-actor import consistent across all layers."
     }
   ],
   "blueprint_acceptance": {
@@ -310,7 +322,7 @@
     "stories": 24,
     "development": 16,
     "held_out": 8,
-    "state": "prepared_ready_for_real_broker_run",
+    "state": "first_frozen_run_interrupted_on_confirmed_matter_modeling_gap",
     "additional_contract_scenarios": 12
   },
   "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
@@ -339,7 +351,23 @@
       "pages_failed": 20,
       "page_case_count": 36
     },
-    "semantic": "private_inputs_prepared_not_started",
+    "semantic": {
+      "source_sha": "3153c53f621cc786498296327d01312bb58af8d6",
+      "image_id": "sha256:9bf4eda0be6be8697458e315665c8f8c5de8320433fb4d7aa51da1c128a8ab12",
+      "completed_development": [
+        "S01",
+        "S02"
+      ],
+      "interrupted_development": "S03",
+      "held_out_started": false,
+      "original_attempts": "preserved and observed; unknown receipts never reissued",
+      "findings": [
+        "S01 answer attribution correct, but native Matters missing for explicit future arrangements",
+        "S02 answer correctly distinguished correction from changed preference",
+        "Old memory content is in actual ModelSteps request; compact persisted mapping deliberately avoids duplicate text",
+        "Short retrieval deadlines yielded unknown embedding/rerank attempts; exact cause under bounded analysis"
+      ]
+    },
     "production_changed": false,
     "second_pass": {
       "backend_completed": 88,
