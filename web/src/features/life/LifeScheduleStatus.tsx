@@ -11,6 +11,8 @@ const planningReasons: Record<string, string> = {
   existing_activity_continues: "已有活动会按保存的进度继续。",
   current_activity_continues: "当前活动仍在进行，本次没有重排。",
   planner_output_invalid: "这次模型输出没有形成有效计划，未保存活动。",
+  planner_output_incomplete:
+    "原规划结果不完整，尚未保存为有效活动；保留原执行记录供核对。",
   planner_context_budget_exceeded:
     "规划所需材料超出模型上下文预算，未提交新的计划。",
   planner_capability_unavailable: "规划选择的能力当前不可用，未执行该活动。",

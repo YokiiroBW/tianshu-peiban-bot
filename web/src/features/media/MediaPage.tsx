@@ -13,6 +13,7 @@ import { MusicPanel } from "./music/MusicPanel";
 import { BooksPanel } from "./books/BooksPanel";
 import { ComicsPanel } from "./comics/ComicsPanel";
 import { tone, word } from "./wording";
+import { mediaEngineState } from "./overviewPresentation";
 import "./media.css";
 
 export default function MediaPage({ section = 4 }: { section?: number }) {
@@ -27,8 +28,8 @@ export default function MediaPage({ section = 4 }: { section?: number }) {
         <div className="media-header">
           {media.view && section !== 4 && (
             <StatusRail
-              tone={tone(media.view.engine.state)}
-              label={`视频下载引擎 · ${word(media.view.engine.state)}`}
+              tone={tone(mediaEngineState(media.view.engine))}
+              label={`视频下载引擎 · ${word(mediaEngineState(media.view.engine))}`}
             />
           )}
           <button

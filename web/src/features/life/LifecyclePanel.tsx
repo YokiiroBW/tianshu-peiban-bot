@@ -10,6 +10,7 @@ import { DetailCard } from "../../components/DetailCard";
 import { SchemaFields } from "../plugins/SchemaFields";
 import type { JsonSchema } from "../plugins/types";
 import type { Activity, Goal } from "./domainTypes";
+import { CapabilityReadiness } from "../multimodal/CapabilityReadiness";
 import {
   activityLabels,
   activityWaitingReason,
@@ -62,6 +63,10 @@ export function LifecyclePanel({
   };
   return (
     <div className="domain-workspace">
+      <CapabilityReadiness
+        ids={["content.read", "images.generate"]}
+        title="阅读与主动创作能力"
+      />
       <section className="life-card">
         <div className="section-heading">
           <div>
@@ -166,6 +171,11 @@ export function LifecyclePanel({
                   ? activityWaitingReason(item.waiting_reason)
                   : `已保存 ${item.checkpoint_step} 个步骤`}
               </p>
+              {!item.checkpoint_data?.capability_id && (
+                <p className="muted">
+                  角色主观活动，完成记录不表示发生了现实身体活动或真实工具执行。
+                </p>
+              )}
               {item.next_due_at && (
                 <p>下一时间：{timeLabel(item.next_due_at)}</p>
               )}

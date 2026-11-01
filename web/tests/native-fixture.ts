@@ -164,6 +164,16 @@ export async function nativeSession(page: Page) {
       "life/room": room,
       "life/commitments": emptyPage,
       "capabilities/discover": [],
+      "capabilities/catalog/view": {
+        actor_id: "actor",
+        revision: 1,
+        items: [],
+        sources: [],
+      },
+      "memory/claims": emptyPage,
+      "memory/matters": emptyPage,
+      "memory/reflections": emptyPage,
+      "memory/query": emptyPage,
       "devices/view": {
         connections: [],
         readings: [],

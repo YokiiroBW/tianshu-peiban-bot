@@ -41,6 +41,7 @@ export const stateWords: Record<string, string> = {
   not_configured: "未配置",
   available: "可用",
   unavailable: "暂不可用",
+  not_verified: "工作进程状态未确认",
   waiting: "等待扫码",
   scanned: "已扫码，请在手机确认",
   expired: "二维码已过期",
@@ -57,6 +58,10 @@ export const destinationModeWords = {
   custom: "自定义目录",
 };
 export const reasonWords: Record<string, string> = {
+  media_worker_observation_stale:
+    "最近一次工作进程观测已经过期，不能据此确认当前引擎可用。",
+  media_worker_observation_missing:
+    "尚无可确认的工作进程观测，请查看后台进程状态。",
   media_worker_failed: "此任务遇到内部错误，其他下载继续运行；可重试此任务。",
   media_background_restarting: "后台任务异常退出，正在自动恢复。",
   music_account_restored: "登录已恢复，已继续原下载任务。",
@@ -228,9 +233,12 @@ export const errorWords: Record<string, string> = {
   navidrome_export_unavailable:
     "无法更新歌单导出目录的 Navidrome 导入规则，请检查存档目录权限。",
 };
-export function timestamp(seconds: number | null | undefined) {
-  if (seconds == null || !Number.isFinite(seconds)) return "尚无记录";
-  return new Date(seconds * 1000).toLocaleString("zh-CN", { hour12: false });
+export function timestamp(value: number | string | null | undefined) {
+  if (value == null) return "尚无记录";
+  const date = new Date(typeof value === "number" ? value * 1000 : value);
+  return Number.isNaN(date.getTime())
+    ? "尚无记录"
+    : date.toLocaleString("zh-CN", { hour12: false });
 }
 export function tone(state: string): "blue" | "yellow" | "red" | "gray" {
   if (
@@ -247,9 +255,14 @@ export function tone(state: string): "blue" | "yellow" | "red" | "gray" {
   if (["failed", "auth_required", "rule_error", "unavailable"].includes(state))
     return "red";
   if (
-    ["paused", "cancelled", "revoked", "unknown", "not_configured"].includes(
-      state,
-    )
+    [
+      "paused",
+      "cancelled",
+      "revoked",
+      "unknown",
+      "not_configured",
+      "not_verified",
+    ].includes(state)
   )
     return "gray";
   return "yellow";

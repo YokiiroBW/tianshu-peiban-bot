@@ -10,7 +10,19 @@ import type { Page } from "../../api/contracts";
 import { SourceEvidence } from "../../components/SourceEvidence";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { useMemoryCursor } from "./pagination";
-import { matterStates, time, type Matter } from "./types";
+import {
+  CoverageNote,
+  EvidenceDetails,
+  EvidenceHistory,
+  EvidenceRelations,
+} from "./EvidenceDetails";
+import {
+  currentMemory,
+  matterStates,
+  time,
+  type Matter,
+  type MemoryTimeQuery,
+} from "./types";
 
 function MatterEditor({
   item,
@@ -29,6 +41,7 @@ function MatterEditor({
   const [title, setTitle] = useState(item?.title ?? "");
   const [summary, setSummary] = useState(item?.summary ?? "");
   const [state, setState] = useState(item?.state ?? "planned");
+  const [reason, setReason] = useState("");
   const [due, setDue] = useState(
     item?.due_at
       ? new Date(
@@ -50,17 +63,16 @@ function MatterEditor({
           {
             ...scope,
             matter_id: id,
-            subject_id:
-              item?.subject_id ??
-              subjectId ??
-              scope.person_id ??
-              `actor:${scope.actor_id}`,
+            subject_id: item
+              ? item.subject_id
+              : (subjectId ?? scope.person_id ?? `actor:${scope.actor_id}`),
             title,
             summary,
             state,
             due_at: due ? new Date(due).toISOString() : null,
             claim_ids: item?.claim_ids ?? [],
             conditions: item?.conditions ?? {},
+            ...(reason.trim() ? { reason } : {}),
           },
           item?.revision ?? 0,
         );
@@ -70,6 +82,12 @@ function MatterEditor({
         }
       }}
     >
+      {item && (
+        <p>
+          编辑当前版本 v{item.revision}
+          。保存会核对该版本；历史读取不会覆盖当前进展。
+        </p>
+      )}
       <label>
         事项标题
         <input
@@ -108,6 +126,18 @@ function MatterEditor({
           onChange={(event) => setSummary(event.target.value)}
         />
       </label>
+      <label>
+        本次修订原因
+        <input
+          value={reason}
+          onChange={(event) => setReason(event.target.value)}
+        />
+      </label>
+      {state === "completed" && (
+        <p className="muted">
+          这次明确更新会保存为人类报告完成；真实工具是否成功仍以实际执行回执为准。
+        </p>
+      )}
       <div className="models-actions">
         <button className="button" disabled={command.busy}>
           保存这次明确确认
@@ -120,24 +150,77 @@ function MatterEditor({
     </form>
   );
 }
+function CurrentMatterEditor({
+  id,
+  scope,
+  saved,
+  cancel,
+  subjectId,
+}: {
+  id: string;
+  scope: DomainTarget;
+  saved: () => Promise<void>;
+  cancel: () => void;
+  subjectId?: string | null;
+}) {
+  const current = useDomainResource<Matter>("memory/matters/get", {
+    ...scope,
+    matter_id: id,
+  });
+  return (
+    <div>
+      {current.loading && <p role="status">正在读取事项当前版本…</p>}
+      {current.error && <p role="alert">{current.error}</p>}
+      {!current.data && (
+        <div className="models-actions">
+          <button
+            className="button"
+            disabled={current.loading}
+            onClick={() => void current.refresh()}
+          >
+            重新读取当前事项
+          </button>
+          <button className="button" onClick={cancel}>
+            取消
+          </button>
+        </div>
+      )}
+      {current.data && (
+        <MatterEditor
+          key={`${current.data.matter_id}:${current.data.revision}`}
+          item={current.data}
+          scope={scope}
+          saved={saved}
+          cancel={cancel}
+          subjectId={subjectId}
+        />
+      )}
+    </div>
+  );
+}
 export function Matters({
   scope,
   subjectId,
+  query = currentMemory,
+  identities = {},
 }: {
   scope: DomainTarget;
   subjectId?: string | null;
+  query?: MemoryTimeQuery;
+  identities?: Record<string, string>;
 }) {
   const { session } = useAuth();
   const manageable = session?.principal?.permissions.some(
     (value) => value === "*" || value === "memory.manage",
   );
-  const [editing, setEditing] = useState<Matter | "new" | null>(null);
-  const cursor = useMemoryCursor({ ...scope, subjectId }, "matters");
+  const [editing, setEditing] = useState<string | null>(null);
+  const cursor = useMemoryCursor({ ...scope, subjectId, ...query }, "matters");
   const view = useDomainResource<Page<Matter>>(
     "memory/matters",
     {
       ...scope,
       subject_id: subjectId ?? null,
+      ...query,
       cursor: cursor.cursor,
       limit: 40,
     },
@@ -153,10 +236,20 @@ export function Matters({
           </button>
         )}
       </div>
-      {editing && (
+      {editing === "new" && (
         <MatterEditor
-          key={editing === "new" ? "new" : editing.matter_id}
-          item={editing === "new" ? null : editing}
+          key="new"
+          item={null}
+          scope={scope}
+          subjectId={subjectId}
+          saved={view.refresh}
+          cancel={() => setEditing(null)}
+        />
+      )}
+      {editing && editing !== "new" && (
+        <CurrentMatterEditor
+          key={editing}
+          id={editing}
           scope={scope}
           subjectId={subjectId}
           saved={view.refresh}
@@ -165,6 +258,7 @@ export function Matters({
       )}
       {view.error && <p role="alert">{view.error}</p>}
       {view.loading && <p>正在读取事项…</p>}
+      {view.data && <CoverageNote coverage={view.data.coverage} />}
       <ul>
         {view.data?.items.map((item) => (
           <li key={item.matter_id}>
@@ -175,10 +269,31 @@ export function Matters({
               {item.interpretation ? " · 模型解释，未经本人确认完成" : ""}
             </p>
             <p>{item.summary}</p>
+            <EvidenceDetails
+              item={item}
+              scope={scope}
+              identities={identities}
+            />
+            <EvidenceRelations
+              relations={item.relations}
+              scope={scope}
+              identities={identities}
+            />
             <SourceEvidence sources={item.source_refs} scope={scope} />
+            <EvidenceHistory
+              kind="matters"
+              id={item.matter_id}
+              scope={scope}
+              identities={identities}
+            />
             {manageable && (
-              <button className="text-link" onClick={() => setEditing(item)}>
-                更正进展或时间
+              <button
+                className="text-link"
+                onClick={() => setEditing(item.matter_id)}
+              >
+                {query.time_mode === "current"
+                  ? "更正进展或时间"
+                  : "读取当前事项并更正"}
               </button>
             )}
           </li>

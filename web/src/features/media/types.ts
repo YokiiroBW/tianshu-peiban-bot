@@ -218,12 +218,27 @@ export type MediaView = {
     source_kinds: string[];
     destination_modes?: DestinationMode[];
   };
-  engine: { state: string; version: string | null; code: string };
+  engine: {
+    state: string;
+    version: string | null;
+    code: string;
+    observed_at?: number | string | null;
+    owner_id?: string | null;
+    owner_live?: boolean;
+    stale?: boolean;
+    generation?: number;
+  };
   background?: {
     name: string;
     state: string;
-    restarts: number;
+    restarts?: number;
     code: string | null;
+    worker_owner?: string | null;
+    owner_live?: boolean;
+    observed_at?: number | string | null;
+    next_due_at?: number | string | null;
+    started_at?: number | string | null;
+    generation?: number | null;
   }[];
   accounts: Account[];
   targets: Target[];
@@ -238,6 +253,8 @@ export type MediaView = {
       schema_version: number;
       query_ms: number;
       size_bytes: number | null;
+      size_scope?: string | null;
+      size_scope_name?: string | null;
     };
     music?: {
       total: number;

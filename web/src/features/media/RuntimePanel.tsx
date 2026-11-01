@@ -2,7 +2,7 @@ import { ArrowRight, Cpu, Database, Network, Activity } from "lucide-react";
 import { StatusRail } from "../../components/StatusRail";
 import { ReasonNote } from "./ReasonNote";
 import type { MediaView } from "./types";
-import { bytes, uptime } from "./overviewPresentation";
+import { bytes, mediaEngineState, uptime } from "./overviewPresentation";
 import { timestamp, tone, word } from "./wording";
 
 export function RuntimeCards({
@@ -14,6 +14,16 @@ export function RuntimeCards({
 }) {
   const runtime = view.overview?.runtime;
   const db = view.overview?.database;
+  const databaseEngine = db?.engine || "引擎尚未取得";
+  const sizeScope =
+    db?.size_scope === "schema"
+      ? `媒体 schema${db.size_scope_name ? `（${db.size_scope_name}）` : ""}的表、索引与 TOAST`
+      : ((
+          { database: "整个数据库", main_file: "数据库主文件" } as Record<
+            string,
+            string
+          >
+        )[db?.size_scope ?? ""] ?? "统计范围尚未取得");
   return (
     <>
       <section className="media-card overview-system" aria-label="系统状态">
@@ -61,7 +71,7 @@ export function RuntimeCards({
         </div>
         <div className="overview-primary-value">
           {bytes(db?.size_bytes)}
-          <span>订阅数据库 · SQLite</span>
+          <span>媒体数据库 · {databaseEngine}</span>
         </div>
         <dl className="overview-facts">
           <div>
@@ -72,10 +82,15 @@ export function RuntimeCards({
             <dt>结构版本</dt>
             <dd>{db ? `v${db.schema_version}` : "—"}</dd>
           </div>
+          <div>
+            <dt>大小统计范围</dt>
+            <dd>{sizeScope}</dd>
+          </div>
         </dl>
         {details && (
           <p className="muted">
-            统计来自天枢共用的媒体数据库，大小仅含数据库主文件；查询时间包含等待数据库锁，不代表网络延迟。
+            统计来自服务器返回的 {databaseEngine} 观测，大小范围为{sizeScope}
+            。查询耗时包含服务处理和数据库等待，不代表浏览器网络延迟。
           </p>
         )}
       </section>
@@ -181,28 +196,53 @@ export function RuntimePanel({
       <section className="media-card" aria-label="下载引擎详情">
         <h2>下载引擎</h2>
         <StatusRail
-          tone={tone(view.engine.state)}
-          label={word(view.engine.state)}
+          tone={tone(mediaEngineState(view.engine))}
+          label={word(mediaEngineState(view.engine))}
         />
         <ReasonNote code={view.engine.code} />
-        {view.background && view.background.length > 0 && (
+        {(view.engine.stale ||
+          view.engine.owner_live === false ||
+          !view.engine.observed_at) && (
           <p role="status">
-            后台执行：
-            {view.background.filter((row) => row.state === "running").length}/
-            {view.background.length} 项运行 · 下载工作线程：
-            {
-              view.background.filter(
-                (row) =>
-                  row.name.startsWith("worker_") && row.state === "running",
-              ).length
-            }
-            {view.background.some((row) => row.state !== "running") &&
-              " · 部分后台任务正在恢复，请留意下载进展。"}
+            {view.engine.observed_at
+              ? "工作进程观测已过期或原所有者已失活，当前运行状态尚未确认。"
+              : "尚未取得工作进程的持久观测。"}
           </p>
         )}
+        {view.background?.length ? (
+          <ul>
+            {view.background.map((row) => (
+              <li key={row.name}>
+                {row.name} ·{" "}
+                {row.owner_live && row.observed_at
+                  ? ((
+                      {
+                        running: "正在运行",
+                        idle: "等待下一次任务",
+                        waiting: "等待下一次任务",
+                        stopped: "已停止",
+                        failed: "本次任务未完成",
+                        unknown: "尚未确认",
+                      } as Record<string, string>
+                    )[row.state] ?? "尚未确认")
+                  : "工作进程状态未知"}
+                <small>
+                  {" "}
+                  · 最近观测 {timestamp(row.observed_at)}
+                  {row.next_due_at
+                    ? ` · 下次时间 ${timestamp(row.next_due_at)}`
+                    : ""}
+                </small>
+                {row.code && <ReasonNote code={row.code} />}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p>尚未取得后台任务观测。</p>
+        )}
         <p className="muted">
-          引擎版本：{view.engine.version || "尚未取得"} · 最近采样：
-          {timestamp(view.overview?.runtime?.sampled_at ?? null)}
+          引擎版本：{view.engine.version || "尚未取得"} · 工作进程最近观测：
+          {timestamp(view.engine.observed_at)}
         </p>
         <a className="overview-text-link" href="#/media/accounts">
           管理视频账号与媒体库

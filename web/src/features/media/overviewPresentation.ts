@@ -1,4 +1,9 @@
 import type { MediaView, StorageVolume } from "./types";
+export function mediaEngineState(engine: MediaView["engine"]) {
+  if (engine.stale || !engine.owner_live || !engine.observed_at)
+    return "not_verified";
+  return engine.state;
+}
 
 export function bytes(value: number | null | undefined) {
   if (value == null || !Number.isFinite(value) || value < 0) return "—";

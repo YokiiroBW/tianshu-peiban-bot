@@ -27,6 +27,8 @@ export type CurrentWeather = {
   expires_at: string | null;
   stale: boolean;
   code: string;
+  recovery?: "observe_original_attempt" | null;
+  retry_after?: string | null;
 };
 export function WeatherCard({
   locationId,
@@ -74,7 +76,9 @@ export function WeatherCard({
                   ? "读取天气…"
                   : view.error
                     ? "天气暂不可用"
-                    : (current?.code ?? "尚无实际读数")}
+                    : current?.recovery === "observe_original_attempt"
+                      ? "天气原结果尚未确认"
+                      : "尚无新的实际读数"}
             </strong>
           )}
         </div>
@@ -104,6 +108,17 @@ export function WeatherCard({
               : " · 供应商未提供观测时间"}
           </small>
         )}
+        {current?.recovery === "observe_original_attempt" && (
+          <p role="status">
+            原天气读取仍在等待或结果未知，继续观察原请求。
+            {current.retry_after
+              ? ` 资源占位截止 ${new Date(current.retry_after).toLocaleString("zh-CN")}；截止不等于已取得新读数。`
+              : " 尚未取得资源占位截止时间。"}
+          </p>
+        )}
+        {current?.stale && (
+          <p className="muted">当前展示上次保留的过期读数。</p>
+        )}
         {view.error && <p role="alert">{view.error}</p>}
         <div className="domain-actions">
           <button
@@ -111,9 +126,11 @@ export function WeatherCard({
             disabled={!locationId || view.loading}
             onClick={() => void view.refresh()}
           >
-            刷新天气
+            {current?.recovery === "observe_original_attempt"
+              ? "查询原读取状态"
+              : "刷新天气"}
           </button>
-          <a className="text-link" href="#/system/connections">
+          <a className="text-link" href="#/settings/weather">
             天气连接设置
           </a>
         </div>

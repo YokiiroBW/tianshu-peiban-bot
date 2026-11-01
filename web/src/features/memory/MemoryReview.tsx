@@ -1,47 +1,61 @@
-import { useAuth } from "../../app/Auth";
 import { useState } from "react";
 import {
-  useDomainCommand,
   useDomainResource,
   type DomainTarget,
 } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import { SourceEvidence } from "../../components/SourceEvidence";
-import { CommandFeedback } from "../../components/CommandFeedback";
 import { useMemoryCursor } from "./pagination";
-import { time, type Episode, type Reflection } from "./types";
+import { CoverageNote } from "./EvidenceDetails";
+import { EpisodeProcessing } from "./ConsolidationStatus";
+import {
+  currentMemory,
+  episodeOrigin,
+  showValue,
+  time,
+  type Episode,
+  type Reflection,
+  type MemoryTimeQuery,
+} from "./types";
 
 export default function MemoryReview({
   scope,
   personId,
+  query = currentMemory,
+  identities = {},
 }: {
   scope: DomainTarget;
   personId?: string | null;
+  query?: MemoryTimeQuery;
+  identities?: Record<string, string>;
 }) {
-  const { session } = useAuth();
-  const manageable = session?.principal?.permissions.some(
-    (value) => value === "*" || value === "memory.manage",
-  );
   const [collection, setCollection] = useState<"episodes" | "reflections">(
     "episodes",
   );
-  const cursor = useMemoryCursor(scope, collection);
+  const cursor = useMemoryCursor(
+    { ...scope, personId, ...(collection === "reflections" ? query : {}) },
+    collection,
+  );
   const view = useDomainResource<Page<Episode | Reflection>>(
     `memory/${collection}`,
     {
       ...scope,
       person_id: personId ?? scope.person_id ?? null,
+      ...(collection === "reflections" ? query : {}),
       cursor: cursor.cursor,
       limit: 40,
     },
     !!scope.actor_id,
   );
-  const command = useDomainCommand<unknown>("memory-extraction", "actor");
   return (
     <section className="memory-review">
       <div className="section-heading">
-        <h3>真实经历与反思</h3>
-        <button className="button" onClick={() => void view.refresh()}>
+        <h3>经历与反思</h3>
+        <button
+          className="button"
+          disabled={view.loading}
+          onClick={() => void view.refresh()}
+        >
           刷新
         </button>
       </div>
@@ -51,7 +65,7 @@ export default function MemoryReview({
           aria-pressed={collection === "episodes"}
           onClick={() => setCollection("episodes")}
         >
-          实际经历
+          经历记录
         </button>
         <button
           className="button"
@@ -62,71 +76,72 @@ export default function MemoryReview({
         </button>
       </div>
       <p className="muted">
-        经历保留实际执行结果；反思是带依据的解释和推测，不等于人物事实。
+        人类输入、观察、工具结果和角色主观活动保留各自来源。反思是可修订的解释，不等于人物事实。
       </p>
+      {collection === "episodes" && query.time_mode !== "current" && (
+        <p>
+          经历列表显示当前可读原件和当前处理状态；时间选择用于事实、事项和反思。
+        </p>
+      )}
       {view.error && <p role="alert">{view.error}</p>}
-      {view.loading && <p>正在核验来源…</p>}
+      {view.loading && <p role="status">正在核验来源…</p>}
       {view.data && (
         <>
-          <p className="muted">
-            {view.data.coverage.complete
-              ? "本批范围已读完"
-              : "本批范围存在后续或不可用来源"}
-          </p>
-          {view.data.items.length === 0 && <p>本批没有可显示的内容。</p>}
+          <CoverageNote coverage={view.data.coverage} />
+          {!view.data.items.length && <p>本批没有可显示的内容。</p>}
           <ul>
-            {view.data.items.map((item) => {
-              if ("episode_id" in item)
-                return (
-                  <li key={`${item.episode_id}:${item.revision}`}>
-                    <small>
-                      {time(item.occurred_at)} · {item.origin_kind} · 修订{" "}
-                      {item.revision}
-                    </small>
-                    <p style={{ whiteSpace: "pre-wrap" }}>{item.summary}</p>
-                    <p>
-                      提取状态：{item.extraction_state} ·{" "}
-                      {item.coverage.complete
-                        ? "已覆盖本次范围"
-                        : "覆盖存在缺口"}
-                    </p>
-                    {item.actual_result && (
-                      <details>
-                        <summary>实际结果与覆盖证据</summary>
-                        <pre>{JSON.stringify(item.actual_result, null, 2)}</pre>
-                      </details>
-                    )}
-                    <SourceEvidence sources={item.source_refs} scope={scope} />
-                    {manageable &&
-                      ["failed", "unknown", "interrupted"].includes(
-                        item.extraction_state,
-                      ) && (
-                        <button
-                          className="text-link"
-                          disabled={command.busy}
-                          onClick={async () => {
-                            if (
-                              await command.run(
-                                "memory/extraction/resume",
-                                { ...scope, episode_id: item.episode_id },
-                                item.revision,
-                              )
-                            )
-                              await view.refresh();
-                          }}
-                        >
-                          显式继续这次提取
-                        </button>
-                      )}
-                  </li>
-                );
-              return (
+            {view.data.items.map((item) =>
+              "episode_id" in item ? (
+                <li key={`${item.episode_id}:${item.revision}`}>
+                  <small>
+                    {time(item.occurred_at)} · 修订 {item.revision} · 系统记录于{" "}
+                    {time(item.recorded_at)}
+                  </small>
+                  <p className="memory-prewrap">{item.summary}</p>
+                  <p className="muted">{episodeOrigin(item)}</p>
+                  <p className="muted">
+                    原作者：
+                    {item.speaker_id
+                      ? (identities[item.speaker_id] ?? item.speaker_id)
+                      : "未知（来源未证明唯一作者）"}
+                    {item.person_id
+                      ? ` · 相关人物：${identities[item.person_id] ?? item.person_id}`
+                      : ""}
+                  </p>
+                  <CoverageNote coverage={item.coverage} />
+                  {item.extraction_coverage && (
+                    <CoverageNote coverage={item.extraction_coverage} />
+                  )}
+                  <EpisodeProcessing
+                    episodeId={item.episode_id}
+                    revision={item.revision}
+                    initial={item.consolidation}
+                    scope={scope}
+                    refresh={view.refresh}
+                    identities={identities}
+                  />
+                  {item.actual_result && (
+                    <details>
+                      <summary>原记录与实际回执</summary>
+                      <pre>{showValue(item.actual_result)}</pre>
+                    </details>
+                  )}
+                  <SourceEvidence sources={item.source_refs} scope={scope} />
+                </li>
+              ) : (
                 <li key={`${item.proposal_id}:${item.revision}`}>
                   <small>
-                    {time(item.occurred_at)} · {item.kind} · 解释性记录
+                    {time(item.occurred_at)} · {item.kind} · 可修订的解释 ·
+                    系统记录于 {time(item.recorded_at)}
                   </small>
-                  <p style={{ whiteSpace: "pre-wrap" }}>{item.content}</p>
-                  {item.counterexamples.length > 0 && (
+                  <p className="memory-prewrap">{item.content}</p>
+                  {!!Object.keys(item.conditions).length && (
+                    <details>
+                      <summary>适用条件</summary>
+                      <pre>{showValue(item.conditions)}</pre>
+                    </details>
+                  )}
+                  {!!item.counterexamples.length && (
                     <details>
                       <summary>反例与限制</summary>
                       <ul>
@@ -138,27 +153,31 @@ export default function MemoryReview({
                   )}
                   <SourceEvidence sources={item.source_refs} scope={scope} />
                 </li>
-              );
-            })}
+              ),
+            )}
           </ul>
         </>
       )}
       <div className="models-actions">
         {cursor.previous && (
-          <button className="button" onClick={cursor.back}>
+          <button
+            className="button"
+            disabled={view.loading}
+            onClick={cursor.back}
+          >
             上一批
           </button>
         )}
         {view.data?.next_cursor && (
           <button
             className="button"
+            disabled={view.loading}
             onClick={() => cursor.next(view.data!.next_cursor!)}
           >
             下一批
           </button>
         )}
       </div>
-      <CommandFeedback {...command} />
     </section>
   );
 }

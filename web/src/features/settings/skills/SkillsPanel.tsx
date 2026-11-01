@@ -10,7 +10,7 @@ import { DetailCard } from "../../../components/DetailCard";
 import { SkillSources } from "./SkillSources";
 import type { SkillsCatalog } from "./types";
 import "./skills.css";
-import { settings, stateOf } from "./presentation";
+import { capabilityReason, settings, stateOf } from "./presentation";
 export function SkillsPanel({ actorId }: { actorId?: string }) {
   const workspace = useRoleWorkspace();
   const actor = actorId ?? workspace.actor;
@@ -73,7 +73,9 @@ export function SkillsPanel({ actorId }: { actorId?: string }) {
                 {item.definition.id} · 定义修订 {item.definition.version} ·{" "}
                 {item.definition.effect === "read" ? "读取能力" : "会产生变更"}
               </small>
-              {item.availability.reason && <p>{item.availability.reason}</p>}
+              {item.availability.reason && (
+                <p>{capabilityReason(item.availability.reason)}</p>
+              )}
               {item.availability.provider_supported === null && (
                 <p className="muted">供应商实际支持情况尚未确认。</p>
               )}

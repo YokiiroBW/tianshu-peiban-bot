@@ -111,6 +111,32 @@ export type GrowthView = {
     revision: number;
     last_error: string | null;
     can_request_review: boolean;
+    last_reviewed_at?: string | null;
+    material_key?: string | null;
+    attempt_id?: string | null;
+    recovery?: "observe_original_attempt" | null;
+    cursor?: string | null;
+    pending_inputs?: number;
+    pending_original_requests?: number;
+    legacy_state?: "requests" | "episodes" | "complete";
+    legacy_request_cursor?: string | null;
+    legacy_episode_cursor?: string | null;
+    legacy_missing?: string[];
+    blocked_material?: {
+      episode_id?: string;
+      revision?: number;
+      cursor?: string | null;
+      [key: string]: unknown;
+    } | null;
+    batch?: {
+      material_key: string;
+      start_cursor: string | null;
+      end_cursor: string | null;
+      watermark: string;
+      has_more: boolean;
+      inputs?: [string, number][];
+      legacy_material?: boolean;
+    } | null;
   } | null;
   can_review: boolean;
   items: GrowthItem[];
@@ -118,18 +144,7 @@ export type GrowthView = {
   next_cursor: string | null;
   missing: string[];
 };
-export type Episode = {
-  episode_id: string;
-  revision: number;
-  summary: string;
-  occurred_at: string;
-  origin_kind: string;
-  source_refs: SourceRef[];
-  actual_result: Record<string, unknown>;
-  coverage: Coverage;
-  extraction_state?: string;
-  extraction_coverage?: Coverage;
-};
+export type { Episode } from "../memory/types";
 export type Reading = {
   id: string;
   revision: number;

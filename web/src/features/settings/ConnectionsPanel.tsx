@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { actorScope, useDomainResource } from "../../api/useDomainResource";
 import type { SkillsCatalog } from "./skills/types";
-import { settings, stateOf } from "./skills/presentation";
+import { capabilityReason, settings, stateOf } from "./skills/presentation";
 
 export function ConnectionsPanel() {
   const { actor } = useRoleWorkspace();
@@ -52,7 +52,7 @@ export function ConnectionsPanel() {
                   <p>{item.definition.description}</p>
                   <code>{item.definition.id}</code>
                   {item.availability.reason && (
-                    <p>{item.availability.reason}</p>
+                    <p>{capabilityReason(item.availability.reason)}</p>
                   )}
                   <p>
                     对端支持：

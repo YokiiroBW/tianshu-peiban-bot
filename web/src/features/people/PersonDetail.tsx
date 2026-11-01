@@ -105,7 +105,11 @@ export function PersonDetail({
           <p>选择角色后可查看该角色已授权的人物范围。</p>
         )}
         {!!actorId && tab === "portrait" && (
-          <SharedPortrait scope={scope} personId={person.person_id} />
+          <SharedPortrait
+            scope={scope}
+            personId={person.person_id}
+            displayName={person.display_name}
+          />
         )}
         {!!actorId && tab === "messages" && (
           <Interactions scope={scope} personId={person.person_id} />

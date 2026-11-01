@@ -17,6 +17,7 @@ import { EngineEditor, ProfileEditor, engineNames } from "./ImageSettings";
 import { WorkflowEditor } from "./WorkflowEditor";
 import type { ImageView, ImagePreview, SceneSnapshot } from "./types";
 import "./multimodal.css";
+import { CapabilityReadiness } from "./CapabilityReadiness";
 const executionNames: Record<string, string> = {
   pending: "等待生成",
   running: "正在生成",
@@ -67,8 +68,13 @@ function ImageWorkspace({ settings }: { settings: boolean }) {
   const [busy, setBusy] = useState(false);
   const request = useRef<AbortController | null>(null);
   const profile =
-    view.data?.profiles.find((value) => value.id === actor) ??
-    (view.data?.profiles.length === 1 ? view.data.profiles[0] : undefined);
+    view.data?.profiles.find(
+      (value) => value.id === actor && value.actor_id === actor,
+    ) ??
+    (view.data?.profiles.filter((value) => value.actor_id === actor).length ===
+    1
+      ? view.data.profiles.find((value) => value.actor_id === actor)
+      : undefined);
   useEffect(() => () => request.current?.abort(), []);
   useEffect(() => {
     if (view.accessLost) setPreview(null);
@@ -133,6 +139,10 @@ function ImageWorkspace({ settings }: { settings: boolean }) {
         </button>
       </header>
       {view.error && <p role="alert">{view.error}</p>}
+      <CapabilityReadiness
+        ids={["images.generate"]}
+        title="当前角色图像与自拍"
+      />
       {view.data && (
         <>
           {settings ? (

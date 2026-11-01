@@ -5,6 +5,8 @@ import { StatePanel } from "../../components/StatePanel";
 import MemoryRecords from "./MemoryRecords";
 import MemoryReview from "./MemoryReview";
 import { Matters } from "./Matters";
+import { MemoryTimeFilter, useMemoryTime } from "./MemoryTimeFilter";
+import { MemoryEvidenceSearch } from "./MemoryEvidenceSearch";
 import "./memory.css";
 
 export default function MemoryPage({ section: _section }: { section: number }) {
@@ -12,6 +14,7 @@ export default function MemoryPage({ section: _section }: { section: number }) {
   const selected = useDomainTarget();
   const [scopeMode, setScopeMode] = useState("conversation");
   const [tab, setTab] = useState("claims");
+  const [query, setQuery] = useMemoryTime();
   const scope = scopeMode === "actor" ? actorScope(workspace.actor) : selected;
   if (!workspace.actor)
     return (
@@ -39,11 +42,13 @@ export default function MemoryPage({ section: _section }: { section: number }) {
           </select>
         </label>
       </header>
+      <MemoryTimeFilter value={query} onChange={setQuery} />
       <nav className="models-actions" aria-label="记忆内容">
         {[
           ["claims", "记忆条目"],
           ["episodes", "经历与反思"],
           ["matters", "事项与约定"],
+          ["evidence", "完整证据检索"],
         ].map(([id, name]) => (
           <button
             className="button"
@@ -55,7 +60,7 @@ export default function MemoryPage({ section: _section }: { section: number }) {
           </button>
         ))}
       </nav>
-      <div key={JSON.stringify([scope, tab])}>
+      <div key={JSON.stringify([scope, tab, query])}>
         {scopeMode === "conversation" && !selected.conversation_id ? (
           <StatePanel kind="empty" title="请选择当前会话">
             <p>选择会话后读取其实际范围，或显式改为此角色已授权范围。</p>
@@ -63,11 +68,13 @@ export default function MemoryPage({ section: _section }: { section: number }) {
         ) : (
           <>
             {tab === "claims" ? (
-              <MemoryRecords scope={scope} />
+              <MemoryRecords scope={scope} query={query} />
             ) : tab === "episodes" ? (
-              <MemoryReview scope={scope} />
+              <MemoryReview scope={scope} query={query} />
+            ) : tab === "evidence" ? (
+              <MemoryEvidenceSearch scope={scope} query={query} />
             ) : (
-              <Matters scope={scope} />
+              <Matters scope={scope} query={query} />
             )}
           </>
         )}

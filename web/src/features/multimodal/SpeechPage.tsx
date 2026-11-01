@@ -21,6 +21,7 @@ import type {
   PronunciationDictionary,
 } from "./types";
 import "./multimodal.css";
+import { CapabilityReadiness } from "./CapabilityReadiness";
 
 const capabilityNames: Record<string, string> = {
   tts: "语音合成",
@@ -59,6 +60,10 @@ export default function SpeechPage() {
         </button>
       </header>
       <SpeechOAuthComplete refresh={view.refresh} />
+      <CapabilityReadiness
+        ids={["speech.synthesize"]}
+        title="当前角色语音表达"
+      />
       {view.error && (
         <p role="alert" className="error-text">
           {view.error}
@@ -94,6 +99,15 @@ export default function SpeechPage() {
             <p>
               固定音色与本次语气分开保存。文字、语音、双模式或自然选择都沿同一表达链发送。
             </p>
+            {workspace.actor &&
+              !view.data.profiles.some(
+                (profile) =>
+                  profile.actor_id === workspace.actor && profile.voice_id,
+              ) && (
+                <p role="status">
+                  此角色尚未绑定音色。连接功能仍可分别使用，需要语音表达时再选择并保存声线。
+                </p>
+              )}
             {!workspace.actor ? (
               <p>先选择一位角色。</p>
             ) : (
