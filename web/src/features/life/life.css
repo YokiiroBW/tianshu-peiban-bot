@@ -543,7 +543,7 @@
 .life-plan > li {
   position: relative;
   display: grid;
-  grid-template-columns: 62px 24px 28px minmax(0, 1fr);
+  grid-template-columns: 62px 24px minmax(0, 1fr);
   gap: 14px;
   align-items: start;
   min-height: 78px;
