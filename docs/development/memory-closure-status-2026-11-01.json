@@ -1,5 +1,5 @@
 {
-  "phase": "real_semantic_and_resource_import_repairs",
+  "phase": "final_candidate_real_semantic_acceptance",
   "source_baseline": "7aac7746ed0a4d12cd8b596de156b6f3a745f8ad",
   "planning_commit": "8bca244",
   "production_source": "dcdf729b5d22f451093e3658d131fd6757a00dde",
@@ -205,7 +205,8 @@
       "id": "RC-01",
       "owner": "MC-C",
       "state": "confirmed",
-      "problem": "QQ sender.card NUL causes durable inbox processing DataError; original events retained"
+      "problem": "QQ sender.card NUL causes durable inbox processing DataError; original events retained",
+      "historical_recovery_decision": "User explicitly chose to retain and skip the three NUL-name inputs; no historical replies. Original job cancellation pending deployment."
     },
     {
       "id": "RC-02",
@@ -304,14 +305,20 @@
     {
       "id": "RC-17",
       "owner": "MC-B",
-      "state": "repair_in_progress",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "problem": "First-time explicit arrangements were extracted only as claims; clarify native Matter selection and stable identity without creating reminders or external tasks."
     },
     {
       "id": "RC-18",
       "owner": "MC-A",
-      "state": "repair_in_progress",
+      "state": "integrated_targeted_validation_passed_not_deployed",
       "problem": "Reaction pack publication scopes diverged from raw Source and Artifact authority, preventing normal QQ role usage after UI import; make explicit per-actor import consistent across all layers."
+    },
+    {
+      "id": "RC-19",
+      "owner": "MC-G",
+      "state": "integrated_targeted_validation_passed_not_deployed",
+      "problem": "Subsecond optional retrieval deadlines could create submitted unknown holds and occupy both elastic slots; use actual lease preparation budget, full remote execution window and bounded admission, preserve all unknown protections and foreground deadline."
     }
   ],
   "blueprint_acceptance": {
@@ -322,10 +329,10 @@
     "stories": 24,
     "development": 16,
     "held_out": 8,
-    "state": "first_frozen_run_interrupted_on_confirmed_matter_modeling_gap",
+    "state": "ready_for_final_candidate_run; first candidate evidence preserved, no held_out yet",
     "additional_contract_scenarios": 12
   },
-  "product_implementation": "All product, frontend, evaluation and cutover preparation complete; first unified validation now authorized by coordinator",
+  "product_implementation": "All implementation and followup fixes integrated; necessary deterministic validation passed; final immutable image and real semantic/cost acceptance pending.",
   "unified_validation": {
     "implementation_head": "5c4d738",
     "status": "deterministic_targets_passed_real_model_pending",
@@ -400,6 +407,20 @@
       "fixture_correction": "1be0b3f",
       "final_five_type_case": "passed including public OR support, matter relation and source revocation",
       "increased_timeouts": false
+    },
+    "semantic_repair_batch": {
+      "source_sha": "8a5a9f482819883d1f28d5ff90fce7c28024758c",
+      "initial_backend_cases": 92,
+      "initial_passed": 83,
+      "initial_failed": 9,
+      "followup_cases": 17,
+      "followup_passed": 17,
+      "followup_skipped": 0,
+      "frontend_typecheck": "passed",
+      "frontend_build": "passed",
+      "frontend_reaction_import_scenarios": 4,
+      "frontend_reaction_import_passed": 4,
+      "scope": "Only failed or changed paths; unchanged earlier successful receipts retained. The 129-part tail completed at original 12000 input limit."
     }
   }
 }
