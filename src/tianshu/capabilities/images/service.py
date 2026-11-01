@@ -376,7 +376,13 @@ class Images:
             if profile.get("workflow_id")
             else None
         )
-        compiled = Engines.compile(engine, intent, workflow)
+        # Compilation precedes image_work and every image-provider request.
+        try:
+            compiled = Engines.compile(engine, intent, workflow)
+        except Fault as error:
+            raise ProviderError(error.code, error.status, effect="none") from None
+        except ValueError:
+            raise ProviderError("image_workflow_invalid", 400, effect="none") from None
         return {
             "scene": scene,
             "intent": intent,

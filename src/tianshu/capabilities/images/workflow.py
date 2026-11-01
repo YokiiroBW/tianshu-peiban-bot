@@ -2,7 +2,7 @@
 
 import copy
 import re
-from ..contracts import canonical, digest
+from ..contracts import canonical, digest, require
 from ..media.config import text
 
 EDITABLE = {
@@ -253,7 +253,10 @@ class Workflow:
             spec = self.bindings.get(name)
             if spec is None:
                 raise ValueError("Unbound input")
-            if name in TEXT_FIELDS or name.startswith("reference"):
+            if name in TEXT_FIELDS:
+                require(isinstance(value, str) and 0 < len(value.strip()) <= 8000, "invalid_input", 400)
+                require(not any(ord(c) < 32 and c not in "\r\n" for c in value), "invalid_input", 400)
+            elif name.startswith("reference"):
                 text(value, 8000)
             elif type(value) is not int or not spec["min"] <= value <= spec["max"]:
                 raise ValueError("Out of range")

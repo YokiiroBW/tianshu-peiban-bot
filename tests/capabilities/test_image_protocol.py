@@ -207,7 +207,7 @@ async def image_recovery(database, monkeypatch):
         yield SimpleNamespace(database=database, owner=owner, images=images, context=context,
                               action=action, original=original, planning=planning, broker=broker,
                               ledger=ledger, requests=requests, resources=resources, adapter=adapter,
-                              scene=scene, sources=sources)
+                              scene=scene, sources=sources, engine=engine)
     finally:
         await owner.close()
 
@@ -232,7 +232,7 @@ async def test_original_plan_reconciles_and_explicit_resume_uses_new_identity(im
     assert not state.requests and not state.resources
     state.scene["revision"] = "fresh-scene-after-explicit-resume"
     done = await state.owner.run(state.action.action_id, mode="resume")
-    assert (done.execution, done.effect) == ("succeeded", "confirmed")
+    assert (done.execution, done.effect) == ("succeeded", "confirmed"), done.error_code
     assert done.result["scene"]["revision"] == "fresh-scene-after-explicit-resume"
     assert len(state.requests) == len(state.resources) == 1
     assert state.requests[0].attempt_id == pending.attempt_id + ":plan"
@@ -253,6 +253,31 @@ async def test_original_plan_reconciles_and_explicit_resume_uses_new_identity(im
     assert jobs["n"] == 2
     old = next(row for row in rows if row["id"] == state.original.attempt_id)
     assert old["receipt"] == wire(reconciled) and old["attempt"]["dispatch"] == "submitted"
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("invalid,code", [("control", "invalid_input"), ("range", "image_workflow_invalid")])
+async def test_compile_rejection_after_settled_plan_has_no_image_effect(image_recovery, invalid, code):
+    state = image_recovery
+    if invalid == "control":
+        state.scene["place"] = {"name": "synthetic room\x00"}
+    else:
+        state.engine["parameters"] = {"width": 9000}
+    action = replace(state.action, action_id=str(uuid4()), intent_key=str(uuid4()))
+    pending = await state.owner.invoke(action, background=True)
+    done = await state.owner.run(action.action_id)
+    assert (done.execution, done.effect, done.error_code) == ("failed", "none", code), done.error_code
+    saved = await state.owner.get(action.action_id, state.context)
+    assert saved["attempt"]["attempt_id"] == pending.attempt_id
+    assert saved["attempt"]["dispatch"] == "submitted"
+    assert len(state.requests) == 1 and state.requests[0].attempt_id == pending.attempt_id + ":plan"
+    assert state.ledger[pending.attempt_id + ":plan"].receipt.status == "succeeded"
+    assert not state.resources
+    state.adapter.submit.assert_not_awaited()
+    async with state.database.transaction(read_only=True) as connection:
+        assert await (await connection.execute(
+            "SELECT * FROM capabilities.image_work WHERE action_id=%s", (action.action_id,),
+        )).fetchone() is None
 
 
 @pytest.mark.asyncio

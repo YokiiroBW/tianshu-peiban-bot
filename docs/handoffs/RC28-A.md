@@ -141,3 +141,40 @@ control/作业不被新建，changed 参数只保留并发者的真实 result_re
 
 本代理未运行测试、解析、构建、typecheck、模型、网络、PG、部署或生产恢复；仅静态阅读、
 实现、完整 diff 复核与提交。真实 ComfyUI 成品与原线上 Action 恢复仍由 root 集中执行。
+
+## backend-native-15：真实图像提示词的多行校验返修
+
+本块基线 `5e0ac6a733cfa19dedf365ed40b83d8bde122632`，分支
+`codex/image-fixture-repair-20261102`。根集中结果为原恢复正向节点在实际新生图阶段返回
+unknown/unknown，其他本块新增 8 节点通过。原日志没有输出 Receipt.error_code；本次保留
+成功断言，只追加该错误码作为失败诊断，不修改模型/提供方替身或降低期望。
+
+静态调用链证明一个真实产品缺陷：`Engines.compile` 用换行生成结构化提示词，
+`bound_prompt_values` 也保留多行语义；`Workflow.render` 却对 TEXT_FIELDS 复用
+`media.config.text`，它拒绝所有 ASCII 控制字符，包括 LF/CR。正常多行提示词因此会在
+规划成功之后、image_work 创建之前抛 invalid_input，通用 Action 根据已提交规划记录
+表现为 unknown。这不是测试替身缺失或 JSON 解码问题。
+
+仅改 Images Workflow 的提示词字段校验：保留字符串、非空、8000 长度及其他控制字符拒绝，
+允许 LF/CR 原样进入已审核工作流；reference 名及 checkpoint 仍用原单行校验。
+通用媒体校验、workflow 图/绑定/节点、提供方提交、规划与恢复合同均未改变。
+
+另仅在 Images.prepare 的同步 `Engines.compile` 阶段，将可预期 Fault 的原 code/status
+和工作流 ValueError（image_workflow_invalid/400）标为 ProviderError(effect=none)。此处
+尚无 image_work/图片请求；不因已付费规划把纯编译拒绝变成图片 unknown。该边界不包围
+Models 调用、其他准备过程或图片提交阶段，也未扩大恢复白名单。
+
+最小必要复验为根原失败节点
+`tests/capabilities/test_image_protocol.py::test_original_plan_reconciles_and_explicit_resume_uses_new_identity`
+以及新增两个纯合同节点：
+
+- `tests/capabilities/test_workflow_inspection.py::WorkflowInspection::test_compiled_multiline_prompt_preserves_reviewed_graph`
+- `tests/capabilities/test_workflow_inspection.py::WorkflowInspection::test_prompt_line_breaks_preserve_type_length_and_control_guards`
+
+编译阶段效果分类另有
+`tests/capabilities/test_image_protocol.py::test_compile_rejection_after_settled_plan_has_no_image_effect`
+两个参数节点（control/range）：实际规划成功并标记 dispatch=submitted 后，分别经真实
+工作流控制字符/范围校验拒绝，仍须 failed/none、原 Attempt、无 image_work/图片请求。
+本块最小合计 5 节点；其他已过 51 项中输入未变的结果复用。
+
+本次未运行测试、构建、解析、模型、网络、PG 或生产操作；已通过且输入未变的其他结果由根复用。
