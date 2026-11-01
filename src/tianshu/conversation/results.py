@@ -3,6 +3,7 @@ from tianshu.sources.dependencies import unique_refs
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.types import ServiceClass
+from tianshu.capabilities.catalog import is_administrative
 from tianshu.capabilities.serialization import action_from
 from tianshu.channels.operations import technical_api
 from .codec import context_from_record, receipt, source_refs
@@ -36,12 +37,7 @@ class ResultConsumer:
             if exc.code != "adapter_not_installed":
                 raise
             return False
-        definition = handler.definition
-        return "config.publish" in definition.permissions or (
-            "external.manage" in definition.permissions
-            and definition.model_tool is None
-            and definition.public_command is None
-        )
+        return is_administrative(handler.definition)
 
     async def consume(self, event):
         if event.get("type") != "capability.result" or event.get("version") != 1:

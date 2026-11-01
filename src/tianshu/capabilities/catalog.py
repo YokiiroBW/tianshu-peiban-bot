@@ -41,6 +41,15 @@ class CapabilityDefinition:
     long_running: bool = False
 
 
+def is_administrative(definition: CapabilityDefinition) -> bool:
+    """Configuration/operations metadata, independent of execution effects or API names."""
+    return "config.publish" in definition.permissions or (
+        "external.manage" in definition.permissions
+        and definition.model_tool is None
+        and definition.public_command is None
+    )
+
+
 class Handler(Protocol):
     definition: CapabilityDefinition
 
