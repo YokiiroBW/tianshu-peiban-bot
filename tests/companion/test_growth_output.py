@@ -4,6 +4,7 @@ from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 import json
 
+import aiohttp
 import pytest
 
 from tianshu.companion.growth import GrowthService
@@ -241,6 +242,78 @@ async def test_original_fenced_failure_can_be_reparsed_without_replacing_attempt
         assert outcome["state"] == "reviewed" and outcome["cursor"] == "e:1"
         assert (await growth.view(context))["review"]["pending_inputs"] == 1
     assert memory.proposals == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("status,rpc_error", [
+    ("cancelled", "app"), ("failed", "app"), ("queued", "timeout"),
+    ("running", "connection"), ("unknown", "timeout"), ("succeeded", "app"),
+    ("absent", "app"), ("unreadable", "timeout"),
+])
+async def test_frozen_generation_rpc_failure_observes_original_and_records_visible_state(database, monkeypatch, status, rpc_error):
+    models = Models({"notes": []})
+    generate, read = models.generate, models.result
+
+    async def interrupted(request):
+        result = await generate(request)
+        physical = "unknown" if status in {"absent", "unreadable"} else status
+        error_code = {"cancelled": "timeout_unknown", "failed": "upstream_http_400", "unknown": "transport_unknown"}.get(physical)
+        models.results[request.attempt_id] = replace(result, parts=result.parts if physical == "succeeded" else (),
+            receipt=replace(result.receipt, status=physical,
+                dispatch="not_started" if physical in {"cancelled", "queued"} else "unknown" if physical == "unknown" else "submitted",
+                error_code=error_code), completion=ModelCompletion("complete", ("stop",)) if physical == "succeeded" else ModelCompletion())
+        if status == "absent":
+            models.results.pop(request.attempt_id)
+        if rpc_error == "app":
+            raise AppError("deadline_exceeded", status=504)
+        if rpc_error == "timeout":
+            raise TimeoutError("response timed out")
+        raise aiohttp.ClientConnectionError("connection lost")
+
+    async def result(attempt_id, *, context):
+        if status == "unreadable":
+            models.reads.append(attempt_id)
+            raise AppError("broker_unavailable", status=503)
+        return await read(attempt_id, context=context)
+
+    models.generate, models.result = interrupted, result
+    growth, memory, jobs, context, _notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    outcome = await growth.organize("actor", scope, 1)
+    assert len(models.calls) == 1 and models.reads == [models.calls[0].attempt_id]
+    request = models.calls[0]
+    async with database.transaction(read_only=True) as connection:
+        saved = await (await connection.execute(
+            "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (request.attempt_id,))).fetchone()
+    current = await state(database)
+    assert current["generation_revision"] == 0
+    if status == "succeeded":
+        assert outcome["state"] == "reviewed" and current["cursor"] == "e:1"
+        assert current["active_batch"] is None and current["last_error"] is None
+    elif status in {"failed", "cancelled"}:
+        assert outcome["state"] == "rejected"
+        assert current["last_error"] == "reflection_generation_" + status
+        assert current["blocked_material"]["model_error"] == models.results[request.attempt_id].receipt.error_code
+        assert current["active_batch"]["material_key"] == request.intent_id
+    else:
+        assert outcome["state"] == "waiting" and outcome["recovery"] == "observe_original_attempt"
+        assert current["active_batch"]["material_key"] == request.intent_id
+        assert current["blocked_material"]["recovery"] == "observe_original_attempt"
+        assert current["blocked_material"]["attempt_id"] == request.attempt_id
+        assert len(jobs.items) == (2 if status in {"queued", "running"} else 1)
+        if status == "unreadable":
+            assert current["blocked_material"]["result_read_error"] == "broker_unavailable"
+
+        async def forbidden(*_args, **_kwargs):
+            pytest.fail("RPC observation must never enter GenerationRequests.run again")
+
+        monkeypatch.setattr(growth.generations, "run", forbidden)
+        await growth.organize("actor", scope, current["revision"])
+        assert len(models.calls) == 1 and models.reads == [request.attempt_id, request.attempt_id]
+    async with database.transaction(read_only=True) as connection:
+        stored = await (await connection.execute(
+            "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (request.attempt_id,))).fetchone()
+    assert stored == saved and memory.proposals == []
 
 
 @pytest.mark.asyncio

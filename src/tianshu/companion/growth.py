@@ -3,6 +3,8 @@ from tianshu.sources.dependencies import unique_refs
 from datetime import UTC, datetime, timedelta
 import json
 
+import aiohttp
+
 from tianshu.models.types import ModelRequest
 from tianshu.memory.types import EpisodePage
 from tianshu.runtime.api import CommandResult
@@ -209,15 +211,46 @@ class GrowthService:
                 result = await self.generations.read(request.attempt_id, context)
             else:
                 result = await self.generations.run(material_key, request, guard=current_material)
-        except AppError as error:
-            if error.code == "generation_no_longer_current":
+        except (AppError, TimeoutError, aiohttp.ClientError) as error:
+            if isinstance(error, AppError) and error.code == "generation_no_longer_current":
                 return
             if authorization_error(error):
                 return await self.recovery.block(state, error)
-            if error.code != "generation_request_expired":
+            if isinstance(error, AppError) and error.code == "generation_request_expired":
+                await self._rejected(actor_id, scope_key, material_key, error.code)
+                return {"state": "rejected", "error_code": error.code, "attempt_id": request.attempt_id}
+            # Only a successfully frozen intent permits original-result
+            # observation. An RPC error says nothing about provider execution.
+            frozen = await self.generations.request(request.attempt_id, original_context)
+            if frozen is None:
                 raise
-            await self._rejected(actor_id, scope_key, material_key, error.code)
-            return {"state": "rejected", "error_code": error.code, "attempt_id": request.attempt_id}
+            request = frozen
+            rpc_error = error.code if isinstance(error, AppError) else type(error).__name__
+            result, read_error = None, rpc_error if observe_only else None
+            if not observe_only:
+                try:
+                    result = await self.generations.read(request.attempt_id, context)
+                except (AppError, TimeoutError, aiohttp.ClientError) as failure:
+                    if authorization_error(failure):
+                        return await self.recovery.block({**state, "active_batch": batch}, failure)
+                    read_error = failure.code if isinstance(failure, AppError) else type(failure).__name__
+            async with self.companion.database.transaction() as connection:
+                current = await (await connection.execute(
+                    "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
+                    (actor_id, scope_key))).fetchone()
+                if (not current or not current["active_batch"] or current["active_batch"]["material_key"] != material_key
+                        or current["last_error"] in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}):
+                    return {"state": "changed_since_original_result_read"}
+                previous = current["blocked_material"] or {}
+                details = {**previous, "recovery": "observe_original_attempt",
+                    "attempt_id": request.attempt_id, "rpc_error": previous.get("rpc_error", rpc_error), "result_read_error": read_error,
+                    "model_status": result.receipt.status if result else None,
+                    "model_error": result.receipt.error_code if result else None,
+                    "reason": "请求响应中断后仅观察原执行；不提交新请求或替换未知结果。"}
+                await connection.execute(
+                    "UPDATE companion.organize_state SET blocked_material=%s,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s", (document(details), actor_id, scope_key))
+                state, batch = {**current, "blocked_material": details}, current["active_batch"]
         if result is None or result.receipt.status != "succeeded":
             status = result.receipt.status if result is not None else "unknown"
             code = result.receipt.error_code or "reflection_generation_" + status if result else "reflection_outcome_unknown"
