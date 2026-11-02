@@ -104,7 +104,7 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         await broker.prepare_slots.acquire()
     original = ModelRequest("wait-then-execute", "wait-then-execute", "chat", ServiceClass.ELASTIC,
         context(), RequestBudget(datetime.now(UTC) + timedelta(seconds=0.05)),
-        (ModelMessage("user", (ModelPart("text", text="synthetic"),)),), execution_timeout_seconds=0.2)
+        (ModelMessage("user", (ModelPart("text", text="synthetic"),)),), execution_timeout_seconds=1)
 
     async def execute():
         if stream:
@@ -113,18 +113,22 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
 
     task = asyncio.create_task(execute())
     try:
-        await asyncio.sleep(0.25)
+        await asyncio.sleep(1.05)
         assert not task.done() and not calls and not prepared.is_set() and not allocated
         for _ in range(8):
             broker.prepare_slots.release()
         await asyncio.wait_for(prepared.wait(), 5)
         queued = await broker.ledger.get(original.attempt_id)
         assert queued["status"] == "queued" and queued["deadline_at"] is None
-        assert queued["execution_timeout_seconds"] == 0.2
-        await asyncio.sleep(0.25)
+        assert queued["execution_timeout_seconds"] == 1
+        await asyncio.sleep(1.05)
         assert not task.done() and not calls and not allocated
         await blocker.rejected("synthetic_release")
-        result = await asyncio.wait_for(task, 5)
+        try:
+            result = await asyncio.wait_for(task, 5)
+        except (AppError, TimeoutError) as error:
+            server_receipt = await broker.status(original.attempt_id)
+            pytest.fail(f"Synthetic supplier request failed: {error!r}; original server receipt: {server_receipt!r}")
         if stream:
             assert result[-1].receipt.status == "succeeded"
             assert any(event.text == "OK" for event in result)
@@ -134,7 +138,7 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         settled = await broker.ledger.get(original.attempt_id)
         assert len(allocated) == 1
         actual_budget, remaining, admitted_at = allocated[0]
-        assert 0.1 < remaining <= original.execution_timeout_seconds + 1e-9
+        assert 0.9 < remaining <= original.execution_timeout_seconds + 1e-9
         assert settled["deadline_at"] == actual_budget.deadline_at
         assert admitted_at > original.budget.deadline_at
     finally:
