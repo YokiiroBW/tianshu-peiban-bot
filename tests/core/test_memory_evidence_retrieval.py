@@ -1,6 +1,7 @@
 """Multi-type/time/source stories authored for the final integrated validation run."""
 
 import asyncio
+from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import json
@@ -293,6 +294,57 @@ async def test_vector_exact_keeps_five_types_and_public_or_support_across_owners
     remaining_observation = next(item for item in withdrawn_listing.items if item.kind == "episode")
     assert remaining_observation.actual_result == command_observation.actual_result and remaining_observation.source_refs == matter.source_refs
     assert all(await core.sources.check_many(bob, (remaining_observation.source_refs,)))
+
+
+async def test_vector_jit_is_transaction_local_and_keeps_authorized_results(core, ordinary_users, monkeypatch):
+    alice, bob = ordinary_users
+    private = await fact(core, alice, "jit_private", "仅甲可读", predicate="preference.private")
+    first = await fact(core, bob, "jit_first", "乙的第一条", predicate="preference.first")
+    second = await fact(core, bob, "jit_second", "乙的第二条", predicate="preference.second")
+    await indexed_vectors(core, tuple(RecordRef("claim", value.claim_id, value.revision)
+                                     for value in (private, first, second)))
+    store = core.retrieval.store
+    plan = MemoryQueryPlan(query="qzxv_jit_probe", evidence_kinds=("claim",))
+    exact = store._exact_vectors_on
+    observed, fail_after_query = [], False
+
+    async def checked_exact(connection, *args):
+        setting = await (await connection.execute("SELECT current_setting('jit') AS jit")).fetchone()
+        observed.append(setting["jit"])
+        rows = await exact(connection, *args)
+        if fail_after_query:
+            raise TimeoutError("synthetic_vector_timeout")
+        return rows
+
+    # Reuse one real pooled session so checking another connection cannot hide a
+    # leaked setting. Database.transaction still owns begin/commit/rollback.
+    async with core.database.pool.connection() as connection:
+        original_setting = await (await connection.execute("SELECT current_setting('jit') AS jit")).fetchone()
+        await connection.execute("SELECT set_config('jit','on',false)")
+
+        @asynccontextmanager
+        async def pinned_connection(*, timeout=None):
+            yield connection
+
+        try:
+            with monkeypatch.context() as patches:
+                patches.setattr(core.database.pool, "connection", pinned_connection)
+                patches.setattr(store, "_exact_vectors_on", checked_exact)
+                rows, bounded = await store.vectors(bob, plan, [1.0] + [0.0] * 1023, "fixture", budget())
+                assert {row["_id"] for row in rows} == {first.claim_id, second.claim_id}
+                assert not bounded and observed == ["off"]
+                async with core.database.transaction(read_only=True) as following:
+                    restored = await (await following.execute("SELECT current_setting('jit') AS jit")).fetchone()
+                    assert restored["jit"] == "on"
+
+                fail_after_query = True
+                with pytest.raises(TimeoutError, match="synthetic_vector_timeout"):
+                    await store.vectors(bob, plan, [1.0] + [0.0] * 1023, "fixture", budget())
+                async with core.database.transaction(read_only=True) as following:
+                    restored = await (await following.execute("SELECT current_setting('jit') AS jit")).fetchone()
+                    assert observed == ["off", "off"] and restored["jit"] == "on"
+        finally:
+            await connection.execute("SELECT set_config('jit',%s,false)", (original_setting["jit"],))
 
 
 async def test_vector_exact_uses_selected_knowledge_revision_before_validity(core, ordinary_users):

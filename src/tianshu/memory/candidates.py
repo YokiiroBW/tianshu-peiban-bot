@@ -222,7 +222,9 @@ class CandidateStore:
         rows, bounded = [], False
         async with self.database.transaction(budget, read_only=True) as conn:
             await register_vector_async(conn)
-            await conn.execute("SELECT set_config('hnsw.iterative_scan','strict_order',true),"
+            # These short, source-checked queries spend more time compiling than
+            # executing with JIT. Keep the setting local to this transaction.
+            await conn.execute("SELECT set_config('jit','off',true),set_config('hnsw.iterative_scan','strict_order',true),"
                 "set_config('hnsw.ef_search',%s,true),set_config('hnsw.max_scan_tuples',%s,true)",
                 (str(min(max(int(self.settings.get("ef_search", 128)), 96), 1000)),
                  str(min(max(int(self.settings.get("max_scan_tuples", 20000)), 1000), 50000))))
