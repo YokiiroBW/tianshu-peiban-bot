@@ -9,7 +9,9 @@
 - C：channels.read 内部补取来源与技术结果分类；保留原始消息/展开原件、调用审计，停止无原文生活经历污染；检查并按必要范围完善现有图片工作流导入/角色绑定。独占 channels、conversation/results.py、capabilities/images 及对应必要前端文件。真实工作流/配置读取与写入由根执行，先核对实际名称和 graph，不猜节点/人物。
 - 根：共享记录、明确必要的跨边界装配、实际配置核对与导入、单写集成、全部收齐后的必要联合验证、原生受影响路径验证和串行部署、交付记录与干净源码包。
 
-11:28 补充核对：四条真实 book_feed 属于全局管理员，原作者 context.actor_id 均为空。B 获得 Identity.refresh_scheduled_context 的精确扩展归属：保持现有 Life/Growth 默认必须有角色的语义，允许媒体全局作者显式保留空角色刷新其原授权；仍校验主体、原 scope/audience/permission 上界，不把书源猜绑给任一 BOT。纳入定向验证，无用户 Memory/Companion 源码改动。
+补充核对：四条真实 book_feed 属于全局管理员，原作者 context.actor_id 均为空。B 获得 Identity.refresh_scheduled_context 的精确扩展归属：保持现有 Life/Growth 默认必须有角色的语义，允许媒体全局作者显式保留空角色刷新其原授权；仍校验主体、原 scope/audience/permission 上界，不把书源猜绑给任一 BOT。纳入定向验证，无用户 Memory/Companion 源码改动。
+
+用户进一步明确：订阅与 BOT 属于不同功能分区。本批只修复独立订阅的作者授权刷新、定时扫描与错误隔离，不增加订阅与 BOT 的绑定，不把其结果接到日程、角色记忆或内容发现配置；四条现有书源继续保持 actor_id 为空。从 BOT 找书、找视频、找音乐属于后续开发，本批不扩展这一入口。
 
 ## 实施边界
 
