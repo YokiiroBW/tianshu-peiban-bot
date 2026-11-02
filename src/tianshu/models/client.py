@@ -14,7 +14,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.types import RequestBudget, ServiceClass
 from .codec import event_from_wire, receipt_from_wire, result_from_wire
-from .timing import waiting_timeout
+from .timing import waiting_timeout, ExternalExecutionClock
 
 _DEFAULT_TIMEOUT = object()
 
@@ -186,18 +186,25 @@ class ModelClient:
         return await self._json("/internal/v1/models/generation-profile", body=request,
                                 control=True, timeout=min(10, request.budget.remaining()))
 
+    async def observe_external(self, attempt_id, *, context, provider_handle, state):
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/external-observation",
+            body={"context": context, "provider_handle": provider_handle, "state": state}, control=True)
+        return receipt_from_wire(value["receipt"])
+
     @asynccontextmanager
     async def resource(self, request):
         timeout = waiting_timeout(request)
+        admitted = None
         try:
             value = await self._json("/internal/v1/resources", body=request,
                              timeout=timeout, service_class=request.service_class)
             if request.execution_timeout_seconds is not None:
                 admitted = receipt_from_wire(value["receipt"])
-                if admitted.deadline_at is None:
+                if admitted.deadline_at is None and request.execution_start != "provider_running":
                     raise AppError("external_execution_deadline_missing", status=502)
-                request = replace(request, budget=RequestBudget(admitted.deadline_at,
-                    cancellation_id=request.budget.cancellation_id, trace_id=request.budget.trace_id))
+                if admitted.deadline_at is not None:
+                    request = replace(request, budget=RequestBudget(admitted.deadline_at,
+                        cancellation_id=request.budget.cancellation_id, trace_id=request.budget.trace_id))
         except AppError as exc:
             # A definite duplicate identifies another owner of this original attempt.
             # It grants no new permit and must never cancel that owner's real work.
@@ -211,7 +218,7 @@ class ModelClient:
             if known is not None and not isinstance(exc, asyncio.CancelledError):
                 raise known from None
             raise
-        permit = ClientExternalPermit(self, request)
+        permit = ClientExternalPermit(self, request, admitted=admitted)
         owner = asyncio.current_task()
 
         async def watch_cancel():
@@ -220,6 +227,7 @@ class ModelClient:
                 try:
                     value = await self._json("/internal/v1/models/attempts/"+request.attempt_id,
                                              control=True, method="GET")
+                    permit.clock.observe(receipt_from_wire(value["receipt"]).deadline_at)
                     if value["cancel_requested"] or value["receipt"]["status"] in {"unknown", "cancelled"}:
                         owner.cancel()
                         return
@@ -230,7 +238,7 @@ class ModelClient:
 
         watcher = asyncio.create_task(watch_cancel())
         try:
-            async with request.budget.timeout():
+            async with permit.clock.running():
                 yield permit
         except BaseException:
             await finish_cleanup(permit.unknown("external_interrupted"))
@@ -243,8 +251,18 @@ class ModelClient:
 
 
 class ClientExternalPermit:
-    def __init__(self, client, request):
-        self.client, self.request, self.done = client, request, False
+    def __init__(self, client, request, *, admitted=None):
+        self.client, self.done = client, False
+        self.clock = ExternalExecutionClock(request, admitted.deadline_at if admitted else None)
+
+    @property
+    def request(self):
+        return self.clock.request
+
+    async def observe_provider(self, state, *, provider_handle):
+        result = await self._update("observe", {"provider_handle": provider_handle, "state": state})
+        self.clock.observe(result.deadline_at)
+        return result
 
     async def _update(self, operation, body):
         value = await self.client._json("/internal/v1/resources/"+self.request.attempt_id+"/"+operation,
@@ -252,9 +270,9 @@ class ClientExternalPermit:
         return receipt_from_wire(value["receipt"])
 
     async def submitted(self, provider_handle=None):
-        self.request.budget.check()
+        self.clock.check()
         result = await self._update("submitted", {"provider_handle": provider_handle})
-        self.request.budget.check()
+        self.clock.check()
         return result
 
     async def finish(self, usage=None, result=None):

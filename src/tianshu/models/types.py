@@ -98,6 +98,7 @@ class ModelReceipt:
     error_code: str | None = None
     hold_until: datetime | None = None
     deadline_at: datetime | None = None
+    execution_started_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -144,3 +145,4 @@ class ExternalRequest:
     source_refs: tuple[SourceRef, ...] = ()
     execution_timeout_seconds: float | None = None
     business_deadline_at: datetime | None = None
+    execution_start: Literal["admitted", "provider_running"] = "admitted"

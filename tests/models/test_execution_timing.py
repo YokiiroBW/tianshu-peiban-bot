@@ -10,7 +10,7 @@ from tianshu.models.catalog import QuotaPolicy, RoutePlan
 from tianshu.models.codec import external_from_wire, request_from_wire
 from tianshu.models.ledger import AttemptLedger, digest
 from tianshu.models.scheduler import QuotaScheduler
-from tianshu.models.timing import execution_budget, waiting_timeout, waiting
+from tianshu.models.timing import execution_budget, waiting_timeout, waiting, ExternalExecutionClock
 from tianshu.models.types import ExternalRequest, ModelRequest
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -44,6 +44,29 @@ def test_new_and_legacy_frozen_requests_keep_distinct_timing_contracts():
     external = ExternalRequest("external", "external", original.context, original.budget,
         "quota", "image", ServiceClass.ELASTIC, "fixture", execution_timeout_seconds=10)
     assert waiting_timeout(external_from_wire(wire(external))) is None
+
+
+def test_deferred_provider_clock_is_explicit_and_never_uses_the_prepare_deadline():
+    original = request()
+    deferred = ExternalRequest("external", "external", original.context, original.budget,
+        "quota", "image", ServiceClass.ELASTIC, "fixture", execution_timeout_seconds=600,
+        execution_start="provider_running")
+    restored = external_from_wire(wire(deferred))
+    assert restored == deferred
+    clock = ExternalExecutionClock(restored)
+    clock.check()
+    assert clock.remaining() is None and clock.deadline_at is None
+    actual = datetime.now(UTC) + timedelta(seconds=600)
+    clock.observe(actual)
+    clock.observe(actual)
+    assert clock.request.budget.deadline_at == actual
+    assert clock.request.budget.trace_id == original.budget.trace_id
+    with pytest.raises(AppError, match="external_execution_clock_changed"):
+        clock.observe(actual + timedelta(seconds=1))
+    assert deferred.budget.deadline_at == original.budget.deadline_at
+    invalid = wire(replace(deferred, execution_timeout_seconds=None))
+    with pytest.raises(AppError, match="invalid_external_execution_start"):
+        external_from_wire(invalid)
 
 
 async def test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and_bounded():
@@ -203,3 +226,22 @@ async def test_new_ledger_identity_canonicalizes_only_its_unordered_contract_inp
         legacy_semantic.pop(name)
     unchanged,created=await ledger.create(legacy,plan,{})
     assert created and unchanged["request_digest"]==digest(legacy_semantic)
+
+
+async def test_new_provider_clock_field_preserves_old_external_identity_and_freezes_deferred_mode(database):
+    ledger = AttemptLedger(database, "instance")
+    plan = RoutePlan("external:provider", 1, "provider", "image", "external", "", "", "quota", frozenset(), {})
+    original = ExternalRequest("external", "external", request().context,
+        RequestBudget(datetime.now(UTC) + timedelta(minutes=1)),
+        "quota", "image", ServiceClass.ELASTIC, "provider", max_queue_wait=30)
+    historical = wire(original)
+    for name in ("budget", "max_queue_wait", "execution_timeout_seconds", "business_deadline_at", "execution_start"):
+        historical.pop(name)
+    row, created = await ledger.create(original, plan, {})
+    assert created and row["request_digest"] == digest(historical)
+    duplicate, created = await ledger.create(external_from_wire(wire(original)), plan, {})
+    assert not created and duplicate["request_digest"] == row["request_digest"]
+    admitted = replace(original, attempt_id="new-mode", intent_id="new-mode", execution_timeout_seconds=600)
+    await ledger.create(admitted, plan, {})
+    with pytest.raises(AppError, match="attempt_identity_conflict"):
+        await ledger.create(replace(admitted, execution_start="provider_running"), plan, {})

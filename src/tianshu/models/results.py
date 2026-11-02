@@ -10,15 +10,19 @@ from .ledger import context_fingerprint, receipt
 from .types import ModelResult
 
 
+async def check_attempt_context(broker, row, context):
+    if (row["principal_id"] != context.principal_id
+            or row["context_fingerprint"] != context_fingerprint(context)):
+        raise AppError("model_result_context_forbidden", status=403)
+    await broker.recheck(SimpleNamespace(context=context, source_refs=()))
+    return tuple(SourceRef(**item) for item in row["source_refs"] or ())
+
+
 async def read_result(broker, attempt_id, *, context):
     row = await broker.ledger.get(attempt_id)
     if row is None:
         return None
-    if (row["principal_id"] != context.principal_id
-            or row["context_fingerprint"] != context_fingerprint(context)):
-        raise AppError("model_result_context_forbidden", status=403)
-    selected = tuple(SourceRef(**item) for item in row["source_refs"] or ())
-    await broker.recheck(SimpleNamespace(context=context, source_refs=()))
+    selected = await check_attempt_context(broker, row, context)
     try:
         await broker.recheck(SimpleNamespace(context=context, source_refs=selected))
     except AppError as exc:

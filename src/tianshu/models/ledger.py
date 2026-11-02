@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+from datetime import timedelta
 
 from psycopg.types.json import Jsonb
 
@@ -29,7 +30,7 @@ def receipt(row):
         row["attempt_id"], row["intent_id"], row["status"], row["dispatch"], row["route_id"],
         row["route_revision"], row["provider_id"], row["model"], row["protocol"],
         row["quota_group"], ModelUsage(**usage), row["provider_handle"], row["queued_at"],
-        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"), row.get("deadline_at"))
+        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"), row.get("deadline_at"), row.get("execution_started_at"))
 
 
 class AttemptLedger:
@@ -39,6 +40,8 @@ class AttemptLedger:
     async def create(self, request, plan, units):
         semantic = wire(request)
         semantic.pop("budget", None)
+        if semantic.get("execution_start") == "admitted":
+            semantic.pop("execution_start")
         if getattr(request, "execution_timeout_seconds", None) is None:
             semantic.pop("max_queue_wait", None)
         else:
@@ -60,9 +63,9 @@ class AttemptLedger:
                 "conversation_id,function,service_class,route_id,route_revision,provider_id,"
                 "model,protocol,quota_group,request_digest,status,dispatch,deadline_at,"
                 "estimated_tokens,estimated_units,charged_units,broker_instance,billing_account,source_refs,context_fingerprint,persona_revision,"
-                "execution_timeout_seconds,business_deadline_at,max_queue_wait) "
+                "execution_timeout_seconds,business_deadline_at,max_queue_wait,execution_start) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'queued','not_started',"
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
                 (request.attempt_id, request.intent_id, request.context.principal_id,
                  request.context.actor_id, request.context.conversation_id, request.function,
                  request.service_class.value, plan.route_id, plan.revision, plan.provider_id,
@@ -72,7 +75,7 @@ class AttemptLedger:
                  Jsonb(dict(units)), self.instance_id, getattr(request, "billing_account", None),
                  Jsonb(wire(request.source_refs)), context_fingerprint(request.context), getattr(request, "persona_revision", None),
                  getattr(request, "execution_timeout_seconds", None), getattr(request, "business_deadline_at", None),
-                 request.max_queue_wait))
+                 request.max_queue_wait, getattr(request, "execution_start", "admitted")))
             row = await cursor.fetchone()
             if row:
                 cancelled = await (await conn.execute("SELECT 1 FROM models.cancellations "
@@ -98,7 +101,7 @@ class AttemptLedger:
     async def admitted(self, attempt_id, deadline_at):
         """External admission starts its execution window, without claiming I/O."""
         async with self.database.transaction(control=True) as conn:
-            row = await (await conn.execute("UPDATE models.attempts SET deadline_at=%s,revision=revision+1 "
+            row = await (await conn.execute("UPDATE models.attempts SET deadline_at=%s,execution_started_at=now(),revision=revision+1 "
                 "WHERE attempt_id=%s AND status='queued' AND NOT cancel_requested "
                 "AND deadline_at IS NULL AND execution_timeout_seconds IS NOT NULL AND %s>now() "
                 "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
@@ -112,11 +115,13 @@ class AttemptLedger:
         async with self.database.transaction(control=True) as conn:
             cursor = await conn.execute(
                 "UPDATE models.attempts SET status='running',dispatch='submitted',started_at=now(),"
+                "execution_started_at=CASE WHEN execution_start='admitted' THEN COALESCE(execution_started_at,now()) ELSE execution_started_at END,"
                 "deadline_at=COALESCE(%s,deadline_at),"
                 "hold_until=GREATEST(COALESCE(%s,deadline_at),now()+(%s*interval '1 second')),"
                 "charged_tokens=estimated_tokens,revision=revision+1 "
                 "WHERE attempt_id=%s AND status='queued' AND NOT cancel_requested "
-                "AND COALESCE(%s,deadline_at)>now() "
+                "AND (COALESCE(%s,deadline_at)>now() OR (execution_start='provider_running' "
+                "AND deadline_at IS NULL AND (business_deadline_at IS NULL OR business_deadline_at>now()))) "
                 "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
                 "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
                 (deadline_at, deadline_at, hold_seconds, attempt_id, deadline_at))
@@ -124,6 +129,32 @@ class AttemptLedger:
             if not row:
                 raise AppError("attempt_cancelled_before_start", status=409)
             return row
+
+    async def observe_external(self, attempt_id, provider_handle, state, *, hold_seconds=None, validate_observation):
+        async with self.database.transaction(control=True) as conn:
+            # Preserve the Sources -> Models lock order used by withdrawal.
+            if not await validate_observation(conn):
+                raise AppError("source_unavailable", status=403)
+            row = await (await conn.execute("SELECT *,now() AS observation_time FROM models.attempts "
+                "WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+            if not row or row["protocol"] != "external":
+                raise AppError("external_attempt_not_found", status=404)
+            if row["provider_handle"] != provider_handle or not row["started_at"] or row["dispatch"] == "not_started":
+                raise AppError("external_provider_handle_changed", status=409)
+            if row["execution_start"] != "provider_running":
+                return row
+            started, deadline, hold = row["execution_started_at"], row["deadline_at"], row["hold_until"]
+            if started is None and state in {"running", "completed"}:
+                started = row["observation_time"]
+                deadline = started + timedelta(seconds=row["execution_timeout_seconds"])
+                if row["business_deadline_at"] is not None:
+                    deadline = min(deadline, row["business_deadline_at"])
+                if hold_seconds is not None and row["status"] == "running":
+                    hold = max(value for value in (hold, deadline, started + timedelta(seconds=hold_seconds))
+                        if value is not None)
+            return await (await conn.execute("UPDATE models.attempts SET provider_state=%s,provider_observed_at=now(),"
+                "execution_started_at=%s,deadline_at=%s,hold_until=%s,revision=revision+1 WHERE attempt_id=%s RETURNING *",
+                (state, started, deadline, hold, attempt_id))).fetchone()
 
     async def checkpoint(self, attempt_id, *, provider_handle=None, first_output_ms=None):
         async with self.database.transaction(control=True) as conn:

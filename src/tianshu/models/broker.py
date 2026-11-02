@@ -11,6 +11,7 @@ import json
 import math
 import time
 from uuid import uuid4
+from types import SimpleNamespace
 
 import aiohttp
 import psycopg
@@ -27,7 +28,7 @@ from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
 from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
 from .estimation import input_tokens
-from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, waiting_expired
+from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, waiting_expired, ExternalExecutionClock
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -180,10 +181,12 @@ class ModelBroker:
     async def _watch_external(self):
         while self.ready:
             await asyncio.sleep(0.5)
-            now = datetime.now(UTC)
             for attempt_id, permit in list(self.external.items()):
-                if permit.request.budget.deadline_at <= now:
-                    await permit.unknown("external_deadline_exceeded")
+                try:
+                    permit.clock.check()
+                except (TimeoutError, AppError):
+                    await permit.unknown("business_deadline_expired" if permit.clock.deadline_at is None
+                        else "external_deadline_exceeded")
 
     async def close(self):
         self.ready = False
@@ -214,6 +217,29 @@ class ModelBroker:
         from .results import read_result
 
         return await read_result(self, attempt_id, context=context)
+
+    async def observe_external(self, attempt_id, *, context, provider_handle, state):
+        from .results import check_attempt_context
+
+        if (not isinstance(state, str) or state not in {"queued", "running", "completed"}
+                or not isinstance(provider_handle, str) or not provider_handle):
+            raise AppError("invalid_external_provider_observation")
+        row = await self.ledger.get(attempt_id)
+        if row is None or row["protocol"] != "external":
+            raise AppError("external_attempt_not_found", status=404)
+        selected = await check_attempt_context(self, row, context)
+        observation = SimpleNamespace(context=context, source_refs=selected)
+        await self.recheck(observation)
+        permit = self.external.get(attempt_id)
+        live = (permit is not None and not permit.done and row["status"] == "running"
+            and row["dispatch"] == "submitted")
+        policy = self.scheduler.policies.get(row["quota_group"])
+        updated = await self.ledger.observe_external(attempt_id, provider_handle, state,
+            hold_seconds=policy.unknown_hold_seconds if live and policy else None,
+            validate_observation=lambda connection: self.may_persist(connection, observation))
+        if live:
+            permit.clock.observe(updated["deadline_at"])
+        return receipt(updated)
 
     async def reload(self):
         from .scheduler import GroupState
@@ -587,7 +613,7 @@ class ModelBroker:
     async def resource(self, request):
         permit = await self.begin_external(request)
         try:
-            async with permit.request.budget.timeout():
+            async with permit.clock.running():
                 yield permit
         except BaseException:
             await finish_cleanup(permit.unknown("external_interrupted"))
@@ -629,8 +655,9 @@ class ModelBroker:
         try:
             await self.scheduler.acquire(request, request.quota_group, request.estimated_units)
             acquired = True
-            request = replace(request, budget=execution_budget(request))
-            if request.execution_timeout_seconds is not None:
+            if request.execution_start != "provider_running":
+                request = replace(request, budget=execution_budget(request))
+            if request.execution_timeout_seconds is not None and request.execution_start != "provider_running":
                 async with request.budget.timeout():
                     await self.ledger.admitted(request.attempt_id, request.budget.deadline_at)
         except BaseException as exc:
@@ -654,27 +681,36 @@ class ModelBroker:
 
 class ExternalPermit:
     def __init__(self, broker, request):
-        self.broker, self.request = broker, request
+        self.broker, self.clock = broker, ExternalExecutionClock(request)
         self.submitted_at = None
         self.done = False
         self.finish_lock = asyncio.Lock()
+
+    @property
+    def request(self):
+        return self.clock.request
+
+    async def observe_provider(self, state, *, provider_handle):
+        async with self.finish_lock:
+            return await self.broker.observe_external(self.request.attempt_id, context=self.request.context,
+                provider_handle=provider_handle, state=state)
 
     async def submitted(self, provider_handle=None):
         async with self.finish_lock:
             if self.done:
                 raise AppError("attempt_already_finished", status=409)
-            self.request.budget.check()
+            self.clock.check()
             await finish_cleanup(self._mark_submitted(provider_handle))
 
     async def _mark_submitted(self, provider_handle):
         if self.submitted_at is None:
             await self.broker.recheck(self.request)
-            self.request.budget.check()
+            self.clock.check()
             policy = self.broker.scheduler.policies[self.request.quota_group]
             await self.broker.ledger.started(self.request.attempt_id, policy.unknown_hold_seconds)
             self.submitted_at = datetime.now(UTC)
             await self.broker.scheduler.submitted(self.request.quota_group, self.request.attempt_id)
-            self.request.budget.check()
+            self.clock.check()
             await self.broker.event("resource.submitted", "started", self.request.attempt_id)
         if provider_handle:
             await self.broker.ledger.checkpoint(

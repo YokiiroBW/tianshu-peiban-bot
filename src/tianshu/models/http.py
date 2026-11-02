@@ -91,6 +91,15 @@ def create_broker_app(broker, token, external_keys=()):
             {"result": await broker.result(request.match_info["attempt_id"], context=context)}
         )
 
+    async def external_observation(request):
+        body = await request.json()
+        try:
+            context = context_from_wire(body["context"])
+        except (KeyError, TypeError, ValueError):
+            raise AppError("invalid_model_result_context") from None
+        return json_response({"receipt": await broker.observe_external(request.match_info["attempt_id"],
+            context=context, provider_handle=body.get("provider_handle"), state=body.get("state"))})
+
     async def reload(request):
         return json_response(await broker.reload())
 
@@ -121,6 +130,8 @@ def create_broker_app(broker, token, external_keys=()):
             result = await permit.rejected(
                 body.get("error_code", "external_rejected"), body.get("usage")
             )
+        elif operation == "observe":
+            result = await permit.observe_provider(body.get("state"), provider_handle=body.get("provider_handle"))
         else:
             raise AppError("unknown_resource_operation", status=404)
         return json_response({"receipt": result})
@@ -262,6 +273,7 @@ def create_broker_app(broker, token, external_keys=()):
     app.router.add_post("/internal/v1/models/generation-profile", generation_profile)
     app.router.add_get("/internal/v1/models/attempts/{attempt_id}", state)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/result", saved_result)
+    app.router.add_post("/internal/v1/models/attempts/{attempt_id}/external-observation", external_observation)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/cancel", cancel)
     app.router.add_post("/internal/v1/resources", external_begin)
     app.router.add_post("/internal/v1/resources/{attempt_id}/{operation}", external_update)
