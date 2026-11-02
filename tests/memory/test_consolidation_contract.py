@@ -195,6 +195,7 @@ def test_transition_cannot_redeclare_a_successor_created_by_another_operation():
 def test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_sources():
     from tianshu.conversation.context.assembly import TokenCounter
     from tianshu.memory.consolidation import Consolidation
+    from tianshu.memory.generation import repair_input_estimate
     from tianshu.types import SourceRef
     memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
     pipeline=Consolidation(memory)
@@ -208,7 +209,8 @@ def test_default_byte_counter_can_hold_a_prefix_without_serializing_unselected_s
     data['materials']['m1']['text']='填'*256
     data['episodes']=[{'source_refs':[{'source_id':'unselected_'+str(index),'revision':1} for index in range(129)]}]
     request=pipeline._request(context,data,'synthetic_prefix')
-    assert request.estimated_input_tokens<=12000
+    assert request.estimated_input_tokens<=pipeline.policy.max_input_tokens
+    assert repair_input_estimate(pipeline.counter,request.system,request.messages,request.attempt_id)<=pipeline.policy.max_input_tokens
     assert SourceRef('unselected_128',1) in request.source_refs
     assert 'unselected_128' not in request.messages[0].parts[0].text
     small=deepcopy(data)

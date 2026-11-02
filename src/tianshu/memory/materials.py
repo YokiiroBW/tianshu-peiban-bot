@@ -23,7 +23,9 @@ from .types import RecordRef
 class ConsolidationPolicy:
     quiet_seconds: int = 120
     max_wait_seconds: int = 600
-    max_input_tokens: int = 12000
+    # The full protocol plus a minimal sourced observation and repair reserve
+    # can exceed 12k under the conservative UTF-8 counter (12,545 observed).
+    max_input_tokens: int = 16384
     max_output_tokens: int = 4096
     reasoning_reserve_tokens: int = 8192
     max_episodes: int = 32

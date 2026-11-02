@@ -873,11 +873,16 @@ async def test_long_request_window_is_frozen_and_supplement_renews_its_owner_lea
 
     model=Supplement()
     configure(core,model)
-    episode=await observe(core,alice,'long_native_window','前文 '*2500+'尾部事实')
+    original_text='前文 '*5000+'尾部事实'
+    episode=await observe(core,alice,'long_native_window',original_text)
     partition=(await row(core,episode))['consolidation_partition_id']
     await core.workers.consolidate(partition)
     batch=await latest_batch(core,partition)
     assert len(model.requests)==2 and batch['status']=='applied'
+    assert len(new_texts(model.requests[0])[0])<len(original_text)
+    supplemented=json.loads(model.requests[1].messages[0].parts[0].text)
+    assert any(item['role']=='context' and item['text'] for item in supplemented['materials'])
+    assert (await row(core,episode))['extraction_state']=='pending'
     assert lease_snapshots[0]['lease_owner']==lease_snapshots[1]['lease_owner']
     async with core.database.transaction(read_only=True) as conn:
         steps=await (await conn.execute('SELECT request_timeout_seconds FROM memory.model_steps WHERE step_id=ANY(%s::text[])',
