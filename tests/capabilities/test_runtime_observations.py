@@ -417,8 +417,8 @@ async def test_automatic_subscription_dispatch_keeps_original_action_without_wai
         "revision": 3, "context": wire(work_context()), "source_refs": []}
         for identity in ("first", "second")]
 
-    async def local(operation, *args):
-        return operation(*args)
+    async def local(operation, *args, **kwargs):
+        return operation(*args, **kwargs)
 
     actions = SimpleNamespace(find=AsyncMock(return_value=None),
         invoke=AsyncMock(return_value=Receipt("receipt", "action", "attempt", "pending", "none", "not_requested")))
@@ -430,14 +430,17 @@ async def test_automatic_subscription_dispatch_keeps_original_action_without_wai
         capabilities=SimpleNamespace(actions=actions, authority=authority,
             catalog=SimpleNamespace(handler=lambda _name: SimpleNamespace(
                 definition=SimpleNamespace(permissions=frozenset())))))
-    await scan_due(media, "subscription", "subscription_id", None)
+    scan = AsyncMock()
+    await scan_due(media, "subscription", "subscription_id", scan)
     first_ids = [call.args[0].action_id for call in actions.invoke.call_args_list]
+    assert actions.invoke.await_count == 2
     assert len(set(first_ids)) == 2
     assert all(call.kwargs == {"background": True} for call in actions.invoke.call_args_list)
     actions.invoke.reset_mock()
-    await scan_due(media, "subscription", "subscription_id", None)
+    await scan_due(media, "subscription", "subscription_id", scan)
     assert [call.args[0].action_id for call in actions.invoke.call_args_list] == first_ids
     assert [call.args[0].arguments["subscription_id"] for call in actions.invoke.call_args_list] == ["first", "second"]
+    scan.assert_not_awaited()
 
 
 @pytest.mark.asyncio
