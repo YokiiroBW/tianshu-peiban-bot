@@ -26,6 +26,7 @@ from .protocols import NativeCompiler, ResponseCollector, normalize_usage, reque
 from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
 from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
+from .estimation import input_tokens
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -354,7 +355,7 @@ class ModelBroker:
             self.prepare_pending -= 1
         estimate = request.estimated_input_tokens
         if estimate is None:
-            estimate = len(json.dumps(call.body, ensure_ascii=False).encode("utf-8"))
+            estimate = input_tokens(plan.protocol, call.body)
         units = {"tokens": estimate + request.max_output_tokens}
         await self.event("model.queued", "started", request.attempt_id)
         row, created = await self.ledger.create(request, plan, units)

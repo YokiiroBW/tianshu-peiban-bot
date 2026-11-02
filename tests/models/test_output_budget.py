@@ -65,10 +65,7 @@ def test_explicit_request_limit_overrides_the_route_limit_without_losing_other_n
         effective_output_tokens(plan("openai.chat", {}), request(parameters={"max_tokens": 2, "max_completion_tokens": 3}))
 
 
-@pytest.mark.asyncio
-async def test_broker_admits_and_meters_the_exact_compiled_output_limit(tmp_path):
-    selected = plan("openai.chat", {"max_tokens": 8192})
-    native = {"choices": [{"index": 0, "message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]}
+def compiled_broker(tmp_path, selected, native):
     sent = []
 
     async def chunks(_size):
@@ -80,7 +77,7 @@ async def test_broker_admits_and_meters_the_exact_compiled_output_limit(tmp_path
         yield SimpleNamespace(status=200, content=SimpleNamespace(iter_chunked=chunks))
 
     row = {"attempt_id": "original", "intent_id": "intent", "status": "queued", "dispatch": "submitted",
-           "route_id": "route", "route_revision": 1, "provider_id": "provider", "model": "configured-model", "protocol": "openai.chat",
+           "route_id": "route", "route_revision": 1, "provider_id": "provider", "model": "configured-model", "protocol": selected.protocol,
            "quota_group": "quota", "provider_handle": None, "queued_at": None, "started_at": None,
            "finished_at": None, "first_output_ms": None, "error_code": None, "hold_until": None, "result": None}
 
@@ -101,6 +98,14 @@ async def test_broker_admits_and_meters_the_exact_compiled_output_limit(tmp_path
     broker.scheduler = SimpleNamespace(acquire=AsyncMock(), submitted=AsyncMock(), release=AsyncMock(),
         policies={"quota": SimpleNamespace(unknown_hold_seconds=300)})
     broker.session = SimpleNamespace(post=post)
+    return broker, sent
+
+
+@pytest.mark.asyncio
+async def test_broker_admits_and_meters_the_exact_compiled_output_limit(tmp_path):
+    selected = plan("openai.chat", {"max_tokens": 8192})
+    native = {"choices": [{"index": 0, "message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]}
+    broker, sent = compiled_broker(tmp_path, selected, native)
     result = await broker.generate(request())
     assert result.receipt.status == "succeeded" and sent[0]["max_tokens"] == 8192
     admitted_request, _route, units = broker.ledger.create.call_args.args

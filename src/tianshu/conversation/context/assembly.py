@@ -2,11 +2,11 @@
 
 import asyncio
 import json
-import math
 import logging
 from datetime import UTC, datetime, timedelta
 
 from tianshu.models.types import ModelMessage, ModelPart
+from tianshu.models.estimation import media_tokens
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import ContextContribution, ContextPack, RequestBudget, SourceRef, TokenUsage
@@ -63,15 +63,7 @@ class TokenCounter:
                         if part.media.duration_ms is not None
                         else None
                     )
-                    estimate = (
-                        int(self.media.get("image_tokens", 2048))
-                        if part.kind == "image"
-                        else math.ceil(duration * self.media.get("audio_tokens_per_second", 50))
-                        if part.kind == "audio" and duration
-                        else math.ceil(duration * self.media.get("video_tokens_per_second", 256))
-                        if part.kind == "video" and duration
-                        else int(self.media.get("unknown_tokens", 8192))
-                    )
+                    estimate = media_tokens(part.kind, part.media.duration_ms, self.media)
                     count += estimate
                     media.append(
                         {
