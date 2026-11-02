@@ -51,3 +51,61 @@ class WorkflowInspection(unittest.TestCase):
                 workflow.render(values)
         with self.assertRaises(Fault):
             Workflow.standard("fixture\n.safetensors")
+
+    def test_router_preserves_authored_character_while_using_current_scene(self):
+        graph = {
+            "11": {"class_type": "AnimaPromptPlusClipEncode", "inputs": {
+                "artist_tags": ["31", 0], "character_tags": ["32", 0],
+                "clothing_tags": ["36", 0], "pose_tags": ["36", 1],
+                "background_tags": ["36", 2], "extra_prompt": ["36", 3],
+            }},
+            "12": {"class_type": "ResolutionMaster", "inputs": {"width": 1024, "height": 1536}},
+            "17": {"class_type": "CLIPTextEncode", "inputs": {"text": "authored negative"}},
+            "20": {"class_type": "SaveImage", "inputs": {"images": ["24", 0]}},
+            "24": {"class_type": "KSampler", "inputs": {
+                "positive": ["11", 0], "negative": ["17", 0], "seed": 123, "steps": 20,
+                "model": ["27", 0],
+            }},
+            "27": {"class_type": "LoraLoaderModelOnly", "inputs": {
+                "lora_name": "synthetic-character.safetensors", "strength_model": 0.8,
+            }},
+            "31": {"class_type": "AnimaArtistTagSelectorPlus", "inputs": {
+                "artist_tags": "authored artist",
+            }},
+            "32": {"class_type": "AnimaCharacterTagSelectorPlus", "inputs": {
+                "character_tags": "authored fictional appearance",
+            }},
+            "35": {"class_type": "Simple String", "inputs": {"text":
+                "[User image request]\nauthored framing\n\n[Scene, style and final preset]\ndefault scene"}},
+            "36": {"class_type": "AstrBot Prompt Router", "inputs": {"prompt": ["35", 0]}},
+        }
+        bindings = {semantic: {"node": "35", "class_type": "Simple String", "input": "text"}
+                    for semantic in ("positive", "outfit", "pose", "background", "camera")}
+        bindings["negative"] = {
+            "node": "17", "class_type": "CLIPTextEncode", "input": "text", "mode": "append",
+        }
+        for semantic in ("width", "height"):
+            bindings[semantic] = {
+                "node": "12", "class_type": "ResolutionMaster", "input": semantic, "min": 64, "max": 4096,
+            }
+        intent = {
+            "character": "authored fictional appearance", "outfit": "current coat", "pose": "seated",
+            "scene": "current room", "camera": "eye level", "local_time": "2026-11-02T21:00:00+08:00",
+            "light": "night lamp", "weather": "rain", "activity": "reading",
+            "negative_constraints": ["wrong clothes"], "references": [],
+        }
+        original = canonical(graph)
+        compiled = Engines.compile({"engine": "comfyui", "parameters": {"width": 1024, "height": 1536}}, intent, {
+            "graph": graph, "bindings": bindings, "outputs": ["20"],
+        })
+        rendered = compiled["graph"]
+        prompt = rendered["35"]["inputs"]["text"]
+        for value in ("authored framing", intent["local_time"], "weather: rain", "light: night lamp",
+                      "[Reference and wardrobe ruling]\ncurrent coat",
+                      "[Composition and continuity]\nseated",
+                      "[Scene, style and final preset]\ncurrent room"):
+            self.assertIn(value, prompt)
+        self.assertEqual(rendered["17"]["inputs"]["text"], "authored negative\nwrong clothes")
+        for node in ("11", "12", "20", "24", "27", "31", "32", "36"):
+            self.assertEqual(rendered[node], graph[node])
+        self.assertEqual(canonical(graph), original)

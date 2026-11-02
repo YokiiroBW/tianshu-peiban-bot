@@ -13,7 +13,7 @@ import pytest
 from psycopg.types.json import Jsonb
 
 from tianshu.capabilities.actions import Actions
-from tianshu.capabilities.catalog import Catalog
+from tianshu.capabilities.catalog import CapabilityDefinition, Catalog
 from tianshu.capabilities.service import Operation as CapabilityOperation
 from tianshu.capabilities.weather.service import WeatherService
 from tianshu.channels.operations import Operation as ChannelOperation, probe_apis, technical_api
@@ -60,10 +60,11 @@ async def consumer(core):
     return result, catalog, life, growth
 
 
-async def consume(core, result_consumer, context, capability, *, result=None, coverage=None):
+async def consume(core, result_consumer, context, capability, *, result=None, coverage=None,
+                  origin_kind=OriginKind.HUMAN):
     identifier = str(uuid4())
     action = Action(
-        identifier, identifier, capability, context.actor_id, context, {}, OriginKind.HUMAN
+        identifier, identifier, capability, context.actor_id, context, {}, origin_kind
     )
     attempt = Attempt(str(uuid4()), identifier, "submitted")
     receipt = Receipt(
@@ -159,6 +160,45 @@ async def test_technical_results_keep_audit_but_content_reads_remain_experiences
     assert {call.kwargs["episode"].actual_result["capability_id"] for call in growth.changed.await_args_list} == {"channels.api"}
     assert all(call.kwargs["connection"] is not None for call in growth.changed.await_args_list)
     assert not technical_api("get_group_member_list") and not technical_api("get_msg")
+
+
+async def test_internal_results_use_action_origin_and_keep_the_original_audit(core, ordinary_users):
+    alice, _ = ordinary_users
+    result_consumer, catalog, life, growth = await consumer(core)
+    catalog.register(ChannelOperation(None, "read"))
+    for capability in ("weather.current", "resources.assets.search"):
+        catalog.register(SimpleNamespace(definition=CapabilityDefinition(
+            capability, capability, "synthetic content read", {"type": "object"}, {"type": "object"}
+        )))
+    # Previously persisted ingress reads have a human authority context even
+    # though their actual action source is observation. Internal reads remain
+    # technical even if a malformed historical record also mislabeled the action.
+    cases = [
+        ("channels.read", OriginKind.OBSERVATION),
+        ("channels.read", OriginKind.HUMAN),
+        ("weather.current", OriginKind.OBSERVATION),
+        ("resources.assets.search", OriginKind.OBSERVATION),
+    ]
+    audits = []
+    for capability, origin in cases:
+        action, actual = await consume(
+            core, result_consumer, alice, capability, origin_kind=origin,
+            result={"data": {"synthetic": "original lookup data"}},
+        )
+        audits.append((action.action_id, actual.receipt_id))
+    async with core.database.transaction(read_only=True) as conn:
+        audit = await (await conn.execute(
+            "SELECT id,receipt->>'receipt_id' AS receipt_id FROM capabilities.actions"
+        )).fetchall()
+        episodes = await (await conn.execute("SELECT episode_id FROM memory.episodes")).fetchall()
+        consumed = await (await conn.execute(
+            "SELECT count(*) AS n FROM conversation.result_consumption"
+        )).fetchone()
+    assert {(row["id"], row["receipt_id"]) for row in audit} == set(audits)
+    assert not episodes
+    assert consumed["n"] == len(cases)
+    life.detached_result.assert_not_awaited()
+    growth.changed.assert_not_awaited()
 
 
 async def test_received_input_coverage_is_distinct_from_media_understanding(core, ordinary_users):

@@ -8,6 +8,7 @@ from tianshu.types import Action, OriginKind, ServiceClass, SourceRef
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.capabilities.contracts import canonical, digest
+from tianshu.capabilities.serialization import receipt_from
 from tianshu.conversation.types import InputMessage, InputPart
 from .contracts import ChannelError
 from .onebot.messages import normalize_event
@@ -156,16 +157,24 @@ async def process_event(service, event_key):
                     if name == "__token__":
                         return await service.repository.token(connection)
                     key = digest([row["id"], name, params])
-                    action = Action(
-                        str(uuid5(NAMESPACE_URL, key)),
-                        key,
-                        "channels.read",
-                        context.actor_id,
-                        context,
-                        {"connection_id": connection["id"], "api_name": name, "params": params},
-                        OriginKind.OBSERVATION,
-                    )
-                    receipt = await service.actions.invoke(action, background=False)
+                    original = await service.actions.find("channels.read", key, context)
+                    if original:
+                        # Resume this input from its original lookup receipt. In
+                        # particular, never rebuild an already submitted action
+                        # with a changed context or reissue an unknown lookup.
+                        receipt = receipt_from(original["receipt"])
+                    else:
+                        read_context = replace(context, origin_kind=OriginKind.OBSERVATION)
+                        action = Action(
+                            str(uuid5(NAMESPACE_URL, key)),
+                            key,
+                            "channels.read",
+                            read_context.actor_id,
+                            read_context,
+                            {"connection_id": connection["id"], "api_name": name, "params": params},
+                            OriginKind.OBSERVATION,
+                        )
+                        receipt = await service.actions.invoke(action, background=False)
                     if receipt.execution != "succeeded":
                         raise ChannelError(
                             receipt.error_code or "channel_media_lookup_unavailable", 503
