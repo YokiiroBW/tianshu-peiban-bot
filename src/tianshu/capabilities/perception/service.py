@@ -115,7 +115,7 @@ class Perception(VideoObservation):
         raise Fault("media_not_supported", 415)
 
     async def describe(
-        self, context, media, *, question, function="vision", source_refs=(), budget=None
+        self, context, media, *, question, function="vision", source_refs=(), budget=None, business_deadline_at=None
     ):
         if media.media_id.startswith("artifact:"):
             artifact = await self.artifacts.reference(context, media.media_id)
@@ -140,6 +140,7 @@ class Perception(VideoObservation):
                 service_class=execution_service_class(context),
                 context=context,
                 budget=budget or RequestBudget(datetime.now(UTC) + timedelta(minutes=3)),
+                execution_timeout_seconds=180, business_deadline_at=business_deadline_at,
                 messages=(ModelMessage("user", (ModelPart("text", text=question), *parts)),),
                 required_capabilities=frozenset(
                     {

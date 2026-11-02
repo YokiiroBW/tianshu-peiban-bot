@@ -254,12 +254,15 @@ class DiaryService:
                 dispatched = True
                 result = await self.generations.read(generation_id,frozen.context,observer=context)
                 if result is None:
+                    from tianshu.models.timing import waiting_budget
+                    deadline = waiting_budget(frozen)
+                    expired = deadline is not None and deadline.deadline_at <= datetime.now(UTC)
                     if (row["state"] == "generating" and not row["generation_cancel_requested"]
                             and frozen.context.access_epoch == context.access_epoch
-                            and frozen.budget.deadline_at > datetime.now(UTC)):
+                            and not expired):
                         result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation,stream=True)
                     else:
-                        reason = "cancelled_before_model_registration" if row["generation_cancel_requested"] else "generation_request_expired" if frozen.budget.deadline_at <= datetime.now(UTC) else "diary_original_authorization_changed"
+                        reason = "cancelled_before_model_registration" if row["generation_cancel_requested"] else "generation_request_expired" if expired else "diary_original_authorization_changed"
                         await self._generation_state(diary_id,generation_id,"cancelled" if row["generation_cancel_requested"] else "failed",reason,settle=True)
                         return {"state":"cancelled" if row["generation_cancel_requested"] else "failed", "attempt_id":generation_id,"reason":reason}
             if result is None:

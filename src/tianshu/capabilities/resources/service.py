@@ -2,7 +2,6 @@
 
 import asyncio
 import ssl
-from datetime import UTC, datetime, timedelta
 from urllib.parse import urlsplit
 from uuid import uuid4
 import aiohttp
@@ -11,6 +10,7 @@ from tianshu.runtime.serialization import wire
 from ..catalog import Availability, CapabilityDefinition
 from ..contracts import Fault, require, canonical, loads, digest
 from ..external import request as resource_request, ProviderError, execution_service_class
+from ..execution_context import current_business_deadline
 from . import asset_queries as query
 
 
@@ -236,7 +236,7 @@ class Resources:
                 context,
                 body,
                 OriginKind.OBSERVATION,
-                deadline_at=datetime.now(UTC) + timedelta(seconds=10),
+                deadline_at=current_business_deadline(context),
             ),
             background=False,
             service_class=execution_service_class(context),

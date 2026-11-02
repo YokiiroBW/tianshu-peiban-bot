@@ -346,6 +346,7 @@ class Images:
                     budget=RequestBudget(
                         action.deadline_at or datetime.now(UTC) + timedelta(minutes=10)
                     ),
+                    execution_timeout_seconds=600, business_deadline_at=action.deadline_at,
                     messages=(
                         ModelMessage(
                             "user",

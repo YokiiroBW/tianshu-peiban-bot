@@ -18,6 +18,24 @@ class RemoteError(Exception):
         self.data = data
 
 
+class InvocationTimer:
+    """Count plugin work while the host owns a separately timed model call."""
+    def __init__(self, timeout):
+        self.timeout, self.waits, self.remaining = timeout, 0, None
+
+    def pause(self):
+        if not self.waits:
+            self.remaining = self.timeout.when() - asyncio.get_running_loop().time()
+            require(self.remaining > 0, "plugin_timeout", 504)
+            self.timeout.reschedule(None)
+        self.waits += 1
+
+    def resume(self):
+        self.waits -= 1
+        if not self.waits and not self.timeout.expired():
+            self.timeout.reschedule(asyncio.get_running_loop().time() + self.remaining)
+
+
 class Process:
     def __init__(self, package, callback):
         self.runtime_id = str(uuid4())
@@ -25,6 +43,7 @@ class Process:
         self.pending, self.counter = {}, 0
         self.process, self.reader, self.stderr = None, None, None
         self.handlers = set()
+        self.invocation_timers = {}
         self.write_lock = asyncio.Lock()
 
     async def start(self):
@@ -53,11 +72,14 @@ class Process:
         )
 
     async def send(self, document):
+        async with self.write_lock:
+            await self._write(document)
+
+    async def _write(self, document):
         frame = canonical({"jsonrpc": "2.0", **document}).encode() + b"\n"
         require(len(frame) <= MAX_FRAME + 1, "budget_exceeded", 413)
-        async with self.write_lock:
-            self.process.stdin.write(frame)
-            await self.process.stdin.drain()
+        self.process.stdin.write(frame)
+        await self.process.stdin.drain()
 
     async def call(self, method, params, *, timeout=30):
         require(self.alive, "plugin_unavailable", 503)
@@ -65,16 +87,41 @@ class Process:
         identifier = "h" + str(self.counter)
         future = asyncio.get_running_loop().create_future()
         self.pending[identifier] = future
+        reference = (params.get("call") or {}).get("context_ref")
+        clock = None
         try:
-            await self.send({"id": identifier, "method": method, "params": params})
-            async with asyncio.timeout(timeout):
+            async with asyncio.timeout(None) as timer:
+                async with self.write_lock:
+                    if timeout is not None:
+                        timer.reschedule(asyncio.get_running_loop().time() + timeout)
+                        if reference:
+                            clock = InvocationTimer(timer)
+                            self.invocation_timers[reference] = clock
+                    # Register the owning clock before the frame becomes visible
+                    # to a child which may immediately request a host model call.
+                    await self._write({"id": identifier, "method": method, "params": params})
                 return await future
         finally:
             self.pending.pop(identifier, None)
+            if clock is not None and self.invocation_timers.get(reference) is clock:
+                self.invocation_timers.pop(reference, None)
 
     async def reply(self, document):
+        params = document.get("params", {})
+        reference, clock = None, None
         try:
-            result = await self.callback(document["method"], document.get("params", {}))
+            if (document["method"] == "host.capability" and isinstance(params, dict)
+                    and params.get("major") == 1 and params.get("capability") == "models.generate"
+                    and params.get("operation") == "generate"):
+                reference = params.get("context_ref")
+                clock = self.invocation_timers.get(reference)
+                if clock is not None:
+                    clock.pause()
+            try:
+                result = await self.callback(document["method"], params)
+            finally:
+                if clock is not None and self.invocation_timers.get(reference) is clock:
+                    clock.resume()
             await self.send({"id": document["id"], "result": result})
         except Fault as error:
             await self.send(
@@ -137,6 +184,7 @@ class Process:
             except TimeoutError:
                 self.process.kill()
                 await self.process.wait()
+        self.invocation_timers.clear()
         for task in (self.reader, self.stderr, *tuple(self.handlers)):
             if task and not task.done():
                 task.cancel()

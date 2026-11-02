@@ -121,6 +121,63 @@ async def test_discovery_receipt_queues_exact_read_despite_a_future_slot_and_dup
     assert not value.models.calls
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("capability_id", ["content.discover", "images.generate"])
+async def test_new_action_business_deadline_is_the_accepted_slot_not_a_fixed_execution_timer(database, capability_id):
+    value = await fixture(database)
+    if capability_id == "images.generate":
+        handler = ReadPage()
+        handler.definition = replace(handler.definition, id=capability_id)
+        value.worker.catalog.register(handler)
+    ends = NOW+timedelta(minutes=60)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id='research'",
+            (document({"capability_id": capability_id,
+                "execution_window": {"starts_at": NOW.isoformat(), "ends_at": ends.isoformat(), "steps": 0, "seen_steps": []}}),))
+        await connection.execute("UPDATE life.day_slots SET ends_at=%s WHERE id='research-slot'", (ends,))
+    await value.worker.activity_step("research", 1, wire(value.context))
+    assert len(value.actions.calls) == 1 and value.actions.calls[0][0].deadline_at == ends
+    if capability_id == "images.generate":
+        assert value.actions.calls[0][0].arguments["window"]["expires_at"] == ends.isoformat()
+
+
+@pytest.mark.asyncio
+async def test_an_expired_nonreading_activity_cannot_start_a_new_action(database):
+    value = await fixture(database)
+    handler = ReadPage()
+    handler.definition = replace(handler.definition, id="images.generate")
+    value.worker.catalog.register(handler)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id='research'",
+            (document({"capability_id": "images.generate", "execution_window": {
+                "starts_at": (NOW-timedelta(hours=1)).isoformat(), "ends_at": (NOW-timedelta(seconds=1)).isoformat(),
+                "steps": 0, "seen_steps": []}}),))
+    await value.worker.activity_step("research", 1, wire(value.context))
+    row = await activity(database)
+    assert row["state"] == "dormant" and row["waiting_reason"] == "day_finished" and not value.actions.calls
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("expired", [False, True])
+async def test_delayed_imagined_start_does_not_reopen_the_accepted_activity_window(database, expired):
+    value = await fixture(database)
+    ends = NOW-timedelta(seconds=1) if expired else NOW+timedelta(minutes=5)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.activities SET kind='rest',checkpoint_data=%s WHERE id='research'",
+            (document({"capability_id": None, "duration_minutes": 30, "execution_window": {
+                "starts_at": (NOW-timedelta(minutes=10)).isoformat(), "ends_at": ends.isoformat(),
+                "steps": 0, "seen_steps": []}}),))
+        await connection.execute("UPDATE life.day_slots SET starts_at=%s,ends_at=%s WHERE id='research-slot'",
+            (NOW-timedelta(minutes=10), ends))
+    await value.worker.activity_step("research", 1, wire(value.context))
+    row = await activity(database)
+    assert not value.actions.calls
+    if expired:
+        assert row["state"] == "dormant" and row["waiting_reason"] == "day_finished" and row["next_due_at"] is None
+    else:
+        assert row["state"] == "running" and row["next_due_at"] == ends
+
+
 @pytest.mark.parametrize("change,reason", [
     ({"execution_window": {"ends_at": (NOW-timedelta(seconds=1)).isoformat()}}, "activity_window_ended"),
     ({"execution_window": {"steps": MAX_WINDOW_STEPS}}, "continuation_step_limit"),

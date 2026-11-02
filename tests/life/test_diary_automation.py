@@ -1,7 +1,7 @@
 """New local-day diary work uses real lifecycle tables and isolated episode ports."""
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -10,9 +10,10 @@ import pytest
 from tianshu.conversation.codec import signature
 from tianshu.life.diaries import DiaryService
 from tianshu.memory.types import Episode, EpisodePage
+from tianshu.models.types import ModelReceipt, ModelRequest
 from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
-from tianshu.types import Coverage, OriginKind, SourceRef
+from tianshu.types import Coverage, OriginKind, SourceRef, RequestBudget, ServiceClass
 from test_planner_execution import setup
 
 
@@ -199,6 +200,31 @@ async def test_unknown_same_scene_new_epoch_observes_original_and_late_success_c
     frozen = await value.diaries.generations.request(original.attempt_id,original.context)
     assert frozen.context == original.context and frozen.budget.trace_id == original.budget.trace_id
     assert len(value.models.calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("timing,admit", [("new_unbounded", True), ("legacy", False), ("business_expired", False)])
+async def test_recovery_uses_original_business_expiry_without_rewriting_a_frozen_preparation_budget(database, timing, admit):
+    value = await fixture(database)
+    await start_day(value)
+    diary = await collect_current(database, value)
+    past = datetime.now(UTC)-timedelta(seconds=1)
+    frozen = ModelRequest("diary:"+diary["generation_id"], diary["generation_id"], "reflect", ServiceClass.ELASTIC,
+        value.context, RequestBudget(past), (), execution_timeout_seconds=None if timing == "legacy" else 300,
+        business_deadline_at=past if timing == "business_expired" else None)
+    queued = SimpleNamespace(receipt=ModelReceipt(frozen.attempt_id, frozen.intent_id, "queued", "not_started",
+        "route", 1, "provider", "model", "openai.chat", "quota"))
+    value.diaries.generations.observe_request = AsyncMock(return_value=frozen)
+    value.diaries.generations.read = AsyncMock(return_value=None)
+    value.diaries.generations.run = AsyncMock(return_value=queued)
+    outcome = await value.diaries.generate(diary["id"], diary["generation_id"])
+    assert frozen.budget.deadline_at == past and frozen.attempt_id == diary["generation_id"]
+    if admit:
+        assert outcome["state"] == "generating"
+        assert value.diaries.generations.run.await_args.args[1] is frozen
+    else:
+        assert outcome["state"] == "failed" and outcome["reason"] == "generation_request_expired"
+        value.diaries.generations.run.assert_not_awaited()
 
 
 @pytest.mark.asyncio

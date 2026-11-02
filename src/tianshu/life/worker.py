@@ -218,6 +218,13 @@ class LifeWorker:
             await self.life.validate_persistence(connection, context, source_refs(row["source_refs"]))
             data, now = row["checkpoint_data"], datetime.now(UTC)
             capability_id = data.get("capability_id")
+            window = data.get("execution_window")
+            imagined_completion = (capability_id is None and row["waiting_reason"] == "fictional_activity"
+                and row["next_due_at"] and row["next_due_at"] <= now)
+            if window and datetime.fromisoformat(window["ends_at"]) <= now and not imagined_completion:
+                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='day_finished',resume_condition='next_day_plan',next_due_at=NULL,revision=revision+1 WHERE id=%s", (activity_id,))
+                await self.life.days.result(connection, activity_id, state="carried")
+                return
             if capability_id is None:
                 if row["kind"] not in {"rest", "reflection", "room"}:
                     await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_required',resume_condition='configure_capability',revision=revision+1 WHERE id=%s", (activity_id,))
@@ -235,6 +242,11 @@ class LifeWorker:
                     await self.life.signal(context,f"activity-finished:{activity_id}:{expected_revision}",connection=connection)
                 else:
                     due = now+timedelta(minutes=int(data.get("duration_minutes",30)))
+                    if window:
+                        due = min(due, datetime.fromisoformat(window["ends_at"]))
+                    else:
+                        data = execution_window(data, now, due)
+                        await connection.execute("UPDATE life.activities SET checkpoint_data=%s WHERE id=%s", (document(data), activity_id))
                     await connection.execute("UPDATE life.activities SET state='running',waiting_reason='fictional_activity',next_due_at=%s,context=%s WHERE id=%s", (due, document(context), activity_id))
                     await connection.execute("UPDATE life.actor_state SET activity_id=%s,revision=revision+1 WHERE actor_id=%s", (activity_id, context.actor_id))
                     await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity-fiction:{activity_id}:{expected_revision}",
@@ -244,18 +256,10 @@ class LifeWorker:
                 if capability_id not in available or (data.get("autonomous") and capability_id not in {item.id for item in planner.eligible_capabilities(choices)}):
                     await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_unavailable',resume_condition='capability_available',wake_condition=%s,revision=revision+1 WHERE id=%s", (document({"kind":"capability_available","subject_id":capability_id}),activity_id))
                     return
-                deadline = now+timedelta(minutes=30)
-                if capability_id in READ_CAPABILITIES:
-                    window = data.get("execution_window")
-                    if window and datetime.fromisoformat(window["ends_at"]) <= now:
-                        await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='day_finished',resume_condition='next_day_plan',next_due_at=NULL,revision=revision+1 WHERE id=%s", (activity_id,))
-                        await self.life.days.result(connection, activity_id, state="carried")
-                        return
                 if "execution_window" not in data:
                     data = execution_window(data, now, now+timedelta(minutes=int(data.get("duration_minutes", 30))))
                 data = submitted_checkpoint(data)
-                if capability_id in READ_CAPABILITIES:
-                    deadline = min(deadline, datetime.fromisoformat(data["execution_window"]["ends_at"]))
+                deadline = datetime.fromisoformat(data["execution_window"]["ends_at"])
                 await connection.execute("UPDATE life.activities SET checkpoint_data=%s WHERE id=%s", (document(data), activity_id))
                 action_id = str(uuid5(NAMESPACE_URL, f"activity:{activity_id}:{expected_revision}:{row['checkpoint_step']}"))
                 if capability_id=="images.generate":

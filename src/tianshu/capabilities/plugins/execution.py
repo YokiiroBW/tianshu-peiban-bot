@@ -97,7 +97,9 @@ class Executions:
             "package": package,
             "ports": ports,
             "secrets": snapshot,
-            "expires": float("inf") if call is None else time.time() + 3700,
+            # The invocation's finally block revokes this handle. A host model
+            # queue has no implicit one-hour TTL; every callback reauthorizes.
+            "expires": float("inf"),
         }
         if call:
             document = await self.host.local(self.repo.call, call)

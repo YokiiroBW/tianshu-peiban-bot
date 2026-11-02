@@ -144,6 +144,7 @@ class PluginRuntime(unittest.IsolatedAsyncioTestCase):
         await host.watch_worker("plugin", process)
         host.runtime_state.forget.assert_awaited_once_with("plugin", process)
         process.close.assert_awaited_once_with("worker_exited")
+        host.executions.revoke.assert_called_once_with("plugin")
         self.assertNotIn("plugin", host.workers)
 
     async def test_late_exit_of_old_generation_does_not_stop_replacement(self):

@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
@@ -24,9 +24,23 @@ async def test_budget_uses_actual_profile_and_pins_existing_route(model, protoco
     request = await generation_request(models, context(), key="original", attempt_id="original-id", function="life.plan")
     assert request.max_output_tokens == expected and request.route_id == "actual" and request.route_revision == 7
     assert timeout - 3 < request.budget.remaining() <= timeout
+    assert request.execution_timeout_seconds == timeout and request.max_queue_wait is None
+    assert request.business_deadline_at is None
     assert request.required_capabilities == {"text", "stream"}
     assert request.budget.deadline_at > datetime.now(UTC)
     assert models.generation_profile.call_args.args[0].required_capabilities == frozenset()
+
+
+@pytest.mark.asyncio
+async def test_actual_life_boundary_is_separate_from_its_model_execution_budget():
+    models = SimpleNamespace(generation_profile=AsyncMock(return_value={
+        "model": "deepseek-v4.1-flash", "protocol": "openai.chat", "route_id": "actual", "route_revision": 7,
+        "verified_capabilities": ["text", "stream"], "max_output_tokens": 16384, "output_parameters": {}}))
+    boundary = datetime.now(UTC) + timedelta(hours=1)
+    request = await generation_request(models, context(), key="original", attempt_id="original-id",
+        function="life.plan", business_deadline_at=boundary)
+    assert request.business_deadline_at == boundary and request.execution_timeout_seconds == 300
+    assert request.budget.deadline_at < boundary and request.max_queue_wait is None
 
 
 @pytest.mark.asyncio

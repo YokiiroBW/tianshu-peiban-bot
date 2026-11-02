@@ -15,7 +15,7 @@ from tianshu.types import ContextContribution, ServiceClass
 from tianshu.conversation.generation import attempt_for
 from .directions import criterion_schema
 from .contact_planning import schema as contact_schema
-from .model_budget import INPUT_TOKENS as INPUT_BODY_TOKENS, DEFAULT_OUTPUT_TOKENS
+from .model_budget import INPUT_TOKENS as INPUT_BODY_TOKENS, DEFAULT_OUTPUT_TOKENS, DEFAULT_EXECUTION_SECONDS
 
 
 CONTRACT = "life.plan:v2"
@@ -281,6 +281,7 @@ async def request(assembler, context, budget, *, key, persona, data, refs, growt
         context,
         budget,
         tuple(pack.messages),
+        execution_timeout_seconds=DEFAULT_EXECUTION_SECONDS,
         system=system,
         source_refs=tuple(pack.source_refs),
         estimated_input_tokens=estimated,

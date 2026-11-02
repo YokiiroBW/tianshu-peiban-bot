@@ -716,9 +716,9 @@ class Capabilities:
             if operation == "assets.delete":
                 return await self.reactions.delete(context, clean)
             if operation == "index":
-                return await self.reactions.index(context, clean)
+                return await self.reactions.index(context, clean, business_deadline_at=action.deadline_at if action else None)
             if operation == "annotate":
-                return await self.reactions.annotate(context, clean)
+                return await self.reactions.annotate(context, clean, business_deadline_at=action.deadline_at if action else None)
             if operation == "search":
                 from .dto import ReactionIntent
 
@@ -730,6 +730,7 @@ class Capabilities:
                         **{k: v for k, v in clean.items() if k not in {"actor_id", "scope_ids"}},
                     ),
                     source_refs=action.source_refs if action else (),
+                    business_deadline_at=action.deadline_at if action else None,
                 )
         if domain == "content":
             if operation == "view":

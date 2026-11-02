@@ -80,7 +80,9 @@ class GenerationControl:
             state = "cancelling" if row["generation_cancel_requested"] else "generating"
         elif state not in {"failed","cancelled"}:
             state = "unknown"
-        if result is None and frozen is not None and frozen.budget.deadline_at<=datetime.now(UTC):
+        from tianshu.models.timing import waiting_budget
+        deadline = waiting_budget(frozen) if frozen is not None else None
+        if result is None and deadline is not None and deadline.deadline_at<=datetime.now(UTC):
             state="cancelled" if row["generation_cancel_requested"] else "failed"
         table = "life.chapters" if kind=="chapter" else "life.diaries"
         if result is not None:

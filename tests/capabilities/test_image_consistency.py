@@ -1,5 +1,8 @@
 """Visible mismatch is distinct from generation success and unknown verification."""
 
+import asyncio
+import pytest
+
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
@@ -12,6 +15,40 @@ from tianshu.capabilities.images.service import Images
 from tianshu.models.types import ModelCompletion, ModelEvent, ModelPart, ModelReceipt, ModelResult, ModelUsage
 from tianshu.runtime.errors import AppError
 from tianshu.types import Action, ArtifactRef, Attempt, MediaRef, OriginKind, ServiceClass, TrustedContext
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("expires", [False, True])
+async def test_consistency_queue_does_not_consume_execution_time_but_real_business_expiry_still_ends_it(monkeypatch, expires):
+    monkeypatch.setattr("tianshu.capabilities.images.consistency.CHECK_SECONDS", .02)
+    entered, release, requests = asyncio.Event(), asyncio.Event(), []
+
+    async def generate(request):
+        requests.append(request)
+        entered.set()
+        await release.wait()
+        return result([{"field": "light", "status": "matched", "observed": "night lamps"}])
+
+    broker = SimpleNamespace(generate=generate, result=AsyncMock(return_value=None),
+        generation_profile=AsyncMock(return_value={"route_id": "configured-vision", "route_revision": 2,
+            "protocol": "openai.chat", "verified_capabilities": ["vision"],
+            "max_output_tokens": 8192, "output_parameters": {}}))
+    action = replace(actor_action(), deadline_at=datetime.now(UTC)+timedelta(seconds=.03)) if expires else actor_action()
+    artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+    task = asyncio.create_task(ImageConsistency(SimpleNamespace(broker=broker)).check(action, Attempt("original", action.action_id),
+        {"scene": {}, "intent": {"light": "night lamps"}}, [artifact]))
+    await asyncio.wait_for(entered.wait(), 1)
+    await asyncio.sleep(.06)
+    if expires:
+        checked = await task
+        assert checked["state"] == "unknown" and checked["reason"] == "image_consistency_timeout_unknown"
+    else:
+        assert not task.done() and requests[0].budget.deadline_at < datetime.now(UTC)
+        release.set()
+        checked = await task
+        assert checked["state"] == "matched" and checked["model_receipt"]["status"] == "succeeded"
+    assert requests[0].execution_timeout_seconds == .02 and requests[0].business_deadline_at == action.deadline_at
+    assert checked["regeneration_attempts"] == 0 and len(requests) == 1
 
 
 def result(checks, completion="complete"):
@@ -161,6 +198,8 @@ class BoundedResultCheck(IsolatedAsyncioTestCase):
         self.assertEqual(request.parameters["generationConfig"]["maxOutputTokens"], 32768)
         self.assertEqual(request.required_capabilities, frozenset({"vision", "stream"}))
         self.assertEqual(request.budget.deadline_at, action.deadline_at)
+        self.assertEqual(request.business_deadline_at, action.deadline_at)
+        self.assertEqual(request.execution_timeout_seconds, 180)
         self.assertEqual(len(requests), 1)
         broker.generate.assert_not_awaited()
 

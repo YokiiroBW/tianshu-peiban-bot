@@ -53,6 +53,7 @@ class VideoObservation:
         return ModelRequest(intent_id=action.action_id + suffix, attempt_id=attempt.attempt_id + suffix,
             function="video.observe", service_class=execution_service_class(action), context=action.context,
             budget=RequestBudget(action.deadline_at or datetime.now(UTC) + timedelta(minutes=10)),
+            execution_timeout_seconds=600, business_deadline_at=action.deadline_at,
             messages=(ModelMessage("user", tuple(parts)),), system=system,
             required_capabilities=frozenset("vision" if part.kind == "image" else part.kind
                 for part in parts if part.kind != "text") or frozenset({"text"}),

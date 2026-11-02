@@ -323,6 +323,7 @@ class Plugins:
                         budget=RequestBudget(
                             action.deadline_at or datetime.now(UTC) + timedelta(minutes=3)
                         ),
+                        execution_timeout_seconds=180, business_deadline_at=action.deadline_at,
                         messages=messages,
                         system=value.get("system", ""),
                         required_capabilities=frozenset(

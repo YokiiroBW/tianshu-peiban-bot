@@ -15,6 +15,7 @@ def request(action, attempt, profile, function, *, units=None, service_class=Non
         attempt_id=attempt.attempt_id,
         context=action.context,
         budget=RequestBudget(action.deadline_at or datetime.now(UTC) + timedelta(minutes=10)),
+        execution_timeout_seconds=600, business_deadline_at=action.deadline_at,
         quota_group=quota,
         function=function,
         service_class=service_class or execution_service_class(action),

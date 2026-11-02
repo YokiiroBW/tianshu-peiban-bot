@@ -204,7 +204,8 @@ class PlanningEngine:
             try:
                 if profile_error:
                     raise profile_error
-                selected = await generation_request(self.worker.models, context, key=key, attempt_id=attempt_for(key), function="life.plan", profile=profile)
+                selected = await generation_request(self.worker.models, context, key=key, attempt_id=attempt_for(key),
+                    function="life.plan", profile=profile, business_deadline_at=next_boundary)
                 frozen = await planner.request(self.worker.assembler, context, selected.budget,
                     key=key, persona=persona.prompt_text if persona else "", data=data, refs=refs,
                     growth=await self.worker.growth.material(context) if self.worker.growth else (), model_request=selected)

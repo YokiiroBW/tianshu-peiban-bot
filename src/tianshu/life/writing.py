@@ -220,6 +220,7 @@ class WritingService:
             dispatched = True
             result = await self.generations.run("chapter:"+generation_id, ModelRequest("chapter:"+generation_id, generation_id, "writing", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=6000,
+                execution_timeout_seconds=600,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs)), guard=current_generation)
             if result is None:
                 raise AppError("generation_outcome_unknown")

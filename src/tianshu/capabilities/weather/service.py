@@ -15,6 +15,7 @@ from ..contracts import Fault, digest, canonical, require
 from ..external import request as resource_request, ProviderError, execution_service_class
 from ..tracking import TrackedBroker
 from ..serialization import context_from
+from ..execution_context import current_business_deadline
 from .protocol import host_url, location_view, current_view
 
 
@@ -215,7 +216,7 @@ class WeatherService:
                 context,
                 arguments,
                 OriginKind.OBSERVATION,
-                deadline_at=datetime.now(UTC) + timedelta(seconds=60),
+                deadline_at=current_business_deadline(context),
             ),
             background=False,
             service_class=execution_service_class(context),

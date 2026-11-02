@@ -136,9 +136,9 @@ async def image_recovery(database, monkeypatch):
 
     async def generate(request):
         requests.append(request)
-        assert request.function in {"image.plan", "vision"}
+        assert request.function in {"image.plan", "image.consistency"}
         result = plan_result(request.attempt_id, request.intent_id)
-        if request.function == "vision":
+        if request.function == "image.consistency":
             # This fixture cannot establish scene truth; the bounded verification
             # still consumes the actual image once and reports unassessed fields.
             result = replace(result, parts=(ModelPart("text", text='{"checks":[]}'),))
@@ -157,7 +157,10 @@ async def image_recovery(database, monkeypatch):
         yield SimpleNamespace(submitted=AsyncMock(), finish=AsyncMock())
 
     broker = SimpleNamespace(generate=AsyncMock(side_effect=generate), status=AsyncMock(side_effect=status),
-                             result=AsyncMock(side_effect=result), resource=resource)
+        result=AsyncMock(side_effect=result), resource=resource,
+        generation_profile=AsyncMock(return_value={"route_id": "synthetic-route", "route_revision": 1,
+            "protocol": "gemini.generate", "verified_capabilities": ["vision"],
+            "max_output_tokens": 8192, "output_parameters": {}}))
     workflow = Workflow.standard("synthetic.safetensors")
     profile = {"id": context.actor_id, "actor_id": context.actor_id, "engine_id": "synthetic-engine",
                "workflow_id": "synthetic-workflow", "character": "fictional synthetic character"}
@@ -240,12 +243,15 @@ async def test_original_plan_reconciles_and_explicit_resume_uses_new_identity(im
     assert (done.execution, done.effect) == ("succeeded", "confirmed"), done.error_code
     assert done.result["scene"]["revision"] == "fresh-scene-after-explicit-resume"
     plans = [request for request in state.requests if request.function == "image.plan"]
-    checks = [request for request in state.requests if request.function == "vision"]
+    checks = [request for request in state.requests if request.function == "image.consistency"]
     assert len(plans) == len(checks) == len(state.resources) == 1
     assert len(state.requests) == 2
     assert plans[0].attempt_id == pending.attempt_id + ":plan"
     assert plans[0].intent_id == state.action.action_id + ":plan"
     assert timedelta(minutes=9) < plans[0].budget.deadline_at - datetime.now(UTC) <= timedelta(minutes=10)
+    assert plans[0].execution_timeout_seconds == 600 and plans[0].business_deadline_at is None
+    assert checks[0].execution_timeout_seconds == 180 and checks[0].business_deadline_at is None
+    assert state.resources[0].execution_timeout_seconds == 600 and state.resources[0].business_deadline_at is None
     assert checks[0].attempt_id == pending.attempt_id + ":consistency"
     assert checks[0].intent_id == state.action.action_id + ":consistency"
     assert any(part.kind == "image" and part.media == done.artifacts[0].media
