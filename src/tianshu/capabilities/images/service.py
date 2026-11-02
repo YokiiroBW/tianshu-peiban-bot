@@ -444,9 +444,10 @@ class Images:
             if engine["engine"] != "comfyui" or error.code != "not_configured":
                 raise
             secret = {}
-        async with self.broker.resource(
-            request(action, attempt, engine, "images.generate")
-        ) as permit:
+        physical = request(action, attempt, engine, "images.generate")
+        if engine["engine"] == "comfyui":
+            physical = replace(physical, execution_start="provider_running")
+        async with self.broker.resource(physical) as permit:
             await self.authority.check(action.context, action.source_refs)
             async with self.config.database.transaction() as conn:
                 await conn.execute(
@@ -475,7 +476,11 @@ class Images:
                             )
                     except ImageRejected:
                         raise ProviderError("prompt_rejected", 409) from None
+                    # A /prompt acknowledgement provides the exact handle, but
+                    # only /queue or /history can establish the provider state.
+                    result = await adapter.poll(submission_id, compiled)
                     while result.state in {"queued", "running"}:
+                        await permit.observe_provider(result.state, provider_handle=submission_id)
                         await asyncio.sleep(1)
                         result = await adapter.poll(submission_id, compiled)
                     if result.state != "completed":
@@ -483,6 +488,7 @@ class Images:
                             result.error_code or "image_outcome_unknown",
                             effect="unknown" if result.state == "unknown" else "none",
                         )
+                    await permit.observe_provider("completed", provider_handle=submission_id)
                     for descriptor in result.artifacts:
                         raw, _, _ = await adapter.image(descriptor, 64 * 1024 * 1024)
                         images.append((raw, "image/png"))
@@ -682,19 +688,38 @@ class Images:
             secret = {}
         adapter = ComfyUI(engine["endpoint"], token=secret.get("api_key"))
         try:
-            result = await adapter.poll(
-                row["provider_handle"]
-                or str(uuid5(NAMESPACE_URL, "tianshu:image:" + action.action_id)),
-                prepared["compiled"],
-            )
-            if result.state == "completed":
-                images = []
-                for descriptor in result.artifacts:
-                    raw, _, _ = await adapter.image(descriptor, 64 * 1024 * 1024)
-                    images.append((raw, "image/png"))
-                artifacts = await self.store_images(action, prepared, images)
-                completion = await self.complete_image_result(action, attempt, prepared, artifacts)
-                return self.recovered_receipt(action, attempt, prepared, artifacts, completion)
+            handle = row["provider_handle"] or str(uuid5(NAMESPACE_URL, "tianshu:image:" + action.action_id))
+            result = await adapter.poll(handle, prepared["compiled"])
+            if result.state in {"queued", "running", "completed"}:
+                clock = await self.broker.observe_external(attempt.attempt_id, context=action.context,
+                    provider_handle=handle, state=result.state)
+                now = datetime.now(UTC)
+                deadlines = tuple(value for value in (action.deadline_at, clock.deadline_at) if value is not None)
+                deadline = min(deadlines) if deadlines else None
+                expired = deadline is not None and deadline <= now
+                if result.state == "completed" and not expired:
+                    try:
+                        # A restarted observer receives the original clock; it
+                        # never obtains another resource permit or a fresh 600s.
+                        timeout = (deadline-now).total_seconds() if deadline else None
+                        async with asyncio.timeout(timeout):
+                            images = []
+                            for descriptor in result.artifacts:
+                                raw, _, _ = await adapter.image(descriptor, 64 * 1024 * 1024)
+                                images.append((raw, "image/png"))
+                            artifacts = await self.store_images(action, prepared, images)
+                    except TimeoutError:
+                        expired = True
+                    else:
+                        completion = await self.complete_image_result(action, attempt, prepared, artifacts)
+                        return self.recovered_receipt(action, attempt, prepared, artifacts, completion)
+                if expired:
+                    return Receipt(str(uuid4()), action.action_id, attempt.attempt_id,
+                        "unknown", "unknown", "not_requested",
+                        error_code="deadline_expired" if action.deadline_at is not None
+                            and action.deadline_at <= datetime.now(UTC) else "capability_timeout",
+                        result={"provider_state": result.state, "provider_handle": handle,
+                            "resource_receipt": wire(clock)})
             return Receipt(
                 str(uuid4()),
                 action.action_id,

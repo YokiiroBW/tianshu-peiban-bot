@@ -87,6 +87,14 @@ class TrackedPermit:
     async def finish(self, usage=None, result=None):
         return await self.permit.finish(usage=usage, result=result)
 
+    async def observe_provider(self, state, *, provider_handle):
+        if self.current:
+            await self.current["owner"].owners.check_attempt(self.current["attempt"])
+        observed = await self.permit.observe_provider(state, provider_handle=provider_handle)
+        if self.current:
+            await self.current["owner"].owners.check_attempt(self.current["attempt"])
+        return observed
+
     async def rejected(self, error_code, usage=None):
         return await self.permit.rejected(error_code, usage=usage)
 

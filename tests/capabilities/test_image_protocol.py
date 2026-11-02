@@ -154,7 +154,7 @@ async def image_recovery(database, monkeypatch):
     @asynccontextmanager
     async def resource(request):
         resources.append(request)
-        yield SimpleNamespace(submitted=AsyncMock(), finish=AsyncMock())
+        yield SimpleNamespace(submitted=AsyncMock(), finish=AsyncMock(), observe_provider=AsyncMock())
 
     broker = SimpleNamespace(generate=AsyncMock(side_effect=generate), status=AsyncMock(side_effect=status),
         result=AsyncMock(side_effect=result), resource=resource,
@@ -190,9 +190,9 @@ async def image_recovery(database, monkeypatch):
     owner.sources = sources
     owner.register_tasks()
     adapter = SimpleNamespace(
-        submit=AsyncMock(return_value=ImageResult("completed", [{"filename": "synthetic.png"}],
-                                                handle="synthetic-provider-handle")),
-        poll=AsyncMock(return_value=ImageResult("unknown")), image=AsyncMock(return_value=(b"image", 1, 1)),
+        submit=AsyncMock(return_value=ImageResult("queued", handle="synthetic-provider-handle")),
+        poll=AsyncMock(return_value=ImageResult("completed", [{"filename": "synthetic.png"}])),
+        image=AsyncMock(return_value=(b"image", 1, 1)), cancel_pending=AsyncMock(return_value=ImageResult("unknown")),
         close=AsyncMock(),
     )
     monkeypatch.setattr("tianshu.capabilities.images.service.ComfyUI", Mock(return_value=adapter))
@@ -252,6 +252,7 @@ async def test_original_plan_reconciles_and_explicit_resume_uses_new_identity(im
     assert plans[0].execution_timeout_seconds == 600 and plans[0].business_deadline_at is None
     assert checks[0].execution_timeout_seconds == 180 and checks[0].business_deadline_at is None
     assert state.resources[0].execution_timeout_seconds == 600 and state.resources[0].business_deadline_at is None
+    assert state.resources[0].execution_start == "provider_running"
     assert checks[0].attempt_id == pending.attempt_id + ":consistency"
     assert checks[0].intent_id == state.action.action_id + ":consistency"
     assert any(part.kind == "image" and part.media == done.artifacts[0].media

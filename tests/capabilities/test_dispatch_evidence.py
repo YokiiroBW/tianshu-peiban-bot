@@ -5,12 +5,39 @@ import unittest
 from contextlib import asynccontextmanager
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
-from tianshu.capabilities.tracking import TrackedBroker
+from tianshu.capabilities.tracking import TrackedBroker, TrackedPermit
 from tianshu.capabilities.execution_context import CURRENT_EXECUTION
 from tianshu.capabilities.external import ProviderError
+from tianshu.capabilities.contracts import Fault
 
 
 class DispatchEvidence(unittest.IsolatedAsyncioTestCase):
+    async def test_provider_observation_keeps_the_original_clock_and_checks_its_owner(self):
+        for loss in (None, "before", "after"):
+            with self.subTest(loss=loss):
+                changed = Fault("action_execution_owner_changed", 409)
+                checks = [changed] if loss == "before" else [None, changed] if loss == "after" else [None, None]
+                owner = SimpleNamespace(owners=SimpleNamespace(check_attempt=AsyncMock(side_effect=checks)),
+                    submitted=AsyncMock())
+                clock, attempt = object(), object()
+                permit = SimpleNamespace(observe_provider=AsyncMock(return_value=clock),
+                    submitted=AsyncMock(), rejected=AsyncMock(), unknown=AsyncMock())
+                tracked = TrackedPermit(permit, {"owner": owner, "attempt": attempt})
+                if loss:
+                    with self.assertRaises(Fault):
+                        await tracked.observe_provider("running", provider_handle="original-prompt")
+                else:
+                    self.assertIs(await tracked.observe_provider("running", provider_handle="original-prompt"), clock)
+                if loss == "before":
+                    permit.observe_provider.assert_not_awaited()
+                else:
+                    permit.observe_provider.assert_awaited_once_with("running", provider_handle="original-prompt")
+                self.assertTrue(all(call.args == (attempt,) for call in owner.owners.check_attempt.await_args_list))
+                owner.submitted.assert_not_awaited()
+                permit.submitted.assert_not_awaited()
+                permit.rejected.assert_not_awaited()
+                permit.unknown.assert_not_awaited()
+
     async def test_explicit_rejection_releases_resource_but_unknown_does_not(self):
         for effect, operation in (("none", "rejected"), ("unknown", "unknown")):
             permit = SimpleNamespace(
