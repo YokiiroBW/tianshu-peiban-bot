@@ -7,13 +7,15 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from tianshu.conversation.codec import document
-from tianshu.life.continuation import MAX_WINDOW_STEPS, action_resolved, options, resume_step
+from tianshu.conversation.codec import document, signature
+from tianshu.conversation.types import InputPart
+from tianshu.life.continuation import MAX_WINDOW_STEPS, action_resolved, execution_window, options, resume_step
 from tianshu.life.day_plan import resumable
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import Coverage, Receipt, SourceRef
+from tianshu.types import Coverage, OriginKind, Receipt, SourceRef
 from test_activity_continuation import NOW, READ, activity, fixture as make_life, fixed_time, future_slot
+from test_goal_source_transaction import source_life
 from test_planner_execution import mark
 
 
@@ -140,6 +142,33 @@ async def test_upgrade_reconciles_an_already_stored_failure_without_rewriting_it
     value.actions.get = original_get
     await value.worker.activity_step("research", repaired["revision"], wire(value.context))
     assert dict(value.actions.calls[-1][0].arguments) == NEXT["arguments"]
+
+
+@pytest.mark.asyncio
+async def test_old_failure_control_observation_has_real_sources_visible_on_its_owner_transaction(source_life):
+    value = source_life
+    result = Receipt("stored-failure", "failed-read", "attempt", "cancelled", "none", "not_requested",
+        result={"source_refs": []}, error_code="capability_timeout")
+    original = await value.sources.record_event(value.context, producer="life:action", event_id="result:failed-read",
+        revision=1, occurred_at=NOW, origin_kind=OriginKind.TOOL_RESULT,
+        parts=(InputPart("text", json.dumps(wire(result), ensure_ascii=False)),))
+    data = execution_window({"capability_id": "content.read", "arguments": FAILED["arguments"],
+        "completed_action_id": "previous-success", "last_execution": "succeeded",
+        "exploration": {"next_actions": [candidate(NEXT)]}}, NOW, NOW+timedelta(minutes=30))
+    data["execution_window"].update(steps=3, seen_steps=[signature(FAILED)])
+    async with value.database.transaction() as connection:
+        await connection.execute("INSERT INTO life.activities(id,actor_id,title,kind,state,waiting_reason,resume_condition,"
+            "action_id,last_result_revision,last_receipt_id,checkpoint_data,source_refs,scope_ids,context) "
+            "VALUES ('old-failed-read',%s,'继续其他候选','reading','dormant','capability_timeout','review_failure',"
+            "'failed-read',1,'stored-failure',%s,%s,%s,%s)",
+            (value.context.actor_id, document(data), document(original), list(value.context.scope_ids), document(value.context)))
+    value.life.jobs.register("life.activity_step", value.worker.activity_step)
+    await value.worker._activity_result(value.context, result, 1, NOW, "content.read")
+    assert len(value.episodes) == 1
+    control, visible_elsewhere = value.episodes[0]
+    assert visible_elsewhere is False and control["actual_result"]["derived_kind"] == "activity_read_skip"
+    assert set(original) <= set(control["source_refs"]) and not control["coverage"].complete
+    assert (await value.identity.check_many(value.context, (control["source_refs"],)))[0]
 
 
 @pytest.mark.asyncio
