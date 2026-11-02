@@ -142,16 +142,40 @@ class DiaryAutomation:
                     (error.code, actor_id, scope_key, row["day"]))
             raise
 
+    async def matching_day(self, connection, context, day, *, scope_ids=(), timezone=None):
+        """Resolve an existing author's day without widening its original scene."""
+        scope_key = signature(sorted(context.scope_ids))
+        scene = {key:getattr(context,key) for key in (
+            "principal_id","actor_id","person_id","conversation_id","conversation_kind","delivery_allowed")}
+        rows = await (await connection.execute(
+            "SELECT * FROM life.diary_days WHERE actor_id=%s AND day=%s AND scope_ids<@%s::text[] "
+            "AND scope_ids @> %s::text[] AND context @> %s::jsonb AND context->'audience'<@%s::jsonb "
+            "AND (%s::text IS NULL OR timezone=%s) ORDER BY (scope_key=%s) DESC,scope_key LIMIT 2 FOR UPDATE",
+            (context.actor_id,day,list(context.scope_ids),list(scope_ids),document(scene),document(context.audience),
+             timezone,timezone,scope_key))).fetchall()
+        if not rows:
+            return None
+        # The original exact scene remains authoritative. A wider author view
+        # may identify one narrower scene, never choose among several of them.
+        if len(rows)>1 and rows[0]["scope_key"] != scope_key:
+            raise AppError("diary_day_scope_ambiguous",status=409)
+        row = rows[0]
+        original = context_from_record(row["context"])
+        if set(original.scope_ids) != set(row["scope_ids"]) or signature(sorted(original.scope_ids)) != row["scope_key"]:
+            return None
+        reader = await self.diaries._reader(original)
+        await self.life.validate_persistence(connection,reader)
+        return row,reader
+
     async def bind(self, connection, automatic, generation_id, *, context=None, day=None):
         refresh = automatic is None
         if refresh:
             if context is None or day is None:
-                return None
-            row = await (await connection.execute(
-                "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
-                (context.actor_id,signature(sorted(context.scope_ids)),day))).fetchone()
-            if row is None:
-                return None
+                return None,context
+            matched = await self.matching_day(connection,context,day)
+            if matched is None:
+                return None,context
+            row,context = matched
             automatic = {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"day":row["day"].isoformat(),
                          "revision":row["revision"],"timezone":row["timezone"]}
         row = await (await connection.execute(
@@ -162,7 +186,7 @@ class DiaryAutomation:
              date.fromisoformat(automatic["day"]), automatic["revision"], refresh, automatic["revision"]))).fetchone()
         if row is None:
             raise AppError("diary_review_no_longer_current", status=409)
-        return automatic
+        return automatic,context
 
     async def settle(self, connection, generation_id, *, error=None, recipe=None, reviewed_at=None):
         rows = await (await connection.execute(

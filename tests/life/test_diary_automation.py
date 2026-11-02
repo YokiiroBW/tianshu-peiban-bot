@@ -7,7 +7,7 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from tianshu.conversation.codec import signature
+from tianshu.conversation.codec import document, signature
 from tianshu.life.diaries import DiaryService
 from tianshu.life.generation_control import GenerationControl
 from tianshu.memory.types import Episode, EpisodePage
@@ -46,14 +46,16 @@ class Memory:
         self.watermark = "e:1"
         self.windows = []
 
-    async def episodes_between(self, _context, start, end, *, limit, cursor):
+    async def episodes_between(self, context, start, end, *, limit, cursor):
         self.windows.append((start,end))
-        rows = tuple(item for item in self.episodes if start <= item.occurred_at < end)
+        rows = tuple(item for item in self.episodes if start <= item.occurred_at < end
+            and item.actor_id == context.actor_id and set(item.scope_ids).issubset(context.scope_ids))
         return EpisodePage(rows,None,Coverage(True),self.watermark)
 
-    async def episodes_by_refs(self, _context, refs, *, connection=None):
+    async def episodes_by_refs(self, context, refs, *, connection=None):
         assert connection is not None  # The final source/Episode/diary CAS is atomic.
-        found = tuple(item for item in self.episodes if (item.episode_id,item.revision) in refs)
+        found = tuple(item for item in self.episodes if (item.episode_id,item.revision) in refs
+            and item.actor_id == context.actor_id and set(item.scope_ids).issubset(context.scope_ids))
         return Page(found,None,Coverage(len(found) == len(refs)))
 
 
@@ -104,6 +106,26 @@ async def collect_current(database, value):
     diary = await diary_state(database)
     await value.diaries.collect(diary["id"],diary["generation_id"],None)
     return await diary_state(database)
+
+
+async def unbound_saved_day(database):
+    value = await fixture(database)
+    value.context = replace(value.context,scope_ids=("author-scope","other-scope","actor-scope"),
+        audience=("author-scope","other-scope","actor-scope"),origin_kind=OriginKind.HUMAN)
+    scheduled = replace(value.context,scope_ids=("author-scope","actor-scope"),
+        audience=("author-scope","actor-scope"),origin_kind=OriginKind.TIMER)
+    await value.diaries.day_closed(scheduled,"2026-11-02")
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.diary_days SET material_revisions=%s,blocked_revision=revision,"
+            "reviewed_revision=revision,last_error='context_mandatory_budget_exceeded'",(document({"actual":1}),))
+    # Preserve the production shape created before manual requests could bind
+    # an author's wider scene to its existing narrower automatic day.
+    with patch.object(value.diaries.automation,"bind",AsyncMock(return_value=(None,value.context))):
+        await value.diaries.request(value.context,{"day":"2026-11-02","expected_revision":0,
+            "client_request_id":"historical-unbound-success"})
+    current = await collect_current(database,value)
+    await value.diaries.generate(current["id"],current["generation_id"])
+    return value,await diary_state(database),scheduled
 
 
 @pytest.mark.asyncio
@@ -334,7 +356,7 @@ async def test_manual_recovery_binds_only_its_closed_day_and_saved_reconcile_cha
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.diary_days SET generation_id=NULL,generation_revision=NULL")
     # Preserve the historical manual request that had no automatic binding.
-    with patch.object(value.diaries.automation,"bind",AsyncMock(return_value=None)):
+    with patch.object(value.diaries.automation,"bind",AsyncMock(return_value=(None,value.context))):
         await value.diaries.request(value.context,body)
     current = await collect_current(database,value)
     assert current["generation_recipe"]["automatic"] is None
@@ -399,13 +421,153 @@ async def test_manual_recovery_binds_only_its_closed_day_and_saved_reconcile_cha
     await value.diaries.generate(current["id"],current["generation_id"])
     assert (await day_state(database))["reviewed_revision"] == 3 and (await day_state(database))["last_error"] is None
 
-    # A broader author scene and an unclosed date do not invent a matching day.
-    broader = replace(value.context,scope_ids=(*value.context.scope_ids,"other-scope"))
+    # A wider author follows the unique closed scene; an unclosed date stays unbound.
+    broader = replace(value.context,scope_ids=(*value.context.scope_ids,"other-scope"),
+        audience=(*value.context.audience,"other-scope"))
     current = await diary_state(database)
-    await value.diaries.request(broader,{"day":day,"expected_revision":current["revision"],"client_request_id":"different-scope"})
-    assert (await diary_state(database))["generation_recipe"]["automatic"] is None
+    refresh = await value.diaries.request(broader,{"day":day,"expected_revision":current["revision"],"client_request_id":"wider-author"})
+    assert (await diary_state(database))["generation_recipe"]["automatic"]["scope_key"] == scope
+    assert (await day_state(database))["generation_id"] == refresh.attempt_id
+    assert (await diary_state(database))["context"]["scope_ids"] == list(value.context.scope_ids)
+    await collect_current(database,value)
     assert (await day_state(database))["generation_id"] is None
     await value.diaries.request(broader,{"day":"2026-11-04","expected_revision":0,"client_request_id":"unclosed-date"})
     async with database.transaction(read_only=True) as connection:
         assert len(await (await connection.execute("SELECT * FROM life.diary_days")).fetchall()) == 1
     assert len(value.models.calls) == 3
+
+
+@pytest.mark.asyncio
+async def test_saved_success_reconciles_its_unique_narrower_day_without_rewriting_content_or_receipts(database):
+    value,saved,scheduled = await unbound_saved_day(database)
+    assert saved["scope_ids"] == ["actor-scope"]
+    assert saved["context"]["scope_ids"] == list(value.context.scope_ids)
+    assert (await day_state(database))["context"]["scope_ids"] == list(scheduled.scope_ids)
+    async with database.transaction(read_only=True) as connection:
+        immutable = await (await connection.execute("SELECT * FROM life.diary_revisions")).fetchall()
+        frozen = await (await connection.execute("SELECT * FROM conversation.generation_requests")).fetchall()
+        audit = await (await connection.execute("SELECT * FROM life.generation_recipes")).fetchall()
+    assert immutable[0]["recipe"]["automatic"] is None
+    assert immutable[0]["recipe"]["material_revisions"] == [["actual",1]]
+    receipt,queued = value.models.actual,len(value.jobs.items)
+    value.identity.epoch = 2
+    context = replace(value.context,access_epoch=2)
+    value.memory.episodes_by_refs = AsyncMock(wraps=value.memory.episodes_by_refs)
+    controls = GenerationControl(value.life,None,value.diaries)
+    await controls.request(context,{"id":saved["id"],"expected_revision":saved["revision"],
+        "client_request_id":"reconcile-wider-author"},kind="diary",operation="reconcile")
+    day = await day_state(database)
+    assert day["last_error"] is None and day["last_reviewed_at"] == immutable[0]["created_at"]
+    assert day["reviewed_revision"] == day["revision"] and day["generation_id"] is None
+    reader = value.memory.episodes_by_refs.await_args.args[0]
+    assert reader.scope_ids == scheduled.scope_ids and reader.audience == scheduled.audience and reader.access_epoch == 2
+    assert (await diary_state(database)) == saved and value.models.actual == receipt
+    assert len(value.models.calls) == 1 and len(value.jobs.items) == queued
+    async with database.transaction(read_only=True) as connection:
+        assert await (await connection.execute("SELECT * FROM life.diary_revisions")).fetchall() == immutable
+        assert await (await connection.execute("SELECT * FROM conversation.generation_requests")).fetchall() == frozen
+        assert await (await connection.execute("SELECT * FROM life.generation_recipes")).fetchall() == audit
+
+
+@pytest.mark.asyncio
+async def test_manual_wider_author_preserves_active_day_then_collects_only_its_original_scene(database):
+    value,saved,scheduled = await unbound_saved_day(database)
+    body = {"day":"2026-11-02","expected_revision":saved["revision"],"client_request_id":"manual-wider-scene"}
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.diary_days SET generation_id='another-active',generation_revision=revision")
+    with pytest.raises(AppError,match="diary_review_no_longer_current"):
+        await value.diaries.request(value.context,body)
+    assert (await day_state(database))["generation_id"] == "another-active" and (await diary_state(database)) == saved
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.diary_days SET generation_id=NULL,generation_revision=NULL")
+    extra = replace(value.episode,episode_id="outside-closed-scene",scope_ids=("other-scope",))
+    later = replace(value.episode,episode_id="later-actual")
+    value.memory.episodes += (extra,later)
+    value.identity.epoch = 2
+    manual = await value.diaries.request(replace(value.context,access_epoch=2),body)
+    current = await diary_state(database)
+    assert current["context"]["scope_ids"] == list(scheduled.scope_ids)
+    assert current["context"]["audience"] == list(scheduled.audience) and current["context"]["access_epoch"] == 2
+    assert current["generation_recipe"]["automatic"]["scope_key"] == signature(sorted(scheduled.scope_ids))
+    assert (await day_state(database))["generation_id"] == manual.attempt_id
+    current = await collect_current(database,value)
+    assert current["episode_ids"] == ["actual","later-actual"]
+    assert current["generation_recipe"]["material_revisions"] == [["actual",1],["later-actual",1]]
+    assert len(value.models.calls) == 1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("mismatch", ["principal","scene","scope","audience","actor","day","timezone",
+    "active","revised","uncovered","other-day","source","caller"])
+async def test_saved_reconcile_does_not_clear_an_unproven_or_other_closed_day(database,mismatch):
+    value,saved,scheduled = await unbound_saved_day(database)
+    context,day_context = value.context,scheduled
+    if mismatch == "principal":
+        day_context = replace(scheduled,principal_id="another-author")
+    elif mismatch == "scene":
+        day_context = replace(scheduled,person_id="another-person")
+    elif mismatch == "scope":
+        day_context = replace(scheduled,scope_ids=(*scheduled.scope_ids,"unavailable-private"))
+    elif mismatch == "audience":
+        day_context = replace(scheduled,audience=(*scheduled.audience,"unavailable-private"))
+    elif mismatch == "caller":
+        context = replace(context,principal_id="another-author")
+    async with database.transaction() as connection:
+        if day_context != scheduled:
+            await connection.execute("UPDATE life.diary_days SET context=%s,scope_ids=%s,scope_key=%s",
+                (document(day_context),list(day_context.scope_ids),signature(sorted(day_context.scope_ids))))
+        elif mismatch == "actor":
+            await connection.execute("UPDATE life.diary_days SET actor_id='another-actor'")
+        elif mismatch == "day":
+            await connection.execute("UPDATE life.diary_days SET day='2026-11-03'")
+        elif mismatch == "timezone":
+            await connection.execute("UPDATE life.diary_days SET timezone='UTC'")
+        elif mismatch == "active":
+            await connection.execute("UPDATE life.diary_days SET generation_id='another-active',generation_revision=revision")
+        elif mismatch == "uncovered":
+            await connection.execute("UPDATE life.diary_days SET material_revisions=%s",(document({"actual":1,"not-in-saved-success":1}),))
+    if mismatch == "revised":
+        value.memory.episodes = (replace(value.episode,revision=2),)
+    elif mismatch == "other-day":
+        value.memory.episodes = (replace(value.episode,occurred_at=datetime(2026,11,3,tzinfo=UTC)),)
+    elif mismatch == "source":
+        value.life.sources.validate_persistence = AsyncMock(return_value=False)
+    before = await day_state(database)
+    controls = GenerationControl(value.life,None,value.diaries)
+    async def reconcile():
+        return await controls.request(context,{"id":saved["id"],"expected_revision":saved["revision"],
+            "client_request_id":"reject-"+mismatch},kind="diary",operation="reconcile")
+    if mismatch in {"source","caller"}:
+        with pytest.raises(AppError,match="source_unavailable" if mismatch == "source" else "generation_observation_context_mismatch"):
+            await reconcile()
+    else:
+        await reconcile()
+    assert await day_state(database) == before
+    assert (await diary_state(database)) == saved and len(value.models.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_multiple_narrower_days_are_ambiguous_but_an_exact_original_scene_keeps_priority(database):
+    value,saved,scheduled = await unbound_saved_day(database)
+    other = replace(scheduled,scope_ids=("actor-scope",),audience=("actor-scope",))
+    await value.diaries.day_closed(other,"2026-11-02")
+    async with database.transaction(read_only=True) as connection:
+        before = await (await connection.execute("SELECT * FROM life.diary_days ORDER BY scope_key")).fetchall()
+    controls = GenerationControl(value.life,None,value.diaries)
+    body = {"id":saved["id"],"expected_revision":saved["revision"],"client_request_id":"ambiguous-saved"}
+    with pytest.raises(AppError,match="diary_day_scope_ambiguous"):
+        await controls.request(value.context,body,kind="diary",operation="reconcile")
+    with pytest.raises(AppError,match="diary_day_scope_ambiguous"):
+        await value.diaries.request(value.context,{"day":"2026-11-02","expected_revision":saved["revision"],
+            "client_request_id":"ambiguous-manual"})
+    async with database.transaction(read_only=True) as connection:
+        assert await (await connection.execute("SELECT * FROM life.diary_days ORDER BY scope_key")).fetchall() == before
+    assert (await diary_state(database)) == saved
+    await value.diaries.day_closed(value.context,"2026-11-02")
+    await controls.request(value.context,{**body,"client_request_id":"exact-scene-priority"},kind="diary",operation="reconcile")
+    async with database.transaction(read_only=True) as connection:
+        rows = await (await connection.execute("SELECT * FROM life.diary_days ORDER BY scope_key")).fetchall()
+    exact = next(row for row in rows if row["scope_key"] == signature(sorted(value.context.scope_ids)))
+    assert exact["reviewed_revision"] == exact["revision"] and exact["last_error"] is None
+    assert [row for row in rows if row["scope_key"] != exact["scope_key"]] == before
+    assert (await diary_state(database)) == saved and len(value.models.calls) == 1
