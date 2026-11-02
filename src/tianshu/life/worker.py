@@ -235,7 +235,7 @@ class LifeWorker:
                     await self.life.signal(context,f"activity-finished:{activity_id}:{expected_revision}",connection=connection)
                 else:
                     due = now+timedelta(minutes=int(data.get("duration_minutes",30)))
-                    await connection.execute("UPDATE life.activities SET state='running',waiting_reason='fictional_activity',next_due_at=%s WHERE id=%s", (due, activity_id))
+                    await connection.execute("UPDATE life.activities SET state='running',waiting_reason='fictional_activity',next_due_at=%s,context=%s WHERE id=%s", (due, document(context), activity_id))
                     await connection.execute("UPDATE life.actor_state SET activity_id=%s,revision=revision+1 WHERE actor_id=%s", (activity_id, context.actor_id))
                     await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity-fiction:{activity_id}:{expected_revision}",
                         {"activity_id": activity_id, "expected_revision": expected_revision, "context": wire(context)}, scheduled_at=due, subject_id=context.actor_id))
@@ -278,13 +278,11 @@ class LifeWorker:
                 await connection.execute("UPDATE life.day_slots SET state='running' WHERE activity_id=%s AND state='planned'", (activity_id,))
                 await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile", f"activity-reconcile:{action_id}:0", {"activity_id": activity_id, "context": wire(context), "sequence": 0}, scheduled_at=now+timedelta(seconds=15), subject_id=context.actor_id))
                 frozen=Action(action_id,f"activity:{activity_id}:{expected_revision}:{row['checkpoint_step']}",capability_id,context.actor_id,context,data.get("arguments",{}),OriginKind.ACTOR,source_refs(row["source_refs"]),activity_id=activity_id,matter_id=row["matter_id"],deadline_at=deadline)
-                await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id=%s",(document({"frozen_action":wire(frozen)}),activity_id))
+                await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s,context=%s WHERE id=%s",
+                    (document({"frozen_action":wire(frozen)}), document(frozen.context), activity_id))
         if fictional_done:
             return
-        action = Action(action_id, f"activity:{activity_id}:{expected_revision}:{row['checkpoint_step']}", capability_id,
-            context.actor_id, context, data.get("arguments", {}), OriginKind.ACTOR,
-            source_refs(row["source_refs"]), activity_id=activity_id, matter_id=row["matter_id"], deadline_at=deadline)
-        result = receipt(await self.actions.invoke(action, background=True, service_class=ServiceClass.ELASTIC))
+        result = receipt(await self.actions.invoke(frozen, background=True, service_class=ServiceClass.ELASTIC))
         await self.capability_result(context, result)
 
     async def reconcile_activity(self, activity_id, context, sequence):
