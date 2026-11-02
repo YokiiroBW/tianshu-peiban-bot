@@ -116,7 +116,7 @@ export default function GrowthPage() {
                         <p>保留了较新经历形成的当前状态；此批只补充历史手记，原判断仍可追溯。</p>
                       )}
                       <p className="muted">执行记录：{retry.attempt_id}</p>
-                      {view.data.can_review && retry.can_request_review && (
+                      {view.data?.can_review && retry.can_request_review && (
                         <button className="button" disabled={action.busy} onClick={async () => {
                           if (await action.run("companion/growth/review", { ...scope, retry_key: retry.retry_key }, review.revision))
                             await view.refresh();
