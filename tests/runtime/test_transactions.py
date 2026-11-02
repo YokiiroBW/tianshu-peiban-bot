@@ -73,7 +73,7 @@ async def test_coalesced_signal_keeps_original_job_moves_earlier_and_retains_can
         assert await (await conn.execute("SELECT * FROM runtime.job_keys ORDER BY key")).fetchall() == keys
         events = await (await conn.execute("SELECT type FROM procrastinate_events WHERE job_id=%s ORDER BY id",
             (duplicate,))).fetchall()
-        assert events[0]["type"] == "deferred" and events[-1]["type"] == "cancelled"
+        assert events[0]["type"] == "scheduled" and events[-1]["type"] == "cancelled"
         assert notifications == [(first, "maintenance")]
         # A later request cannot postpone the earliest promised wake or emit noise.
         assert await jobs.enqueue(conn, replace(base, key="later-unused"), queueing_lock="wake:one") == first
