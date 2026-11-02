@@ -115,13 +115,25 @@ class Repository:
             ]
 
     def maintenance_due(self, name):
-        from .scheduling import SCAN_TASKS
+        from .scheduling import SCAN_TASKS, TRACKING_STATES
 
         kind = next((kind for kind, task in SCAN_TASKS.items() if task == name), None)
         with self.transaction() as db:
             if kind:
-                row = db.execute("SELECT min(coalesce((body::jsonb->>'next_scan_at')::double precision,0)) AS due "
-                    "FROM documents WHERE kind=%s AND body::jsonb->>'state'='active'", (kind,)).fetchone()
+                # Mirrors scheduling.scan_deadline: an unresolved original Action
+                # is observed before this source may start another business scan.
+                row = db.execute(
+                    "SELECT min(CASE WHEN body::jsonb->>'state'='removed' "
+                    "OR body::jsonb->'schedule'->>'state'='blocked' THEN NULL "
+                    "WHEN body::jsonb->'schedule'->>'state'=ANY(%s) "
+                    "AND nullif(body::jsonb->'schedule'->>'action_key','') IS NOT NULL "
+                    "THEN coalesce((body::jsonb->'schedule'->>'next_check_at')::double precision,0) "
+                    "WHEN body::jsonb->>'state'='active' THEN greatest("
+                    "coalesce((body::jsonb->>'next_scan_at')::double precision,0),"
+                    "CASE WHEN body::jsonb->'schedule'->>'state'='retry_wait' "
+                    "THEN coalesce((body::jsonb->'schedule'->>'next_check_at')::double precision,0) "
+                    "ELSE 0 END) ELSE NULL END) AS due FROM documents WHERE kind=%s",
+                    (list(TRACKING_STATES), kind)).fetchone()
                 return {"known": True, "due": row["due"]}
             if name == "book_audio":
                 row = db.execute("SELECT min(coalesce((j.body::jsonb->>'next_at')::double precision,0)) AS due FROM documents j "
@@ -225,7 +237,19 @@ class Repository:
         if kind in SUBSCRIPTIONS:
             from .scheduling import author_schedule
 
-            body = author_schedule(kind, body, action)
+            authored = author_schedule(kind, body, action)
+            author_edit = authored is not body
+            body = authored
+            if current and action and not author_edit:
+                # A business handler may hold a snapshot taken before a later
+                # observer/author update. Scheduling and author grants have one
+                # writer; finishing a scan cannot restore that stale snapshot.
+                body = {**body, "schedule": current.get("schedule", {})}
+                for field in ("context", "source_refs"):
+                    if field in current:
+                        body[field] = current[field]
+                if (current.get("schedule") or {}).get("state") == "blocked":
+                    body.update(state=current["state"], code=current.get("code"))
         if kind in SUBSCRIPTIONS and "context" not in body:
             if action:body={**body,"context":wire(action.context),"source_refs":wire(action.source_refs)}
             elif current and current.get("context"):body={**body,"context":current["context"],"source_refs":current.get("source_refs",[])}
@@ -244,17 +268,28 @@ class Repository:
         wake_document(self, db, kind, result)
         return result
 
-    def record_schedule(self, kind, identity, expected, observation, *, blocked=False, context=None):
-        """Runtime scan facts do not revise or overwrite a concurrent author edit."""
+    def record_schedule(self, kind, identity, expected, observation, *, begin=False,
+                        blocked=False, context=None):
+        """Reserve against author CAS; later observations CAS only their original key.
+
+        Business writes may advance revision/due while retaining that key. Neither
+        an observation nor a reservation moves the business scan deadline.
+        """
         require(kind in SUBSCRIPTIONS, "invalid_input", 400)
         with self.transaction() as db:
             current = self._document(db, kind, identity)
-            if (not current or current["state"] != "active"
-                    or current["revision"] != expected["revision"]
-                    or current["next_scan_at"] != expected["next_scan_at"]):
+            if not current or current.get("state") == "removed":
                 return False
-            body = {**current, "schedule": observation,
-                    "next_scan_at": observation["next_check_at"]}
+            saved, selected = current.get("schedule") or {}, expected.get("schedule") or {}
+            if saved != selected:
+                return False
+            if begin:
+                if (current["state"] != "active" or current["revision"] != expected["revision"]
+                        or current["next_scan_at"] != expected["next_scan_at"]):
+                    return False
+            elif not selected.get("action_key") or saved.get("action_key") != selected["action_key"]:
+                return False
+            body = {**current, "schedule": observation}
             if context is not None:
                 body["context"] = context
             if blocked:
@@ -263,10 +298,14 @@ class Repository:
                 body["code"] = observation["code"]
             changed = db.execute(
                 "UPDATE documents SET body=%s WHERE kind=%s AND id=%s AND revision=%s "
-                "AND body::jsonb->>'state'='active' "
+                "AND coalesce(body::jsonb->'schedule','{}'::jsonb)=%s::jsonb "
                 "AND (body::jsonb->>'next_scan_at')::double precision=%s",
                 (json.dumps(self.payloads.store(kind, body), ensure_ascii=False), kind, identity,
-                 expected["revision"], expected["next_scan_at"])).rowcount
+                 current["revision"], canonical(saved), current["next_scan_at"])).rowcount
+            if changed:
+                from .scheduling import wake_document
+
+                wake_document(self, db, kind, body)
             return changed == 1
 
     def enqueue(self, payload, *, db=None):

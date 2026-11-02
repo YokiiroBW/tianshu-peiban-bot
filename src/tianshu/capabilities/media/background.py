@@ -20,8 +20,10 @@ SCHEDULE = (
 
 ACTIVATE = (
     "INSERT INTO capabilities.maintenance(name,owner,lease_until,next_due_at,wake_generation) "
-    "VALUES(%s,'',to_timestamp(0),now(),1) ON CONFLICT(name) DO UPDATE SET "
-    "next_due_at=coalesce(capabilities.maintenance.next_due_at,excluded.next_due_at),"
+    "VALUES(%s,'',to_timestamp(0),coalesce(%s::timestamptz,now()),1) ON CONFLICT(name) DO UPDATE SET "
+    "next_due_at=CASE WHEN %s::timestamptz IS NULL "
+    "THEN coalesce(capabilities.maintenance.next_due_at,excluded.next_due_at) "
+    "ELSE LEAST(capabilities.maintenance.next_due_at,excluded.next_due_at) END,"
     "wake_generation=capabilities.maintenance.wake_generation+1 "
     "RETURNING wake_generation,next_due_at,GREATEST(next_due_at,lease_until,now()) AS scheduled_at"
 )
@@ -64,14 +66,22 @@ class Background:
             self.runtime.jobs.register(work_task, work)
 
     async def activate(self):
+        from .scheduling import SCAN_TASKS
+
         for name in self.operations:
             if self.closed:
                 return
+            due = None
+            if self.next_due and name in SCAN_TASKS.values():
+                plan = await self.next_due(name)
+                if plan.get("known") and plan.get("due") is not None:
+                    due = datetime.fromtimestamp(plan["due"], UTC)
             # Startup cannot assume that the saved generation still has a live
             # native job. Re-enqueue one generation without advancing future
-            # work or taking an existing owner's lease.
+            # work or taking an existing owner's lease. A source's original
+            # receipt deadline can be earlier than its saved business wake.
             async with self.runtime.database.transaction() as connection:
-                row = await (await connection.execute(ACTIVATE, (name,))).fetchone()
+                row = await (await connection.execute(ACTIVATE, (name, due, due))).fetchone()
                 await self.runtime.jobs.enqueue(connection,
                     maintenance_job(name, row, scheduled_at=row["scheduled_at"]))
 
