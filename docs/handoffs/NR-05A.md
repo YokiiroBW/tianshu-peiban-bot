@@ -58,3 +58,34 @@ python -m pytest tests/core/test_retrieval_timing.py tests/core/test_memory_evid
 新用例穿过实际聊天组装、工具及 HTTP query 路由，证明默认会发 embed/rerank 两个 30 秒请求，短上游期限保词法降级、SQL 预算不放大；后台新 step 30 秒、非 404 读取失败不提交，旧 legacy/120 秒未知 step 的整份原 request 不变且更改 payload 仍拒绝。既有来源重检用例在重排期间撤回原证据，确认最终整单元剔除；原后台队列用例以受控短时长证明等待超过执行窗口不会消耗后续 SQL 时间。需要 PG 的用例依赖根显式隔离库，skip 不代表通过。
 
 不用为本卡运行网页/QQ/生图或无关全量检查。以上是待验证目标，不是通过声明。
+
+## 追加：向量 SQL 的事务局部 JIT 开销
+
+追加代码提交：`23f5e048389b794fbf9d1b31424d29fbda65812e`。本追加仅改 `src/tianshu/memory/candidates.py`、`tests/core/test_memory_evidence_retrieval.py` 及本交接；未合入整个集成分支。
+
+父级报告已将前述窗口修改部署为 `83ed3210`，集中 60 条定向用例通过；线上新 embedding 0.289 秒、rerank 3.513 秒，均使用 30 秒执行窗口。随后一次实际 `memory/query('日程与天气', limit=6)` 返回 6 条，但 coverage 含 `vector_query_timeout`。这是本追加的触发证据，不是本执行者运行测试或生产探针。
+
+只读链路核对表明，`vector_sql_seconds=0.8` 约束整个 `CandidateStore.vectors` 事务，包含连接获取、向量类型注册、HNSW 设置及四类候选的计数、来源证明和距离查询。空域的 scoped count 为零时已经跳过精确查询；来源证明仍保留完整 support / derivation / explicit 条件。未发现模型执行窗口误接到 SQL 或需要放大 Profile/SQL 超时的依据。
+
+父级复用原成功 embedding、同一合法 actor 的 3 scopes 与相同 SQL，只读对照如下；没有新模型调用或改变全局 PG 配置：
+
+| 同一向量查询 | 原事务 JIT 开启 | 仅本事务 JIT 关闭 | 结果 |
+| --- | --- | --- | --- |
+| 四类候选合计，两次 | 2.699 / 2.731 秒 | 0.418 / 0.419 秒 | 均 48 条 |
+| claim / hypothesis | 1.735 秒 | 0.222 秒 | 均 22 条 |
+
+原分类型耗时另为 episode 0.700 秒 / 14 条、reflection 0.419 秒 / 12 条、空 matter 0.008 秒 / 0 条。稳定重复的 JIT 对照足以支持本次执行开销修复，不据此改变 Memory 检索算法、权限或预算。
+
+[PostgreSQL 官方机制说明](https://www.postgresql.org/docs/current/jit-decision.html)指出，短查询的 JIT 编译开销可能超过收益，`jit=off` 同时作用于规划和执行阶段。该文档解释机制，以上性能数字仍仅来自父级本轮实测。
+
+`vectors` 在既有 HNSW `set_config` 同一条 SQL 中追加 `set_config('jit','off',true)`。`true` 限定当前事务，成功提交或失败回滚后恢复会话原设置。保留原 0.8 秒 SQL 预算、全局 PG JIT 配置、候选/精确/ANN 算法、来源谓词、排序与所有作者配置；本追加无需生产配置差异。
+
+新增真实 PG 用例固定复用同一 pooled session，先明确 session JIT 为 on，检查向量查询内为 off、两个合法候选完整返回、其他用户的私有候选不返回；正常提交及模拟 TimeoutError 回滚后，下一事务均恢复 on，最后恢复测试前 session 设置。使用既有隔离 PG fixture 和合成向量，不调用模型，也不以不稳定的性能阈值断言代替结果及事务隔离验证。
+
+本执行者仅阅读和静态审查 diff，`git diff --check` 通过，**没有运行测试、build、typecheck、真实模型或生产访问**。父级只需执行以下受影响目标；前述已经通过且输入未变的窗口/队列验证可复用：
+
+```powershell
+python -m pytest tests/core/test_memory_evidence_retrieval.py::test_vector_jit_is_transaction_local_and_keeps_authorized_results tests/core/test_memory_evidence_retrieval.py::test_vector_exact_keeps_five_types_and_public_or_support_across_owners tests/core/test_memory_evidence_retrieval.py::test_vector_exact_uses_selected_knowledge_revision_before_validity -q
+```
+
+三个目标分别覆盖事务局部设置及失败恢复、五类型/公开 OR 支持/关系来源撤回、知识修订与时间选择。根需在发布后核对原受影响 Memory 查询的 coverage；本追加不保证未来任意数据量的查询都能在 0.8 秒内完成，也不把超时当空域。
