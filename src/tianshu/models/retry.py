@@ -18,6 +18,7 @@ _TRANSIENT = frozenset({
     "model_queue_full", "model_preparation_queue_full", "queue_wait_expired",
     "execution_deadline_expired", "deadline_exceeded", "model_outcome_unknown",
     "reflection_outcome_unknown", "rate_limit_exceeded", "rate_limit_error",
+    "consumer_interrupted", "transport_interrupted",
     "overloaded_error", "server_error", "internal_server_error", "service_unavailable",
 })
 _PERMANENT = (

@@ -8,6 +8,7 @@ from tianshu.models.retry import retry_delay_seconds, transient_model_failure
     "upstream_http_500", "upstream_http_503", "upstream_http_429", "http_502",
     "broker_restarted_after_submit", "queue_wait_expired", "execution_deadline_expired",
     "incomplete_native_stream", "reflection_outcome_unknown",
+    "consumer_interrupted", "transport_interrupted", "broker_stopping",
 ])
 def test_computation_transient_failure_can_be_scheduled_again(code):
     assert transient_model_failure(code)
