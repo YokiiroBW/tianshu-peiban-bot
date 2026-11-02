@@ -10,6 +10,7 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.sources.dependencies import unique_refs
 from .clock import awake_and_due, hour
+from .continuation import action_resolved
 
 
 MAX_ACTIVITIES = 4
@@ -47,7 +48,7 @@ def next_gap(start, duration, end, occupied):
 def resumable(row, now):
     return (row["state"] == "dormant" and row["waiting_reason"] in {"continuation_available", "day_finished", "follow_up_available"}
         and (not row["protected_until"] or row["protected_until"] <= now)
-        and (not row["action_id"] or row["checkpoint_data"].get("completed_action_id") == row["action_id"]))
+        and action_resolved(row))
 
 
 class DayPlans:

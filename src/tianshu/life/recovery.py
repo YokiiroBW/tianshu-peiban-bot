@@ -6,6 +6,7 @@ from tianshu.conversation.codec import context_from_record, source_refs
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
+from .continuation import action_resolved, resolved_read_failure
 
 
 async def scheduled_context(life, value, *, connection=None):
@@ -46,13 +47,13 @@ async def recover(worker):
             context = await scheduled_context(life, row["context"])
             await life.identity.check(context, source_refs(row["source_refs"]))
             if table == "activities":
-                if row["action_id"] and row["checkpoint_data"].get("completed_action_id") != row["action_id"]:
+                if not action_resolved(row):
                     task, payload, due = "life.activity_reconcile", {"activity_id": row["id"], "context": wire(context), "sequence": 0}, None
                 elif row["state"] in {"planned", "running"}:
                     task, payload, due = "life.activity_step", {"activity_id": row["id"], "context": wire(context), "expected_revision": row["revision"]}, row["next_due_at"]
                 elif (row["state"] == "dormant" and row["waiting_reason"] == "continuation_available"
                         and row["resume_condition"] == "continue_from_checkpoint"
-                        and row["checkpoint_data"].get("last_execution") == "succeeded"):
+                        and (row["checkpoint_data"].get("last_execution") == "succeeded" or resolved_read_failure(row))):
                     # The handler rechecks the original run's time and step fences.
                     # A pre-upgrade checkpoint without a window signals the planner,
                     # rather than restarting discovery or inventing another slot.

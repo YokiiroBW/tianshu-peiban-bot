@@ -14,6 +14,7 @@ from tianshu.conversation.persistence import lock_material_row
 from .attention import AttentionPolicy
 from .contacts import DEFAULT_EXPIRY_SECONDS
 from .validation import revision, text, timestamp, timezone
+from .continuation import action_resolved
 
 TRANSITIONS = {
     "planned": {"running", "cancelled", "dormant"},
@@ -212,7 +213,7 @@ class LifeService:
                     (context.actor_id, activity_id))).fetchone()
                 if other:
                     raise AppError("activity_already_running", status=409)
-                if row and row["action_id"] and row["checkpoint_data"].get("completed_action_id")!=row["action_id"]:
+                if row and not action_resolved(row):
                     raise AppError("outcome_unknown", status=409, details={"action_id": row["action_id"]})
             next_revision = row["revision"] + 1 if row else 1
             await connection.execute(
@@ -257,7 +258,7 @@ class LifeService:
                 raise AppError("invalid_activity_transition", status=409)
             if target == "running" and not explicit and row["protected_until"] and row["protected_until"] > datetime.now(UTC):
                 raise AppError("activity_protected", status=409, details={"until": row["protected_until"].isoformat()})
-            if target == "running" and row["action_id"] and row["checkpoint_data"].get("completed_action_id")!=row["action_id"]:
+            if target == "running" and not action_resolved(row):
                 raise AppError("outcome_unknown", status=409, details={"action_id": row["action_id"]})
             if target=='running' and row['waiting_reason']=='follow_up_available':
                 raise AppError('activity_follow_up_requires_arrangement',status=409)

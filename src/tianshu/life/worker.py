@@ -18,7 +18,8 @@ from tianshu.capabilities.actions import result_sources
 from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
 from .imagined import record_completed_imagined
-from .continuation import READ_CAPABILITIES, automatic_step, execution_window, resumed_checkpoint, submitted_checkpoint
+from .continuation import (READ_CAPABILITIES, action_resolved, automatic_step, execution_window, failed_read_checkpoint,
+    failed_target, known_read_failure, options, remaining_actions, resumed_checkpoint, submitted_checkpoint, unread_coverage)
 from .types import ContactCandidate, PreparedContact
 from . import planner
 
@@ -88,6 +89,43 @@ class LifeWorker:
         await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity-continuation:{row['id']}:{row['revision']}",
             {"activity_id": row["id"], "expected_revision": row["revision"], "context": wire(context)},
             scheduled_at=due, subject_id=context.actor_id))
+
+    async def _close_read_failure(self, connection, row, result, result_revision):
+        data = failed_read_checkpoint(row, result, result_revision, row["checkpoint_data"]["capability_id"])
+        continuing = bool(options(data) or data.get("continuation"))
+        await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason=%s,resume_condition=%s,next_due_at=NULL,"
+            "checkpoint_data=%s,revision=revision+1 WHERE id=%s",
+            ("continuation_available" if continuing else "read_candidates_exhausted",
+             "continue_from_checkpoint" if continuing else "new_reading_material", document(data), row["id"]))
+        if continuing:
+            now = datetime.now(UTC)
+            await connection.execute("UPDATE life.day_slots SET state='partial',revision=revision+1 WHERE activity_id=%s "
+                "AND state='failed' AND starts_at<=%s AND ends_at>%s", (row["id"], now, now))
+        return continuing
+
+    async def _record_read_skip(self, connection, context, row, result, result_revision, refs):
+        """Observe today's control decision without rewriting the old failed Episode."""
+        now = datetime.now(UTC)
+        event = f"activity-read-skip:{result.action_id}:{result_revision}"
+        coverage = unread_coverage(result, row["checkpoint_data"])
+        observation = {"derived_kind": "activity_read_skip", "activity_id": row["id"],
+            "action_id": result.action_id, "receipt_id": result.receipt_id,
+            "capability_id": row["checkpoint_data"]["capability_id"], "execution": result.execution,
+            "effect": result.effect, "delivery": result.delivery, "error_code": result.error_code,
+            "read_basis": "unread_candidate", "content_key": row["checkpoint_data"].get("arguments", {}).get("content_key"),
+            "missing": list(coverage.missing), "decision": "skip_failed_candidate_without_retry"}
+        original = await self.life.sources.record_event(context, producer="life:continuation", event_id=event,
+            revision=1, occurred_at=now, origin_kind=OriginKind.ACTOR,
+            parts=(InputPart("text", json.dumps(observation, ensure_ascii=False), metadata={
+                "derived_kind": "activity_read_skip", "action_id": result.action_id}),), support_refs=refs, connection=connection)
+        refs = unique_refs(refs, original)
+        await self.life.memory.observe_episode(context, {"episode_id": event, "event_id": event, "revision": 1,
+            "origin_kind": "actor", "actor_id": context.actor_id, "occurred_at": now,
+            "summary": "原候选读取失败且正文未读，保留缺项并跳过该候选："+row["title"],
+            "source_refs": refs, "coverage": coverage, "actual_result": observation,
+            "action_id": result.action_id, "receipt_id": result.receipt_id, "matter_id": row["matter_id"]}, connection=connection)
+        await connection.execute("UPDATE life.activities SET source_refs=%s WHERE id=%s", (document(refs), row["id"]))
+        await connection.execute("UPDATE life.day_slots SET source_refs=%s WHERE activity_id=%s", (document(refs), row["id"]))
 
     async def activity_step(self, activity_id, expected_revision, context):
         from .recovery import scheduled_context
@@ -255,7 +293,7 @@ class LifeWorker:
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as connection:
             row = await (await connection.execute("SELECT * FROM life.activities WHERE id=%s AND actor_id=%s", (activity_id, context.actor_id))).fetchone()
-        if not row or not row["action_id"] or row["state"] in {"cancelled", "completed"} or row["checkpoint_data"].get("completed_action_id") == row["action_id"]:
+        if not row or not row["action_id"] or row["state"] in {"cancelled", "completed"} or action_resolved(row):
             return
         await self.life.identity.check(context, source_refs(row["source_refs"]))
         try:
@@ -322,6 +360,17 @@ class LifeWorker:
             if not row:
                 return False
             if result_revision <= row["last_result_revision"]:
+                if (result_revision == row["last_result_revision"] and row["state"] == "dormant"
+                        and row["resume_condition"] == "review_failure" and not action_resolved(row)
+                        and known_read_failure(capability_id, result)):
+                    refs = unique_refs(source_refs(row["source_refs"]), result_sources(result))
+                    await self.life.validate_persistence(connection, context, refs)
+                    continuing = await self._close_read_failure(connection, row, result, result_revision)
+                    await self._record_read_skip(connection, context, row, result, result_revision, refs)
+                    if continuing:
+                        fresh = await (await connection.execute("SELECT * FROM life.activities WHERE id=%s", (row["id"],))).fetchone()
+                        await self._queue_continuation(connection, context, fresh, datetime.now(UTC))
+                    await self.life.signal(context, f"activity-read-skip:{result.action_id}:{result_revision}", connection=connection)
                 return True
             refs = unique_refs(source_refs(row["source_refs"]), result_sources(result))
             await self.life.validate_persistence(connection, context, refs)
@@ -344,6 +393,9 @@ class LifeWorker:
                     continuation=continuation_step(capability_id,row["checkpoint_data"].get("arguments",{}),result.result)
                     exploration=exploration_checkpoint(capability_id,row["checkpoint_data"].get("arguments",{}),result.result,
                         previous=row["checkpoint_data"].get("exploration"))
+                    exploration["next_actions"] = remaining_actions(exploration)
+                    if continuation and failed_target(continuation, exploration):
+                        continuation = None
                     if continuation is None and exploration.get("next_actions"):
                         following=exploration["next_actions"][0]
                         continuation={key:following[key] for key in ("capability_id","arguments")}
@@ -363,6 +415,8 @@ class LifeWorker:
                                   "last_execution":"succeeded","result_summary":str(result.result.get("summary") or row["title"])[:1200],
                                   "completion_basis":"discovery_metadata" if result.result.get("read_basis")=="discovery_metadata" else "partial_source_read" if continuing else "requested_window_ended" if consumption else "actual_result",
                                   "coverage": wire(result.coverage)}), row["id"]))
+                elif known_read_failure(capability_id, result) and row["state"] not in {"paused", "completed"}:
+                    continuing = await self._close_read_failure(connection, row, result, result_revision)
                 else:
                     await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason=%s,resume_condition='review_failure',revision=revision+1 WHERE id=%s", (result.error_code or result.execution, row["id"]))
                 if row["state"] == "paused" and result.execution != "succeeded":
@@ -374,7 +428,7 @@ class LifeWorker:
             refs = await self._receipt_sources(context, result, result_revision, observed_at, connection, refs)
             await connection.execute("UPDATE life.activities SET source_refs=%s WHERE id=%s",(document(refs),row["id"]))
             await connection.execute("UPDATE life.day_slots SET source_refs=%s WHERE activity_id=%s",(document(refs),row["id"]))
-            await self.life.days.result(connection,row["id"],continuing=result.execution=="succeeded" and not uncertain and continuing and confirmed,
+            await self.life.days.result(connection,row["id"],continuing=not uncertain and continuing and confirmed,
                 state="unknown" if uncertain else "analysis_unconfirmed" if not confirmed else "completed" if result.execution=="succeeded" else "failed")
             if result.execution=="succeeded" and not uncertain and confirmed and row["state"]!="cancelled":
                 goal_context=context
@@ -392,8 +446,10 @@ class LifeWorker:
                 "origin_kind": "tool_result", "actor_id": context.actor_id, "subject_id": context.actor_id,
                 "occurred_at": observed_at, "summary": summary, "source_refs": refs,
                 "matter_id": row["matter_id"], "action_id": result.action_id, "receipt_id": result.receipt_id,
-                "coverage": result.coverage, "actual_result": {**result.result, "execution": result.execution, "effect": result.effect,
-                    "delivery": result.delivery, "receipt_id": result.receipt_id, "capability_id": capability_id}}, connection=connection)
+                "coverage": unread_coverage(result, row["checkpoint_data"]) if known_read_failure(capability_id, result) else result.coverage,
+                "actual_result": {**result.result, "execution": result.execution, "effect": result.effect,
+                    "delivery": result.delivery, "receipt_id": result.receipt_id, "capability_id": capability_id,
+                    "error_code": result.error_code}}, connection=connection)
             if prepared is not None and row["state"] != "cancelled":
                 await self.persist_contact(connection, prepared)
             if continuing and confirmed and not uncertain and row["state"] not in {"paused", "cancelled"}:

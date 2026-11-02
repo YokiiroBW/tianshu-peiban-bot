@@ -46,7 +46,7 @@ def lifecycle_material(data):
         "due": bool(row.get("next_due_at") and timestamp(row["next_due_at"]) <= now),
         "protected": bool(row.get("protected_until") and timestamp(row["protected_until"]) > now),
         "checkpoint": {key: (row.get("checkpoint_data") or {}).get(key) for key in
-            ("completed_action_id", "continuation", "next_position", "continuation_stop_reason")}}
+            ("completed_action_id", "resolved_action_id", "resolved_execution", "continuation", "next_position", "continuation_stop_reason")}}
         for row in data.get("unfinished", ())]
     return wire({"slots": sorted(slots, key=lambda row: row["id"]), "unfinished": sorted(unfinished, key=lambda row: row["id"])})
 

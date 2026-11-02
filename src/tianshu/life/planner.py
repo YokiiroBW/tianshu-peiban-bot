@@ -106,6 +106,7 @@ TASK = (
     "Continue reading, writing or exploration from unfinished checkpoints across days: select existing_activity_id, its same capability_id "
     "and arguments:{}; the executor obtains continuation arguments from the confirmed original receipt. Do not restart it from an invented position. "
     "Waiting for a person and unknown outcomes are not resumable. No current meaningful change means preserve goals, appointments and silence. "
+    "A resolved no-effect read failure is unread coverage, never a successful read; continue only other remaining receipt-proven candidates, never retry its failed URL. "
     "unfinished.continuation_options contains receipt-proven candidate keys. discovery_page is offered only after pending candidates are consumed. "
     "follow_up is an optional later forum check: choose its exact continuation_key and after_minutes at least 30; never immediately poll it. "
     "opportunities are executable discoveries derived from actual active directions/interests. Prefer a relevant concrete option over "
@@ -190,10 +191,11 @@ def material(context, state, routine, goals, commitments, choices, local_time, *
             for row in (day or {}).get("recent_results",())],
         "day_plan": [{key: row.get(key) for key in ("id", "activity_id", "state", "starts_at", "ends_at", "title", "goal_id")}
             for row in (day or {}).get("slots", [])],
-        "unfinished": [{**{key: row.get(key) for key in ("id", "revision", "goal_id", "title", "kind", "state", "waiting_reason", "protected_until", "next_due_at", "checkpoint_step")},
+        "unfinished": [{**{key: row.get(key) for key in ("id", "revision", "goal_id", "title", "kind", "state", "waiting_reason", "protected_until", "next_due_at", "checkpoint_step", "action_id")},
             "continuation_options": options(row["checkpoint_data"]),
             "checkpoint_data": {key: row["checkpoint_data"].get(key) for key in
-                ("capability_id", "arguments", "next_position", "continuation", "coverage", "exploration", "completed_action_id", "continuation_stop_reason")}}
+                ("capability_id", "arguments", "next_position", "continuation", "coverage", "exploration", "completed_action_id", "continuation_stop_reason",
+                 "resolved_action_id", "resolved_execution", "resolved_effect", "resolved_delivery", "resolved_error_code", "last_execution")}}
             for row in (day or {}).get("unfinished", [])],
         "current_outfit": (
             {"id": state["outfit"]["id"], "description": state["outfit"]["description"][:300]}
@@ -383,9 +385,11 @@ def decision(result, frozen):
         identifier = activity.get("existing_activity_id")
         name = activity["capability_id"]
         if identifier:
+            from .continuation import action_resolved
             row = unfinished.get(identifier)
             if (not row or identifier in resumed or row["state"] != "dormant"
                     or row["waiting_reason"] not in {"continuation_available", "day_finished", "follow_up_available"}
+                    or not action_resolved(row)
                     or name != row["checkpoint_data"]["capability_id"] or activity["arguments"]):
                 raise AppError("planner_activity_unavailable")
             selected=activity.get('continuation_key')
