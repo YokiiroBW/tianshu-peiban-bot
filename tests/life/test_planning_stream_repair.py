@@ -136,14 +136,19 @@ async def test_late_valid_result_under_revoked_sources_cannot_apply_or_create_re
     value = await setup(database, chosen_activity(), lose_response=True)
     with pytest.raises(TimeoutError):
         await value.worker.plan("actor", 1, wire(value.context))
+    assert (await mark(database))["repair_due_at"] > datetime.now(UTC)
     value.models.actual = replace(value.models.actual, receipt=replace(value.models.actual.receipt, status="succeeded"))
     value.worker.life.sources.validate_persistence = AsyncMock(return_value=False)
+    await make_due(database, "repair_due_at")
     await value.worker.plan("actor", 1, wire(value.context))
     current = await mark(database)
+    value.worker.life.sources.validate_persistence.assert_awaited_once()
     assert current["last_error"] == "source_unavailable" and current["repair_due_at"] is None
     assert current["decision_fingerprint"] is None and len(value.models.calls) == 1
     async with database.transaction(read_only=True) as connection:
         assert not await (await connection.execute("SELECT id FROM life.activities")).fetchall()
+        generations = await (await connection.execute("SELECT state,reason FROM life.plan_generations")).fetchall()
+    assert generations == [{"state": "rejected", "reason": "source_unavailable"}]
 
 
 @pytest.mark.asyncio
