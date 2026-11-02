@@ -56,12 +56,28 @@
 
 该张澄汐图的角色、日光、晴天匹配，但没有画出当时“画速写”的活动，consistency=conflict，按 create_only 正确 archive。生成与回执链路成功不等于每张图语义完全匹配；没有为使验收通过而删除冲突标记、反复抽图或自动发送。Fish 音色及语音绑定继续为空。
 
-## 两项原生收尾补丁（收口中）
+## 两项原生收尾补丁（已完成并发布）
 
 真实刷新发现，业务完成已推进 feed.next_scan_at/revision，而 schedule 仍留在 submitted；原实现按业务下次扫描时间跳过了原回执观察。这四条实际已成功，页面依赖的 code/last_scan_at 仍正确，但原始 API 状态不准确；如果同一窗口发生 unknown，下一轮还可能越过原未知状态。
 
-补丁仅修共享调度/仓储：业务扫描期限与原回执观察期限分别保留，维护按两者最早时间唤醒；在入队前登记原 key；submitted/pending 先观察原 Action，业务版本推进不能改 key；成功收敛不推迟原正常间隔，unknown 阻断新一轮。并发作者保存/恢复仍按原授权与 CAS 处理。定向检查和最终发布记录待此完整修复收齐后填写。
+补丁仅修共享调度/仓储：业务扫描期限与原回执观察期限分别保留，未收敛时优先按原回执期限唤醒；在入队前登记原 key；submitted/pending 先观察原 Action，业务版本推进不能改 key；成功收敛不推迟原正常间隔，unknown 阻断新一轮。明确终止失败后，原 schedule 的 retry_generation 才加一，使退避后的新扫描拥有新的身份。并发作者保存/恢复仍按原授权与 CAS 处理。
 
 澄汐成图差异另查到一个确定的结构错误：当 outfit 为空，Workflow.render 将节点 35 的整份未分段旧提示（海景阳台、站姿、早晨）继承进 User/extra_prompt，同时动态 Composition 段又包含书桌和速写本。读取原 image_work 的冻结提交 graph 已确认两者同时送入实际编码节点。修复删除这种隐式整段继承，仍保留明确定义的分段默认和固定人物/模型/LoRA/画风节点，不加入旧模板猜测或兼容解析。
 
 智乃已有明确服装默认，保持原样；澄汐只把其原工作流中可明确辨认的 `ivory and ice-blue sea-observer dress with subtle silver instruments` 设为 profile.outfit_defaults.prompt，保存默认服装而不把旧姿态、海景与时段当成固定场景。用户原始 ComfyUI canvas 不改。旧成品及 conflict 记录仍保留，新编译输入和最终真实样本另记，不能倒改原验收结果。
+
+两项补丁全部收齐后，集中运行媒体调度、工作流编译及四个直接相关维护恢复用例：38 passed、8 subtests passed。没有重跑之前未变化的 Models/Life/前端检查。这 38 项与前一批 288 项存在重合，不能相加作为不同用例数。
+
+最终运行源码 `a6794bd8204ce5ebd145f58f1eb7f1a3089a9c87`，镜像 `sha256:f5a1c90b6058108d4cce4987475b9528897e90fb113762baa109205b9b087ca6`；容器 `87cd74b661b54f686178de68881f0fd51ed185537b21113eebc0038802902d10`。此补丁无 DDL，未再次备份或清业务库。版本、ready、容量守护、配置摘要与 11 个挂载核对通过；两个 QQ 连接可用，35 通道/40 执行槽正常，旧路由阻断 0。
+
+正常启动后四条原 submitted 均自然收敛为 completed。逐条核对原 Action key、last_scan_at 和次日 next_scan_at 未改，actor_id=null、epoch=5，四条扫描未产生任何 Memory Episode。没有手工修补 feed、重新导入或绑定 BOT。首次补丁后已有 20 次实际 channels.read，active Episodes 为 0，旧技术噪声仍为 0。
+
+修正模板后的一次独立实机样本 `a1a898f9c17cfc6fd7c02a557787b694f3296429351382a7b7051e27cf6702aa` 已生成约 2.01 MB 图像并归档，SHA256 `fd78a10e87abf63d6c9ae4e50e329f5413f77d87a5b350ab9ac5709885406896`。冻结提交 graph 确认旧海景阳台/早晨描述消失，实际服装默认、当前书桌/速写本请求存在；人工看图可见室内书桌、书本和笔，人物外观保留。不能据此把所有绘画细节说成完全符合。
+
+这次 Gemini 自动视觉检查又收到 `upstream_response_incomplete`，因此系统原样保留 consistency=unknown；没有把人工看图写成供应商 matched，也没有重发该原请求。图片创建/保存已成功，主 Gemini 供应商仍存在非完整回包的外部限制；本批未解决其内部响应生成原因。主聊天和视觉绑定保持用户原选择，自拍规划独立 Go 分流已实测完成。
+
+## 清理与交付范围
+
+本轮隔离测试 PostgreSQL 容器和其专属目录已退役，删除逻辑数据约 54.46 MiB，并移除本地临时测试 DSN。生产数据库、共享镜像、Life 迁移前备份和原始审计保留。三份本轮实现 worktree 通过受支持工具归档，集成检出及用户原工作区保留；原先三个受限的 Windows 构建目录仍不打入源码包。
+
+干净源码包由已提交 Git 内容导出；最后交付文档提交与运行版本之间的 src/web/packages/tools/deploy 及依赖 manifest 核对无差异。包不含运行数据、凭据、模型权重、虚拟环境、node_modules 或构建产物。没有执行 QQ 发送验收、破坏真实授权，或把这次短窗口的正常运行当作长期多日日程与所有外部服务的质量保证。BOT 找书、找视频、找音乐入口保留后续开发，本次订阅保持独立。
