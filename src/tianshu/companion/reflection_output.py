@@ -7,6 +7,7 @@ from uuid import NAMESPACE_URL, uuid5
 
 from jsonschema import Draft202012Validator
 
+from tianshu.capabilities.contracts import model_json
 from tianshu.conversation.codec import signature, source_refs
 from tianshu.life.writing import generated_text
 from tianshu.runtime.errors import AppError
@@ -193,12 +194,11 @@ def prepare_reflections(result, context, episodes, generated_refs, *, request):
             or result.receipt.intent_id != request.intent_id):
         raise AppError("reflection_material_contract_invalid")
     identity = generation_identity(request, episodes)
-    def nonfinite(_value):
-        raise ValueError("non-finite JSON number")
-
     try:
-        payload = json.loads(generated_text(result), parse_constant=nonfinite)
-    except (ValueError, TypeError):
+        # Accept the existing strict single-document wrapper format. No text
+        # extraction, concatenation or repair precedes schema/evidence checks.
+        payload = model_json(generated_text(result))
+    except (AppError, ValueError, TypeError):
         raise AppError("reflection_output_invalid") from None
     errors = list(Draft202012Validator(output_schema(episodes)).iter_errors(payload))
     if errors:

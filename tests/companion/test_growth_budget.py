@@ -116,6 +116,16 @@ def test_action_body_is_a_whole_unit_or_explicitly_unassessed_and_original_is_un
     assert len(large.actual_result["content"]["text"]) > 100000
 
 
+def test_failed_read_keeps_receipt_error_and_unread_coverage_without_body_evidence():
+    episode = replace(action_episode({"capability_id": "content.read", "execution": "cancelled", "effect": "none",
+        "error_code": "capability_timeout"}), coverage=Coverage(False, missing=("candidate_body_not_read",)))
+    row = episode_material(episode)
+    assert row["actual_result"]["error_code"] == "capability_timeout"
+    assert row["actual_result"]["execution"] == "cancelled"
+    assert not row["actual_result"]["content_evidence_included"]
+    assert row["reflection_coverage"]["missing"] == ["action_source_coverage_partial", "candidate_body_not_read"]
+
+
 @pytest.mark.parametrize("origin", [OriginKind.HUMAN, OriginKind.ACTOR])
 def test_human_and_imagined_evidence_is_not_projected_or_truncated(origin):
     episode = replace(action_episode({"experience_kind": "imagined", "text": "完整想象" * 4000}), origin_kind=origin)

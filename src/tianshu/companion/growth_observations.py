@@ -16,7 +16,7 @@ SEMANTIC_FIELDS = (
     "experience_kind", "software_action", "activity_mode", "content_completed",
     "generated_at", "title", "content_key",
 )
-RECEIPT_FIELDS = ("capability_id", "receipt_id", "execution", "effect", "delivery", "read_basis", "experience_eligible")
+RECEIPT_FIELDS = ("capability_id", "receipt_id", "execution", "effect", "delivery", "error_code", "read_basis", "experience_eligible")
 TRANSPORT_FIELDS = frozenset({
     *RECEIPT_FIELDS, "source_refs", "source", "original_source", "locator",
     "continuation", "discovery_continuation", "next_actions", "exploration",

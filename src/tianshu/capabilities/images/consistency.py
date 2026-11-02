@@ -44,6 +44,8 @@ def consistency_result(result, expected_fields):
         raise Fault("image_consistency_incomplete", 502)
     text = "".join(part.text or "" for part in result.parts
                    if part.kind == "text" and not part.native.get("thought"))
+    if not text.strip():
+        raise Fault("image_consistency_empty_output", 502)
     data = model_json(text)
     if not isinstance(data, dict) or not isinstance(data.get("checks"), list):
         raise Fault("image_consistency_invalid", 502)

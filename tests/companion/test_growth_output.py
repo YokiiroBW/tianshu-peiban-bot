@@ -1,22 +1,23 @@
 """Malformed terminal generations never partially write or restart themselves."""
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 import json
 
 import pytest
 
 from tianshu.companion.growth import GrowthService
-from tianshu.companion.reflection_output import frozen_episodes, output_example, prepare_reflections
+from tianshu.companion import reflection_output
+from tianshu.companion.reflection_output import FrozenEpisode, frozen_episodes, output_example, prepare_reflections
 from tianshu.companion.service import CompanionService
 from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.memory.types import Episode, EpisodePage
-from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
+from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.commands import CommandStore
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
-from tianshu.types import ContextContribution, Coverage, OriginKind, SourceRef, TrustedContext
+from tianshu.types import ContextContribution, Coverage, OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
 
 
 class Authority:
@@ -126,6 +127,120 @@ def note(kind="reflection"):
     value = output_example("episode")["notes"][0]
     value["kind"] = kind
     return value
+
+
+def parse_original_output(text):
+    context = TrustedContext("author", "actor", None, None, ("private",), ("private",), 1, OriginKind.ACTOR)
+    refs = (SourceRef("original", 1),)
+    request = ModelRequest("original-intent", "original-attempt", "reflect", ServiceClass.ELASTIC,
+        context, RequestBudget(datetime.now(UTC) + timedelta(minutes=3)), (), source_refs=refs)
+    result = ModelResult((ModelPart("text", text=text),), ModelReceipt(request.attempt_id, request.intent_id,
+        "succeeded", "submitted", "route", 1, "provider", "model", "openai.chat", "quota"),
+        completion=ModelCompletion("complete", ("stop",)))
+    frozen = {"episode": FrozenEpisode("episode", 1, datetime.now(UTC), refs)}
+    return prepare_reflections(result, context, frozen, refs, request=request)
+
+
+@pytest.mark.parametrize("with_note", [False, True])
+@pytest.mark.parametrize("fenced", [False, True])
+def test_complete_single_json_wrapper_keeps_the_full_reflection_contract(with_note, fenced):
+    payload = {"notes": [note()] if with_note else []}
+    text = json.dumps(payload, ensure_ascii=False)
+    if fenced:
+        text = " \n```json\r\n" + text + "\r\n```\n "
+    prepared = parse_original_output(text)
+    assert len(prepared) == int(with_note)
+    if with_note:
+        assert prepared[0].proposal.content == payload["notes"][0]["content"]
+        assert prepared[0].proposal.source_refs == (SourceRef("original", 1),)
+        assert prepared[0].support_ids == ("episode",)
+
+
+@pytest.mark.parametrize("text", [
+    'Before\n```json\n{"notes": []}\n```',
+    '```json\n{"notes": []}\n```\nAfter',
+    '```json\n{"notes": []}',
+    '```json\n{"notes": [}\n```',
+    '```json\n{"notes": []}\n```\n```json\n{"notes": []}\n```',
+    '```json\n{"notes": []}{"notes": []}\n```',
+    '```javascript\n{"notes": []}\n```',
+])
+def test_reflection_wrapper_does_not_extract_repair_or_combine_documents(text):
+    with pytest.raises(AppError) as invalid:
+        parse_original_output(text)
+    assert invalid.value.code == "reflection_output_invalid"
+
+
+@pytest.mark.parametrize("field,invalid,code", [
+    ("episode_ids", ["not-supplied"], "reflection_support_invalid"),
+    ("conditions", ["not-an-object"], "reflection_conditions_invalid"),
+])
+def test_fenced_json_still_enforces_schema_and_supplied_evidence(field, invalid, code):
+    value = {**note(), field: invalid}
+    with pytest.raises(AppError) as rejected:
+        parse_original_output("```json\n" + json.dumps({"notes": [value]}) + "\n```")
+    assert rejected.value.code == code
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source_revised", [False, True])
+async def test_original_fenced_failure_can_be_reparsed_without_replacing_attempt(database, monkeypatch, source_revised):
+    models = Models('```json\n{"notes": []}\n```')
+    models.native_response = {"choices": [{"finish_reason": "stop"}]}
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    scope = signature(sorted(context.scope_ids))
+    # Reproduce the original parser's char-zero failure without altering the
+    # persisted result or requesting a second provider response.
+    with monkeypatch.context() as original_parser:
+        original_parser.setattr(reflection_output, "model_json", json.loads)
+        rejected = await growth.organize("actor", scope, 1)
+    assert rejected["error_code"] == "reflection_output_invalid"
+    original = await state(database)
+    request = models.calls[0]
+    async with database.transaction(read_only=True) as connection:
+        saved = await (await connection.execute(
+            "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (request.attempt_id,))).fetchone()
+
+    async def refreshed(previous, **_kwargs):
+        return previous
+
+    async def forbidden(*_args, **_kwargs):
+        pytest.fail("Original result reparse must never enter model generation")
+
+    monkeypatch.setattr(growth.companion.identity, "refresh_scheduled_context", refreshed, raising=False)
+    monkeypatch.setattr(growth.generations, "run", forbidden)
+    tail = replace(memory.episode, episode_id="pending-tail", event_id="tail", sequence=2, cursor="e:2")
+    memory.episodes += (tail,)
+    await growth.changed(context, "tail", episode=tail)
+    if source_revised:
+        memory.episodes = (replace(memory.episode, revision=2), tail)
+
+    # This is the existing bounded observation recovery used by the release
+    # coordinator, after locking and checking the exact current state.
+    async with database.transaction() as connection:
+        current = await (await connection.execute(
+            "SELECT * FROM companion.organize_state WHERE actor_id='actor' FOR UPDATE")).fetchone()
+        assert current["active_batch"] == original["active_batch"] and current["revision"] == 2
+        resumed = await growth.recovery.resume(connection, current, context)
+    assert models.reads == []
+    after_resume = await state(database)
+    assert after_resume["active_batch"] == original["active_batch"]
+    assert after_resume["generation_revision"] == original["generation_revision"] == 0
+    outcome = await growth.organize("actor", scope, resumed)
+    assert len(models.calls) == 1 and models.reads == [request.attempt_id]
+    async with database.transaction(read_only=True) as connection:
+        stored = await (await connection.execute(
+            "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (request.attempt_id,))).fetchone()
+        tail_state = await (await connection.execute(
+            "SELECT reviewed_revision FROM companion.growth_inputs WHERE episode_id='pending-tail'")).fetchone()
+    assert stored == saved and tail_state["reviewed_revision"] == 0
+    if source_revised:
+        assert outcome["state"] == "rejected" and outcome["error_code"] == "reflection_material_contract_invalid"
+        assert (await state(database))["cursor"] is None
+    else:
+        assert outcome["state"] == "reviewed" and outcome["cursor"] == "e:1"
+        assert (await growth.view(context))["review"]["pending_inputs"] == 1
+    assert memory.proposals == []
 
 
 @pytest.mark.asyncio

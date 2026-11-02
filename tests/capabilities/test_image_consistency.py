@@ -9,7 +9,7 @@ from unittest.mock import AsyncMock
 from tianshu.capabilities.contracts import canonical
 from tianshu.capabilities.images.consistency import ImageConsistency, consistency_result
 from tianshu.capabilities.images.service import Images
-from tianshu.models.types import ModelCompletion, ModelEvent, ModelPart, ModelReceipt, ModelResult
+from tianshu.models.types import ModelCompletion, ModelEvent, ModelPart, ModelReceipt, ModelResult, ModelUsage
 from tianshu.runtime.errors import AppError
 from tianshu.types import Action, ArtifactRef, Attempt, MediaRef, OriginKind, ServiceClass, TrustedContext
 
@@ -84,6 +84,29 @@ class ConsistencyStatus(TestCase):
 
 
 class BoundedResultCheck(IsolatedAsyncioTestCase):
+    async def test_complete_empty_or_thought_only_output_stays_unknown_with_receipt_and_stop(self):
+        for parts in ((), (ModelPart("text", text=" \n\t"),),
+                      (ModelPart("text", text="private reasoning", native={"thought": True}),)):
+            with self.subTest(parts=parts):
+                original = replace(result([]), parts=parts,
+                    receipt=replace(result([]).receipt, usage=ModelUsage(output_tokens=0, metering="reported")))
+                broker = SimpleNamespace(result=AsyncMock(return_value=original),
+                    generate=AsyncMock(), generation_profile=AsyncMock(), stream=AsyncMock())
+                artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+                checked = await ImageConsistency(SimpleNamespace(broker=broker)).check(actor_action(), Attempt("original", "image"),
+                    {"scene": {}, "intent": {"light": "night lamps"}}, [artifact])
+                self.assertEqual((checked["state"], checked["reason"]), ("unknown", "image_consistency_empty_output"))
+                self.assertEqual(checked["diagnostics"]["completion"]["state"], "complete")
+                self.assertEqual(checked["diagnostics"]["completion"]["stop_reasons"], ["STOP"])
+                self.assertEqual(checked["model_receipt"]["status"], "succeeded")
+                self.assertEqual(checked["model_receipt"]["usage"]["output_tokens"], 0)
+                self.assertNotIn("private reasoning", str(checked))
+                self.assertEqual(checked["regeneration_attempts"], 0)
+                broker.result.assert_awaited_once()
+                broker.generate.assert_not_awaited()
+                broker.generation_profile.assert_not_awaited()
+                broker.stream.assert_not_awaited()
+
     async def test_unconfigured_vision_is_unknown_and_preserves_generated_artifact(self):
         broker = SimpleNamespace(generate=AsyncMock(), result=AsyncMock(return_value=None),
             generation_profile=AsyncMock(side_effect=AppError("model_function_not_configured", status=503)))
