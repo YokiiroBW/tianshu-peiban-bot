@@ -13,7 +13,7 @@
 
 用户进一步明确：订阅与 BOT 属于不同功能分区。本批只修复独立订阅的作者授权刷新、定时扫描与错误隔离，不增加订阅与 BOT 的绑定，不把其结果接到日程、角色记忆或内容发现配置；四条现有书源继续保持 actor_id 为空。从 BOT 找书、找视频、找音乐属于后续开发，本批不扩展这一入口。
 
-集中验收追加的精确修复：Models 原生响应先校验结构再提取 completion，避免 malformed choices 抛原始 Python 异常；图片恢复后的 create_only 继续归档，不改成表达复查；图片原生实测发现未显式提供估计时把 Base64 传输体算为文本 token，Models 修正已识别内联图片的准入估计并复用既有媒体预留，真实 reported 用量结算和纯文本/显式估计保持。Conversation Context 只允许数学等价地引用该共享估值，不改用户 Memory 算法。原生网络中断保持原 unknown；已有 ComfyUI 成图可按原 handle 取回，不重新提交 prompt。
+集中验收追加的精确修复：Models 原生响应先校验结构再提取 completion，避免 malformed choices 抛原始 Python 异常；图片恢复后的 create_only 继续归档，不改成表达复查；图片原生实测发现未显式提供估计时把 Base64 传输体算为文本 token，Models 修正已识别内联图片的准入估计并复用既有媒体预留，真实 reported 用量结算和纯文本/显式估计保持。Conversation Context 只允许数学等价地引用该共享估值，不改用户 Memory 算法。原生不完整响应的 unknown 保留；已有 ComfyUI 成图可按原 handle 取回，不重新提交 prompt。
 
 ## 实施边界
 
@@ -27,3 +27,41 @@
 ## 必要完成证据
 
 至少覆盖：完整与截断/断流规划，原 unknown 保留、有限恢复、同材料有效决定去重与空闲复查；真实 free slot HTTP 读取；书源 epoch 变化合法刷新/真失权/后续来源仍推进；实际网页搜索返回可读候选及来源缺配置；内部 channels.read 不生成独立生活经历而引用原件仍可读；两角色工作流真实 graph/绑定与一次对应引擎执行。界面与运行状态如实显示错误和等待。最后核对实际版本、健康、两个 QQ 连接及受影响路径，不用健康状态替代业务验收。
+
+## 集中验证与第一份正式运行证据
+
+所有实现收齐后执行必要集中检查，按 testcase 身份去重并以精确返修结果覆盖失败：后端 288 项通过，另有子用例；桌面/手机 24 项通过；前端类型检查与 Vite 构建通过。第一次后端 270 通过、3 失败，浏览器 22 通过、2 失败，原失败记录保留。后端两项是 nullable Chat choices 的校验顺序，一项是测试替身未接收生产已有的关键字参数；浏览器两项是新用例未打开今日安排页签、未匹配实际 query 的夹具问题。修复后只重跑失败和受直接影响用例，没有重复全套通过项。
+
+2026-11-02 12:27 首次修复版本正式上线：源码 `13e48e1abbcf0bda41888185a00ceae8481f23ef`，镜像 `sha256:4d5d67defef3741e9d18adfc1da079460497d1e8f71845e3c31d391956bee05c`。Life 的 `0035_life_planning_recovery` 已应用；配置文件摘要和 11 个挂载保持，容量守护 active。迁移前只备份 Life 域，没有清空新业务库。后续订阅回执收敛补丁的最终版本另见下节。
+
+| 路径 | 实际结果与界限 |
+| --- | --- |
+| 供应商流式 | DeepSeek Go 与 Gemini native 经正常 probe 返回公开正文和完整终止标记，之后才登记 text/stream。不是配置名称推断。 |
+| 实际日程 | 两角色通过正常“重新考虑”命令唤醒，保留原请求，生成新的流式完整规划。智乃 reported input/output 为 8,321/4,386，澄汐为 14,546/2,462；均 complete/stop 并应用。当前共 3 项活动，含正在进行的想象日常及后续安排，不冒称实体外部活动已执行。 |
+| 日程读取 | 两角色实际 POST day-plan 均 200，包含活动和留白；free slot 的 checkpoint_data 为 `{}`，不再因为 NULL 返回 500。 |
+| 网页发现与阅读 | 独立 SearXNG 辅助服务无对外端口，使用 Sogou/Brave；正常 content.discover 返回 5 条候选，随后真实读取 IANA 正文并保存 Source；另一次显式 browser 读取 example.com rendered DOM 成功。候选仍标记未读，实际正文才允许成为经历。 |
+| 独立书源 | 四条原 feed 合法刷新到 epoch 5，actor_id 始终 null；四个原扫描 Action 均 succeeded，每条导入/复核 1 项且 invalid=0，内容状态 unchanged，正常间隔仍 24 小时。不接 BOT、Life、Memory 或 content provider 的本地库开关。 |
+| 技术噪声 | 精确撤回 64 条内部 channels.read 误生成的无原件经历；均无日记、反思、风格规则或活动 Growth 批次引用。原消息、Action、receipt 与 result_consumption 保留；同事务确认其余 699 条经历及 95 条 claims 的数量保持。没有清空用户记忆或写旧数据兼容接口。 |
+| 渠道与进程 | interactive、worker、model-broker ready；35 个执行通道正常注册，旧队列路由阻断 0；两个 QQ reverse_ws available。没有发送 QQ 验收消息。 |
+
+## 自拍绑定、分流与实际效果
+
+从实际 ComfyUI canvas 及 object_info 转换两套工作流，而非复用旧澄汐测试图。智乃 profile 绑定 `comfyui-chino-autonomous-20261102`（智乃自动生成），澄汐绑定 `comfyui-chengxi-20261102`（澄汐）；复用同一已配置本地 ComfyUI 引擎。固定人物、模型、LoRA、原工作流风格保持，动态姿态/场景等通过已有绑定进入 graph。未改用户原始 ComfyUI 文件。
+
+智乃实际 ComfyUI 成图完成后，原调用出现 unknown；根按原 handle 调用既有 reconcile 取回相同产物，没有再次提交 prompt。产物约 1.81 MB，人物、白天咖啡馆自拍画面已看图核对。原 physical attempt 的 unknown 审计保留，不把后来取回说成首次调用正常。
+
+澄汐在同一 Gemini 供应商的 native 和 Chat 规划接口上有三份未满足终止合同的回包。Chat 实测命中独立规划 route、8192 输出，并非仍受调用方 1000 上限；原始不完整回包未落盘，不能进一步断言是网络、长度或供应商策略。三个原 unknown 不重放。
+
+最终仅 `image.plan` 的 interactive/due/elastic 绑定改为独立 `image-plan:deepseek-go`，复用已有 Go 供应商、输出 16,384。主聊天与 vision 仍是 Gemini；Life/Memory 共用的 Go route 参数保持原值。临时 Gemini Chat 规划 route 已禁用并保留审计。新独立验收意图完成 Go 规划、ComfyUI 出图、Gemini 图像检查和相册归档：产物约 2.08 MB，视觉准入 estimated input 3,943，实际 reported input/output 1,461/803，不再把 Base64 算成数百万 token。
+
+该张澄汐图的角色、日光、晴天匹配，但没有画出当时“画速写”的活动，consistency=conflict，按 create_only 正确 archive。生成与回执链路成功不等于每张图语义完全匹配；没有为使验收通过而删除冲突标记、反复抽图或自动发送。Fish 音色及语音绑定继续为空。
+
+## 两项原生收尾补丁（收口中）
+
+真实刷新发现，业务完成已推进 feed.next_scan_at/revision，而 schedule 仍留在 submitted；原实现按业务下次扫描时间跳过了原回执观察。这四条实际已成功，页面依赖的 code/last_scan_at 仍正确，但原始 API 状态不准确；如果同一窗口发生 unknown，下一轮还可能越过原未知状态。
+
+补丁仅修共享调度/仓储：业务扫描期限与原回执观察期限分别保留，维护按两者最早时间唤醒；在入队前登记原 key；submitted/pending 先观察原 Action，业务版本推进不能改 key；成功收敛不推迟原正常间隔，unknown 阻断新一轮。并发作者保存/恢复仍按原授权与 CAS 处理。定向检查和最终发布记录待此完整修复收齐后填写。
+
+澄汐成图差异另查到一个确定的结构错误：当 outfit 为空，Workflow.render 将节点 35 的整份未分段旧提示（海景阳台、站姿、早晨）继承进 User/extra_prompt，同时动态 Composition 段又包含书桌和速写本。读取原 image_work 的冻结提交 graph 已确认两者同时送入实际编码节点。修复删除这种隐式整段继承，仍保留明确定义的分段默认和固定人物/模型/LoRA/画风节点，不加入旧模板猜测或兼容解析。
+
+智乃已有明确服装默认，保持原样；澄汐只把其原工作流中可明确辨认的 `ivory and ice-blue sea-observer dress with subtle silver instruments` 设为 profile.outfit_defaults.prompt，保存默认服装而不把旧姿态、海景与时段当成固定场景。用户原始 ComfyUI canvas 不改。旧成品及 conflict 记录仍保留，新编译输入和最终真实样本另记，不能倒改原验收结果。

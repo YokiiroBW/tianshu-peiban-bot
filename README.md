@@ -60,8 +60,8 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
 ```
 
 领域由 `runtime/product.py` 直接构造、注册，配置不能动态导入旧产品或空模块。
-`worker.lanes` 未覆盖的业务族使用固定默认值：34 个 lane、39 个执行槽，共享 8 个队列 SQL 连接，另有 34 个原生监听连接。
-默认数据库角色池加监听、队列池和 Broker owner 最多需要 67 条连接，配置预算为 72；HTTP 传输池不计入 PG 连接。
+`worker.lanes` 未覆盖的业务族使用固定默认值：35 个 lane、40 个执行槽，共享 8 个队列 SQL 连接，另有 35 个原生监听连接。
+默认数据库角色池加监听、队列池和 Broker owner 最多需要 68 条连接，配置预算为 72；HTTP 传输池不计入 PG 连接。
 完整 lane 配置见 `deploy/core/settings.example.json`；不再使用旧三类队列并发配置。模型服务优先级与执行 lane 分别选择。
 `migrate` 从唯一总注册安装所有领域 schema，之后才启动任一角色；不在领域启动过程中临时迁移。
 设置 `TIANSHU_SETUP_TOKEN` 和 `TIANSHU_CHANNEL_OWNER_TOKEN` 两个独立随机值；前者保护首次创建管理员，
