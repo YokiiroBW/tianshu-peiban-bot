@@ -15,6 +15,7 @@ class Availability:
     provider_supported: bool | None = None
     verified_at: str | None = None
     reason: str | None = None
+    constraints: Mapping[str, Any] = field(default_factory=dict)
 
     @property
     def can_execute(self):

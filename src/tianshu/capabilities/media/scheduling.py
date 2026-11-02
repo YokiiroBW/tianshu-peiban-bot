@@ -1,9 +1,13 @@
 """Shared due-scan loop; each source family runs independently in Media's lifecycle."""
 
-import asyncio
 from datetime import UTC, datetime
 
-from ..contracts import Fault
+from tianshu.runtime.errors import AppError
+from tianshu.runtime.serialization import wire
+from tianshu.sources.dependencies import unique_refs
+from tianshu.types import Action, OriginKind, SourceRef
+from ..contracts import Fault, digest
+from ..serialization import context_from
 
 
 SCAN_TASKS = {"subscription": "subscriptions", "book_subscription": "book_subscriptions",
@@ -54,25 +58,126 @@ def wake_document(repository, connection, kind, body):
         wake_sync(repository.runtime, connection, name)
 
 
+def author_schedule(kind, body, action):
+    """An explicit author edit/resume can replace a blocked timer's old grant."""
+    if action is None or action.origin_kind not in {OriginKind.HUMAN, OriginKind.ACTOR}:
+        return body
+    domain = {"subscription": "media", "book_subscription": "books",
+              "comic_subscription": "comics", "music_playlist": "music", "book_feed": "books"}[kind]
+    operation = action.capability_id.removeprefix(domain + ".")
+    if not action.capability_id.startswith(domain + ".") or operation not in {
+        "subscriptions.save", "subscriptions.control", "feeds.save", "feeds.control",
+        "warehouse.subscribe", "playlists.subscribe", "playlists.control",
+    }:
+        return body
+    refs = unique_refs(tuple(SourceRef(**value) for value in body.get("source_refs", [])), action.source_refs)
+    return {**body, "context": wire(action.context), "source_refs": wire(refs),
+            "schedule": {}}
+
+
+def action_key(kind, identity, row):
+    saved = row.get("schedule") or {}
+    if (saved.get("configuration_revision") == row["revision"]
+            and saved.get("next_check_at") == row["next_scan_at"]
+            and saved.get("action_key")):
+        return saved["action_key"]
+    return "media-scan:" + digest([kind, identity, row["revision"], row["next_scan_at"]])
+
+
 async def scan_due(media, kind, identity_field, scan):
-    for row in await media.local(media.repo.list, kind):
-        if row["state"] == "active" and row["next_scan_at"] <= media.repo.clock():
-            try:
-                from tianshu.types import Action,OriginKind,SourceRef
-                from ..serialization import context_from
-                from ..contracts import digest
-                if not row.get("context"):raise Fault("subscription_context_required",503)
-                context=context_from(row["context"])
-                domain={"subscription":"media","book_subscription":"books","comic_subscription":"comics","music_playlist":"music","book_feed":"books"}[kind]
-                key="media-scan:"+digest([kind,row[identity_field],row["revision"],row["next_scan_at"]])
-                field={"subscription":"subscription_id","book_subscription":"book_id","comic_subscription":"comic_id","music_playlist":"playlist_id","book_feed":"feed_id"}[kind]
-                operation="feeds/refresh" if kind=="book_feed" else "playlists/scan" if domain=="music" else "subscriptions/scan"
-                body={field:row[identity_field]}
-                if kind=="subscription":body.update(recompute=False,client_request_id=key)
-                await media.capabilities.actions.invoke(Action(key,key,domain+"."+operation.replace("/","."),context.actor_id,context,body,OriginKind.TIMER,source_refs=tuple(SourceRef(**x) for x in row.get("source_refs",[]))), background=True)
-            except Fault:
-                pass
+    """Refresh authors, never in-flight Actions; each source owns its retry/stop state."""
+    rows = await media.local(media.repo.list, kind)
+    counts = {"submitted": 0, "pending": 0, "completed": 0, "retry_wait": 0, "blocked": 0}
+    codes = set()
+    for row in rows:
+        saved = row.get("schedule") or {}
+        if saved.get("state") == "blocked" and row["state"] != "active":
+            counts["blocked"] += 1
+            codes.add(saved["code"])
+        if row["state"] != "active" or row["next_scan_at"] > media.repo.clock():
+            if row["state"] == "active" and saved.get("state") == "retry_wait":
+                counts["retry_wait"] += 1
+                codes.add(saved["code"])
+            continue
+        identity = row[identity_field]
+        key = action_key(kind, identity, row)
+        domain = {"subscription": "media", "book_subscription": "books",
+                  "comic_subscription": "comics", "music_playlist": "music",
+                  "book_feed": "books"}[kind]
+        operation = ("feeds.refresh" if kind == "book_feed" else "playlists.scan"
+                     if kind == "music_playlist" else "subscriptions.scan")
+        capability = domain + "." + operation
+        state, code, failures = "submitted", None, saved.get("failures", 0)
+        context = None
+        blocked, keep_key = False, True
+        terminal_failure = False
+        try:
+            if not row.get("context"):
+                raise Fault("subscription_context_required", 403)
+            previous = context_from(row["context"])
+            permissions = media.capabilities.catalog.handler(capability).definition.permissions
+            # The current scan definitions need no named permission. Passing None
+            # preserves that contract; Actions still checks the complete definition.
+            context = await media.capabilities.authority.refresh_scheduled_context(
+                previous, permission=next(iter(permissions), None), require_actor=False)
+            refs = tuple(SourceRef(**value) for value in row.get("source_refs", []))
+            await media.capabilities.authority.check(context, refs)
+            existing = await media.capabilities.actions.find(capability, key, context)
+            if existing is None:
+                body = {identity_field: identity}
+                if kind == "subscription":
+                    body.update(recompute=False, client_request_id=key)
+                receipt = await media.capabilities.actions.invoke(Action(
+                    key, key, capability, context.actor_id, context, body, OriginKind.TIMER,
+                    source_refs=refs), background=True)
+                execution, code, effect = receipt.execution, receipt.error_code, receipt.effect
+            else:
+                # The original context/attempt stays immutable even after an epoch edit.
+                execution = existing["receipt"]["execution"]
+                code = existing["receipt"].get("error_code")
+                effect = existing["receipt"].get("effect")
+                state = "pending"
+            if execution in {"failed", "succeeded"} and effect == "unknown":
+                state, blocked = "blocked", True
+                code = code or "scheduled_effect_unknown"
+            elif execution == "succeeded":
+                state, failures, keep_key = "completed", 0, False
+            elif execution in {"unknown", "cancelled"}:
+                state, blocked = "blocked", True
+                code = code or "scheduled_action_" + execution
+            elif execution == "failed":
+                terminal_failure = True
+                raise Fault(code or "scheduled_action_failed", 503)
+        except Exception as error:
+            code = getattr(error, "code", "media_schedule_failed")
+            blocked = (isinstance(error, AppError) and error.status in {401, 403, 410}
+                       or code in {"actor_disabled", "subscription_context_required", "idempotency_conflict",
+                                   "source_revoked"})
+            state = "blocked" if blocked else "retry_wait"
+            failures += 1
+            # Preserve a possibly admitted execution through transport/epoch
+            # races. Only a known terminal failure permits a new scheduled read.
+            keep_key = not terminal_failure
+        delay = (min(3600, 60 * 2 ** min(max(failures - 1, 0), 6))
+                 if state == "retry_wait" else row.get("interval_seconds", 3600)
+                 if state == "completed" else 60)
+        observation = {"state": state, "code": code, "failures": failures,
+            "action_key": key if keep_key else None,
+            "configuration_revision": row["revision"], "observed_at": media.repo.clock(),
+            "next_check_at": media.repo.clock() + delay}
+        await media.local(media.repo.record_schedule, kind, identity, row, observation,
+                          blocked=blocked, context=wire(context) if context is not None else None)
+        counts[state] += 1
+        if code:
+            codes.add(code)
+    degraded = counts["blocked"] or counts["retry_wait"]
+    return {"schedule_observation": {
+        "state": "partial" if degraded and sum(counts[name] for name in ("submitted", "pending", "completed"))
+                 else "blocked" if counts["blocked"] else "retry_wait" if counts["retry_wait"] else "scheduled",
+        "code": sorted(codes)[0] if codes else None,
+        "scan": {"kind": kind, **counts, "codes": sorted(codes)},
+    }}
 
 
 async def pump_scans(media, kind, identity_field, scan):
-    await scan_due(media, kind, identity_field, scan)
+    return await scan_due(media, kind, identity_field, scan)

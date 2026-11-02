@@ -89,6 +89,8 @@ class Operation:
         # Configuration operations are executable even while a provider lacks an account.
         if not self.owner.prepared:
             return Availability(True, False, reason="capabilities_starting")
+        if self.domain == "content" and self.operation == "discover":
+            return await self.owner.content.discovery_availability(context)
         if (
             self.domain in {"media", "music"}
             and self.owner.media.config is None

@@ -143,12 +143,14 @@ class Background:
         state = {**row["body"], "state": "running"}
         self.states[name] = state
         try:
-            await operation(*args)
+            result = await operation(*args)
         except BaseException as error:
             state.update(state="failed", code=getattr(error, "code", "media_background_failed"))
             raise
         else:
             state.update(state="scheduled", code=None)
+            if isinstance(result, dict) and "schedule_observation" in result:
+                state.update(result["schedule_observation"])
         finally:
             heartbeat.cancel()
             await asyncio.gather(heartbeat, return_exceptions=True)

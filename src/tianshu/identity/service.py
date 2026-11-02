@@ -486,22 +486,27 @@ class IdentityService:
         )
         return self._limit_context(selected, context)
 
-    async def refresh_scheduled_context(self, previous, *, permission, connection=None):
+    async def refresh_scheduled_context(self, previous, *, permission, connection=None,
+                                        require_actor=True):
         """Reauthorize a timer's author configuration, never an in-flight execution.
 
         The saved scene and grants are an upper bound. An epoch change alone may
         be a password/other-role edit; lost scopes, permission or an inactive
-        principal/actor cannot restart a timer.
+        principal/actor cannot restart a timer. Role timers require an actor by
+        default; independent administrator subscriptions may retain actor=None.
         """
         async def refresh(conn):
-            if not previous.actor_id:
+            if require_actor and not previous.actor_id:
                 raise AppError("scheduled_actor_required", status=403)
             current = await self.context_on(
                 conn, previous.principal_id, actor_id=previous.actor_id,
                 person_id=previous.person_id, conversation_id=previous.conversation_id,
                 permission=permission, origin_kind=OriginKind.TIMER,
             )
-            await self.check_active_actor(current, connection=conn)
+            if not previous.actor_id and current.actor_id:
+                raise AppError("scheduled_scene_changed", status=403)
+            if current.actor_id:
+                await self.check_active_actor(current, connection=conn)
             if not set(previous.scope_ids) <= set(current.scope_ids):
                 raise AppError("scheduled_scope_unavailable", status=403)
             limited = self._limit_context(current, previous)

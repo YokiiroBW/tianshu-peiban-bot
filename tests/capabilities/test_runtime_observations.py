@@ -420,10 +420,16 @@ async def test_automatic_subscription_dispatch_keeps_original_action_without_wai
     async def local(operation, *args):
         return operation(*args)
 
-    actions = SimpleNamespace(invoke=AsyncMock(return_value={"execution": "pending"}))
+    actions = SimpleNamespace(find=AsyncMock(return_value=None),
+        invoke=AsyncMock(return_value=Receipt("receipt", "action", "attempt", "pending", "none", "not_requested")))
+    authority = SimpleNamespace(refresh_scheduled_context=AsyncMock(return_value=work_context()),
+                                check=AsyncMock())
     media = SimpleNamespace(local=local,
-        repo=SimpleNamespace(list=lambda _kind: rows, clock=lambda: 10),
-        capabilities=SimpleNamespace(actions=actions))
+        repo=SimpleNamespace(list=lambda _kind: rows, clock=lambda: 10,
+                             record_schedule=lambda *_args, **_kwargs: True),
+        capabilities=SimpleNamespace(actions=actions, authority=authority,
+            catalog=SimpleNamespace(handler=lambda _name: SimpleNamespace(
+                definition=SimpleNamespace(permissions=frozenset())))))
     await scan_due(media, "subscription", "subscription_id", None)
     first_ids = [call.args[0].action_id for call in actions.invoke.call_args_list]
     assert len(set(first_ids)) == 2

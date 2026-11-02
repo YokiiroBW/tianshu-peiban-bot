@@ -13,8 +13,10 @@ from ..contracts import Fault, canonical, digest
 from ..content_discovery.service import Discovery
 from ..content_discovery.media import MediaCatalog
 from ..content_discovery.candidates import public_url, candidate
+from ..content_discovery.network import PublicResolver, public_target, search_request
 from .discovery import BilibiliDiscovery
 from .parsing import html_content, discourse, post_text
+from .providers import availability as discovery_availability, providers, select_provider, validate_provider
 
 
 class Content:
@@ -24,7 +26,7 @@ class Content:
             "query": {"type": "string", "maxLength": 400},
             "intention": {"type": "string", "maxLength": 1000},
             "mode": {"enum": ["research", "explore", "continue"]},
-            "sources": {"type": "array", "uniqueItems": True,
+            "sources": {"type": "array", "uniqueItems": True, "minItems": 1, "maxItems": 6,
                         "items": {"enum": ["web", "forum", "bilibili", "music", "books", "comics"]}},
             "interests": {"type": "array", "maxItems": 20,
                           "items": {"type": "string", "maxLength": 200}},
@@ -86,6 +88,9 @@ class Content:
             reason=None if self.sources else "source_port_unavailable",
         )
 
+    async def discovery_availability(self, context):
+        return await discovery_availability(self, context)
+
     async def fetch(
         self,
         url,
@@ -94,43 +99,42 @@ class Content:
         maximum=4 * 1024 * 1024,
         headers=None,
     ):
-        public_url(url)
-        async with aiohttp.ClientSession(
-            timeout=aiohttp.ClientTimeout(total=20, connect=10)
-        ) as session:
-            for _ in range(4):
-                async with session.get(
-                    url, headers={"Accept": accept, **(headers or {})}, allow_redirects=False
-                ) as response:
-                    if response.status in {301, 302, 303, 307, 308}:
-                        url = urljoin(url, response.headers.get("Location", ""))
-                        public_url(url)
-                        continue
-                    if response.status != 200:
-                        raise Fault("content_source_unavailable", 503)
-                    raw = bytearray()
-                    async for chunk in response.content.iter_chunked(65536):
-                        raw.extend(chunk)
-                        if len(raw) > maximum:
-                            raise Fault("content_too_large", 413)
-                    return bytes(raw), response.content_type, url, dict(response.headers)
+        public_target(url)
+        resolver = PublicResolver()
+        try:
+            async with aiohttp.ClientSession(
+                timeout=aiohttp.ClientTimeout(total=20, connect=10),
+                connector=aiohttp.TCPConnector(resolver=resolver),
+                cookie_jar=aiohttp.DummyCookieJar(), trust_env=False,
+            ) as session:
+                for _ in range(4):
+                    async with session.get(
+                        url, headers={"Accept": accept, **(headers or {})}, allow_redirects=False
+                    ) as response:
+                        if response.status in {301, 302, 303, 307, 308}:
+                            url = urljoin(url, response.headers.get("Location", ""))
+                            public_target(url)
+                            continue
+                        if response.status != 200:
+                            raise Fault("content_source_unavailable", 503)
+                        raw = bytearray()
+                        async for chunk in response.content.iter_chunked(65536):
+                            raw.extend(chunk)
+                            if len(raw) > maximum:
+                                raise Fault("content_too_large", 413)
+                        return bytes(raw), response.content_type, url, dict(response.headers)
+        finally:
+            await resolver.close()
         raise Fault("content_redirect_limit", 409)
 
     async def discover(self, context, body, *, action=None, attempt=None):
         await self.authority.check(context, action.source_refs if action else ())
         body = dict(body)
         body.setdefault("mode", "research" if body.get("query") else "explore")
-        configs = [item for item in await self.config.list("content_provider")
-                   if item.get("enabled", True) and (not item.get("actor_id")
-                   or item["actor_id"] == context.actor_id
-                   and set(item.get("scope_ids", [])) <= set(context.scope_ids)
-                   and set(item.get("audience", [])) <= set(context.audience))]
-        config = next(
-            (x for x in configs if x.get("id") == body.get("provider_id")),
-            configs[0] if configs else {},
-        )
-        if body.get("provider_id") and config.get("id") != body["provider_id"]:
-            raise Fault("content_provider_not_authorized", 403)
+        configs = await providers(self.config, context)
+        config = select_provider(configs, body, self.media)
+        if config.get("id"):
+            body["provider_id"] = config["id"]
         interests = body.get("interests", config.get("interests", []))
         if not body.get("query") and interests and body.get("mode", "research") == "explore":
             body["query"] = interests[body.get("interest_index", 0) % len(interests)]
@@ -138,18 +142,13 @@ class Content:
             raise Fault("research_question_required", 400)
 
         async def request(value):
-            raw, mime, url, headers = await self.fetch(
-                value["url"], maximum=value.get("max_response_bytes", 512 * 1024)
-            )
-            return {
-                "status": 200,
-                "headers": {"content-type": mime},
-                "body": json.loads(raw) if mime == "application/json" else raw.decode("utf-8"),
-            }
+            return await search_request(config, value)
 
         requested_sources = body.get("sources", ["web", "bilibili"])
         pending = body.get("pending_sources")
         local_sources = [item for item in requested_sources if item != "forum"
+                         and (item != "bilibili" or config.get("subscription_ids")
+                              or config.get("include_video_library"))
                          and (pending is None or item in pending)]
         result = await self.discovery.discover(config, {**body, "sources": local_sources}, request=request)
         if "bilibili" in requested_sources:
@@ -158,14 +157,19 @@ class Content:
             result["sources"].extend(statuses)
         if "forum" in requested_sources and (pending is None or "forum" in pending):
             topics = config.get("followed_forums", [])
+            invalid = False
             for topic in topics[:20]:
-                url = public_url(topic["url"])
-                item = candidate("web", "url:" + digest(url), kind="webpage",
-                    title=topic.get("title"), url=url, acquired=time.time())
-                item["read_locator"]["kind"] = "forum"
-                result["candidates"].append(item)
-            result["sources"].append({"source": "forum", "state": "ok" if topics else "not_configured",
-                "code": None if topics else "not_configured", "has_more": False, "next_cursor": None})
+                try:
+                    url = public_target(topic["url"])
+                    item = candidate("web", "url:" + digest(url), kind="webpage",
+                        title=topic.get("title"), url=url, acquired=time.time())
+                    item["read_locator"]["kind"] = "forum"
+                    result["candidates"].append(item)
+                except (Fault, TypeError, KeyError):
+                    invalid = True
+            result["sources"].append({"source": "forum", "state": "partial" if invalid else "ok" if topics else "not_configured",
+                "code": "followed_forums_invalid" if invalid else None if topics else "followed_forums_not_configured",
+                "has_more": False, "next_cursor": None})
         result["activity_mode"] = body.get("mode", "research")
         result["seen_state"] = "unread_candidates"
         excluded = set(body.get("exclude_keys", []))
@@ -220,6 +224,7 @@ class Content:
     async def execute(self, action, attempt):
         await self.authority.check(action.context, action.source_refs)
         url = action.arguments["url"]
+        public_target(url)
         rendered = None
         if action.arguments.get("render") == "browser":
             if self.browser is None:
@@ -231,7 +236,9 @@ class Content:
         else:
             try:
                 raw, mime, final, headers = await self.fetch(url)
-            except Fault:
+            except Fault as error:
+                if error.code == "content_address_denied":
+                    raise
                 if action.arguments.get("render") == "http" or self.browser is None:
                     raise
                 rendered = await self.browser.read(
@@ -382,6 +389,7 @@ class Content:
                 if key not in {"id", "expected_revision", "browser_storage_state"}
             },
         }
+        validate_provider(value)
         secret = None
         if "browser_storage_state" in body:
             state = body["browser_storage_state"]

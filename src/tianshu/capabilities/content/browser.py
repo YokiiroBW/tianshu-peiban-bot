@@ -5,7 +5,7 @@ import aiohttp
 from urllib.parse import urlsplit
 from bs4 import BeautifulSoup
 from ..contracts import Fault
-from ..content_discovery.candidates import public_url
+from ..content_discovery.network import PublicResolver, public_target
 
 
 class Browser:
@@ -40,7 +40,7 @@ class Browser:
         return {"browser_origins": [origin]}, None
 
     async def read(self, context, url, *, session_id=None):
-        public_url(url)
+        public_target(url)
         await self.authority.check(context)
         if self.settings.get("enabled", True) is False:
             raise Fault("browser_disabled", 503)
@@ -60,10 +60,12 @@ class Browser:
             playwright = await async_playwright().start()
             browser = None
             session = None
+            resolver = PublicResolver()
             public_resources = aiohttp.ClientSession(
                 cookie_jar=aiohttp.DummyCookieJar(),
-                connector=aiohttp.TCPConnector(limit=4),
+                connector=aiohttp.TCPConnector(limit=4, resolver=resolver),
                 timeout=aiohttp.ClientTimeout(total=15),
+                trust_env=False,
             )
             resource_count = 0
             try:
@@ -80,15 +82,13 @@ class Browser:
                     request = request_route.request
                     address = request.url
                     try:
-                        public_url(address)
+                        public_target(address)
                         origin = urlsplit(address).scheme + "://" + urlsplit(address).netloc
                         if request.method not in {"GET", "HEAD", "OPTIONS"}:
                             await request_route.abort()
                             return
                         if origin not in allowed:
-                            # Public CDN assets use a separate cookie-free client.
-                            # route.continue_ cannot reliably remove browser Cookie
-                            # headers, so account state never enters this request.
+                            # Account state never enters an unrelated CDN request.
                             if request.method != "GET" or request.resource_type not in {
                                 "script",
                                 "stylesheet",
@@ -97,43 +97,38 @@ class Browser:
                             }:
                                 await request_route.abort()
                                 return
-                            resource_count += 1
-                            if resource_count > 128:
-                                await request_route.abort()
-                                return
-                            async with public_resources.get(
-                                address,
-                                allow_redirects=False,
-                                headers={"Accept": request.headers.get("accept", "*/*")},
-                            ) as resource:
-                                if resource.status != 200:
-                                    await request_route.abort()
-                                    return
-                                body = bytearray()
-                                async for chunk in resource.content.iter_chunked(65536):
-                                    body.extend(chunk)
-                                    if len(body) > 8 * 1024 * 1024:
-                                        await request_route.abort()
-                                        return
-                                await request_route.fulfill(
-                                    status=200,
-                                    body=bytes(body),
-                                    headers={
-                                        key: value
-                                        for key, value in resource.headers.items()
-                                        if key.lower()
-                                        in {
-                                            "content-type",
-                                            "access-control-allow-origin",
-                                            "cache-control",
-                                        }
-                                    },
-                                )
-                            return
+                            headers = {"Accept": request.headers.get("accept", "*/*")}
+                        else:
+                            headers = {key: value for key, value in (await request.all_headers()).items()
+                                       if key.lower() not in {"host", "content-length", "connection",
+                                                              "accept-encoding", "proxy-authorization"}}
                         if request.resource_type in {"media", "websocket"}:
                             await request_route.abort()
                             return
-                        await request_route.continue_()
+                        resource_count += 1
+                        if resource_count > 128:
+                            await request_route.abort()
+                            return
+                        # Chromium must not resolve the same-origin URL again after
+                        # authorization. All network bytes use the checked, pinned
+                        # public resolver; the provider's LAN exception is absent.
+                        async with public_resources.request(request.method, address,
+                                allow_redirects=False, headers=headers) as resource:
+                            if origin not in allowed and resource.status != 200:
+                                await request_route.abort()
+                                return
+                            body = bytearray()
+                            async for chunk in resource.content.iter_chunked(65536):
+                                body.extend(chunk)
+                                if len(body) > 8 * 1024 * 1024:
+                                    await request_route.abort()
+                                    return
+                            await request_route.fulfill(status=resource.status, body=bytes(body),
+                                headers={key: value for key, value in resource.headers.items()
+                                    if key.lower() not in {"content-length", "content-encoding",
+                                                          "transfer-encoding", "connection"}
+                                    and (origin in allowed or key.lower() in {
+                                        "content-type", "access-control-allow-origin", "cache-control"})})
                     except (Fault, ValueError, aiohttp.ClientError, OSError, asyncio.TimeoutError):
                         await request_route.abort()
 
@@ -215,7 +210,10 @@ class Browser:
                             try:
                                 await public_resources.close()
                             finally:
-                                await playwright.stop()
+                                try:
+                                    await resolver.close()
+                                finally:
+                                    await playwright.stop()
 
                 closing = asyncio.create_task(close())
                 try:

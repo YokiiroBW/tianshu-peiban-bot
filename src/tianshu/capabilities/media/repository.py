@@ -222,6 +222,10 @@ class Repository:
         from ..execution_context import CURRENT_ACTION
         from tianshu.runtime.serialization import wire
         action=CURRENT_ACTION.get()
+        if kind in SUBSCRIPTIONS:
+            from .scheduling import author_schedule
+
+            body = author_schedule(kind, body, action)
         if kind in SUBSCRIPTIONS and "context" not in body:
             if action:body={**body,"context":wire(action.context),"source_refs":wire(action.source_refs)}
             elif current and current.get("context"):body={**body,"context":current["context"],"source_refs":current.get("source_refs",[])}
@@ -239,6 +243,31 @@ class Repository:
 
         wake_document(self, db, kind, result)
         return result
+
+    def record_schedule(self, kind, identity, expected, observation, *, blocked=False, context=None):
+        """Runtime scan facts do not revise or overwrite a concurrent author edit."""
+        require(kind in SUBSCRIPTIONS, "invalid_input", 400)
+        with self.transaction() as db:
+            current = self._document(db, kind, identity)
+            if (not current or current["state"] != "active"
+                    or current["revision"] != expected["revision"]
+                    or current["next_scan_at"] != expected["next_scan_at"]):
+                return False
+            body = {**current, "schedule": observation,
+                    "next_scan_at": observation["next_check_at"]}
+            if context is not None:
+                body["context"] = context
+            if blocked:
+                body.update(state="paused", code=observation["code"])
+            elif observation["state"] == "retry_wait":
+                body["code"] = observation["code"]
+            changed = db.execute(
+                "UPDATE documents SET body=%s WHERE kind=%s AND id=%s AND revision=%s "
+                "AND body::jsonb->>'state'='active' "
+                "AND (body::jsonb->>'next_scan_at')::double precision=%s",
+                (json.dumps(self.payloads.store(kind, body), ensure_ascii=False), kind, identity,
+                 expected["revision"], expected["next_scan_at"])).rowcount
+            return changed == 1
 
     def enqueue(self, payload, *, db=None):
         if db is None:

@@ -4,10 +4,11 @@ import asyncio
 import base64
 import json
 import time
-from urllib.parse import urlencode, urlsplit
+from urllib.parse import urlencode
 
 from ..contracts import Fault, canonical, digest, require
-from .candidates import candidate, public_url, select
+from .candidates import candidate, select
+from .network import public_target, search_endpoint
 
 SOURCES = ("web", "bilibili", "music", "books", "comics")
 
@@ -42,28 +43,25 @@ class Discovery:
     async def search(self, config, query, page, limit, acquired, request, position):
         if not config.get("base_url"):
             return [], "not_configured", None
-        base = config["base_url"]
-        public_url(base)
-        parsed = urlsplit(base)
-        require(not parsed.query and not parsed.fragment, "invalid_input", 400)
-        url = (
-            base.rstrip("/")
-            + "/search?"
-            + urlencode({"q": query, "format": "json", "pageno": page})
-        )
+        page = position.get("page", page)
+        require(type(page) is int and 1 <= page <= 100, "invalid_input", 400)
+        params = {"q": query, "format": "json", "pageno": page}
+        if config.get("search_language"):
+            params["language"] = config["search_language"]
+        url = search_endpoint(config) + "?" + urlencode(params)
         response = await request(
             {"method": "GET", "url": url, "timeout_seconds": 8, "max_response_bytes": 384 * 1024}
         )
         require(response["status"] == 200, "dependency_unavailable", 503)
         body = response["body"]
         require(
-            isinstance(body, dict) and isinstance(body.get("results"), list), "invalid_input", 400
+            isinstance(body, dict) and isinstance(body.get("results"), list), "search_invalid_response", 503
         )
         offset = position.get("offset", 0)
         require(type(offset) is int and 0 <= offset <= len(body["results"]), "invalid_input", 400)
         fingerprint = digest(body["results"])
         require(
-            not position
+            not position.get("snapshot") and offset == 0
             or (position.get("page") == page and position.get("snapshot") == fingerprint),
             "version_conflict",
             409,
@@ -71,7 +69,7 @@ class Discovery:
         rows, invalid = [], False
         for result in body["results"][offset : offset + limit]:
             try:
-                url = public_url(result["url"])
+                url = public_target(result["url"])
                 rows.append(
                     candidate(
                         "web",
@@ -93,7 +91,7 @@ class Discovery:
             "partial" if invalid or body.get("unresponsive_engines") else "ok",
             {"page": page, "offset": offset + limit, "snapshot": fingerprint}
             if len(body["results"]) > offset + limit
-            else None,
+            else {"page": page + 1, "offset": 0} if body["results"] and page < 100 else None,
         )
 
     async def discover(self, config, value, *, request):
@@ -124,7 +122,7 @@ class Discovery:
                         rows, state, following = await self.search(
                             config, query, page, limit, acquired, request, positions[source]
                         )
-                        more = True if following else None
+                        more = following is not None
                     elif self.media is None:
                         rows, state, more = [], "not_configured", None
                         following = None
@@ -136,7 +134,7 @@ class Discovery:
                     code = (
                         "source_partial"
                         if state == "partial"
-                        else "not_configured"
+                        else ("search_provider_not_configured" if source == "web" else "not_configured")
                         if state == "not_configured"
                         else None
                     )
@@ -149,8 +147,8 @@ class Discovery:
                     }
             except TimeoutError:
                 code = "source_timeout"
-            except (Fault, ValueError, KeyError, TypeError, OSError):
-                code = "source_unavailable"
+            except (Fault, ValueError, KeyError, TypeError, OSError) as error:
+                code = getattr(error, "code", "source_unavailable")
             return [], {
                 "source": source,
                 "state": "unavailable",

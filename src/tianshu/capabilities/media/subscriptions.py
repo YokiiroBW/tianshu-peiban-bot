@@ -422,4 +422,4 @@ class Subscriptions:
                 await self.media.local(self.media.repo.scan_release, identity, owner, generation)
 
     async def pump(self):
-        await pump_scans(self.media, "subscription", "subscription_id", self.scan)
+        return await pump_scans(self.media, "subscription", "subscription_id", self.scan)
