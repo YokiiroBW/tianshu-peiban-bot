@@ -112,18 +112,23 @@ async def test_verified_model_configuration_change_naturally_recovers_without_pe
 
 
 @pytest.mark.asyncio
-async def test_unknown_survives_new_material_and_never_gets_another_paid_identity(database):
+async def test_unknown_yields_to_new_material_without_replaying_its_identity(database):
     value = await setup(database, chosen_activity(), lose_response=True)
     with pytest.raises(TimeoutError):
         await value.worker.plan("actor", 1, wire(value.context))
     original = await mark(database)
+    frozen=value.models.calls[0]
+    value.models.lose_response=False
     await value.worker.life.signal(value.context, "reconsider:new-material", change={"reason": "A different authored idea"})
     await value.worker.plan("actor", 2, wire(value.context))
     current = await mark(database)
-    assert current["generation_key"] == original["generation_key"] and not current["generation_consumed"]
-    assert current["reason"] == "planner_unknown" and len(value.models.calls) == 1
+    assert current["generation_key"] != original["generation_key"] and current["generation_consumed"]
+    assert len(value.models.calls) == 2 and value.models.calls[1].attempt_id!=frozen.attempt_id
     async with database.transaction(read_only=True) as connection:
-        assert not await (await connection.execute("SELECT id FROM life.activities")).fetchall()
+        assert len(await (await connection.execute("SELECT id FROM life.activities")).fetchall())==1
+        previous=await (await connection.execute("SELECT state FROM life.plan_generations WHERE generation_key=%s",(original["generation_key"],))).fetchone()
+        request=await (await connection.execute("SELECT request FROM conversation.generation_requests WHERE attempt_id=%s",(frozen.attempt_id,))).fetchone()
+    assert previous["state"]=="superseded" and request["request"]==wire(frozen)
 
 
 @pytest.mark.asyncio

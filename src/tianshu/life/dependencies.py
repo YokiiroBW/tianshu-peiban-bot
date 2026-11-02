@@ -10,6 +10,11 @@ class LifeDependencies:
     async def invalidate(self,connection,source_refs,kind):
         changes,selector=changes_for(source_refs)
         affected=set()
+        rows=await (await connection.execute("SELECT generation_id,source_refs FROM life.generation_recipes "
+            "WHERE EXISTS(SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
+        for row in rows:
+            if intersects(row['source_refs'],changes,kind):
+                await connection.execute("UPDATE life.generation_recipes SET recipe=NULL WHERE generation_id=%s",(row['generation_id'],))
         for table in ("life.diary_revisions","life.chapter_revisions"):
             key="diary_id" if table.endswith("diary_revisions") else "chapter_id"
             rows=await (await connection.execute(f"SELECT {key},revision,recipe FROM {table} WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(recipe->'source_refs','[]'::jsonb)) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
@@ -19,11 +24,11 @@ class LifeDependencies:
         rows=await (await connection.execute("SELECT id,source_refs FROM life.diaries WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
         for row in rows:
             if intersects(row["source_refs"],changes,kind):
-                await connection.execute("UPDATE life.diaries SET state='failed',generation_recipe=NULL,episode_ids='{}',reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
+                await connection.execute("UPDATE life.diaries SET state='failed',generation_recipe=NULL,episode_ids='{}',generation_retry_due_at=NULL,reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
         rows=await (await connection.execute("SELECT id,generation_recipe FROM life.chapters WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(COALESCE(generation_recipe->'source_refs','[]'::jsonb)) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
         for row in rows:
             if intersects(row["generation_recipe"]["source_refs"],changes,kind):
-                await connection.execute("UPDATE life.chapters SET state='failed',generation_recipe=NULL,reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
+                await connection.execute("UPDATE life.chapters SET state='failed',generation_recipe=NULL,generation_retry_due_at=NULL,reason='source_unavailable',revision=revision+1 WHERE id=%s",(row["id"],))
         for table in ("life.activities","life.goals","life.commitments","life.contact_candidates"):
             rows=await (await connection.execute(f"SELECT * FROM {table} WHERE EXISTS (SELECT 1 FROM jsonb_array_elements(source_refs) r WHERE r->>'source_id'=ANY(%s))",(selector,))).fetchall()
             for row in rows:

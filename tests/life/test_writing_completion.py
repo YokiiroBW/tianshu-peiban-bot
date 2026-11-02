@@ -36,6 +36,7 @@ class WritingCompletion(IsolatedAsyncioTestCase):
         models = SimpleNamespace(generate=AsyncMock())
         writing = WritingService(life, models, None)
         writing._chapter = AsyncMock(side_effect=lambda *_args, **_kwargs: dict(chapter))
+        writing._work = AsyncMock(return_value={"revision":1})
 
         async def on_completed(actual_context, actual_chapter, refs, actual_connection):
             callbacks.append((actual_context, actual_chapter, refs, actual_connection))

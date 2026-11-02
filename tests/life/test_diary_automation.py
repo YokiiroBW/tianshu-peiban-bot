@@ -35,7 +35,7 @@ class Jobs:
     def __init__(self):
         self.items = []
 
-    async def enqueue(self, _connection, spec):
+    async def enqueue(self, _connection, spec, **_options):
         self.items.append(spec)
 
 
@@ -240,9 +240,9 @@ async def test_revised_material_rejects_late_success_then_legal_new_material_can
         receipt=replace(value.models.actual.receipt,status="succeeded",dispatch="submitted"))
     await value.diaries.review_day("actor",scope,day,2)
     refused = await diary_state(database)
-    assert refused["reason"] == "diary_episode_revised" and refused["current_revision"] == 0
+    assert refused["reason"] == "diary_material_changed" and refused["current_revision"] == 0
     pending = await day_state(database)
-    assert pending["reviewed_revision"] == 1 and pending["revision"] == 2
+    assert pending["reviewed_revision"] == 0 and pending["blocked_revision"]==1 and pending["revision"] == 2
     await value.diaries.review_day("actor",scope,day,2)
     fresh = await collect_current(database,value)
     assert fresh["generation_id"] != diary["generation_id"] and fresh["state"] == "generating"

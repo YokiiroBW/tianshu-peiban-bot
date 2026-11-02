@@ -36,9 +36,8 @@ async def recover(worker):
             pending = row["planned_watermark"] != row["change_watermark"] or (row["generation_key"] and not row["generation_consumed"])
             dates = [value for value in (row["repair_due_at"], row["review_after"]) if value is not None]
             async with life.database.transaction() as connection:
-                await life.jobs.enqueue(connection, JobSpec("life.plan", f"plan-recover:{row['actor_id']}:{row['revision']}:{uuid4()}",
-                    {"actor_id": row["actor_id"], "revision": row["revision"], "context": wire(context)},
-                    scheduled_at=None if pending else min(dates), subject_id=row["actor_id"]))
+                from .planning_engine import PlanningEngine
+                await PlanningEngine(worker).schedule(connection,context,row,datetime.now(UTC) if pending else min(dates),"recover")
         except AppError as error:
             if error.status not in {401, 403, 404, 409, 410}:
                 raise

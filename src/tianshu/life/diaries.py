@@ -19,6 +19,8 @@ from tianshu.conversation.generation import GenerationRequests
 from .model_budget import generation_request, DIARY_INPUT_TOKENS
 from .diary_automation import DiaryAutomation, automatic_view, diary_experience
 from .diary_materials import assemble_diary_material, frozen_recipe
+from .computation_retry import freeze_recipe
+from .diary_retry import DiaryRetry
 
 
 class DiaryService:
@@ -29,6 +31,7 @@ class DiaryService:
         self.assembler = ContextAssembler(life.identity, None, None, settings=assembler.settings)
         self.generations = GenerationRequests(life.database, life.sources, models)
         self.automation = DiaryAutomation(self)
+        self.retry = DiaryRetry(self)
 
     async def changed(self, context, watermark, *, episode=None, connection=None):
         return await self.automation.changed(context, watermark, episode=episode, connection=connection)
@@ -142,7 +145,7 @@ class DiaryService:
             await self.automation.bind(connection, automatic, generation_id)
             current = row["revision"]+1 if row else 1
             if row:
-                await connection.execute("UPDATE life.diaries SET state='collecting',generation_cancel_requested=false,generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL,source_refs='[]',episode_ids='{}' WHERE id=%s",(generation_id,document(context),document(recipe),current,diary_id))
+                await connection.execute("UPDATE life.diaries SET state='collecting',generation_cancel_requested=false,generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL,source_refs='[]',episode_ids='{}',generation_retry_count=0,generation_retry_due_at=NULL WHERE id=%s",(generation_id,document(context),document(recipe),current,diary_id))
             else:
                 await connection.execute("INSERT INTO life.diaries(id,actor_id,day,state,generation_id,context,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,'collecting',%s,%s,%s,'{}','[]',%s)",(diary_id,context.actor_id,day,generation_id,document(context),document(recipe),list(context.scope_ids)))
             await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":start",{"diary_id":diary_id,"generation_id":generation_id,"cursor":None},subject_id=context.actor_id))
@@ -217,8 +220,7 @@ class DiaryService:
             return
         original = context_from_record(row["context"])
         refs, recipe = source_refs(row["source_refs"]), row["generation_recipe"]
-        dispatched = False
-        observed_state, result = None, None
+        observed_state, result, frozen, context = None, None, None, original
         try:
             context = await self._reader(original)
             frozen = await self.generations.observe_request(generation_id, observer=context)
@@ -251,59 +253,60 @@ class DiaryService:
                     # Full audit originals retain their withdrawal dependencies;
                     # the model's selected sources remain explicit in its intent.
                     audit_refs = unique_refs(refs, frozen.source_refs)
+                    await freeze_recipe(self.life,connection,"diary",diary_id,generation_id,context,recipe,audit_refs)
                     await connection.execute("UPDATE life.diaries SET context=%s,generation_recipe=%s,source_refs=%s WHERE id=%s AND generation_id=%s",
                         (document(frozen.context),document(recipe),document(audit_refs),diary_id,generation_id))
-                dispatched = True
                 result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation,stream=True)
             else:
                 # Reassembly must never reinterpret the original material or
                 # turn a current reader into a newly submitted model request.
-                dispatched = True
+                async with self.life.database.transaction() as connection:
+                    await freeze_recipe(self.life,connection,"diary",diary_id,generation_id,context,recipe,refs)
                 result = await self.generations.read(generation_id,frozen.context,observer=context)
                 if result is None:
                     from tianshu.models.timing import waiting_budget
                     deadline = waiting_budget(frozen)
                     expired = deadline is not None and deadline.deadline_at <= datetime.now(UTC)
-                    if (row["state"] == "generating" and not row["generation_cancel_requested"]
+                    receipt=await self.models.status(generation_id)
+                    if (receipt is None and row["state"] == "generating" and not row["generation_cancel_requested"]
                             and frozen.context.access_epoch == context.access_epoch
                             and not expired):
                         result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation,stream=True)
-                    else:
+                    elif expired:
                         reason = "cancelled_before_model_registration" if row["generation_cancel_requested"] else "generation_request_expired" if expired else "diary_original_authorization_changed"
                         await self._generation_state(diary_id,generation_id,"cancelled" if row["generation_cancel_requested"] else "failed",reason,settle=True)
                         return {"state":"cancelled" if row["generation_cancel_requested"] else "failed", "attempt_id":generation_id,"reason":reason}
             if result is None:
-                await self._generation_state(diary_id,generation_id,"unknown","generation_outcome_unknown")
-                return {"state":"unknown", "attempt_id":generation_id}
+                return await self.retry.failed(row,context,frozen=frozen)
             observed_state = result.receipt.status
             refs = frozen.source_refs
             await self.life.identity.check(context, refs)
-            if observed_state in {"queued", "running", "unknown"}:
-                state = "cancelling" if row["generation_cancel_requested"] else "unknown" if observed_state == "unknown" else "generating"
-                await self._generation_state(diary_id,generation_id,state,result.receipt.error_code or "model_"+observed_state)
-                if observed_state in {"queued", "running"}:
-                    await self._observe_later(diary_id,generation_id,context.actor_id)
-                return {"state":state,"attempt_id":generation_id}
-            if observed_state in {"failed", "cancelled"}:
-                await self._generation_state(diary_id,generation_id,observed_state,result.receipt.error_code or "model_"+observed_state,settle=True)
-                return {"state":observed_state,"attempt_id":generation_id}
+            if observed_state in {"queued", "running", "unknown", "failed", "cancelled"}:
+                return await self.retry.failed(row,context,result=result,frozen=frozen)
             if row["generation_cancel_requested"]:
                 await self._generation_state(diary_id,generation_id,"cancelled","model_completed_after_cancel",settle=True)
                 return {"state":"cancelled","attempt_id":generation_id}
             if observed_state != "succeeded" or not generated_text(result).strip():
                 raise AppError(generation_error(result,"diary_generation_failed"))
+            latest=await self.models.status(generation_id)
+            if latest and getattr(latest,"cancellation_reason",None)=="explicit_cancel":
+                await self._generation_state(diary_id,generation_id,"cancelled","explicit_cancel",settle=True)
+                return {"state":"cancelled","attempt_id":generation_id}
             recipe = self._frozen_recipe(frozen, recipe)
             saved = await self.save_generated(context,diary_id,generation_id,recipe,result,refs)
             return {"state":"draft" if saved else "stale","attempt_id":generation_id}
         except BaseException as error:
-            code = getattr(error,"code","generation_outcome_unknown")
+            code = getattr(error,"code",type(error).__name__)
             if code == "generation_no_longer_current":
                 return {"state":"changed_since_generation","attempt_id":generation_id}
+            from tianshu.models.retry import transient_model_failure
+            if transient_model_failure(code) or not isinstance(error,Exception):
+                from tianshu.runtime.cancellation import finish_cleanup
+                await finish_cleanup(self.retry.failed(row,context,error=error,frozen=frozen))
+                raise
             # This is the diary application's state. Models retains the actual
             # unknown receipt even when revoked material makes it inapplicable.
-            terminal = observed_state in {"succeeded","failed","cancelled"} or not dispatched or code in {
-                "generation_request_expired","source_unavailable","diary_episode_revised","generation_observation_context_mismatch"}
-            await self._generation_state(diary_id,generation_id,"failed" if terminal else "unknown",code,settle=terminal)
+            await self._generation_state(diary_id,generation_id,"failed",code,settle=True)
             raise
 
     async def _reader(self, original):
@@ -325,18 +328,22 @@ class DiaryService:
         async with self.life.database.transaction() as connection:
             changed = await (await connection.execute(
                 "UPDATE life.diaries SET state=CASE WHEN generation_cancel_requested AND %s IN ('generating','unknown') THEN 'cancelling' ELSE %s END,"
-                "reason=%s,revision=revision+1,last_reviewed_at=CASE WHEN %s THEN now() ELSE last_reviewed_at END "
+                "reason=%s,revision=revision+1,generation_retry_due_at=CASE WHEN %s OR generation_cancel_requested THEN NULL ELSE generation_retry_due_at END,"
+                "last_reviewed_at=CASE WHEN %s THEN now() ELSE last_reviewed_at END "
                 "WHERE id=%s AND generation_id=%s AND state IN ('collecting','generating','unknown','cancelling') RETURNING id,generation_recipe",
-                (state,state,reason,settle,diary_id,generation_id))).fetchone()
+                (state,state,reason,settle,settle,diary_id,generation_id))).fetchone()
             if settle and changed:
                 await self.automation.settle(connection,generation_id,error=reason,recipe=changed["generation_recipe"])
 
-    async def _observe_later(self, diary_id, generation_id, actor_id):
+    async def _observe_later(self, diary_id, generation_id, actor_id, *, when=None):
         async with self.life.database.transaction() as connection:
+            current=await (await connection.execute("SELECT generation_id FROM life.diaries WHERE id=%s FOR UPDATE",(diary_id,))).fetchone()
+            if not current or current["generation_id"]!=generation_id:
+                return
             await self.life.jobs.enqueue(connection,JobSpec("life.diary_generate",
                 f"diary-observe:{generation_id}:{datetime.now(UTC).isoformat()}",
                 {"diary_id":diary_id,"generation_id":generation_id},
-                scheduled_at=datetime.now(UTC)+timedelta(seconds=30),subject_id=actor_id))
+                scheduled_at=when or datetime.now(UTC)+timedelta(seconds=30),subject_id=actor_id),queueing_lock="diary-generate:"+generation_id)
 
     async def control_generation(self, diary_id, generation_id, context, operation):
         """Author controls use the original scene, even after an epoch refresh."""
@@ -402,7 +409,7 @@ class DiaryService:
                 return False
             version = current["current_revision"]+1
             await connection.execute("INSERT INTO life.diary_revisions(diary_id,revision,content,model_attempt_id,recipe) VALUES (%s,%s,%s,%s,%s)", (diary_id, version, content, result.receipt.attempt_id, document({**recipe, "source_refs": refs, "model_receipt": result.receipt})))
-            await connection.execute("UPDATE life.diaries SET current_revision=%s,material_key=%s,state='draft',revision=revision+1,last_reviewed_at=now(),last_changed_at=now() WHERE id=%s", (version,recipe['scan_hash'], diary_id))
+            await connection.execute("UPDATE life.diaries SET current_revision=%s,material_key=%s,state='draft',generation_retry_count=0,generation_retry_due_at=NULL,revision=revision+1,last_reviewed_at=now(),last_changed_at=now() WHERE id=%s", (version,recipe['scan_hash'], diary_id))
             await self.automation.settle(connection,generation_id,recipe=recipe)
         # This output is a work artifact, not independent evidence for its described events.
         return True

@@ -1,6 +1,7 @@
 """Closed local days become diary work only when their actual material changes."""
 
 from datetime import UTC, date, datetime, timedelta
+from uuid import uuid4
 
 from tianshu.conversation.codec import context_from_record, document, signature
 from tianshu.runtime.errors import AppError
@@ -80,10 +81,10 @@ class DiaryAutomation:
 
     async def enqueue(self, connection, row, *, delay=0, reason="material"):
         await self.life.jobs.enqueue(connection, JobSpec(
-            "life.diary_review", f"diary-review:{row['actor_id']}:{row['scope_key']}:{row['day']}:{row['revision']}:{reason}",
+            "life.diary_review", f"diary-review:{row['actor_id']}:{row['scope_key']}:{row['day']}:{row['revision']}:{uuid4()}",
             {"actor_id": row["actor_id"], "scope_key": row["scope_key"], "day": row["day"].isoformat(),
              "expected_revision": row["revision"]}, scheduled_at=datetime.now(UTC)+timedelta(seconds=delay),
-            subject_id=row["actor_id"]))
+            subject_id=row["actor_id"]),queueing_lock=f"diary-review:{row['actor_id']}:{row['scope_key']}:{row['day']}:{row['revision']}")
 
     async def review(self, actor_id, scope_key, day, expected_revision):
         async with self.life.database.transaction(read_only=True) as connection:
@@ -92,6 +93,8 @@ class DiaryAutomation:
                 (actor_id, scope_key, date.fromisoformat(day)))).fetchone()
         if not row or (not row["generation_id"] and row["reviewed_revision"] >= row["revision"]):
             return {"state": "reviewed"}
+        if not row["generation_id"] and row["blocked_revision"]>=row["revision"]:
+            return {"state":"blocked","reason":row["last_error"]}
         previous = context_from_record(row["context"])
         try:
             context = await self.life.identity.refresh_scheduled_context(previous, permission="life.manage")
@@ -105,13 +108,25 @@ class DiaryAutomation:
             if diary and diary["state"] in UNRESOLVED:
                 if diary["state"] == "collecting":
                     return {"state": "collecting", "attempt_id": diary["generation_id"]}
+                if (row["generation_id"]==diary["generation_id"] and row["generation_revision"]<row["revision"]
+                        and not diary["generation_cancel_requested"]):
+                    receipt=await self.diaries.models.status(diary["generation_id"])
+                    if not receipt or receipt.status not in {"queued","running"}:
+                        from .computation_retry import freeze_recipe
+                        from tianshu.conversation.codec import source_refs
+                        async with self.life.database.transaction() as connection:
+                            if diary["generation_recipe"] is not None:
+                                await freeze_recipe(self.life,connection,"diary",diary["id"],diary["generation_id"],context,
+                                    diary["generation_recipe"],source_refs(diary["source_refs"]))
+                        await self.diaries._generation_state(diary["id"],diary["generation_id"],"failed","diary_material_changed",settle=True)
+                        return {"state":"changed_since_review"}
                 return await self.diaries.generate(diary["id"], diary["generation_id"])
             if row["generation_id"]:
                 async with self.life.database.transaction() as connection:
                     await self.settle(connection, row["generation_id"],
                         error=diary.get("reason") if diary and diary["state"] in {"failed", "cancelled"} else None)
                 # A later event has its own queued review. This job only settles its original.
-                return {"state": "reviewed"}
+                return {"state": "blocked" if diary and diary["state"] in {"failed","cancelled"} else "reviewed"}
             result = await self.diaries.request(context,
                 {"client_request_id": "auto-diary:"+signature((actor_id,scope_key,day,row["revision"])),
                  "day": day, "expected_revision": diary["revision"] if diary else 0},
@@ -147,11 +162,12 @@ class DiaryAutomation:
             for identifier, version in (recipe or {}).get("material_revisions", ()):
                 revisions[identifier] = max(version, revisions.get(identifier, 0))
             current = await (await connection.execute(
-                "UPDATE life.diary_days SET reviewed_revision=greatest(reviewed_revision,generation_revision),"
-                "generation_id=NULL,generation_revision=NULL,material_revisions=%s,last_reviewed_at=now(),"
+                "UPDATE life.diary_days SET reviewed_revision=CASE WHEN %s THEN reviewed_revision ELSE greatest(reviewed_revision,generation_revision) END,"
+                "blocked_revision=CASE WHEN %s THEN greatest(blocked_revision,generation_revision) ELSE blocked_revision END,"
+                "generation_id=NULL,generation_revision=NULL,material_revisions=%s,last_reviewed_at=CASE WHEN %s THEN last_reviewed_at ELSE now() END,"
                 "last_error=%s,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND day=%s RETURNING *",
-                (document(revisions), error, row["actor_id"], row["scope_key"], row["day"]))).fetchone()
-            if current["reviewed_revision"] < current["revision"]:
+                (bool(error),bool(error),document(revisions),bool(error),error, row["actor_id"], row["scope_key"], row["day"]))).fetchone()
+            if max(current["reviewed_revision"],current["blocked_revision"]) < current["revision"]:
                 await self.enqueue(connection, current, reason="after-original")
 
     async def recover(self):
@@ -159,7 +175,7 @@ class DiaryAutomation:
         # not invent missing days or ask the model to recreate a history.
         async with self.life.database.transaction() as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM life.diary_days WHERE reviewed_revision<revision OR generation_id IS NOT NULL "
-                "ORDER BY day,actor_id,scope_key")).fetchall()
+                "SELECT * FROM life.diary_days WHERE (reviewed_revision<revision AND blocked_revision<revision) OR generation_id IS NOT NULL "
+                "ORDER BY day,actor_id,scope_key FOR UPDATE")).fetchall()
             for row in rows:
                 await self.enqueue(connection, row, reason="recover:"+datetime.now(UTC).isoformat())

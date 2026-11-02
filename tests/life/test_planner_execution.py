@@ -147,6 +147,7 @@ async def setup(database, output, *, lose_response=False, capability_id="content
             Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
             Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
             Migration("0035_life_planning_recovery", files("tianshu.life").joinpath("planning_recovery.sql").read_text()),
+            Migration("0038_life_computation_retry", files("tianshu.life").joinpath("0038_life_computation_retry.sql").read_text()),
             Migration(
                 "0032_conversation",
                 files("tianshu.conversation").joinpath("schema.sql").read_text(),
@@ -305,13 +306,13 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
         None,
     )
     await restarted.plan("actor", 1, wire(fixture.context))
-    assert (await mark(database))["reason"] == "planner_unknown"
+    assert (await mark(database))["reason"] == "planner_retry_wait"
     refreshed = replace(fixture.context, access_epoch=2)
     fixture.worker.life.identity.epoch=2
     await restarted.plan("actor", 1, wire(refreshed))
     current = await mark(database)
-    assert current["generation_key"] == key and current["generation_consumed"] is False
-    assert current["reason"] == "planner_unknown"
+    assert current["generation_key"] == key and current["generation_consumed"] is True
+    assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None
     assert len(fixture.models.calls) == 1 and not fixture.actions.calls
     assert all(attempt == original.attempt_id for attempt, _ in fixture.models.observations)
     async with database.transaction(read_only=True) as connection:

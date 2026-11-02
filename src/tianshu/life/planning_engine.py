@@ -1,6 +1,7 @@
 """One decision joins directions, today's appointments and the next actual step."""
 from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo
+from uuid import uuid4
 
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from tianshu.conversation.generation import attempt_for
@@ -9,6 +10,8 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.sources.dependencies import unique_refs
+from tianshu.models.retry import retry_delay_seconds, transient_model_failure
+from .computation_retry import outcome
 from . import planner
 from .day_plan import awake_window, MAX_ACTIVITIES
 from .model_budget import generation_request, generation_profile
@@ -148,12 +151,21 @@ class PlanningEngine:
         same_material = mark["generation_material"] == material
         repair_ready = False
         if not pending and same_material and mark["last_error"]:
-            if not due(mark["repair_due_at"], now):
+            if transient_model_failure(mark["last_error"]):
+                restored = await self.retry_original(context, mark, now)
+                if restored is None:
+                    return
+                if restored:
+                    mark, pending = restored, True
+                else:
+                    repair_ready = True
+            elif not due(mark["repair_due_at"], now):
                 await self.finish(context, mark, mark["last_error"], next_due=mark["repair_due_at"])
                 return
-            data["repair"] = {"reason": mark["last_error"], "number": mark["repair_count"],
-                              "instruction": "Return one complete compact JSON decision; no previous partial output is an activity."}
-            repair_ready = True
+            else:
+                data["repair"] = {"reason": mark["last_error"], "number": mark["repair_count"],
+                                  "instruction": "Return one complete compact JSON decision; no previous partial output is an activity."}
+                repair_ready = True
         if not pending and not repair_ready and mark["decision_fingerprint"] == material and not due(mark["review_after"], now):
             await self.finish(context, mark, "unchanged_decision_material", fingerprint=material)
             return
@@ -177,7 +189,7 @@ class PlanningEngine:
             # scene/material can supersede a proposal, without rewriting its outcome.
             if mark["generation_material"] != material:
                 status = await self.supersede(mark, "material_changed")
-                if status in {"queued", "running", "unknown"}:
+                if status in {"queued", "running"}:
                     await self.waiting(context, mark, "planner_" + status, now)
                     return
             else:
@@ -192,7 +204,8 @@ class PlanningEngine:
                     else:
                         raise
                 if frozen is not None:
-                    observe = self.worker.generations.context_key(frozen.context) != self.worker.generations.context_key(context)
+                    observe = (self.worker.generations.context_key(frozen.context) != self.worker.generations.context_key(context)
+                        or await self.worker.models.status(frozen.attempt_id) is not None)
         if frozen is None:
             if pending and mark["generation_material"] == material:
                 # New requests are atomically frozen with the Life pointer, so a
@@ -219,17 +232,22 @@ class PlanningEngine:
             async with self.life.database.transaction() as connection:
                 await self.life.validate_persistence(connection, context, frozen.source_refs)
                 fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,))).fetchone()
-                if fresh["revision"] != revision:
+                if (fresh["revision"] != revision or fresh["generation_key"] != mark["generation_key"]
+                        or fresh["generation_consumed"] != mark["generation_consumed"]):
                     return
                 frozen = await self.worker.generations.prepare(key, frozen, connection=connection)
+                if fresh["generation_key"] and not same_material:
+                    await connection.execute("UPDATE life.plan_generations SET state='superseded',reason='material_changed',reviewed_at=now() "
+                        "WHERE generation_key=%s AND state IN ('pending','reviewed','retry_wait')",(fresh["generation_key"],))
                 await connection.execute(
-                    "INSERT INTO life.plan_generations(generation_key,actor_id,day,material_fingerprint,base_revision,context) "
-                    "VALUES (%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING", (key, actor_id, day, material, revision, document(context)))
+                    "INSERT INTO life.plan_generations(generation_key,actor_id,day,material_fingerprint,base_revision,context,previous_generation_key) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING", (key, actor_id, day, material, revision, document(context),mark["generation_key"]))
                 repairs = fresh["repair_count"] if fresh["generation_material"] == material else 0
                 await connection.execute("UPDATE life.plan_watermarks SET generation_material=%s,generation_key=%s,generation_consumed=false,"
-                    "repair_count=%s,repair_due_at=NULL,review_after=NULL,reason='planner_running' WHERE actor_id=%s",
-                    (material, key, repairs, actor_id))
-                mark = {**fresh, "generation_key": key, "generation_material": material, "generation_consumed": False, "repair_count": repairs}
+                    "repair_count=%s,computation_retry_count=%s,repair_due_at=NULL,review_after=NULL,reason='planner_running' WHERE actor_id=%s",
+                    (material, key, repairs,fresh["computation_retry_count"] if same_material else 0, actor_id))
+                mark = {**fresh, "generation_key": key, "generation_material": material, "generation_consumed": False, "repair_count": repairs,
+                        "computation_retry_count":fresh["computation_retry_count"] if same_material else 0}
         key = mark["generation_key"]
 
         async def current(connection):
@@ -244,19 +262,14 @@ class PlanningEngine:
                 return
             if error.code == "generation_no_longer_current":
                 return
-            await self.waiting(context, mark, "planner_unknown", now)
-            raise
-        except BaseException:
-            await finish_cleanup(self.waiting(context, mark, "planner_unknown", now))
+            await self.computation_failure(context,mark,material,now,error=error)
+            return
+        except BaseException as error:
+            await finish_cleanup(self.computation_failure(context,mark,material,now,error=error))
             raise
         status = result.receipt.status if result else "absent"
         if status != "succeeded":
-            if status in {"failed", "cancelled"}:
-                await self.failure(context, mark, "planner_" + status, material, now)
-                return
-            # Unknown is kept as unknown, with the same frozen attempt. A clock
-            # event can observe it; it never earns a new ID merely by getting old.
-            await self.waiting(context, mark, "planner_" + status, now)
+            await self.computation_failure(context,mark,material,now,result=result)
             return
         finished_at = datetime.now(UTC)
         awake, boundary = awake_window(routine, finished_at)
@@ -267,6 +280,10 @@ class PlanningEngine:
                     "WHERE generation_key=%s AND state='reviewed'", (key,))
             return
         now, next_boundary = finished_at, boundary
+        latest=await self.worker.models.status(frozen.attempt_id)
+        if latest and getattr(latest,"cancellation_reason",None)=="explicit_cancel":
+            await self.failure(context,mark,"explicit_cancel",material,now,status_reason="planner_cancelled")
+            return
         try:
             decision, original_data = planner.decision(result, frozen)
             # Catalog changes and source changes are rechecked for actual dispatch.
@@ -302,16 +319,95 @@ class PlanningEngine:
             reason = "planned_with_reduced_context" if planner.reduced(original_data) else "planned" if created or prepared_contact else "no_meaningful_activity"
             reconsider_at = review_time(routine, now, next_boundary) if not created and not scheduled else None
             await self._finish(connection, context, fresh, reason, fingerprint=reviewed, consumed=True, next_due=reconsider_at)
-            await connection.execute("UPDATE life.plan_watermarks SET last_error=NULL,failed_generation_key=NULL,repair_count=0,repair_due_at=NULL,review_after=%s "
+            await connection.execute("UPDATE life.plan_watermarks SET last_error=NULL,failed_generation_key=NULL,repair_count=0,computation_retry_count=0,repair_due_at=NULL,review_after=%s "
                 "WHERE actor_id=%s", (reconsider_at, actor_id))
             if reconsider_at:
                 await self.schedule(connection, context, fresh, reconsider_at, "review")
             await connection.execute("UPDATE life.plan_generations SET state='applied',reason=%s,reviewed_at=now() WHERE generation_key=%s", (reason, key))
 
+    async def computation_failure(self, context, mark, material, now, *, result=None, error=None):
+        try:
+            status, code, retry = await outcome(self.worker.models,attempt_for(mark["generation_key"]),result=result,error=error)
+        except Exception:
+            await self.waiting(context,mark,"planner_unknown",now)
+            return
+        if status in {"queued","running","succeeded"} and code != "explicit_cancel":
+            await self.waiting(context,mark,"planner_"+status if status != "succeeded" else "planner_unknown",now)
+            return
+        if not retry:
+            await self.failure(context,mark,code,material,now,status_reason="planner_cancelled" if code=="explicit_cancel" or status=="cancelled" else "planner_failed")
+            return
+        async with self.life.database.transaction() as connection:
+            fresh=await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",(context.actor_id,))).fetchone()
+            if (not fresh or fresh["revision"]!=mark["revision"] or fresh["generation_key"]!=mark["generation_key"]
+                    or fresh["generation_consumed"]):
+                return
+            count=(fresh["computation_retry_count"] if fresh["generation_material"]==material else 0)+1
+            retry_at=now+timedelta(seconds=retry_delay_seconds(count))
+            await self._finish(connection,context,fresh,"planner_retry_wait",consumed=True,next_due=retry_at)
+            await connection.execute("UPDATE life.plan_watermarks SET last_error=%s,failed_generation_key=generation_key,"
+                "computation_retry_count=%s,repair_due_at=%s,review_after=NULL WHERE actor_id=%s",(code,count,retry_at,context.actor_id))
+            await connection.execute("UPDATE life.plan_generations SET state='retry_wait',reason=%s,reviewed_at=now() WHERE generation_key=%s",
+                (code,mark["generation_key"]))
+            await self.schedule(connection,context,fresh,retry_at,"retry")
+
+    async def retry_original(self,context,mark,now):
+        """Observe a yielded attempt before choosing a fresh independent intent."""
+        try:
+            frozen=await self.worker.generations.observe_request(attempt_for(mark["generation_key"]),observer=context)
+            if frozen is None:
+                raise AppError("planner_original_request_missing")
+            result=await self.worker.generations.read(frozen.attempt_id,frozen.context,observer=context)
+            status,code,retry=await outcome(self.worker.models,frozen.attempt_id,result=result,error=mark["last_error"])
+        except Exception as error:
+            if isinstance(error,AppError) and not transient_model_failure(error.code):
+                code,retry=getattr(error,"code","planner_original_request_missing"),False
+                status="failed"
+            else:
+                async with self.life.database.transaction() as connection:
+                    await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
+                return None
+        else:
+            if code != "explicit_cancel" and status in {"queued","running"}:
+                async with self.life.database.transaction() as connection:
+                    await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
+                return None
+            from tianshu.models.timing import waiting_budget
+            deadline=waiting_budget(frozen)
+            if code != "explicit_cancel" and deadline is not None and deadline.deadline_at<=now:
+                async with self.life.database.transaction() as connection:
+                    await connection.execute("UPDATE life.plan_generations SET state='superseded',reason='life_window_expired',reviewed_at=now() "
+                        "WHERE generation_key=%s",(mark["generation_key"],))
+                return {}
+            if code != "explicit_cancel" and result is not None and result.receipt.status=="succeeded":
+                async with self.life.database.transaction() as connection:
+                    fresh=await (await connection.execute("UPDATE life.plan_watermarks SET generation_consumed=false,last_error=NULL,repair_due_at=NULL "
+                        "WHERE actor_id=%s AND revision=%s AND generation_key=%s AND generation_consumed RETURNING *",
+                        (context.actor_id,mark["revision"],mark["generation_key"]))).fetchone()
+                    if fresh:
+                        await connection.execute("UPDATE life.plan_generations SET state='pending' WHERE generation_key=%s",(mark["generation_key"],))
+                return fresh
+            if code != "explicit_cancel" and status=="succeeded":
+                async with self.life.database.transaction() as connection:
+                    await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
+                return None
+            if retry:
+                if not due(mark["repair_due_at"],now):
+                    await self.finish(context,mark,"planner_retry_wait",next_due=mark["repair_due_at"])
+                    return None
+                return {}
+        async with self.life.database.transaction() as connection:
+            await connection.execute("UPDATE life.plan_watermarks SET last_error=%s,repair_due_at=NULL,reason=%s "
+                "WHERE actor_id=%s AND revision=%s AND generation_key=%s AND generation_consumed",
+                (code,"planner_cancelled" if code=="explicit_cancel" else "planner_failed",context.actor_id,mark["revision"],mark["generation_key"]))
+            await connection.execute("UPDATE life.plan_generations SET state='rejected',reason=%s,reviewed_at=now() WHERE generation_key=%s",
+                (code,mark["generation_key"]))
+        return None
+
     async def supersede(self, mark, reason):
         state = await self.worker.models.status(attempt_for(mark["generation_key"]))
         status = state.status if state else "absent"
-        if status in {"queued", "running", "unknown"}:
+        if status in {"queued", "running"}:
             return status
         async with self.life.database.transaction() as connection:
             await connection.execute("UPDATE life.plan_generations SET state='superseded',reason=%s,reviewed_at=now() WHERE generation_key=%s AND state='pending'",
@@ -319,10 +415,17 @@ class PlanningEngine:
         return status
 
     async def schedule(self, connection, context, mark, when, kind):
+        current=await (await connection.execute("SELECT revision,generation_key FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",
+            (context.actor_id,))).fetchone()
+        if not current or current["revision"]!=mark["revision"] or current["generation_key"]!=mark["generation_key"]:
+            return
+        value=wire(context)
+        for key in ("scope_ids","audience","permissions"):
+            value[key]=sorted(value[key])
+        payload={"actor_id":context.actor_id,"revision":mark["revision"],"context":value}
         await self.life.jobs.enqueue(connection, JobSpec("life.plan",
-            f"plan-{kind}:{mark['generation_key']}:{mark['revision']}:{when.isoformat()}",
-            {"actor_id": context.actor_id, "revision": mark["revision"], "context": wire(context)},
-            scheduled_at=when, subject_id=context.actor_id))
+            f"plan-{kind}:{mark['generation_key']}:{mark['revision']}:{uuid4()}",payload,
+            scheduled_at=when, subject_id=context.actor_id),queueing_lock="life-plan:"+signature(payload))
 
     async def waiting(self, context, mark, reason, now):
         async with self.life.database.transaction() as connection:
@@ -330,10 +433,10 @@ class PlanningEngine:
                 "UPDATE life.plan_watermarks SET reason=%s WHERE actor_id=%s AND revision=%s "
                 "AND generation_key=%s AND NOT generation_consumed RETURNING actor_id",
                 (reason, context.actor_id, mark["revision"], mark["generation_key"]))).fetchone()
-            if fresh and reason in {"planner_queued", "planner_running"}:
+            if fresh and reason in {"planner_queued", "planner_running", "planner_unknown", "planner_absent"}:
                 await self.schedule(connection, context, mark, now + timedelta(seconds=30), "observe")
 
-    async def failure(self, context, mark, reason, material, now, *, repairable=False):
+    async def failure(self, context, mark, reason, material, now, *, repairable=False, status_reason=None):
         """Reject a result without accepting its material as a valid decision."""
         count = (mark["repair_count"] if mark["generation_material"] == material else 0) + int(repairable)
         retry_at = now + REPAIR_DELAY * 2**max(0, count - 1) if repairable and count <= MAX_REPAIRS else None
@@ -341,9 +444,9 @@ class PlanningEngine:
             fresh = await (await connection.execute(
                 "SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (context.actor_id,))).fetchone()
             if (not fresh or fresh["revision"] != mark["revision"]
-                    or fresh["generation_key"] != mark["generation_key"]):
+                    or fresh["generation_key"] != mark["generation_key"] or fresh["generation_consumed"]):
                 return
-            await self._finish(connection, context, fresh, reason, consumed=True, next_due=retry_at)
+            await self._finish(connection, context, fresh, status_reason or reason, consumed=True, next_due=retry_at)
             await connection.execute(
                 "UPDATE life.plan_watermarks SET last_error=%s,failed_generation_key=generation_key,"
                 "generation_material=%s,repair_count=%s,repair_due_at=%s,review_after=NULL WHERE actor_id=%s",

@@ -22,7 +22,7 @@ PLANNING_STATUS_CODES = frozenset({
     "planner_capability_unavailable", "planner_arguments_invalid", "planner_goal_unavailable",
     "planner_original_contract_missing", "planner_original_context_changed",
     "planner_original_request_missing", "original_planner_not_registered_before_deadline",
-    "planner_unknown", "planner_queued", "planner_running", "planner_failed", "planner_cancelled",
+    "planner_unknown", "planner_queued", "planner_running", "planner_failed", "planner_cancelled", "planner_retry_wait",
     "actor_resting", "routine_disabled", "unchanged_decision_material", "day_arrangements_complete", "planner_absent",
     "planner_goal_basis_invalid", "planner_goal_criteria_changed", "planner_goal_changed", "planner_activity_unavailable", "source_unavailable",
     "planner_contact_basis_invalid",

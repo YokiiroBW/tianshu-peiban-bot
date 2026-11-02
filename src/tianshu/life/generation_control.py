@@ -7,7 +7,6 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 from tianshu.conversation.codec import context_from_record, signature
 from .validation import revision
-from .writing import generated_text, generation_error
 
 
 class GenerationControl:
@@ -61,40 +60,17 @@ class GenerationControl:
             row = await (await connection.execute(self.query(kind), (item_id,context.actor_id,list(context.scope_ids)))).fetchone()
         if not row or row["generation_id"] != generation_id or row["state"] not in {"generating","unknown","cancelling","collecting"}:
             return
-        service = self.writing if kind=="chapter" else self.diaries
-        if operation=="cancel":
-            try:
-                await service.models.cancel(generation_id)
-            except AppError as error:
-                if error.status!=404:
-                    raise
-        result = await service.generations.read(generation_id,context)
-        frozen = await service.generations.request(generation_id,context)
-        if result is None and frozen is None and operation=="reconcile" and row["state"] in {"collecting","generating"}:
-            return
-        if result is not None and result.receipt.status=="succeeded" and generated_text(result).strip() and frozen is not None and not row["generation_cancel_requested"]:
-            await service.save_generated(context,item_id,generation_id,row["generation_recipe"],result,frozen.source_refs)
-            return
-        state = ("cancelled" if row["generation_cancel_requested"] and result.receipt.status=="succeeded" else "failed" if result.receipt.status=="succeeded" else result.receipt.status) if result is not None else "cancelled" if frozen is None and operation=="cancel" else "unknown"
-        if state in {"queued","running"}:
-            state = "cancelling" if row["generation_cancel_requested"] else "generating"
-        elif state not in {"failed","cancelled"}:
-            state = "unknown"
-        from tianshu.models.timing import waiting_budget
-        deadline = waiting_budget(frozen) if frozen is not None else None
-        if result is None and deadline is not None and deadline.deadline_at<=datetime.now(UTC):
-            state="cancelled" if row["generation_cancel_requested"] else "failed"
-        table = "life.chapters" if kind=="chapter" else "life.diaries"
-        if result is not None:
-            reason = ("model_completed_after_cancel" if row["generation_cancel_requested"] and result.receipt.status == "succeeded"
-                      else generation_error(result, "generation_output_empty") if result.receipt.status == "succeeded"
-                      else result.receipt.error_code or "model_" + result.receipt.status)
-        else:
-            reason = "cancelled_before_model_registration" if state == "cancelled" else "generation_request_expired" if state == "failed" else "model_outcome_unknown"
-        async with self.life.database.transaction() as connection:
-            await self.life.validate_persistence(connection,context)
-            await connection.execute(f"UPDATE {table} SET state=%s,reason=%s,revision=revision+1 WHERE id=%s AND generation_id=%s AND state IN ('generating','unknown','cancelling','collecting')",
-                (state,reason,item_id,generation_id))
+        if kind=="chapter":
+            original=context_from_record(row["generation_context"])
+            if original.principal_id!=context.principal_id:
+                raise AppError("generation_observation_context_mismatch",status=403)
+            if operation=="cancel":
+                try:
+                    await self.writing.models.cancel(generation_id)
+                except AppError as error:
+                    if error.status!=404:
+                        raise
+            return await self.writing.generate(item_id,generation_id)
 
     async def recover(self):
         async with self.life.database.transaction() as connection:
