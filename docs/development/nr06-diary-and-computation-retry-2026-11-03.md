@@ -9,8 +9,13 @@
 | NR-06A | natural_life | Life 日记材料构造/原日记恢复入口；Channels 处理中已撤回任务正常收尾；必要相关用例 |
 | NR-06B | natural_growth | Companion Growth 冻结批次/重试恢复/后续材料公平推进；Models 纯错误分类与退避 helper；必要相关 schema/migrations及用例 |
 | NR-06C | natural_memory | Memory 向量索引持久重试/缺向量恢复/原 model step 关系与来源版本校验；必要 Memory schema/migrations及用例 |
+| NR-06D | natural_memory（C 完成后新 worktree） | Life 规划及日记同根因的纯计算中断自动重试，复用既有原生任务及生成请求，不修改外部动作恢复语义 |
 
 实现者不运行测试、构建、模型或生产动作，分别交接 NR-06A/B/C。根维护公共任务注册和迁移顺序的集成，收齐后集中定向验证并串行发布。若需共有文件，由根明确单写归属，不在旧归档 worktree 继续写。
+
+根复查同时发现 Life planner 在 unknown 后持续等待原 generation，日记也只观察原 unknown；这些与本批失败不让位同根因，NR-06D 一并处理。规划时段已过或材料变化应重新评估当前日程，不能照旧过期计划执行；不同角色、日期的日记不能被旧失败阻塞。原未知账本保留，新请求独立且不附加失败输出。
+
+用户准备另处重构前端：可独立 worktree 并行布局/视觉/组件整理；本批根仍唯一生产发布者。NR-06B 当前独占 GrowthPage.tsx 与 domainTypes.ts 的重试状态增量，其他前端分支在本批接口收口后统一合并，不覆盖作者配置或生产镜像。
 
 ## 重试行为
 
