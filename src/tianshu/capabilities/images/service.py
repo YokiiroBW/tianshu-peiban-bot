@@ -568,17 +568,25 @@ class Images:
 
     def recovered_receipt(self, action, attempt, prepared, artifacts, completion):
         conflict = completion["consistency"]["state"] == "conflict"
-        requested = prepared["photo_intent"]["delivery_kind"] == "requested_delivery"
+        kind = prepared["photo_intent"]["delivery_kind"]
+        requested = kind == "requested_delivery"
+        archive = kind == "create_only" or (conflict and not requested)
+        if conflict:
+            reason = "image_consistency_conflict"
+        elif kind == "create_only":
+            reason = None
+        else:
+            reason = "reconciled_requires_expression_recheck"
         return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "succeeded", "confirmed",
             "not_requested", artifacts=tuple(artifacts), result={"reconciled": True,
                 "scene": prepared["scene"], "intent": prepared["intent"],
                 "photo_intent": {**prepared["photo_intent"], "artifact_ids": completion["artifact_ids"]},
                 "consistency": completion["consistency"], "generated_at": completion["generated_at"],
                 "generation_time_basis": "completion_observed",
-                "sharing": {"decision": "archive" if conflict and not requested else "recheck",
-                    "reason": "image_consistency_conflict" if conflict else "reconciled_requires_expression_recheck",
+                "sharing": {"decision": "archive" if archive else "recheck",
+                    "reason": reason,
                     "notice": "图片已经生成，但可见场景与拍摄意图存在不一致。" if conflict else None,
-                    "delivery_kind": prepared["photo_intent"]["delivery_kind"]}})
+                    "delivery_kind": kind}})
 
     async def store_images(self, action, prepared, images):
         artifacts = []

@@ -59,6 +59,28 @@ class ConsistencyStatus(TestCase):
                                  "archive" if kind == "share_candidate" else "recheck")
                 self.assertTrue(receipt.result["sharing"]["notice"])
 
+    def test_recovered_create_only_never_requires_expression_recheck(self):
+        artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+        action = actor_action("create_only")
+        prepared = {"scene": {"local_time": "2026-11-02T12:00:00+08:00"},
+                    "intent": {}, "photo_intent": {"delivery_kind": "create_only", "target_ref": None}}
+        for consistency in ("matched", "unknown", "conflict"):
+            with self.subTest(consistency=consistency):
+                completion = {"artifact_ids": ["image"], "consistency": {"state": consistency},
+                              "generated_at": "2026-11-02T04:00:00+00:00"}
+                receipt = Images.recovered_receipt(None, action, Attempt("original-attempt", action.action_id),
+                                                  prepared, [artifact], completion)
+                self.assertEqual((receipt.execution, receipt.effect, receipt.delivery),
+                                 ("succeeded", "confirmed", "not_requested"))
+                self.assertEqual(receipt.artifacts, (artifact,))
+                self.assertEqual(receipt.attempt_id, "original-attempt")
+                self.assertEqual(receipt.result["sharing"]["decision"], "archive")
+                self.assertEqual(receipt.result["sharing"]["delivery_kind"], "create_only")
+                self.assertEqual(receipt.result["sharing"]["reason"],
+                                 "image_consistency_conflict" if consistency == "conflict" else None)
+                self.assertEqual(receipt.result["photo_intent"]["artifact_ids"], ["image"])
+                self.assertEqual(receipt.result["consistency"], completion["consistency"])
+
 
 class BoundedResultCheck(IsolatedAsyncioTestCase):
     async def test_unconfigured_vision_is_unknown_and_preserves_generated_artifact(self):
