@@ -28,6 +28,7 @@ FUNCTIONS = (
     "reaction.annotate",
     "reaction.search",
     "image.plan",
+    "image.consistency",
     "video.observe",
 )
 NATIVE_PROTOCOLS = frozenset(
@@ -122,12 +123,15 @@ class ModelCatalog:
         self.database = database
 
     async def bound_route(self, connection, request):
+        # An independently bound check wins; otherwise retain the author's
+        # existing vision selection, including its actor/global precedence.
+        inherited = "vision" if request.function == "image.consistency" else request.function
         binding = await (await connection.execute(
             "SELECT route_id FROM models.bindings WHERE service_class=%s "
-            "AND function IN (%s,'*') AND actor_id IN (%s,'') "
-            "ORDER BY (function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
-            (request.service_class.value, request.function, request.context.actor_id or "",
-             request.function, request.context.actor_id or ""))).fetchone()
+            "AND function IN (%s,%s,'*') AND actor_id IN (%s,'') "
+            "ORDER BY (function=%s) DESC,(function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
+            (request.service_class.value, request.function, inherited, request.context.actor_id or "",
+             request.function, inherited, request.context.actor_id or ""))).fetchone()
         if not binding:
             raise AppError("model_function_not_configured", status=503,
                 details={"function": request.function, "service_class": request.service_class.value})

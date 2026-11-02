@@ -126,5 +126,6 @@ export const functionNames: Record<string, string> = {
   "reaction.annotate": "表情标注",
   "reaction.search": "表情选材",
   "image.plan": "图像规划",
+  "image.consistency": "图像一致性检查",
   "video.observe": "视频观察",
 };

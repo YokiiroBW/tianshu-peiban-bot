@@ -138,3 +138,44 @@ async def test_profile_is_read_only_and_frozen_binding_cannot_drift_or_select_an
         await connection.execute("UPDATE models.routes SET revision=2 WHERE route_id='route'")
     with pytest.raises(AppError, match="model_route_revision_conflict"):
         await broker.catalog.resolve(frozen)
+
+
+@pytest.mark.asyncio
+async def test_image_consistency_binding_inherits_vision_without_changing_other_functions(database):
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO models.providers(provider_id,name,base_url,credential_ref,protocol) VALUES ('provider','Fixture','https://fixture.invalid','FIXTURE_KEY','openai.chat')")
+        await connection.execute("INSERT INTO models.quota_groups(quota_group,concurrency,interactive_reserve,background_max) VALUES ('quota',2,1,1)")
+        for route in ("default-global", "default-actor", "vision-global", "vision-actor", "check-global", "check-actor"):
+            await connection.execute("INSERT INTO models.routes(route_id,provider_id,model,quota_group,verified_capabilities) VALUES (%s,'provider','configured-model','quota',ARRAY['text','vision'])", (route,))
+        await connection.execute("INSERT INTO models.bindings(function,service_class,actor_id,route_id) VALUES ('*','elastic','','default-global'),('*','elastic','actor','default-actor')")
+
+    catalog = ModelCatalog(database)
+    check = request(function="image.consistency", required_capabilities=frozenset({"vision"}))
+    vision, chat = replace(check, function="vision"), replace(check, function="chat")
+    assert (await catalog.resolve(check)).route_id == (await catalog.resolve(vision)).route_id == "default-actor"
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO models.bindings(function,service_class,actor_id,route_id) VALUES ('vision','elastic','','vision-global')")
+    assert (await catalog.resolve(check)).route_id == "vision-global"
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO models.bindings(function,service_class,actor_id,route_id) VALUES ('vision','elastic','actor','vision-actor')")
+    selected = await catalog.resolve(check)
+    assert selected.route_id == "vision-actor"
+    frozen = replace(check, route_id=selected.route_id, route_revision=selected.revision, protocol=selected.protocol)
+    assert (await catalog.resolve(frozen)).route_id == "vision-actor"
+
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO models.bindings(function,service_class,actor_id,route_id) VALUES ('image.consistency','elastic','','check-global')")
+    assert (await catalog.resolve(check)).route_id == "check-global"
+    assert (await catalog.resolve(vision)).route_id == "vision-actor"
+    assert (await catalog.resolve(chat)).route_id == "default-actor"
+    with pytest.raises(AppError, match="model_route_binding_changed"):
+        await catalog.resolve(frozen)
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO models.bindings(function,service_class,actor_id,route_id) VALUES ('image.consistency','elastic','actor','check-actor')")
+    assert (await catalog.resolve(check)).route_id == "check-actor"
+    assert (await catalog.resolve(vision)).route_id == "vision-actor"
+    async with database.transaction() as connection:
+        await connection.execute("DELETE FROM models.bindings WHERE function='image.consistency'")
+    assert (await catalog.resolve(check)).route_id == "vision-actor"
+    with pytest.raises(AppError, match="model_function_not_configured"):
+        await catalog.resolve(replace(check, service_class=ServiceClass.INTERACTIVE))

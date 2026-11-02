@@ -117,7 +117,7 @@ class BoundedResultCheck(IsolatedAsyncioTestCase):
             {"scene": {"local_time": "2026-11-02T23:00:00+08:00"},
              "intent": {"character": "fictional actor", "light": "night lamps"}}, [artifact])
         request = broker.generation_profile.await_args.args[0]
-        self.assertEqual(request.function, "vision")
+        self.assertEqual(request.function, "image.consistency")
         self.assertEqual(request.service_class, ServiceClass.ELASTIC)
         self.assertEqual(request.required_capabilities, frozenset({"vision"}))
         self.assertEqual(checked["state"], "unknown")
