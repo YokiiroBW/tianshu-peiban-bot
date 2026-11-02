@@ -13,6 +13,8 @@
 
 用户进一步明确：订阅与 BOT 属于不同功能分区。本批只修复独立订阅的作者授权刷新、定时扫描与错误隔离，不增加订阅与 BOT 的绑定，不把其结果接到日程、角色记忆或内容发现配置；四条现有书源继续保持 actor_id 为空。从 BOT 找书、找视频、找音乐属于后续开发，本批不扩展这一入口。
 
+集中验收追加的精确修复：Models 原生响应先校验结构再提取 completion，避免 malformed choices 抛原始 Python 异常；图片恢复后的 create_only 继续归档，不改成表达复查；图片原生实测发现未显式提供估计时把 Base64 传输体算为文本 token，Models 修正已识别内联图片的准入估计并复用既有媒体预留，真实 reported 用量结算和纯文本/显式估计保持。Conversation Context 只允许数学等价地引用该共享估值，不改用户 Memory 算法。原生网络中断保持原 unknown；已有 ComfyUI 成图可按原 handle 取回，不重新提交 prompt。
+
 ## 实施边界
 
 1. 流式复用既有 ModelClient/ModelBroker 和原请求/回执身份；完整 JSON、来源及 CAS 校验通过后统一应用。断流、unknown、取消、晚结果不能制造第二次外部动作。不把原始推理或半份规划变成正式日程。
