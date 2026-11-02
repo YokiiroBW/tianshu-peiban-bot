@@ -9,6 +9,7 @@ import json
 from typing import Any, Mapping
 
 import procrastinate
+from psycopg.types.json import Jsonb
 
 from tianshu.types import ServiceClass
 from .errors import AppError
@@ -135,11 +136,24 @@ class JobQueue:
         connection.execute("UPDATE runtime.job_keys SET job_id=%s WHERE key=%s", (job_id, spec.key))
         return job_id
 
-    async def enqueue(self, connection, spec: JobSpec) -> int:
+    async def enqueue(self, connection, spec: JobSpec, *, queueing_lock=None) -> int:
+        """Optionally merge equivalent wake signals under the caller's business lock.
+
+        Ordinary jobs retain permanent key idempotency. A coalescing caller must
+        serialize its resource and use a fresh key for each new physical wake.
+        Procrastinate's queueing lock limits only todo, allowing a doing job to
+        retain one successor without ever cancelling that running job.
+        """
         if spec.task not in self.tasks:
             raise AppError("task_not_registered", status=503)
         if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
             raise AppError("invalid_persistent_job_class")
+        if queueing_lock is not None:
+            if not isinstance(queueing_lock, str) or not queueing_lock:
+                raise AppError("invalid_job_queueing_lock")
+            pending = await self._coalesce_pending(connection, spec, queueing_lock)
+            if pending is not None:
+                return pending
         cursor = await connection.execute(
             "INSERT INTO runtime.job_keys(key,task,subject_id,matter_id) VALUES (%s,%s,%s,%s) "
             "ON CONFLICT DO NOTHING RETURNING key",
@@ -158,13 +172,48 @@ class JobQueue:
         lane = await self._resolve_lane(connection, spec.task, spec.payload, spec.execution_lane)
         job_id = await self.tasks[spec.task].configure(
             connection=connection, queue=lane.value,
-            schedule_at=spec.scheduled_at,
+            schedule_at=spec.scheduled_at, queueing_lock=queueing_lock,
             # Future work never shares a global actor lock that blocks earlier deadlines.
             priority=100 if spec.service_class == ServiceClass.DUE else 0,
         ).defer_async(**dict(spec.payload))
         await connection.execute("UPDATE runtime.job_keys SET job_id=%s WHERE key=%s",
                                  (job_id, spec.key))
         return job_id
+
+    async def _coalesce_pending(self, connection, spec, queueing_lock):
+        # Matching old unlabelled signals permits an ordinary wake to adopt and
+        # retire duplicate todo rows in place. Row locks recheck a concurrent
+        # native fetch; doing/terminal rows never enter this cancellation set.
+        rows = await (await connection.execute(
+            "SELECT id,task_name,args,queue_name,scheduled_at,queueing_lock FROM procrastinate_jobs "
+            "WHERE status='todo' AND (queueing_lock=%s OR (queueing_lock IS NULL "
+            "AND task_name=%s AND args=%s)) ORDER BY id FOR UPDATE",
+            (queueing_lock, spec.task, Jsonb(dict(spec.payload))))).fetchall()
+        if not rows:
+            return None
+        if any(row["task_name"] != spec.task or row["args"] != dict(spec.payload) for row in rows):
+            raise AppError("job_identity_conflict", status=409)
+        kept, *duplicates = rows
+        dates = [spec.scheduled_at, *(row["scheduled_at"] for row in rows)]
+        due = None if None in dates else min(dates)
+        for duplicate in duplicates:
+            await self.app.job_manager.cancel_job_by_id_async(duplicate["id"], abort=False,
+                delete_job=False, connection=connection)
+        if due != kept["scheduled_at"] or kept["queueing_lock"] != queueing_lock:
+            await connection.execute("UPDATE procrastinate_jobs SET scheduled_at=%s,queueing_lock=%s "
+                "WHERE id=%s AND status='todo'", (due, queueing_lock, kept["id"]))
+            if due != kept["scheduled_at"]:
+                await self._notify_pending(connection, kept["id"], kept["queue_name"])
+        # Original keys and native events remain audit records; cancelled
+        # duplicates are neither deleted nor reused for future wake signals.
+        return kept["id"]
+
+    @staticmethod
+    async def _notify_pending(connection, job_id, queue):
+        payload = json.dumps({"type": "job_inserted", "job_id": job_id})
+        await connection.execute(
+            "SELECT pg_notify(%s,%s),pg_notify('procrastinate_any_queue_v1',%s)",
+            ("procrastinate_queue_v1#" + queue, payload, payload))
 
     async def reroute_pending(self, connection, job_id, *, execution_lane,
                               task=None, service_class=None):
@@ -189,10 +238,7 @@ class JobQueue:
         if row is not None:
             # Updating queue_name does not fire Procrastinate's INSERT notifier.
             # Use its native notification protocol in this same transaction.
-            payload = json.dumps({"type": "job_inserted", "job_id": job_id})
-            await connection.execute(
-                "SELECT pg_notify(%s,%s),pg_notify('procrastinate_any_queue_v1',%s)",
-                ("procrastinate_queue_v1#" + lane.value, payload, payload))
+            await self._notify_pending(connection, job_id, lane.value)
         return row is not None
 
     async def observe_on(self, connection, job_id=None, *, key=None):

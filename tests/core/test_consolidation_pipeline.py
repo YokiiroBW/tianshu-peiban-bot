@@ -10,6 +10,7 @@ import pytest
 from tianshu.memory.extraction_contract import SCHEMA_VERSION
 from tianshu.models.types import ModelCompletion,ModelMessage,ModelPart,ModelReceipt,ModelRequest,ModelResult
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind,RequestBudget,ServiceClass
 from psycopg.types.json import Jsonb
@@ -642,6 +643,15 @@ async def test_unknown_is_held_without_replay_while_later_material_advances(core
     async with core.database.transaction(read_only=True) as conn:
         original_step=await (await conn.execute('SELECT * FROM memory.model_steps WHERE step_id=%s',
             (held['step_ids'][0],))).fetchone()
+    for _ in range(3):
+        await core.workers.recover()
+    wakes = await _wake_rows(core, partition)
+    assert len([wake for wake in wakes if wake['status']=='todo']) == 1
+    assert len(model.requests) == 1
+    async with core.database.transaction(read_only=True) as conn:
+        unchanged_step=await (await conn.execute('SELECT * FROM memory.model_steps WHERE step_id=%s',
+            (held['step_ids'][0],))).fetchone()
+    assert unchanged_step == original_step
     later=await observe(core,alice,'following_held','后续材料含尾部事实')
     await core.workers.recover()
     await core.workers.consolidate(partition)
@@ -1047,3 +1057,163 @@ async def test_expired_owner_does_not_settle_a_batch_already_taken_over(core,ord
     assert batch==successor_snapshot['batch'] and batch['status']=='waiting_model'
     assert current==successor_snapshot['episode'] and current['extraction_state']=='running'
     assert not (await core.claims.list(alice)).items and len(model.requests)==1
+
+
+async def _wake_rows(core, partition):
+    async with core.database.transaction(read_only=True) as conn:
+        return await (await conn.execute("SELECT j.*,k.key,k.cancelled_at FROM procrastinate_jobs j "
+            "LEFT JOIN runtime.job_keys k ON k.job_id=j.id WHERE j.task_name='memory.consolidate' "
+            "AND j.args=%s ORDER BY j.id", (Jsonb({'partition_id':partition}),))).fetchall()
+
+
+async def _start_wake(core, partition):
+    pending = next(wake for wake in await _wake_rows(core, partition) if wake['status']=='todo')
+    async with core.database.transaction() as conn:
+        # Admit this isolated fixture now, without comparing Broker and PG UTC.
+        await conn.execute("UPDATE procrastinate_jobs SET scheduled_at=NULL WHERE id=%s", (pending['id'],))
+        fetched = await (await conn.execute("SELECT * FROM procrastinate_fetch_job_v2(ARRAY['memory_consolidation']::varchar[],NULL)")).fetchone()
+    assert fetched['id'] == pending['id']
+    return pending['id']
+
+
+async def _finish_wake(core, job_id):
+    async with core.database.transaction() as conn:
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'succeeded',false)", (job_id,))
+
+
+async def test_memory_wake_coalesces_earlier_input_concurrent_recovery_and_repeated_ticks(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = FixedConsolidator()
+    configure(core, model)
+    pipeline = core.memory.consolidation
+    pipeline.policy = pipeline.materials.policy = replace(pipeline.policy, quiet_seconds=120)
+    episode = await observe(core, alice, 'wake-initial', '待唤醒原件')
+    partition = (await row(core, episode))['consolidation_partition_id']
+    initial = (await _wake_rows(core, partition))[0]
+    pipeline.policy = pipeline.materials.policy = replace(pipeline.policy, quiet_seconds=0)
+    await observe(core, alice, 'wake-earlier', '更早到期原件')
+    earlier = (await _wake_rows(core, partition))[0]
+    assert earlier['id'] == initial['id'] and earlier['key'] == initial['key']
+    assert earlier['scheduled_at'] < initial['scheduled_at']
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=now()-interval '1 second' WHERE partition_id=%s", (partition,))
+    for _ in range(3):
+        await core.workers.recover()
+    _, _, concurrent = await asyncio.gather(core.workers.recover(), core.workers.recover(),
+        observe(core, alice, 'wake-concurrent-input', '并发新原件'))
+    wakes = await _wake_rows(core, partition)
+    assert len(wakes) == 1 and wakes[0]['status']=='todo'
+    assert wakes[0]['id'] == initial['id'] and wakes[0]['scheduled_at'] <= earlier['scheduled_at']
+    assert wakes[0]['queueing_lock'] == 'memory-consolidate:'+partition
+    assert (await row(core, concurrent))['consolidation_partition_id'] == partition
+    assert not model.requests
+
+
+async def test_memory_wake_recover_retires_only_original_partition_todo_and_preserves_doing_audit(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = FixedConsolidator()
+    configure(core, model)
+    episode = await observe(core, alice, 'wake-old-duplicates', '原审计保持')
+    original_episode = await row(core, episode)
+    partition = original_episode['consolidation_partition_id']
+    original = (await _wake_rows(core, partition))[0]
+    async with core.database.transaction() as conn:
+        ids = []
+        for label in ('old-one','old-two','doing','terminal'):
+            ids.append(await core.memory.jobs.enqueue(conn, JobSpec('memory.consolidate',
+                'memory-consolidate:'+partition+':'+label, {'partition_id':partition})))
+        await conn.execute("UPDATE procrastinate_jobs SET attempts=2 WHERE id=%s", (ids[1],))
+        await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=ANY(%s::bigint[])", (ids[2:],))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (ids[3],))
+        unrelated = await core.memory.jobs.enqueue(conn, JobSpec('memory.consolidate',
+            'memory-consolidate:unrelated:old', {'partition_id':'unrelated'}))
+        await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=now()-interval '1 second' WHERE partition_id=%s", (partition,))
+        keys = await (await conn.execute("SELECT * FROM runtime.job_keys WHERE task='memory.consolidate' ORDER BY key")).fetchall()
+    before = {wake['id']:wake for wake in await _wake_rows(core, partition)}
+    await core.workers.recover()
+    after = {wake['id']:wake for wake in await _wake_rows(core, partition)}
+    assert after[original['id']]['status'] == 'todo'
+    assert [after[identity]['status'] for identity in ids] == ['cancelled','cancelled','doing','failed']
+    assert after[ids[1]]['attempts'] == 2 and after[ids[0]]['abort_requested'] is False
+    assert after[ids[2]] == before[ids[2]] and after[ids[3]] == before[ids[3]]
+    async with core.database.transaction(read_only=True) as conn:
+        assert await (await conn.execute("SELECT * FROM runtime.job_keys WHERE task='memory.consolidate' ORDER BY key")).fetchall() == keys
+        assert (await (await conn.execute("SELECT status FROM procrastinate_jobs WHERE id=%s", (unrelated,))).fetchone())['status']=='todo'
+        for identity in ids[:2]:
+            events = await (await conn.execute("SELECT type FROM procrastinate_events WHERE job_id=%s ORDER BY id", (identity,))).fetchall()
+            assert events[0]['type']=='deferred' and events[-1]['type']=='cancelled'
+        assert all(await core.sources.check_many_on(conn, alice, (episode.source_refs,)))
+    assert await row(core, episode) == original_episode and not model.requests
+
+
+async def test_memory_wake_leaves_one_successor_and_rearms_if_it_ran_before_owner_finished(core, ordinary_users):
+    alice, _ = ordinary_users
+    entered, release = asyncio.Event(), asyncio.Event()
+    class Waiting(FixedConsolidator):
+        async def generate(self, request):
+            if not self.requests:
+                entered.set()
+                await release.wait()
+            return await super().generate(request)
+    model = Waiting()
+    configure(core, model)
+    first = await observe(core, alice, 'wake-running-first', '第一份原件')
+    partition = (await row(core, first))['consolidation_partition_id']
+    doing = await _start_wake(core, partition)
+    owner = asyncio.create_task(core.workers.consolidate(partition))
+    try:
+        await asyncio.wait_for(entered.wait(), 5)
+        later = await observe(core, alice, 'wake-running-later', '后续尾部事实')
+        pending = [wake for wake in await _wake_rows(core, partition) if wake['status']=='todo']
+        assert len(pending)==1 and pending[0]['id'] != doing
+        premature = await _start_wake(core, partition)
+        await core.workers.consolidate(partition)  # Existing lease still belongs to owner.
+        await _finish_wake(core, premature)
+        assert not any(wake['status']=='todo' for wake in await _wake_rows(core, partition))
+        release.set()
+        await asyncio.wait_for(owner, 5)
+        await _finish_wake(core, doing)
+        assert (await row(core, first))['extraction_state']=='completed'
+        assert (await row(core, later))['extraction_state']=='pending'
+        successor = await _start_wake(core, partition)
+        await core.workers.consolidate(partition)
+        await _finish_wake(core, successor)
+        assert (await row(core, later))['extraction_state']=='completed'
+        assert len(model.requests)==2 and len({request.attempt_id for request in model.requests})==2
+    finally:
+        release.set()
+        owner.cancel()
+        await asyncio.gather(owner, return_exceptions=True)
+
+
+async def test_memory_wake_idle_cas_preserves_new_input_and_same_due_after_cancelled_key(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model = FixedConsolidator()
+    configure(core, model)
+    pipeline = core.memory.consolidation
+    first = await observe(core, alice, 'wake-idle-first', '第一份待处理')
+    partition = (await row(core, first))['consolidation_partition_id']
+    doing = await _start_wake(core, partition)
+    pending = pipeline.materials.pending
+    arrived = []
+    async def input_after_empty_read(*_args):
+        arrived.append(await observe(core, alice, 'wake-idle-new', '后来尾部事实'))
+        return []
+    monkeypatch.setattr(pipeline.materials, 'pending', input_after_empty_read)
+    await core.workers.consolidate(partition)
+    await _finish_wake(core, doing)
+    assert not model.requests and (await row(core, arrived[0]))['extraction_state']=='pending'
+    wakes = await _wake_rows(core, partition)
+    next_wake = next(wake for wake in wakes if wake['status']=='todo')
+    same_due = next_wake['scheduled_at']
+    async with core.database.transaction() as conn:
+        await core.memory.jobs.cancel(conn, next_wake['key'])
+        fresh = await pipeline._schedule_on(conn, partition, same_due)
+    assert fresh != next_wake['id']
+    monkeypatch.setattr(pipeline.materials, 'pending', pending)
+    successor = await _start_wake(core, partition)
+    await core.workers.consolidate(partition)
+    await _finish_wake(core, successor)
+    assert len(model.requests)==1
+    assert (await row(core, first))['extraction_state']=='completed'
+    assert (await row(core, arrived[0]))['extraction_state']=='completed'

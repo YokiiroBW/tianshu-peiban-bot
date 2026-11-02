@@ -46,9 +46,14 @@ class Consolidation:
         self.steps, self.counter = steps, counter
 
     async def _schedule_on(self, conn, partition_id, due, *, suffix=""):
-        await self.jobs.enqueue(conn, JobSpec("memory.consolidate",
-            f"memory-consolidate:{partition_id}:{due.isoformat()}:{suffix}",
-            {"partition_id": partition_id}, ServiceClass.ELASTIC, scheduled_at=due))
+        state = await (await conn.execute("SELECT partition_id FROM memory.consolidation_state "
+            "WHERE partition_id=%s FOR UPDATE", (partition_id,))).fetchone()
+        if state is None:
+            return None
+        return await self.jobs.enqueue(conn, JobSpec("memory.consolidate",
+            f"memory-consolidate:{partition_id}:{due.isoformat()}:{suffix}:{uuid4()}",
+            {"partition_id": partition_id}, ServiceClass.ELASTIC, scheduled_at=due),
+            queueing_lock="memory-consolidate:" + partition_id)
 
     async def lock_partition_on(self,conn,context,scope_ids):
         partition_id, scope_key, bound = partition_identity(context, scope_ids)
@@ -79,9 +84,9 @@ class Consolidation:
             "UPDATE memory.consolidation_state SET dirty_generation=dirty_generation+1,first_pending_at=%s,"
             "last_activity_at=%s,wake_due_at=%s,updated_at=now() WHERE partition_id=%s",
             (first, now, due, partition_id))
-        # An earlier wake checks the latest due time and coalesces subsequent input.
-        if not state["first_pending_at"] or not state["wake_due_at"] or due < state["wake_due_at"]:
-            await self._schedule_on(conn, partition_id, due)
+        # Reuse the pending wake, or leave one successor if the old signal is
+        # already doing. An early wake still checks the latest batching due.
+        await self._schedule_on(conn, partition_id, due)
         return partition_id
 
     async def run(self, partition_id):
@@ -145,9 +150,14 @@ class Consolidation:
             heartbeat.cancel()
             await asyncio.gather(heartbeat, return_exceptions=True)
             async with self.database.transaction() as conn:
-                await conn.execute(
-                    "UPDATE memory.consolidation_state SET lease_owner=NULL,lease_until=NULL WHERE partition_id=%s AND lease_owner=%s",
-                    (partition_id, owner))
+                released = await (await conn.execute(
+                    "UPDATE memory.consolidation_state SET lease_owner=NULL,lease_until=NULL "
+                    "WHERE partition_id=%s AND lease_owner=%s RETURNING active_batch_id,wake_due_at",
+                    (partition_id, owner))).fetchone()
+                if released and released["active_batch_id"] is None and released["wake_due_at"] is not None:
+                    # A concurrent wake may have run while this owner still held
+                    # the lease. Re-arm remaining input after releasing only ours.
+                    await self._schedule_on(conn, partition_id, released["wake_due_at"])
 
     async def _renew_lease(self, partition_id, owner):
         async with self.database.transaction() as conn:
@@ -217,11 +227,11 @@ class Consolidation:
                     "ORDER BY sequence LIMIT 64", (context.actor_id, context.principal_id, context.conversation_id))).fetchall()
             scopes = next((row["scope_ids"] for row in scopes_row if body_hash(sorted(row["scope_ids"])) == state["scope_key"]), None)
         if scopes is None:
-            await self._idle(state["partition_id"], owner)
+            await self._idle(state["partition_id"], owner, state["dirty_generation"])
             return None
         rows = await self.materials.pending(context, state["partition_id"])
         if not rows:
-            await self._idle(state["partition_id"], owner)
+            await self._idle(state["partition_id"], owner, state["dirty_generation"])
             return None
         batch_id = "memory_batch_"+uuid4().hex
         text_ceiling = min(self.policy.max_source_characters, self.policy.max_input_tokens//2)
@@ -245,7 +255,7 @@ class Consolidation:
                 frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,
                     max_new_materials=max_new_materials,reads=reads,budget=budget)
                 if not frozen:
-                    await self._idle(state["partition_id"],owner)
+                    await self._idle(state["partition_id"], owner, state["dirty_generation"])
                     return None
                 step_id=batch_id+":step:0"
                 request=self._budgeted_request(context,frozen,step_id) if frozen["materials"] else None
@@ -380,11 +390,12 @@ class Consolidation:
                 frozen["records"][key]["content_omitted"]=True
                 frozen.setdefault("selection_coverage",{}).setdefault("record_content_omitted",[]).append(key)
 
-    async def _idle(self, partition_id, owner):
+    async def _idle(self, partition_id, owner, generation):
         async with self.database.transaction() as conn:
             await conn.execute(
                 "UPDATE memory.consolidation_state SET first_pending_at=NULL,wake_due_at=NULL,last_error=NULL,budget_failure=NULL "
-                "WHERE partition_id=%s AND lease_owner=%s AND active_batch_id IS NULL", (partition_id,owner))
+                "WHERE partition_id=%s AND lease_owner=%s AND active_batch_id IS NULL AND dirty_generation=%s",
+                (partition_id, owner, generation))
 
     async def _execute(self, batch_id, context, *, owner=None):
         # Both additional paths have durable, independent limits: one original

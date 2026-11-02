@@ -120,9 +120,20 @@ class MemoryWorkers:
                 "AND b.status='quarantined')) AND "
                 "(lease_until IS NULL OR lease_until<now()) ORDER BY updated_at LIMIT 64"
             )).fetchall()
+        for row in rows:
+            # Recovery and new input share the partition row lock, without one
+            # recovery transaction retaining locks on every scanned partition.
+            async with self.database.transaction() as conn:
+                current = await (await conn.execute(
+                    "SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s "
+                    "AND (active_batch_id IS NOT NULL OR wake_due_at<=now() OR EXISTS(SELECT 1 "
+                    "FROM memory.consolidation_batches b WHERE b.partition_id=memory.consolidation_state.partition_id "
+                    "AND b.status='quarantined')) AND (lease_until IS NULL OR lease_until<now()) "
+                    "FOR UPDATE SKIP LOCKED", (row["partition_id"],))).fetchone()
+                if current:
+                    await self.consolidation._schedule_on(conn, row["partition_id"], datetime.now(UTC), suffix="recover")
+        async with self.database.transaction() as conn:
             now = datetime.now(UTC)
-            for row in rows:
-                await self.consolidation._schedule_on(conn,row["partition_id"],now,suffix="recover")
             bucket = int(now.timestamp())//30+1
             await self.memory.jobs.enqueue(conn, JobSpec("memory.recover", "memory-recovery:"+str(bucket),
                 {}, ServiceClass.DUE, scheduled_at=datetime.fromtimestamp(bucket*30,UTC)))
