@@ -9,6 +9,7 @@ from tianshu.runtime.api import CommandResult, command_body, json_response
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.migrations import Migration
 from tianshu.types import ServiceClass
@@ -202,6 +203,7 @@ def create_module(memory, retrieval, workers, identity):
         queue.register("memory.observe_legacy", workers.observe_legacy, retryable=False)
         queue.register("memory.index_object", workers.index_object, retryable=False)
         queue.register("memory.index", workers.index, retryable=False)
+        queue.register("memory.index_retry", workers.index_retry, retryable=False, execution_lane=ExecutionLane.MEMORY_INDEX)
         queue.register("memory.recover", workers.recover, retryable=True)
         queue.register("memory.purge_source", memory.claims.purge_source, retryable=True)
 
@@ -225,5 +227,6 @@ def create_module(memory, retrieval, workers, identity):
             Migration("0020_memory", files("tianshu.memory").joinpath("schema.sql").read_text()),
             Migration("0021_memory_consolidation", files("tianshu.memory").joinpath("0021_memory_consolidation.sql").read_text()),
             Migration("0022_memory_runtime", files("tianshu.memory").joinpath("0022_memory_runtime.sql").read_text()),
+            Migration("0023_memory_index_retry", files("tianshu.memory").joinpath("0023_memory_index_retry.sql").read_text()),
         ),
     )

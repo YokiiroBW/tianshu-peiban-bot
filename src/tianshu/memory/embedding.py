@@ -70,13 +70,17 @@ class Embeddings:
                 if error.status != 404 or error.code != "memory_model_step_unavailable":
                     raise
             else:
-                # A new default cannot replace a prior step's immutable timing.
-                # ModelSteps still checks the complete remaining identity before
-                # observing its original attempt; unknown is never regenerated.
-                request = replace(request,
-                    execution_timeout_seconds=original.execution_timeout_seconds,
-                    business_deadline_at=original.business_deadline_at,
-                    max_queue_wait=original.max_queue_wait)
+                # Keep the original execution policy, provider session scope and
+                # route. Compare today's semantic input/authority against that
+                # frozen request; ModelSteps still rejects any changed meaning.
+                request = replace(original,
+                    intent_id=request.intent_id, attempt_id=request.attempt_id,
+                    function=request.function, service_class=request.service_class,
+                    context=request.context, budget=request.budget, messages=request.messages,
+                    system=request.system, tools=request.tools,
+                    required_capabilities=request.required_capabilities,
+                    max_output_tokens=request.max_output_tokens,
+                    native_payload=request.native_payload, source_refs=request.source_refs)
         result = (
             await self.models.generate(request)
             if query

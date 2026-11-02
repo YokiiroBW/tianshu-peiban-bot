@@ -20,5 +20,9 @@ def request_identity(request):
     for name in ("execution_timeout_seconds", "business_deadline_at"):
         if value.get(name) is None:
             value.pop(name, None)
+    # Old wire requests omitted scope and used the conversation provider cache.
+    # Explicit conversation preserves that identity; new intent scope is distinct.
+    if value.get("provider_session_scope") == "conversation":
+        value.pop("provider_session_scope")
     value["context"] = context_record(value["context"])
     return value

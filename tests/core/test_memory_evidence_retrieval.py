@@ -409,6 +409,8 @@ async def test_withdrawn_counterexample_retires_interpretation_despite_independe
     class CaptureIndexDependencies:
         def __init__(self):
             self.groups = []
+        async def profile(self):
+            return {"dimensions": 1024, "normalization": "none"}, "synthetic"
         async def vector(self, *args, source_refs=(), **kwargs):
             self.groups.append(source_refs)
             raise AppError("synthetic_embedding_unconfigured", status=503)
