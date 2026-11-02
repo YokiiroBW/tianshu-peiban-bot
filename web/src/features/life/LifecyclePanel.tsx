@@ -296,7 +296,7 @@ export function LifecyclePanel({
                   )}
                   {canManage && (
                     <>
-                      {item.state === "running" && (
+                      {["running", "dormant"].includes(item.state) && (
                         <button
                           className="button"
                           disabled={action.busy}

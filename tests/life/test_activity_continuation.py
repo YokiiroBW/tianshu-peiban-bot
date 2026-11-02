@@ -219,6 +219,7 @@ async def test_late_success_keeps_user_pause_or_cancel_and_does_not_queue_a_read
     value = await fixture(database)
     await value.worker.activity_step("research", 1, wire(value.context))
     pending = await activity(database)
+    assert pending["state"] == "dormant" and pending["waiting_reason"] == "capability_running"
     action = value.actions.calls[0][0]
     value.jobs.register("life.activity_cancel", value.worker.cancel_activity)
     await value.worker.life.transition_activity(value.context, {"id": "research", "expected_revision": pending["revision"],
@@ -236,6 +237,52 @@ async def test_late_success_keeps_user_pause_or_cancel_and_does_not_queue_a_read
             "client_request_id": "explicit-resume"}, "running")
         resumed = await activity(database)
         assert resumed["action_id"] is None and resumed["checkpoint_data"]["arguments"] == READ["arguments"]
+
+
+@pytest.mark.asyncio
+async def test_user_can_pause_a_known_continuation_and_only_explicit_resume_uses_its_original_read(database):
+    value = await fixture(database, state="dormant")
+    original = await activity(database)
+    await value.worker.life.transition_activity(value.context, {"id": "research", "expected_revision": original["revision"],
+        "client_request_id": "pause-known-continuation"}, "paused")
+    paused = await activity(database)
+    assert paused["state"] == "paused" and paused["waiting_reason"] == "paused_by_user" and paused["next_due_at"] is None
+    assert paused["checkpoint_data"] == original["checkpoint_data"] and paused["action_id"] == original["action_id"]
+    async with database.transaction(read_only=True) as connection:
+        slot = await (await connection.execute("SELECT state FROM life.day_slots WHERE id='research-slot'")).fetchone()
+    assert slot["state"] == "paused"
+    await value.worker.activity_step("research", original["revision"], wire(value.context))
+    await value.worker.activity_step("research", paused["revision"], wire(value.context))
+    await value.worker.recover()
+    assert not value.actions.calls
+    assert (await activity(database))["revision"] == paused["revision"]
+    await value.worker.life.transition_activity(value.context, {"id": "research", "expected_revision": paused["revision"],
+        "client_request_id": "resume-known-continuation"}, "running")
+    resumed = await activity(database)
+    async with database.transaction(read_only=True) as connection:
+        slot = await (await connection.execute("SELECT state FROM life.day_slots WHERE id='research-slot'")).fetchone()
+    assert slot["state"] == "running"
+    await value.worker.activity_step("research", resumed["revision"], wire(value.context))
+    assert len(value.actions.calls) == 1 and value.actions.calls[0][0].capability_id == "content.read"
+    assert dict(value.actions.calls[0][0].arguments) == READ["arguments"]
+
+
+@pytest.mark.asyncio
+async def test_manual_pause_keeps_an_event_wait_from_automatically_resuming(database):
+    value = await fixture(database, state="dormant")
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.activities SET action_id=NULL,waiting_reason='capability_unavailable',"
+            "resume_condition='capability_available',wake_condition=%s WHERE id='research'",
+            (document({"kind": "capability_available", "subject_id": "content.read"}),))
+    await value.worker.life.transition_activity(value.context, {"id": "research", "expected_revision": 1,
+        "client_request_id": "pause-event-wait"}, "paused")
+    paused = await activity(database)
+    async with database.transaction() as connection:
+        await value.worker.life.wake(value.context, kind="capability_available", subject_id="content.read",
+            event_id="adapter-ready", connection=connection)
+    current = await activity(database)
+    assert current["state"] == "paused" and current["revision"] == paused["revision"]
+    assert current["wake_condition"] == paused["wake_condition"] and not value.actions.calls
 
 
 @pytest.mark.asyncio

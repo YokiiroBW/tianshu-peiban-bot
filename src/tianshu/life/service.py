@@ -19,7 +19,7 @@ TRANSITIONS = {
     "planned": {"running", "cancelled", "dormant"},
     "running": {"paused", "dormant", "completed", "cancelled"},
     "paused": {"running", "dormant", "cancelled"},
-    "dormant": {"running", "cancelled"}, "completed": set(), "cancelled": set(),
+    "dormant": {"running", "paused", "cancelled"}, "completed": set(), "cancelled": set(),
 }
 
 
@@ -288,9 +288,13 @@ class LifeService:
             await connection.execute("UPDATE life.activities SET state=%s,revision=%s,waiting_reason=%s,next_due_at=NULL,updated_at=now() WHERE id=%s", (target, next_revision, waiting, activity_id))
             if target == "running":
                 await connection.execute("UPDATE life.actor_state SET activity_id=%s,revision=revision+1 WHERE actor_id=%s", (activity_id, context.actor_id))
+                await connection.execute("UPDATE life.day_slots SET state='running',revision=revision+1 WHERE activity_id=%s "
+                    "AND state='paused' AND starts_at<=%s AND ends_at>%s", (activity_id, now, now))
             else:
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s", (context.actor_id, activity_id))
-                await connection.execute("UPDATE life.day_slots SET state=%s,revision=revision+1 WHERE activity_id=%s AND state IN ('planned','running','waiting_result')",(target,activity_id))
+                await connection.execute("UPDATE life.day_slots SET state=%s,revision=revision+1 WHERE activity_id=%s "
+                    "AND (state IN ('planned','running','waiting_result') OR (state='partial' AND ends_at>%s))",
+                    (target,activity_id,datetime.now(UTC)))
             if target == "running":
                 await self.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{activity_id}:{next_revision}",
                     {"activity_id": activity_id, "expected_revision": next_revision, "context": self._context(context)}, subject_id=context.actor_id))

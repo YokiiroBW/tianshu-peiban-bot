@@ -30,7 +30,7 @@ async def wake(life, context, *, kind, subject_id, event_id, connection):
             "AND wake_condition=%s AND state IN ('waiting','dormant','paused','scheduled')",
             (context.actor_id, list(context.scope_ids), document({"kind": kind, "subject_id": subject_id})))).fetchall()
         for row in rows:
-            if table == "activities" and row["action_id"]:
+            if table == "activities" and (row["action_id"] or row["waiting_reason"] == "paused_by_user"):
                 continue
             original = context_from_record(row["context"])
             current = await life.identity.refresh_scheduled_context(original, permission="life.manage", connection=connection)

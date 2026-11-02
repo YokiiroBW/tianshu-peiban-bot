@@ -299,6 +299,62 @@ test("life workspace switches goals, local day arrangements and real checkpoint 
   ).toBeTruthy();
 });
 
+test("a discovered continuation can be paused from the activity page and explicitly resumed", async ({
+  page,
+}) => {
+  await setup(page);
+  let current = {
+    ...activity,
+    resume_condition: "continue_from_checkpoint",
+  };
+  const writes: { path: string; body: Record<string, unknown> }[] = [];
+  await page.route(apiPath("life/activities"), (route) =>
+    answer(route, { ...emptyPage, items: [current] }),
+  );
+  for (const path of ["life/activities.pause", "life/activities.resume"]) {
+    await page.route(apiPath(path), (route) => {
+      const body = route.request().postDataJSON();
+      writes.push({ path, body });
+      current = {
+        ...current,
+        revision: current.revision + 1,
+        state: path.endsWith("pause") ? "paused" : "running",
+        waiting_reason: path.endsWith("pause")
+          ? "paused_by_user"
+          : "capability_queued",
+      };
+      return answer(
+        route,
+        command(body, { id: current.id, state: current.state }, current.revision),
+      );
+    });
+  }
+  await page.goto("/#/roles/life");
+  await page.getByRole("tab", { name: "活动与进度", exact: true }).click();
+  const continuing = page.locator("article.domain-record").filter({
+    has: page.getByText(activity.title, { exact: true }),
+  });
+  await continuing.getByRole("button", { name: "暂停", exact: true }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0]).toMatchObject({
+    path: "life/activities.pause",
+    body: { actor_id: "actor", id: activity.id, expected_revision: 6 },
+  });
+  await expect(
+    continuing.getByRole("button", { name: "暂停", exact: true }),
+  ).toHaveCount(0);
+  await continuing
+    .getByRole("button", { name: "开始或继续", exact: true })
+    .click();
+  await expect.poll(() => writes.length).toBe(2);
+  expect(writes[1]).toMatchObject({
+    path: "life/activities.resume",
+    body: { actor_id: "actor", id: activity.id, expected_revision: 7 },
+  });
+  expect(writes[1].body).not.toHaveProperty("arguments");
+  expect(current.checkpoint_data).toEqual(activity.checkpoint_data);
+});
+
 test("forum follow-up waits for a later arrangement without resuming unread content", async ({
   page,
 }) => {
