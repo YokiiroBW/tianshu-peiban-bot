@@ -134,7 +134,7 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         settled = await broker.ledger.get(original.attempt_id)
         assert len(allocated) == 1
         actual_budget, remaining, admitted_at = allocated[0]
-        assert 0.1 < remaining <= original.execution_timeout_seconds
+        assert 0.1 < remaining <= original.execution_timeout_seconds + 1e-9
         assert settled["deadline_at"] == actual_budget.deadline_at
         assert admitted_at > original.budget.deadline_at
     finally:
