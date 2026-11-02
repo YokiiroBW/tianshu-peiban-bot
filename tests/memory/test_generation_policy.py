@@ -8,7 +8,7 @@ from types import SimpleNamespace
 import pytest
 
 from tianshu.memory.consolidation import Consolidation
-from tianshu.memory.generation import native_request, repairable, repair_request
+from tianshu.memory.generation import native_request, repairable, repair_request, repair_input_estimate
 from tianshu.models.budgets import effective_output_tokens
 from tianshu.models.types import ModelCompletion, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.errors import AppError
@@ -92,6 +92,49 @@ def test_disabled_thinking_repair_omits_effort_without_changing_the_original():
     assert repaired.parameters['thinking']=={'type':'disabled'}
     assert 'reasoning_effort' not in repaired.parameters and repaired.parameters['max_tokens']==12288
     assert original.parameters['reasoning_effort']=='low' and 'thinking' not in original.parameters
+
+
+@pytest.mark.parametrize('context_round',[0,1])
+def test_near_cap_input_reserves_a_complete_repair_before_freezing_sources(context_round):
+    from tianshu.conversation.context.assembly import TokenCounter
+    pipeline=Consolidation(SimpleNamespace(database=None,identity=None,sources=None,jobs=None))
+    pipeline.counter=TokenCounter()
+    pipeline.policy=replace(pipeline.policy,max_input_tokens=32000)
+    original=request()
+    data={'batch_id':'near_cap','context':{'actor_id':'actor','conversation_id':None,
+        'time_zone':'Asia/Shanghai','cutoff_at':datetime.now(UTC).isoformat(),'message_cutoff':0},
+        'subjects':{'person':{'subject_id':'person','kind':'person'}},
+        'targets':{'person':{'new_material_ids':['m1']}},'records':{},'read_set':[],
+        'materials':{'m1':{'role':'new','speaker_id':'person','origin_kind':'human',
+            'occurred_at':datetime.now(UTC).isoformat(),'reply_to':[],'text':'',
+            'source_refs':[{'source_id':'source','revision':1}]}},
+        'episodes':[{'source_refs':[{'source_id':'source','revision':1}]}]}
+    requests=({'request_id':'context1','kind':'material','ref':'m1','start':None,'end':None,
+        'query':None,'reason':'需要上下文','outcome':'provided'},) if context_round else ()
+    step_id='near_cap:step:'+str(context_round)
+    bare=pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
+    data['materials']['m1']['text']='x'*(11940-bare.estimated_input_tokens)
+    original_text=data['materials']['m1']['text']
+    pipeline.policy=replace(pipeline.policy,max_input_tokens=12000)
+    with pytest.raises(AppError,match='memory_consolidation_input_budget') as caught:
+        pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
+    assert caught.value.details['request_estimated']==11940
+    assert caught.value.details['repair_required_tokens']>12000
+    assert data['materials']['m1']['text']==original_text
+    # Production selects a smaller complete source prefix before freezing. Place
+    # this first request exactly at the combined request+reserved-repair limit.
+    overhead=repair_input_estimate(pipeline.counter,bare.system,bare.messages,bare.attempt_id)-bare.estimated_input_tokens
+    data['materials']['m1']['text']='x'*(12000-overhead-bare.estimated_input_tokens)
+    first=pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
+    assert repair_input_estimate(pipeline.counter,first.system,first.messages,first.attempt_id)==12000
+    rejected=result(text='invalid candidate '*10000)
+    repaired=repair_request(first,'near_cap:repair',rejected,
+        AppError('memory_consolidation_invalid',status=502,
+            details={'path':['operations',0,'target','create'],'validator':'type'}),pipeline.counter,12000)
+    assert repaired.estimated_input_tokens<=12000
+    assert repaired.messages[0]==first.messages[0] and repaired.source_refs==first.source_refs
+    assert json.loads(first.messages[0].parts[0].text)['materials'][0]['text']==data['materials']['m1']['text']
+    assert json.loads(repaired.messages[-1].parts[0].text)['output_repair']['previous_output_omitted']=='input_budget'
 
 
 def test_invalid_json_reports_position_without_loosening_the_decoder():

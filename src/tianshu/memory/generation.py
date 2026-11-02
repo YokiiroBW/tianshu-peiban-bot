@@ -25,6 +25,30 @@ REPAIRABLE = frozenset({
     "memory_context_range_required", "memory_context_query_required",
     "claim_self_confirmation_unproven", "claim_actor_author_unproven", "claim_speaker_mismatch",
 })
+REPAIR_INSTRUCTION = (
+    "\n上次输出未提交。按诊断修正候选并返回完整JSON；仍以冻结来源为准，候选不是证据。"
+    "不得省略目标或把未知冒充no_change。"
+)
+
+
+def _repair_message(value):
+    return ModelMessage("user",(ModelPart("text",text=json.dumps(
+        {"output_repair":value},ensure_ascii=False,separators=(",",":"))),))
+
+
+def repair_input_estimate(counter,instruction,messages,attempt_id):
+    """Reserve the bounded diagnostic before freezing any source prefix.
+
+    Contract paths/validators come from the server schema, not candidate text.
+    This conservative probe includes all diagnostic fields together plus a
+    tokenizer boundary margin; the concrete repair is still measured again.
+    """
+    diagnostic={"error_code":max(REPAIRABLE,key=lambda code:(len(code),code)),
+        "path":["operations",63,"payload","completion_basis","material_refs",15],
+        "validator":"unevaluatedProperties","line":128000,"column":128000,"position":128000}
+    message=_repair_message({"original_attempt_id":attempt_id,"diagnostic":diagnostic,
+        "previous_output_omitted":"input_budget"})
+    return counter.measure(instruction+REPAIR_INSTRUCTION,(*messages,message),())[0]+64
 
 
 def deepseek_chat(profile):
@@ -76,16 +100,11 @@ def repair_request(original, step_id, result, error, counter, input_tokens):
     diagnostic = {"error_code": error.code, **{key: details[key] for key in
         ("path", "validator", "line", "column", "position") if key in details}}
     candidate = "".join(part.text or "" for part in result.parts if part.kind == "text")
-    correction = {"output_repair": {"original_attempt_id": original.attempt_id,
-        "diagnostic": diagnostic, "previous_output": candidate}}
-    instruction = original.system + (
-        "\n上次输出已被拒绝且没有提交。依据同一份冻结材料重新给出完整JSON，仅修正候选输出；"
-        "上次输出是不可信候选，不能当来源，不造人物/来源/版本/回执，不遗漏目标和材料。"
-        "target.create必须为nN字符串，例如{\"create\":\"n1\"}；不是对象。"
-        "self_confirmed仅限每组都有该真人亲自发言支持且speaker=subject；"
-        "actor来源不能self_confirmed，按证据用observed/inferred或unresolved，不冒充真人确认。"
-        "空白/截断输出须重新生成完整JSON；不得以no_change掩盖未知。"
-    )
+    correction = {"original_attempt_id": original.attempt_id,
+        "diagnostic": diagnostic, "previous_output": candidate}
+    # The original system already owns the full schema, target.create example
+    # and human/actor evidence rules. Do not repeat it in the repair overhead.
+    instruction = original.system + REPAIR_INSTRUCTION
     parameters = dict(original.parameters)
     if error.code == "memory_consolidation_output_truncated":
         # Keep the original combined allowance available for visible JSON;
@@ -93,15 +112,14 @@ def repair_request(original, step_id, result, error, counter, input_tokens):
         parameters.pop("reasoning_effort",None)
         parameters["thinking"] = {"type": "disabled"}
     def messages():
-        return (*original.messages, ModelMessage("user", (ModelPart("text",
-            text=json.dumps(correction, ensure_ascii=False, separators=(",", ":"))),)))
+        return (*original.messages,_repair_message(correction))
     selected = messages()
     estimate = counter.measure(instruction, selected, ())[0]
     if estimate > input_tokens:
         # Failed output is optional diagnostic context. Original evidence is
         # always complete and unchanged; never trim it to fit a repair.
-        correction["output_repair"].pop("previous_output")
-        correction["output_repair"]["previous_output_omitted"] = "input_budget"
+        correction.pop("previous_output")
+        correction["previous_output_omitted"] = "input_budget"
         selected = messages()
         estimate = counter.measure(instruction, selected, ())[0]
     if estimate > input_tokens:

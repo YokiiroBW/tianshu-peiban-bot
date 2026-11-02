@@ -16,7 +16,7 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, Tr
 from . import codec
 from .authority import context_record
 from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolidation_instruction, validate_proposal
-from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request
+from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request, repair_input_estimate
 from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, expand_record_endpoints, frozen_mapping, model_material, partition_identity, reference_key, smaller_material_prefix
 
 _ACTIVE = {"prepared", "waiting_model", "ready"}
@@ -143,20 +143,25 @@ class Consolidation:
         payload = model_material(frozen, self.policy, context_round=context_round, requests=requests)
         instruction = consolidation_instruction(frozen)
         messages = (ModelMessage("user", (ModelPart("text", json.dumps(wire(payload), ensure_ascii=False, separators=(",", ":"))),)),)
+        attempt_id=str(uuid5(NAMESPACE_URL,step_id))
         estimate = self.counter.measure(instruction, messages, ())[0]
-        if estimate > self.policy.max_input_tokens:
+        repair_estimate=repair_input_estimate(self.counter,instruction,messages,attempt_id)
+        if max(estimate,repair_estimate) > self.policy.max_input_tokens:
             # Measure the same schema, identity mappings and full metadata with
             # text removed. Character count alone cannot budget UTF-8 evidence.
             fixed=deepcopy(payload)
             for material in fixed["materials"]:
                 material["text"]=""
             fixed_messages=(ModelMessage("user",(ModelPart("text",json.dumps(wire(fixed),ensure_ascii=False,separators=(",",":"))),)),)
-            fixed_tokens=self.counter.measure(instruction,fixed_messages,())[0]
-            raise AppError("memory_consolidation_input_budget", details={"estimated": estimate,
+            fixed_tokens=max(self.counter.measure(instruction,fixed_messages,())[0],
+                repair_input_estimate(self.counter,instruction,fixed_messages,attempt_id))
+            raise AppError("memory_consolidation_input_budget", details={
+                "estimated":estimate if estimate>self.policy.max_input_tokens else repair_estimate,
+                "request_estimated":estimate,"repair_required_tokens":repair_estimate,
                 "input_budget": self.policy.max_input_tokens, "visible_output": self.policy.max_output_tokens,
                 "reasoning_reserve":self.policy.reasoning_reserve_tokens,"fixed_tokens":fixed_tokens,
                 "new_characters":sum(len(item["text"]) for item in payload["materials"] if item["role"]=="new")})
-        return ModelRequest(step_id, str(uuid5(NAMESPACE_URL, step_id)), "memory.extract", ServiceClass.ELASTIC,
+        return ModelRequest(step_id, attempt_id, "memory.extract", ServiceClass.ELASTIC,
             context, RequestBudget(datetime.now(UTC)+timedelta(seconds=MODEL_REQUEST_SECONDS)), messages,
             system=instruction, max_output_tokens=self.policy.max_output_tokens+self.policy.reasoning_reserve_tokens, estimated_input_tokens=estimate,
             source_refs=self.materials.dependencies(frozen))
@@ -307,7 +312,8 @@ class Consolidation:
     def _budget_record(self):
         return {"input_tokens":self.policy.max_input_tokens,"output_tokens":self.policy.max_output_tokens,
                 "reasoning_tokens":self.policy.reasoning_reserve_tokens,
-                "generation_policy":"memory-native-low-json-v1","request_seconds":MODEL_REQUEST_SECONDS}
+                "generation_policy":"memory-native-low-json-v1","request_seconds":MODEL_REQUEST_SECONDS,
+                "repair_input_policy":"bounded-diagnostic-headroom-v1"}
 
     def _input_budget_record(self):
         # These settings determine the smallest complete input we can prepare.
