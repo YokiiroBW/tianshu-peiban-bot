@@ -123,7 +123,8 @@ async def test_diary_uses_exact_independent_200000_input_budget_and_omits_whole_
 async def test_each_day_has_no_chat_previous_day_memory_or_failed_partial_context(database):
     value = await fixture(database, unknown=True)
     value.context = replace(value.context, conversation_id="same-chat", conversation_kind="group")
-    value.life.companion.actor = AsyncMock(return_value={"enabled": True, "persona_id": "persona", "persona_revision": 7})
+    actor = await value.life.companion.actor(value.context)
+    value.life.companion.actor = AsyncMock(return_value={**actor, "persona_id": "persona", "persona_revision": 7})
     value.life.companion.persona = AsyncMock(return_value=SimpleNamespace(prompt_text="当天人格全文。"))
     shared = ContextAssembler(value.identity, SimpleNamespace(projection=AsyncMock()),
         SimpleNamespace(search=AsyncMock()), settings={"tokenizer": "o200k_base"})
