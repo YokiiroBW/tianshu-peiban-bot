@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { answer, emptyPage, nativeSession, state } from "./native-fixture";
+import { answer, apiPath, emptyPage, nativeSession, state } from "./native-fixture";
 
 const routine = {
   actor_id: "actor",
@@ -183,7 +183,7 @@ test("life preserves the original planning failure while a bounded repair is run
 
 test("a day with only free time shows its reason and next review", async ({ page }) => {
   await page.clock.install({ time: new Date("2026-11-02T02:00:00Z") });
-  await page.route("**/api/v1/life/day-plan", (route) => answer(route, {
+  await page.route(apiPath("life/day-plan"), (route) => answer(route, {
     day: "2026-11-02",
     plan: { actor_id: "actor", day: "2026-11-02", revision: 1, timezone: "Asia/Shanghai", state: "open", source_refs: [] },
     slots: [{ id: "free", actor_id: "actor", day: "2026-11-02", revision: 1, kind: "free", state: "planned",
@@ -194,7 +194,11 @@ test("a day with only free time shows its reason and next review", async ({ page
   }));
   await page.goto("/#/roles/life");
   const dayTab = page.getByRole("tab", { name: "今日安排", exact: true });
+  const read = page.waitForResponse((response) => apiPath("life/day-plan")(new URL(response.url())));
   await dayTab.click();
+  const response = await read;
+  expect(response.status()).toBe(200);
+  expect(await response.json()).toMatchObject({ day: "2026-11-02", slots: [{ id: "free", kind: "free" }] });
   await expect(dayTab).toHaveAttribute("aria-selected", "true");
   const dayPanel = page.getByRole("tabpanel", { name: "今日安排", exact: true });
   await expect(dayPanel.getByText("自由时间", { exact: true })).toBeVisible();
