@@ -120,7 +120,7 @@ async def remote_image(image_recovery, monkeypatch):
 
 
 async def accept_image(value, *, deadline=None):
-    action = replace(value.action, action_id=str(uuid4()), intent_id=str(uuid4()), deadline_at=deadline)
+    action = replace(value.action, action_id=str(uuid4()), intent_key=str(uuid4()), deadline_at=deadline)
     await value.owner.invoke(action, background=True)
     return action
 
