@@ -1,6 +1,5 @@
 """The memory domain's actual use cases exposed through the one executable catalog."""
 
-from datetime import UTC, datetime, timedelta
 from dataclasses import replace
 from uuid import uuid4
 
@@ -8,7 +7,7 @@ from tianshu.capabilities.catalog import Availability, CapabilityDefinition
 from tianshu.sources.dependencies import unique_refs
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import Coverage, Receipt, RequestBudget
+from tianshu.types import Coverage, Receipt
 from .claims import command_fingerprint
 from .evidence import build_evidence_unit
 from .query_plan import QUERY_PROPERTIES
@@ -102,9 +101,6 @@ class MemoryTool:
 
 
 def register_tools(catalog, memory, retrieval):
-    def budget(action):
-        return RequestBudget(action.deadline_at or datetime.now(UTC) + timedelta(seconds=20))
-
     def bounded_plan(action, **fixed):
         plan = {key: value for key, value in action.arguments.items() if key not in {"limit", "cursor", "subject_id", "subject_aliases"}}
         if action.arguments.get("subject_id"):
@@ -114,7 +110,8 @@ def register_tools(catalog, memory, retrieval):
         return plan
 
     async def read(action, *, limit=12, **fixed):
-        plan, request_budget = bounded_plan(action, **fixed), budget(action)
+        plan = bounded_plan(action, **fixed)
+        request_budget = retrieval.foreground_budget(deadline_at=action.deadline_at)
         aliases = action.arguments.get("subject_aliases", ())
         if (not isinstance(aliases, (list, tuple)) or len(aliases) > 16
                 or any(not isinstance(name, str) or not 1 <= len(name) <= 256 for name in aliases)):
@@ -122,7 +119,7 @@ def register_tools(catalog, memory, retrieval):
         subjects, resolution_missing = (), []
         async with request_budget.timeout():
             if aliases:
-                async with memory.database.transaction(request_budget, read_only=True) as conn:
+                async with memory.database.transaction(retrieval.local_budget(request_budget), read_only=True) as conn:
                     subjects = await memory.identity.resolve_memory_subjects_on(conn, action.context,
                         aliases=tuple(aliases), include_group=False)
                 if not subjects and not plan.get("subject_ids"):

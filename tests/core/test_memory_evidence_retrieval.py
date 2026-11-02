@@ -60,7 +60,7 @@ async def indexed_vectors(core, records):
         async def vector(self, *args, **kwargs):
             return values, "fixture"
     core.retrieval.embeddings = QueryEmbedding()
-    core.retrieval.settings = {"vector": True, "vector_sql_seconds": 5}
+    core.retrieval.settings = {"vector": True, "vector_sql_seconds": 5, "embedding_seconds": 0.1}
 
 
 def test_optional_remote_requires_a_full_execution_window_inside_the_original_deadline():
@@ -81,11 +81,10 @@ async def test_profile_control_read_obeys_the_query_budget_without_starting_a_mo
             await asyncio.Event().wait()
         async def vector(self, *args, **kwargs):
             raise AssertionError("an unavailable control read must not start an embedding")
-    retrieval = MemoryRetrieval(SimpleNamespace(database=None, models=None), SlowProfile(),
-                                {"embedding_seconds": 0.01})
-    async with asyncio.timeout(0.5):
+    retrieval = MemoryRetrieval(SimpleNamespace(database=None, models=None), SlowProfile())
+    async with asyncio.timeout(1.5):
         rows, missing = await retrieval._vectors(None, MemoryQueryPlan(query="synthetic"),
-            RequestBudget(datetime.now(UTC) + timedelta(seconds=2)), (), ServiceClass.INTERACTIVE)
+            retrieval.foreground_budget(), (), ServiceClass.INTERACTIVE)
     assert not rows and missing == ("embedding_profile_unavailable",)
 
 
@@ -112,11 +111,11 @@ async def test_query_reuses_one_profile_and_leaves_provider_execution_time_after
     rows, missing = await retrieval._vectors(None, MemoryQueryPlan(query="synthetic"), parent, (), ServiceClass.ELASTIC)
     assert not rows and not missing and models.profile_reads == len(models.requests) == 1
     request = models.requests[0]
-    assert request.service_class == ServiceClass.ELASTIC and request.max_queue_wait > 50
+    assert request.service_class == ServiceClass.ELASTIC and 20 < request.max_queue_wait < 25
     assert request.budget.deadline_at == parent.deadline_at - timedelta(seconds=0.5)
-    assert request.execution_timeout_seconds == 1.0
+    assert request.execution_timeout_seconds == 30.0
     assert request.business_deadline_at == request.budget.deadline_at
-    assert request.budget.remaining() - request.max_queue_wait >= 1.0
+    assert request.budget.remaining() - request.max_queue_wait >= 30.0
 
 
 async def test_background_candidate_vector_queue_does_not_expire_the_following_sql_phase():
@@ -480,7 +479,7 @@ async def test_rerank_rechecks_sources_and_drops_the_whole_unit(core, ordinary_u
         return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"),
             native_response={"results": [{"index": index} for index in order]})
     monkeypatch.setattr(core.models, "generate", rerank)
-    page = await core.retrieval.query(alice, MemoryQueryPlan(query="咖啡", evidence_kinds=("claim",)), budget())
+    page = await core.retrieval.query(alice, MemoryQueryPlan(query="咖啡", evidence_kinds=("claim",)), core.retrieval.foreground_budget())
     assert len(calls) == 1 and [item.id for item in page.items] == [good.claim_id]
     assert "memory_revision_changed" in page.coverage.missing
     assert page.items[0].source_refs == good.source_refs

@@ -1,7 +1,7 @@
 """Memory use cases, selected-source propagation and the incremental worker registry."""
 
 from base64 import urlsafe_b64decode, urlsafe_b64encode
-from datetime import UTC, datetime, timedelta
+from datetime import UTC, datetime
 from importlib.resources import files
 import json
 
@@ -11,7 +11,7 @@ from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.migrations import Migration
-from tianshu.types import RequestBudget,ServiceClass
+from tianshu.types import ServiceClass
 
 
 _INDEX_KINDS = ("claim","episode","hypothesis","matter","reflection")
@@ -63,8 +63,7 @@ def create_module(memory, retrieval, workers, identity):
         async def query(context,body):
             fields={"query","subject_ids","matter_refs","time_mode","valid_at","known_at","evidence_kinds","coverage_mode","budget"}
             plan=body["plan"] if "plan" in body else {name:value for name,value in body.items() if name in fields}
-            seconds=min(10.0,max(0.1,float(memory.settings.get("retrieval",{}).get("request_seconds",5))))
-            budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=seconds))
+            budget=retrieval.foreground_budget()
             return await retrieval.query(context,plan,budget,cursor=body.get("cursor"),limit=body.get("limit",50))
 
         route("query",query)

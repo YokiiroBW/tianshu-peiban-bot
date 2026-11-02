@@ -3,13 +3,12 @@
 import asyncio
 import json
 import logging
-from datetime import UTC, datetime, timedelta
 
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.models.estimation import media_tokens
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import ContextContribution, ContextPack, RequestBudget, SourceRef, TokenUsage
+from tianshu.types import ContextContribution, ContextPack, SourceRef, TokenUsage
 from tianshu.sources.dependencies import unique_refs
 from tianshu.memory.retrieval import contributions as evidence_contributions
 from tianshu.memory.types import RecordRef
@@ -225,13 +224,8 @@ class ContextAssembler:
                 )
                 missing.append("structured_memory_unavailable")
             try:
-                deadline = min(
-                    budget.deadline_at,
-                    datetime.now(UTC)
-                    + timedelta(seconds=float(self.settings.get("retrieval_seconds", 2.0))),
-                )
-                retrieval_budget = RequestBudget(
-                    deadline, trace_id=budget.trace_id, cancellation_id=budget.cancellation_id
+                retrieval_budget = self.retrieval.foreground_budget(
+                    budget, seconds=self.settings.get("retrieval_seconds")
                 )
                 remembered, unavailable = await self.retrieval.search(
                     context,

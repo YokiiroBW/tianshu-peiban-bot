@@ -20,6 +20,8 @@ from .display import display_evidence_on
 from .evidence import build_evidence_unit, select_supports_on
 from .indexing import evidence_text
 from .query_plan import parse_plan, read_cursor, write_cursor
+from .retrieval_budget import (MODEL_EXECUTION_SECONDS, PROFILE_READ_SECONDS, SQL_READ_SECONDS,
+                               VECTOR_SQL_SECONDS, foreground_budget as make_foreground_budget)
 from .types import MemoryQueryPlan, RecordRef
 
 
@@ -66,6 +68,15 @@ class MemoryRetrieval:
         self.settings = settings or {}
         self.store = CandidateStore(memory, self.settings)
 
+    def foreground_budget(self, parent=None, *, seconds=None, deadline_at=None):
+        return make_foreground_budget(self.settings, parent, seconds=seconds, deadline_at=deadline_at)
+
+    @classmethod
+    def local_budget(cls, parent):
+        # A longer response allowance must not become a longer SQL timeout.
+        # Background reads retain the database's existing independent bound.
+        return cls.phase_budget(parent, SQL_READ_SECONDS) if parent is not None else None
+
     @staticmethod
     def phase_budget(parent, seconds):
         if parent is None:
@@ -97,19 +108,19 @@ class MemoryRetrieval:
                 spare - 0.05)
 
     async def _vectors(self, context, plan, budget, source_refs, service_class):
-        seconds = float(self.settings.get("embedding_seconds", 1.0))
+        seconds = float(self.settings.get("embedding_seconds", MODEL_EXECUTION_SECONDS))
         if self.remote_phase(budget, seconds) is None:
             return [], ("embedding_budget_insufficient",)
         phase = "embedding_profile"
         try:
             # Profile is a control read, but its client's default five seconds
             # must not escape this query's smaller overall deadline.
-            async with self.phase_budget(budget, seconds).timeout():
+            async with self.phase_budget(budget, PROFILE_READ_SECONDS).timeout():
                 profile = await self.embeddings.profile()
             phase = "vector_candidates"
             self.store.settings = self.settings
             if not await self.store.has_vectors(context, plan, profile[1],
-                    self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8)))):
+                    self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", VECTOR_SQL_SECONDS)))):
                 return [], ()
             remote = self.remote_phase(budget, seconds)
             if remote is None:
@@ -123,7 +134,7 @@ class MemoryRetrieval:
                 service_class=service_class, source_refs=source_refs)
             phase = "vector"
             rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
-                self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8))))
+                self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", VECTOR_SQL_SECONDS))))
             return rows, ("vector_candidate_budget",) if incomplete else ()
         except (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error) as exc:
             reason = ("vector_query_timeout" if phase == "vector" and isinstance(
@@ -181,7 +192,7 @@ class MemoryRetrieval:
 
     async def _ranked(self, context, plan, budget, *, limit, source_refs, service_class):
         missing = []
-        lexical_rows = await self.store.lexical(context, plan, budget)
+        lexical_rows = await self.store.lexical(context, plan, self.local_budget(budget))
         vector_rows = []
         if plan.query and self.settings.get("vector", True):
             vector_rows, unavailable = await self._vectors(context, plan, budget, source_refs, service_class)
@@ -198,12 +209,12 @@ class MemoryRetrieval:
             row["score"] /= maximum
         count = min(int(plan.budget.get("max_candidates", 128)), 128)
         ranked = mmr(sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:count], max(limit, 24))
-        checked, unavailable = await self._checked(context, plan, ranked, budget)
+        checked, unavailable = await self._checked(context, plan, ranked, self.local_budget(budget))
         missing.extend(unavailable)
         ranked = list(checked)
         if plan.query and self.settings.get("rerank", False) and len(ranked) > 1:
             documents = [evidence_text(unit) for _, unit in ranked]
-            remote = self.remote_phase(budget, float(self.settings.get("rerank_seconds", 0.8)))
+            remote = self.remote_phase(budget, float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)))
             if remote is None:
                 missing.append("rerank_budget_insufficient")
         else:
@@ -213,7 +224,7 @@ class MemoryRetrieval:
             request = ModelRequest("memory-rerank:" + str(uuid4()), str(uuid4()), "rerank",
                 service_class, context, remote_budget, (), required_capabilities=frozenset({"rerank"}),
                 max_output_tokens=0, native_payload={"query": plan.query, "documents": documents, "top_n": limit},
-                execution_timeout_seconds=float(self.settings.get("rerank_seconds", 0.8)),
+                execution_timeout_seconds=float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)),
                 business_deadline_at=remote_budget.deadline_at if budget is not None else None,
                 source_refs=unique_refs(source_refs, *(unit.source_refs for _, unit in ranked)))
             request = replace(request, max_queue_wait=queue_wait)
@@ -234,7 +245,7 @@ class MemoryRetrieval:
                 missing.append("rerank_unavailable")
         # Rerank can outlive a correction, endpoint withdrawal or permission change.
         # Rehydration keeps the final answer and its source closure indivisible.
-        final, unavailable = await self._checked(context, plan, [row for row, _ in ranked], budget)
+        final, unavailable = await self._checked(context, plan, [row for row, _ in ranked], self.local_budget(budget))
         missing.extend(unavailable)
         return tuple(unit for _, unit in final[:limit]), tuple(dict.fromkeys(missing))
 
@@ -248,12 +259,12 @@ class MemoryRetrieval:
             raise AppError("actor_required")
         if type(limit) is not int or not 1 <= limit <= 100:
             raise AppError("invalid_memory_query_limit")
-        missing = list(await self.store.coverage_gaps(context, plan, budget))
+        missing = list(await self.store.coverage_gaps(context, plan, self.local_budget(budget)))
         next_cursor = None
         if plan.coverage_mode == "list":
             after, snapshot = read_cursor(context, plan, cursor)
-            rows = await self.store.page(context, plan, budget, after=after, snapshot=snapshot, limit=limit)
-            checked, unavailable = await self._checked(context, plan, rows[:limit], budget, snapshot=snapshot)
+            rows = await self.store.page(context, plan, self.local_budget(budget), after=after, snapshot=snapshot, limit=limit)
+            checked, unavailable = await self._checked(context, plan, rows[:limit], self.local_budget(budget), snapshot=snapshot)
             missing.extend(unavailable)
             units = tuple(unit for _, unit in checked)
             if len(rows) > limit:

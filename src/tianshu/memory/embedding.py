@@ -8,6 +8,7 @@ from tianshu.models.types import ModelRequest
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.types import ServiceClass
+from .retrieval_budget import MODEL_EXECUTION_SECONDS
 
 
 class Embeddings:
@@ -56,15 +57,30 @@ class Embeddings:
             max_output_tokens=0,
             native_payload={"input": [prefix + text]},
             source_refs=tuple(source_refs),
-            execution_timeout_seconds=execution_seconds if execution_seconds is not None else budget.remaining(),
+            execution_timeout_seconds=execution_seconds if execution_seconds is not None else MODEL_EXECUTION_SECONDS,
             business_deadline_at=business_deadline_at,
         )
         if max_queue_wait is not None:
             request = replace(request, max_queue_wait=max_queue_wait)
+        step_id = intent + ":" + fingerprint
+        if not query:
+            try:
+                _, original = await self.steps.recorded(step_id)
+            except AppError as error:
+                if error.status != 404 or error.code != "memory_model_step_unavailable":
+                    raise
+            else:
+                # A new default cannot replace a prior step's immutable timing.
+                # ModelSteps still checks the complete remaining identity before
+                # observing its original attempt; unknown is never regenerated.
+                request = replace(request,
+                    execution_timeout_seconds=original.execution_timeout_seconds,
+                    business_deadline_at=original.business_deadline_at,
+                    max_queue_wait=original.max_queue_wait)
         result = (
             await self.models.generate(request)
             if query
-            else await self.steps.run(intent + ":" + fingerprint, request)
+            else await self.steps.run(step_id, request)
         )
         if result.receipt.status != "succeeded":
             raise AppError(result.receipt.error_code or "embedding_outcome_unknown", status=503)
