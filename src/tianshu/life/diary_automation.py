@@ -23,7 +23,7 @@ def automatic_view(row, diary):
     active = row["generation_id"] == diary["generation_id"] and row["generation_id"]
     error = row["last_error"] or (diary["reason"] if active and diary["state"] in {"failed","cancelled"} else None)
     state = (diary["state"] if active and diary["state"] in UNRESOLVED
-             else "blocked" if pending and error else "pending" if pending else "reviewed")
+             else "blocked" if error else "pending" if pending else "reviewed")
     return {"state":state,"day":row["day"].isoformat(),"timezone":row["timezone"],
             "material_revision":row["revision"],"reviewed_revision":row["reviewed_revision"],
             "attempt_id":row["generation_id"],"closed_at":row["closed_at"],
@@ -142,19 +142,29 @@ class DiaryAutomation:
                     (error.code, actor_id, scope_key, row["day"]))
             raise
 
-    async def bind(self, connection, automatic, generation_id):
-        if not automatic:
-            return
+    async def bind(self, connection, automatic, generation_id, *, context=None, day=None):
+        refresh = automatic is None
+        if refresh:
+            if context is None or day is None:
+                return None
+            row = await (await connection.execute(
+                "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
+                (context.actor_id,signature(sorted(context.scope_ids)),day))).fetchone()
+            if row is None:
+                return None
+            automatic = {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"day":row["day"].isoformat(),
+                         "revision":row["revision"],"timezone":row["timezone"]}
         row = await (await connection.execute(
             "UPDATE life.diary_days SET generation_id=%s,generation_revision=%s,last_error=NULL,updated_at=now() "
-            "WHERE actor_id=%s AND scope_key=%s AND day=%s AND revision>=%s AND reviewed_revision<%s "
+            "WHERE actor_id=%s AND scope_key=%s AND day=%s AND revision>=%s AND (%s OR reviewed_revision<%s) "
             "AND generation_id IS NULL RETURNING actor_id",
             (generation_id, automatic["revision"], automatic["actor_id"], automatic["scope_key"],
-             date.fromisoformat(automatic["day"]), automatic["revision"], automatic["revision"]))).fetchone()
+             date.fromisoformat(automatic["day"]), automatic["revision"], refresh, automatic["revision"]))).fetchone()
         if row is None:
             raise AppError("diary_review_no_longer_current", status=409)
+        return automatic
 
-    async def settle(self, connection, generation_id, *, error=None, recipe=None):
+    async def settle(self, connection, generation_id, *, error=None, recipe=None, reviewed_at=None):
         rows = await (await connection.execute(
             "SELECT * FROM life.diary_days WHERE generation_id=%s FOR UPDATE", (generation_id,))).fetchall()
         for row in rows:
@@ -164,9 +174,9 @@ class DiaryAutomation:
             current = await (await connection.execute(
                 "UPDATE life.diary_days SET reviewed_revision=CASE WHEN %s THEN reviewed_revision ELSE greatest(reviewed_revision,generation_revision) END,"
                 "blocked_revision=CASE WHEN %s THEN greatest(blocked_revision,generation_revision) ELSE blocked_revision END,"
-                "generation_id=NULL,generation_revision=NULL,material_revisions=%s,last_reviewed_at=CASE WHEN %s THEN last_reviewed_at ELSE now() END,"
+                "generation_id=NULL,generation_revision=NULL,material_revisions=%s,last_reviewed_at=CASE WHEN %s THEN last_reviewed_at ELSE COALESCE(%s,now()) END,"
                 "last_error=%s,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND day=%s RETURNING *",
-                (bool(error),bool(error),document(revisions),bool(error),error, row["actor_id"], row["scope_key"], row["day"]))).fetchone()
+                (bool(error),bool(error),document(revisions),bool(error),reviewed_at,error, row["actor_id"], row["scope_key"], row["day"]))).fetchone()
             if max(current["reviewed_revision"],current["blocked_revision"]) < current["revision"]:
                 await self.enqueue(connection, current, reason="after-original")
 

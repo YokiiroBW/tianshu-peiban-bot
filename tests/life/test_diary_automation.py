@@ -3,12 +3,13 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
 from tianshu.conversation.codec import signature
 from tianshu.life.diaries import DiaryService
+from tianshu.life.generation_control import GenerationControl
 from tianshu.memory.types import Episode, EpisodePage
 from tianshu.models.types import ModelReceipt, ModelRequest
 from tianshu.runtime.api import Page
@@ -311,3 +312,100 @@ async def test_another_principal_cannot_control_original_diary_execution(databas
         await value.diaries.control_generation(diary["id"],diary["generation_id"],caller,"cancel")
     value.models.cancel.assert_not_called()
     assert (await diary_state(database))["state"] == "unknown"
+
+
+@pytest.mark.asyncio
+async def test_manual_recovery_binds_only_its_closed_day_and_saved_reconcile_changes_only_metadata(database):
+    value = await fixture(database)
+    value.episode = replace(value.episode,coverage=Coverage(False,None,("semantic_unassessed",)))
+    value.memory.episodes = (value.episode,)
+    day,scope = await start_day(value)
+    original = await collect_current(database,value)
+    failed_at = datetime.now(UTC)-timedelta(days=1)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.diaries SET state='failed',reason='context_mandatory_budget_exceeded'")
+        await connection.execute("UPDATE life.diary_days SET generation_id='another-active',generation_revision=1,"
+            "reviewed_revision=revision,last_error='context_mandatory_budget_exceeded',last_reviewed_at=%s",(failed_at,))
+    body = {"day":day,"expected_revision":original["revision"],"client_request_id":"manual-recovery"}
+    with pytest.raises(AppError,match="diary_review_no_longer_current"):
+        await value.diaries.request(value.context,body)
+    assert (await day_state(database))["generation_id"] == "another-active"
+    assert (await diary_state(database))["generation_id"] == original["generation_id"]
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.diary_days SET generation_id=NULL,generation_revision=NULL")
+    # Preserve the historical manual request that had no automatic binding.
+    with patch.object(value.diaries.automation,"bind",AsyncMock(return_value=None)):
+        await value.diaries.request(value.context,body)
+    current = await collect_current(database,value)
+    assert current["generation_recipe"]["automatic"] is None
+    await value.diaries.generate(current["id"],current["generation_id"])
+    saved = await diary_state(database)
+    settled = await day_state(database)
+    assert saved["state"] == "draft" and saved["current_revision"] == 1
+    assert settled["generation_id"] is None and settled["last_error"] == "context_mandatory_budget_exceeded"
+
+    # The deployed unbound-success case is repaired through the normal command.
+    async with database.transaction() as connection:
+        immutable = await (await connection.execute("SELECT * FROM life.diary_revisions")).fetchall()
+        frozen = await (await connection.execute("SELECT * FROM conversation.generation_requests")).fetchall()
+        audit = await (await connection.execute("SELECT * FROM life.generation_recipes")).fetchall()
+        await connection.execute("UPDATE life.diary_days SET last_error='context_mandatory_budget_exceeded',last_reviewed_at=%s",(failed_at,))
+    controls = GenerationControl(value.life,None,value.diaries)
+    queued = len(value.jobs.items)
+    await controls.request(value.context,{"id":saved["id"],"expected_revision":saved["revision"],
+        "client_request_id":"reconcile-saved-metadata"},kind="diary",operation="reconcile")
+    settled = await day_state(database)
+    assert settled["last_error"] is None and settled["last_reviewed_at"] == immutable[0]["created_at"]
+    assert not immutable[0]["recipe"]["episodes"][0]["coverage"]["complete"]
+    assert (await diary_state(database)) == saved and len(value.models.calls) == 1 and len(value.jobs.items) == queued
+    async with database.transaction(read_only=True) as connection:
+        assert await (await connection.execute("SELECT * FROM life.diary_revisions")).fetchall() == immutable
+        assert await (await connection.execute("SELECT * FROM conversation.generation_requests")).fetchall() == frozen
+        assert await (await connection.execute("SELECT * FROM life.generation_recipes")).fetchall() == audit
+
+    # A new explicit refresh binds even an already-reviewed material version.
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE life.actor_state SET timezone='UTC'")
+    refresh = await value.diaries.request(value.context,{"day":day,"expected_revision":saved["revision"],
+        "client_request_id":"manual-reviewed-refresh"})
+    bound = await day_state(database)
+    assert bound["generation_id"] == refresh.attempt_id and bound["generation_revision"] == 1
+    current = await diary_state(database)
+    assert current["generation_recipe"]["timezone"] == "Asia/Shanghai"
+    assert current["generation_recipe"]["automatic"]["revision"] == 1
+    current = await collect_current(database,value)
+    assert current["state"] == "draft" and current["reason"] == "diary_no_new_material"
+    assert (await day_state(database))["last_error"] is None and len(value.models.calls) == 1
+
+    later = replace(value.episode,episode_id="later-actual",summary="稍后实际发生的另一件事")
+    value.memory.episodes += (later,)
+    await value.diaries.changed(value.context,"later",episode=later)
+    manual = await value.diaries.request(value.context,{"day":day,"expected_revision":current["revision"],
+        "client_request_id":"manual-new-material"})
+    current = await collect_current(database,value)
+    newest = replace(value.episode,episode_id="newest-actual",summary="生成期间实际新增的经历")
+    value.memory.episodes += (newest,)
+    await value.diaries.changed(value.context,"newest",episode=newest)
+    value.models.output = ""
+    with pytest.raises(AppError,match="diary_generation_failed"):
+        await value.diaries.generate(current["id"],manual.attempt_id)
+    failed = await day_state(database)
+    assert failed["generation_id"] is None and failed["reviewed_revision"] == 1
+    assert failed["blocked_revision"] == 2 and failed["revision"] == 3
+    assert any(job.task == "life.diary_review" and job.payload["expected_revision"] == 3 for job in value.jobs.items)
+    await value.diaries.review_day("actor",scope,day,3)
+    current = await collect_current(database,value)
+    value.models.output = "仅记录实际经历的新版本。"
+    await value.diaries.generate(current["id"],current["generation_id"])
+    assert (await day_state(database))["reviewed_revision"] == 3 and (await day_state(database))["last_error"] is None
+
+    # A broader author scene and an unclosed date do not invent a matching day.
+    broader = replace(value.context,scope_ids=(*value.context.scope_ids,"other-scope"))
+    current = await diary_state(database)
+    await value.diaries.request(broader,{"day":day,"expected_revision":current["revision"],"client_request_id":"different-scope"})
+    assert (await diary_state(database))["generation_recipe"]["automatic"] is None
+    assert (await day_state(database))["generation_id"] is None
+    await value.diaries.request(broader,{"day":"2026-11-04","expected_revision":0,"client_request_id":"unclosed-date"})
+    async with database.transaction(read_only=True) as connection:
+        assert len(await (await connection.execute("SELECT * FROM life.diary_days")).fetchall()) == 1
+    assert len(value.models.calls) == 3

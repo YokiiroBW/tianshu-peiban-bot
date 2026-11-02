@@ -142,12 +142,13 @@ class DiaryService:
             if row and row["state"] in {"collecting","generating","unknown","cancelling"}:
                 raise AppError("diary_generation_unresolved",status=409,details={"attempt_id":row["generation_id"]})
             generation_id = str(uuid4())
-            await self.automation.bind(connection, automatic, generation_id)
+            bound = await self.automation.bind(connection, automatic, generation_id, context=context, day=day)
+            selected_recipe = {**recipe,"timezone":bound["timezone"] if bound else recipe["timezone"],"automatic":bound}
             current = row["revision"]+1 if row else 1
             if row:
-                await connection.execute("UPDATE life.diaries SET state='collecting',generation_cancel_requested=false,generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL,source_refs='[]',episode_ids='{}',generation_retry_count=0,generation_retry_due_at=NULL WHERE id=%s",(generation_id,document(context),document(recipe),current,diary_id))
+                await connection.execute("UPDATE life.diaries SET state='collecting',generation_cancel_requested=false,generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL,source_refs='[]',episode_ids='{}',generation_retry_count=0,generation_retry_due_at=NULL WHERE id=%s",(generation_id,document(context),document(selected_recipe),current,diary_id))
             else:
-                await connection.execute("INSERT INTO life.diaries(id,actor_id,day,state,generation_id,context,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,'collecting',%s,%s,%s,'{}','[]',%s)",(diary_id,context.actor_id,day,generation_id,document(context),document(recipe),list(context.scope_ids)))
+                await connection.execute("INSERT INTO life.diaries(id,actor_id,day,state,generation_id,context,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,'collecting',%s,%s,%s,'{}','[]',%s)",(diary_id,context.actor_id,day,generation_id,document(context),document(selected_recipe),list(context.scope_ids)))
             await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":start",{"diary_id":diary_id,"generation_id":generation_id,"cursor":None},subject_id=context.actor_id))
             return CommandResult(body["client_request_id"],{"id":diary_id,"revision":current,"state":"collecting"},current,attempt_id=generation_id)
         return await self.life.commands.execute(context,"life.diaries.request",body["client_request_id"],signature(body),apply)
@@ -370,6 +371,44 @@ class DiaryService:
                 return {"state":"cancelled","attempt_id":generation_id}
         self.generations.observer_context(original,reader)
         return await self.generate(diary_id,generation_id)
+
+    async def reconcile_saved(self, context, row, connection):
+        """Repair only the closed-day projection of this immutable saved success."""
+        if row["state"] not in {"draft","published"} or not row["current_revision"] or row["generation_cancel_requested"]:
+            return
+        original = context_from_record(row["context"])
+        if context.principal_id != original.principal_id:
+            raise AppError("generation_observation_context_mismatch",status=403)
+        reader = await self._reader(original)
+        saved = await (await connection.execute(
+            "SELECT * FROM life.diary_revisions WHERE diary_id=%s AND revision=%s",
+            (row["id"],row["current_revision"]))).fetchone()
+        recipe = saved["recipe"] if saved else {}
+        receipt = recipe.get("model_receipt") or {}
+        if (not saved or not saved["content"].strip() or saved["model_attempt_id"] != row["generation_id"]
+                or receipt.get("attempt_id") != row["generation_id"] or receipt.get("status") != "succeeded"):
+            return
+        await self.life.validate_persistence(connection,reader,source_refs(recipe["source_refs"]))
+        day = await (await connection.execute(
+            "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
+            (reader.actor_id,signature(sorted(reader.scope_ids)),row["day"]))).fetchone()
+        if day is None or (day["generation_id"] is not None and day["generation_id"] != row["generation_id"]):
+            return
+        versions = dict(recipe.get("material_revisions",()))
+        versions.update((item["episode_id"],item["revision"]) for item in recipe.get("episodes",()))
+        expected = tuple(sorted(versions.items()))
+        actual = set()
+        for offset in range(0,len(expected),128):
+            page = await self.life.memory.episodes_by_refs(reader,expected[offset:offset+128],connection=connection)
+            actual.update((item.episode_id,item.revision) for item in page.items)
+        if set(expected) != actual or any(versions.get(key,0)<version for key,version in day["material_revisions"].items()):
+            await self.automation.enqueue(connection,day,reason="saved-material-changed")
+            return
+        if day["generation_id"] is None:
+            if day["reviewed_revision"]>=day["revision"] and not day["last_error"]:
+                return
+            await self.automation.bind(connection,None,row["generation_id"],context=reader,day=row["day"])
+        await self.automation.settle(connection,row["generation_id"],recipe=recipe,reviewed_at=saved["created_at"])
 
     async def save_generated(self, context, diary_id, generation_id, recipe, result, refs):
         content = generated_text(result)

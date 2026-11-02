@@ -27,8 +27,9 @@ class GenerationControl:
         async def apply(connection):
             # Cancellation handles execution metadata even after source loss.
             await self.life.validate_persistence(connection, context)
-            row = await (await connection.execute(self.query(kind, lock=True),
-                (body.get("id"), context.actor_id, list(context.scope_ids)))).fetchone()
+            row = (await self.diaries._diary(context,body.get("id"),connection,lock=True)
+                if kind=="diary" and operation=="reconcile" else await (await connection.execute(self.query(kind, lock=True),
+                    (body.get("id"), context.actor_id, list(context.scope_ids)))).fetchone())
             if not row:
                 raise AppError(kind+"_not_found", status=404)
             revision(row, body.get("expected_revision"))
@@ -36,6 +37,8 @@ class GenerationControl:
                 raise AppError("generation_not_started", status=409)
             if operation=="reconcile" and row["state"]=="collecting":
                 return CommandResult(body["client_request_id"],{"id":row["id"],"state":"collecting"},row["revision"],attempt_id=row["generation_id"])
+            if kind=="diary" and operation=="reconcile":
+                await self.diaries.reconcile_saved(context,row,connection)
             current = row["revision"]+1
             if row["state"] in {"collecting", "generating", "unknown", "cancelling"}:
                 table = "life.chapters" if kind == "chapter" else "life.diaries"
