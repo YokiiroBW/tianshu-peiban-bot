@@ -52,7 +52,7 @@ class WorkflowInspection(unittest.TestCase):
         with self.assertRaises(Fault):
             Workflow.standard("fixture\n.safetensors")
 
-    def test_router_preserves_authored_character_while_using_current_scene(self):
+    def router_workflow(self, template):
         graph = {
             "11": {"class_type": "AnimaPromptPlusClipEncode", "inputs": {
                 "artist_tags": ["31", 0], "character_tags": ["32", 0],
@@ -75,8 +75,7 @@ class WorkflowInspection(unittest.TestCase):
             "32": {"class_type": "AnimaCharacterTagSelectorPlus", "inputs": {
                 "character_tags": "authored fictional appearance",
             }},
-            "35": {"class_type": "Simple String", "inputs": {"text":
-                "[User image request]\nauthored framing\n\n[Scene, style and final preset]\ndefault scene"}},
+            "35": {"class_type": "Simple String", "inputs": {"text": template}},
             "36": {"class_type": "AstrBot Prompt Router", "inputs": {"prompt": ["35", 0]}},
         }
         bindings = {semantic: {"node": "35", "class_type": "Simple String", "input": "text"}
@@ -88,6 +87,13 @@ class WorkflowInspection(unittest.TestCase):
             bindings[semantic] = {
                 "node": "12", "class_type": "ResolutionMaster", "input": semantic, "min": 64, "max": 4096,
             }
+        return Workflow(graph, bindings, ["20"])
+
+    def test_router_preserves_authored_character_while_using_current_scene(self):
+        workflow = self.router_workflow(
+            "[User image request]\nauthored framing\n\n[Scene, style and final preset]\ndefault scene"
+        )
+        graph, bindings = workflow.graph, workflow.bindings
         intent = {
             "character": "authored fictional appearance", "outfit": "current coat", "pose": "seated",
             "scene": "current room", "camera": "eye level", "local_time": "2026-11-02T21:00:00+08:00",
@@ -109,3 +115,47 @@ class WorkflowInspection(unittest.TestCase):
         for node in ("11", "12", "20", "24", "27", "31", "32", "36"):
             self.assertEqual(rendered[node], graph[node])
         self.assertEqual(canonical(graph), original)
+
+    def test_router_replaces_unsectioned_scene_without_an_outfit_override(self):
+        workflow = self.router_workflow("standing on an old ocean balcony, old morning light")
+        original = canonical(workflow.graph)
+        intent = {
+            "character": "authored fictional appearance", "outfit": "",
+            "pose": "sitting at a desk beside a sketchbook", "scene": "current indoor studio",
+            "camera": "close selfie", "activity": "drawing a sketch",
+            "requested_change": "show the current sketching activity",
+            "negative_constraints": [], "references": [],
+        }
+        compiled = Engines.compile({"engine": "comfyui"}, intent, {
+            "graph": workflow.graph, "bindings": workflow.bindings, "outputs": workflow.outputs,
+        })
+        prompt = compiled["graph"]["35"]["inputs"]["text"]
+        for value in (intent["pose"], intent["scene"], intent["requested_change"], intent["activity"]):
+            self.assertIn(value, prompt)
+        self.assertNotIn("old ocean balcony", prompt)
+        self.assertNotIn("standing", prompt)
+        self.assertNotIn("old morning light", prompt)
+        for node in workflow.graph.keys() - {"35"}:
+            self.assertEqual(compiled["graph"][node], workflow.graph[node])
+        self.assertEqual(compiled["outputs"], ["20"])
+        self.assertEqual(canonical(workflow.graph), original)
+
+    def test_router_keeps_explicit_defaults_and_replaces_only_current_sections(self):
+        workflow = self.router_workflow(
+            "[User image request]\nauthored ink style\n\n"
+            "[Reference and wardrobe ruling]\nauthored coat default\n\n"
+            "[Composition and continuity]\nold default pose\n\n"
+            "[Scene, style and final preset]\nold default scene"
+        )
+        rendered = workflow.render({
+            "positive": "current user request", "pose": "current desk pose", "background": "current room",
+        })
+        prompt = rendered["35"]["inputs"]["text"]
+        for value in ("authored ink style", "[Reference and wardrobe ruling]\nauthored coat default",
+                      "current user request", "[Composition and continuity]\ncurrent desk pose",
+                      "[Scene, style and final preset]\ncurrent room"):
+            self.assertIn(value, prompt)
+        self.assertNotIn("old default pose", prompt)
+        self.assertNotIn("old default scene", prompt)
+        for node in ("11", "24", "27", "31", "32", "36"):
+            self.assertEqual(rendered[node], workflow.graph[node])

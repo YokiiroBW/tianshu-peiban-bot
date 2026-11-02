@@ -283,17 +283,15 @@ class Workflow:
                 "pose": "Composition and continuity",
                 "background": "Scene, style and final preset",
             }.items():
-                # This is the router's documented envelope parser. Missing fields
-                # inherit their existing section; unsectioned template text is
-                # retained as context when no clothing override was supplied.
+                # Only explicitly named sections supply defaults. An unsectioned
+                # template is the old dynamic prompt, so replacing it must not
+                # preserve an obsolete pose or scene alongside the current one.
                 pattern = (
                     rf"(?:^|\n)\s*\[{re.escape(label)}\]\s*\n?(.*?)"
                     r"(?=\n\s*\[[^\]]+\]\s*\n|\n\s*Negative prompt\s*:|\Z)"
                 )
                 match = re.search(pattern, original, re.IGNORECASE | re.DOTALL)
                 inherited[semantic] = match.group(1).strip() if match else ""
-            if not any(inherited.values()) and not parts.get("outfit"):
-                inherited["user"] = original
             sections = [
                 (
                     "User image request",
