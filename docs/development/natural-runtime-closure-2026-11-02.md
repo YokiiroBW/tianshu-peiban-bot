@@ -168,3 +168,24 @@ ComfyUI 长队列、取消、插件等待及重启时钟来自受控 provider/�
 最终服务 ready，重启计数 0，容量守护 active，两个 QQ 反向连接 available；11 个挂载、人格、路由、QQ 和其他作者配置保持。配置精确变化仅 `memory.retrieval.embedding_seconds=30`、`rerank_seconds=30`、移除 `context.retrieval_seconds=2`；无 DDL。三个原未知模型样本的状态/结果摘要/冻结执行时长及原被拒绝转发的密封请求/回执摘要前后相同。未发送真实 QQ 测试消息，没有重放旧失败消息，也未重测无关生图、语音和视频。
 
 专属临时 PG `tianshu-nr05-test-pg` 已停用删除，其专属数据目录移除逻辑字节 57,099,831；生产数据库和共享镜像保持。源码包只从最终提交导出，产品代码与上述部署 SHA 一致，排除运行数据、凭据、依赖和构建缓存。
+
+## 后续只读复盘：2026-11-02 23:45（上海时间）
+
+本轮用户要求再次排查新问题。只读核对当前部署、21:30–23:45 业务账本、相关结构化日志和原存储材料；三位既有实现者仅做对应源码只读分析，没有改产品、配置、运行数据、30 秒窗口或部署，也未调用真实模型/发送消息。以下为新发现，不是已修复声明。
+
+### 新发现及影响
+
+1. **澄汐自动日记输入装配溢出。** 23:00:48 的 diary_generate 失败为 `context_mandatory_budget_exceeded`，日记 current_revision=0。按上线 TokenCounter、原持久 recipe 与人格复算，必需输入 **42,817 > 16,000 tokens**；人格+指令 4,006，recipe 37,512，14 条经历合计 36,800。最大来源是 discovery 完整候选/后续动作（单经历 8,561 tokens）、阅读正文（单经历 6,410）、图片规划及结果（单经历 4,093）；不是人格过大或输出窗口不足。`life/diaries.py` 只按最后 64 条截完整 Episode，再把整个 recipe 设为 mandatory。修复应归 Life 日记材料投影与整语义单元预算，保留原账本/人格/来源，不把未读候选当已读正文。失败已结清 diary_days 的 reviewed_revision，原材料不变时不会自动重写；后续修复恢复应使用既有正常请求入口。智乃同日 4 条经历仅 8,758 tokens，已生成 draft revision 1。
+2. **智乃单个 Growth 分区被未知原批次挡住。** 原 reflect 尝试 `35af72a9-1665-5866-8fdb-34497bd3133b` 于 22:17:25 因 `ServerDisconnectedError` 结束为 unknown，实执行约 0.99 秒，预算 180 秒。该 scope 的 active_batch 长期保留，23:45 有 21 条后续材料待评估；其他分区继续正常。现有 review 仅恢复原 ledger 观察，unknown_hold 到期只释放供应商容量，不能解除这项业务状态。需要明确隔离原未知批次、保留其未评估覆盖，并允许不重叠的新材料推进；不能直接改成成功/失败、清 active 后重发相同冻结输入。与同秒发生的 QQ 撤回没有已证实因果关系。
+3. **真实云端超时留下持久向量索引缺口。** 窗口内嵌入 392 成功、7 次实际执行到约 30 秒后 timeout_unknown；重排 57 成功、1 次约 30 秒超时。所有新 embed/rerank 执行预算均为 30 秒，队列计时修复未回退。7 个嵌入失败全部来自 memory-index，分别为 5 条 Episode、2 条 Claim 的当前有效版本；原 model_steps 仍 unknown，全部无 embedding，但 lexical 非空。`MemoryWorkers.index_object` 保留文字索引后吞并可选嵌入 AppError 返回；现有 recover 只补 lexical 为空的旧记录，因此这些向量不会因此自动补齐。应把无副作用索引计算的恢复与未知账本保留分开设计，使用明确的重试/观察身份和退避，不能抹掉旧 unknown 或只再次无限放宽超时。
+4. **QQ 撤回竞态缺少正常任务收尾。** 入站任务 30457 于 22:17:23 开始，其四个依赖原件于 22:17:26.565 记录 channel_recall/retracted；22:17:27 任务以 source_media_not_authorized 失败。event 保持 withdrawn，payload/outcome 均已清除；按 transport→identity→conversation 关联核实没有对应 turn。授权拦截和数据隔离正确，任务不自动重试，也无同事件重投风暴。缺口是 process_event 只在入口处理 withdrawn，中途授权失效没有按已撤回正常结束。修复应核实撤回状态后收尾，不放宽 Sources 校验，不把有效文本重新送入已撤回消息。
+
+### 未发现回归与未覆盖
+
+容器/源码/镜像与 21:30 发布一致，restart_count=0、健康检查正常、guard active、11 个挂载保持，两个 QQ available。同分区重复 todo 为 0；仅一条正在执行的正常 Memory 整理，尚在 300 秒执行期限内。75 批整理已 applied，1 批 waiting_model；171 次反思成功。两 QQ 共消费 1,002 条入站事件，另 1 条是上述已撤回事件；26 次引用/合并转发读取全成功。订阅等独立定时任务持续成功，但这不是发生实际新下载/交付的证明。
+
+23:00 作息已进入休息，并排好次日 07:00。澄汐显示的 23:32 next_due 是已消费规划水位的残留：change_watermark=planned_watermark、generation_consumed=true，repair_due/review_after/last_error 均空，不列为日程卡死。
+
+该窗口 217 个对话输入均 reply_required=false、state=observed，没有新聊天回复生成、主动发送、新图片/语音/视频动作样本，不能据此验证这些外部端到端功能。completed_with_missing 的多数原因是旧记录上下文或媒体分析覆盖不足，不能把这些已声明缺项直接当作提取失败，更不能改成完整覆盖。
+
+精确私有证据位于 `.runtime/coherent-refactor-20261031/natural-runtime-closure-20261102/audit-2343-*.json`；日记 token 对照、入站撤回来源时间线、当前缺向量记录与账本分别保留。本轮未重跑上一轮测试，源码包产品代码仍对应当前运行版本。
