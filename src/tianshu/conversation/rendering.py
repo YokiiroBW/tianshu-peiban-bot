@@ -1,7 +1,7 @@
 """Expression rendering owns no model or speech engine and never redelivers a result."""
 from tianshu.sources.dependencies import unique_refs
 from dataclasses import replace
-from datetime import UTC,datetime,timedelta
+from datetime import UTC,datetime
 from uuid import NAMESPACE_URL,uuid5
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
@@ -53,10 +53,15 @@ class ExpressionRenderer:
             for index,part in enumerate(plan.public_parts):
                 if part["kind"]=="text" and part.get("text","").strip():
                     steps.append({"index":index,"action_id":str(uuid5(NAMESPACE_URL,f"expression-render:{plan.expression_id}:{index}")),"state":"planned","result_revision":-1,"artifacts":[],"receipt":None})
-        deadline=datetime.now(UTC)+timedelta(minutes=15)
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,plan.source_refs):
                 raise AppError("source_unavailable",status=409)
+            deadline = None
+            if plan.turn_id:
+                turn = await (await connection.execute(
+                    "SELECT deadline_at FROM conversation.turns WHERE turn_id=%s AND actor_id=%s "
+                    "AND conversation_id=%s AND autonomous", (plan.turn_id, context.actor_id, context.conversation_id))).fetchone()
+                deadline = turn["deadline_at"] if turn else None
             added=await (await connection.execute("INSERT INTO conversation.expression_plans(expression_id,actor_id,conversation_id,fingerprint,context,plan,source_refs,profile,state,service_class,steps,deadline_at) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",(plan.expression_id,context.actor_id,context.conversation_id,fingerprint,document(context),document(plan),document(plan.source_refs),document(profile),"waiting_render" if steps else "ready",service_class.value,document(steps),deadline))).fetchone()
             if not added:
                 existing=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s",(plan.expression_id,))).fetchone()
@@ -66,7 +71,8 @@ class ExpressionRenderer:
             if steps:
                 for step in steps:
                     await self.jobs.enqueue(connection,JobSpec("conversation.expression_render",f"expression-render:{step['action_id']}",{"expression_id":plan.expression_id,"index":step["index"]},service_class,subject_id=context.actor_id))
-            await self.jobs.enqueue(connection,JobSpec("conversation.render_expire","render-expire:"+plan.expression_id,{"expression_id":plan.expression_id},ServiceClass.INTERACTIVE,deadline,context.actor_id))
+            if deadline is not None:
+                await self.jobs.enqueue(connection,JobSpec("conversation.render_expire","render-expire:"+plan.expression_id,{"expression_id":plan.expression_id},ServiceClass.INTERACTIVE,deadline,context.actor_id))
         if not steps:
             return await self._deliver(context,plan)
         return progress(added)
@@ -98,7 +104,7 @@ class ExpressionRenderer:
             except AppError as error:
                 if error.status!=404:
                     raise
-                if row["deadline_at"]<=datetime.now(UTC):
+                if row["deadline_at"] is not None and row["deadline_at"]<=datetime.now(UTC):
                     await self._failed(context,expression_id,"expression_window_expired")
                     return
                 # No ledger entry exists. This is the first registration of the
@@ -150,7 +156,7 @@ class ExpressionRenderer:
             if state in {"failed","render_unknown"}:
                 await self._event(connection,context,row["expression_id"],fresh["revision"]+1)
         if state=="delivering" and fresh["state"] not in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}:
-            if datetime.now(UTC)>fresh["deadline_at"]:
+            if fresh["deadline_at"] is not None and datetime.now(UTC)>fresh["deadline_at"]:
                 await self._failed(context,fresh["expression_id"],"expression_window_expired")
                 return True
             plan=decode_plan(fresh["plan"])
@@ -195,6 +201,12 @@ class ExpressionRenderer:
             fresh=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s FOR UPDATE",(expression_id,))).fetchone()
             if fresh["state"] not in {"ready","waiting_order"}:
                 return progress(fresh)
+            if fresh.get("deadline_at") is not None and fresh["deadline_at"] <= datetime.now(UTC):
+                updated = await (await connection.execute(
+                    "UPDATE conversation.expression_plans SET state='failed',reason='expression_window_expired',revision=revision+1 "
+                    "WHERE expression_id=%s RETURNING *", (expression_id,))).fetchone()
+                await self._event(connection, context, expression_id, updated["revision"])
+                return progress(updated)
             if plan.turn_id:
                 turn=await (await connection.execute("SELECT sequence,state FROM conversation.turns WHERE turn_id=%s",(plan.turn_id,))).fetchone()
                 if not turn or turn["state"] in {"cancelled","failed"}:
@@ -323,12 +335,25 @@ class ExpressionRenderer:
                 await self._event(connection,context_from_record(row["context"]),expression_id,row["revision"])
 
 
+    async def expire_delivery(self, expression_id):
+        """Observe the existing delivery intent and update both projections."""
+        result = await self.delivery.expire(expression_id)
+        if result is None:
+            return
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT context FROM conversation.expressions WHERE expression_id=%s", (expression_id,))).fetchone()
+        if row:
+            await self.channel_result(context_from_record(row["context"]), expression_id, result)
+
+
     async def recover(self):
         async with self.database.transaction() as connection:
             rows=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE state IN ('waiting_render','render_unknown','ready','waiting_order','delivering','waiting_delivery')")).fetchall()
             from uuid import uuid4
             for row in rows:
-                await self.jobs.enqueue(connection,JobSpec("conversation.render_expire",f"render-recover:{row['expression_id']}:{uuid4()}",{"expression_id":row["expression_id"]},ServiceClass.INTERACTIVE,row["deadline_at"],row["actor_id"]))
+                if row["deadline_at"] is not None:
+                    await self.jobs.enqueue(connection,JobSpec("conversation.render_expire",f"render-recover:{row['expression_id']}:{uuid4()}",{"expression_id":row["expression_id"]},ServiceClass.INTERACTIVE,row["deadline_at"],row["actor_id"]))
                 if row["state"] in {"waiting_render","render_unknown"}:
                     for step in row["steps"]:
                         if step["state"] not in {"succeeded","failed","cancelled"}:

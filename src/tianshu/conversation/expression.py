@@ -10,7 +10,7 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.types import Receipt, ServiceClass
-from .codec import document, receipt, signature, source_refs, artifacts
+from .codec import document, receipt, signature, source_refs, artifacts, context_from_record
 from .types import ExpressionPlan
 
 
@@ -194,21 +194,43 @@ class ExpressionService:
         return result
 
     async def expire(self, expression_id):
-        async with self.database.transaction() as connection:
+        # A channel Action may still be waiting for its execution owner. This
+        # lease observes the original send ledger; it never resubmits a plan.
+        async with self.database.transaction(read_only=True) as connection:
             row = await (await connection.execute(
-                "SELECT receipt FROM conversation.expressions WHERE expression_id=%s "
-                "AND state IN ('sending','waiting_delivery') AND lease_until<=now() FOR UPDATE",
+                "SELECT * FROM conversation.expressions WHERE expression_id=%s "
+                "AND state IN ('sending','waiting_delivery') AND lease_until<=now()",
                 (expression_id,))).fetchone()
-            if row:
+        if row is None:
+            return None
+        context = context_from_record(row["context"])
+        result = None
+        try:
+            observed = receipt(await self.channels.reconcile(context, expression_id))
+        except Exception:
+            pending = True
+        else:
+            if observed is None:
                 previous = receipt(row["receipt"])
                 observation = self._unknown(expression_id, "delivery_lease_expired")
-                result = replace(
+                observed = replace(
                     previous, receipt_id=observation.receipt_id, execution="unknown",
                     effect="unknown", delivery="unknown", error_code=observation.error_code,
                 ) if previous else observation
-                await connection.execute(
-                    "UPDATE conversation.expressions SET state='unknown',revision=revision+1,receipt=%s "
-                    "WHERE expression_id=%s", (document(result), expression_id))
+            result = await self.channel_result(context, expression_id, observed)
+            pending = result is not None and delivery_state(result) == "waiting_delivery"
+        if not pending:
+            return result
+        async with self.database.transaction() as connection:
+            renewed = await (await connection.execute(
+                "UPDATE conversation.expressions SET lease_until=now()+interval '1 minute' WHERE expression_id=%s "
+                "AND state IN ('sending','waiting_delivery') AND lease_until<=now() RETURNING actor_id,lease_until",
+                (expression_id,))).fetchone()
+            if renewed:
+                await self.jobs.enqueue(connection, JobSpec("conversation.expression_expire",
+                    f"expression-observe:{expression_id}:{uuid4()}", {"expression_id": expression_id},
+                    ServiceClass.INTERACTIVE, renewed["lease_until"], renewed["actor_id"]))
+        return result
 
     async def recover(self):
         async with self.database.transaction() as connection:

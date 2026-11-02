@@ -65,7 +65,7 @@ CREATE TABLE conversation.expression_plans (
     revision bigint NOT NULL DEFAULT 1, fingerprint text NOT NULL, context jsonb NOT NULL,
     plan jsonb NOT NULL, source_refs jsonb NOT NULL, profile jsonb,
     state text NOT NULL, service_class text NOT NULL DEFAULT 'elastic', steps jsonb NOT NULL DEFAULT '[]', rendered jsonb,
-    receipt jsonb, reason text, deadline_at timestamptz NOT NULL,
+    receipt jsonb, reason text, deadline_at timestamptz,
     created_at timestamptz NOT NULL DEFAULT now(),updated_at timestamptz NOT NULL DEFAULT now()
 );
 

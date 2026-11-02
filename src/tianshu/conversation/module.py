@@ -42,7 +42,7 @@ def create_module(service, expression, identity, result_consumer, renderer):
         queue.register("conversation.reconcile", service.reconcile, retryable=False)
         queue.register("conversation.result", result_consumer.consume, retryable=True)
         queue.register("conversation.expire", service.expire, retryable=True)
-        queue.register("conversation.expression_expire", expression.expire, retryable=True)
+        queue.register("conversation.expression_expire", renderer.expire_delivery, retryable=True)
 
     async def start(_runtime):
         await service.recover()
