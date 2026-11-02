@@ -42,15 +42,18 @@ def waiting_timeout(request):
     budget = waiting_budget(request)
     if budget is None:
         return None
-    if getattr(request, "execution_timeout_seconds", None) is not None and budget.remaining() <= 0:
-        raise waiting_expired(request)
+    if getattr(request, "execution_timeout_seconds", None) is not None:
+        remaining = budget.remaining()
+        if remaining <= 0:
+            raise waiting_expired(request, reason="business_deadline_expired")
+        return remaining
     budget.check()
     return budget.remaining()
 
 
-def waiting_expired(request):
+def waiting_expired(request, *, reason=None):
     deadline = getattr(request, "business_deadline_at", None)
-    code = "business_deadline_expired" if deadline is not None and deadline <= datetime.now(UTC) else "queue_wait_expired"
+    code = reason or ("business_deadline_expired" if deadline is not None and deadline <= datetime.now(UTC) else "queue_wait_expired")
     return AppError(code, status=408, details={"status": "cancelled", "dispatch": "not_started"})
 
 
@@ -62,7 +65,7 @@ async def waiting(request):
             yield
     except TimeoutError:
         if timer.expired() and getattr(request, "execution_timeout_seconds", None) is not None:
-            raise waiting_expired(request) from None
+            raise waiting_expired(request, reason="business_deadline_expired") from None
         raise
 
 
@@ -82,8 +85,12 @@ def execution_budget(request):
     return budget
 
 
-def queue_timeout(request, policy):
-    limits = [value for value in
-              (waiting_timeout(request), getattr(request, "max_queue_wait", None), policy.max_wait_seconds)
-              if value is not None]
-    return min(limits) if limits else None
+def queue_limit(request, policy):
+    # Freeze the actual limiting constraint before waiting. Timer callbacks can
+    # run a clock-resolution tick before wall time reaches an absolute expiry.
+    limits = [(seconds, reason) for seconds, reason in (
+        (waiting_timeout(request), "business_deadline_expired"),
+        (getattr(request, "max_queue_wait", None), "queue_wait_expired"),
+        (policy.max_wait_seconds, "queue_wait_expired"),
+    ) if seconds is not None]
+    return min(limits, key=lambda limit: limit[0]) if limits else (None, None)

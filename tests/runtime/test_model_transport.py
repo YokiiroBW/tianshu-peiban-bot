@@ -1,6 +1,7 @@
 """Real local HTTP connector isolation; no provider, broker or model execution."""
 
 import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import json
 
@@ -10,6 +11,7 @@ import pytest
 from tianshu.models.client import ModelClient
 from tianshu.models.types import ExternalRequest, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.serialization import wire
+from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 
 
@@ -34,6 +36,32 @@ async def serve(app):
     site = web.TCPSite(runner, "127.0.0.1", 0)
     await site.start()
     return runner, "http://127.0.0.1:" + str(site._server.sockets[0].getsockname()[1])
+
+
+async def test_stream_eof_without_a_terminal_frame_observes_original_and_raises():
+    observed=[]
+    async def empty(_incoming):
+        return web.Response(body=b"",content_type="application/x-ndjson")
+    async def original(incoming):
+        observed.append(incoming.match_info["attempt"])
+        saved=replace(receipt("original"),status="unknown",dispatch="unknown")
+        return web.json_response({"receipt":wire(saved),"cancel_requested":False})
+    app=web.Application()
+    app.router.add_post("/internal/v1/models/stream",empty)
+    app.router.add_get("/internal/v1/models/attempts/{attempt}",original)
+    runner,origin=await serve(app)
+    client=ModelClient(origin,"fixture")
+    await client.open()
+    async def receive():
+        selected=replace(request("original",ServiceClass.ELASTIC),execution_timeout_seconds=0.1)
+        return [event async for event in client.stream(selected)]
+    try:
+        with pytest.raises(AppError,match="model_stream_incomplete") as caught:
+            await asyncio.wait_for(receive(),2)
+        assert caught.value.details["status"]=="unknown" and observed==["original"]
+    finally:
+        await client.close()
+        await runner.cleanup()
 
 
 async def test_background_and_due_holds_leave_chat_stream_and_control_available():

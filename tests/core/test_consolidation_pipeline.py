@@ -902,7 +902,10 @@ async def test_model_step_dispatch_preserves_frozen_execution_duration_after_pre
     frozen=wire(original)
     class Models:
         async def generate(self,request):
-            assert wire(request)==frozen and waiting_timeout(request) is None
+            # Dataclass equality compares permissions as a set. Their wire
+            # array order may change on reconstruction without changing authority.
+            assert request==original and wire(request.budget)==frozen['budget']
+            assert waiting_timeout(request) is None
             return ModelResult((),ModelReceipt(request.attempt_id,request.intent_id,'succeeded','submitted',
                 'fixture',1,'fixture','fixture','openai.chat','fixture'))
     core.steps.models=Models()

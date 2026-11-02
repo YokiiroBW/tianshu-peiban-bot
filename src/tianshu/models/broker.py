@@ -155,7 +155,7 @@ class ModelBroker:
                 # A connector cap would add an invisible queue after admission.
                 connector=aiohttp.TCPConnector(limit=0, limit_per_host=0),
                 auto_decompress=False,
-                timeout=aiohttp.ClientTimeout(total=None),
+                timeout=aiohttp.ClientTimeout(total=None, sock_connect=30),
             )
             self.ready = True
             self.owner_watch = asyncio.create_task(self._watch_owner(), name="broker-owner")
@@ -404,7 +404,7 @@ class ModelBroker:
                     json=call.body,
                     headers=call.headers,
                     allow_redirects=False,
-                    timeout=aiohttp.ClientTimeout(total=request.budget.remaining()),
+                    timeout=aiohttp.ClientTimeout(total=request.budget.remaining(), sock_connect=30),
                 ) as response:
                     if response.status >= 300:
                         # Provider error bodies may contain secrets or prompts; retain status only.

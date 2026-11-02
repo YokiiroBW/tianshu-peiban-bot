@@ -222,7 +222,7 @@ async def enumerate_models(services, context, provider_id, body):
             async with services.models.resource(request) as permit:
                 await permit.submitted()
                 async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=permit.request.budget.remaining())
+                    timeout=aiohttp.ClientTimeout(total=permit.request.budget.remaining(), sock_connect=30)
                 ) as session:
                     async with session.get(
                         url, headers=headers, params=params, allow_redirects=False

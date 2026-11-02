@@ -48,16 +48,16 @@ class ModelClient:
         headers = {"Authorization": "Bearer "+self.token}
         self.session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=self.max_connections),
-            timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
+            timeout=aiohttp.ClientTimeout(total=None, sock_connect=5), read_bufsize=8*1024*1024)
         self.due_session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=self.due_connections),
-            timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
+            timeout=aiohttp.ClientTimeout(total=None, sock_connect=5), read_bufsize=8*1024*1024)
         self.background_session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=self.background_connections),
-            timeout=aiohttp.ClientTimeout(total=None), read_bufsize=8*1024*1024)
+            timeout=aiohttp.ClientTimeout(total=None, sock_connect=5), read_bufsize=8*1024*1024)
         self.control_session = aiohttp.ClientSession(headers=headers,
             connector=aiohttp.TCPConnector(limit=self.control_connections),
-            timeout=aiohttp.ClientTimeout(total=5))
+            timeout=aiohttp.ClientTimeout(total=5, sock_connect=5))
 
     async def close(self):
         for session in (self.session, self.due_session, self.background_session, self.control_session):
@@ -78,7 +78,7 @@ class ModelClient:
         session = self.control_session if control else self._data_session(service_class)
         async with session.request(method, self.base_url+path, json=wire(body),
             allow_redirects=False, timeout=aiohttp.ClientTimeout(total=(
-                (5 if control else 120) if timeout is _DEFAULT_TIMEOUT else timeout))) as response:
+                (5 if control else 120) if timeout is _DEFAULT_TIMEOUT else timeout), sock_connect=5)) as response:
             value = await response.json()
             if response.status >= 400:
                 error = value.get("error", {})
@@ -107,26 +107,45 @@ class ModelClient:
         try:
             async with self._data_session(request.service_class).post(
                 self.base_url+"/internal/v1/models/stream", json=wire(request),
-                timeout=aiohttp.ClientTimeout(total=timeout)) as response:
+                timeout=aiohttp.ClientTimeout(total=timeout, sock_connect=5)) as response:
                 if response.status >= 400:
                     value = await response.json()
                     raise AppError(value.get("error", {}).get("code", "broker_error"), status=response.status)
                 async for line in response.content:
                     if len(line) > 8*1024*1024:
                         raise AppError("broker_event_too_large", status=502)
-                    event = event_from_wire(json.loads(line))
+                    value = json.loads(line)
+                    if value.get("kind") == "error":
+                        complete = True
+                        failure = value["error"]
+                        raise await self._stream_failure(request.attempt_id, failure["code"],
+                            status=failure.get("status", 502), fallback=receipt_from_wire(failure.get("receipt")))
+                    event = event_from_wire(value)
                     complete |= event.kind == "receipt"
                     yield event
+                if not complete:
+                    complete = True
+                    raise await self._stream_failure(request.attempt_id, "model_stream_incomplete")
         except (TimeoutError, aiohttp.ClientError):
-            receipt = await self._cancel_cleanup(request.attempt_id)
             cleaned_up = True
-            known = _known_wait_expiry(receipt)
-            if known is not None:
-                raise known from None
-            raise
+            raise await self._stream_failure(request.attempt_id, "model_stream_interrupted") from None
         finally:
             if not complete and not cleaned_up:
                 await self._cancel_cleanup(request.attempt_id)
+
+    async def _stream_failure(self, attempt_id, code, *, status=502, fallback=None):
+        try:
+            original = await self.status(attempt_id)
+        except (AppError, TimeoutError, aiohttp.ClientError):
+            original = fallback
+        if original is None or original.status in {"queued", "running"}:
+            original = await self._cancel_cleanup(attempt_id) or original
+        known = _known_wait_expiry(original)
+        if known is not None:
+            return known
+        return AppError(code, status=status, details={"attempt_id":attempt_id,
+            "status":original.status if original else None,
+            "dispatch":original.dispatch if original else None,"action":"observe_original_attempt"})
 
     async def _cancel_cleanup(self, attempt_id):
         try:

@@ -41,6 +41,12 @@ class AttemptLedger:
         semantic.pop("budget", None)
         if getattr(request, "execution_timeout_seconds", None) is None:
             semantic.pop("max_queue_wait", None)
+        else:
+            # Only the new contract canonicalizes unordered inputs. Existing
+            # attempt digests retain their exact legacy representation.
+            semantic["context"]["permissions"] = sorted(semantic["context"]["permissions"])
+            if "required_capabilities" in semantic:
+                semantic["required_capabilities"] = sorted(semantic["required_capabilities"])
         # New timing fields participate in a new attempt's identity. Omitting
         # absent fields preserves the digest of previously frozen attempts.
         for name in ("execution_timeout_seconds", "business_deadline_at"):

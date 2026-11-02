@@ -1,6 +1,7 @@
 """Bounded process transport and same-protocol external model endpoints."""
 
 import base64
+import asyncio
 from datetime import UTC, datetime, timedelta
 import hmac
 import json
@@ -34,6 +35,20 @@ def create_broker_app(broker, token, external_keys=()):
         model_request = request_from_wire(await request.json())
         return json_response(await broker.generate(model_request))
 
+    async def stream_error(response, model_request, error, *, native=False):
+        try:
+            original = await broker.status(model_request.attempt_id)
+        except Exception:
+            original = None
+        payload = {"code":error.code if isinstance(error, AppError) else "model_stream_interrupted",
+            "status":error.status if isinstance(error, AppError) else 502,
+            "attempt_id":model_request.attempt_id,"receipt":wire(original)}
+        frame = {"error":payload} if native else {"kind":"error","error":payload}
+        encoded = json.dumps(frame, ensure_ascii=False).encode()
+        await response.write(b"event: error\ndata: " + encoded + b"\n\n" if native else encoded + b"\n")
+        await response.write_eof()
+        return response
+
     async def stream(request):
         model_request = request_from_wire(await request.json())
         events = broker.stream(model_request)
@@ -45,6 +60,11 @@ def create_broker_app(broker, token, external_keys=()):
             async for event in events:
                 await response.write(json.dumps(wire(event), ensure_ascii=False).encode() + b"\n")
             await response.write_eof()
+        except (asyncio.CancelledError, ConnectionError):
+            response.force_close()
+            raise
+        except Exception as error:
+            return await stream_error(response, model_request, error)
         finally:
             await events.aclose()
         return response
@@ -226,6 +246,11 @@ def create_broker_app(broker, token, external_keys=()):
                 if event.kind == "native":
                     await response.write(base64.b64decode(event.data["chunk_b64"]))
             await response.write_eof()
+        except (asyncio.CancelledError, ConnectionError):
+            response.force_close()
+            raise
+        except Exception as error:
+            return await stream_error(response, model_request, error, native=True)
         finally:
             await events.aclose()
         return response

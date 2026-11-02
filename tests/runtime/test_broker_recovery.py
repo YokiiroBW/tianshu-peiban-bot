@@ -60,10 +60,10 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         calls.append(body)
         await asyncio.sleep(0.04)
         if body.get("stream"):
-            value = {"choices": [{"delta": {"content": "OK"}, "finish_reason": "stop"}]}
+            value = {"choices": [{"index": 0, "delta": {"content": "OK"}, "finish_reason": "stop"}]}
             return web.Response(body=("data: " + json.dumps(value) + "\n\ndata: [DONE]\n\n").encode(),
                 content_type="text/event-stream")
-        return web.json_response({"choices": [{"message": {"content": "OK"}, "finish_reason": "stop"}]})
+        return web.json_response({"choices": [{"index": 0, "message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]})
 
     app = web.Application()
     app.router.add_post("/chat/completions", respond)
@@ -230,6 +230,48 @@ async def test_new_expiry_before_admission_is_a_known_not_started_receipt(databa
         await broker.close()
 
 
+async def test_bad_provider_stream_ends_with_a_diagnostic_and_observes_the_original_receipt(database,tmp_path,monkeypatch):
+    calls=[]
+    async def invalid(_request):
+        calls.append(1)
+        # Deliberately missing required choice.index; the parser must reject it.
+        value={"choices":[{"delta":{"content":"malformed"},"finish_reason":"stop"}]}
+        return web.Response(body=("data: "+json.dumps(value)+"\n\n").encode(),content_type="text/event-stream")
+    provider=web.Application()
+    provider.router.add_post("/chat/completions",invalid)
+    provider_runner,origin=await serve(provider)
+    await seed(database,origin)
+    async with database.transaction() as conn:
+        await conn.execute("UPDATE models.routes SET verified_capabilities=ARRAY['text','stream']")
+    broker=ModelBroker(database,FileStore(tmp_path),Secrets({"FIXTURE_KEY":"synthetic"}))
+    await broker.open()
+    runner,origin=await serve(create_broker_app(broker,"fixture"))
+    client=ModelClient(origin,"fixture")
+    await client.open()
+    observed=[]
+    status=client.status
+    async def original_status(attempt_id):
+        observed.append(attempt_id)
+        return await status(attempt_id)
+    monkeypatch.setattr(client,"status",original_status)
+    original=ModelRequest("bad-stream","bad-stream","chat",ServiceClass.INTERACTIVE,context(),
+        RequestBudget(datetime.now(UTC)+timedelta(seconds=1)),(),execution_timeout_seconds=1)
+    async def receive():
+        return [event async for event in client.stream(original)]
+    try:
+        with pytest.raises(AppError,match="invalid_native_chat_response") as caught:
+            await asyncio.wait_for(receive(),3)
+        assert caught.value.details["status"]==caught.value.details["dispatch"]=="unknown"
+        assert caught.value.details["attempt_id"]==original.attempt_id
+        assert observed==[original.attempt_id] and calls==[1]
+        assert (await broker.status(original.attempt_id)).status=="unknown"
+    finally:
+        await client.close()
+        await runner.cleanup()
+        await broker.close()
+        await provider_runner.cleanup()
+
+
 @pytest.mark.parametrize("execution_timeout", [None, 0.2], ids=["legacy-absolute", "admitted-execution"])
 async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstream(
     database, tmp_path, execution_timeout
@@ -240,7 +282,7 @@ async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstr
         calls.append(1)
         await asyncio.sleep(1)
         return web.json_response(
-            {"choices": [{"message": {"content": "late"}, "finish_reason": "stop"}]}
+            {"choices": [{"index": 0, "message": {"role": "assistant", "content": "late"}, "finish_reason": "stop"}]}
         )
 
     app = web.Application()
@@ -418,7 +460,7 @@ async def test_absent_attempt_first_registration_is_unique_even_with_a_late_orig
         entered.set()
         await release.wait()
         return web.json_response(
-            {"choices": [{"message": {"content": "one actual result"}, "finish_reason": "stop"}]}
+            {"choices": [{"index": 0, "message": {"role": "assistant", "content": "one actual result"}, "finish_reason": "stop"}]}
         )
 
     app = web.Application()

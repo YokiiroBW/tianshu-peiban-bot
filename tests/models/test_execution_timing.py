@@ -58,13 +58,16 @@ async def test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and
         assert scheduler.snapshot()["quota"]["waiting"] == 1
         with pytest.raises(AppError, match="model_queue_full"):
             await scheduler.acquire(request("overflow"), "quota", {})
-        # Interactive reserve still admits a foreground request while background waits.
-        await scheduler.acquire(request("human", service_class=ServiceClass.INTERACTIVE), "quota", {})
         pending.cancel()
         with pytest.raises(asyncio.CancelledError):
             await pending
         assert scheduler.snapshot()["quota"]["waiting"] == 0
         assert "waiting" not in scheduler.groups["quota"].active
+        # Free the bounded waiting slot before checking the separate capacity
+        # reservation. A reserve never permits bypassing a full hard queue.
+        await scheduler.acquire(request("human", service_class=ServiceClass.INTERACTIVE), "quota", {})
+        assert scheduler.snapshot()["quota"]["active"] == 2
+        assert "held" in scheduler.groups["quota"].active
     finally:
         if pending and not pending.done():
             pending.cancel()
@@ -109,6 +112,31 @@ async def test_waiting_business_expiry_does_not_relabel_an_independent_phase_tim
             await asyncio.Event().wait()
 
 
+@pytest.mark.parametrize("constraint", ["business", "request", "author"])
+async def test_queue_timer_preserves_its_frozen_constraint_even_before_wall_clock_expiry(monkeypatch, constraint):
+    from tianshu.models import scheduler as module
+    scheduler=QuotaScheduler({"quota":QuotaPolicy("quota",1,0,1,
+        max_wait_seconds=1 if constraint=="author" else None)})
+    await scheduler.start()
+    try:
+        await scheduler.acquire(request("held"),"quota",{})
+        original_limit=module.queue_limit
+        code="business_deadline_expired" if constraint=="business" else "queue_wait_expired"
+        def early_timer(candidate,policy):
+            seconds,reason=original_limit(candidate,policy)
+            assert seconds>0 and reason==code
+            return 0,reason  # Reproduce a timer callback before its wall-clock boundary.
+        monkeypatch.setattr(module,"queue_limit",early_timer)
+        candidate=request("early",business_deadline_at=datetime.now(UTC)+timedelta(hours=1),
+            max_queue_wait=1 if constraint=="request" else None)
+        with pytest.raises(AppError,match=code):
+            await scheduler.acquire(candidate,"quota",{})
+        assert datetime.now(UTC)<candidate.business_deadline_at
+        assert scheduler.snapshot()["quota"]["waiting"]==0
+    finally:
+        await scheduler.close()
+
+
 async def test_ledger_freezes_duration_before_admission_and_never_restarts_an_attempt(database):
     ledger = AttemptLedger(database, "instance")
     plan = RoutePlan("route", 1, "provider", "model", "openai.chat", "", "", "quota", frozenset(), {})
@@ -143,3 +171,35 @@ async def test_ledger_freezes_duration_before_admission_and_never_restarts_an_at
     assert row["deadline_at"] == legacy.budget.deadline_at
     await ledger.recover()
     assert (await ledger.get("legacy"))["status"] == "cancelled"
+
+
+async def test_new_ledger_identity_canonicalizes_only_its_unordered_contract_inputs(database):
+    class ReverseSet(frozenset):
+        def __iter__(self):
+            return iter(sorted(super().__iter__(),reverse=True))
+    ledger=AttemptLedger(database,"instance")
+    plan=RoutePlan("route",1,"provider","model","openai.chat","","","quota",frozenset(),{})
+    original=request("canonical",context=replace(request().context,
+        permissions=ReverseSet({"memory.read","models.read","*"})),
+        required_capabilities=ReverseSet({"text","stream","tools"}))
+    semantic=wire(original)
+    semantic.pop("budget")
+    semantic.pop("business_deadline_at")
+    semantic["context"]["permissions"].sort()
+    semantic["required_capabilities"].sort()
+    row,created=await ledger.create(original,plan,{})
+    assert created and row["request_digest"]==digest(semantic)
+    incoming=wire(original)
+    incoming["context"]["permissions"].reverse()
+    incoming["required_capabilities"].reverse()
+    restored=request_from_wire(incoming)
+    assert restored==original
+    duplicate,created=await ledger.create(restored,plan,{})
+    assert not created and duplicate["request_digest"]==row["request_digest"]
+    legacy=replace(original,intent_id="legacy-order",attempt_id="legacy-order",execution_timeout_seconds=None,
+        budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=60)))
+    legacy_semantic=wire(legacy)
+    for name in ("budget","max_queue_wait","execution_timeout_seconds","business_deadline_at"):
+        legacy_semantic.pop(name)
+    unchanged,created=await ledger.create(legacy,plan,{})
+    assert created and unchanged["request_digest"]==digest(legacy_semantic)

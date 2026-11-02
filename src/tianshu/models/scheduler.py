@@ -11,7 +11,7 @@ import time
 
 from tianshu.runtime.errors import AppError
 from tianshu.types import ServiceClass
-from .timing import queue_timeout, waiting_budget, validate_timing, waiting_expired
+from .timing import queue_limit, waiting_budget, validate_timing, waiting_expired
 
 
 def request_cost(units):
@@ -127,8 +127,10 @@ class QuotaScheduler:
                 raise AppError("model_queue_full", status=429)
             state.waiting.append(waiter)
             self.changed.set()
+        expiry_reason = None
         try:
-            async with asyncio.timeout(queue_timeout(request, policy)):
+            timeout, expiry_reason = queue_limit(request, policy)
+            async with asyncio.timeout(timeout):
                 await asyncio.shield(future)
         except BaseException as exc:
             async with self.lock:
@@ -144,7 +146,7 @@ class QuotaScheduler:
                 future.cancel()
                 self.changed.set()
             if isinstance(exc, TimeoutError) and getattr(request, "execution_timeout_seconds", None) is not None:
-                raise waiting_expired(request) from None
+                raise waiting_expired(request, reason=expiry_reason) from None
             raise
 
     async def release(self, group, attempt_id, *, units=None, hold_until=None, not_started=False):

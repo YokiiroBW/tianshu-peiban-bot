@@ -26,7 +26,7 @@ def register_native_proxy(app, settings):
             connector=aiohttp.TCPConnector(limit=32),
             # Broker owns admission/execution timing. A total transport timeout
             # here would charge queueing against the supplier's execution window.
-            timeout=aiohttp.ClientTimeout(total=None),
+            timeout=aiohttp.ClientTimeout(total=None, sock_connect=5),
             auto_decompress=False,
         ) as session:
             _app[session_key] = session
