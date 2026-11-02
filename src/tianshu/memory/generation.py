@@ -67,6 +67,7 @@ async def native_request(models, request):
         parameters.update(reasoning_effort="low", response_format={"type": "json_object"})
     return replace(request, route_id=profile["route_id"], route_revision=profile["route_revision"],
         protocol=profile["protocol"], parameters=parameters,
+        execution_timeout_seconds=MODEL_REQUEST_SECONDS,
         budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=MODEL_REQUEST_SECONDS),
             cancellation_id=request.budget.cancellation_id, trace_id=request.budget.trace_id))
 
@@ -126,4 +127,5 @@ def repair_request(original, step_id, result, error, counter, input_tokens):
         raise AppError("memory_consolidation_repair_input_budget", status=502)
     return replace(original, intent_id=step_id, attempt_id=str(uuid5(NAMESPACE_URL, step_id)),
         budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=MODEL_REQUEST_SECONDS)),
+        execution_timeout_seconds=MODEL_REQUEST_SECONDS,
         messages=selected, system=instruction, parameters=parameters, estimated_input_tokens=estimate)

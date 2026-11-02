@@ -1,6 +1,7 @@
 """Real PG/source/queue consolidation stories, authored but not run during development."""
 
 from dataclasses import replace
+import asyncio
 from datetime import UTC,datetime,timedelta
 import json
 
@@ -851,6 +852,7 @@ async def test_long_request_window_is_frozen_and_supplement_renews_its_owner_lea
     class Supplement(FixedConsolidator):
         async def generate(self,request):
             assert request.budget.remaining()>290
+            assert request.execution_timeout_seconds==300 and request.business_deadline_at is None
             async with core.database.transaction() as conn:
                 state=await (await conn.execute('SELECT lease_owner,lease_until FROM memory.consolidation_state WHERE partition_id=%s',
                     (partition,))).fetchone()
@@ -888,6 +890,93 @@ async def test_long_request_window_is_frozen_and_supplement_renews_its_owner_lea
         steps=await (await conn.execute('SELECT request_timeout_seconds FROM memory.model_steps WHERE step_id=ANY(%s::text[])',
             (batch['step_ids'],))).fetchall()
     assert len(steps)==2 and all(item['request_timeout_seconds']==300 for item in steps)
+
+
+async def test_model_step_dispatch_preserves_frozen_execution_duration_after_prepare_budget_expires(core,ordinary_users):
+    from tianshu.models.timing import waiting_timeout
+    alice,_=ordinary_users
+    episode=await observe(core,alice,'expired-preparation-only','原件保持完整')
+    original=ModelRequest('frozen-execution','frozen-execution','memory.extract',ServiceClass.ELASTIC,alice,
+        RequestBudget(datetime.now(UTC)-timedelta(minutes=1)),(),
+        source_refs=episode.source_refs,execution_timeout_seconds=300)
+    frozen=wire(original)
+    class Models:
+        async def generate(self,request):
+            assert wire(request)==frozen and waiting_timeout(request) is None
+            return ModelResult((),ModelReceipt(request.attempt_id,request.intent_id,'succeeded','submitted',
+                'fixture',1,'fixture','fixture','openai.chat','fixture'))
+    core.steps.models=Models()
+    async with core.database.transaction() as conn:
+        await core.steps.prepare_on(conn,'frozen-execution',original)
+    await core.steps.execute_recorded('frozen-execution')
+    async with core.database.transaction(read_only=True) as conn:
+        step=await (await conn.execute('SELECT * FROM memory.model_steps WHERE step_id=%s',('frozen-execution',))).fetchone()
+    assert step['request']==frozen and step['request_timeout_seconds']==300 and step['state']=='succeeded'
+
+
+async def test_consolidation_renews_owned_lease_while_original_model_waits_in_queue(core,ordinary_users,monkeypatch):
+    from tianshu.memory import consolidation as module
+    monkeypatch.setattr(module,'LEASE_RENEW_SECONDS',0.02)
+    alice,_=ordinary_users
+    entered,release=asyncio.Event(),asyncio.Event()
+    class Queued(FixedConsolidator):
+        async def generate(self,request):
+            entered.set()
+            await release.wait()
+            return await super().generate(request)
+    model=Queued()
+    configure(core,model)
+    episode=await observe(core,alice,'renew-during-model-queue','尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    task=asyncio.create_task(core.workers.consolidate(partition))
+    try:
+        await asyncio.wait_for(entered.wait(),5)
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE memory.consolidation_state SET lease_until=now()+interval '150 milliseconds' WHERE partition_id=%s",(partition,))
+        await asyncio.sleep(0.3)
+        async with core.database.transaction(read_only=True) as conn:
+            state=await (await conn.execute('SELECT * FROM memory.consolidation_state WHERE partition_id=%s',(partition,))).fetchone()
+        assert state['lease_owner'] and (state['lease_until']-datetime.now(UTC)).total_seconds()>300
+        await core.workers.consolidate(partition)
+        assert not task.done() and not model.requests
+        release.set()
+        await asyncio.wait_for(task,5)
+        assert len(model.requests)==1 and (await latest_batch(core,partition))['status']=='applied'
+    finally:
+        release.set()
+        task.cancel()
+        await asyncio.gather(task,return_exceptions=True)
+
+
+async def test_waiting_worker_losing_lease_stops_without_mutating_successor_batch(core,ordinary_users,monkeypatch):
+    from tianshu.memory import consolidation as module
+    monkeypatch.setattr(module,'LEASE_RENEW_SECONDS',0.02)
+    alice,_=ordinary_users
+    entered=asyncio.Event()
+    class Queued(FixedConsolidator):
+        async def generate(self,request):
+            entered.set()
+            await asyncio.Event().wait()
+    configure(core,Queued())
+    episode=await observe(core,alice,'lost-lease-while-queued','尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    task=asyncio.create_task(core.workers.consolidate(partition))
+    try:
+        await asyncio.wait_for(entered.wait(),5)
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE memory.consolidation_state SET lease_owner='next-owner',lease_until=now()+interval '6 minutes' WHERE partition_id=%s",(partition,))
+            before_state=await (await conn.execute('SELECT * FROM memory.consolidation_state WHERE partition_id=%s',(partition,))).fetchone()
+        before_batch=await latest_batch(core,partition)
+        before_episode=await row(core,episode)
+        await asyncio.wait_for(task,5)
+        async with core.database.transaction(read_only=True) as conn:
+            state=await (await conn.execute('SELECT * FROM memory.consolidation_state WHERE partition_id=%s',(partition,))).fetchone()
+        assert state==before_state and state['lease_owner']=='next-owner'
+        assert await latest_batch(core,partition)==before_batch
+        assert await row(core,episode)==before_episode
+    finally:
+        task.cancel()
+        await asyncio.gather(task,return_exceptions=True)
 
 
 async def test_late_apply_never_releases_another_active_pointer_or_lease(core,ordinary_users):

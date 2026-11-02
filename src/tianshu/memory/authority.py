@@ -17,5 +17,8 @@ def context_record(context):
 def request_identity(request):
     value = deepcopy(wire(request))
     value.pop("budget", None)
+    for name in ("execution_timeout_seconds", "business_deadline_at"):
+        if value.get(name) is None:
+            value.pop(name, None)
     value["context"] = context_record(value["context"])
     return value

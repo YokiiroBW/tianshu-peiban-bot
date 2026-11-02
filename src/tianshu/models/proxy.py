@@ -24,7 +24,9 @@ def register_native_proxy(app, settings):
     async def lifecycle(_app):
         async with aiohttp.ClientSession(
             connector=aiohttp.TCPConnector(limit=32),
-            timeout=aiohttp.ClientTimeout(total=920),
+            # Broker owns admission/execution timing. A total transport timeout
+            # here would charge queueing against the supplier's execution window.
+            timeout=aiohttp.ClientTimeout(total=None),
             auto_decompress=False,
         ) as session:
             _app[session_key] = session

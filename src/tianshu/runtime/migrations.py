@@ -16,6 +16,7 @@ def foundation_migrations():
     return (
         Migration("0001_runtime", files("tianshu.runtime").joinpath("schema.sql").read_text()),
         Migration("0002_models", files("tianshu.models").joinpath("schema.sql").read_text()),
+        Migration("0004_models_execution_timing", files("tianshu.models").joinpath("execution_timing.sql").read_text()),
     )
 
 

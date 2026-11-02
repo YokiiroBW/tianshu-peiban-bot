@@ -35,6 +35,8 @@ class Embeddings:
         service_class=ServiceClass.ELASTIC,
         profile_snapshot=None,
         max_queue_wait=None,
+        execution_seconds=None,
+        business_deadline_at=None,
     ):
         # A query's existence check and its embedding use the same profile.
         # This is request-local reuse, never a second profile cache.
@@ -54,9 +56,11 @@ class Embeddings:
             max_output_tokens=0,
             native_payload={"input": [prefix + text]},
             source_refs=tuple(source_refs),
+            execution_timeout_seconds=execution_seconds if execution_seconds is not None else budget.remaining(),
+            business_deadline_at=business_deadline_at,
         )
         if max_queue_wait is not None:
-            request = replace(request, max_queue_wait=min(request.max_queue_wait, max_queue_wait))
+            request = replace(request, max_queue_wait=max_queue_wait)
         result = (
             await self.models.generate(request)
             if query

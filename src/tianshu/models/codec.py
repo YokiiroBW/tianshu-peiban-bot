@@ -7,6 +7,7 @@ from tianshu.runtime.errors import AppError
 from .types import (ExternalRequest, ModelEvent, ModelMessage, ModelPart, ModelReceipt,
                     ModelRequest, ModelResult, ModelUsage, ModelCompletion, ToolSpec)
 from .completion import completion_from_native
+from .timing import validate_timing
 
 
 def context_from_wire(value):
@@ -31,6 +32,10 @@ def part_from_wire(value):
 def request_from_wire(value):
     try:
         value = dict(value)
+        if "execution_timeout_seconds" not in value:
+            value.setdefault("max_queue_wait", 30.0)
+        if value.get("business_deadline_at"):
+            value["business_deadline_at"] = datetime.fromisoformat(value["business_deadline_at"])
         value["context"] = context_from_wire(value["context"])
         value["budget"] = budget_from_wire(value["budget"])
         value["service_class"] = ServiceClass(value["service_class"])
@@ -40,7 +45,9 @@ def request_from_wire(value):
         value["tools"] = tuple(ToolSpec(**item) for item in value.get("tools", []))
         value["required_capabilities"] = frozenset(value.get("required_capabilities", ["text"]))
         value["source_refs"] = tuple(SourceRef(**item) for item in value.get("source_refs", []))
-        return ModelRequest(**value)
+        request = ModelRequest(**value)
+        validate_timing(request)
+        return request
     except (KeyError, TypeError, ValueError):
         raise AppError("invalid_model_request") from None
 
@@ -48,11 +55,17 @@ def request_from_wire(value):
 def external_from_wire(value):
     try:
         value = dict(value)
+        if "execution_timeout_seconds" not in value:
+            value.setdefault("max_queue_wait", 30.0)
+        if value.get("business_deadline_at"):
+            value["business_deadline_at"] = datetime.fromisoformat(value["business_deadline_at"])
         value["context"] = context_from_wire(value["context"])
         value["budget"] = budget_from_wire(value["budget"])
         value["service_class"] = ServiceClass(value["service_class"])
         value["source_refs"] = tuple(SourceRef(**item) for item in value.get("source_refs", []))
-        return ExternalRequest(**value)
+        request = ExternalRequest(**value)
+        validate_timing(request)
+        return request
     except (KeyError, TypeError, ValueError):
         raise AppError("invalid_external_request") from None
 
@@ -62,7 +75,7 @@ def receipt_from_wire(value):
         return None
     value = dict(value)
     value["usage"] = ModelUsage(**value.get("usage", {}))
-    for name in ("queued_at", "started_at", "finished_at", "hold_until"):
+    for name in ("queued_at", "started_at", "finished_at", "hold_until", "deadline_at"):
         if value.get(name):
             value[name] = datetime.fromisoformat(value[name])
     return ModelReceipt(**value)

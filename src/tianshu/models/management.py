@@ -249,7 +249,7 @@ async def _apply_configuration(conn, operation, body, expected, services):
             positive(body, "rpm", optional=True),
             positive(body, "tpm", optional=True),
             positive(body, "max_queue"),
-            positive(body, "max_wait_seconds"),
+            positive(body, "max_wait_seconds", optional=True),
             positive(body, "unknown_hold_seconds"),
             Jsonb(unit_limits),
             body.get("interactive_rpm_reserve", 0),
@@ -265,6 +265,7 @@ async def _apply_configuration(conn, operation, body, expected, services):
                 background,
                 rpm=values[4],
                 tpm=values[5],
+                max_wait_seconds=values[7],
                 unit_limits=unit_limits,
                 interactive_rpm_reserve=values[10],
                 background_rpm_max=values[11],
@@ -528,6 +529,7 @@ def register_routes(app, services):
         profile = await services.models.generation_profile(model_request)
         model_request = replace(model_request,
             budget=RequestBudget(datetime.now(UTC) + timedelta(seconds=timeout_seconds)),
+            execution_timeout_seconds=timeout_seconds,
             protocol=profile["protocol"], max_output_tokens=output_tokens,
             parameters=with_output_tokens(profile["protocol"], profile["output_parameters"], output_tokens))
         result = None

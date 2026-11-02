@@ -112,9 +112,41 @@ async def test_query_reuses_one_profile_and_leaves_provider_execution_time_after
     rows, missing = await retrieval._vectors(None, MemoryQueryPlan(query="synthetic"), parent, (), ServiceClass.ELASTIC)
     assert not rows and not missing and models.profile_reads == len(models.requests) == 1
     request = models.requests[0]
-    assert request.service_class == ServiceClass.ELASTIC and request.max_queue_wait == 30
+    assert request.service_class == ServiceClass.ELASTIC and request.max_queue_wait > 50
     assert request.budget.deadline_at == parent.deadline_at - timedelta(seconds=0.5)
-    assert request.budget.remaining() - request.max_queue_wait > 20
+    assert request.execution_timeout_seconds == 1.0
+    assert request.business_deadline_at == request.budget.deadline_at
+    assert request.budget.remaining() - request.max_queue_wait >= 1.0
+
+
+async def test_background_candidate_vector_queue_does_not_expire_the_following_sql_phase():
+    class Models:
+        requests=[]
+        async def embedding_profile(self):
+            return {"dimensions":1024,"normalization":"none"}
+        async def generate(self,request):
+            self.requests.append(request)
+            assert request.execution_timeout_seconds==0.1
+            assert request.business_deadline_at is None and request.max_queue_wait is None
+            # Queueing exceeds the provider execution allowance. The following
+            # SQL phase must get its own bound, rather than the expired one.
+            await asyncio.sleep(0.15)
+            return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"),
+                native_response={"data":[{"embedding":[1.0]+[0.0]*1023}]})
+    class Store:
+        checked=False
+        async def has_vectors(self,*args):
+            return True
+        async def vectors(self,*args):
+            args[-1].check()
+            self.checked=True
+            return [],False
+    models=Models()
+    retrieval=MemoryRetrieval(SimpleNamespace(database=None,models=models),Embeddings(None,models,None),
+        {"embedding_seconds":0.1,"vector_sql_seconds":0.1})
+    retrieval.store=Store()
+    rows,missing=await retrieval._vectors(None,MemoryQueryPlan(query="synthetic"),None,(),ServiceClass.ELASTIC)
+    assert not rows and not missing and retrieval.store.checked and len(models.requests)==1
 
 
 async def test_empty_authorized_profile_lane_skips_embedding_without_using_lexical_results(core, ordinary_users):

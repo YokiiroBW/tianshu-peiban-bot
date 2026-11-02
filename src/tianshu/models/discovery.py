@@ -209,6 +209,7 @@ async def enumerate_models(services, context, provider_id, body):
             ServiceClass.INTERACTIVE,
             provider_id,
             estimated_units={"requests": 1},
+            execution_timeout_seconds=30,
         )
         url, headers, params = native_request(
             provider,
@@ -221,7 +222,7 @@ async def enumerate_models(services, context, provider_id, body):
             async with services.models.resource(request) as permit:
                 await permit.submitted()
                 async with aiohttp.ClientSession(
-                    timeout=aiohttp.ClientTimeout(total=request.budget.remaining())
+                    timeout=aiohttp.ClientTimeout(total=permit.request.budget.remaining())
                 ) as session:
                     async with session.get(
                         url, headers=headers, params=params, allow_redirects=False

@@ -10,6 +10,7 @@ from psycopg.types.json import Jsonb
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from .types import ModelReceipt, ModelUsage
+from .timing import waiting_budget
 
 
 def digest(value):
@@ -28,7 +29,7 @@ def receipt(row):
         row["attempt_id"], row["intent_id"], row["status"], row["dispatch"], row["route_id"],
         row["route_revision"], row["provider_id"], row["model"], row["protocol"],
         row["quota_group"], ModelUsage(**usage), row["provider_handle"], row["queued_at"],
-        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"))
+        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"), row.get("deadline_at"))
 
 
 class AttemptLedger:
@@ -38,23 +39,34 @@ class AttemptLedger:
     async def create(self, request, plan, units):
         semantic = wire(request)
         semantic.pop("budget", None)
-        semantic.pop("max_queue_wait", None)
+        if getattr(request, "execution_timeout_seconds", None) is None:
+            semantic.pop("max_queue_wait", None)
+        # New timing fields participate in a new attempt's identity. Omitting
+        # absent fields preserves the digest of previously frozen attempts.
+        for name in ("execution_timeout_seconds", "business_deadline_at"):
+            if semantic.get(name) is None:
+                semantic.pop(name, None)
         request_hash = digest(semantic)
-        async with self.database.transaction(request.budget) as conn:
+        queued_budget = waiting_budget(request)
+        async with self.database.transaction(queued_budget) as conn:
             cursor = await conn.execute(
                 "INSERT INTO models.attempts(attempt_id,intent_id,principal_id,actor_id,"
                 "conversation_id,function,service_class,route_id,route_revision,provider_id,"
                 "model,protocol,quota_group,request_digest,status,dispatch,deadline_at,"
-                "estimated_tokens,estimated_units,charged_units,broker_instance,billing_account,source_refs,context_fingerprint,persona_revision) "
+                "estimated_tokens,estimated_units,charged_units,broker_instance,billing_account,source_refs,context_fingerprint,persona_revision,"
+                "execution_timeout_seconds,business_deadline_at,max_queue_wait) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'queued','not_started',"
-                "%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
+                "%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING *",
                 (request.attempt_id, request.intent_id, request.context.principal_id,
                  request.context.actor_id, request.context.conversation_id, request.function,
                  request.service_class.value, plan.route_id, plan.revision, plan.provider_id,
                  plan.model, plan.protocol, plan.quota_group, request_hash,
-                 request.budget.deadline_at, units.get("tokens"), Jsonb(dict(units)),
+                 request.budget.deadline_at if getattr(request, "execution_timeout_seconds", None) is None else None,
+                 units.get("tokens"), Jsonb(dict(units)),
                  Jsonb(dict(units)), self.instance_id, getattr(request, "billing_account", None),
-                 Jsonb(wire(request.source_refs)), context_fingerprint(request.context), getattr(request, "persona_revision", None)))
+                 Jsonb(wire(request.source_refs)), context_fingerprint(request.context), getattr(request, "persona_revision", None),
+                 getattr(request, "execution_timeout_seconds", None), getattr(request, "business_deadline_at", None),
+                 request.max_queue_wait))
             row = await cursor.fetchone()
             if row:
                 cancelled = await (await conn.execute("SELECT 1 FROM models.cancellations "
@@ -77,16 +89,31 @@ class AttemptLedger:
                                         (attempt_id,))
             return await cursor.fetchone()
 
-    async def started(self, attempt_id, hold_seconds):
+    async def admitted(self, attempt_id, deadline_at):
+        """External admission starts its execution window, without claiming I/O."""
+        async with self.database.transaction(control=True) as conn:
+            row = await (await conn.execute("UPDATE models.attempts SET deadline_at=%s,revision=revision+1 "
+                "WHERE attempt_id=%s AND status='queued' AND NOT cancel_requested "
+                "AND deadline_at IS NULL AND execution_timeout_seconds IS NOT NULL AND %s>now() "
+                "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
+                "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
+                (deadline_at, attempt_id, deadline_at))).fetchone()
+        if not row:
+            raise AppError("attempt_cancelled_before_start", status=409)
+        return row
+
+    async def started(self, attempt_id, hold_seconds, *, deadline_at=None):
         async with self.database.transaction(control=True) as conn:
             cursor = await conn.execute(
                 "UPDATE models.attempts SET status='running',dispatch='submitted',started_at=now(),"
-                "hold_until=GREATEST(deadline_at,now()+(%s*interval '1 second')),"
+                "deadline_at=COALESCE(%s,deadline_at),"
+                "hold_until=GREATEST(COALESCE(%s,deadline_at),now()+(%s*interval '1 second')),"
                 "charged_tokens=estimated_tokens,revision=revision+1 "
                 "WHERE attempt_id=%s AND status='queued' AND NOT cancel_requested "
+                "AND COALESCE(%s,deadline_at)>now() "
                 "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
                 "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
-                (hold_seconds, attempt_id))
+                (deadline_at, deadline_at, hold_seconds, attempt_id, deadline_at))
             row = await cursor.fetchone()
             if not row:
                 raise AppError("attempt_cancelled_before_start", status=409)

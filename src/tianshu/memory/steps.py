@@ -1,7 +1,5 @@
 """Fixed model-step requests; unknown outcomes are observed by original attempt only."""
 
-from dataclasses import replace
-from datetime import UTC, datetime, timedelta
 from math import ceil
 
 from psycopg.types.json import Jsonb
@@ -10,7 +8,6 @@ from tianshu.models.codec import request_from_wire
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-from tianshu.types import RequestBudget
 from .authority import request_identity
 
 
@@ -23,7 +20,9 @@ class ModelSteps:
             raise AppError("source_unavailable", status=403)
         await conn.execute(
             "INSERT INTO memory.model_steps(step_id,request,request_timeout_seconds) VALUES(%s,%s,%s) ON CONFLICT DO NOTHING",
-            (step_id, Jsonb(wire(request)), max(1,min(900,ceil(request.budget.remaining())))))
+            (step_id, Jsonb(wire(request)), max(1,min(900,ceil(
+                request.execution_timeout_seconds if request.execution_timeout_seconds is not None
+                else request.budget.remaining())))))
         row = await (await conn.execute(
             "SELECT * FROM memory.model_steps WHERE step_id=%s", (step_id,))).fetchone()
         if row["state"] == "source_revoked":
@@ -53,15 +52,13 @@ class ModelSteps:
     async def run_recorded(self, step_id, request):
         async with self.database.transaction() as conn:
             await self.prepare_on(conn, step_id, request)
-        return await self.execute_recorded(step_id, budget=request.budget)
+        return await self.execute_recorded(step_id)
 
-    async def execute_recorded(self, step_id, *, budget=None, observe_only=False):
-        row, original = await self.recorded(step_id)
-        deadline = datetime.now(UTC)+timedelta(seconds=row["request_timeout_seconds"])
-        if budget:
-            deadline = min(deadline,budget.deadline_at)
-        stored = replace(original, budget=RequestBudget(deadline,
-            trace_id=original.budget.trace_id, cancellation_id=original.budget.cancellation_id))
+    async def execute_recorded(self, step_id, *, observe_only=False):
+        _, original = await self.recorded(step_id)
+        # A new frozen request carries an execution duration, allocated only by
+        # Broker on admission. A legacy absolute deadline is never extended.
+        stored = original
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn, original.context, original.source_refs):
                 raise AppError("source_unavailable", status=403)
@@ -90,11 +87,12 @@ class ModelSteps:
                                  "action": "observe_original_attempt"})
         except BaseException as exc:
             if not isinstance(exc, AppError) or exc.code not in {"source_unavailable"}:
+                known_cancel = isinstance(exc, AppError) and (exc.details or {}).get("dispatch") == "not_started" and (exc.details or {}).get("status") == "cancelled"
                 async with self.database.transaction() as conn:
                     await conn.execute(
-                        "UPDATE memory.model_steps SET state='unknown',error_code=%s,updated_at=now() "
+                        "UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() "
                         "WHERE step_id=%s AND state NOT IN ('source_revoked','succeeded','failed','cancelled')",
-                        (getattr(exc, "code", "model_transport_unknown"), step_id))
+                        ("cancelled" if known_cancel else "unknown",getattr(exc, "code", "model_transport_unknown"), step_id))
             raise
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn, original.context, original.source_refs):

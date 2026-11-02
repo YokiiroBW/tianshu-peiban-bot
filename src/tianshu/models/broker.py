@@ -27,6 +27,7 @@ from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
 from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
 from .estimation import input_tokens
+from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, waiting_expired
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -39,7 +40,6 @@ class ModelBroker:
         files,
         secrets,
         *,
-        http_connections=32,
         events=None,
         validate_submission=None,
         validate_persistence=None,
@@ -53,7 +53,6 @@ class ModelBroker:
         self.compiler = NativeCompiler(files, secrets)
         self.instance_id = str(uuid4())
         self.ledger = AttemptLedger(database, self.instance_id)
-        self.http_connections = http_connections
         self.session = None
         self.scheduler = None
         self.owner = None
@@ -152,9 +151,9 @@ class ModelBroker:
             self.scheduler.restore(await self.ledger.recover())
             await self.scheduler.start()
             self.session = aiohttp.ClientSession(
-                connector=aiohttp.TCPConnector(
-                    limit=self.http_connections, limit_per_host=self.http_connections
-                ),
+                # The bounded quota scheduler already owns supplier capacity.
+                # A connector cap would add an invisible queue after admission.
+                connector=aiohttp.TCPConnector(limit=0, limit_per_host=0),
                 auto_decompress=False,
                 timeout=aiohttp.ClientTimeout(total=None),
             )
@@ -232,6 +231,12 @@ class ModelBroker:
         await self.scheduler.cancel(attempt_id)
         if not row:
             return None
+        if row["status"] == "queued" and row.get("execution_timeout_seconds") is not None:
+            # request_cancel locked this row before submission. Its CAS now
+            # forbids a future start, so a caller timeout has a known receipt.
+            code = ("business_deadline_expired" if row.get("business_deadline_at")
+                    and row["business_deadline_at"] <= datetime.now(UTC) else "cancelled_before_start")
+            row = await self.ledger.finish(attempt_id, "cancelled", error_code=code)
         task = self.active.get(attempt_id)
         if task:
             task.cancel()
@@ -239,7 +244,9 @@ class ModelBroker:
             return await self.external[attempt_id].unknown("cancelled_before_external_submit")
         elif row["status"] == "queued":
             row = await self.ledger.finish(
-                attempt_id, "cancelled", error_code="cancelled_before_start"
+                attempt_id, "cancelled", error_code=("business_deadline_expired"
+                    if row.get("execution_timeout_seconds") is not None and row.get("business_deadline_at")
+                    and row["business_deadline_at"] <= datetime.now(UTC) else "cancelled_before_start")
             )
         # External domain I/O sees cancel_requested through its separate control watcher.
         return receipt(row)
@@ -257,8 +264,9 @@ class ModelBroker:
     async def generation_profile(self, request):
         """Read the selected native route without creating an attempt or permit."""
         request.budget.check()
-        await self.recheck(request)
-        plan = await self.catalog.resolve(request)
+        async with request.budget.timeout():
+            await self.recheck(request)
+            plan = await self.catalog.resolve(request)
         output = effective_output_tokens(plan, request)
         parameters = merged_parameters(plan, request)
         return {"route_id": plan.route_id, "route_revision": plan.revision,
@@ -272,7 +280,7 @@ class ModelBroker:
     async def _events(self, request, *, stream):
         if not self.ready:
             raise AppError("broker_unavailable", status=503)
-        request.budget.check()
+        waiting_timeout(request)
         if request.service_class == ServiceClass.CONTROL:
             raise AppError("control_does_not_generate")
         if type(request.max_output_tokens) is not int or request.max_output_tokens < 0:
@@ -281,7 +289,7 @@ class ModelBroker:
             type(request.estimated_input_tokens) is not int or request.estimated_input_tokens < 0
         ):
             raise AppError("invalid_input_token_estimate")
-        async with request.budget.timeout():
+        async with waiting(request):
             await self.recheck(request)
             request = await self.prepare_media(request)
         request = replace(request, required_capabilities=requested_capabilities(request, stream))
@@ -300,7 +308,7 @@ class ModelBroker:
             "previous_response_id", request.parameters.get("previous_response_id")
         )
         if state_reference:
-            async with self.database.transaction(request.budget, read_only=True) as conn:
+            async with self.database.transaction(waiting_budget(request), read_only=True) as conn:
                 previous = await (
                     await conn.execute(
                         "SELECT provider_id,model,protocol,source_refs,context_fingerprint,persona_revision "
@@ -337,7 +345,7 @@ class ModelBroker:
             raise AppError("model_preparation_queue_full", status=429)
         self.prepare_pending += 1
         try:
-            async with request.budget.timeout():
+            async with waiting(request):
                 async with self.prepare_slots:
                     prepare = asyncio.create_task(
                         asyncio.to_thread(
@@ -376,13 +384,20 @@ class ModelBroker:
         try:
             await self.scheduler.acquire(request, plan.quota_group, units)
             acquired = True
-            request.budget.check()
-            await self.recheck(request)
+            # The frozen duration becomes an absolute execution deadline only
+            # after the shared supplier permit has actually been granted.
+            request = replace(request, budget=execution_budget(request))
             policy = self.scheduler.policies[plan.quota_group]
-            await self.ledger.started(request.attempt_id, policy.unknown_hold_seconds)
-            submitted, started = True, time.monotonic()
-            await self.scheduler.submitted(plan.quota_group, request.attempt_id)
-            await self.event("model.submitted", "started", request.attempt_id)
+            async with request.budget.timeout():
+                await self.recheck(request)
+                if request.execution_timeout_seconds is None:
+                    await self.ledger.started(request.attempt_id, policy.unknown_hold_seconds)
+                else:
+                    await self.ledger.started(request.attempt_id, policy.unknown_hold_seconds,
+                                              deadline_at=request.budget.deadline_at)
+                submitted, started = True, time.monotonic()
+                await self.scheduler.submitted(plan.quota_group, request.attempt_id)
+                await self.event("model.submitted", "started", request.attempt_id)
             async with request.budget.timeout():
                 async with self.session.post(
                     call.url,
@@ -538,6 +553,13 @@ class ModelBroker:
                     else "transport_unknown"
                 )
             )
+            if request.execution_timeout_seconds is not None and not submitted:
+                if isinstance(exc, AppError) and exc.code in {"queue_wait_expired", "business_deadline_expired"}:
+                    status = "cancelled"
+                elif isinstance(exc, (TimeoutError, asyncio.CancelledError)):
+                    expired = waiting_expired(request)
+                    code = (expired.code if expired.code == "business_deadline_expired" else
+                        "execution_deadline_expired" if acquired and isinstance(exc, TimeoutError) else "cancelled_before_start")
             if not terminal:
                 row = await finish_cleanup(
                     self.ledger.finish(request.attempt_id, status, error_code=code)
@@ -565,7 +587,8 @@ class ModelBroker:
     async def resource(self, request):
         permit = await self.begin_external(request)
         try:
-            yield permit
+            async with permit.request.budget.timeout():
+                yield permit
         except BaseException:
             await finish_cleanup(permit.unknown("external_interrupted"))
             raise
@@ -578,6 +601,7 @@ class ModelBroker:
             raise AppError("broker_unavailable", status=503)
         if request.service_class == ServiceClass.CONTROL:
             raise AppError("control_does_not_generate")
+        waiting_timeout(request)
         if any(
             type(value) not in (int, float) or not math.isfinite(value) or value < 0
             for value in request.estimated_units.values()
@@ -601,14 +625,27 @@ class ModelBroker:
             raise AppError("attempt_already_exists", status=409, details=wire(receipt(row)))
         if row["status"] == "cancelled":
             raise AppError("attempt_cancelled_before_start", status=409)
+        acquired = False
         try:
             await self.scheduler.acquire(request, request.quota_group, request.estimated_units)
-        except BaseException:
+            acquired = True
+            request = replace(request, budget=execution_budget(request))
+            if request.execution_timeout_seconds is not None:
+                async with request.budget.timeout():
+                    await self.ledger.admitted(request.attempt_id, request.budget.deadline_at)
+        except BaseException as exc:
             await finish_cleanup(
                 self.ledger.finish(
-                    request.attempt_id, "cancelled", error_code="external_not_started"
+                    request.attempt_id, "cancelled", error_code=(
+                        exc.code if isinstance(exc, AppError) and exc.code in {"queue_wait_expired", "business_deadline_expired"}
+                        else waiting_expired(request).code if request.execution_timeout_seconds is not None
+                        and request.business_deadline_at is not None and request.business_deadline_at <= datetime.now(UTC)
+                        else "external_not_started")
                 )
             )
+            if acquired:
+                await finish_cleanup(self.scheduler.release(request.quota_group,
+                    request.attempt_id, not_started=True))
             raise
         permit = ExternalPermit(self, request)
         self.external[request.attempt_id] = permit

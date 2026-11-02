@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import replace
 import json
 
 import aiohttp
@@ -11,8 +12,19 @@ import aiohttp
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.runtime.cancellation import finish_cleanup
-from tianshu.types import ServiceClass
+from tianshu.types import RequestBudget, ServiceClass
 from .codec import event_from_wire, receipt_from_wire, result_from_wire
+from .timing import waiting_timeout
+
+_DEFAULT_TIMEOUT = object()
+
+
+def _known_wait_expiry(receipt):
+    if (receipt is not None and receipt.status == "cancelled" and receipt.dispatch == "not_started"
+            and receipt.error_code in {"queue_wait_expired", "business_deadline_expired"}):
+        return AppError(receipt.error_code, status=408,
+                        details={"status": "cancelled", "dispatch": "not_started"})
+    return None
 
 
 class ModelClient:
@@ -61,12 +73,12 @@ class ModelClient:
             return self.session
         raise AppError("invalid_model_service_class")
 
-    async def _json(self, path, *, body=None, control=False, timeout=None, method="POST",
+    async def _json(self, path, *, body=None, control=False, timeout=_DEFAULT_TIMEOUT, method="POST",
                     service_class=ServiceClass.INTERACTIVE):
         session = self.control_session if control else self._data_session(service_class)
         async with session.request(method, self.base_url+path, json=wire(body),
             allow_redirects=False, timeout=aiohttp.ClientTimeout(total=(
-                timeout if timeout is not None else 5 if control else 120))) as response:
+                (5 if control else 120) if timeout is _DEFAULT_TIMEOUT else timeout))) as response:
             value = await response.json()
             if response.status >= 400:
                 error = value.get("error", {})
@@ -75,23 +87,27 @@ class ModelClient:
             return value
 
     async def generate(self, request):
-        request.budget.check()
+        timeout = waiting_timeout(request)
         try:
             value = await self._json("/internal/v1/models/generate", body=request,
-                                     timeout=request.budget.remaining(),
+                                     timeout=timeout,
                                      service_class=request.service_class)
             return result_from_wire(value)
-        except (asyncio.CancelledError, TimeoutError, aiohttp.ClientError):
-            await self._cancel_cleanup(request.attempt_id)
+        except (asyncio.CancelledError, TimeoutError, aiohttp.ClientError) as exc:
+            receipt = await self._cancel_cleanup(request.attempt_id)
+            known = _known_wait_expiry(receipt)
+            if known is not None and not isinstance(exc, asyncio.CancelledError):
+                raise known from None
             raise
 
     async def stream(self, request):
-        request.budget.check()
+        timeout = waiting_timeout(request)
         complete = False
+        cleaned_up = False
         try:
             async with self._data_session(request.service_class).post(
                 self.base_url+"/internal/v1/models/stream", json=wire(request),
-                timeout=aiohttp.ClientTimeout(total=request.budget.remaining())) as response:
+                timeout=aiohttp.ClientTimeout(total=timeout)) as response:
                 if response.status >= 400:
                     value = await response.json()
                     raise AppError(value.get("error", {}).get("code", "broker_error"), status=response.status)
@@ -101,13 +117,20 @@ class ModelClient:
                     event = event_from_wire(json.loads(line))
                     complete |= event.kind == "receipt"
                     yield event
+        except (TimeoutError, aiohttp.ClientError):
+            receipt = await self._cancel_cleanup(request.attempt_id)
+            cleaned_up = True
+            known = _known_wait_expiry(receipt)
+            if known is not None:
+                raise known from None
+            raise
         finally:
-            if not complete:
+            if not complete and not cleaned_up:
                 await self._cancel_cleanup(request.attempt_id)
 
     async def _cancel_cleanup(self, attempt_id):
         try:
-            await finish_cleanup(self.cancel(attempt_id))
+            return await finish_cleanup(self.cancel(attempt_id))
         except (AppError, TimeoutError, aiohttp.ClientError):
             # The durable attempt retains its original identity for subsequent status reads.
             pass
@@ -146,19 +169,28 @@ class ModelClient:
 
     @asynccontextmanager
     async def resource(self, request):
-        request.budget.check()
+        timeout = waiting_timeout(request)
         try:
-            await self._json("/internal/v1/resources", body=request,
-                             timeout=request.budget.remaining(), service_class=request.service_class)
+            value = await self._json("/internal/v1/resources", body=request,
+                             timeout=timeout, service_class=request.service_class)
+            if request.execution_timeout_seconds is not None:
+                admitted = receipt_from_wire(value["receipt"])
+                if admitted.deadline_at is None:
+                    raise AppError("external_execution_deadline_missing", status=502)
+                request = replace(request, budget=RequestBudget(admitted.deadline_at,
+                    cancellation_id=request.budget.cancellation_id, trace_id=request.budget.trace_id))
         except AppError as exc:
             # A definite duplicate identifies another owner of this original attempt.
             # It grants no new permit and must never cancel that owner's real work.
             if exc.code != "attempt_already_exists":
                 await self._cancel_cleanup(request.attempt_id)
             raise
-        except BaseException:
+        except BaseException as exc:
             # Enqueue/admission may have committed even when its response was lost.
-            await self._cancel_cleanup(request.attempt_id)
+            receipt = await self._cancel_cleanup(request.attempt_id)
+            known = _known_wait_expiry(receipt)
+            if known is not None and not isinstance(exc, asyncio.CancelledError):
+                raise known from None
             raise
         permit = ClientExternalPermit(self, request)
         owner = asyncio.current_task()

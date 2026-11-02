@@ -547,7 +547,7 @@ class MaterialBuilder:
                 if refs:
                     value=codec.matter(row,selected_refs=refs,relations=links.get(row["matter_id"],()))
                     candidates.setdefault(("matter",row["matter_id"]),wire(build_evidence_unit(value)))
-        if self.record_candidates and query and budget is not None and budget.remaining() > 0:
+        if self.record_candidates and query:
             try:
                 values=await self.record_candidates(context,query,budget,subject_ids=tuple(subjects),
                     matter_refs=tuple(matter_ids),kinds=("claim","hypothesis","matter"),limit=self.policy.max_old_records)

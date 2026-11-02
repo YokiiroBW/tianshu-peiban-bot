@@ -49,7 +49,7 @@ class ModelRequest:
     required_capabilities: frozenset[str] = frozenset({"text"})
     max_output_tokens: int = 2048
     estimated_input_tokens: int | None = None
-    max_queue_wait: float = 30.0
+    max_queue_wait: float | None = None
     route_revision: int | None = None
     persona_revision: int | None = None
     context_revision: int | None = None
@@ -61,6 +61,9 @@ class ModelRequest:
     parameters: Mapping[str, Any] = field(default_factory=dict)
     source_refs: tuple[SourceRef, ...] = ()
     capability_probe: bool = False
+    # Absence retains the absolute budget of previously frozen requests.
+    execution_timeout_seconds: float | None = None
+    business_deadline_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -94,6 +97,7 @@ class ModelReceipt:
     first_output_ms: float | None = None
     error_code: str | None = None
     hold_until: datetime | None = None
+    deadline_at: datetime | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,5 +140,7 @@ class ExternalRequest:
     provider_id: str
     billing_account: str | None = None
     estimated_units: Mapping[str, float] = field(default_factory=dict)
-    max_queue_wait: float = 30.0
+    max_queue_wait: float | None = None
     source_refs: tuple[SourceRef, ...] = ()
+    execution_timeout_seconds: float | None = None
+    business_deadline_at: datetime | None = None

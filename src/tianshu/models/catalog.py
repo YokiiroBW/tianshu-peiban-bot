@@ -8,6 +8,7 @@ from typing import Any, Mapping
 
 from tianshu.runtime.errors import AppError
 from .types import ModelRequest
+from .timing import validate_timing, waiting_budget
 from tianshu.runtime.commands import body_hash
 
 FUNCTIONS = (
@@ -72,7 +73,7 @@ class QuotaPolicy:
     rpm: int | None = None
     tpm: int | None = None
     max_queue: int = 128
-    max_wait_seconds: float = 60
+    max_wait_seconds: float | None = None
     unknown_hold_seconds: float = 300
     unit_limits: Mapping[str, float] = field(default_factory=dict)
     interactive_rpm_reserve: int = 0
@@ -93,7 +94,10 @@ class QuotaPolicy:
         for value in (self.rpm, self.tpm, self.background_rpm_max):
             if value is not None and (type(value) is not int or value < 0):
                 raise ValueError("invalid_quota_limit")
-        for value in (self.max_wait_seconds, self.unknown_hold_seconds):
+        waits = [self.unknown_hold_seconds]
+        if self.max_wait_seconds is not None:
+            waits.append(self.max_wait_seconds)
+        for value in waits:
             if type(value) not in (int, float) or not math.isfinite(value) or value <= 0:
                 raise ValueError("invalid_quota_wait")
         for mapping in (self.unit_limits, self.interactive_unit_reserve, self.background_unit_max):
@@ -144,10 +148,10 @@ class ModelCatalog:
             type(request.max_output_tokens) is not int
             or request.max_output_tokens < (0 if request.function in {"embed", "rerank"} else 1)
             or request.max_output_tokens > 2**31 - 1
-            or request.max_queue_wait <= 0
         ):
             raise AppError("invalid_model_budget")
-        async with self.database.transaction(request.budget, read_only=True) as conn:
+        validate_timing(request)
+        async with self.database.transaction(waiting_budget(request), read_only=True) as conn:
             if request.route_id:
                 if not ({"models.route", "*"} & request.context.permissions) and not (
                     request.capability_probe and "models.manage" in request.context.permissions

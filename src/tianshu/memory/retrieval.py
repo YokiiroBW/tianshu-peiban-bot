@@ -68,6 +68,8 @@ class MemoryRetrieval:
 
     @staticmethod
     def phase_budget(parent, seconds):
+        if parent is None:
+            return RequestBudget(datetime.now(UTC) + timedelta(seconds=seconds))
         available = parent.remaining()
         # Optional remote work leaves time for authoritative SQL/source rechecks.
         seconds = min(max(seconds, 0.01), max(available - min(0.5, available / 2), 0.01))
@@ -80,11 +82,13 @@ class MemoryRetrieval:
 
         The parent's deadline is unchanged. Spare time can pay for queueing;
         queueing must not consume the target execution window or final rechecks.
-        A background caller supplies its longer preparation budget to this same
-        path, rather than receiving a foreground-sized request timeout.
+        Consolidation's background candidate port has no business deadline;
+        its execution allowance is allocated by Models only on admission.
         """
         if not math.isfinite(execution_seconds) or execution_seconds <= 0:
             raise AppError("invalid_memory_retrieval_phase_budget")
+        if parent is None:
+            return MemoryRetrieval.phase_budget(None, execution_seconds), None
         spare = parent.remaining() - 0.5 - execution_seconds
         if spare <= 0.05:
             return None
@@ -114,7 +118,9 @@ class MemoryRetrieval:
             remote_budget, queue_wait = remote
             values, fingerprint = await self.embeddings.vector(context, plan.query, remote_budget,
                 intent="memory-query:" + str(uuid4()), query=True, profile_snapshot=profile,
-                max_queue_wait=queue_wait, service_class=service_class, source_refs=source_refs)
+                max_queue_wait=queue_wait, execution_seconds=seconds,
+                business_deadline_at=remote_budget.deadline_at if budget is not None else None,
+                service_class=service_class, source_refs=source_refs)
             phase = "vector"
             rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
                 self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", 0.8))))
@@ -207,8 +213,10 @@ class MemoryRetrieval:
             request = ModelRequest("memory-rerank:" + str(uuid4()), str(uuid4()), "rerank",
                 service_class, context, remote_budget, (), required_capabilities=frozenset({"rerank"}),
                 max_output_tokens=0, native_payload={"query": plan.query, "documents": documents, "top_n": limit},
+                execution_timeout_seconds=float(self.settings.get("rerank_seconds", 0.8)),
+                business_deadline_at=remote_budget.deadline_at if budget is not None else None,
                 source_refs=unique_refs(source_refs, *(unit.source_refs for _, unit in ranked)))
-            request = replace(request, max_queue_wait=min(request.max_queue_wait, queue_wait))
+            request = replace(request, max_queue_wait=queue_wait)
             try:
                 result = await self.models.generate(request)
                 indexes = (result.native_response or {}).get("results", ()) if result.receipt.status == "succeeded" else ()
@@ -232,7 +240,8 @@ class MemoryRetrieval:
 
     async def query(self, context, plan, budget, *, source_refs=(), cursor=None, limit=50,
                     service_class=ServiceClass.INTERACTIVE):
-        budget.check()
+        if budget is not None:
+            budget.check()
         plan = parse_plan(plan)
         await self.memory.identity.check(context, source_refs)
         if not context.actor_id:
@@ -287,8 +296,11 @@ class MemoryRetrieval:
 
     async def candidates(self, context, query, budget, *, subject_ids=(), matter_refs=(),
                          kinds=("claim", "hypothesis", "matter"), limit=32):
+        # This port is the consolidation background read. Its old 55-second
+        # preparation clock is not a business expiry. Each DB/profile/provider
+        # phase keeps its own execution bound; waiting for Models consumes none.
         page = await self.query(context, MemoryQueryPlan(query=query, subject_ids=tuple(subject_ids),
-            matter_refs=tuple(matter_refs), evidence_kinds=tuple(kinds)), budget,
+            matter_refs=tuple(matter_refs), evidence_kinds=tuple(kinds)), None,
             limit=min(max(int(limit), 1), 32), service_class=ServiceClass.ELASTIC)
         return tuple(page.items)
 

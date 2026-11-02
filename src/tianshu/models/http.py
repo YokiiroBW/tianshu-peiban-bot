@@ -168,9 +168,8 @@ def create_broker_app(broker, token, external_keys=()):
         if route_id is None:
             raise AppError("model_not_allowed", status=403)
         streaming = bool(body.get("stream")) or ":streamGenerateContent" in request.path
-        deadline = datetime.now(UTC) + timedelta(
-            seconds=min(grant.get("timeout_seconds", 120), 900)
-        )
+        execution_seconds = min(grant.get("timeout_seconds", 120), 900)
+        deadline = datetime.now(UTC) + timedelta(seconds=execution_seconds)
         identity = str(uuid4())
         context = TrustedContext(
             "model-client:" + grant["id"],
@@ -191,6 +190,7 @@ def create_broker_app(broker, token, external_keys=()):
             context,
             RequestBudget(deadline),
             (),
+            execution_timeout_seconds=execution_seconds,
             max_output_tokens=0
             if protocol == "openai.embedding"
             else body.get(

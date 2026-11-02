@@ -11,6 +11,7 @@ import time
 
 from tianshu.runtime.errors import AppError
 from tianshu.types import ServiceClass
+from .timing import queue_timeout, waiting_budget, validate_timing, waiting_expired
 
 
 def request_cost(units):
@@ -96,12 +97,7 @@ class QuotaScheduler:
             for value in units.values()
         ):
             raise AppError("invalid_resource_units")
-        if (
-            type(request.max_queue_wait) not in (int, float)
-            or not math.isfinite(request.max_queue_wait)
-            or request.max_queue_wait < 0
-        ):
-            raise AppError("invalid_queue_wait")
+        validate_timing(request)
         if group not in self.policies:
             raise AppError("quota_group_not_configured", status=503)
         policy, state = self.policies[group], self.groups[group]
@@ -132,12 +128,9 @@ class QuotaScheduler:
             state.waiting.append(waiter)
             self.changed.set()
         try:
-            timeout = min(
-                request.budget.remaining(), request.max_queue_wait, policy.max_wait_seconds
-            )
-            async with asyncio.timeout(timeout):
+            async with asyncio.timeout(queue_timeout(request, policy)):
                 await asyncio.shield(future)
-        except BaseException:
+        except BaseException as exc:
             async with self.lock:
                 if waiter in state.waiting:
                     state.waiting.remove(waiter)
@@ -150,6 +143,8 @@ class QuotaScheduler:
                     )
                 future.cancel()
                 self.changed.set()
+            if isinstance(exc, TimeoutError) and getattr(request, "execution_timeout_seconds", None) is not None:
+                raise waiting_expired(request) from None
             raise
 
     async def release(self, group, attempt_id, *, units=None, hold_until=None, not_started=False):
@@ -291,7 +286,8 @@ class QuotaScheduler:
             )
             if kind == ServiceClass.ELASTIC and (state.class_streak >= 3 or age > 30):
                 priority = -1
-            deadline = waiter.request.budget.deadline_at.timestamp()
+            budget = waiting_budget(waiter.request)
+            deadline = budget.deadline_at.timestamp() if budget else math.inf
             candidates.append(
                 (
                     (

@@ -1,6 +1,7 @@
 """One conversation-domain writer: freeze once, observe once, apply all targets atomically."""
 
 from copy import deepcopy
+import asyncio
 from datetime import UTC, datetime, timedelta
 import json
 from uuid import NAMESPACE_URL, uuid4, uuid5
@@ -22,6 +23,7 @@ from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, a
 _ACTIVE = {"prepared", "waiting_model", "ready"}
 _OBSERVABLE = _ACTIVE | {"quarantined"}
 LEASE_SECONDS = MODEL_REQUEST_SECONDS + 60
+LEASE_RENEW_SECONDS = 60
 COMMIT_RESERVE_SECONDS = 5
 
 
@@ -104,6 +106,9 @@ class Consolidation:
                 "UPDATE memory.consolidation_state SET lease_owner=%s,lease_until=now()+%s*interval '1 second',updated_at=now() "
                 "WHERE partition_id=%s RETURNING lease_until", (owner, LEASE_SECONDS, partition_id))).fetchone()
         batch_id = state["active_batch_id"]
+        lease_lost = asyncio.Event()
+        heartbeat = asyncio.create_task(self._keep_lease(partition_id, owner,
+            asyncio.current_task(), lease_lost), name="memory-consolidation-lease")
         try:
             context = context_from_bound(state["authority_bound"])
             await self.identity.check_context(context)
@@ -125,18 +130,52 @@ class Consolidation:
                     budget=self.preparation_budget(lease["lease_until"]))
             if batch_id:
                 await self._execute(batch_id, context, owner=owner)
+        except asyncio.CancelledError:
+            if not lease_lost.is_set():
+                raise
+            worker = asyncio.current_task()
+            worker.uncancel()  # Consume only the lease heartbeat's own cancellation.
+            if worker.cancelling():
+                raise
+            # The next owner now owns all batch/episode mutations. Cancellation
+            # still reaches the original ModelClient, preserving its receipt.
         except (AppError, TimeoutError, ValueError, TypeError) as exc:
             await self._failure(partition_id, batch_id, exc)
         finally:
+            heartbeat.cancel()
+            await asyncio.gather(heartbeat, return_exceptions=True)
             async with self.database.transaction() as conn:
                 await conn.execute(
                     "UPDATE memory.consolidation_state SET lease_owner=NULL,lease_until=NULL WHERE partition_id=%s AND lease_owner=%s",
                     (partition_id, owner))
 
+    async def _renew_lease(self, partition_id, owner):
+        async with self.database.transaction() as conn:
+            row = await (await conn.execute("UPDATE memory.consolidation_state "
+                "SET lease_until=now()+%s*interval '1 second' "
+                "WHERE partition_id=%s AND lease_owner=%s AND lease_until>now() RETURNING partition_id",
+                (LEASE_SECONDS, partition_id, owner))).fetchone()
+        return row is not None
+
+    async def _keep_lease(self, partition_id, owner, worker, lost):
+        try:
+            while True:
+                await asyncio.sleep(min(LEASE_RENEW_SECONDS, LEASE_SECONDS / 3))
+                if not await self._renew_lease(partition_id, owner):
+                    break
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            # An unconfirmed lease cannot authorize a late apply.
+            pass
+        lost.set()
+        worker.cancel()
+
     @staticmethod
     def preparation_budget(lease_until):
-        # Optional candidate reads must leave the existing full model request
-        # window and a commit margin inside this same writer's lease.
+        # Retain the preparation allowance at the assembly boundary. Background
+        # candidate phases do not treat it as a business/queue expiry, and the
+        # owner heartbeat covers both preparation and admitted model execution.
         return RequestBudget(lease_until - timedelta(seconds=MODEL_REQUEST_SECONDS + COMMIT_RESERVE_SECONDS))
 
     def _request(self, context, frozen, step_id, *, context_round=0, requests=()):
@@ -163,6 +202,7 @@ class Consolidation:
                 "new_characters":sum(len(item["text"]) for item in payload["materials"] if item["role"]=="new")})
         return ModelRequest(step_id, attempt_id, "memory.extract", ServiceClass.ELASTIC,
             context, RequestBudget(datetime.now(UTC)+timedelta(seconds=MODEL_REQUEST_SECONDS)), messages,
+            execution_timeout_seconds=MODEL_REQUEST_SECONDS,
             system=instruction, max_output_tokens=self.policy.max_output_tokens+self.policy.reasoning_reserve_tokens, estimated_input_tokens=estimate,
             source_refs=self.materials.dependencies(frozen))
 
@@ -313,6 +353,7 @@ class Consolidation:
         return {"input_tokens":self.policy.max_input_tokens,"output_tokens":self.policy.max_output_tokens,
                 "reasoning_tokens":self.policy.reasoning_reserve_tokens,
                 "generation_policy":"memory-native-low-json-v1","request_seconds":MODEL_REQUEST_SECONDS,
+                "timing_policy":"admitted-execution-v1",
                 "repair_input_policy":"bounded-diagnostic-headroom-v1"}
 
     def _input_budget_record(self):
