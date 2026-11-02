@@ -374,6 +374,7 @@ class Consolidation:
             # including while its unchanged frozen proposal is being checked.
             try:
                 async with self.database.transaction() as conn:
+                    await self._lock_owned_partition(conn,batch["partition_id"],owner)
                     await conn.execute("UPDATE memory.consolidation_batches SET status=CASE WHEN status='quarantined' "
                         "THEN status ELSE 'ready' END,proposal_digest=%s,updated_at=now() "
                         "WHERE batch_id=%s AND status=ANY(%s::text[]) AND (proposal_digest IS NULL OR proposal_digest=%s)",
@@ -609,10 +610,13 @@ class Consolidation:
 
     async def _failure(self, partition_id, batch_id, exc):
         code = getattr(exc,"code","memory_consolidation_contract_error" if isinstance(exc,(TypeError,ValueError)) else "memory_consolidation_unavailable")
+        if code == "memory_consolidation_lease_changed":
+            # A successor may already be observing/applying this same batch.
+            # The expired writer has no authority to settle or reset its work.
+            return
         revoked = code in {"source_unavailable","access_changed","delivery_access_changed","actor_forbidden","conversation_forbidden"}
         stale = code in {"revision_conflict","memory_consolidation_read_changed","memory_consolidation_episode_changed",
-            "memory_read_set_changed","memory_read_revision_conflict","claim_revision_conflict","matter_revision_conflict",
-            "memory_consolidation_lease_changed"}
+            "memory_read_set_changed","memory_read_revision_conflict","claim_revision_conflict","matter_revision_conflict"}
         details = getattr(exc,"details",None) or {}
         terminal = revoked or stale or isinstance(exc,(TypeError,ValueError)) or getattr(exc,"status",None) in {400,401,403,409,413,502} or details.get("status") in {"failed","cancelled"}
         quarantine=None

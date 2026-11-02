@@ -90,6 +90,7 @@ def repair_request(original, step_id, result, error, counter, input_tokens):
     if error.code == "memory_consolidation_output_truncated":
         # Keep the original combined allowance available for visible JSON;
         # disabling reasoning must not lower 12,288 tokens to 4,096.
+        parameters.pop("reasoning_effort",None)
         parameters["thinking"] = {"type": "disabled"}
     def messages():
         return (*original.messages, ModelMessage("user", (ModelPart("text",

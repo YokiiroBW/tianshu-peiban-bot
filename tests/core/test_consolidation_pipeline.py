@@ -790,6 +790,7 @@ async def test_reasoning_only_truncation_has_one_disabled_repair_with_original_a
     assert first.parameters['reasoning_effort']=='low'
     assert first.parameters['response_format']=={'type':'json_object'}
     assert repair.parameters['thinking']=={'type':'disabled'}
+    assert 'reasoning_effort' not in repair.parameters
     assert first.max_output_tokens==repair.max_output_tokens==12288
     assert first.parameters['max_tokens']==repair.parameters['max_tokens']==12288
     assert (await latest_batch(core,partition))['status']=='applied'
@@ -914,3 +915,38 @@ async def test_late_apply_never_releases_another_active_pointer_or_lease(core,or
             (partition,))).fetchone()
     assert state=={'active_batch_id':'another-active','lease_owner':'another-owner'}
     assert (await row(core,episode))['extraction_state']=='completed' and len(model.requests)==1
+
+
+async def test_expired_owner_does_not_settle_a_batch_already_taken_over(core,ordinary_users):
+    alice,_=ordinary_users
+    successor_snapshot={}
+    class TakenOver(FixedConsolidator):
+        async def generate(self,request):
+            result=await super().generate(request)
+            async with core.database.transaction() as conn:
+                await conn.execute("UPDATE memory.consolidation_state SET lease_owner='successor-owner',"
+                    "lease_until=now()+interval '6 minutes' WHERE partition_id=%s",(partition,))
+                successor_snapshot['state']=await (await conn.execute(
+                    'SELECT * FROM memory.consolidation_state WHERE partition_id=%s',(partition,))).fetchone()
+                successor_snapshot['batch']=await (await conn.execute(
+                    'SELECT * FROM memory.consolidation_batches WHERE batch_id=%s',
+                    (successor_snapshot['state']['active_batch_id'],))).fetchone()
+                successor_snapshot['episode']=await (await conn.execute(
+                    'SELECT * FROM memory.episodes WHERE episode_id=%s',(episode.episode_id,))).fetchone()
+            return result
+    model=TakenOver()
+    configure(core,model)
+    episode=await observe(core,alice,'lease-takeover-during-model','尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    async with core.database.transaction(read_only=True) as conn:
+        state=await (await conn.execute('SELECT * FROM memory.consolidation_state WHERE partition_id=%s',
+            (partition,))).fetchone()
+        batch=await (await conn.execute('SELECT * FROM memory.consolidation_batches WHERE batch_id=%s',
+            (successor_snapshot['state']['active_batch_id'],))).fetchone()
+        current=await (await conn.execute('SELECT * FROM memory.episodes WHERE episode_id=%s',
+            (episode.episode_id,))).fetchone()
+    assert state==successor_snapshot['state'] and state['lease_owner']=='successor-owner'
+    assert batch==successor_snapshot['batch'] and batch['status']=='waiting_model'
+    assert current==successor_snapshot['episode'] and current['extraction_state']=='running'
+    assert not (await core.claims.list(alice)).items and len(model.requests)==1

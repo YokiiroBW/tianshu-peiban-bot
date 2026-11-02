@@ -83,6 +83,17 @@ def test_optional_rejected_output_is_omitted_as_a_whole_before_touching_source_e
     assert diagnostic['diagnostic']['path']==['operations',0,'target','create']
 
 
+def test_disabled_thinking_repair_omits_effort_without_changing_the_original():
+    original=replace(request(),protocol='openai.chat',parameters={'max_tokens':12288,
+        'reasoning_effort':'low','response_format':{'type':'json_object'}})
+    counter=SimpleNamespace(measure=lambda *args:(1000,None))
+    repaired=repair_request(original,'repair',result(completion=ModelCompletion('incomplete',('length',))),
+        AppError('memory_consolidation_output_truncated',status=502),counter,12000)
+    assert repaired.parameters['thinking']=={'type':'disabled'}
+    assert 'reasoning_effort' not in repaired.parameters and repaired.parameters['max_tokens']==12288
+    assert original.parameters['reasoning_effort']=='low' and 'thinking' not in original.parameters
+
+
 def test_invalid_json_reports_position_without_loosening_the_decoder():
     with pytest.raises(AppError,match='memory_consolidation_output_invalid') as caught:
         Consolidation._parse({},result(text='{"operations" [}'))
