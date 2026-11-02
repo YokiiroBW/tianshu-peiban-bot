@@ -214,6 +214,8 @@ export type GrowthView = {
     cursor?: string | null;
     pending_inputs?: number;
     pending_original_requests?: number;
+    partial_inputs?: number;
+    material_missing?: string[];
     legacy_state?: "requests" | "episodes" | "complete";
     legacy_request_cursor?: string | null;
     legacy_episode_cursor?: string | null;
@@ -231,6 +233,14 @@ export type GrowthView = {
       watermark: string;
       has_more: boolean;
       inputs?: [string, number][];
+      material_coverage?: Record<
+        string,
+        {
+          representation: string;
+          complete: boolean;
+          missing: string[];
+        }
+      >;
       legacy_material?: boolean;
     } | null;
   } | null;

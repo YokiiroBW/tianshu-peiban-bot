@@ -3,9 +3,9 @@
 import json
 
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.serialization import wire
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import ContextContribution
+from .growth_observations import episode_material
 from .reflection_output import (
     CONTENT_MAX_LENGTH, INPUT_TOKEN_BUDGET, MAX_NOTES, OUTPUT_TOKEN_BUDGET,
     TITLE_MAX_LENGTH, output_example, output_schema,
@@ -14,7 +14,7 @@ from .reflection_output import (
 
 def material(episodes):
     return {
-        "episodes": wire(episodes),
+        "episodes": [episode_material(item) for item in episodes],
         "instruction": (
             "Reflect on the supplied new experiences. Return only JSON matching output_schema; every note field is required. "
             f"Select at most {MAX_NOTES} distinct useful notes for the whole batch, not one per episode. "
@@ -27,7 +27,11 @@ def material(episodes):
             "Actor imagined/fictional_world experiences prove that the character generated or completed an imagined activity; "
             "they never prove physical activity or human facts. An action succeeds only when its actual receipt confirms it. "
             "Interests belong to the actor, not copied user preferences. Habits remain conditional and revisable; "
-            "never rewrite authored identity or infer permissions. Prior reflections and diaries are not independent evidence."
+            "never rewrite authored identity or infer permissions. Prior reflections and diaries are not independent evidence. "
+            "A semantic_action_observation is a bounded view of an original receipt, not its complete document contents. "
+            "Only included whole units were supplied for reflection; omitted units and reflection_coverage.missing remain unassessed. "
+            "Discovery candidates are metadata only and never prove a source body was read. "
+            "Reflect only on the actor's own observed operation or supplied content; do not copy human facts or preferences from receipts."
         ),
         "output_schema": output_schema(item.episode_id for item in episodes),
         "example": output_example(episodes[0].episode_id),

@@ -16,6 +16,7 @@ from tianshu.conversation.generation import GenerationRequests, attempt_for
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.models.completion import completion_from_native
 from .growth_materials import select_batch, reflectable
+from .growth_observations import MATERIAL_PROTOCOL, material_coverages
 from .growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED, GrowthRecovery, authorization_error
 from .reflection_output import (IDENTITY_PROTOCOL, OUTPUT_TOKEN_BUDGET, REVIEW_ERRORS, frozen_episodes, prepare_reflections)
 
@@ -177,10 +178,12 @@ class GrowthService:
                 return {"state": "blocked", "error_code": error.code, "material": error.details}
             material_key = "organize:" + signature({"context": self.generations.context_key(context),
                 "episodes": [(item.episode_id, item.revision) for item in episodes],
-                "persona": (actor["persona_id"], actor["persona_revision"]), "generation_revision": state["generation_revision"]})
+                "persona": (actor["persona_id"], actor["persona_revision"]), "generation_revision": state["generation_revision"],
+                "material_protocol": MATERIAL_PROTOCOL})
             batch = {"material_key": material_key, "context": wire(context), "start_cursor": state["cursor"],
                      "end_cursor": end_cursor, "watermark": state["watermark"], "has_more": has_more,
                      "inputs": [(item.episode_id, item.revision) for item in episodes],
+                     "material_coverage": material_coverages(episodes),
                      "reflection_identity_protocol": IDENTITY_PROTOCOL}
             request = ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
@@ -401,10 +404,11 @@ class GrowthService:
                 "WHERE actor_id=%s AND scope_key=%s AND material_key=%s AND state='pending'",
                 (current["actor_id"], current["scope_key"], batch["material_key"]))
         for identifier, version in batch.get("inputs", ()):
+            coverage = batch.get("material_coverage", {}).get(identifier, {})
             await connection.execute(
-                "UPDATE companion.growth_inputs SET reviewed_revision=%s,state='reviewed',missing='{}',updated_at=now() "
+                "UPDATE companion.growth_inputs SET reviewed_revision=%s,state='reviewed',missing=%s,updated_at=now() "
                 "WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s",
-                (version, current["actor_id"], current["scope_key"], identifier, version))
+                (version, list(coverage.get("missing", ())), current["actor_id"], current["scope_key"], identifier, version))
         remaining = await (await connection.execute(
             "SELECT EXISTS(SELECT 1 FROM companion.growth_inputs WHERE actor_id=%s AND scope_key=%s AND reviewed_revision<revision) OR "
             "EXISTS(SELECT 1 FROM companion.growth_legacy_requests WHERE actor_id=%s AND scope_key=%s AND state='pending') AS pending",
@@ -442,6 +446,9 @@ class GrowthService:
                 "cursor,legacy_state,legacy_request_cursor,legacy_episode_cursor,legacy_missing,"
                 "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND reviewed_revision<i.revision) AS pending_inputs,"
                 "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='unavailable') AS unavailable_inputs,"
+                "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='reviewed' AND cardinality(i.missing)>0) AS partial_inputs,"
+                "ARRAY(SELECT DISTINCT gap.reason FROM companion.growth_inputs i CROSS JOIN LATERAL unnest(i.missing) gap(reason) "
+                "WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='reviewed' ORDER BY gap.reason) AS material_missing,"
                 "ARRAY(SELECT DISTINCT gap.reason FROM companion.growth_inputs i CROSS JOIN LATERAL unnest(i.missing) gap(reason) "
                 "WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='unavailable' ORDER BY gap.reason) AS input_missing,"
                 "(SELECT count(*) FROM companion.growth_legacy_requests r WHERE r.actor_id=s.actor_id AND r.scope_key=s.scope_key AND r.state='pending') AS pending_original_requests "

@@ -428,6 +428,44 @@ async def test_source_backed_budget_failure_is_not_converted_to_unavailable_or_s
 
 
 @pytest.mark.asyncio
+async def test_oversized_action_observation_resumes_original_blocker_with_explicit_coverage(database):
+    models = Models({"notes": []})
+    growth, memory, _jobs, context, _notifications = await prepare(database, models)
+    discovery = replace(memory.episode, origin_kind=OriginKind.TOOL_RESULT,
+        actual_result={"capability_id": "content.discover", "execution": "succeeded",
+            "read_basis": "discovery_metadata", "experience_eligible": False,
+            "candidates": [{"summary": "尚未读取的候选描述" * 12000}],
+            "continuation": {"arguments": {"large": "transport" * 12000}}})
+    tail = replace(memory.episode, episode_id="tail", event_id="tail", sequence=2, cursor="e:2")
+    memory.episode, memory.episodes = discovery, (discovery, tail)
+    await growth.changed(context, "tail", episode=tail)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE companion.organize_state SET last_error='reflection_material_budget_exceeded',blocked_material=%s",
+            (document({"episode_id": discovery.episode_id, "revision": discovery.revision}),))
+    view = (await growth.view(context))["review"]
+    resumed = await growth.request_review(context,
+        {"client_request_id": "resume-original-discovery", "expected_revision": view["revision"]})
+    result = await growth.organize("actor", signature(sorted(context.scope_ids)), resumed.revision)
+    assert result["state"] == "reviewed" and result["cursor"] == "e:2"
+    assert len(models.calls) == 1
+    request = models.calls[0]
+    material = json.loads(request.messages[0].parts[0].text.split("\n", 1)[1])
+    assert material["episodes"][0]["reflection_coverage"]["missing"] == ["discovery_metadata_only_body_not_read"]
+    assert frozen_episodes(request)[discovery.episode_id].revision == discovery.revision
+    async with database.transaction(read_only=True) as connection:
+        inputs = await (await connection.execute(
+            "SELECT episode_id,reviewed_revision,state,missing FROM companion.growth_inputs ORDER BY sequence")).fetchall()
+    assert inputs == [{"episode_id": discovery.episode_id, "reviewed_revision": 1, "state": "reviewed",
+                      "missing": ["discovery_metadata_only_body_not_read"]},
+                     {"episode_id": "tail", "reviewed_revision": 1, "state": "reviewed", "missing": []}]
+    view = (await growth.view(context))["review"]
+    assert view["partial_inputs"] == 1 and view["pending_inputs"] == 0
+    assert view["material_missing"] == ["discovery_metadata_only_body_not_read"]
+    assert view["legacy_missing"] == []
+    assert memory.episodes[0] is discovery and len(discovery.actual_result["candidates"][0]["summary"]) > 100000
+
+
+@pytest.mark.asyncio
 async def test_reflection_identity_uses_original_generation_scope_and_all_frozen_versions(database):
     models = Models({"notes": [note("interest")]})
     growth, memory, _jobs, context, _notifications = await prepare(database, models)

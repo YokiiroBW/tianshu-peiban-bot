@@ -1,6 +1,7 @@
 """Visible mismatch is distinct from generation success and unknown verification."""
 
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
 from types import SimpleNamespace
 from unittest import IsolatedAsyncioTestCase, TestCase
 from unittest.mock import AsyncMock
@@ -8,7 +9,7 @@ from unittest.mock import AsyncMock
 from tianshu.capabilities.contracts import canonical
 from tianshu.capabilities.images.consistency import ImageConsistency, consistency_result
 from tianshu.capabilities.images.service import Images
-from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
+from tianshu.models.types import ModelCompletion, ModelEvent, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.types import Action, ArtifactRef, Attempt, MediaRef, OriginKind, ServiceClass, TrustedContext
 
@@ -84,21 +85,23 @@ class ConsistencyStatus(TestCase):
 
 class BoundedResultCheck(IsolatedAsyncioTestCase):
     async def test_unconfigured_vision_is_unknown_and_preserves_generated_artifact(self):
-        broker = SimpleNamespace(generate=AsyncMock(side_effect=AppError("model_function_not_configured", status=503)))
+        broker = SimpleNamespace(generate=AsyncMock(), result=AsyncMock(return_value=None),
+            generation_profile=AsyncMock(side_effect=AppError("model_function_not_configured", status=503)))
         verifier = ImageConsistency(SimpleNamespace(broker=broker))
         action = actor_action()
         artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
         checked = await verifier.check(action, Attempt("attempt", action.action_id),
             {"scene": {"local_time": "2026-11-02T23:00:00+08:00"},
              "intent": {"character": "fictional actor", "light": "night lamps"}}, [artifact])
-        request = broker.generate.await_args.args[0]
+        request = broker.generation_profile.await_args.args[0]
         self.assertEqual(request.function, "vision")
         self.assertEqual(request.service_class, ServiceClass.ELASTIC)
         self.assertEqual(request.required_capabilities, frozenset({"vision"}))
         self.assertEqual(checked["state"], "unknown")
         self.assertEqual(checked["reason"], "model_function_not_configured")
         self.assertEqual(checked["regeneration_attempts"], 0)
-        self.assertEqual(broker.generate.await_count, 1)
+        broker.generate.assert_not_awaited()
+        self.assertEqual(broker.generation_profile.await_count, 1)
 
     async def test_recovery_reuses_persisted_check_without_model_or_regeneration(self):
         images = SimpleNamespace(consistency=SimpleNamespace(check=AsyncMock()))
@@ -107,3 +110,91 @@ class BoundedResultCheck(IsolatedAsyncioTestCase):
         value = await Images.complete_image_result(images, actor_action(), Attempt("a", "image"), prepared, [])
         self.assertIs(value, prepared["completion"])
         images.consistency.check.assert_not_awaited()
+
+    async def test_verified_gemini_stream_uses_native_budget_and_only_persisted_complete_result(self):
+        checked_result = result([{"field": "light", "status": "conflict", "observed": "daylight"}])
+        requests = []
+
+        async def stream(request):
+            requests.append(request)
+            yield ModelEvent("text", text='{"checks":[{"field":"light","status":"matched","observed":"uncommitted"}]}')
+            yield ModelEvent("receipt", receipt=checked_result.receipt, data=checked_result)
+
+        broker = SimpleNamespace(generate=AsyncMock(), stream=stream,
+            result=AsyncMock(side_effect=[None, checked_result]),
+            generation_profile=AsyncMock(return_value={"route_id": "configured-vision", "route_revision": 2,
+                "protocol": "gemini.generate", "verified_capabilities": ["vision", "stream"],
+                "max_output_tokens": 1200, "output_parameters": {"generationConfig": {"maxOutputTokens": 1200}}}))
+        action = replace(actor_action(), deadline_at=datetime.now(UTC) + timedelta(seconds=45))
+        artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+        checked = await ImageConsistency(SimpleNamespace(broker=broker)).check(action, Attempt("original", action.action_id),
+            {"scene": {}, "intent": {"light": "night lamps"}}, [artifact])
+        self.assertEqual(checked["state"], "conflict")
+        self.assertEqual(checked["checks"][0]["observed"], "daylight")
+        request = requests[0]
+        self.assertEqual((request.attempt_id, request.route_id, request.route_revision, request.protocol),
+                         ("original:consistency", "configured-vision", 2, "gemini.generate"))
+        self.assertEqual(request.max_output_tokens, 32768)
+        self.assertEqual(request.parameters["generationConfig"]["maxOutputTokens"], 32768)
+        self.assertEqual(request.required_capabilities, frozenset({"vision", "stream"}))
+        self.assertEqual(request.budget.deadline_at, action.deadline_at)
+        self.assertEqual(len(requests), 1)
+        broker.generate.assert_not_awaited()
+
+    async def test_unknown_original_attempt_is_read_once_without_reprofile_or_resubmission(self):
+        original = replace(result([]), parts=(), completion=ModelCompletion(),
+            receipt=replace(result([]).receipt, status="unknown", error_code="upstream_response_incomplete", first_output_ms=15))
+        broker = SimpleNamespace(result=AsyncMock(return_value=original),
+            generate=AsyncMock(), generation_profile=AsyncMock(), stream=AsyncMock())
+        artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+        checked = await ImageConsistency(SimpleNamespace(broker=broker)).check(actor_action(), Attempt("original", "image"),
+            {"scene": {}, "intent": {"light": "night lamps"}}, [artifact])
+        self.assertEqual((checked["state"], checked["reason"]), ("unknown", "upstream_response_incomplete"))
+        self.assertEqual(checked["model_receipt"]["status"], "unknown")
+        self.assertTrue(checked["diagnostics"]["output_observed"])
+        self.assertEqual(checked["diagnostics"]["completion"]["state"], "unknown")
+        broker.result.assert_awaited_once_with("original:consistency", context=actor_action().context)
+        broker.generation_profile.assert_not_awaited()
+        broker.generate.assert_not_awaited()
+        broker.stream.assert_not_awaited()
+
+    async def test_missing_native_terminal_returns_diagnostics_and_never_repeats_provider_attempt(self):
+        original = replace(result([]), parts=(), completion=ModelCompletion(),
+            receipt=replace(result([]).receipt, status="unknown", error_code="incomplete_native_stream"))
+        requests = []
+
+        async def stream(request):
+            requests.append(request)
+            yield ModelEvent("native", data={"chunk_b64": "private provider bytes are not diagnostics"})
+            raise AppError("incomplete_native_stream", status=502)
+
+        broker = SimpleNamespace(generate=AsyncMock(), stream=stream,
+            result=AsyncMock(side_effect=[None, original]),
+            generation_profile=AsyncMock(return_value={"route_id": "configured-vision", "route_revision": 2,
+                "protocol": "gemini.generate", "verified_capabilities": ["vision", "stream"],
+                "max_output_tokens": 40000, "output_parameters": {"generationConfig": {"maxOutputTokens": 40000}}}))
+        artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+        checked = await ImageConsistency(SimpleNamespace(broker=broker)).check(actor_action(), Attempt("original", "image"),
+            {"scene": {}, "intent": {"light": "night lamps"}}, [artifact])
+        self.assertEqual(checked["reason"], "incomplete_native_stream")
+        self.assertEqual(checked["state"], "unknown")
+        self.assertEqual(checked["diagnostics"]["max_output_tokens"], 40000)
+        self.assertTrue(checked["diagnostics"]["streamed"] and checked["diagnostics"]["output_observed"])
+        self.assertNotIn("private provider bytes", str(checked))
+        self.assertEqual(checked["regeneration_attempts"], 0)
+        self.assertEqual(len(requests), 1)
+        broker.generate.assert_not_awaited()
+
+    async def test_unverified_stream_uses_one_nonstream_check_and_preserves_length_stop(self):
+        truncated = replace(result([]), completion=ModelCompletion("incomplete", ("MAX_TOKENS",)))
+        broker = SimpleNamespace(result=AsyncMock(return_value=None), generate=AsyncMock(return_value=truncated),
+            generation_profile=AsyncMock(return_value={"route_id": "configured-vision", "route_revision": 2,
+                "protocol": "gemini.generate", "verified_capabilities": ["vision"],
+                "max_output_tokens": 1200, "output_parameters": {}}))
+        artifact = ArtifactRef("image", MediaRef("artifact:image", "controlled", "image/png"))
+        checked = await ImageConsistency(SimpleNamespace(broker=broker)).check(actor_action(), Attempt("original", "image"),
+            {"scene": {}, "intent": {"light": "night lamps"}}, [artifact])
+        self.assertEqual(checked["state"], "unknown")
+        self.assertEqual(checked["diagnostics"]["completion"]["stop_reasons"], ["MAX_TOKENS"])
+        self.assertFalse(checked["diagnostics"]["streamed"])
+        self.assertEqual(broker.generate.await_count, 1)

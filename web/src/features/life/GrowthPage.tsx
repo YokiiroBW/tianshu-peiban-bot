@@ -33,6 +33,23 @@ export default function GrowthPage() {
   );
   const action = useDomainCommand(`growth:${actor}`, "actor");
   const review = view.data?.review;
+  const materialMissing = new Set([
+    ...(review?.material_missing ?? []),
+    ...Object.values(review?.batch?.material_coverage ?? {}).flatMap(
+      (coverage) => coverage.missing,
+    ),
+  ]);
+  const discoveryOnly = materialMissing.has(
+    "discovery_metadata_only_body_not_read",
+  );
+  const unassessedContent = [...materialMissing].some(
+    (reason) => reason.endsWith("_not_assessed"),
+  );
+  const sourcePartial = [...materialMissing].some(
+    (reason) =>
+      reason !== "discovery_metadata_only_body_not_read" &&
+      !reason.endsWith("_not_assessed"),
+  );
   return (
     <div className="domain-workspace">
       <header className="domain-toolbar">
@@ -69,6 +86,28 @@ export default function GrowthPage() {
                 待处理经历版本：{review.pending_inputs ?? "尚未取得"} ·
                 待观察原请求：{review.pending_original_requests ?? "尚未取得"}
               </p>
+              {!!materialMissing.size && (
+                <div aria-label="反思材料范围">
+                  {!!review.partial_inputs && (
+                    <p>
+                      有 {review.partial_inputs} 条经历按有限材料整理，保留了未评估范围。
+                    </p>
+                  )}
+                  {discoveryOnly && (
+                    <p>
+                      检索经历只说明发现了候选；这类记录不包含正文阅读，不能视为已读完或形成读后结论。
+                    </p>
+                  )}
+                  {unassessedContent && (
+                    <p>
+                      部分动作结果的完整内容尚未纳入反思。原始结果仍保留，可从经历依据追溯。
+                    </p>
+                  )}
+                  {sourcePartial && (
+                    <p>部分原始结果仍有未覆盖的素材范围，相关限制继续保留。</p>
+                  )}
+                </div>
+              )}
               {review.legacy_state && review.legacy_state !== "complete" && (
                 <p role="status">
                   正在
