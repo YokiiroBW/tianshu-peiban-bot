@@ -394,8 +394,6 @@ class ResponseCollector:
         from .completion import completion_from_native, merge_completion
 
         self.native_response = value
-        observed = value.get("response", value) if self.protocol == "openai.responses" else value
-        self.completion = merge_completion(self.completion, completion_from_native(self.protocol, observed))
         added = []
         if self.protocol == "gemini.generate":
             if "usageMetadata" in value:
@@ -472,6 +470,10 @@ class ResponseCollector:
         else:
             self.raw_usage = value.get("usage", value.get("meta", {}).get("billed_units"))
             self.completed = True
+        # Decode/validate the native structure before reading its stop metadata;
+        # malformed required fields must retain their protocol-specific error.
+        observed = value.get("response", value) if self.protocol == "openai.responses" else value
+        self.completion = merge_completion(self.completion, completion_from_native(self.protocol, observed))
         self.parts.extend(added)
         return added
 
