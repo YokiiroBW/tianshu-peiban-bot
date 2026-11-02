@@ -77,8 +77,10 @@ export function ProviderManager({
   );
   const busy = command.busy || probe.busy || enumerate.busy;
   const listed =
-    directory?.provider_id === source?.provider_id &&
-    directory.revision === source?.revision
+    directory &&
+    source &&
+    directory.provider_id === source.provider_id &&
+    directory.revision === source.revision
       ? (directory.models ?? [])
       : [];
   function acceptDirectory(value: Enumeration, append: boolean) {

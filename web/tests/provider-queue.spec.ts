@@ -25,7 +25,17 @@ test("quota queue expiry stays optional and saves an explicit limit or null", as
     await answer(route, command(body, catalog(), writes.length));
   });
   await page.goto("/#/settings/models");
-  const queue = page.getByRole("spinbutton", { name: "排队过期秒数（可留空）" });
+  await expect(
+    page.getByText("尚无模型供应商，先添加连接和共享容量组。", { exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "共享账号容量组", exact: true }).click();
+  const quotaDialog = page.getByRole("dialog", {
+    name: "共享账号容量组",
+    exact: true,
+  });
+  const queue = quotaDialog.getByRole("spinbutton", {
+    name: "排队过期秒数（可留空）",
+  });
   await expect(queue).toHaveValue("");
   await expect(queue).toHaveJSProperty("required", false);
   await expect(
@@ -46,7 +56,8 @@ test("quota queue expiry stays optional and saves an explicit limit or null", as
   await expect.poll(() => writes.length).toBe(2);
   expect(writes[1].max_wait_seconds).toBe(75);
   await page.reload();
-  await page
+  await page.getByRole("button", { name: "共享账号容量组", exact: true }).click();
+  await quotaDialog
     .getByRole("combobox", { name: "容量组", exact: true })
     .selectOption("synthetic-quota");
   await expect(queue).toHaveValue("75");
