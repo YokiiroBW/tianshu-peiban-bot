@@ -34,6 +34,23 @@ def scene(context):
         for key in ("principal_id", "actor_id", "person_id", "conversation_id", "conversation_kind", "scope_ids", "audience", "delivery_allowed")}
 
 
+def lifecycle_material(data):
+    """Only crossing a stored due/slot fence changes time-sensitive material."""
+    now = datetime.fromisoformat(data["local_time"])
+    def timestamp(value):
+        return datetime.fromisoformat(value) if isinstance(value, str) else value
+    slots = [{**{key: row.get(key) for key in ("id", "activity_id", "state", "starts_at", "ends_at")},
+        "phase": "future" if timestamp(row["starts_at"]) > now else "elapsed" if timestamp(row["ends_at"]) <= now else "current"}
+        for row in data.get("day_plan", ()) if row.get("activity_id")]
+    unfinished = [{**{key: row.get(key) for key in ("id", "revision", "state", "waiting_reason", "checkpoint_step")},
+        "due": bool(row.get("next_due_at") and timestamp(row["next_due_at"]) <= now),
+        "protected": bool(row.get("protected_until") and timestamp(row["protected_until"]) > now),
+        "checkpoint": {key: (row.get("checkpoint_data") or {}).get(key) for key in
+            ("completed_action_id", "continuation", "next_position", "continuation_stop_reason")}}
+        for row in data.get("unfinished", ())]
+    return wire({"slots": sorted(slots, key=lambda row: row["id"]), "unfinished": sorted(unfinished, key=lambda row: row["id"])})
+
+
 def decision_fingerprint(context, actor, data, day, events=None):
     # Date is material; clock seconds and generic Growth/style revisions are not.
     return signature({"contract": planner.CONTRACT, "scene": scene(context), "day": day.isoformat() if hasattr(day,'isoformat') else day,
@@ -42,6 +59,7 @@ def decision_fingerprint(context, actor, data, day, events=None):
         "commitments": data["commitments"], "interests": data["interests"],
         "goals":data["goals"],"writing":data.get("writing",()),
         "model_configuration": data.get("model_configuration"),
+        "lifecycle": lifecycle_material(data),
         "capabilities": data["capabilities"]})
 
 
@@ -139,13 +157,17 @@ class PlanningEngine:
         if not pending and not repair_ready and mark["decision_fingerprint"] == material and not due(mark["review_after"], now):
             await self.finish(context, mark, "unchanged_decision_material", fingerprint=material)
             return
-        scheduled = [row for row in daily["slots"] if row["kind"] == "activity" and row["state"] in {"planned", "running"}]
+        scheduled = [row for row in daily["slots"] if row["kind"] == "activity" and row["state"] in {"planned", "running"}
+                     and row["starts_at"] <= now < row["ends_at"]]
+        running = any(row["state"] == "running" for row in daily["unfinished"])
         important = not mark["change_watermark"].startswith(("rhythm:", "activity-", "growth:"))
-        if not pending and scheduled and not important and not mark["change_watermark"].startswith("growth:"):
+        if not pending and (scheduled or running) and not important and not mark["change_watermark"].startswith("growth:"):
             await self.finish(context, mark, "existing_activity_continues", fingerprint=material)
             return
-        count = sum(row["kind"] == "activity" and row["state"] not in {"cancelled", "carried"} for row in daily["slots"])
-        if not pending and count >= MAX_ACTIVITIES and not important:
+        count = len({row["activity_id"] for row in daily["slots"] if row["kind"] == "activity" and row["state"] not in {"cancelled", "carried"}})
+        continuation = any(row["state"] == "dormant" and row["waiting_reason"] in {"continuation_available", "follow_up_available", "day_finished"}
+                           for row in daily["unfinished"])
+        if not pending and count >= MAX_ACTIVITIES and not important and not continuation:
             await self.finish(context, mark, "day_arrangements_complete", fingerprint=material)
             return
         frozen = None
@@ -273,6 +295,8 @@ class PlanningEngine:
             # a later style notification must not mistake them for new input.
             current_goals=await (await connection.execute("SELECT * FROM life.goals WHERE actor_id=%s AND scope_ids<@%s::text[] ORDER BY id LIMIT 40",(actor_id,list(context.scope_ids)))).fetchall()
             post_data={**data,"goals":[{"id":row["id"],"revision":row["revision"],"title":row["title"][:200],"motivation":row["motivation"][:300],"priority":row["priority"],"state":row["state"],"progress":row["progress"],"criteria":row["criteria"]} for row in current_goals if row["state"] in {'active','paused'}]}
+            post_data.update(await self.life.days.decision_state(connection, context, day))
+            post_data["local_time"] = now.isoformat()
             reviewed=decision_fingerprint(context,actor,post_data,day,fresh["change"])
             reason = "planned_with_reduced_context" if planner.reduced(original_data) else "planned" if created or prepared_contact else "no_meaningful_activity"
             reconsider_at = review_time(routine, now, next_boundary) if not created and not scheduled else None

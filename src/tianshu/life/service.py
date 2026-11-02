@@ -261,16 +261,28 @@ class LifeService:
                 raise AppError("outcome_unknown", status=409, details={"action_id": row["action_id"]})
             if target=='running' and row['waiting_reason']=='follow_up_available':
                 raise AppError('activity_follow_up_requires_arrangement',status=409)
-            if target == "running" and row["waiting_reason"] == "continuation_available":
-                checkpoint = row["checkpoint_data"]
+            checkpoint = row["checkpoint_data"]
+            if target == "running" and (row["waiting_reason"] == "continuation_available" or row["resume_condition"] == "continue_from_checkpoint"):
                 from .continuation import resumed_checkpoint
                 checkpoint = resumed_checkpoint(row)
                 await connection.execute("UPDATE life.activities SET action_id=NULL,last_result_revision=-1,last_receipt_id=NULL,checkpoint_data=%s WHERE id=%s",
                     (document(checkpoint),activity_id))
+                row = {**row, "action_id": None}
             if target == "running":
                 other = await (await connection.execute("SELECT id FROM life.activities WHERE actor_id=%s AND state='running' AND id<>%s", (context.actor_id, activity_id))).fetchone()
                 if other:
                     raise AppError("activity_already_running", status=409)
+                from .continuation import execution_window
+                from .day_plan import awake_window
+                now = datetime.now(UTC)
+                routine = await (await connection.execute("SELECT * FROM life.routines WHERE actor_id=%s", (context.actor_id,))).fetchone()
+                _, boundary = awake_window(routine, now)
+                end = min(now + timedelta(minutes=int(checkpoint.get("duration_minutes", 30))), boundary)
+                upcoming = await (await connection.execute("SELECT starts_at FROM life.day_slots WHERE actor_id=%s AND activity_id<>%s AND kind='activity' AND state='planned' AND starts_at>%s ORDER BY starts_at LIMIT 1", (context.actor_id, activity_id, now))).fetchone()
+                if upcoming:
+                    end = min(end, upcoming["starts_at"])
+                checkpoint = execution_window(checkpoint, now, end)
+                await connection.execute("UPDATE life.activities SET checkpoint_data=%s WHERE id=%s", (document(checkpoint), activity_id))
             next_revision = row["revision"] + 1
             waiting = "paused_by_user" if target == "paused" else None
             await connection.execute("UPDATE life.activities SET state=%s,revision=%s,waiting_reason=%s,next_due_at=NULL,updated_at=now() WHERE id=%s", (target, next_revision, waiting, activity_id))

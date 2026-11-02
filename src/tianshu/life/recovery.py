@@ -50,6 +50,13 @@ async def recover(worker):
                     task, payload, due = "life.activity_reconcile", {"activity_id": row["id"], "context": wire(context), "sequence": 0}, None
                 elif row["state"] in {"planned", "running"}:
                     task, payload, due = "life.activity_step", {"activity_id": row["id"], "context": wire(context), "expected_revision": row["revision"]}, row["next_due_at"]
+                elif (row["state"] == "dormant" and row["waiting_reason"] == "continuation_available"
+                        and row["resume_condition"] == "continue_from_checkpoint"
+                        and row["checkpoint_data"].get("last_execution") == "succeeded"):
+                    # The handler rechecks the original run's time and step fences.
+                    # A pre-upgrade checkpoint without a window signals the planner,
+                    # rather than restarting discovery or inventing another slot.
+                    task, payload, due = "life.activity_step", {"activity_id": row["id"], "context": wire(context), "expected_revision": row["revision"]}, row["next_due_at"]
                 else:
                     continue
             elif table == "commitments":

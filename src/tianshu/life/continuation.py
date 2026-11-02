@@ -1,5 +1,61 @@
 """Resume only the continuation derived from the last confirmed execution."""
+from datetime import datetime
+
+from tianshu.conversation.codec import signature
 from tianshu.runtime.errors import AppError
+
+
+READ_CAPABILITIES = frozenset({"content.discover", "content.read", "content.continue", "video.observe", "life.reading"})
+MAX_WINDOW_STEPS = 12
+
+
+def execution_window(checkpoint, begins, ends):
+    """A newly accepted arrangement owns one finite run, including discovery."""
+    return {**checkpoint, "execution_window": {"starts_at": begins.isoformat(),
+        "ends_at": ends.isoformat(), "steps": 0, "seen_steps": []}, "continuation_stop_reason": None}
+
+
+def submitted_checkpoint(checkpoint):
+    data = dict(checkpoint)
+    window = dict(data["execution_window"])
+    key = signature({"capability_id": data.get("capability_id"), "arguments": data.get("arguments", {})})
+    window.update(steps=window.get("steps", 0) + 1, seen_steps=[*window.get("seen_steps", ()), key])
+    data["execution_window"] = window
+    return data
+
+
+def automatic_step(activity, now):
+    """A known receipt may continue inside its arrangement, never choose a new one."""
+    data = activity["checkpoint_data"]
+    if (activity["state"] != "dormant" or activity["waiting_reason"] != "continuation_available"
+            or activity.get("resume_condition") != "continue_from_checkpoint"
+            or data.get("last_execution") != "succeeded"):
+        return None, "continuation_requires_arrangement"
+    if activity.get("action_id") and data.get("completed_action_id") != activity["action_id"]:
+        return None, "activity_action_unresolved"
+    window = data.get("execution_window")
+    # Old checkpoints without an accepted execution window go through the normal
+    # planner or the existing explicit resume command; recovery never invents time.
+    if not window:
+        return None, "continuation_requires_arrangement"
+    if now < datetime.fromisoformat(window["starts_at"]):
+        return None, "activity_window_not_started"
+    if now >= datetime.fromisoformat(window["ends_at"]):
+        return None, "activity_window_ended"
+    if window.get("steps", 0) >= MAX_WINDOW_STEPS:
+        return None, "continuation_step_limit"
+    consumption = data.get("consumption") or {}
+    if consumption.get("stop_reason") not in {None, "checkpoint", "segment_limit", "window_limit"}:
+        return None, "continuation_stop_condition"
+    try:
+        step = resume_step(activity)
+    except AppError as error:
+        return None, error.code
+    if step["capability_id"] not in READ_CAPABILITIES:
+        return None, "continuation_requires_arrangement"
+    if signature(step) in window.get("seen_steps", ()):
+        return None, "continuation_repeated_step"
+    return step, None
 
 
 def options(checkpoint):
@@ -47,7 +103,6 @@ def resume_step(activity, selected_key=None):
 
 
 def resumed_checkpoint(activity, selected_key=None):
-    from tianshu.conversation.codec import signature
     data=dict(activity["checkpoint_data"])
     step=resume_step(activity,selected_key)
     data.update(step)

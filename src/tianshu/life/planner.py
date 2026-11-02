@@ -190,10 +190,10 @@ def material(context, state, routine, goals, commitments, choices, local_time, *
             for row in (day or {}).get("recent_results",())],
         "day_plan": [{key: row.get(key) for key in ("id", "activity_id", "state", "starts_at", "ends_at", "title", "goal_id")}
             for row in (day or {}).get("slots", [])],
-        "unfinished": [{**{key: row.get(key) for key in ("id", "revision", "goal_id", "title", "kind", "state", "waiting_reason", "protected_until")},
+        "unfinished": [{**{key: row.get(key) for key in ("id", "revision", "goal_id", "title", "kind", "state", "waiting_reason", "protected_until", "next_due_at", "checkpoint_step")},
             "continuation_options": options(row["checkpoint_data"]),
             "checkpoint_data": {key: row["checkpoint_data"].get(key) for key in
-                ("capability_id", "arguments", "next_position", "continuation", "coverage", "exploration", "completed_action_id")}}
+                ("capability_id", "arguments", "next_position", "continuation", "coverage", "exploration", "completed_action_id", "continuation_stop_reason")}}
             for row in (day or {}).get("unfinished", [])],
         "current_outfit": (
             {"id": state["outfit"]["id"], "description": state["outfit"]["description"][:300]}

@@ -54,20 +54,32 @@ class DayPlans:
     def __init__(self, life):
         self.life = life
 
+    async def _activities(self, connection, context, day):
+        slots = await (await connection.execute(
+            "SELECT s.*,a.title,a.kind AS activity_kind,a.goal_id,a.waiting_reason,a.checkpoint_data "
+            "FROM life.day_slots s LEFT JOIN life.activities a ON a.id=s.activity_id "
+            "WHERE s.actor_id=%s AND s.day=%s AND s.scope_ids<@%s::text[] ORDER BY s.starts_at,s.id",
+            (context.actor_id, day, list(context.scope_ids)))).fetchall()
+        unfinished = await (await connection.execute(
+            "SELECT * FROM life.activities WHERE actor_id=%s AND scope_ids<@%s::text[] "
+            "AND state IN ('planned','running','paused','dormant') ORDER BY updated_at DESC,id LIMIT 25",
+            (context.actor_id, list(context.scope_ids)))).fetchall()
+        return slots, unfinished
+
+    async def decision_state(self, connection, context, day):
+        # A newly accepted plan/receipt may have source originals visible only to
+        # this transaction. Its reviewed fingerprint must describe that state.
+        slots, unfinished = await self._activities(connection, context, day)
+        async def authorized(rows):
+            return [row for row in rows if await self.life.sources.validate_persistence(connection, context, source_refs(row["source_refs"] or ()))]
+        return {"day_plan": await authorized(slots), "unfinished": await authorized(unfinished)}
+
     async def snapshot(self, context, day):
         async with self.life.database.transaction(read_only=True) as connection:
             plan = await (await connection.execute(
                 "SELECT * FROM life.day_plans WHERE actor_id=%s AND day=%s AND scope_ids<@%s::text[]",
                 (context.actor_id, day, list(context.scope_ids)))).fetchone()
-            slots = await (await connection.execute(
-                "SELECT s.*,a.title,a.kind AS activity_kind,a.goal_id,a.waiting_reason,a.checkpoint_data "
-                "FROM life.day_slots s LEFT JOIN life.activities a ON a.id=s.activity_id "
-                "WHERE s.actor_id=%s AND s.day=%s AND s.scope_ids<@%s::text[] ORDER BY s.starts_at,s.id",
-                (context.actor_id, day, list(context.scope_ids)))).fetchall()
-            unfinished = await (await connection.execute(
-                "SELECT * FROM life.activities WHERE actor_id=%s AND scope_ids<@%s::text[] "
-                "AND state IN ('planned','running','paused','dormant') ORDER BY updated_at DESC,id LIMIT 25",
-                (context.actor_id, list(context.scope_ids)))).fetchall()
+            slots, unfinished = await self._activities(connection, context, day)
             recent=await (await connection.execute(
                 "SELECT * FROM life.activities WHERE actor_id=%s AND scope_ids<@%s::text[] "
                 "AND checkpoint_data->>'last_execution'='succeeded' AND checkpoint_data->>'capability_id'<>'images.generate' "
@@ -145,8 +157,10 @@ class DayPlans:
             if promise:
                 raise AppError('day_slot_conflict',status=409)
             version=row["revision"]+1
+            from .continuation import execution_window
+            data = execution_window(row["checkpoint_data"], starts, finish)
             await connection.execute("UPDATE life.day_slots SET starts_at=%s,ends_at=%s,revision=revision+1,reason='authored_reschedule' WHERE id=%s",(starts,finish,slot["id"]))
-            await connection.execute("UPDATE life.activities SET next_due_at=%s,revision=%s WHERE id=%s",(starts,version,row["id"]))
+            await connection.execute("UPDATE life.activities SET next_due_at=%s,checkpoint_data=%s,revision=%s WHERE id=%s",(starts,document(data),version,row["id"]))
             original=context_from_record(row["context"]) if row["context"] else context
             await self.life.jobs.enqueue(connection,JobSpec("life.activity_step",f"activity:{row['id']}:{version}",{"activity_id":row["id"],"expected_revision":version,"context":wire(original)},scheduled_at=starts,subject_id=context.actor_id))
             await self._free_time(connection,context,slot["day"],datetime.now(UTC),end,"留白，允许休息和临时变化",source_refs(row["source_refs"]))
@@ -213,9 +227,11 @@ class DayPlans:
         total_minutes = sum(max(0, (row["ends_at"] - max(row["starts_at"], now)).total_seconds() / 60) for row in retained if row["state"] in {'planned','running'})
         available_minutes = (end - start).total_seconds() / 60
         created = 0
+        retained_ids = {row["activity_id"] for row in retained}
         for index, activity in enumerate(offered):
-            if len(retained) + created >= MAX_ACTIVITIES:
-                break
+            identifier = activity.get("existing_activity_id")
+            if identifier not in retained_ids and len(retained_ids) >= MAX_ACTIVITIES:
+                continue
             duration = timedelta(minutes=activity["duration_minutes"])
             if total_minutes + duration.total_seconds() / 60 > available_minutes * .65:
                 continue
@@ -224,7 +240,6 @@ class DayPlans:
             if period is None:
                 continue
             begins, finish = period
-            identifier = activity.get("existing_activity_id")
             if identifier:
                 original = original_activities[identifier]
                 row = await self.life.lock_row(connection, context,
@@ -237,6 +252,8 @@ class DayPlans:
                     data=resumed_checkpoint(row,activity.get("continuation_key"))
                 data.pop("continuation", None)
                 data["duration_minutes"] = activity["duration_minutes"]
+                from .continuation import execution_window
+                data = execution_window(data, begins, finish)
                 version = row["revision"] + 1
                 await connection.execute(
                     "UPDATE life.activities SET state='planned',waiting_reason='day_plan_slot',resume_condition=NULL,next_due_at=%s,"
@@ -252,6 +269,7 @@ class DayPlans:
                     (identifier, context.actor_id, goal_id, activity["title"], activity["kind"], begins,
                      document({"capability_id": activity["capability_id"], "arguments": activity["arguments"],
                          "reason": decision["reason"], "duration_minutes": activity["duration_minutes"],
+                         "execution_window": {"starts_at": begins.isoformat(), "ends_at": finish.isoformat(), "steps": 0, "seen_steps": []},
                          "planning_coverage": frozen_data["coverage"], "autonomous": True, "planning_context": wire(context)}), list(context.scope_ids), document(refs)))
             await connection.execute("UPDATE life.activities SET context=%s WHERE id=%s", (document(context), identifier))
             slot_id = str(uuid5(NAMESPACE_URL, generation_key + f":slot:{index}"))
@@ -261,6 +279,7 @@ class DayPlans:
             await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{identifier}:{version}",
                 {"activity_id": identifier, "expected_revision": version, "context": wire(context)}, scheduled_at=begins, subject_id=context.actor_id))
             occupied.append((begins, finish))
+            retained_ids.add(identifier)
             total_minutes += duration.total_seconds() / 60
             created += 1
         await self._free_time(connection, context, day, start, end, decision.get("free_time_reason") or "留白，允许休息和临时变化",refs)
