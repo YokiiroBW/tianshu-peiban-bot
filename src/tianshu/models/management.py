@@ -425,8 +425,9 @@ def register_routes(app, services):
         cursor_value = request.query.get("cursor")
         async with services.database.transaction(control=True, read_only=True) as conn:
             cursor = await conn.execute(
-                "SELECT * FROM models.attempts WHERE principal_id=%s "
-                "AND (%s::text IS NULL OR attempt_id<%s) ORDER BY attempt_id DESC LIMIT %s",
+                "SELECT a.*,c.reason AS cancellation_reason FROM models.attempts a "
+                "LEFT JOIN models.cancellations c USING(attempt_id) WHERE principal_id=%s "
+                "AND (%s::text IS NULL OR a.attempt_id<%s) ORDER BY a.attempt_id DESC LIMIT %s",
                 (context.principal_id, cursor_value, cursor_value, limit + 1),
             )
             rows = await cursor.fetchall()

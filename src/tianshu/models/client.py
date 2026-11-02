@@ -149,7 +149,7 @@ class ModelClient:
 
     async def _cancel_cleanup(self, attempt_id):
         try:
-            return await finish_cleanup(self.cancel(attempt_id))
+            return await finish_cleanup(self.cancel(attempt_id, reason="consumer_interrupted"))
         except (AppError, TimeoutError, aiohttp.ClientError):
             # The durable attempt retains its original identity for subsequent status reads.
             pass
@@ -169,8 +169,9 @@ class ModelClient:
                                  body={"context": context}, control=True)
         return result_from_wire(value["result"]) if value["result"] is not None else None
 
-    async def cancel(self, attempt_id):
-        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/cancel", control=True)
+    async def cancel(self, attempt_id, *, reason="explicit_cancel"):
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/cancel",
+            body={"reason": reason}, control=True)
         return receipt_from_wire(value["receipt"])
 
     async def reload(self):

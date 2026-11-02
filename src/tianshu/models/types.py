@@ -100,6 +100,7 @@ class ModelReceipt:
     hold_until: datetime | None = None
     deadline_at: datetime | None = None
     execution_started_at: datetime | None = None
+    cancellation_reason: Literal["explicit_cancel", "consumer_interrupted"] | None = None
 
 
 @dataclass(frozen=True, slots=True)

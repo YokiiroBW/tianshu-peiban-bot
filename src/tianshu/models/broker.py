@@ -35,6 +35,13 @@ MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
 
 
+def _cancelled_before_start(row):
+    if (row.get("execution_timeout_seconds") is not None and row.get("business_deadline_at")
+            and row["business_deadline_at"] <= datetime.now(UTC)):
+        return "business_deadline_expired"
+    return "consumer_interrupted" if row.get("cancellation_reason") == "consumer_interrupted" else "cancelled_before_start"
+
+
 class ModelBroker:
     def __init__(
         self,
@@ -254,17 +261,15 @@ class ModelBroker:
             self.scheduler.changed.set()
         return {"quota_groups": list(policies)}
 
-    async def cancel(self, attempt_id):
-        row = await self.ledger.request_cancel(attempt_id)
+    async def cancel(self, attempt_id, *, reason="explicit_cancel"):
+        row = await self.ledger.request_cancel(attempt_id, reason=reason)
         await self.scheduler.cancel(attempt_id)
         if not row:
             return None
         if row["status"] == "queued" and row.get("execution_timeout_seconds") is not None:
             # request_cancel locked this row before submission. Its CAS now
             # forbids a future start, so a caller timeout has a known receipt.
-            code = ("business_deadline_expired" if row.get("business_deadline_at")
-                    and row["business_deadline_at"] <= datetime.now(UTC) else "cancelled_before_start")
-            row = await self.ledger.finish(attempt_id, "cancelled", error_code=code)
+            row = await self.ledger.finish(attempt_id, "cancelled", error_code=_cancelled_before_start(row))
         task = self.active.get(attempt_id)
         if task:
             task.cancel()
@@ -272,9 +277,7 @@ class ModelBroker:
             return await self.external[attempt_id].unknown("cancelled_before_external_submit")
         elif row["status"] == "queued":
             row = await self.ledger.finish(
-                attempt_id, "cancelled", error_code=("business_deadline_expired"
-                    if row.get("execution_timeout_seconds") is not None and row.get("business_deadline_at")
-                    and row["business_deadline_at"] <= datetime.now(UTC) else "cancelled_before_start")
+                attempt_id, "cancelled", error_code=_cancelled_before_start(row)
             )
         # External domain I/O sees cancel_requested through its separate control watcher.
         return receipt(row)
@@ -590,6 +593,24 @@ class ModelBroker:
                     expired = waiting_expired(request)
                     code = (expired.code if expired.code == "business_deadline_expired" else
                         "execution_deadline_expired" if acquired and isinstance(exc, TimeoutError) else "cancelled_before_start")
+            if not terminal and isinstance(exc, (asyncio.CancelledError, GeneratorExit)):
+                # Closing a stream/consumer is not a human cancellation. Persist
+                # the distinction before classifying the original unknown result;
+                # a concurrent explicit cancel always wins the ledger UPSERT.
+                if not self.ready:
+                    code = "broker_stopping"
+                else:
+                    cancelled = await finish_cleanup(self.ledger.request_cancel(
+                        request.attempt_id, reason="consumer_interrupted"))
+                    code = ("cancelled_unknown" if submitted else "cancelled_before_start") if (
+                        cancelled and cancelled.get("cancellation_reason") == "explicit_cancel") else "consumer_interrupted"
+                    if not submitted and request.business_deadline_at is not None and request.business_deadline_at <= datetime.now(UTC):
+                        code = "business_deadline_expired"
+                status = "unknown" if submitted else "cancelled"
+            elif not terminal and isinstance(exc, AppError) and exc.code == "attempt_cancelled_before_start":
+                cancelled = await self.ledger.get(request.attempt_id)
+                if cancelled and cancelled.get("cancellation_reason"):
+                    status, code = "cancelled", _cancelled_before_start(cancelled)
             if not terminal:
                 row = await finish_cleanup(
                     self.ledger.finish(request.attempt_id, status, error_code=code)

@@ -76,7 +76,10 @@ def create_broker_app(broker, token, external_keys=()):
         return json_response({"receipt": receipt(row), "cancel_requested": row["cancel_requested"]})
 
     async def cancel(request):
-        result = await broker.cancel(request.match_info["attempt_id"])
+        body = await request.json() if request.can_read_body else {}
+        if not isinstance(body, dict):
+            raise AppError("invalid_input")
+        result = await broker.cancel(request.match_info["attempt_id"], reason=body.get("reason", "explicit_cancel"))
         if result is None:
             raise AppError("attempt_not_found", status=404)
         return json_response({"receipt": result})
@@ -232,6 +235,7 @@ def create_broker_app(broker, token, external_keys=()):
                 ),
             ),
             native_payload=body,
+            provider_session_scope="intent" if protocol == "openai.embedding" else "conversation",
             protocol=protocol,
             route_id=route_id,
             required_capabilities=frozenset(

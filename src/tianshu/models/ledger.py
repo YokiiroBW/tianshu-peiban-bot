@@ -30,7 +30,7 @@ def receipt(row):
         row["attempt_id"], row["intent_id"], row["status"], row["dispatch"], row["route_id"],
         row["route_revision"], row["provider_id"], row["model"], row["protocol"],
         row["quota_group"], ModelUsage(**usage), row["provider_handle"], row["queued_at"],
-        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"), row.get("deadline_at"), row.get("execution_started_at"))
+        row["started_at"], row["finished_at"], row["first_output_ms"], row["error_code"], row.get("hold_until"), row.get("deadline_at"), row.get("execution_started_at"), row.get("cancellation_reason"))
 
 
 class AttemptLedger:
@@ -80,25 +80,36 @@ class AttemptLedger:
                  request.max_queue_wait, getattr(request, "execution_start", "admitted")))
             row = await cursor.fetchone()
             if row:
-                cancelled = await (await conn.execute("SELECT 1 FROM models.cancellations "
+                cancelled = await (await conn.execute("SELECT reason FROM models.cancellations "
                     "WHERE attempt_id=%s", (request.attempt_id,))).fetchone()
                 if cancelled:
                     row = await (await conn.execute("UPDATE models.attempts SET status='cancelled',"
-                        "cancel_requested=true,finished_at=now(),error_code='cancelled_before_start' "
-                        "WHERE attempt_id=%s RETURNING *", (request.attempt_id,))).fetchone()
-                return row, True
+                        "cancel_requested=true,finished_at=now(),error_code=%s "
+                        "WHERE attempt_id=%s RETURNING *", (
+                            "consumer_interrupted" if cancelled["reason"] == "consumer_interrupted" else "cancelled_before_start",
+                            request.attempt_id))).fetchone()
+                return await self._cancellation(conn, row), True
             cursor = await conn.execute("SELECT * FROM models.attempts WHERE attempt_id=%s",
                                         (request.attempt_id,))
             row = await cursor.fetchone()
             if row["request_digest"] != request_hash:
                 raise AppError("attempt_identity_conflict", status=409)
-            return row, False
+            return await self._cancellation(conn, row), False
 
     async def get(self, attempt_id):
         async with self.database.transaction(control=True, read_only=True) as conn:
-            cursor = await conn.execute("SELECT * FROM models.attempts WHERE attempt_id=%s",
+            cursor = await conn.execute("SELECT a.*,c.reason AS cancellation_reason FROM models.attempts a "
+                                        "LEFT JOIN models.cancellations c USING(attempt_id) WHERE a.attempt_id=%s",
                                         (attempt_id,))
             return await cursor.fetchone()
+
+    @staticmethod
+    async def _cancellation(connection, row):
+        if row is None:
+            return None
+        cancelled = await (await connection.execute("SELECT reason FROM models.cancellations WHERE attempt_id=%s",
+            (row["attempt_id"],))).fetchone()
+        return {**row, "cancellation_reason": cancelled["reason"] if cancelled else None}
 
     async def admitted(self, attempt_id, deadline_at):
         """External admission starts its execution window, without claiming I/O."""
@@ -144,7 +155,7 @@ class AttemptLedger:
             if row["provider_handle"] != provider_handle or not row["started_at"] or row["dispatch"] == "not_started":
                 raise AppError("external_provider_handle_changed", status=409)
             if row["execution_start"] != "provider_running":
-                return row
+                return await self._cancellation(conn, row)
             # Use the execution owner's clock, after lock waiting has finished.
             # PostgreSQL now() is its transaction-start clock and can also live
             # on another host from the Broker/Client timeout machinery.
@@ -158,9 +169,10 @@ class AttemptLedger:
                 if hold_seconds is not None and row["status"] == "running":
                     hold = max(value for value in (hold, deadline, started + timedelta(seconds=hold_seconds))
                         if value is not None)
-            return await (await conn.execute("UPDATE models.attempts SET provider_state=%s,provider_observed_at=%s,"
+            updated = await (await conn.execute("UPDATE models.attempts SET provider_state=%s,provider_observed_at=%s,"
                 "execution_started_at=%s,deadline_at=%s,hold_until=%s,revision=revision+1 WHERE attempt_id=%s RETURNING *",
                 (state, observed_at, started, deadline, hold, attempt_id))).fetchone()
+            return await self._cancellation(conn, updated)
 
     async def checkpoint(self, attempt_id, *, provider_handle=None, first_output_ms=None):
         async with self.database.transaction(control=True) as conn:
@@ -188,16 +200,19 @@ class AttemptLedger:
             row = await cursor.fetchone()
             if row is None:
                 row = await (await conn.execute("SELECT * FROM models.attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
-            return row
+            return await self._cancellation(conn, row)
 
-    async def request_cancel(self, attempt_id):
+    async def request_cancel(self, attempt_id, *, reason="explicit_cancel"):
+        if reason not in {"explicit_cancel", "consumer_interrupted"}:
+            raise AppError("invalid_model_cancellation_reason")
         async with self.database.transaction(control=True) as conn:
-            await conn.execute("INSERT INTO models.cancellations(attempt_id) VALUES(%s) "
-                               "ON CONFLICT DO NOTHING", (attempt_id,))
+            await conn.execute("INSERT INTO models.cancellations AS c(attempt_id,reason) VALUES(%s,%s) "
+                "ON CONFLICT(attempt_id) DO UPDATE SET reason=CASE WHEN c.reason='explicit_cancel' "
+                "THEN c.reason ELSE excluded.reason END", (attempt_id, reason))
             cursor = await conn.execute(
                 "UPDATE models.attempts SET cancel_requested=true,revision=revision+1 "
                 "WHERE attempt_id=%s RETURNING *", (attempt_id,))
-            return await cursor.fetchone()
+            return await self._cancellation(conn, await cursor.fetchone())
 
     async def recover(self):
         async with self.database.transaction(control=True) as conn:

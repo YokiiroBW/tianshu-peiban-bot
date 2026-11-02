@@ -119,7 +119,8 @@ async def observed(
     async def read(conn):
         row = await (
             await conn.execute(
-                "SELECT * FROM models.attempts WHERE attempt_id=%s",
+                "SELECT a.*,c.reason AS cancellation_reason FROM models.attempts a "
+                "LEFT JOIN models.cancellations c USING(attempt_id) WHERE a.attempt_id=%s",
                 (attempt_id(context, provider_id, client_request_id),),
             )
         ).fetchone()
