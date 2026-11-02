@@ -8,9 +8,11 @@ from unittest.mock import AsyncMock
 import pytest
 
 from tianshu.conversation.codec import document, signature
+from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.types import InputPart
 from tianshu.life.continuation import MAX_WINDOW_STEPS, action_resolved, execution_window, options, resume_step
 from tianshu.life.day_plan import resumable
+from tianshu.life.planner import INPUT_BODY_TOKENS
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, OriginKind, Receipt, SourceRef
@@ -174,6 +176,10 @@ async def test_old_failure_control_observation_has_real_sources_visible_on_its_o
 @pytest.mark.asyncio
 async def test_expired_failure_replans_the_same_activity_at_full_quota_with_original_remaining_arguments(database):
     value, successful, failed, failure = await successful_prefix(database)
+    # Match runtime.product's configured assembler for a full frozen checkpoint
+    # and four retained arrangements; the shared minimal fixture counts bytes.
+    value.worker.assembler = ContextAssembler(value.worker.life.identity, None, None,
+        settings={"tokenizer": "o200k_base"})
     await future_slot(database, value)
     async with database.transaction() as connection:
         for number in (2, 3):
@@ -208,6 +214,7 @@ async def test_expired_failure_replans_the_same_activity_at_full_quota_with_orig
     assert replanned["checkpoint_data"]["execution_window"]["steps"] == 0
     await value.worker.activity_step("research", replanned["revision"], wire(value.context))
     assert len(value.models.calls) == 1 and dict(value.actions.calls[-1][0].arguments) == NEXT["arguments"]
+    assert value.models.calls[0].estimated_input_tokens <= INPUT_BODY_TOKENS
 
 
 @pytest.mark.asyncio
