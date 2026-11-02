@@ -9,6 +9,8 @@
 - C：channels.read 内部补取来源与技术结果分类；保留原始消息/展开原件、调用审计，停止无原文生活经历污染；检查并按必要范围完善现有图片工作流导入/角色绑定。独占 channels、conversation/results.py、capabilities/images 及对应必要前端文件。真实工作流/配置读取与写入由根执行，先核对实际名称和 graph，不猜节点/人物。
 - 根：共享记录、明确必要的跨边界装配、实际配置核对与导入、单写集成、全部收齐后的必要联合验证、原生受影响路径验证和串行部署、交付记录与干净源码包。
 
+11:28 补充核对：四条真实 book_feed 属于全局管理员，原作者 context.actor_id 均为空。B 获得 Identity.refresh_scheduled_context 的精确扩展归属：保持现有 Life/Growth 默认必须有角色的语义，允许媒体全局作者显式保留空角色刷新其原授权；仍校验主体、原 scope/audience/permission 上界，不把书源猜绑给任一 BOT。纳入定向验证，无用户 Memory/Companion 源码改动。
+
 ## 实施边界
 
 1. 流式复用既有 ModelClient/ModelBroker 和原请求/回执身份；完整 JSON、来源及 CAS 校验通过后统一应用。断流、unknown、取消、晚结果不能制造第二次外部动作。不把原始推理或半份规划变成正式日程。
