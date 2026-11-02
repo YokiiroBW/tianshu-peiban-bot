@@ -1,6 +1,5 @@
 """Authenticated transport events become admitted, durable conversation input once."""
 
-import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid5, NAMESPACE_URL
@@ -14,6 +13,7 @@ from .contracts import ChannelError
 from .onebot.messages import normalize_event
 from .telegram import normalize_update
 from .text import database_text, database_value, needs_normalization
+from .forward import expand_forward
 
 
 def verified_parts(parts, decision):
@@ -349,127 +349,3 @@ async def operational_event(service, connection, raw, event):
             "message:" + kind + ":" + str(raw["message_id"]),
             reason="channel_recall",
         )
-
-
-async def expand_forward(
-    service,
-    context,
-    connection,
-    part,
-    call_api,
-    event_id,
-    *,
-    depth=0,
-    max_parts=128,
-    path="root",
-    event_revision=1,
-):
-    from .onebot.messages import input_parts, segments
-
-    segment = part.metadata.get("segment", {})
-    refs = []
-    try:
-        if depth > 2:
-            raise ChannelError("forward_depth_budget", 413)
-        if segment.get("type") == "forward":
-            raw = await call_api("get_forward_msg", {"id": segment["data"]["id"]})
-        elif segment.get("type") == "node":
-            raw = {"messages": [segment["data"]]}
-        else:
-            return [part], refs
-        native = canonical(raw).encode()
-        if len(native) > 4 * 1024 * 1024:
-            raise ChannelError("forward_byte_budget", 413)
-        source = await service.sources.capture(
-            context,
-            locator={
-                "kind": "channel_forward",
-                "connection_id": connection["id"],
-                "event_id": event_id,
-                "forward_id": segment.get("data", {}).get("id"),
-                "depth": depth,
-                "path": path,
-                "revision": event_revision,
-                "evidence_unit": connection["namespace"] + ":" + connection["id"] + ":" + event_id,
-            },
-            raw=native,
-            mime_type="application/json",
-        )
-        refs.append(source)
-        nodes = raw.get("messages", raw.get("message", []))
-        output = [
-            InputPart(
-                "forward",
-                metadata={
-                    "channel": "onebot.v11",
-                    "forward_source_ref": wire(source),
-                    "node_count": len(nodes),
-                    "analysis_completed": False,
-                },
-            )
-        ]
-        for node_index, node in enumerate(nodes[:128]):
-            sender = node.get("sender", {})
-            author = str(sender.get("user_id", node.get("user_id", node.get("uin", ""))))
-            content = node.get("content", node.get("message", []))
-            for child_index, child in enumerate(input_parts(segments(content))):
-                if len(output) >= max_parts:
-                    output[0] = replace(
-                        output[0], metadata={**output[0].metadata, "omitted": "forward_part_budget"}
-                    )
-                    return output, refs
-                metadata = {
-                    **child.metadata,
-                    "original_author_external_id": author,
-                    "original_author_display_name": database_value(sender.get(
-                        "nickname", node.get("nickname", node.get("name"))
-                    )),
-                    "forward_node_index": node_index,
-                    "forward_source_ref": wire(source),
-                }
-                child = replace(
-                    child, kind="quote" if child.kind == "text" else child.kind, metadata=metadata
-                )
-                if child.metadata.get("original_pending"):
-                    child, media_source = await service.media.receive(
-                        context,
-                        connection,
-                        child,
-                        call_api,
-                        event_id=event_id,
-                        part_index=path + ":" + str(node_index) + ":" + str(child_index),
-                        revision=event_revision,
-                    )
-                    if media_source:
-                        refs.append(media_source)
-                if child.kind == "forward":
-                    nested, nested_refs = await expand_forward(
-                        service,
-                        context,
-                        connection,
-                        child,
-                        call_api,
-                        event_id,
-                        depth=depth + 1,
-                        path=path + ":" + str(node_index) + ":" + str(child_index),
-                        event_revision=event_revision,
-                        max_parts=max_parts - len(output),
-                    )
-                    output.extend(nested)
-                    refs.extend(nested_refs)
-                else:
-                    output.append(child)
-        return output, refs
-    except asyncio.CancelledError:
-        raise
-    except Exception as error:
-        return [
-            replace(
-                part,
-                metadata={
-                    "channel": "onebot.v11",
-                    "lookup_unavailable": getattr(error, "code", "forward_lookup_failed"),
-                    "analysis_completed": False,
-                },
-            )
-        ], refs

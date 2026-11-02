@@ -112,16 +112,25 @@ class IngressReads(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(restored.parts, message.parts)
         self.assertEqual(restored.source_refs, message.source_refs)
 
-        service.sources.capture.reset_mock()
-        service.actions.find.side_effect = [
-            {**entry, "receipt": wire(replace(actual, execution="unknown", effect="unknown",
-                                             error_code="synthetic_lookup_unknown"))}
-            for entry, actual in zip(originals, receipts, strict=True)
-        ]
-        await process_event(service, row["id"])
-        service.actions.invoke.assert_not_awaited()
-        service.sources.capture.assert_not_awaited()
-        uncertain = service.conversation.ingest.await_args.args[1]
-        self.assertEqual(uncertain.parts[0].metadata["lookup_unavailable"], "synthetic_lookup_unknown")
-        self.assertEqual(uncertain.parts[1].metadata["lookup_unavailable"], "synthetic_lookup_unknown")
-        self.assertFalse(uncertain.source_refs)
+        for execution, effect, error in (("unknown", "unknown", "synthetic_lookup_unknown"),
+                                         ("failed", "none", "onebot_api_failed")):
+            with self.subTest(original_execution=execution):
+                service.sources.capture.reset_mock()
+                unavailable = [
+                    {**entry, "receipt": wire(replace(actual, execution=execution, effect=effect,
+                                                     error_code=error, result={"data": None}))}
+                    for entry, actual in zip(originals, receipts, strict=True)
+                ]
+                before = json.dumps(unavailable, sort_keys=True)
+                service.actions.find.side_effect = unavailable
+                await process_event(service, row["id"])
+                service.actions.invoke.assert_not_awaited()
+                service.sources.capture.assert_not_awaited()
+                uncertain = service.conversation.ingest.await_args.args[1]
+                self.assertEqual(uncertain.parts[0].metadata["lookup_unavailable"], error)
+                self.assertEqual(uncertain.parts[1].metadata["lookup_unavailable"], error)
+                self.assertEqual(uncertain.parts[1].metadata["segment"], raw["message"][1])
+                self.assertEqual(uncertain.parts[1].metadata["missing"], [{"reason": error}])
+                self.assertEqual(uncertain.parts[-1].text, "这是这次实际收到的消息。")
+                self.assertFalse(uncertain.source_refs)
+                self.assertEqual(json.dumps(unavailable, sort_keys=True), before)

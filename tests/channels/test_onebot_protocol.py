@@ -22,6 +22,16 @@ CONNECTION = {
 
 
 class OneBotProtocol(unittest.IsolatedAsyncioTestCase):
+    def test_forward_download_empty_rejection_keeps_its_actual_response(self):
+        raw = {"status": "failed", "retcode": 100,
+            "wording": "download forward message payload is empty", "data": None}
+        result = onebot_result(raw)
+        self.assertEqual((result.state, result.retcode, result.error_code),
+            ("rejected", 100, "onebot_api_failed"))
+        self.assertIs(result.raw, raw)
+        self.assertIsNone(result.data)
+        self.assertFalse(result.message_ids)
+
     def test_full_fixed_catalog_and_provider_extension_boundary(self):
         self.assertEqual(len(SEGMENTS), 23)
         self.assertEqual(len(APIS), 38)
