@@ -52,7 +52,8 @@ def native_request(provider, secret, cursor=None, *, context=None, intent_id=Non
     if cursor is not None and (not isinstance(cursor, str) or not 1 <= len(cursor) <= 4096):
         raise AppError("invalid_model_cursor")
     headers = {"Accept": "application/json", "Accept-Encoding": "identity"}
-    headers.update(provider_headers(provider["base_url"], context, intent_id))
+    headers.update(provider_headers(provider["base_url"], context, intent_id,
+        session_scope="intent", function=OPERATION))
     params = {}
     if protocol == "gemini.generate":
         headers["x-goog-api-key"] = secret
@@ -222,6 +223,7 @@ async def enumerate_models(services, context, provider_id, body):
             async with services.models.resource(request) as permit:
                 await permit.submitted()
                 async with aiohttp.ClientSession(
+                    cookie_jar=aiohttp.DummyCookieJar(),
                     timeout=aiohttp.ClientTimeout(total=permit.request.budget.remaining(), sock_connect=30)
                 ) as session:
                     async with session.get(

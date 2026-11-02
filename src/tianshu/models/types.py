@@ -64,6 +64,7 @@ class ModelRequest:
     # Absence retains the absolute budget of previously frozen requests.
     execution_timeout_seconds: float | None = None
     business_deadline_at: datetime | None = None
+    provider_session_scope: Literal["conversation", "intent"] = "intent"
 
 
 @dataclass(frozen=True, slots=True)

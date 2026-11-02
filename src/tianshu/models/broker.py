@@ -29,6 +29,7 @@ from .types import ModelEvent, ModelResult, ModelUsage
 from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
 from .estimation import input_tokens
 from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, waiting_expired, ExternalExecutionClock
+from .transport import validate_provider_session
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -155,6 +156,7 @@ class ModelBroker:
                 # The bounded quota scheduler already owns supplier capacity.
                 # A connector cap would add an invisible queue after admission.
                 connector=aiohttp.TCPConnector(limit=0, limit_per_host=0),
+                cookie_jar=aiohttp.DummyCookieJar(),
                 auto_decompress=False,
                 timeout=aiohttp.ClientTimeout(total=None, sock_connect=30),
             )
@@ -307,6 +309,8 @@ class ModelBroker:
         if not self.ready:
             raise AppError("broker_unavailable", status=503)
         waiting_timeout(request)
+        validate_provider_session(request.provider_session_scope,
+            parameters=request.parameters, native_payload=request.native_payload)
         if request.service_class == ServiceClass.CONTROL:
             raise AppError("control_does_not_generate")
         if type(request.max_output_tokens) is not int or request.max_output_tokens < 0:

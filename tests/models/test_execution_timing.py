@@ -172,6 +172,8 @@ async def test_ledger_freezes_duration_before_admission_and_never_restarts_an_at
         await ledger.create(replace(original, execution_timeout_seconds=301), plan, {})
     with pytest.raises(AppError, match="attempt_identity_conflict"):
         await ledger.create(replace(original, max_queue_wait=10), plan, {})
+    with pytest.raises(AppError, match="attempt_identity_conflict"):
+        await ledger.create(replace(original, provider_session_scope="conversation"), plan, {})
     actual = execution_budget(original)
     started = await ledger.started(original.attempt_id, 30, deadline_at=actual.deadline_at)
     assert started["deadline_at"] == actual.deadline_at
@@ -188,6 +190,7 @@ async def test_ledger_freezes_duration_before_admission_and_never_restarts_an_at
     old_wire = wire(legacy)
     old_wire.pop("execution_timeout_seconds")
     old_wire.pop("business_deadline_at")
+    old_wire.pop("provider_session_scope")
     old_semantic = {key: value for key, value in old_wire.items() if key not in {"budget", "max_queue_wait"}}
     row, created = await ledger.create(request_from_wire(old_wire), plan, {})
     assert created and row["request_digest"] == digest(old_semantic)
@@ -220,9 +223,10 @@ async def test_new_ledger_identity_canonicalizes_only_its_unordered_contract_inp
     duplicate,created=await ledger.create(restored,plan,{})
     assert not created and duplicate["request_digest"]==row["request_digest"]
     legacy=replace(original,intent_id="legacy-order",attempt_id="legacy-order",execution_timeout_seconds=None,
+        provider_session_scope="conversation",
         budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=60)))
     legacy_semantic=wire(legacy)
-    for name in ("budget","max_queue_wait","execution_timeout_seconds","business_deadline_at"):
+    for name in ("budget","max_queue_wait","execution_timeout_seconds","business_deadline_at","provider_session_scope"):
         legacy_semantic.pop(name)
     unchanged,created=await ledger.create(legacy,plan,{})
     assert created and unchanged["request_digest"]==digest(legacy_semantic)

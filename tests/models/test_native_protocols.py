@@ -63,7 +63,7 @@ def test_responses_continuation_is_not_converted_to_chat(tmp_path):
     native = {"previous_response_id": "provider-state", "input": [{"type": "function_call_output",
               "call_id": "tool-1", "output": "done"}], "reasoning": {"effort": "high"}}
     call = NativeCompiler(FileStore(tmp_path), Secrets({"TEST_TOKEN": "fixture-key"})).compile(
-        route("openai.responses"), request(native_payload=native), stream=False)
+        route("openai.responses"), request(native_payload=native, provider_session_scope="conversation"), stream=False)
     assert call.body["previous_response_id"] == "provider-state"
     assert call.body["input"] == native["input"]
     assert call.body["reasoning"] == {"effort": "high"}

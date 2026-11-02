@@ -8,6 +8,7 @@ from .types import (ExternalRequest, ModelEvent, ModelMessage, ModelPart, ModelR
                     ModelRequest, ModelResult, ModelUsage, ModelCompletion, ToolSpec)
 from .completion import completion_from_native
 from .timing import validate_timing
+from .transport import validate_provider_session
 
 
 def context_from_wire(value):
@@ -32,6 +33,8 @@ def part_from_wire(value):
 def request_from_wire(value):
     try:
         value = dict(value)
+        # Old frozen requests keep their original provider conversation chain.
+        value.setdefault("provider_session_scope", "conversation")
         if "execution_timeout_seconds" not in value:
             value.setdefault("max_queue_wait", 30.0)
         if value.get("business_deadline_at"):
@@ -47,6 +50,8 @@ def request_from_wire(value):
         value["source_refs"] = tuple(SourceRef(**item) for item in value.get("source_refs", []))
         request = ModelRequest(**value)
         validate_timing(request)
+        validate_provider_session(request.provider_session_scope,
+            parameters=request.parameters, native_payload=request.native_payload)
         return request
     except (KeyError, TypeError, ValueError):
         raise AppError("invalid_model_request") from None

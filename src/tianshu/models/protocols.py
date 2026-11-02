@@ -10,7 +10,7 @@ from urllib.parse import quote, urlsplit
 
 from tianshu.runtime.errors import AppError
 from .types import ModelPart, ModelUsage
-from .transport import provider_headers
+from .transport import provider_headers, validate_provider_session
 from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
 
 
@@ -116,10 +116,13 @@ class NativeCompiler:
             raise AppError("invalid_provider_base_url")
         secret = api_key if api_key is not None else self.secrets.resolve(plan.credential_ref)
         headers = {"Accept-Encoding": "identity", "Content-Type": "application/json"}
-        headers.update(provider_headers(plan.base_url, request.context, request.intent_id))
+        headers.update(provider_headers(plan.base_url, request.context, request.intent_id,
+            session_scope=request.provider_session_scope, function=request.function))
         base = plan.base_url.rstrip("/")
         body = dict(request.native_payload) if request.native_payload is not None else None
         parameters = merged_parameters(plan, request)
+        validate_provider_session(request.provider_session_scope,
+            parameters=parameters, native_payload=request.native_payload)
         if plan.protocol == "gemini.generate":
             headers["x-goog-api-key"] = secret
             if body is None:

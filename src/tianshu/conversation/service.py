@@ -309,7 +309,7 @@ class ConversationService:
             context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools), required_capabilities=frozenset(required),
             estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None,
             execution_timeout_seconds=float(CHAT_EXECUTION_SECONDS),
-            business_deadline_at=_business_deadline(row))
+            business_deadline_at=_business_deadline(row), provider_session_scope="conversation")
         return request, pack, tool_map
 
     async def _model_turn(self, context, row, attempt_id, choices):

@@ -40,6 +40,8 @@ class AttemptLedger:
     async def create(self, request, plan, units):
         semantic = wire(request)
         semantic.pop("budget", None)
+        if semantic.get("provider_session_scope") == "conversation":
+            semantic.pop("provider_session_scope")
         if semantic.get("execution_start") == "admitted":
             semantic.pop("execution_start")
         if getattr(request, "execution_timeout_seconds", None) is None:

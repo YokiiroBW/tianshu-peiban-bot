@@ -5,6 +5,7 @@ from datetime import UTC, datetime
 from uuid import uuid5, NAMESPACE_URL
 from tianshu.types import Action, OriginKind, ServiceClass, SourceRef
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.capabilities.contracts import canonical, digest
 from tianshu.capabilities.serialization import receipt_from
@@ -91,6 +92,26 @@ async def accept_event(service, connection_id, raw, *, ownership=None):
 
 
 async def process_event(service, event_key):
+    try:
+        return await _process_event(service, event_key)
+    except AppError as error:
+        # A recall can clear this event while media/admission is awaiting I/O.
+        # Sources still rejects the revoked input; only the channel job's already
+        # withdrawn work is finished normally. Other failures keep their signal.
+        if error.code in {"source_media_not_authorized", "source_suppressed", "source_unavailable", "source_revoked"}:
+            async with service.runtime.database.transaction(read_only=True) as conn:
+                if await event_withdrawn(conn, event_key):
+                    return
+        raise
+
+
+async def event_withdrawn(connection, event_key):
+    row = await (await connection.execute(
+        "SELECT state FROM channels.events WHERE id=%s", (event_key,))).fetchone()
+    return bool(row and row["state"] == "withdrawn")
+
+
+async def _process_event(service, event_key):
     async with service.runtime.database.transaction(read_only=True) as conn:
         row = await (
             await conn.execute(
@@ -249,6 +270,8 @@ async def process_event(service, event_key):
                 parts = verified_parts(converted, decision)
                 refs = tuple(refs)
                 async with service.runtime.database.transaction() as conn:
+                    if await event_withdrawn(conn, event_key):
+                        return
                     if not await service.sources.validate_persistence(conn, context, refs):
                         raise ChannelError("source_revoked", 410)
                     await service.repository.bind_event_sources(conn, event_key, refs)
@@ -268,6 +291,9 @@ async def process_event(service, event_key):
                     )
             if service.conversation is None:
                 raise ChannelError("conversation_ingress_not_bound", 503)
+            async with service.runtime.database.transaction(read_only=True) as conn:
+                if await event_withdrawn(conn, event_key):
+                    return
             # Existing checkpoints predate this metadata. Add only the current
             # admission's verified identities when resuming the original event.
             parts = verified_parts(parts, decision)
@@ -298,6 +324,8 @@ async def process_event(service, event_key):
                 "duplicate_admission": decision.duplicate,
             }
     async with service.runtime.database.transaction() as conn:
+        if await event_withdrawn(conn, event_key):
+            return
         if refs and not await service.sources.validate_persistence(conn, context, refs):
             await conn.execute(
                 "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=%s",
