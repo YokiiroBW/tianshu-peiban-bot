@@ -167,7 +167,7 @@ async def test_old_failure_control_observation_has_real_sources_visible_on_its_o
     assert len(value.episodes) == 1
     control, visible_elsewhere = value.episodes[0]
     assert visible_elsewhere is False and control["actual_result"]["derived_kind"] == "activity_read_skip"
-    assert set(original) <= set(control["source_refs"]) and not control["coverage"].complete
+    assert all(ref in control["source_refs"] for ref in original) and not control["coverage"].complete
     assert (await value.identity.check_many(value.context, (control["source_refs"],)))[0]
 
 
@@ -199,7 +199,11 @@ async def test_expired_failure_replans_the_same_activity_at_full_quota_with_orig
             "capability_id": "content.read", "arguments": {}, "duration_minutes": 20}})
     await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context))
     replanned = await activity(database)
-    assert replanned["state"] == "planned" and replanned["checkpoint_data"]["arguments"] == NEXT["arguments"]
+    planning = await mark(database)
+    diagnostic = {"planning": {key: planning[key] for key in ("reason", "last_error", "generation_consumed", "repair_count")},
+        "activity": {key: replanned[key] for key in ("state", "waiting_reason", "resume_condition", "next_due_at", "protected_until")},
+        "model_calls": len(value.models.calls), "model_observations": len(value.models.observations)}
+    assert replanned["state"] == "planned" and replanned["checkpoint_data"]["arguments"] == NEXT["arguments"], diagnostic
     assert replanned["checkpoint_data"]["completed_action_id"] == successful.action_id
     assert replanned["checkpoint_data"]["execution_window"]["steps"] == 0
     await value.worker.activity_step("research", replanned["revision"], wire(value.context))
