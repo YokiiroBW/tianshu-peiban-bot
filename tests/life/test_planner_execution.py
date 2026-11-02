@@ -14,7 +14,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.life import planner
 from tianshu.life.service import LifeService
 from tianshu.life.worker import LifeWorker
-from tianshu.models.types import ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
+from tianshu.models.types import ModelCompletion, ModelEvent, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.commands import CommandStore
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobQueue
@@ -72,7 +72,20 @@ class Models:
     def __init__(self, output, *, lose_response=False):
         self.output, self.lose_response = output, lose_response
         self.calls, self.observations = [], []
+        self.streams = []
         self.actual = None
+
+    async def generation_profile(self, request):
+        return {"model": "deepseek-v4.1-flash", "protocol": "openai.chat", "route_id": "fixture-route",
+                "route_revision": 1, "verified_capabilities": ["text", "stream"],
+                "max_output_tokens": request.max_output_tokens, "output_parameters": {"max_tokens": request.max_output_tokens}}
+
+    async def stream(self, request):
+        self.streams.append(request)
+        result = await self.generate(request)
+        # A complete-looking partial event must never be the domain's result.
+        yield ModelEvent("text", text=self.output)
+        yield ModelEvent("receipt", receipt=result.receipt, data=result)
 
     async def generate(self, request):
         self.calls.append(request)
@@ -90,6 +103,7 @@ class Models:
                 "native",
                 "quota",
             ),
+            completion=ModelCompletion("complete", ("stop",)),
         )
         if self.lose_response:
             raise TimeoutError("fixture response lost after submission")
@@ -132,6 +146,7 @@ async def setup(database, output, *, lose_response=False, capability_id="content
         (
             Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
             Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
+            Migration("0035_life_planning_recovery", files("tianshu.life").joinpath("planning_recovery.sql").read_text()),
             Migration(
                 "0032_conversation",
                 files("tianshu.conversation").joinpath("schema.sql").read_text(),
@@ -223,6 +238,7 @@ async def test_native_plan_creates_activity_then_dispatches_that_exact_action(
     await fixture.worker.plan("actor", 1, wire(fixture.context))
     request = fixture.models.calls[0]
     assert planner.TASK in request.system
+    assert fixture.models.streams == [request] and request.max_output_tokens == 16384
     assert planner.frozen_material(request)["routine"]["wake_at"] == "00:00"
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute("SELECT * FROM life.activities")).fetchall()
@@ -261,6 +277,11 @@ async def test_successful_model_invalid_text_and_legitimate_null_have_distinct_s
     await fixture.worker.plan("actor", 1, wire(fixture.context))
     current = await mark(database)
     assert current["reason"] == reason and current["generation_consumed"] is True
+    if reason == "planner_output_invalid":
+        assert current["decision_fingerprint"] is None and current["last_error"] == reason
+        assert current["repair_due_at"] is not None
+    else:
+        assert current["decision_fingerprint"] and current["review_after"] is not None
     assert fixture.models.actual.receipt.status == "succeeded"
     await fixture.worker.plan("actor", 1, wire(fixture.context))
     assert len(fixture.models.calls) == 1

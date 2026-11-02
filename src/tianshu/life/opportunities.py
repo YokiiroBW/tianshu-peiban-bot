@@ -1,6 +1,6 @@
 """Concrete starting points from existing intentions, not invented URLs or accounts."""
 from tianshu.conversation.codec import signature
-from .planner import valid_arguments
+from .planner import valid_arguments, allowed_arguments
 
 
 def choices(data):
@@ -11,12 +11,15 @@ def choices(data):
     for identifier,title,goal_id in topics:
         if not title or not discover:
             continue
-        arguments={"query":title[:300],"mode":"explore","limit":3}
-        if not valid_arguments(discover["input_schema"],arguments):
-            continue
-        offers.append({"id":"explore:"+signature({"id":identifier,"query":title}),
-            "basis_id":identifier,"activity":{"title":"看看关于“"+title[:80]+"”的新内容","kind":"exploration",
-                "goal_id":goal_id,"capability_id":"content.discover","arguments":arguments,"duration_minutes":30}})
+        variants=discover.get("constraints",{}).get("source_options",[{}])
+        for option in variants:
+            arguments={"query":title[:300],"mode":"explore","limit":3,
+                       **{key: value for key, value in option.items() if value is not None}}
+            if not allowed_arguments(discover,arguments):
+                continue
+            offers.append({"id":"explore:"+signature({"id":identifier,"arguments":arguments}),
+                "basis_id":identifier,"activity":{"title":"看看关于“"+title[:80]+"”的新内容","kind":"exploration",
+                    "goal_id":goal_id,"capability_id":"content.discover","arguments":arguments,"duration_minutes":30}})
     writing=next((item for item in data["capabilities"] if item["id"]=="writing.request"),None)
     if writing:
         for work in data.get("writing",()):

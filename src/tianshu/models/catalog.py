@@ -121,6 +121,18 @@ class ModelCatalog:
     def __init__(self, database):
         self.database = database
 
+    async def bound_route(self, connection, request):
+        binding = await (await connection.execute(
+            "SELECT route_id FROM models.bindings WHERE service_class=%s "
+            "AND function IN (%s,'*') AND actor_id IN (%s,'') "
+            "ORDER BY (function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
+            (request.service_class.value, request.function, request.context.actor_id or "",
+             request.function, request.context.actor_id or ""))).fetchone()
+        if not binding:
+            raise AppError("model_function_not_configured", status=503,
+                details={"function": request.function, "service_class": request.service_class.value})
+        return binding["route_id"]
+
     async def resolve(self, request: ModelRequest) -> RoutePlan:
         if request.function not in FUNCTIONS:
             raise AppError("unknown_model_function")
@@ -136,7 +148,13 @@ class ModelCatalog:
                 if not ({"models.route", "*"} & request.context.permissions) and not (
                     request.capability_probe and "models.manage" in request.context.permissions
                 ):
-                    raise AppError("model_route_forbidden", status=403)
+                    # A domain may freeze its own already selected binding. This
+                    # does not grant arbitrary route selection, including after
+                    # an author changes the binding while assembly is in flight.
+                    if request.route_revision is None:
+                        raise AppError("model_route_forbidden", status=403)
+                    if await self.bound_route(conn, request) != request.route_id:
+                        raise AppError("model_route_binding_changed", status=409)
                 route_id = request.route_id
             elif request.function == "embed":
                 profile = await (
@@ -146,29 +164,7 @@ class ModelCatalog:
                     raise AppError("embedding_profile_not_configured", status=503)
                 route_id = profile["route_id"]
             else:
-                cursor = await conn.execute(
-                    "SELECT route_id FROM models.bindings WHERE service_class=%s "
-                    "AND function IN (%s,'*') AND actor_id IN (%s,'') "
-                    "ORDER BY (function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
-                    (
-                        request.service_class.value,
-                        request.function,
-                        request.context.actor_id or "",
-                        request.function,
-                        request.context.actor_id or "",
-                    ),
-                )
-                binding = await cursor.fetchone()
-                if not binding:
-                    raise AppError(
-                        "model_function_not_configured",
-                        status=503,
-                        details={
-                            "function": request.function,
-                            "service_class": request.service_class.value,
-                        },
-                    )
-                route_id = binding["route_id"]
+                route_id = await self.bound_route(conn, request)
             cursor = await conn.execute(
                 "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled "
                 "FROM models.routes r JOIN models.providers p USING(provider_id) "

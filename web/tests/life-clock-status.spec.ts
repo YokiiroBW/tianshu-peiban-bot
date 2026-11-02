@@ -168,3 +168,32 @@ test("life reports the original unknown planner and an overdue clock without cla
     }),
   ).toBeVisible();
 });
+
+test("life preserves the original planning failure while a bounded repair is running", async ({ page }) => {
+  await page.route("**/api/v1/life/routine**", (route) => answer(route, {
+    ...routine,
+    planning: { ...routine.planning, reason: "planner_running", last_error: "planner_output_incomplete",
+      repair_count: 1, repair_due_at: "2026-11-02T03:00:00Z" },
+  }));
+  await page.goto("/#/roles/life");
+  await expect(page.getByText("原规划请求正在处理。", { exact: true })).toBeVisible();
+  await expect(page.getByText(/上一次规划：原规划结果不完整/)).toBeVisible();
+  await expect(page.getByText(/有限修复将在/)).toBeVisible();
+});
+
+test("a day with only free time shows its reason and next review", async ({ page }) => {
+  await page.clock.install({ time: new Date("2026-11-02T02:00:00Z") });
+  await page.route("**/api/v1/life/day-plan", (route) => answer(route, {
+    day: "2026-11-02",
+    plan: { actor_id: "actor", day: "2026-11-02", revision: 1, timezone: "Asia/Shanghai", state: "open", source_refs: [] },
+    slots: [{ id: "free", actor_id: "actor", day: "2026-11-02", revision: 1, kind: "free", state: "planned",
+      starts_at: "2026-11-02T02:00:00Z", ends_at: "2026-11-02T15:00:00Z", activity_id: null, title: null,
+      reason: "今天先慢慢喝杯咖啡。", waiting_reason: null, checkpoint_data: {}, source_refs: [] }],
+    unfinished: [], recent_results: [], planning: { ...routine.planning, reason: "no_meaningful_activity",
+      pending: false, generation_consumed: true, review_after: "2026-11-02T03:30:00Z" },
+  }));
+  await page.goto("/#/roles/life");
+  await expect(page.getByText("自由时间", { exact: true })).toBeVisible();
+  await expect(page.getByText("今天先慢慢喝杯咖啡。", { exact: true })).toBeVisible();
+  await expect(page.getByText(/留白到.*再看看想做什么/)).toBeVisible();
+});

@@ -6,7 +6,7 @@ import pytest
 
 from tianshu.conversation.dependencies import ConversationDependencies
 from tianshu.conversation.generation import GenerationRequests, attempt_for
-from tianshu.models.types import ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
+from tianshu.models.types import ModelCompletion, ModelEvent, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
@@ -208,3 +208,61 @@ async def test_observer_absence_never_submits_and_current_sources_gate_frozen_te
     with pytest.raises(AppError, match="source_unavailable"):
         await generations.observe_request(original.attempt_id, observer=reader)
     assert models.calls == []
+
+
+@pytest.mark.asyncio
+async def test_stream_returns_only_the_durable_complete_result_not_partial_events(database):
+    context = await prepare(database)
+
+    class StreamModels(Models):
+        actual = None
+
+        async def stream(self, frozen):
+            self.calls.append(frozen)
+            yield ModelEvent("text", text="not the persisted content")
+            self.actual = ModelResult((ModelPart("text", text="persisted complete content"),),
+                ModelReceipt(frozen.attempt_id, frozen.intent_id, "succeeded", "submitted", "r", 1, "p", "m", "openai.chat", "q"),
+                completion=ModelCompletion("complete", ("stop",)))
+            yield ModelEvent("receipt", receipt=self.actual.receipt)
+
+        async def result(self, attempt_id, *, context):
+            self.observations.append((attempt_id, context))
+            return self.actual
+
+    models = StreamModels()
+    generations = GenerationRequests(database, Sources(), models)
+    original = request("streamed-material", context)
+    result = await generations.run(original.intent_id, original, stream=True)
+    assert result.parts[0].text == "persisted complete content" and result.completion.state == "complete"
+    assert await generations.run(original.intent_id, original, stream=True) == result
+    assert models.calls == [original] and len(models.observations) == 2
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("known_result", [False, True])
+async def test_interrupted_stream_observes_the_original_known_or_unknown_attempt(database, known_result):
+    context = await prepare(database)
+
+    class Interrupted(Models):
+        actual = None
+
+        async def stream(self, frozen):
+            self.calls.append(frozen)
+            yield ModelEvent("text", text='{"activity":null}')
+            self.actual = ModelResult((), ModelReceipt(frozen.attempt_id, frozen.intent_id,
+                "succeeded" if known_result else "unknown", "submitted", "r", 1, "p", "m", "openai.chat", "q"))
+            # No terminal transport event: the original model ledger is still
+            # authoritative on a later read, including if its response was lost.
+
+        async def result(self, attempt_id, *, context):
+            self.observations.append((attempt_id, context))
+            return self.actual
+
+    models = Interrupted()
+    generations = GenerationRequests(database, Sources(), models)
+    original = request("interrupted-stream", context)
+    with pytest.raises(AppError, match="generation_stream_interrupted"):
+        await generations.run(original.intent_id, original, stream=True)
+    result = await generations.run(original.intent_id, original, stream=True)
+    assert result.receipt.status == ("succeeded" if known_result else "unknown")
+    assert models.calls == [original] and result.receipt.attempt_id == original.attempt_id

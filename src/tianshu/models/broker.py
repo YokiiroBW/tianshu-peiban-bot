@@ -25,6 +25,7 @@ from .ledger import AttemptLedger, context_fingerprint, digest, receipt
 from .protocols import NativeCompiler, ResponseCollector, normalize_usage, requested_capabilities
 from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
+from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -252,6 +253,21 @@ class ModelBroker:
     def stream(self, request):
         return self._events(request, stream=True)
 
+    async def generation_profile(self, request):
+        """Read the selected native route without creating an attempt or permit."""
+        request.budget.check()
+        await self.recheck(request)
+        plan = await self.catalog.resolve(request)
+        output = effective_output_tokens(plan, request)
+        parameters = merged_parameters(plan, request)
+        return {"route_id": plan.route_id, "route_revision": plan.revision,
+                "protocol": plan.protocol, "model": plan.model,
+                "verified_capabilities": sorted(plan.verified_capabilities),
+                "max_output_tokens": output,
+                "output_parameters": with_output_tokens(plan.protocol,
+                    {"max_completion_tokens": output} if plan.protocol == "openai.chat"
+                    and "max_completion_tokens" in parameters else {}, output)}
+
     async def _events(self, request, *, stream):
         if not self.ready:
             raise AppError("broker_unavailable", status=503)
@@ -269,6 +285,7 @@ class ModelBroker:
             request = await self.prepare_media(request)
         request = replace(request, required_capabilities=requested_capabilities(request, stream))
         plan = await self.catalog.resolve(request)
+        request = replace(request, max_output_tokens=effective_output_tokens(plan, request))
         if self.credential_store:
             from .credentials import provider_reference
 

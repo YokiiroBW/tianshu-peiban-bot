@@ -77,6 +77,9 @@ def create_broker_app(broker, token, external_keys=()):
     async def embedding_profile(request):
         return json_response(await broker.embedding_profile())
 
+    async def generation_profile(request):
+        return json_response(await broker.generation_profile(request_from_wire(await request.json())))
+
     async def external_begin(request):
         permit = await broker.begin_external(external_from_wire(await request.json()))
         return json_response({"receipt": await broker.status(permit.request.attempt_id)})
@@ -231,6 +234,7 @@ def create_broker_app(broker, token, external_keys=()):
     app.router.add_post("/internal/v1/models/stream", stream)
     app.router.add_post("/internal/v1/models/reload", reload)
     app.router.add_get("/internal/v1/models/embedding-profile", embedding_profile)
+    app.router.add_post("/internal/v1/models/generation-profile", generation_profile)
     app.router.add_get("/internal/v1/models/attempts/{attempt_id}", state)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/result", saved_result)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/cancel", cancel)

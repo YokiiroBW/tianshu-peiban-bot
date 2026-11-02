@@ -123,6 +123,10 @@ export type Routine = {
     last_planned_at: string | null;
     generation_consumed: boolean;
     pending: boolean;
+    last_error?: string | null;
+    repair_count?: number;
+    repair_due_at?: string | null;
+    review_after?: string | null;
   } | null;
 };
 export type Continuation = {
@@ -159,7 +163,8 @@ export type DaySlot = {
   starts_at: string;
   ends_at: string;
   activity_id: string | null;
-  title: string;
+  title: string | null;
+  reason?: string | null;
   activity_kind: string | null;
   goal_id: string | null;
   waiting_reason: string | null;

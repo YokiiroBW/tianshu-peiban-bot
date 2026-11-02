@@ -27,6 +27,7 @@ pytestmark = pytest.mark.asyncio
 async def build_clock(core):
     await migrate(core.database, (
         Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
+        Migration("0035_life_planning_recovery", files("tianshu.life").joinpath("planning_recovery.sql").read_text()),
     ))
     jobs = JobQueue(core.database.config.dsn)
     clock = LifeClock(core.database, CommandStore(core.database), jobs, core.identity, core.sources)

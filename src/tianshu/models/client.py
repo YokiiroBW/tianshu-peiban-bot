@@ -140,6 +140,10 @@ class ModelClient:
     async def embedding_profile(self):
         return await self._json("/internal/v1/models/embedding-profile", control=True, method="GET")
 
+    async def generation_profile(self, request):
+        return await self._json("/internal/v1/models/generation-profile", body=request,
+                                control=True, timeout=min(10, request.budget.remaining()))
+
     @asynccontextmanager
     async def resource(self, request):
         request.budget.check()

@@ -26,6 +26,7 @@ PLANNING_STATUS_CODES = frozenset({
     "actor_resting", "routine_disabled", "unchanged_decision_material", "day_arrangements_complete", "planner_absent",
     "planner_goal_basis_invalid", "planner_goal_criteria_changed", "planner_goal_changed", "planner_activity_unavailable", "source_unavailable",
     "planner_contact_basis_invalid",
+    "planner_output_completion_unknown", "planner_model_unavailable",
 })
 
 
@@ -143,7 +144,8 @@ class LifeClock:
             )).fetchone()
             planning = await (await connection.execute(
                 "SELECT revision,reason,next_due_at,last_planned_at,generation_consumed,"
-                "planned_watermark<>change_watermark AS pending "
+                "last_error,repair_count,repair_due_at,review_after,"
+                "(planned_watermark<>change_watermark OR (generation_key IS NOT NULL AND NOT generation_consumed)) AS pending "
                 "FROM life.plan_watermarks WHERE actor_id=%s", (context.actor_id,),
             )).fetchone()
             now = (await (await connection.execute("SELECT now() AS value")).fetchone())["value"]

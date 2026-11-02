@@ -49,7 +49,7 @@ class GenerationRequests:
             raise AppError("source_unavailable", status=409)
         return request_from_wire(row["request"])
 
-    async def run(self, material_key, request, *, guard=None, observer=None):
+    async def run(self, material_key, request, *, guard=None, observer=None, stream=False):
         """Persist before submission; repeated calls preserve the original ID and budget."""
         if observer is not None:
             # A current observer can never claim, extend or submit an old intent.
@@ -87,7 +87,21 @@ class GenerationRequests:
             async with self.database.transaction() as connection:
                 await connection.execute("UPDATE conversation.generation_requests SET state='expired' WHERE material_key=%s AND state='claimed'",(material_key,))
             raise AppError("generation_request_expired", status=409)
-        return await self.models.generate(frozen)
+        if not stream:
+            return await self.models.generate(frozen)
+        # Partial text/native events are transport observations, never authored
+        # output. Only the result persisted under this original attempt can be
+        # returned to the domain for validation and its single atomic commit.
+        received = False
+        events = self.models.stream(frozen)
+        try:
+            async for event in events:
+                received |= event.kind == "receipt"
+        finally:
+            await events.aclose()
+        if not received:
+            raise AppError("generation_stream_interrupted", status=502)
+        return await self.models.result(frozen.attempt_id, context=context)
 
     async def read(self, attempt_id, context, *, observer=None):
         if observer is None:

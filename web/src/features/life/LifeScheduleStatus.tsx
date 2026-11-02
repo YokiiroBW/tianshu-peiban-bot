@@ -13,6 +13,8 @@ const planningReasons: Record<string, string> = {
   planner_output_invalid: "这次模型输出没有形成有效计划，未保存活动。",
   planner_output_incomplete:
     "原规划结果不完整，尚未保存为有效活动；保留原执行记录供核对。",
+  planner_output_completion_unknown: "原规划的结束状态尚未确认，没有把内容保存为日程。",
+  planner_model_unavailable: "日程模型当前没有可用的流式路由，请查看模型配置与能力验证。",
   planner_context_budget_exceeded:
     "规划所需材料超出模型上下文预算，未提交新的计划。",
   planner_capability_unavailable: "规划选择的能力当前不可用，未执行该活动。",
@@ -33,11 +35,27 @@ const planningReasons: Record<string, string> = {
   planner_cancelled: "原规划请求已取消。",
   activity_planned: "最近一次规划已完成，请查看活动的实际状态。",
   actor_resting: "现在是休息时间，进度会保留到下次生活时间。",
-  unchanged_decision_material: "兴趣、目标和实际进度没有新变化，继续已有安排。",
+  unchanged_decision_material: "兴趣、目标和实际进度没有新变化，保留已有安排与留白。",
   day_arrangements_complete: "今天已经留好了少量安排，其余时间自由度过。",
   planner_absent: "原规划请求尚未登记，仍保留原请求身份核对。",
   source_unavailable: "规划依据已失效，等待当前有效的经历与安排。",
 };
+
+export function LifePlanningStatus({ planning, timezone }: {
+  planning: Routine["planning"] | undefined;
+  timezone: string;
+}) {
+  if (!planning) return null;
+  const message = (code: string) => planningReasons[code] ?? "这次规划尚未形成有效日程，可在系统任务查看原执行。";
+  return <div className="life-planning-status" role="status">
+    {planning.reason && <p>{message(planning.reason)}</p>}
+    {planning.last_error && planning.last_error !== planning.reason && <p>上一次规划：{message(planning.last_error)}</p>}
+    {planning.repair_due_at && <p className="muted">有限修复将在 {timeLabel(planning.repair_due_at, timezone)} 再考虑，已有安排保留。</p>}
+    {planning.last_error && !planning.repair_due_at && (planning.repair_count ?? 0) > 2 && <p className="muted">这份材料的自动修复已用完，等待新依据或重新考虑。</p>}
+    {planning.review_after && <p className="muted">留白到 {timeLabel(planning.review_after, timezone)} 再看看想做什么，也可以继续休息。</p>}
+    {planning.pending && !planning.reason && <p>一次生活规划正在等待后台处理。</p>}
+  </div>;
+}
 
 export function LifeScheduleStatus({ routine }: { routine: Routine }) {
   const status = routine.schedule_status;
@@ -68,15 +86,7 @@ export function LifeScheduleStatus({ routine }: { routine: Routine }) {
           下一次生活时间：{timeLabel(routine.next_due_at, routine.timezone)}
         </p>
       )}
-      {!blocked && !paused && planning?.reason && (
-        <p>
-          {planningReasons[planning.reason] ??
-            "最近一次规划尚未形成可展示的新活动，可在系统任务查看原执行。"}
-        </p>
-      )}
-      {!blocked && !paused && planning?.pending && !planning.reason && (
-        <p>一次生活规划正在等待后台处理。</p>
-      )}
+      {!blocked && !paused && <LifePlanningStatus planning={planning} timezone={routine.timezone} />}
     </div>
   );
 }

@@ -31,6 +31,7 @@ def product_migrations(jobs):
         ("0032_conversation", "tianshu.conversation", ("schema.sql",)),
         ("0033_life_contact_expiry", "tianshu.life", ("contact_expiry.sql",)),
         ("0034_companion_growth_batches", "tianshu.companion", ("growth_batches.sql",)),
+        ("0035_life_planning_recovery", "tianshu.life", ("planning_recovery.sql",)),
         ("capabilities-0001", "tianshu.capabilities", ("schema.sql",)),
         ("capabilities-0002-runtime-observations", "tianshu.capabilities", ("runtime_observations.sql",)),
         ("capabilities-projects-0001", "tianshu.capabilities.projects", ("schema.sql",)),

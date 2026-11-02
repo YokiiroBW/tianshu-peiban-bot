@@ -17,8 +17,9 @@ async def recover(worker):
     life = worker.life
     async with life.database.transaction(read_only=True) as connection:
         plans = await (await connection.execute(
-            "SELECT p.actor_id,p.revision,c.context FROM life.plan_watermarks p JOIN life.routines c USING(actor_id) "
-            "WHERE c.enabled AND (p.planned_watermark<>p.change_watermark OR (p.generation_key IS NOT NULL AND NOT p.generation_consumed))")).fetchall()
+            "SELECT p.*,c.context FROM life.plan_watermarks p JOIN life.routines c USING(actor_id) "
+            "WHERE c.enabled AND (p.planned_watermark<>p.change_watermark OR (p.generation_key IS NOT NULL AND NOT p.generation_consumed) "
+            "OR p.repair_due_at IS NOT NULL OR p.review_after IS NOT NULL)")).fetchall()
         work = []
         for table in ("activities", "commitments", "contact_candidates"):
             states = {"activities": ("planned", "running", "dormant"),
@@ -31,9 +32,12 @@ async def recover(worker):
         try:
             context = await scheduled_context(life, row["context"])
             await life.identity.check(context)
+            pending = row["planned_watermark"] != row["change_watermark"] or (row["generation_key"] and not row["generation_consumed"])
+            dates = [value for value in (row["repair_due_at"], row["review_after"]) if value is not None]
             async with life.database.transaction() as connection:
                 await life.jobs.enqueue(connection, JobSpec("life.plan", f"plan-recover:{row['actor_id']}:{row['revision']}:{uuid4()}",
-                    {"actor_id": row["actor_id"], "revision": row["revision"], "context": wire(context)}, subject_id=row["actor_id"]))
+                    {"actor_id": row["actor_id"], "revision": row["revision"], "context": wire(context)},
+                    scheduled_at=None if pending else min(dates), subject_id=row["actor_id"]))
         except AppError as error:
             if error.status not in {401, 403, 404, 409, 410}:
                 raise

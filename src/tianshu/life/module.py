@@ -112,4 +112,5 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         migrations=(
             Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
             Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
+            Migration("0035_life_planning_recovery", files("tianshu.life").joinpath("planning_recovery.sql").read_text()),
         ))

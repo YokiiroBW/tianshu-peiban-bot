@@ -11,6 +11,7 @@ from urllib.parse import quote, urlsplit
 from tianshu.runtime.errors import AppError
 from .types import ModelPart, ModelUsage
 from .transport import provider_headers
+from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
 
 
 @dataclass(frozen=True, slots=True)
@@ -118,7 +119,7 @@ class NativeCompiler:
         headers.update(provider_headers(plan.base_url, request.context, request.intent_id))
         base = plan.base_url.rstrip("/")
         body = dict(request.native_payload) if request.native_payload is not None else None
-        parameters = {**plan.parameters, **request.parameters}
+        parameters = merged_parameters(plan, request)
         if plan.protocol == "gemini.generate":
             headers["x-goog-api-key"] = secret
             if body is None:
@@ -258,6 +259,8 @@ class NativeCompiler:
             url = base + ("/embeddings" if plan.protocol == "openai.embedding" else "/rerank")
         else:
             raise AppError("native_protocol_unsupported", status=422)
+        if plan.protocol not in {"openai.embedding", "cohere.rerank"}:
+            body = with_output_tokens(plan.protocol, body, effective_output_tokens(plan, request))
         return NativeCall(url, headers, body)
 
 

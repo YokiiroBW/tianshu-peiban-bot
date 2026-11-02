@@ -7,7 +7,7 @@ import pytest
 from tianshu.capabilities.catalog import CapabilityDefinition
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.life import planner
-from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
+from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
 from tianshu.types import Coverage, OriginKind, RequestBudget, TrustedContext
@@ -94,6 +94,7 @@ def result(text):
             "native",
             "quota",
         ),
+        completion=ModelCompletion("complete", ("stop",)),
     )
 
 
@@ -238,6 +239,8 @@ def test_style_seconds_and_hidden_events_do_not_change_decision_material():
     expected=decision_fingerprint(context(),actor,original,'2026-11-02')
     assert decision_fingerprint(context(),actor,changed,'2026-11-02',
         {'private':{'kind':'goal','scope_ids':['another-private'],'watermark':'hidden-change'}})==expected
+    changed['affect_regulation']={'mode':'a passive mood boundary','activity_bias':'ordinary natural decay'}
+    assert decision_fingerprint(context(),actor,changed,'2026-11-02')==expected
     changed['interests']=[{'id':'interest','title':'A new actual interest'}]
     assert decision_fingerprint(context(),actor,changed,'2026-11-02')!=expected
 
@@ -246,3 +249,23 @@ def test_autonomous_catalog_excludes_user_fact_writes_but_keeps_reading():
     write=choice('memory.claim.correct')
     write['definition']=replace(write['definition'],effect='write')
     assert [item.id for item in planner.eligible_capabilities([write,choice('content.read')])]==['content.read']
+
+
+def test_discovery_options_and_arguments_obey_actual_source_configuration():
+    selected = choice("content.discover", {"type": "object", "properties": {
+        "query": {"type": "string"}, "mode": {"type": "string"}, "limit": {"type": "integer"},
+        "sources": {"type": "array", "items": {"type": "string"}}, "provider_id": {"type": ["string", "null"]}},
+        "additionalProperties": False})
+    selected["availability"] = {"constraints": {"sources": {
+        "web": {"can_execute": False}, "forum": {"can_execute": False}, "bilibili": {"can_execute": True}},
+        "source_options": [{"sources": ["bilibili"], "provider_id": None}]}}
+    material = data([selected])
+    material["interests"] = [{"id": "interest", "title": "Coffee"}]
+    from tianshu.life.opportunities import choices
+    offers = choices(material)
+    assert offers and offers[0]["activity"]["arguments"]["sources"] == ["bilibili"]
+    capability = material["capabilities"][0]
+    assert planner.allowed_arguments(capability, offers[0]["activity"]["arguments"])
+    assert not planner.allowed_arguments(capability, {"query": "Coffee", "sources": ["web"]})
+    assert not planner.allowed_arguments(capability, {"query": "Coffee"})
+    assert not planner.allowed_arguments(capability, {"sources": ["bilibili"], "provider_id": "invented-provider"})

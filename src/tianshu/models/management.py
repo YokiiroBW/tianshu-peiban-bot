@@ -509,14 +509,28 @@ def register_routes(app, services):
             "chat",
             ServiceClass.INTERACTIVE,
             context,
-            RequestBudget(datetime.now(UTC) + timedelta(seconds=30)),
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=180)),
             (ModelMessage("user", (ModelPart("text", text="Reply with OK."),)),),
             route_id=route_id,
             required_capabilities=frozenset(),
-            max_output_tokens=32,
+            max_output_tokens=8192,
             capability_probe=True,
             route_revision=expected,
         )
+        from .budgets import with_output_tokens
+        from .completion import content_completion
+        output_tokens = body.get("max_output_tokens", 8192)
+        timeout_seconds = body.get("timeout_seconds", 180)
+        if type(output_tokens) is not int or not 256 <= output_tokens <= 16384:
+            raise AppError("invalid_probe_output_budget", status=422)
+        if type(timeout_seconds) is not int or not 30 <= timeout_seconds <= 600:
+            raise AppError("invalid_probe_timeout", status=422)
+        profile = await services.models.generation_profile(model_request)
+        model_request = replace(model_request,
+            budget=RequestBudget(datetime.now(UTC) + timedelta(seconds=timeout_seconds)),
+            protocol=profile["protocol"], max_output_tokens=output_tokens,
+            parameters=with_output_tokens(profile["protocol"], profile["output_parameters"], output_tokens))
+        result = None
         if capability == "stream":
             terminal = None
             saw_text = False
@@ -524,16 +538,18 @@ def register_routes(app, services):
                 saw_text |= event.kind == "text" and bool(event.text)
                 if event.receipt:
                     terminal = event.receipt
+            result = await services.models.result(probe_id, context=context)
         else:
             result = await services.models.generate(model_request)
             terminal = result.receipt
-            saw_text = any(part.kind == "text" and part.text for part in result.parts)
-        if terminal is None or terminal.status != "succeeded" or not saw_text:
+            saw_text = any(part.kind == "text" and part.text and not part.native.get("thought") for part in result.parts)
+        completion = content_completion(result) if result else None
+        if terminal is None or terminal.status != "succeeded" or not saw_text or not completion or completion.state != "complete":
             return json_response(
                 CommandResult(
                     body["client_request_id"],
                     attempt_id=probe_id,
-                    data={"verification": "not_verified", "receipt": terminal},
+                    data={"verification": "not_verified", "receipt": terminal, "completion": completion},
                 )
             )
 

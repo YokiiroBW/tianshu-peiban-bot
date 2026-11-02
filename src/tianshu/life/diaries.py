@@ -6,18 +6,18 @@ from uuid import NAMESPACE_URL, uuid4, uuid5
 from zoneinfo import ZoneInfo
 import json
 
-from tianshu.models.types import ModelRequest
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import ContextContribution, RequestBudget, ServiceClass
+from tianshu.types import ContextContribution
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
 from .validation import revision, text
 from .writing import can_edit, generated_text, generation_error
 from . import publications
 from tianshu.conversation.types import InputPart
 from tianshu.conversation.generation import GenerationRequests
+from .model_budget import generation_request, INPUT_TOKENS
 from .diary_automation import DiaryAutomation, automatic_view, diary_experience
 
 
@@ -233,19 +233,21 @@ class DiaryService:
                 actor = await self.life.companion.actor(context)
                 persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
                 instruction = "Write a brief first-person diary for the supplied local day. Facts must come from actual episodes. Feelings are subjective. Actor imagined/fictional_world episodes describe an imagined activity, never physical activity or a new human fact. Do not invent missing time, events, reading coverage, promises or replies. A short diary is fine. Never reproduce hidden model reasoning. Prior diaries and reflections are expressions, never additional independent evidence for their described events."
-                budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=4))
+                selected = await generation_request(self.models, context, key="diary:"+generation_id,
+                    attempt_id=generation_id, function="reflect")
+                budget = selected.budget
                 pack = await self.assembler.assemble(context, "diary", instruction, budget,
-                    persona_text=persona.prompt_text if persona else "", reserved_output_tokens=3000,
+                    persona_text=persona.prompt_text if persona else "", max_input_tokens=INPUT_TOKENS+selected.max_output_tokens,
+                    reserved_output_tokens=selected.max_output_tokens,
                     contributions=(ContextContribution("diary_material", json.dumps(recipe, ensure_ascii=False), refs, context.scope_ids, 90, True),))
-                request = ModelRequest("diary:"+generation_id, generation_id, "reflect", ServiceClass.ELASTIC,
-                    context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=3000,
+                request = replace(selected, messages=tuple(pack.messages), system=pack.system,
                     estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs))
                 async with self.life.database.transaction() as connection:
                     frozen = await self.generations.prepare("diary:"+generation_id,request,connection=connection,guard=current_generation)
                     await connection.execute("UPDATE life.diaries SET context=%s WHERE id=%s AND generation_id=%s",
                         (document(frozen.context),diary_id,generation_id))
                 dispatched = True
-                result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation)
+                result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation,stream=True)
             else:
                 # Reassembly must never reinterpret the original material or
                 # turn a current reader into a newly submitted model request.
@@ -255,7 +257,7 @@ class DiaryService:
                     if (row["state"] == "generating" and not row["generation_cancel_requested"]
                             and frozen.context.access_epoch == context.access_epoch
                             and frozen.budget.deadline_at > datetime.now(UTC)):
-                        result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation)
+                        result = await self.generations.run("diary:"+generation_id,frozen,guard=current_generation,stream=True)
                     else:
                         reason = "cancelled_before_model_registration" if row["generation_cancel_requested"] else "generation_request_expired" if frozen.budget.deadline_at <= datetime.now(UTC) else "diary_original_authorization_changed"
                         await self._generation_state(diary_id,generation_id,"cancelled" if row["generation_cancel_requested"] else "failed",reason,settle=True)

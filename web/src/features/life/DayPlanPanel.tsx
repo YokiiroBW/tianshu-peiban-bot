@@ -13,6 +13,7 @@ import {
 } from "./domainTypes";
 import { localDay, zonedInput, zonedInstant } from "./scheduleTime";
 import { ActivityProgress } from "./ActivityProgress";
+import { LifePlanningStatus } from "./LifeScheduleStatus";
 
 const slotLabels: Record<DaySlot["state"], string> = {
   planned: "待开始",
@@ -148,7 +149,7 @@ export function DayPlanPanel({
                   </header>
                   {slot.kind === "free" ? (
                     <p className="muted">
-                      可以随心度过，不需要把这段空白填满。
+                      {slot.reason || "可以随心度过，不需要把这段空白填满。"}
                     </p>
                   ) : (
                     <>
@@ -180,18 +181,7 @@ export function DayPlanPanel({
               这一天还没有具体安排。角色会在有新兴趣、目标或实际进展时作出选择。
             </p>
           )}
-          {view.data.planning?.reason === "planner_unknown" && (
-            <p role="status">原规划结果尚未确认，已有安排和进度会保留。</p>
-          )}
-          {view.data.planning?.reason === "actor_resting" && (
-            <p>现在按作息休息，下一次清醒时间再继续。</p>
-          )}
-          {view.data.planning?.reason === "unchanged_decision_material" && (
-            <p className="muted">依据没有实质变化，继续已有安排。</p>
-          )}
-          {view.data.planning?.reason === "day_arrangements_complete" && (
-            <p className="muted">今天的少量安排已足够，其余时间自由度过。</p>
-          )}
+          <LifePlanningStatus planning={view.data.planning} timezone={zone} />
           {view.data.unfinished.length > 0 && (
             <section>
               <h4>还想继续的事</h4>

@@ -27,7 +27,7 @@ def public_record(row):
     value={key:item.isoformat() if isinstance(item,date) and not isinstance(item,datetime) else item
         for key,item in row.items() if key not in {"context","frozen_action"}}
     if "checkpoint_data" in value:
-        value["checkpoint_data"]={key:item for key,item in value["checkpoint_data"].items() if key not in {"planning_context","frozen_action"}}
+        value["checkpoint_data"]={key:item for key,item in (value["checkpoint_data"] or {}).items() if key not in {"planning_context","frozen_action"}}
     return value
 
 

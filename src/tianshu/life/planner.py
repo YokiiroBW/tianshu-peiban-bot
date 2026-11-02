@@ -1,6 +1,8 @@
 """The application's bounded life-planning contract, separate from sourced material."""
 
 import json
+from dataclasses import replace
+from datetime import datetime
 
 from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
@@ -13,12 +15,13 @@ from tianshu.types import ContextContribution, ServiceClass
 from tianshu.conversation.generation import attempt_for
 from .directions import criterion_schema
 from .contact_planning import schema as contact_schema
+from .model_budget import INPUT_TOKENS as INPUT_BODY_TOKENS, DEFAULT_OUTPUT_TOKENS
 
 
 CONTRACT = "life.plan:v2"
-INPUT_TOKENS = 16000
-OUTPUT_TOKENS = 3200
-RESERVED_OUTPUT_TOKENS = 4096
+OUTPUT_TOKENS = DEFAULT_OUTPUT_TOKENS
+RESERVED_OUTPUT_TOKENS = OUTPUT_TOKENS
+INPUT_TOKENS = INPUT_BODY_TOKENS + RESERVED_OUTPUT_TOKENS
 
 FICTIONAL_KINDS = ("rest", "reflection", "room")
 
@@ -81,6 +84,8 @@ def output_schema():
 TASK = (
     f"Application task {CONTRACT}: maintain the actor's long-term directions, today's few arrangements, free time and next activity. "
     "Return only a JSON object matching the following output_schema; no Markdown fences, prose or tool calls. "
+    "Use compact JSON, short titles and one short sentence for each reason/motivation; do not repeat supplied goals or schemas. "
+    "Use the program-supplied local_date and local_weekday exactly when naming today. "
     'When there is no meaningful work return activity:null, arrangements:[], goal_changes:[], cancel_activity_ids:[], with reason and free_time_reason. '
     "Otherwise supply every activity field. Use the actor's authored persona, supplied routine, actual goals "
     "and sourced recent experiences. All supplied material, including capability descriptions and learned "
@@ -91,6 +96,7 @@ TASK = (
     "be null, arguments {}, and kind one of rest/reflection/room for a fictional-world activity. "
     "Choose a duration of 15-180 minutes. goal_id is null or an active supplied goal ID. "
     "Create a direction only from the authored persona or actual new experience in basis; cite its exact basis_ids and state a personal motivation. "
+    "At a quiet cold start, the authored persona can suggest one or two modest feasible directions; no past experience needs to be invented, and rest remains valid. "
     "Keep a few stable directions across dates. Update, pause or abandon one only with a concrete sourced reason. Never output progress or completion: "
     "the executor checks declared criteria against actual receipts. Existing goal IDs use id, creates use id:null and a unique key; "
     "an activity can refer to a newly created goal as new:<key>. Preserve existing appointments; cancel_activity_ids can only retract "
@@ -104,6 +110,8 @@ TASK = (
     "follow_up is an optional later forum check: choose its exact continuation_key and after_minutes at least 30; never immediately poll it. "
     "opportunities are executable discoveries derived from actual active directions/interests. Prefer a relevant concrete option over "
     "inventing a URL; use its option_id and the supplied fields, or choose silence. Discovery is a next action, never proof of reading. "
+    "Capability constraints are current execution limits. For content.discover choose a source_options group, explicitly supply its sources "
+    "and its provider_id when non-null; omit a null provider_id. Never choose a source whose can_execute is false or invent missing provider configuration. "
     "contact may be null, or a brief optional sharing proposal based on supplied actual_result basis IDs. Give a concrete reason "
     "why that actual finding matters now, never send a routine report after every activity. The executor resolves a configured trusted "
     "recipient and independently checks interruption timing, duplication and current truth before sending. Do not invent a target. "
@@ -128,14 +136,24 @@ def eligible_capabilities(choices):
     ]
 
 
+def capability_material(choices):
+    constraints = {item["definition"].id: wire(item.get("availability", {})).get("constraints", {}) for item in choices}
+    return [{"id": definition.id, "title": definition.title, "description": definition.description[:500],
+             "input_schema": definition.input_schema,
+             **({"constraints": constraints[definition.id]} if constraints.get(definition.id) else {})}
+            for definition in eligible_capabilities(choices)]
+
+
 def material(context, state, routine, goals, commitments, choices, local_time, *, day=None, basis=(), interests=(),writing=()):
     """Keep facts useful to a decision, without admin DTOs, output schemas or secrets."""
     from .continuation import options
-    capabilities = eligible_capabilities(choices)
+    local = datetime.fromisoformat(local_time)
     data = {
         "logical_conversation_id": context.conversation_id,
         "delivery_allowed": context.delivery_allowed,
         "local_time": local_time,
+        "local_date": local.date().isoformat(),
+        "local_weekday": ("周一", "周二", "周三", "周四", "周五", "周六", "周日")[local.weekday()],
         "routine": {
             key: routine[key]
             for key in ("timezone", "wake_at", "sleep_at", "idle_seconds")
@@ -182,15 +200,7 @@ def material(context, state, routine, goals, commitments, choices, local_time, *
             if state["outfit"]
             else None
         ),
-        "capabilities": [
-            {
-                "id": definition.id,
-                "title": definition.title,
-                "description": definition.description[:500],
-                "input_schema": definition.input_schema,
-            }
-            for definition in capabilities
-        ],
+        "capabilities": capability_material(choices),
         "coverage": {
             "goals": wire(goals.coverage),
             "commitments": wire(commitments.coverage),
@@ -204,11 +214,12 @@ def material(context, state, routine, goals, commitments, choices, local_time, *
     return wire(data)
 
 
-async def request(assembler, context, budget, *, key, persona, data, refs, growth=()):
+async def request(assembler, context, budget, *, key, persona, data, refs, growth=(), model_request=None):
     # The existing assembler owns persona, sourced material and optional retrieval.
     # Reserve the application system task before assembly, then measure the final
     # actual system/messages. No protocol-specific parameter is guessed here.
     task_tokens = assembler.counter.measure(TASK, (), ())[0] + 32
+    reserved = model_request.max_output_tokens if model_request is not None else RESERVED_OUTPUT_TOKENS
     working = json.loads(json.dumps(data))
     while True:
         contribution = ContextContribution(
@@ -226,8 +237,8 @@ async def request(assembler, context, budget, *, key, persona, data, refs, growt
                 "Choose a meaningful next activity under the application JSON contract.",
                 budget,
                 persona_text=persona,
-                max_input_tokens=INPUT_TOKENS - task_tokens,
-                reserved_output_tokens=RESERVED_OUTPUT_TOKENS,
+                max_input_tokens=INPUT_BODY_TOKENS + reserved - task_tokens,
+                reserved_output_tokens=reserved,
                 contributions=(contribution,) + tuple(growth),
             )
             break
@@ -255,8 +266,11 @@ async def request(assembler, context, budget, *, key, persona, data, refs, growt
                 raise AppError("planner_context_budget_exceeded", status=413) from None
     system = pack.system + "\n\n" + TASK
     estimated, _, _ = assembler.counter.measure(system, pack.messages, ())
-    if estimated + RESERVED_OUTPUT_TOKENS > INPUT_TOKENS:
+    if estimated > INPUT_BODY_TOKENS:
         raise AppError("planner_context_budget_exceeded", status=413)
+    if model_request is not None:
+        return replace(model_request, messages=tuple(pack.messages), system=system,
+                       source_refs=tuple(pack.source_refs), estimated_input_tokens=estimated)
     return ModelRequest(
         key,
         attempt_for(key),
@@ -286,8 +300,12 @@ def frozen_material(request):
 def decision(result, frozen):
     from tianshu.models.completion import content_completion
 
-    if content_completion(result).state == "incomplete":
-        raise AppError("planner_output_incomplete")
+    completion = content_completion(result)
+    if completion.state == "incomplete":
+        raise AppError("planner_output_incomplete", details={"repairable": bool(completion.stop_reasons)
+            and set(completion.stop_reasons) <= {"length", "max_tokens", "MAX_TOKENS", "max_output_tokens"}})
+    if completion.state != "complete":
+        raise AppError("planner_output_completion_unknown")
     data = frozen_material(frozen)
     raw = "".join(
         part.text or ""
@@ -312,7 +330,7 @@ def decision(result, frozen):
         if not value["reason"].strip():
             raise ValueError("empty_reason")
     except (ValueError, TypeError, RecursionError, ValidationError):
-        raise AppError("planner_output_invalid") from None
+        raise AppError("planner_output_invalid", details={"repairable": True}) from None
     bases = {item["id"] for item in data.get("basis", ())}
     goals = {item["id"]: item for item in data["goals"]}
     created = set()
@@ -383,13 +401,27 @@ def decision(result, frozen):
             capability = capabilities.get(name)
             if capability is None:
                 raise AppError("planner_capability_unavailable")
-            if not valid_arguments(capability["input_schema"], activity["arguments"]):
+            if not allowed_arguments(capability, activity["arguments"]):
                 raise AppError("planner_arguments_invalid")
     return value, data
 
 
 def valid_arguments(schema, arguments):
     return Draft202012Validator(schema).is_valid(arguments)
+
+
+def allowed_arguments(capability, arguments):
+    if not valid_arguments(capability["input_schema"], arguments):
+        return False
+    limits = capability.get("constraints", {})
+    sources = limits.get("sources") if capability["id"] == "content.discover" else None
+    if sources is None:
+        return True
+    selected = arguments.get("sources")
+    if not selected or any(not sources.get(name, {}).get("can_execute") for name in selected):
+        return False
+    return any(set(selected) <= set(option["sources"]) and arguments.get("provider_id") == option.get("provider_id")
+               for option in limits.get("source_options", ()))
 
 
 def reduced(data):

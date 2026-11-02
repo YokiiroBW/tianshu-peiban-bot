@@ -99,7 +99,10 @@ class DayPlans:
             "unfinished":[public_record(row) for row in data["unfinished"]],
             "recent_results":[public_record(row) for row in data["recent_results"]]}
         async with self.life.database.transaction(read_only=True) as connection:
-            planning=await (await connection.execute("SELECT revision,reason,next_due_at,last_planned_at,generation_consumed,planned_watermark<>change_watermark AS pending FROM life.plan_watermarks WHERE actor_id=%s",(context.actor_id,))).fetchone()
+            planning=await (await connection.execute("SELECT revision,reason,next_due_at,last_planned_at,generation_consumed,"
+                "last_error,repair_count,repair_due_at,review_after,"
+                "(planned_watermark<>change_watermark OR (generation_key IS NOT NULL AND NOT generation_consumed)) AS pending "
+                "FROM life.plan_watermarks WHERE actor_id=%s",(context.actor_id,))).fetchone()
         return {"day": local_day.isoformat(), **data, "planning":planning}
 
     async def reconsider(self, context, body):
