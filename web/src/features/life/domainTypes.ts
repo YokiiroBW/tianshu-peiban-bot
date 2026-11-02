@@ -214,6 +214,25 @@ export type GrowthView = {
     cursor?: string | null;
     pending_inputs?: number;
     pending_original_requests?: number;
+    retry_summary?: {
+      waiting: number;
+      active: number;
+      blocked: number;
+      next_retry_at: string | null;
+    };
+    retry_batches?: {
+      retry_key: string;
+      current_material_key: string;
+      previous_material_key: string | null;
+      attempt_id: string;
+      attempt_number: number;
+      state: "waiting" | "active" | "completed" | "blocked";
+      due_at: string | null;
+      last_error: string | null;
+      waiting_on_original: boolean;
+      outcome: "applied" | "historical_only" | null;
+      can_request_review: boolean;
+    }[];
     partial_inputs?: number;
     material_missing?: string[];
     legacy_state?: "requests" | "episodes" | "complete";

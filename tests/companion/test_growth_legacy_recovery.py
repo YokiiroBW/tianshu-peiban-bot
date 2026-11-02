@@ -16,12 +16,13 @@ from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, SourceRef
 from tianshu.companion.growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED
 from tianshu.companion.reflection_output import frozen_episodes, prepare_reflections
-from test_growth_output import Authority, Models, note, prepare, state
+from test_growth_output import Authority, Models, note, prepare, retry_state, state
 
 
 async def legacy_checkpoint(database, *, context=None, error=None):
     async with database.transaction() as connection:
         await connection.execute("DELETE FROM companion.growth_inputs")
+        await connection.execute("DELETE FROM companion.growth_retry_batches")
         await connection.execute(
             "UPDATE companion.organize_state SET legacy_state='requests',active_batch=NULL,cursor=NULL,"
             "legacy_started_at=now(),last_error=%s,context=COALESCE(%s,context)",
@@ -65,13 +66,15 @@ async def test_original_unknown_request_context_and_inputs_survive_legacy_conver
     await growth.organize("actor", scope, 1)  # inventory original requests
     await growth.organize("actor", scope, 1)  # seed Episode versions
     waiting = await growth.organize("actor", scope, 1)  # observe the original
-    assert waiting["recovery"] == "observe_original_attempt"
+    assert waiting["state"] == "retry_waiting"
     assert waiting["attempt_id"] == original.attempt_id
     assert len(models.calls) == 1
     current = await state(database)
-    assert current["active_batch"]["material_key"] == original.intent_id
-    assert current["active_batch"]["context"]["person_id"] == context.person_id
-    assert current["active_batch"]["inputs"] == [["episode", 1]]
+    retry = await retry_state(database)
+    assert current["active_batch"] is None
+    assert retry["batch"]["material_key"] == original.intent_id
+    assert retry["batch"]["context"]["person_id"] == context.person_id
+    assert retry["batch"]["inputs"] == [["episode", 1]]
     assert current["cursor"] is None
     assert (await growth.view(later_context))["review"]["can_request_review"] is False
     # A later observation consumes only the exact original batch, leaving the
@@ -79,7 +82,9 @@ async def test_original_unknown_request_context_and_inputs_survive_legacy_conver
     result = models.results[original.attempt_id]
     models.results[original.attempt_id] = ModelResult((ModelPart("text", text='{"notes":[]}'),),
         replace(result.receipt, status="succeeded", dispatch="submitted"))
-    await growth.organize("actor", scope, 1)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE companion.growth_retry_batches SET due_at=now()")
+    await growth.retries.run("actor", scope, retry["retry_key"])
     assert len(models.calls) == 1
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute(
@@ -197,10 +202,12 @@ async def test_epoch_refresh_seeds_inventory_but_never_rebinds_original_unknown_
     assert refreshed.access_epoch == 2 and refreshed.scope_ids == context.scope_ids
     assert refreshed.audience == context.audience and refreshed.permissions == context.permissions
     waiting = await growth.organize("actor", scope, 1)
-    assert waiting["state"] == "waiting" and waiting["attempt_id"] == original.attempt_id
+    assert waiting["state"] == "retry_waiting" and waiting["attempt_id"] == original.attempt_id
     current = await state(database)
-    assert current["active_batch"]["material_key"] == original.intent_id
-    assert current["active_batch"]["context"]["access_epoch"] == 1
+    retry = await retry_state(database)
+    assert current["active_batch"] is None
+    assert retry["batch"]["material_key"] == original.intent_id
+    assert retry["batch"]["context"]["access_epoch"] == 1
     assert current["generation_revision"] == 0 and current["cursor"] is None
     assert len(models.calls) == 1 and models.reads == [original.attempt_id]
     assert models.read_contexts[0].access_epoch == 2
@@ -211,14 +218,18 @@ async def test_epoch_refresh_seeds_inventory_but_never_rebinds_original_unknown_
         saved = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
     assert {item["material_key"]: item["state"] for item in entries} == {
-        original.intent_id: "pending", "organize:tombstone": "invalidated"}
+        original.intent_id: "abandoned", "organize:tombstone": "invalidated"}
     assert saved["request"]["context"]["access_epoch"] == 1
     view = (await growth.view(refreshed))["review"]
-    assert view["can_request_review"] and view["recovery"] == "observe_original_attempt"
-    reviewed = await growth.request_review(refreshed,
-        {"client_request_id": "do-not-replace-original", "expected_revision": 1})
-    assert reviewed.data["recovery"] == "observe_original_attempt"
-    await growth.organize("actor", scope, reviewed.revision)
+    assert not view["can_request_review"] and view["retry_summary"]["waiting"] == 1
+    with pytest.raises(AppError, match="reflection_original_attempt_unresolved"):
+        await growth.request_review(refreshed,
+            {"client_request_id": "do-not-double-submit", "expected_revision": current["revision"]})
+    result = models.results[original.attempt_id]
+    models.results[original.attempt_id] = replace(result, receipt=replace(result.receipt, status="running"))
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE companion.growth_retry_batches SET due_at=now()")
+    await growth.retries.run("actor", scope, retry["retry_key"])
     assert len(models.calls) == 1 and models.reads == [original.attempt_id] * 2
     assert (await state(database))["generation_revision"] == 0
 
@@ -252,7 +263,7 @@ async def test_explicit_authorization_resume_keeps_conversion_positions_and_gene
 
 async def active_original(database):
     models = Models({"notes": [note()]})
-    models.status = "unknown"
+    models.status = "running"  # Freeze a pre-NR06 active pointer before observing a terminal outcome.
     growth, memory, jobs, context, _notifications = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
     await growth.organize("actor", scope, 1)
@@ -268,6 +279,8 @@ async def active_original(database):
             (scope, original.intent_id, document(context), document(current["active_batch"]["inputs"])))
         saved = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
+    result = models.results[original.attempt_id]
+    models.results[original.attempt_id] = replace(result, receipt=replace(result.receipt, status="unknown"))
     return growth, memory, models, context, original, saved["request"]
 
 
@@ -286,13 +299,13 @@ async def test_active_old_epoch_review_reads_only_original_under_current_bounded
     scope = signature(sorted(context.scope_ids))
     await growth.organize("actor", scope, 1)
     blocked = await state(database)
-    assert blocked["last_error"] == AUTHORIZATION_BLOCKED and models.reads == []
-    original_batch = blocked["active_batch"]
+    retry = await retry_state(database)
+    assert blocked["last_error"] is None and blocked["active_batch"] is None and models.reads == []
+    assert retry["state"] == "blocked" and retry["last_error"] == "scheduled_scope_unavailable"
     authority.allow_refresh = True
     caller = replace(context, access_epoch=2)
     view = (await growth.view(caller))["review"]
-    assert view["can_request_review"] and view["recovery"] == "observe_original_attempt"
-    assert "只读取原请求结果" in view["reason"]
+    assert view["retry_batches"][0]["can_request_review"]
 
     async def forbidden(*_args, **_kwargs):
         pytest.fail("An original observation must not enter GenerationRequests.run")
@@ -301,12 +314,15 @@ async def test_active_old_epoch_review_reads_only_original_under_current_bounded
     resumed = await growth.request_review(caller,
         {"client_request_id": "read-original", "expected_revision": blocked["revision"]})
     after_resume = await state(database)
-    assert resumed.data["recovery"] == "observe_original_attempt"
-    assert after_resume["active_batch"] == original_batch
+    assert resumed.data["recovery"] == "retry_computation"
+    assert after_resume["active_batch"] is None
     assert after_resume["generation_revision"] == 0 and after_resume["cursor"] is None
     assert models.reads == []  # review holds the state lock; Broker I/O belongs to the later job.
-    outcome = await growth.organize("actor", scope, resumed.revision)
-    assert len(models.calls) == 1 and models.reads == [original.attempt_id]
+    if status == "unknown":
+        result = models.results[original.attempt_id]
+        models.results[original.attempt_id] = replace(result, receipt=replace(result.receipt, status="running"))
+    outcome = await growth.retries.run("actor", scope, retry["retry_key"])
+    assert len(models.calls) == 1 and models.reads == [original.attempt_id] * (2 if status == "succeeded" else 1)
     assert models.read_contexts[0].access_epoch == 2
     assert models.read_contexts[0].scope_ids == original.context.scope_ids
     assert models.read_contexts[0].audience == original.context.audience
@@ -321,9 +337,9 @@ async def test_active_old_epoch_review_reads_only_original_under_current_bounded
         assert outcome["state"] == "reviewed" and current["cursor"] == "e:1"
         assert len(memory.proposals) == 1 and manifest["state"] == "reviewed"
     else:
-        assert outcome["state"] == "waiting" and current["cursor"] is None
-        assert current["active_batch"] == original_batch and memory.proposals == []
-        assert manifest["state"] == "pending"
+        assert outcome["state"] == "waiting_original" and current["cursor"] is None
+        assert current["active_batch"] is None and memory.proposals == []
+        assert manifest["state"] == "abandoned"
     assert current["generation_revision"] == 0
 
 
@@ -348,10 +364,11 @@ async def test_old_success_with_new_episode_revision_is_refused_for_explicit_rev
     assert refused["error_code"] == "reflection_material_contract_invalid"
     current = await state(database)
     assert current["cursor"] is None and current["generation_revision"] == 0
-    assert current["active_batch"]["inputs"] == [["episode", 1]]
+    assert current["active_batch"] is None
+    assert (await retry_state(database))["batch"]["inputs"] == [["episode", 1]]
     assert memory.proposals == [] and len(models.calls) == 1
     view = (await growth.view(caller))["review"]
-    assert view["can_request_review"] and view["last_error"] == "reflection_material_contract_invalid"
+    assert view["retry_batches"][0]["last_error"] == "reflection_material_contract_invalid"
     async with database.transaction(read_only=True) as connection:
         stored = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
@@ -374,11 +391,10 @@ async def test_original_source_denial_remains_authorization_blocked_without_outp
 
     growth.companion.identity = SourceDenied(allow_refresh=True)
     outcome = await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
-    assert outcome["state"] == "blocked" and outcome["error_code"] == AUTHORIZATION_BLOCKED
+    assert outcome["state"] == "retry_blocked" and outcome["error_code"] == "source_unavailable"
     current = await state(database)
-    assert current["last_error"] == AUTHORIZATION_BLOCKED
-    assert current["blocked_material"]["error_code"] == "source_unavailable"
-    assert current["active_batch"]["material_key"] == original.intent_id
+    assert current["last_error"] is None and current["active_batch"] is None
+    assert (await retry_state(database))["last_error"] == "source_unavailable"
     assert current["cursor"] is None and current["generation_revision"] == 0
     assert models.results[original.attempt_id].receipt.status == "succeeded"
     assert memory.proposals == [] and len(models.calls) == 1
@@ -386,7 +402,7 @@ async def test_original_source_denial_remains_authorization_blocked_without_outp
 
 async def paused_generation(database, payload, *, old=False, refs=None):
     models = Models(payload)
-    models.status = "unknown"
+    models.status = "running"
     growth, memory, jobs, context, _notifications = await prepare(database, models)
     if refs is not None:
         memory.episode = replace(memory.episode, source_refs=refs)
@@ -563,11 +579,11 @@ async def test_old_identity_conversion_keeps_unavailable_full_sources_authorizat
 
     growth.companion.sources = DeniedSources()
     outcome = await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
-    assert outcome["error_code"] == AUTHORIZATION_BLOCKED
+    assert outcome["error_code"] == "source_unavailable"
     current = await state(database)
-    assert current["blocked_material"]["error_code"] == "source_unavailable"
-    assert current["active_batch"]["material_key"] == request.intent_id
+    assert (await retry_state(database))["last_error"] == "source_unavailable"
+    assert current["active_batch"] is None
     assert current["generation_revision"] == 0 and memory.proposals == [] and len(models.calls) == 1
     async with database.transaction(read_only=True) as connection:
         manifest = await (await connection.execute("SELECT context,state FROM companion.growth_legacy_requests")).fetchone()
-    assert manifest["state"] == "pending" and "reflection_identity_conversion" not in manifest["context"]
+    assert manifest["state"] == "abandoned" and "reflection_identity_conversion" not in manifest["context"]

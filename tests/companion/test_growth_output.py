@@ -36,7 +36,7 @@ class Jobs:
     def __init__(self):
         self.items = []
 
-    async def enqueue(self, _connection, spec):
+    async def enqueue(self, _connection, spec, **_kwargs):
         self.items.append(spec)
 
 
@@ -101,6 +101,7 @@ async def prepare(database, models):
         Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),
         Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
         Migration("0034_companion_growth_batches", files("tianshu.companion").joinpath("growth_batches.sql").read_text()),
+        Migration("0037_companion_growth_retry", files("tianshu.companion").joinpath("growth_retry.sql").read_text()),
     ))
     context = TrustedContext("author", "actor", "person", "conversation", ("private",), ("private",),
         1, OriginKind.ACTOR, permissions=frozenset({"companion.manage"}))
@@ -122,6 +123,11 @@ async def prepare(database, models):
 async def state(database):
     async with database.transaction(read_only=True) as connection:
         return await (await connection.execute("SELECT * FROM companion.organize_state WHERE actor_id='actor'")).fetchone()
+
+
+async def retry_state(database):
+    async with database.transaction(read_only=True) as connection:
+        return await (await connection.execute("SELECT * FROM companion.growth_retry_batches WHERE actor_id='actor'")).fetchone()
 
 
 def note(kind="reflection"):
@@ -192,8 +198,15 @@ async def test_original_fenced_failure_can_be_reparsed_without_replacing_attempt
     scope = signature(sorted(context.scope_ids))
     # Reproduce the original parser's char-zero failure without altering the
     # persisted result or requesting a second provider response.
+    async def legacy_rejection(actor_id, scope_key, material_key, code):
+        async with database.transaction() as connection:
+            await connection.execute(
+                "UPDATE companion.organize_state SET last_error=%s WHERE actor_id=%s AND scope_key=%s "
+                "AND active_batch->>'material_key'=%s", (code, actor_id, scope_key, material_key))
+
     with monkeypatch.context() as original_parser:
         original_parser.setattr(reflection_output, "model_json", json.loads)
+        original_parser.setattr(growth, "_rejected", legacy_rejection)
         rejected = await growth.organize("actor", scope, 1)
     assert rejected["error_code"] == "reflection_output_invalid"
     original = await state(database)
@@ -292,19 +305,12 @@ async def test_frozen_generation_rpc_failure_observes_original_and_records_visib
     if status == "succeeded":
         assert outcome["state"] == "reviewed" and current["cursor"] == "e:1"
         assert current["active_batch"] is None and current["last_error"] is None
-    elif status in {"failed", "cancelled"}:
-        assert outcome["state"] == "rejected"
-        assert current["last_error"] == "reflection_generation_" + status
-        assert current["blocked_material"]["model_error"] == models.results[request.attempt_id].receipt.error_code
-        assert current["active_batch"]["material_key"] == request.intent_id
-    else:
+    elif status in {"queued", "running"}:
         assert outcome["state"] == "waiting" and outcome["recovery"] == "observe_original_attempt"
         assert current["active_batch"]["material_key"] == request.intent_id
         assert current["blocked_material"]["recovery"] == "observe_original_attempt"
         assert current["blocked_material"]["attempt_id"] == request.attempt_id
-        assert len(jobs.items) == (2 if status in {"queued", "running"} else 1)
-        if status == "unreadable":
-            assert current["blocked_material"]["result_read_error"] == "broker_unavailable"
+        assert len(jobs.items) == 2
 
         async def forbidden(*_args, **_kwargs):
             pytest.fail("RPC observation must never enter GenerationRequests.run again")
@@ -312,6 +318,15 @@ async def test_frozen_generation_rpc_failure_observes_original_and_records_visib
         monkeypatch.setattr(growth.generations, "run", forbidden)
         await growth.organize("actor", scope, current["revision"])
         assert len(models.calls) == 1 and models.reads == [request.attempt_id, request.attempt_id]
+    else:
+        retry = await retry_state(database)
+        assert current["active_batch"] is None and current["last_error"] is None
+        assert retry["current_material_key"] == request.intent_id
+        assert retry["state"] == ("blocked" if status == "failed" else "waiting")
+        assert outcome["state"] == ("retry_blocked" if status == "failed" else "retry_waiting")
+        assert retry["history"][0]["attempt_id"] == request.attempt_id
+        await growth.organize("actor", scope, current["revision"])
+        assert len(models.calls) == 1
     async with database.transaction(read_only=True) as connection:
         stored = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (request.attempt_id,))).fetchone()
@@ -331,33 +346,32 @@ async def test_whole_batch_rejects_before_memory_style_or_affect_writes(database
     else:
         second["affect"] = {**first["affect"], "control": 2}
         expected = "invalid_appraisal"
-    models = Models({"notes": [first, second]})
+    models = Models({"notes": [first, second]}, {"notes": []})
     growth, memory, jobs, context, notifications = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
     rejected = await growth.organize("actor", scope, 1)
     assert rejected["state"] == "rejected"
     assert rejected["error_code"] == expected
     original = await state(database)
-    assert original["last_error"] == expected
+    assert original["last_error"] is None and original["active_batch"] is None
+    assert (await retry_state(database))["last_error"] == expected
     assert original["cursor"] is None
     assert original["generation_revision"] == 0
     assert memory.proposals == notifications == []
     async with database.transaction(read_only=True) as connection:
         for table in ("companion.style_rules", "companion.affect_events"):
             assert (await (await connection.execute("SELECT count(*) AS n FROM "+table)).fetchone())["n"] == 0
-    before = len(jobs.items)
     await growth.recover()
-    await growth.organize("actor", scope, 1)
-    assert len(jobs.items) == before
-    # New ticks retain the refused generation instead of paying for or consuming it again.
-    await growth.changed(context, "another-tick", episode=replace(memory.episode, episode_id="another", sequence=2, cursor="e:2"))
-    await growth.organize("actor", scope, 2)
-    before = len(jobs.items)
+    await growth.organize("actor", scope, original["revision"])
+    assert not any(job.task == "companion.growth.retry" for job in jobs.items)
+    tail = replace(memory.episode, episode_id="another", sequence=2, cursor="e:2")
+    memory.episodes += (tail,)
+    await growth.changed(context, "another-tick", episode=tail)
+    await growth.organize("actor", scope, (await state(database))["revision"])
     await growth.recover()
-    assert len(jobs.items) == before
-    assert len(models.calls) == 1
+    assert len(models.calls) == 2 and set(frozen_episodes(models.calls[-1])) == {"another"}
     assert models.reads == []
-    assert (await state(database))["last_error"] == expected
+    assert (await retry_state(database))["last_error"] == expected
 
 
 @pytest.mark.asyncio
@@ -370,12 +384,13 @@ async def test_explicit_review_creates_one_new_generation_using_the_canonical_co
     scope = signature(sorted(context.scope_ids))
     await growth.organize("actor", scope, 1)
     original_attempt = models.calls[0].attempt_id
-    assert (await growth.view(context))["review"]["can_request_review"] is True
-    request = {"client_request_id": "explicit-review", "expected_revision": 1}
+    assert (await growth.view(context))["review"]["retry_batches"][0]["can_request_review"] is True
+    before = await state(database)
+    request = {"client_request_id": "explicit-review", "expected_revision": before["revision"]}
     result = await growth.request_review(context, request)
-    assert result.revision == 2
-    assert (await growth.request_review(context, request)).revision == 2
-    await growth.organize("actor", scope, 2)
+    assert result.revision == before["revision"] + 1
+    assert (await growth.request_review(context, request)).revision == result.revision
+    await growth.retries.run("actor", scope, (await retry_state(database))["retry_key"])
     assert len(models.calls) == 2
     assert models.calls[1].attempt_id != original_attempt
     assert "conditions is an object" in "".join(part.text or "" for message in models.calls[1].messages for part in message.parts)
@@ -385,7 +400,7 @@ async def test_explicit_review_creates_one_new_generation_using_the_canonical_co
     assert memory.proposals[0].interpretation is True
     assert len(notifications) == 1
     reviewed = await state(database)
-    assert reviewed["generation_revision"] == 1
+    assert reviewed["generation_revision"] == 0  # The linked retry attempt owns its identity.
     assert reviewed["last_error"] is None
     assert reviewed["cursor"] == "e:1"
     assert (await growth.view(context))["review"]["can_request_review"] is False
@@ -447,20 +462,21 @@ async def test_completed_legacy_request_with_unrelated_memory_is_not_applied(dat
 
 
 @pytest.mark.asyncio
-async def test_unknown_attempt_cannot_be_replaced_by_explicit_review(database):
+async def test_unknown_is_scheduled_without_manual_double_submission(database):
     models = Models({"notes": []})
     models.status = "unknown"
     growth, _memory, _jobs, context, _notifications = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
-    for _ in range(2):
-        unknown = await growth.organize("actor", scope, 1)
-        assert unknown["state"] == "waiting"
-        assert unknown["error_code"] == "reflection_generation_unknown"
+    unknown = await growth.organize("actor", scope, 1)
+    assert unknown["state"] == "retry_waiting"
+    assert unknown["error_code"] == "reflection_outcome_unknown"
+    current = await state(database)
+    assert (await growth.organize("actor", scope, current["revision"]))["state"] == "idle"
     with pytest.raises(AppError) as unresolved:
-        await growth.request_review(context, {"client_request_id": "no-new-unknown-attempt", "expected_revision": 1})
+        await growth.request_review(context, {"client_request_id": "no-new-unknown-attempt", "expected_revision": current["revision"]})
     assert unresolved.value.code == "reflection_original_attempt_unresolved"
     assert len(models.calls) == 1
-    assert models.reads == [models.calls[0].attempt_id]
+    assert models.reads == []
 
 
 @pytest.mark.asyncio
@@ -505,32 +521,34 @@ async def test_truncated_success_is_rejected_without_partial_writes_or_automatic
     original = await state(database)
     assert original["cursor"] is None
     assert original["generation_revision"] == 0
-    before = len(jobs.items)
     await growth.recover()
-    await growth.organize("actor", scope, 1)
-    assert len(jobs.items) == before
+    await growth.organize("actor", scope, original["revision"])
+    assert not any(job.task == "companion.growth.retry" for job in jobs.items)
     assert len(models.calls) == 1
     assert models.reads == []
     assert models.results[rejected["attempt_id"]].receipt.status == "succeeded"
 
 
 @pytest.mark.asyncio
-async def test_new_event_keeps_unresolved_original_batch_and_attempt(database):
-    models = Models({"notes": []})
+async def test_new_event_advances_without_mixing_reserved_failed_versions(database):
+    models = Models({"notes": []}, {"notes": []})
     models.status = "unknown"
     growth, memory, _jobs, context, _notifications = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
     await growth.organize("actor", scope, 1)
     original = models.calls[0]
-    active = (await state(database))["active_batch"]
+    reserved = await retry_state(database)
+    models.status = "succeeded"
     memory.episodes += (replace(memory.episode, episode_id="later", sequence=2, cursor="e:2"),)
     await growth.changed(context, "later-event", episode=memory.episodes[-1])
-    await growth.organize("actor", scope, 2)
-    assert len(models.calls) == 1
-    assert models.reads == [original.attempt_id]
+    await growth.organize("actor", scope, (await state(database))["revision"])
+    assert len(models.calls) == 2 and set(frozen_episodes(models.calls[-1])) == {"later"}
+    assert models.reads == []
     current = await state(database)
-    assert current["active_batch"] == active
-    assert current["cursor"] is None
+    assert current["active_batch"] is None
+    assert current["cursor"] == "e:2"
+    assert (await retry_state(database))["batch"] == reserved["batch"]
+    assert models.results[original.attempt_id].receipt.status == "unknown"
     assert current["watermark"] == "later-event"
 
 

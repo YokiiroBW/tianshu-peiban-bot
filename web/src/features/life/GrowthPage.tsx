@@ -86,6 +86,46 @@ export default function GrowthPage() {
                 待处理经历版本：{review.pending_inputs ?? "尚未取得"} ·
                 待观察原请求：{review.pending_original_requests ?? "尚未取得"}
               </p>
+              {review.retry_summary &&
+                (review.retry_summary.waiting > 0 || review.retry_summary.active > 0) && (
+                  <div role="status" aria-label="成长自动重试">
+                    <p>
+                      等待重试 {review.retry_summary.waiting} 批 · 正在处理重试 {review.retry_summary.active} 批。
+                      暂时失败的材料已单独保留，后续经历可以继续整理。
+                    </p>
+                    {review.retry_summary.next_retry_at && (
+                      <p>下一次重试：{time(review.retry_summary.next_retry_at)}</p>
+                    )}
+                  </div>
+                )}
+              {!!review.retry_batches?.length && (
+                <details>
+                  <summary>重试批次与处理次数</summary>
+                  {review.retry_batches.map((retry) => (
+                    <section key={retry.retry_key}>
+                      <p>
+                        {{ waiting: retry.waiting_on_original ? "等待原执行结果" : "等待自动重试",
+                          active: "正在处理", completed: "已完成", blocked: "已停止自动重试" }[retry.state]}
+                        · 已安排尝试 {retry.attempt_number} 次
+                        {retry.due_at && ` · 下次 ${time(retry.due_at)}`}
+                      </p>
+                      {retry.state === "blocked" && (
+                        <p>此批未自动重试，原因保留为 {retry.last_error ?? "尚未取得"}。后续经历不受此批阻挡。</p>
+                      )}
+                      {retry.outcome === "historical_only" && (
+                        <p>保留了较新经历形成的当前状态；此批只补充历史手记，原判断仍可追溯。</p>
+                      )}
+                      <p className="muted">执行记录：{retry.attempt_id}</p>
+                      {view.data.can_review && retry.can_request_review && (
+                        <button className="button" disabled={action.busy} onClick={async () => {
+                          if (await action.run("companion/growth/review", { ...scope, retry_key: retry.retry_key }, review.revision))
+                            await view.refresh();
+                        }}>重新整理这批材料</button>
+                      )}
+                    </section>
+                  ))}
+                </details>
+              )}
               {!!materialMissing.size && (
                 <div aria-label="反思材料范围">
                   {!!review.partial_inputs && (
@@ -152,8 +192,8 @@ export default function GrowthPage() {
               {review.recovery === "observe_original_attempt" ? (
                 <div role="status">
                   <p>
-                    正在观察原执行。等待或结果未知时保留原
-                    attempt，不发起替代模型请求。
+                    原请求仍在排队、执行或等待状态确认，暂不重复提交。
+                    可恢复的中断会保留原记录，并另行安排重试。
                   </p>
                   <p className="muted">
                     原 attempt：{review.attempt_id ?? "尚未取得"}
