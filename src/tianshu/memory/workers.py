@@ -115,7 +115,9 @@ class MemoryWorkers:
                         {"kind":kind,"id":row["id"],"revision":row["revision"]},ServiceClass.ELASTIC))
             rows = await (await conn.execute(
                 "SELECT partition_id FROM memory.consolidation_state WHERE "
-                "(active_batch_id IS NOT NULL OR wake_due_at<=now()) AND "
+                "(active_batch_id IS NOT NULL OR wake_due_at<=now() OR EXISTS(SELECT 1 "
+                "FROM memory.consolidation_batches b WHERE b.partition_id=memory.consolidation_state.partition_id "
+                "AND b.status='quarantined')) AND "
                 "(lease_until IS NULL OR lease_until<now()) ORDER BY updated_at LIMIT 64"
             )).fetchall()
             now = datetime.now(UTC)

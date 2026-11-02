@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from math import ceil
 
 from psycopg.types.json import Jsonb
 
@@ -21,8 +22,8 @@ class ModelSteps:
         if not await self.sources.validate_persistence(conn, request.context, request.source_refs):
             raise AppError("source_unavailable", status=403)
         await conn.execute(
-            "INSERT INTO memory.model_steps(step_id,request) VALUES(%s,%s) ON CONFLICT DO NOTHING",
-            (step_id, Jsonb(wire(request))))
+            "INSERT INTO memory.model_steps(step_id,request,request_timeout_seconds) VALUES(%s,%s,%s) ON CONFLICT DO NOTHING",
+            (step_id, Jsonb(wire(request)), max(1,min(900,ceil(request.budget.remaining())))))
         row = await (await conn.execute(
             "SELECT * FROM memory.model_steps WHERE step_id=%s", (step_id,))).fetchone()
         if row["state"] == "source_revoked":
@@ -56,8 +57,9 @@ class ModelSteps:
 
     async def execute_recorded(self, step_id, *, budget=None, observe_only=False):
         row, original = await self.recorded(step_id)
-        deadline = min(budget.deadline_at if budget else datetime.now(UTC)+timedelta(seconds=120),
-                       datetime.now(UTC)+timedelta(seconds=120))
+        deadline = datetime.now(UTC)+timedelta(seconds=row["request_timeout_seconds"])
+        if budget:
+            deadline = min(deadline,budget.deadline_at)
         stored = replace(original, budget=RequestBudget(deadline,
             trace_id=original.budget.trace_id, cancellation_id=original.budget.cancellation_id))
         async with self.database.transaction() as conn:

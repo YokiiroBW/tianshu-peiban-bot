@@ -20,6 +20,10 @@ class FixedConsolidator:
         self.results={}
         self.unknown,self.invalid,self.truncated=unknown,invalid,truncated
 
+    async def generation_profile(self, request):
+        return {"route_id":"fixture","route_revision":1,"protocol":"openai.chat","model":"fixture",
+            "output_parameters":{"max_tokens":request.max_output_tokens}}
+
     def answer(self,request):
         value=json.loads(request.messages[0].parts[0].text)
         operations=[]
@@ -595,3 +599,318 @@ async def test_legacy_without_originals_gets_one_terminal_receipt_and_no_model_r
     async with core.database.transaction(read_only=True) as conn:
         batches=await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE schema_version='memory.legacy-extraction.v0'")).fetchall()
     assert len(batches)==1 and batches[0]['status']=='revoked'
+
+
+class HeldConsolidator(FixedConsolidator):
+    """An actually unknown ledger receipt, rather than a lost successful reply."""
+    def __init__(self):
+        super().__init__()
+        self.held={}
+
+    async def generate(self,request):
+        if not self.requests:
+            self.requests.append(request)
+            self.held[request.attempt_id]=ModelReceipt(request.attempt_id,request.intent_id,
+                'unknown','unknown','fixture',1,'fixture','fixture','openai.chat','fixture',
+                finished_at=datetime.now(UTC),error_code='timeout_unknown')
+            raise AppError('timeout_unknown',status=503,details={'status':'unknown'})
+        return await super().generate(request)
+
+    async def status(self,attempt_id):
+        return self.held.get(attempt_id) or await super().status(attempt_id)
+
+    def release(self):
+        request=self.requests[0]
+        self.results[request.attempt_id]=self.answer(request)
+        self.held.pop(request.attempt_id)
+
+
+async def test_unknown_is_held_without_replay_while_later_material_advances(core,ordinary_users):
+    alice,_=ordinary_users
+    model=HeldConsolidator()
+    configure(core,model)
+    original=await observe(core,alice,'held_original','原始未决材料')
+    before=await row(core,original)
+    partition=before['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    held=await latest_batch(core,partition)
+    assert held['status']=='quarantined'
+    assert (await row(core,original))['extraction_state']=='consolidation_unknown'
+    status=await core.memory.extraction_status(alice,original.episode_id)
+    assert status['action']=='observe_original_attempt' and status['isolated'] and not status['blocks_following']
+    async with core.database.transaction(read_only=True) as conn:
+        original_step=await (await conn.execute('SELECT * FROM memory.model_steps WHERE step_id=%s',
+            (held['step_ids'][0],))).fetchone()
+    later=await observe(core,alice,'following_held','后续材料含尾部事实')
+    await core.workers.recover()
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==2 and new_texts(model.requests[1])==['后续材料含尾部事实']
+    assert (await row(core,later))['extraction_state']=='completed'
+    assert (await row(core,original))['extraction_cursor']==before['extraction_cursor']
+    async with core.database.transaction() as conn:
+        resumed=await core.workers.recovery.resume_on(conn,alice,{'episode_id':original.episode_id,
+            'expected_revision':original.revision,'client_request_id':'observe-held-original'})
+    assert resumed.data['action']=='observe_original_attempt'
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==2
+    model.release()
+    await core.workers.consolidate(partition)
+    assert (await row(core,original))['extraction_state']=='completed' and len(model.requests)==2
+    async with core.database.transaction(read_only=True) as conn:
+        after=await (await conn.execute('SELECT * FROM memory.model_steps WHERE step_id=%s',
+            (held['step_ids'][0],))).fetchone()
+    assert after['request']==original_step['request'] and after['state']=='succeeded'
+
+
+async def test_late_stale_result_keeps_old_material_held_until_explicit_refresh(core,ordinary_users):
+    alice,_=ordinary_users
+    refs=await core.sources.record_event(alice,producer='web',event_id='prior_for_held',revision=1,
+        occurred_at=datetime.now(UTC),parts=({'text':'原事实'},),origin_kind=OriginKind.HUMAN)
+    async with core.database.transaction() as conn:
+        claim=await core.claims.put_on(conn,alice,{'subject_id':alice.person_id,'speaker_id':alice.person_id,
+            'predicate':'preference.ordinary','value':'苹果','assertion':'self_confirmed','source_refs':refs},automatic=True)
+    model=HeldConsolidator()
+    configure(core,model)
+    original=await observe(core,alice,'stale_held_original','原始未决材料')
+    before=await row(core,original)
+    partition=before['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    held=await latest_batch(core,partition)
+    assert any(item['id']==claim.claim_id for item in held['read_set'])
+    await core.claims.correct(alice,{'claim_id':claim.claim_id,'expected_revision':claim.revision,
+        'client_request_id':'change-before-late-result','value':'梨'})
+    model.release()
+    await core.workers.consolidate(partition)
+    status=await core.memory.extraction_status(alice,original.episode_id)
+    assert status['status']=='stale' and status['held_for_refresh'] and status['action']=='refresh_material'
+    assert (await row(core,original))['extraction_state']=='consolidation_stale'
+    # The correction's own sourced change event may proceed in this same wake;
+    # the held original must not be included in that unrelated extraction.
+    after_observation=len(model.requests)
+    assert all('原始未决材料' not in new_texts(request) for request in model.requests[1:])
+    await core.workers.recover()
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==after_observation and (await core.claims.get(alice,claim.claim_id)).value=='梨'
+    async with core.database.transaction() as conn:
+        resumed=await core.workers.recovery.resume_on(conn,alice,{'episode_id':original.episode_id,
+            'expected_revision':original.revision,'client_request_id':'refresh-known-stale'})
+    assert resumed.data['action']=='refresh_material'
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==after_observation+1 and (await row(core,original))['extraction_state']=='completed'
+
+
+async def test_held_source_revocation_prevents_late_application(core,ordinary_users):
+    alice,_=ordinary_users
+    model=HeldConsolidator()
+    configure(core,model)
+    original=await observe(core,alice,'held_revoke','尾部事实')
+    partition=(await row(core,original))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    held=await latest_batch(core,partition)
+    await core.sources.invalidate(alice,{'source_id':original.source_refs[0].source_id,
+        'expected_revision':1,'client_request_id':'forget-held'},forgotten=True)
+    model.release()
+    await core.workers.consolidate(partition)
+    async with core.database.transaction(read_only=True) as conn:
+        final=await (await conn.execute('SELECT status FROM memory.consolidation_batches WHERE batch_id=%s',
+            (held['batch_id'],))).fetchone()
+    assert final['status']=='revoked' and len(model.requests)==1
+    assert not (await core.claims.list(alice)).items
+
+
+@pytest.mark.parametrize('failure',['json','create_shape','actor_confirmation'])
+async def test_one_persisted_output_repair_preserves_full_evidence_and_rolls_back_bad_proposals(core,ordinary_users,failure):
+    alice,_=ordinary_users
+    class Repairing(FixedConsolidator):
+        def answer(self,request):
+            result=super().answer(request)
+            if len(self.requests)!=1:
+                return result
+            if failure=='json':
+                return replace(result,parts=(ModelPart('text',text='{"operations" [}'),))
+            proposal=json.loads(result.parts[0].text)
+            if failure=='create_shape':
+                proposal['operations'][0]['target']['create']={'create':'n1'}
+            else:
+                rejected=json.loads(json.dumps(proposal['operations'][0]))
+                rejected.update(op_id='op2',target={'create':'n2'})
+                rejected['payload']['assertion']='self_confirmed'
+                proposal['operations'].append(rejected)
+                next(item for item in proposal['target_results'] if item['operation_ids'])['operation_ids'].append('op2')
+            return replace(result,parts=(ModelPart('text',text=json.dumps(proposal)),))
+
+        async def generate(self,request):
+            if self.requests:
+                assert not (await core.claims.list(alice)).items, 'rejected operations must roll back together'
+            return await super().generate(request)
+
+    model=Repairing()
+    configure(core,model)
+    if failure=='actor_confirmation':
+        refs=await core.sources.record_event(alice,producer='runtime-test',event_id='actor-confirmation',revision=1,
+            occurred_at=datetime.now(UTC),parts=({'text':'角色经历尾部事实'},),origin_kind=OriginKind.ACTOR)
+        episode=await core.memory.observe_episode(alice,{'event_id':'actor-confirmation','occurred_at':datetime.now(UTC),
+            'summary':'角色经历','source_refs':refs,'origin_kind':'actor'})
+    else:
+        episode=await observe(core,alice,'repair-'+failure,'真人原件尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    batch=await latest_batch(core,partition)
+    assert batch['status']=='applied' and len(model.requests)==2
+    assert len(batch['manifest']['output_repairs'])==1
+    first,repair=model.requests
+    assert first.attempt_id!=repair.attempt_id and first.messages[0]==repair.messages[0]
+    assert first.source_refs==repair.source_refs and first.route_id==repair.route_id
+    assert batch['manifest']['steps'][batch['step_ids'][0]]==batch['manifest']['steps'][batch['step_ids'][1]]
+    assert (await row(core,episode))['extraction_state']=='completed'
+    claims=(await core.claims.list(alice)).items
+    assert len(claims)==1 and claims[0].assertion==('observed' if failure=='actor_confirmation' else 'self_confirmed')
+
+
+async def test_reasoning_only_truncation_has_one_disabled_repair_with_original_allowance(core,ordinary_users):
+    alice,_=ordinary_users
+    class ReasoningOnly(FixedConsolidator):
+        async def generation_profile(self,request):
+            return {**await super().generation_profile(request),'model':'deepseek-v4.1-flash'}
+
+        def answer(self,request):
+            result=super().answer(request)
+            if request.parameters.get('thinking')!={'type':'disabled'}:
+                return replace(result,parts=(),native_response={'finish_reason':'length'},
+                    completion=ModelCompletion('incomplete',('length',)))
+            return result
+
+    model=ReasoningOnly()
+    configure(core,model)
+    episode=await observe(core,alice,'reasoning_only','尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==2
+    first,repair=model.requests
+    assert first.parameters['reasoning_effort']=='low'
+    assert first.parameters['response_format']=={'type':'json_object'}
+    assert repair.parameters['thinking']=={'type':'disabled'}
+    assert first.max_output_tokens==repair.max_output_tokens==12288
+    assert first.parameters['max_tokens']==repair.parameters['max_tokens']==12288
+    assert (await latest_batch(core,partition))['status']=='applied'
+
+
+async def test_repair_limit_survives_recovery_and_keeps_cursors_unadvanced(core,ordinary_users):
+    alice,_=ordinary_users
+    model=FixedConsolidator(invalid=True)
+    configure(core,model)
+    episode=await observe(core,alice,'repair_limit','尾部事实')
+    before=await row(core,episode)
+    partition=before['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    batch=await latest_batch(core,partition)
+    assert len(model.requests)==2 and batch['status']=='failed'
+    assert len(batch['manifest']['output_repairs'])==1
+    await core.workers.recover()
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==2 and (await row(core,episode))['extraction_cursor']==before['extraction_cursor']
+    assert not (await core.claims.list(alice)).items
+
+
+async def test_prepared_repair_survives_interruption_without_another_repair_identity(core,ordinary_users,monkeypatch):
+    alice,_=ordinary_users
+    class InitiallyInvalid(FixedConsolidator):
+        def answer(self,request):
+            self.invalid=len(self.requests)==1
+            return super().answer(request)
+    model=InitiallyInvalid()
+    configure(core,model)
+    execute=core.steps.execute_recorded
+    async def interrupt_before_repair_dispatch(step_id,**kwargs):
+        if ':repair:' in step_id:
+            raise TimeoutError('synthetic process interruption before crossing Broker')
+        return await execute(step_id,**kwargs)
+    monkeypatch.setattr(core.steps,'execute_recorded',interrupt_before_repair_dispatch)
+    episode=await observe(core,alice,'prepared_repair_restart','尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    interrupted=await latest_batch(core,partition)
+    assert len(model.requests)==1 and len(interrupted['manifest']['output_repairs'])==1
+    async with core.database.transaction(read_only=True) as conn:
+        repair=await (await conn.execute('SELECT * FROM memory.model_steps WHERE step_id=%s',
+            (interrupted['step_ids'][-1],))).fetchone()
+    assert repair['state']=='prepared'
+    monkeypatch.setattr(core.steps,'execute_recorded',execute)
+    await core.workers.recover()
+    await core.workers.consolidate(partition)
+    final=await latest_batch(core,partition)
+    assert final['status']=='applied' and final['step_ids']==interrupted['step_ids']
+    assert len(model.requests)==2 and model.requests[-1].attempt_id==repair['request']['attempt_id']
+
+
+async def test_long_request_window_is_frozen_and_supplement_renews_its_owner_lease(core,ordinary_users):
+    from tianshu.memory.consolidation import LEASE_SECONDS
+    alice,_=ordinary_users
+    lease_snapshots=[]
+    class Supplement(FixedConsolidator):
+        async def generate(self,request):
+            assert request.budget.remaining()>290
+            async with core.database.transaction() as conn:
+                state=await (await conn.execute('SELECT lease_owner,lease_until FROM memory.consolidation_state WHERE partition_id=%s',
+                    (partition,))).fetchone()
+                lease_snapshots.append(state)
+                assert (state['lease_until']-datetime.now(UTC)).total_seconds()>LEASE_SECONDS-10
+                if not self.requests:
+                    # Model the old three-minute lease already being exhausted.
+                    await conn.execute("UPDATE memory.consolidation_state SET lease_until=now()-interval '1 second' WHERE partition_id=%s",
+                        (partition,))
+            return await super().generate(request)
+
+        def answer(self,request):
+            result=super().answer(request)
+            if len(self.requests)==1:
+                proposal=json.loads(result.parts[0].text)
+                proposal['needs_context']=[{'request_id':'context1','kind':'material','ref':'m1',
+                    'start':None,'end':None,'query':None,'reason':'需要剩余原文'}]
+                return replace(result,parts=(ModelPart('text',text=json.dumps(proposal)),))
+            return result
+
+    model=Supplement()
+    configure(core,model)
+    episode=await observe(core,alice,'long_native_window','前文 '*2500+'尾部事实')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    batch=await latest_batch(core,partition)
+    assert len(model.requests)==2 and batch['status']=='applied'
+    assert lease_snapshots[0]['lease_owner']==lease_snapshots[1]['lease_owner']
+    async with core.database.transaction(read_only=True) as conn:
+        steps=await (await conn.execute('SELECT request_timeout_seconds FROM memory.model_steps WHERE step_id=ANY(%s::text[])',
+            (batch['step_ids'],))).fetchall()
+    assert len(steps)==2 and all(item['request_timeout_seconds']==300 for item in steps)
+
+
+async def test_late_apply_never_releases_another_active_pointer_or_lease(core,ordinary_users):
+    alice,_=ordinary_users
+    model=HeldConsolidator()
+    configure(core,model)
+    episode=await observe(core,alice,'late_pointer','原始未决材料')
+    partition=(await row(core,episode))['consolidation_partition_id']
+    await core.workers.consolidate(partition)
+    held=await latest_batch(core,partition)
+    async with core.database.transaction() as conn:
+        await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,context_fingerprint) "
+            "VALUES('another-active',%s,%s,'prepared','{}','another')",(partition,SCHEMA_VERSION))
+        await conn.execute("UPDATE memory.consolidation_state SET active_batch_id='another-active',lease_owner='another-owner',"
+            "lease_until=now()+interval '6 minutes' WHERE partition_id=%s",(partition,))
+    model.release()
+    # Without owning that lease, even the previously valid original cannot apply.
+    with pytest.raises(AppError,match='memory_consolidation_lease_changed'):
+        await core.memory.consolidation._execute(held['batch_id'],alice,owner='expired-owner')
+    async with core.database.transaction(read_only=True) as conn:
+        state=await (await conn.execute('SELECT active_batch_id,lease_owner FROM memory.consolidation_state WHERE partition_id=%s',
+            (partition,))).fetchone()
+    assert state=={'active_batch_id':'another-active','lease_owner':'another-owner'}
+    assert (await row(core,episode))['extraction_state']=='consolidation_unknown' and len(model.requests)==1
+    # The actual partition owner can accept the unchanged late result while
+    # leaving a different prepared batch's pointer and its own lease intact.
+    await core.memory.consolidation._execute(held['batch_id'],alice,owner='another-owner')
+    async with core.database.transaction(read_only=True) as conn:
+        state=await (await conn.execute('SELECT active_batch_id,lease_owner FROM memory.consolidation_state WHERE partition_id=%s',
+            (partition,))).fetchone()
+    assert state=={'active_batch_id':'another-active','lease_owner':'another-owner'}
+    assert (await row(core,episode))['extraction_state']=='completed' and len(model.requests)==1

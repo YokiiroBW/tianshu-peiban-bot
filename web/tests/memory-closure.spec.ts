@@ -262,7 +262,9 @@ test("episode recovery follows server actions and unknown only observes the orig
   const writes: Record<string, unknown>[] = [];
   const pending = {
     batch_id: "original-batch",
-    status: "waiting_model",
+    status: "quarantined",
+    isolated: true,
+    blocks_following: false,
     action: "observe_original_attempt",
     target_results: [],
     unresolved: [],
@@ -328,6 +330,9 @@ test("episode recovery follows server actions and unknown only observes the orig
     page.getByRole("button", { name: "观察原执行", exact: true }),
   ).toHaveCount(1);
   await expect(
+    page.getByText(/原请求结果未知，已隔离，不阻塞后续整理/),
+  ).toBeVisible();
+  await expect(
     page.getByRole("button", { name: "重新准备当前材料", exact: true }),
   ).toHaveCount(0);
   await expect(
@@ -345,6 +350,58 @@ test("episode recovery follows server actions and unknown only observes the orig
     expected_revision: 2,
   });
   await expect(page.getByText(/当前未派发新整理任务/)).toBeVisible();
+});
+
+test("a known stale late result holds its original material for explicit refresh", async ({ page }) => {
+  const writes: Record<string, unknown>[] = [];
+  const held = {
+    batch_id: "late-original",
+    status: "stale",
+    held_for_refresh: true,
+    action: "refresh_material",
+    target_results: [],
+    unresolved: [],
+    coverage: { missing: [] },
+  };
+  await page.route(apiPath("memory/episodes"), (route) =>
+    answer(route, {
+      ...emptyPage,
+      watermark: "2",
+      items: [{
+        episode_id: "held-stale",
+        revision: 2,
+        event_id: "stale-event",
+        origin_kind: "human",
+        occurred_at: "2026-11-02T00:00:00Z",
+        summary: "迟到前已变化的材料",
+        source_refs: [],
+        coverage,
+        extraction_state: "consolidation_stale",
+        consolidation: held,
+      }],
+    }),
+  );
+  await page.route(apiPath("memory/extraction/status"), (route) =>
+    answer(route, { ...held, episode_id: "held-stale", revision: 2 }),
+  );
+  await page.route(apiPath("memory/extraction/resume"), (route) => {
+    const body = route.request().postDataJSON();
+    writes.push(body);
+    return answer(route, command(body, {
+      action: "refresh_material", queued: true, batch_id: "late-original",
+    }, 2));
+  });
+  await page.goto("/#/memory");
+  await page.getByLabel("读取范围").selectOption("actor");
+  await page.getByRole("button", { name: "经历与反思", exact: true }).click();
+  await expect(page.getByText(/迟到结果与当前材料或记忆版本不一致，未写入/)).toBeVisible();
+  await expect(page.getByRole("button", { name: "观察原执行", exact: true })).toHaveCount(0);
+  const refresh = page.getByRole("button", { name: "重新准备当前材料", exact: true });
+  await expect(refresh).toBeVisible();
+  expect(writes).toHaveLength(0);
+  await refresh.click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0]).toMatchObject({ episode_id: "held-stale", expected_revision: 2 });
 });
 
 test("group processing shows authorized targets separately from committed no-change results", async ({

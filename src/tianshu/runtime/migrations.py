@@ -26,6 +26,7 @@ def product_migrations(jobs):
         ("0011_sources", "tianshu.sources", ("schema.sql", "functions.sql")),
         ("0020_memory", "tianshu.memory", ("schema.sql",)),
         ("0021_memory_consolidation", "tianshu.memory", ("0021_memory_consolidation.sql",)),
+        ("0022_memory_runtime", "tianshu.memory", ("0022_memory_runtime.sql",)),
         ("0030_companion", "tianshu.companion", ("schema.sql",)),
         ("0031_life", "tianshu.life", ("schema.sql",)),
         ("0032_conversation", "tianshu.conversation", ("schema.sql",)),

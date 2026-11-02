@@ -16,10 +16,12 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, Tr
 from . import codec
 from .authority import context_record
 from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolidation_instruction, validate_proposal
+from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request
 from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, expand_record_endpoints, frozen_mapping, model_material, partition_identity, reference_key, smaller_material_prefix
 
 _ACTIVE = {"prepared", "waiting_model", "ready"}
-MODEL_REQUEST_SECONDS = 120
+_OBSERVABLE = _ACTIVE | {"quarantined"}
+LEASE_SECONDS = MODEL_REQUEST_SECONDS + 60
 COMMIT_RESERVE_SECONDS = 5
 
 
@@ -90,23 +92,39 @@ class Consolidation:
             now = datetime.now(UTC)
             if state["lease_until"] and state["lease_until"] > now:
                 return
-            if not state["active_batch_id"] and state["wake_due_at"] is None:
+            held = await (await conn.execute("SELECT batch_id FROM memory.consolidation_batches "
+                "WHERE partition_id=%s AND status='quarantined' ORDER BY updated_at,batch_id LIMIT 1",
+                (partition_id,))).fetchone()
+            if not state["active_batch_id"] and state["wake_due_at"] is None and not held:
                 return
-            if not state["active_batch_id"] and state["wake_due_at"] and state["wake_due_at"] > now:
+            if not held and not state["active_batch_id"] and state["wake_due_at"] and state["wake_due_at"] > now:
                 await self._schedule_on(conn, partition_id, state["wake_due_at"])
                 return
             lease = await (await conn.execute(
-                "UPDATE memory.consolidation_state SET lease_owner=%s,lease_until=now()+interval '3 minutes',updated_at=now() "
-                "WHERE partition_id=%s RETURNING lease_until", (owner, partition_id))).fetchone()
+                "UPDATE memory.consolidation_state SET lease_owner=%s,lease_until=now()+%s*interval '1 second',updated_at=now() "
+                "WHERE partition_id=%s RETURNING lease_until", (owner, LEASE_SECONDS, partition_id))).fetchone()
         batch_id = state["active_batch_id"]
         try:
             context = context_from_bound(state["authority_bound"])
             await self.identity.check_context(context)
+            # One bounded original observation per wake. An unavailable original
+            # must not prevent this same wake from processing unrelated input.
+            if held:
+                try:
+                    result = await self._execute(held["batch_id"], context, owner=owner)
+                    if result is not None:
+                        return result
+                except (AppError, TimeoutError, ValueError, TypeError) as exc:
+                    await self._failure(partition_id, held["batch_id"], exc)
+            if not batch_id and state["wake_due_at"] is None:
+                return
+            if not batch_id and state["wake_due_at"] and state["wake_due_at"] > datetime.now(UTC):
+                return
             if not batch_id:
                 batch_id = await self._prepare(state, context, owner,
                     budget=self.preparation_budget(lease["lease_until"]))
             if batch_id:
-                await self._execute(batch_id, context)
+                await self._execute(batch_id, context, owner=owner)
         except (AppError, TimeoutError, ValueError, TypeError) as exc:
             await self._failure(partition_id, batch_id, exc)
         finally:
@@ -186,6 +204,8 @@ class Consolidation:
                     return None
                 step_id=batch_id+":step:0"
                 request=self._budgeted_request(context,frozen,step_id) if frozen["materials"] else None
+                if request:
+                    request=await native_request(self.steps.models,request)
                 break
             except AppError as exc:
                 if exc.code not in {"memory_consolidation_input_budget","memory_identity_candidates_too_large"}:
@@ -286,7 +306,8 @@ class Consolidation:
 
     def _budget_record(self):
         return {"input_tokens":self.policy.max_input_tokens,"output_tokens":self.policy.max_output_tokens,
-                "reasoning_tokens":self.policy.reasoning_reserve_tokens}
+                "reasoning_tokens":self.policy.reasoning_reserve_tokens,
+                "generation_policy":"memory-native-low-json-v1","request_seconds":MODEL_REQUEST_SECONDS}
 
     def _input_budget_record(self):
         # These settings determine the smallest complete input we can prepare.
@@ -318,32 +339,82 @@ class Consolidation:
                 "UPDATE memory.consolidation_state SET first_pending_at=NULL,wake_due_at=NULL,last_error=NULL,budget_failure=NULL "
                 "WHERE partition_id=%s AND lease_owner=%s AND active_batch_id IS NULL", (partition_id,owner))
 
-    async def _execute(self, batch_id, context):
+    async def _execute(self, batch_id, context, *, owner=None):
+        # Both additional paths have durable, independent limits: one original
+        # context supplement and one repair of known output, at most three steps.
+        while True:
+            async with self.database.transaction() as conn:
+                batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s", (batch_id,))).fetchone()
+                if not batch or batch["status"] not in _OBSERVABLE:
+                    return batch["commit_refs"] if batch else None
+                if owner:
+                    renewed=await (await conn.execute("UPDATE memory.consolidation_state "
+                        "SET lease_until=now()+%s*interval '1 second' WHERE partition_id=%s AND lease_owner=%s "
+                        "RETURNING partition_id",(LEASE_SECONDS,batch["partition_id"],owner))).fetchone()
+                    if not renewed:
+                        raise AppError("memory_consolidation_lease_changed",status=409)
+                await conn.execute("UPDATE memory.consolidation_batches SET status='waiting_model',updated_at=now() WHERE batch_id=%s AND status='prepared'", (batch_id,))
+            manifest = batch["manifest"]
+            if not batch["step_ids"]:
+                proposal = consolidation_example(manifest["frozen"])
+                return await self._apply(batch, context, manifest["frozen"], proposal,owner=owner)
+            step_id = batch["step_ids"][-1]
+            result, recorded = await self.steps.execute_recorded(step_id,observe_only=batch["status"] == "quarantined")
+            frozen = manifest["steps"][step_id]
+            try:
+                proposal = self._parse(frozen, result)
+            except AppError as exc:
+                if await self._repair(batch,context,frozen,recorded,result,exc,owner=owner):
+                    continue
+                raise
+            if (proposal["needs_context"] and not manifest["context_round"] and batch["status"] != "quarantined"
+                    and await self._supplement(batch,context,frozen,recorded,proposal["needs_context"],owner=owner)):
+                continue
+            # A quarantined result remains outside the active unique predicate,
+            # including while its unchanged frozen proposal is being checked.
+            try:
+                async with self.database.transaction() as conn:
+                    await conn.execute("UPDATE memory.consolidation_batches SET status=CASE WHEN status='quarantined' "
+                        "THEN status ELSE 'ready' END,proposal_digest=%s,updated_at=now() "
+                        "WHERE batch_id=%s AND status=ANY(%s::text[]) AND (proposal_digest IS NULL OR proposal_digest=%s)",
+                        (body_hash(proposal),batch_id,list(_OBSERVABLE),body_hash(proposal)))
+                return await self._apply(batch, context, frozen, proposal,owner=owner)
+            except AppError as exc:
+                if await self._repair(batch,context,frozen,recorded,result,exc,owner=owner):
+                    continue
+                raise
+
+    async def _repair(self,batch,context,frozen,recorded,result,error,*,owner=None):
+        if (batch["status"] == "quarantined" or not repairable(result,recorded,error.code)
+                or len(batch["manifest"].get("output_repairs",())) >= REPAIR_LIMIT):
+            return False
+        step_id=batch["batch_id"]+":repair:1"
+        try:
+            request=repair_request(recorded,step_id,result,error,self.counter,self.policy.max_input_tokens)
+        except AppError as exc:
+            if exc.code == "memory_consolidation_repair_input_budget":
+                return False
+            raise
         async with self.database.transaction() as conn:
-            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s", (batch_id,))).fetchone()
-            if not batch or batch["status"] not in _ACTIVE:
-                return batch["commit_refs"] if batch else None
-            await conn.execute("UPDATE memory.consolidation_batches SET status='waiting_model',updated_at=now() WHERE batch_id=%s AND status='prepared'", (batch_id,))
-        manifest = batch["manifest"]
-        if not batch["step_ids"]:
-            proposal = consolidation_example(manifest["frozen"])
-            return await self._apply(batch, context, manifest["frozen"], proposal)
-        step_id = batch["step_ids"][-1]
-        result, recorded = await self.steps.execute_recorded(step_id)
-        # The step-local map is immutable, including across a supplementary context round.
-        frozen = manifest["steps"][step_id]
-        proposal = self._parse(frozen, result)
-        if proposal["needs_context"] and not manifest["context_round"]:
-            supplemented = await self._supplement(batch, context, frozen, recorded, proposal["needs_context"])
-            if supplemented:
-                return await self._execute(batch_id, context)
-        # Unfulfilled context remains a coverage gap. Preserve the original proposal digest;
-        # do not rewrite the model's unknown semantic result into a successful one.
-        async with self.database.transaction() as conn:
-            await conn.execute("UPDATE memory.consolidation_batches SET status='ready',proposal_digest=%s,updated_at=now() "
-                "WHERE batch_id=%s AND status IN ('prepared','waiting_model','ready') AND (proposal_digest IS NULL OR proposal_digest=%s)",
-                (body_hash(proposal),batch_id,body_hash(proposal)))
-        return await self._apply(batch, context, frozen, proposal)
+            if not await self.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
+                raise AppError("source_unavailable",status=403)
+            await self.identity.check_context(context,connection=conn)
+            await self._lock_owned_partition(conn,batch["partition_id"],owner)
+            current=await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch["batch_id"],))).fetchone()
+            if current["status"] not in _ACTIVE or len(current["manifest"].get("output_repairs",())) >= REPAIR_LIMIT:
+                return False
+            manifest=deepcopy(current["manifest"])
+            manifest["steps"][step_id]=frozen_mapping(frozen)
+            manifest["output_repairs"]=[{"step_id":step_id,"original_step_id":recorded.intent_id,
+                "original_attempt_id":recorded.attempt_id,"error_code":error.code,
+                "rejected_proposal_digest":current["proposal_digest"],
+                "diagnostic":{key:value for key,value in (error.details or {}).items()
+                    if key in {"path","validator","line","column","position"}}}]
+            await self.steps.prepare_on(conn,step_id,request)
+            await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,step_ids=array_append(step_ids,%s),"
+                "status='prepared',proposal_digest=NULL,error_code=NULL,updated_at=now() WHERE batch_id=%s",
+                (Jsonb(manifest),step_id,batch["batch_id"]))
+        return True
 
     @staticmethod
     def _parse(frozen, result):
@@ -366,10 +437,12 @@ class Consolidation:
         try:
             proposal = json.loads("".join(part.text or "" for part in result.parts if part.kind == "text"))
         except (TypeError, ValueError) as exc:
-            raise AppError("memory_consolidation_output_invalid", status=502) from exc
+            raise AppError("memory_consolidation_output_invalid", status=502,details={
+                key:getattr(exc,field) for key,field in (("line","lineno"),("column","colno"),("position","pos"))
+                if hasattr(exc,field)}) from exc
         return validate_proposal(frozen, proposal)
 
-    async def _supplement(self, batch, context, frozen, recorded, requests):
+    async def _supplement(self, batch, context, frozen, recorded, requests, *, owner=None):
         # Reuse the original exact payload. New aliases append; no old alias is renumbered.
         payload = json.loads(recorded.messages[0].parts[0].text)
         expanded = deepcopy(frozen)
@@ -443,6 +516,7 @@ class Consolidation:
         step_id = batch["batch_id"]+":step:1"
         try:
             request = self._request(context,expanded,step_id,context_round=1,requests=outcomes)
+            request = await native_request(self.steps.models,request)
         except AppError as exc:
             if exc.code == "memory_consolidation_input_budget":
                 return False
@@ -451,7 +525,7 @@ class Consolidation:
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn,context,dependencies):
                 raise AppError("source_unavailable",status=403)
-            await conn.execute("SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(batch["partition_id"],))
+            await self._lock_owned_partition(conn,batch["partition_id"],owner)
             current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch["batch_id"],))).fetchone()
             if current["manifest"]["context_round"]:
                 return True
@@ -468,17 +542,24 @@ class Consolidation:
         return append_context_material(frozen["materials"],read,extra={"speaker_id":read["speaker_id"] or
             ("actor:"+frozen["context"]["actor_id"] if read["origin_kind"]=="actor" else None)})
 
-    async def _apply(self, batch, context, frozen, proposal):
+    async def _lock_owned_partition(self,conn,partition_id,owner):
+        state=await (await conn.execute("SELECT lease_owner FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
+            (partition_id,))).fetchone()
+        if owner is not None and (not state or state["lease_owner"] != owner):
+            raise AppError("memory_consolidation_lease_changed",status=409)
+        return state
+
+    async def _apply(self, batch, context, frozen, proposal, *, owner=None):
         digest = body_hash(proposal)
         async with self.database.transaction() as conn:
             # This order matches Sources withdrawal: sources -> partition -> batch -> stable domain objects.
             if not await self.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
                 raise AppError("source_unavailable",status=403)
-            await conn.execute("SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(batch["partition_id"],))
+            await self._lock_owned_partition(conn,batch["partition_id"],owner)
             current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch["batch_id"],))).fetchone()
             if current["status"] == "applied":
                 return current["commit_refs"]
-            if current["status"] not in _ACTIVE:
+            if current["status"] not in _OBSERVABLE:
                 raise AppError("memory_consolidation_batch_terminal",status=409)
             if current["proposal_digest"] is not None and current["proposal_digest"] != digest:
                 raise AppError("memory_consolidation_proposal_changed",status=409)
@@ -514,7 +595,8 @@ class Consolidation:
                 "context_unfulfilled":proposal["needs_context"],"batch_id":batch["batch_id"]}
             await conn.execute("UPDATE memory.consolidation_batches SET status='applied',proposal_digest=%s,commit_refs=%s,committed_at=now(),updated_at=now(),error_code=NULL WHERE batch_id=%s",
                 (digest,Jsonb(wire(result)),batch["batch_id"]))
-            await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=NULL,budget_failure=NULL,lease_owner=NULL,lease_until=NULL,updated_at=now() WHERE partition_id=%s",(batch["partition_id"],))
+            await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=NULL,budget_failure=NULL,updated_at=now() "
+                "WHERE partition_id=%s AND active_batch_id=%s",(batch["partition_id"],batch["batch_id"]))
             pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
                 "AND active AND extraction_state='pending' LIMIT 1",(batch["partition_id"],))).fetchone()
             if pending:
@@ -529,25 +611,51 @@ class Consolidation:
         code = getattr(exc,"code","memory_consolidation_contract_error" if isinstance(exc,(TypeError,ValueError)) else "memory_consolidation_unavailable")
         revoked = code in {"source_unavailable","access_changed","delivery_access_changed","actor_forbidden","conversation_forbidden"}
         stale = code in {"revision_conflict","memory_consolidation_read_changed","memory_consolidation_episode_changed",
-            "memory_read_set_changed","memory_read_revision_conflict","claim_revision_conflict","matter_revision_conflict"}
+            "memory_read_set_changed","memory_read_revision_conflict","claim_revision_conflict","matter_revision_conflict",
+            "memory_consolidation_lease_changed"}
         details = getattr(exc,"details",None) or {}
         terminal = revoked or stale or isinstance(exc,(TypeError,ValueError)) or getattr(exc,"status",None) in {400,401,403,409,413,502} or details.get("status") in {"failed","cancelled"}
-        shrink = False
+        quarantine=None
+        if batch_id and not terminal:
+            try:
+                steps=await self._batch_steps(batch_id)
+                receipt=None
+                if steps:
+                    _,original=await self.steps.recorded(steps[-1])
+                    receipt=await self.steps.models.status(original.attempt_id)
+                if receipt is not None and receipt.status == "unknown":
+                    quarantine={"attempt_id":original.attempt_id,"status":receipt.status,
+                        "dispatch":receipt.dispatch,"error_code":receipt.error_code,
+                        "finished_at":wire(receipt.finished_at),"action":"observe_original_attempt"}
+            except (AppError,TimeoutError):
+                # Missing authority/receipt is not evidence that a known active
+                # request has settled unknown. Keep observing its original ID.
+                pass
+        shrink = held = False
         async with self.database.transaction() as conn:
             await conn.execute("SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(partition_id,))
             if batch_id:
                 batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch_id,))).fetchone()
-                if batch and batch["status"] in _ACTIVE:
-                    status = "revoked" if revoked else "stale" if stale else "failed" if terminal else "waiting_model"
-                    await conn.execute("UPDATE memory.consolidation_batches SET status=%s,error_code=%s,updated_at=now() WHERE batch_id=%s",(status,code,batch_id))
-                    if terminal:
+                if batch and batch["status"] in _OBSERVABLE:
+                    held=batch["status"] == "quarantined"
+                    status = "revoked" if revoked else "stale" if stale else "failed" if terminal else "quarantined" if held or quarantine else "waiting_model"
+                    manifest=deepcopy(batch["manifest"])
+                    if quarantine and "quarantine" not in manifest:
+                        manifest["quarantine"]=quarantine
+                    await conn.execute("UPDATE memory.consolidation_batches SET status=%s,error_code=%s,manifest=%s,updated_at=now() WHERE batch_id=%s",(status,code,Jsonb(manifest),batch_id))
+                    if terminal or status == "quarantined":
                         shrink = (code == "memory_consolidation_output_truncated"
-                            and smaller_material_prefix(batch_frozen(batch)) is not None)
+                            and not held and smaller_material_prefix(batch_frozen(batch)) is not None)
                         for episode in batch["manifest"]["episodes"]:
-                            state = "pending" if stale or shrink else "consolidation_failed"
-                            await conn.execute("UPDATE memory.episodes SET extraction_state=%s,extraction_started_at=NULL WHERE episode_id=%s AND sequence=%s AND active",
-                                (state,episode["episode_id"],episode["sequence"]))
-                        await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL WHERE partition_id=%s",(partition_id,))
+                            state = ("consolidation_unknown" if status == "quarantined" else
+                                "consolidation_stale" if held and stale else
+                                "pending" if stale or shrink else "consolidation_failed")
+                            await conn.execute("UPDATE memory.episodes SET extraction_state=%s,extraction_started_at=NULL "
+                                "WHERE episode_id=%s AND revision=%s AND sequence=%s AND active "
+                                "AND extraction_cursor IS NOT DISTINCT FROM %s",
+                                (state,episode["episode_id"],episode["revision"],episode["sequence"],Jsonb(episode["before"])))
+                        await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL "
+                            "WHERE partition_id=%s AND active_batch_id=%s",(partition_id,batch_id))
             budget_failure=None
             if not batch_id and code == "memory_consolidation_input_budget":
                 budget_failure={"configuration":self._input_budget_record(),
@@ -559,13 +667,18 @@ class Consolidation:
                 if revoked:
                     await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_revoked',extraction_started_at=NULL "
                         "WHERE consolidation_partition_id=%s AND extraction_state='pending'",(partition_id,))
-            if batch_id and terminal:
+            if batch_id and (terminal or quarantine):
                 pending=await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
                     "AND active AND extraction_state='pending' LIMIT 1",(partition_id,))).fetchone()
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=%s WHERE partition_id=%s",
                     (datetime.now(UTC) if pending else None,datetime.now(UTC) if pending else None,partition_id))
             else:
                 pending=False
-            if stale or shrink or pending:
+            if shrink or pending or stale and not held:
                 due=datetime.now(UTC)
                 await self._schedule_on(conn,partition_id,due,suffix="stale:"+(batch_id or "prepare"))
+
+    async def _batch_steps(self,batch_id):
+        async with self.database.transaction(read_only=True) as conn:
+            row=await (await conn.execute("SELECT step_ids FROM memory.consolidation_batches WHERE batch_id=%s",(batch_id,))).fetchone()
+        return row["step_ids"] if row else ()

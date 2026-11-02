@@ -67,6 +67,9 @@ export type TargetResult = {
   operation_ids: string[];
 };
 export type Consolidation = {
+  isolated?: boolean;
+  blocks_following?: boolean;
+  held_for_refresh?: boolean;
   batch_id: string | null;
   status: string;
   action?: string;

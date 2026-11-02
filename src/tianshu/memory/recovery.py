@@ -71,7 +71,7 @@ class ConsolidationRecovery:
         action="wait_for_new_evidence" if episode["extraction_state"] in {"completed","completed_with_missing"} else "refresh_material"
         if episode["extraction_state"] == "legacy_abandoned":
             action="legacy_application_abandoned"
-        active = batch and batch["status"] in {"prepared","waiting_model","ready"}
+        active = batch and batch["status"] in {"prepared","waiting_model","ready","quarantined"}
         if active:
             action="observe_original_attempt"
         unfinished=episode["extraction_state"] not in {"completed","completed_with_missing","legacy_abandoned"}
@@ -101,6 +101,11 @@ class ConsolidationRecovery:
             "coverage":{"state":episode["extraction_state"],"missing":episode["extraction_missing"]}}
         if budget is not None:
             result["budget_failure"]=budget
+        if batch and batch["status"] == "quarantined":
+            result["isolated"]=True
+            result["blocks_following"]=False
+        if batch and batch["status"] == "stale" and batch["manifest"].get("quarantine"):
+            result["held_for_refresh"]=True
         if batch and visible.get(batch["batch_id"]):
             manifest=batch["manifest"]
             fixed=(manifest.get("steps",{}).get(batch["step_ids"][-1]) if batch["step_ids"] else None)
@@ -158,7 +163,7 @@ class ConsolidationRecovery:
         if status["action"] == "configure_budget":
             data["action"]="configure_budget"
             return CommandResult(body["client_request_id"],revision=current["revision"],data=data)
-        if batch and batch["status"] in {"prepared","waiting_model","ready"}:
+        if batch and batch["status"] in {"prepared","waiting_model","ready","quarantined"}:
             if batch["schema_version"] == LEGACY_VERSION:
                 await self.memory.jobs.enqueue(conn,JobSpec("memory.observe_legacy",
                     "memory-legacy-explicit-observe:"+body["client_request_id"],{"batch_id":batch["batch_id"]},ServiceClass.ELASTIC))

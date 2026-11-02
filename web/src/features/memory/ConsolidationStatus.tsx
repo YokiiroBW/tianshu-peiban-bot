@@ -12,6 +12,9 @@ import "./memory.css";
 const stateNames: Record<string, string> = {
   prepared: "材料已固定，等待原执行",
   waiting_model: "等待原模型请求结果",
+  quarantined: "原请求结果未知，已隔离，不阻塞后续整理",
+  consolidation_unknown: "原请求结果未知，已隔离，不阻塞后续整理",
+  consolidation_stale: "迟到结果已过期，原材料等待明确重新准备",
   ready: "结果待原子提交",
   applied: "本批已提交",
   stale: "固定材料已变化",
@@ -69,6 +72,11 @@ export function ConsolidationStatus({
         <strong>整理状态：{stateNames[value.status] ?? "状态尚未确认"}</strong>
         {value.batch_id ? ` · 批次 ${value.batch_id}` : " · 尚无固定批次"}
       </p>
+      {value.held_for_refresh && (
+        <p>
+          迟到结果与当前材料或记忆版本不一致，未写入；原材料保留，需明确重新准备后继续。
+        </p>
+      )}
       {recovery && (
         <p>
           {recovery.label}：{recovery.description}

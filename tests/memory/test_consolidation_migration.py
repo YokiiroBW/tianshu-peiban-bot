@@ -2,6 +2,8 @@
 
 from importlib.resources import files
 
+import pytest
+from psycopg.errors import UniqueViolation
 from psycopg.types.json import Jsonb
 
 from tianshu.runtime.migrations import Migration, migrate
@@ -104,3 +106,29 @@ async def test_0021_preserves_proven_old_associations_and_rebuilds_only_usable_l
     assert checked["allowed"] == [True, True]
     assert len(history) == 6 and all(row["revision"] == 1 and row["recorded_at"] is None and row["change_kind"] == "legacy" for row in history)
     assert all(row["recorded_at"] is None and row["contradictions"] == ["old_unequal_value"] for row in claims)
+
+
+async def test_0022_keeps_original_request_and_allows_one_new_active_batch_beside_unknown(database):
+    await migrate(database, baseline()+upgrade())
+    original={"attempt_id":"original-unknown-attempt","budget":{"deadline_at":"2026-11-02T03:40:00Z"}}
+    async with database.transaction() as conn:
+        await conn.execute("INSERT INTO memory.model_steps(step_id,request,state,error_code) "
+            "VALUES('original-step',%s,'unknown','timeout_unknown')",(Jsonb(original),))
+        await conn.execute("INSERT INTO memory.consolidation_state(partition_id,actor_id,principal_id,scope_key,authority_bound) "
+            "VALUES('partition','actor','principal','scope','{}')")
+        await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,context_fingerprint,step_ids) "
+            "VALUES('original-batch','partition','memory.consolidation.v1','waiting_model','{}','fixed',ARRAY['original-step'])")
+    runtime=(Migration("0022_memory_runtime",files("tianshu.memory").joinpath("0022_memory_runtime.sql").read_text()),)
+    await migrate(database,runtime)
+    await migrate(database,runtime)
+    async with database.transaction() as conn:
+        step=await (await conn.execute("SELECT * FROM memory.model_steps WHERE step_id='original-step'")).fetchone()
+        assert step["request"] == original and step["request_timeout_seconds"] == 120
+        assert step["state"] == "unknown" and step["error_code"] == "timeout_unknown"
+        await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined' WHERE batch_id='original-batch'")
+        await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,context_fingerprint) "
+            "VALUES('following-batch','partition','memory.consolidation.v1','prepared','{}','new')")
+    with pytest.raises(UniqueViolation):
+        async with database.transaction() as conn:
+            await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,context_fingerprint) "
+                "VALUES('duplicate-active','partition','memory.consolidation.v1','ready','{}','new')")

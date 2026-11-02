@@ -225,5 +225,6 @@ def create_module(memory, retrieval, workers, identity):
         migrations=(
             Migration("0020_memory", files("tianshu.memory").joinpath("schema.sql").read_text()),
             Migration("0021_memory_consolidation", files("tianshu.memory").joinpath("0021_memory_consolidation.sql").read_text()),
+            Migration("0022_memory_runtime", files("tianshu.memory").joinpath("0022_memory_runtime.sql").read_text()),
         ),
     )

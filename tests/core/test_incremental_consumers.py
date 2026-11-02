@@ -18,6 +18,10 @@ class Extractor:
         self.requests = []
         self.results = {}
 
+    async def generation_profile(self, request):
+        return {"route_id":"fixture","route_revision":1,"protocol":"openai.chat","model":"fixture",
+            "output_parameters":{"max_tokens":request.max_output_tokens}}
+
     async def generate(self, request):
         self.requests.append(request)
         material=json.loads(request.messages[0].parts[0].text)

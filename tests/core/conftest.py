@@ -27,6 +27,9 @@ from tianshu.conversation.context.assembly import ContextAssembler
 
 
 class UnconfiguredModels:
+    async def generation_profile(self, request):
+        raise AppError("model_function_not_configured", status=503)
+
     async def embedding_profile(self):
         raise AppError("embedding_profile_not_configured", status=503)
 
