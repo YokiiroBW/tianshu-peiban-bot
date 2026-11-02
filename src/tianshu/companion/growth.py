@@ -189,7 +189,8 @@ class GrowthService:
                      "reflection_identity_protocol": IDENTITY_PROTOCOL}
             request = ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
-                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs))
+                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
+                execution_timeout_seconds=180.0)
 
         async def current_material(connection):
             current = await (await connection.execute(

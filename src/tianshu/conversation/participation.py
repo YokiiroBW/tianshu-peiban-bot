@@ -198,7 +198,8 @@ class GroupParticipation:
             frozen = ModelRequest(material_key, attempt_id, "participation", ServiceClass.ELASTIC, context,
                 RequestBudget(row["participation_deadline"]), tuple(pack.messages), system=pack.system,
                 max_output_tokens=256, source_refs=tuple(pack.source_refs),
-                estimated_input_tokens=pack.token_usage.estimated_tokens, persona_revision=persona.revision if persona else None)
+                estimated_input_tokens=pack.token_usage.estimated_tokens, persona_revision=persona.revision if persona else None,
+                execution_timeout_seconds=90.0, business_deadline_at=row["participation_deadline"])
         try:
             result = await self.generations.run(material_key, frozen)
         except AppError as error:

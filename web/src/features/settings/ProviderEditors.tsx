@@ -342,7 +342,7 @@ const initialQuota: QuotaGroup = {
   rpm: null,
   tpm: null,
   max_queue: 128,
-  max_wait_seconds: 60,
+  max_wait_seconds: null,
   unknown_hold_seconds: 300,
   unit_limits: {},
   interactive_rpm_reserve: 0,
@@ -391,7 +391,12 @@ export function QuotaEditor({
       min: 0,
     },
     { key: "max_queue", label: "排队上限", min: 1 },
-    { key: "max_wait_seconds", label: "最长排队秒数", min: 1 },
+    {
+      key: "max_wait_seconds",
+      label: "排队过期秒数（可留空）",
+      optional: true,
+      min: 1,
+    },
     { key: "unknown_hold_seconds", label: "未知结果占用保留秒数", min: 1 },
   ];
   return (
@@ -472,6 +477,9 @@ export function QuotaEditor({
             </label>
           ))}
         </div>
+        <p className="muted">
+          排队过期留空时不设置等待时限；填写后只限制排队等待。模型执行超时从获得额度并开始执行后计算，任务自身的业务到期仍然有效。
+        </p>
         <details>
           <summary>分单位额度与预留</summary>
           <label>

@@ -24,6 +24,10 @@ from .participation import GroupParticipation
 from .expression import expression_turn_state
 
 
+CHAT_EXECUTION_SECONDS = 15 * 60
+TURN_SETTLEMENT_SECONDS = 60
+
+
 class TurnRejected(AppError):
     """A definite local refusal or terminal receipt, never inferred transport failure."""
 
@@ -219,8 +223,16 @@ class ConversationService:
             if busy["count"] >= self.collector.policy.max_active_turns:
                 return  # The running owner schedules the oldest queued turn when releasing this lane.
             attempt_id = str(uuid4())
-            lease = min(row["deadline_at"], datetime.now(UTC)+timedelta(minutes=16))
-            await connection.execute("UPDATE conversation.turns SET state='running',started_at=now(),model_attempt_id=%s,lease_until=%s WHERE turn_id=%s", (attempt_id, lease, turn_id))
+            now = datetime.now(UTC)
+            # Ordinary collection's timestamp is a local work budget, not a
+            # user-authored expiry. A queued turn starts preparation now.
+            deadline = row["deadline_at"] if row.get("autonomous") else now + timedelta(seconds=CHAT_EXECUTION_SECONDS)
+            lease = now + timedelta(seconds=CHAT_EXECUTION_SECONDS + TURN_SETTLEMENT_SECONDS)
+            if row.get("autonomous"):
+                lease = min(deadline, lease)
+            row = await (await connection.execute(
+                "UPDATE conversation.turns SET state='running',started_at=now(),model_attempt_id=%s,lease_until=%s,deadline_at=%s "
+                "WHERE turn_id=%s RETURNING *", (attempt_id, lease, deadline, turn_id))).fetchone()
             await self.jobs.enqueue(connection, JobSpec("conversation.expire", f"turn-lease:{turn_id}:{attempt_id}",
                 {"turn_id": turn_id, "attempt_id": attempt_id}, ServiceClass.INTERACTIVE, lease, row["actor_id"]))
         context = context_from_record(row["context"])
@@ -291,7 +303,9 @@ class ConversationService:
             raise AppError("deadline_exceeded", status=408)
         request = ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat", ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
             context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools), required_capabilities=frozenset(required),
-            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None)
+            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None,
+            execution_timeout_seconds=float(CHAT_EXECUTION_SECONDS),
+            business_deadline_at=row["deadline_at"] if row.get("autonomous") else None)
         return request, pack, tool_map
 
     async def _model_turn(self, context, row, attempt_id, choices):
@@ -324,7 +338,11 @@ class ConversationService:
                 if result.receipt.error_code == "result_source_unavailable" or not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
                     await connection.execute("UPDATE conversation.turns SET state='failed',error_code='result_source_unavailable',model_parts='[]',model_native=NULL,continuation='[]',ordered_parts='[]',completed_at=now() WHERE turn_id=%s",(row["turn_id"],))
                     return
-                await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["turn_id"]))
+                # New tool calls get their own local action window after model
+                # queueing; already persisted Actions keep their own deadlines.
+                if result.receipt.status == "succeeded" and not row.get("autonomous"):
+                    row = {**row, "deadline_at": datetime.now(UTC) + timedelta(seconds=CHAT_EXECUTION_SECONDS)}
+                await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s,deadline_at=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["deadline_at"], row["turn_id"]))
         except AppError as error:
             # A local refusal to persist does not change the model's actual execution receipt.
             raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
@@ -584,10 +602,40 @@ class ConversationService:
         await self.expression.wake(actor_id,conversation_id)
 
     async def expire(self, turn_id, attempt_id):
+        async with self.database.transaction(read_only=True) as connection:
+            pending = await (await connection.execute(
+                "SELECT * FROM conversation.turns WHERE turn_id=%s AND model_attempt_id=%s "
+                "AND state='running' AND lease_until<=now()", (turn_id, attempt_id))).fetchone()
+        if pending is None:
+            return
+        if not pending["autonomous"]:
+            # Broker owns the provider execution clock. This worker lease only
+            # observes its original attempt, including after a worker restart.
+            try:
+                original = await self.models.result(attempt_id, context=context_from_record(pending["context"]))
+            except Exception:
+                postpone = True
+            else:
+                postpone = original is not None and original.receipt.status in {"queued", "running"}
+                if (original is not None and original.receipt.status in {"succeeded", "failed", "cancelled"}
+                        and original.receipt.finished_at is not None):
+                    postpone |= original.receipt.finished_at + timedelta(seconds=TURN_SETTLEMENT_SECONDS) > datetime.now(UTC)
+            if postpone:
+                async with self.database.transaction() as connection:
+                    renewed = await (await connection.execute(
+                        "UPDATE conversation.turns SET lease_until=now()+(%s*interval '1 second') "
+                        "WHERE turn_id=%s AND model_attempt_id=%s AND state='running' AND lease_until<=now() "
+                        "RETURNING actor_id,lease_until", (TURN_SETTLEMENT_SECONDS, turn_id, attempt_id))).fetchone()
+                    if renewed:
+                        await self.jobs.enqueue(connection, JobSpec("conversation.expire",
+                            f"turn-observe:{turn_id}:{attempt_id}:{uuid4()}", {"turn_id": turn_id, "attempt_id": attempt_id},
+                            ServiceClass.INTERACTIVE, renewed["lease_until"], renewed["actor_id"]))
+                return
         async with self.database.transaction() as connection:
             row = await (await connection.execute("UPDATE conversation.turns SET state='unknown',error_code='worker_lease_expired',completed_at=now() WHERE turn_id=%s AND model_attempt_id=%s AND state='running' AND lease_until<=now() RETURNING actor_id,conversation_id", (turn_id, attempt_id))).fetchone()
         if row:
-            await self.models.cancel(attempt_id)
+            if pending["autonomous"]:
+                await self.models.cancel(attempt_id)
             await self._next(row["actor_id"], row["conversation_id"])
 
     async def recover(self):

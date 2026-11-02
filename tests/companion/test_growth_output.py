@@ -198,6 +198,8 @@ async def test_original_fenced_failure_can_be_reparsed_without_replacing_attempt
     assert rejected["error_code"] == "reflection_output_invalid"
     original = await state(database)
     request = models.calls[0]
+    assert request.execution_timeout_seconds == 180.0
+    assert request.business_deadline_at is None and request.max_queue_wait is None
     async with database.transaction(read_only=True) as connection:
         saved = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (request.attempt_id,))).fetchone()

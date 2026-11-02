@@ -35,7 +35,7 @@ export type QuotaGroup = {
   rpm: number | null;
   tpm: number | null;
   max_queue: number;
-  max_wait_seconds: number;
+  max_wait_seconds: number | null;
   unknown_hold_seconds: number;
   unit_limits: Record<string, number>;
   interactive_rpm_reserve: number;

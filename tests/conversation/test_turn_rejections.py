@@ -1,13 +1,16 @@
 """Actual context preparation and PG turns distinguish rejection from lost model RPCs."""
+import asyncio
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
+from types import SimpleNamespace
 
 import pytest
 
 from tianshu.conversation.codec import document
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.service import ConversationService
-from tianshu.models.types import ModelReceipt, ModelResult
+from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
@@ -53,8 +56,11 @@ class ReadPorts:
 
 
 class Jobs:
-    async def enqueue(self, *_args):
-        pass
+    def __init__(self):
+        self.items = []
+
+    async def enqueue(self, _connection, spec):
+        self.items.append(spec)
 
 
 class Models:
@@ -126,7 +132,8 @@ async def test_local_refusal_finishes_before_model_submission(database, reason):
         database, models, oversized=reason == "budget", blocked=reason == "permission")
     if reason == "deadline":
         async with database.transaction() as connection:
-            await connection.execute("UPDATE conversation.turns SET deadline_at=now()-interval '1 second' WHERE turn_id='turn'")
+            # Unsolicited group participation has a real live-topic expiry.
+            await connection.execute("UPDATE conversation.turns SET autonomous=true,deadline_at=now()-interval '1 second' WHERE turn_id='turn'")
     await service.run("turn")
     authority.blocked = False
     original = await service.turn(context, "turn")
@@ -178,3 +185,151 @@ async def test_returned_model_failure_preserves_the_actual_receipt_semantics(dat
     assert turn.error_code == ("provider_rejected" if status == "failed" else "model_unknown")
     assert len(models.calls) == 1
     assert models.reads == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("outcome", ["queued", "running", "read_failed"])
+async def test_ordinary_turn_lease_observes_the_original_queue_without_cancel_or_resubmit(database, outcome):
+    models = Models(outcome)
+    entered, finish = asyncio.Event(), asyncio.Event()
+    cancellations = []
+
+    async def generate(request):
+        models.calls.append(request)
+        entered.set()
+        await finish.wait()
+        return ModelResult((), ModelReceipt(request.attempt_id, request.intent_id, "succeeded", "submitted",
+            "route", 1, "provider", "model", "openai.chat", "quota"))
+
+    async def cancel(attempt_id):
+        cancellations.append(attempt_id)
+
+    models.generate, models.cancel = generate, cancel
+    service, context, _ = await prepare(database, models)
+    # The collector's old local timestamp cannot expire a direct human reply
+    # before this turn gets its own preparation and provider execution time.
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE conversation.turns SET deadline_at=now()-interval '1 hour' WHERE turn_id='turn'")
+    worker = asyncio.create_task(service.run("turn"))
+    try:
+        await asyncio.wait_for(entered.wait(), timeout=5)
+        original = models.calls[0]
+        assert original.execution_timeout_seconds == 900.0
+        assert original.business_deadline_at is None and original.max_queue_wait is None
+        assert original.budget.remaining() > 0
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE conversation.turns SET lease_until=now()-interval '1 second',deadline_at=now()-interval '1 hour' WHERE turn_id='turn'")
+        await service.expire("turn", original.attempt_id)
+        async with database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT state,model_attempt_id,lease_until FROM conversation.turns WHERE turn_id='turn'")).fetchone()
+        assert row["state"] == "running" and row["model_attempt_id"] == original.attempt_id
+        assert row["lease_until"] > datetime.now(UTC)
+        assert models.reads == [(original.attempt_id, context)]
+        assert cancellations == [] and len(models.calls) == 1
+        observed_job = service.jobs.items[-1]
+        assert observed_job.task == "conversation.expire"
+        assert observed_job.payload == {"turn_id": "turn", "attempt_id": original.attempt_id}
+    finally:
+        finish.set()
+        await worker
+    assert (await service.turn(context, "turn")).state == "completed"
+    assert cancellations == [] and len(models.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_worker_lease_preserves_terminal_settlement_grace_and_unknown_original(database):
+    models = Models("failed")
+    cancellations = []
+    now = datetime.now(UTC)
+    finished_at = now
+    observed = models.observed
+
+    def terminal(attempt_id):
+        return replace(observed(attempt_id), receipt=replace(observed(attempt_id).receipt, finished_at=finished_at))
+
+    async def cancel(attempt_id):
+        cancellations.append(attempt_id)
+
+    models.observed, models.cancel = terminal, cancel
+    service, context, _ = await prepare(database, models)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE conversation.turns SET state='running',model_attempt_id='original',lease_until=now()-interval '1 second' WHERE turn_id='turn'")
+    await service.expire("turn", "original")
+    assert (await service.turn(context, "turn")).state == "running"
+    finished_at = now-timedelta(minutes=2)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE conversation.turns SET lease_until=now()-interval '1 second' WHERE turn_id='turn'")
+    await service.expire("turn", "original")
+    settled = await service.turn(context, "turn")
+    assert settled.state == "unknown" and settled.model_attempt_ids == ("original",)
+    assert models.calls == cancellations == []
+
+
+@pytest.mark.asyncio
+async def test_autonomous_turn_keeps_its_actual_business_expiry(database):
+    models = Models("queued")
+    cancellations = []
+
+    async def cancel(attempt_id):
+        cancellations.append(attempt_id)
+
+    models.cancel = cancel
+    service, context, _ = await prepare(database, models)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE conversation.turns SET autonomous=true,state='running',model_attempt_id='original',deadline_at=now()-interval '1 second',lease_until=now()-interval '1 second' WHERE turn_id='turn'")
+    await service.expire("turn", "original")
+    assert (await service.turn(context, "turn")).state == "unknown"
+    assert cancellations == ["original"] and models.calls == models.reads == []
+
+
+@pytest.mark.asyncio
+async def test_new_tool_window_starts_after_model_completion_and_is_not_resubmitted(database):
+    models = Models()
+    service, _context, _ = await prepare(database, models)
+    definition = SimpleNamespace(id="test.read", description="Read", input_schema={"type": "object"},
+        model_tool={"name": "test_read"})
+    actions = []
+
+    async def discover(_context):
+        return [{"definition": definition, "can_execute": True}]
+
+    async def generate(request):
+        models.calls.append(request)
+        return ModelResult((ModelPart("tool_call", call_id="read", name="test_read", arguments={}),),
+            ModelReceipt(request.attempt_id, request.intent_id, "succeeded", "submitted",
+                "route", 1, "provider", "model", "openai.chat", "quota"))
+
+    async def invoke(_context, row, call_id, chosen, arguments, refs):
+        actions.append((row["deadline_at"], row["round"], call_id))
+
+    async def await_tools(_context, _turn_id):
+        pass
+
+    service.catalog.discover, models.generate = discover, generate
+    service._invoke, service._await_tools = invoke, await_tools
+    await service.run("turn")
+    assert len(actions) == len(models.calls) == 1
+    assert actions[0][0] > models.calls[0].budget.deadline_at
+    assert actions[0][1:] == (0, "read")
+    async with database.transaction(read_only=True) as connection:
+        saved = await (await connection.execute("SELECT deadline_at FROM conversation.turns WHERE turn_id='turn'")).fetchone()
+    assert saved["deadline_at"] == actions[0][0]
+    # Lease observation or duplicate job delivery cannot create a new model
+    # round or submit the original tool call again.
+    await service.run("turn")
+    assert len(actions) == len(models.calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_autonomous_chat_request_keeps_the_live_topic_deadline(database):
+    models = Models("unknown", return_receipt=True)
+    service, _context, _ = await prepare(database, models)
+    expiry = datetime.now(UTC)+timedelta(seconds=45)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE conversation.turns SET autonomous=true,deadline_at=%s WHERE turn_id='turn'", (expiry,))
+    await service.run("turn")
+    assert len(models.calls) == 1
+    request = models.calls[0]
+    assert request.execution_timeout_seconds == 900.0
+    assert request.business_deadline_at == request.budget.deadline_at == expiry

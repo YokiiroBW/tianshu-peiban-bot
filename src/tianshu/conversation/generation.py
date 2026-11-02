@@ -2,13 +2,14 @@
 
 This owns the frozen intent. Models remains the sole execution/result ledger.
 A registered attempt is only observed; authoritative absence permits original-ID
-first admission before the original deadline.
+first admission before its business expiry (or a legacy request's absolute budget).
 """
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import NAMESPACE_URL, uuid5
 
 from tianshu.models.codec import request_from_wire
+from tianshu.models.timing import waiting_budget
 from tianshu.runtime.errors import AppError
 from .codec import document, signature, source_refs
 
@@ -80,7 +81,8 @@ class GenerationRequests:
             # A successful None is the Broker's authoritative absence result.
             # Same frozen payload/attempt admission is atomic even if an original
             # RPC is still preparing or arrives late. Observation errors propagate.
-        if frozen.budget.deadline_at <= datetime.now(UTC):
+        admission = waiting_budget(frozen)
+        if admission is not None and admission.deadline_at <= datetime.now(UTC):
             actual = await self.models.result(row["attempt_id"], context=context)
             if actual is not None:
                 return actual

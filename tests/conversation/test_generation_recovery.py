@@ -101,6 +101,61 @@ async def test_confirmed_absence_registers_the_frozen_original_request(database)
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize("execution,business,expired", [
+    (None, None, True), (180.0, None, False),
+    (180.0, "future", False), (180.0, "past", True),
+])
+async def test_original_admission_uses_business_expiry_and_preserves_legacy_budget(database, execution, business, expired):
+    context = await prepare(database)
+    now = datetime.now(UTC)
+    original = replace(request("admission-timing", context),
+        budget=RequestBudget(now-timedelta(minutes=1)), execution_timeout_seconds=execution,
+        business_deadline_at=None if business is None else now+timedelta(minutes=1 if business == "future" else -1))
+
+    class BeforeAdmission(Models):
+        async def result(self, attempt_id, *, context):
+            self.observations.append((attempt_id, context))
+            return None
+
+    models = BeforeAdmission()
+    generations = GenerationRequests(database, Sources(), models)
+    await generations.prepare(original.intent_id, original)
+    async with database.transaction(read_only=True) as connection:
+        saved = await (await connection.execute(
+            "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
+    # A later candidate must not replace either the legacy timing or the new
+    # explicit execution contract frozen under this original identity.
+    later = replace(original, budget=RequestBudget(now+timedelta(minutes=5)),
+        execution_timeout_seconds=900.0, business_deadline_at=None)
+    with pytest.raises(AppError if expired else TimeoutError) as failure:
+        await generations.run(original.intent_id, later)
+    if expired:
+        assert failure.value.code == "generation_request_expired"
+    assert models.calls == ([] if expired else [original])
+    async with database.transaction(read_only=True) as connection:
+        current = await (await connection.execute(
+            "SELECT request,state FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
+    assert current["request"] == saved["request"]
+    assert current["state"] == ("expired" if expired else "claimed")
+
+
+@pytest.mark.asyncio
+async def test_expired_business_request_observes_unknown_original_without_submission(database):
+    context = await prepare(database)
+    original = replace(request("expired-observation", context), execution_timeout_seconds=180.0,
+        business_deadline_at=datetime.now(UTC)-timedelta(minutes=1))
+    models = Models()
+    generations = GenerationRequests(database, Sources(), models)
+    await generations.prepare(original.intent_id, original)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE conversation.generation_requests SET state='claimed' WHERE attempt_id=%s", (original.attempt_id,))
+    result = await generations.run(original.intent_id, original)
+    assert result.receipt.status == "unknown"
+    assert models.calls == [] and models.observations == [(original.attempt_id, context)]
+    assert await generations.request(original.attempt_id, context) == original
+
+
+@pytest.mark.asyncio
 async def test_original_inventory_matches_scope_set_without_replacing_frozen_context(database):
     context = replace(await prepare(database), scope_ids=("private", "shared"))
     models = Models()

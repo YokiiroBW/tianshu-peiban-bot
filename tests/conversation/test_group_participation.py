@@ -115,6 +115,10 @@ async def test_unknown_participation_reads_original_attempt_without_another_char
     assert service.models.reads == [service.models.calls[0].attempt_id]
     assert service.models.calls[0].context.origin_kind == OriginKind.ACTOR
     assert service.models.calls[0].context.delivery_allowed
+    request = service.models.calls[0]
+    assert request.execution_timeout_seconds == 90.0
+    assert request.business_deadline_at == request.budget.deadline_at
+    assert request.max_queue_wait is None
     async with database.transaction() as connection:
         await ConversationDependencies().invalidate(connection, (SourceRef("original",1),), "forgotten")
     await participation.decide("turn")
