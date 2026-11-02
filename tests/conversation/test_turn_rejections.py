@@ -10,11 +10,11 @@ import pytest
 from tianshu.conversation.codec import document
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.service import ConversationService
-from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
+from tianshu.models.types import ModelReceipt, ModelResult
 from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
-from tianshu.types import Coverage, OriginKind, TrustedContext
+from tianshu.types import Coverage, OriginKind, Receipt, TrustedContext
 
 
 class Authority:
@@ -284,41 +284,61 @@ async def test_autonomous_turn_keeps_its_actual_business_expiry(database):
 
 
 @pytest.mark.asyncio
-async def test_new_tool_window_starts_after_model_completion_and_is_not_resubmitted(database):
+@pytest.mark.parametrize("autonomous", [False, True])
+@pytest.mark.parametrize("explicit_window", [False, True])
+async def test_tool_action_and_photo_window_only_inherit_actual_business_expiry(database, autonomous, explicit_window):
     models = Models()
-    service, _context, _ = await prepare(database, models)
-    definition = SimpleNamespace(id="test.read", description="Read", input_schema={"type": "object"},
-        model_tool={"name": "test_read"})
+    service, context, _ = await prepare(database, models)
+    definition = SimpleNamespace(id="images.generate", model_tool={"name": "create_image"}, long_running=True)
     actions = []
 
-    async def discover(_context):
-        return [{"definition": definition, "can_execute": True}]
+    async def invoke(action, **_kwargs):
+        actions.append(action)
+        return Receipt("receipt", action.action_id, "original-action-attempt", "pending", "none", "not_requested")
 
-    async def generate(request):
-        models.calls.append(request)
-        return ModelResult((ModelPart("tool_call", call_id="read", name="test_read", arguments={}),),
-            ModelReceipt(request.attempt_id, request.intent_id, "succeeded", "submitted",
-                "route", 1, "provider", "model", "openai.chat", "quota"))
-
-    async def invoke(_context, row, call_id, chosen, arguments, refs):
-        actions.append((row["deadline_at"], row["round"], call_id))
-
-    async def await_tools(_context, _turn_id):
+    async def record_receipt(_context, _result):
         pass
 
-    service.catalog.discover, models.generate = discover, generate
-    service._invoke, service._await_tools = invoke, await_tools
-    await service.run("turn")
-    assert len(actions) == len(models.calls) == 1
-    assert actions[0][0] > models.calls[0].budget.deadline_at
-    assert actions[0][1:] == (0, "read")
+    service.actions = SimpleNamespace(invoke=invoke)
+    service._tool_receipt = record_receipt
+    expiry = datetime.now(UTC)+timedelta(minutes=1 if autonomous else -1)
+    async with database.transaction() as connection:
+        row = await (await connection.execute(
+            "UPDATE conversation.turns SET autonomous=%s,deadline_at=%s WHERE turn_id='turn' RETURNING *",
+            (autonomous, expiry))).fetchone()
+    window = {"due_at": datetime.now(UTC).isoformat(), "expires_at": (datetime.now(UTC)+timedelta(minutes=5)).isoformat()}
+    await service._invoke(context, row, "photo", definition, {"window": window} if explicit_window else {}, ())
+    assert len(actions) == 1
+    action = actions[0]
+    assert action.deadline_at == (expiry if autonomous else None)
+    assert action.arguments["delivery_kind"] == "requested_delivery"
+    if explicit_window:
+        assert action.arguments["window"] == window
+    else:
+        assert action.arguments["window"]["due_at"] == row["received_at"].isoformat()
+        assert action.arguments["window"].get("expires_at") == (expiry.isoformat() if autonomous else None)
+    assert models.calls == models.reads == []
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("autonomous", [False, True])
+async def test_tool_queue_observation_does_not_expire_an_ordinary_turn(database, autonomous):
+    models = Models()
+    service, _context, _ = await prepare(database, models)
+    async with database.transaction() as connection:
+        await connection.execute(
+            "UPDATE conversation.turns SET state='waiting_external',autonomous=%s,deadline_at=now()-interval '1 minute' WHERE turn_id='turn'",
+            (autonomous,))
+    await service.reconcile("turn", 0)
     async with database.transaction(read_only=True) as connection:
-        saved = await (await connection.execute("SELECT deadline_at FROM conversation.turns WHERE turn_id='turn'")).fetchone()
-    assert saved["deadline_at"] == actions[0][0]
-    # Lease observation or duplicate job delivery cannot create a new model
-    # round or submit the original tool call again.
-    await service.run("turn")
-    assert len(actions) == len(models.calls) == 1
+        row = await (await connection.execute("SELECT state,error_code FROM conversation.turns WHERE turn_id='turn'")).fetchone()
+    assert row["state"] == ("unknown" if autonomous else "waiting_external")
+    assert row["error_code"] == ("action_wait_deadline" if autonomous else None)
+    assert len(service.jobs.items) == (0 if autonomous else 1)
+    if not autonomous:
+        assert service.jobs.items[0].task == "conversation.reconcile"
+        assert service.jobs.items[0].payload == {"turn_id": "turn", "sequence": 1}
+    assert models.calls == models.reads == []
 
 
 @pytest.mark.asyncio

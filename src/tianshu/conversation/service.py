@@ -28,6 +28,10 @@ CHAT_EXECUTION_SECONDS = 15 * 60
 TURN_SETTLEMENT_SECONDS = 60
 
 
+def _business_deadline(row):
+    return row["deadline_at"] if row.get("autonomous") else None
+
+
 class TurnRejected(AppError):
     """A definite local refusal or terminal receipt, never inferred transport failure."""
 
@@ -226,7 +230,7 @@ class ConversationService:
             now = datetime.now(UTC)
             # Ordinary collection's timestamp is a local work budget, not a
             # user-authored expiry. A queued turn starts preparation now.
-            deadline = row["deadline_at"] if row.get("autonomous") else now + timedelta(seconds=CHAT_EXECUTION_SECONDS)
+            deadline = _business_deadline(row) or now + timedelta(seconds=CHAT_EXECUTION_SECONDS)
             lease = now + timedelta(seconds=CHAT_EXECUTION_SECONDS + TURN_SETTLEMENT_SECONDS)
             if row.get("autonomous"):
                 lease = min(deadline, lease)
@@ -305,7 +309,7 @@ class ConversationService:
             context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools), required_capabilities=frozenset(required),
             estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None,
             execution_timeout_seconds=float(CHAT_EXECUTION_SECONDS),
-            business_deadline_at=row["deadline_at"] if row.get("autonomous") else None)
+            business_deadline_at=_business_deadline(row))
         return request, pack, tool_map
 
     async def _model_turn(self, context, row, attempt_id, choices):
@@ -338,11 +342,7 @@ class ConversationService:
                 if result.receipt.error_code == "result_source_unavailable" or not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
                     await connection.execute("UPDATE conversation.turns SET state='failed',error_code='result_source_unavailable',model_parts='[]',model_native=NULL,continuation='[]',ordered_parts='[]',completed_at=now() WHERE turn_id=%s",(row["turn_id"],))
                     return
-                # New tool calls get their own local action window after model
-                # queueing; already persisted Actions keep their own deadlines.
-                if result.receipt.status == "succeeded" and not row.get("autonomous"):
-                    row = {**row, "deadline_at": datetime.now(UTC) + timedelta(seconds=CHAT_EXECUTION_SECONDS)}
-                await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s,deadline_at=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["deadline_at"], row["turn_id"]))
+                await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["turn_id"]))
         except AppError as error:
             # A local refusal to persist does not change the model's actual execution receipt.
             raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
@@ -446,10 +446,14 @@ class ConversationService:
 
     async def _invoke(self, context, row, call_id, definition, arguments, refs):
         provider_call_id = call_id
+        business_deadline = _business_deadline(row)
         if definition.id=="images.generate":
+            window = {"due_at": row["received_at"].isoformat()}
+            if business_deadline is not None:
+                window["expires_at"] = business_deadline.isoformat()
             arguments={**arguments,"target_ref":context.conversation_id,
                 "delivery_kind":arguments.get("delivery_kind") or ("create_only" if arguments.get("share") is False else "requested_delivery"),
-                "window":arguments.get("window") or {"due_at":row["received_at"].isoformat(),"expires_at":row["deadline_at"].isoformat()},
+                "window":arguments.get("window") or window,
                 "dedup_key":f"turn-photo:{row['turn_id']}:{row['round']}:{call_id}"}
         call_id = f"{row['round']}:{provider_call_id}"
         action_id = str(uuid5(NAMESPACE_URL, f"tool:{row['turn_id']}:{call_id}"))
@@ -463,7 +467,7 @@ class ConversationService:
             await connection.execute("INSERT INTO conversation.tool_links(turn_id,call_id,action_id,capability_id,tool_name,provider_call_id,arguments_hash,background,state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'queued') ON CONFLICT DO NOTHING", (row["turn_id"], call_id, action_id, definition.id, tool_name, provider_call_id, signature(arguments),definition.long_running))
         current_input_refs=() if row.get("autonomous") else await self._input_refs(context,row["turn_id"])
         action = Action(action_id, f"turn:{row['turn_id']}:{call_id}", definition.id, context.actor_id, context,
-            arguments, context.origin_kind, refs, expression_id="turn:"+row["turn_id"], deadline_at=row["deadline_at"],
+            arguments, context.origin_kind, refs, expression_id="turn:"+row["turn_id"], deadline_at=business_deadline,
             current_input_refs=current_input_refs)
         # Background work releases the dialogue lane; the persisted action owns its actual completion.
         result = receipt(await self.actions.invoke(action, background=definition.long_running,
@@ -588,7 +592,8 @@ class ConversationService:
         await self._await_tools(context, turn_id)
         async with self.database.transaction() as connection:
             fresh = await (await connection.execute("SELECT state FROM conversation.turns WHERE turn_id=%s", (turn_id,))).fetchone()
-            if fresh["state"] == "waiting_external" and datetime.now(UTC)<row["deadline_at"]:
+            business_deadline = _business_deadline(row)
+            if fresh["state"] == "waiting_external" and (business_deadline is None or datetime.now(UTC)<business_deadline):
                 await self.jobs.enqueue(connection, JobSpec("conversation.reconcile", f"turn-reconcile:{turn_id}:{row['round']}:{sequence+1}", {"turn_id": turn_id, "sequence": sequence+1}, ServiceClass.INTERACTIVE, scheduled_at=datetime.now(UTC)+timedelta(seconds=15), subject_id=context.actor_id))
             elif fresh["state"] == "waiting_external":
                 await connection.execute("UPDATE conversation.turns SET state='unknown',error_code='action_wait_deadline' WHERE turn_id=%s", (turn_id,))
