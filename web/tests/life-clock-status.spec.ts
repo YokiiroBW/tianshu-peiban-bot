@@ -193,7 +193,11 @@ test("a day with only free time shows its reason and next review", async ({ page
       pending: false, generation_consumed: true, review_after: "2026-11-02T03:30:00Z" },
   }));
   await page.goto("/#/roles/life");
-  await expect(page.getByText("自由时间", { exact: true })).toBeVisible();
-  await expect(page.getByText("今天先慢慢喝杯咖啡。", { exact: true })).toBeVisible();
-  await expect(page.getByText(/留白到.*再看看想做什么/)).toBeVisible();
+  const dayTab = page.getByRole("tab", { name: "今日安排", exact: true });
+  await dayTab.click();
+  await expect(dayTab).toHaveAttribute("aria-selected", "true");
+  const dayPanel = page.getByRole("tabpanel", { name: "今日安排", exact: true });
+  await expect(dayPanel.getByText("自由时间", { exact: true })).toBeVisible();
+  await expect(dayPanel.getByText("今天先慢慢喝杯咖啡。", { exact: true })).toBeVisible();
+  await expect(dayPanel.getByText(/留白到.*再看看想做什么/)).toBeVisible();
 });
