@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 from aiohttp import web
 import pytest
 
+import tianshu.models.broker as broker_module
 from tianshu.models.broker import ModelBroker
 from tianshu.models.client import ModelClient
 from tianshu.models.http import create_broker_app
@@ -81,7 +82,9 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         RequestBudget(datetime.now(UTC) + timedelta(seconds=10)), "fixture-account", "image",
         ServiceClass.ELASTIC, "fixture"))
     prepared = asyncio.Event()
+    allocated = []
     create = broker.ledger.create
+    allocate = broker_module.execution_budget
 
     async def recorded(request, *args):
         value = await create(request, *args)
@@ -89,7 +92,14 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
             prepared.set()
         return value
 
+    def execution_budget(request):
+        budget = allocate(request)
+        if request.attempt_id == "wait-then-execute":
+            allocated.append((budget, budget.remaining(), datetime.now(UTC)))
+        return budget
+
     monkeypatch.setattr(broker.ledger, "create", recorded)
+    monkeypatch.setattr(broker_module, "execution_budget", execution_budget)
     for _ in range(8):
         await broker.prepare_slots.acquire()
     original = ModelRequest("wait-then-execute", "wait-then-execute", "chat", ServiceClass.ELASTIC,
@@ -104,7 +114,7 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
     task = asyncio.create_task(execute())
     try:
         await asyncio.sleep(0.25)
-        assert not task.done() and not calls and not prepared.is_set()
+        assert not task.done() and not calls and not prepared.is_set() and not allocated
         for _ in range(8):
             broker.prepare_slots.release()
         await asyncio.wait_for(prepared.wait(), 5)
@@ -112,7 +122,7 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         assert queued["status"] == "queued" and queued["deadline_at"] is None
         assert queued["execution_timeout_seconds"] == 0.2
         await asyncio.sleep(0.25)
-        assert not task.done() and not calls
+        assert not task.done() and not calls and not allocated
         await blocker.rejected("synthetic_release")
         result = await asyncio.wait_for(task, 5)
         if stream:
@@ -122,8 +132,11 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
             assert result.receipt.status == "succeeded" and result.parts[0].text == "OK"
         assert len(calls) == 1
         settled = await broker.ledger.get(original.attempt_id)
-        assert 0.1 < (settled["deadline_at"] - settled["started_at"]).total_seconds() <= 0.2
-        assert settled["started_at"] > original.budget.deadline_at
+        assert len(allocated) == 1
+        actual_budget, remaining, admitted_at = allocated[0]
+        assert 0.1 < remaining <= original.execution_timeout_seconds
+        assert settled["deadline_at"] == actual_budget.deadline_at
+        assert admitted_at > original.budget.deadline_at
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)

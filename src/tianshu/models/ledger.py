@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 
 from psycopg.types.json import Jsonb
 
@@ -135,7 +135,7 @@ class AttemptLedger:
             # Preserve the Sources -> Models lock order used by withdrawal.
             if not await validate_observation(conn):
                 raise AppError("source_unavailable", status=403)
-            row = await (await conn.execute("SELECT *,now() AS observation_time FROM models.attempts "
+            row = await (await conn.execute("SELECT * FROM models.attempts "
                 "WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
             if not row or row["protocol"] != "external":
                 raise AppError("external_attempt_not_found", status=404)
@@ -143,18 +143,22 @@ class AttemptLedger:
                 raise AppError("external_provider_handle_changed", status=409)
             if row["execution_start"] != "provider_running":
                 return row
+            # Use the execution owner's clock, after lock waiting has finished.
+            # PostgreSQL now() is its transaction-start clock and can also live
+            # on another host from the Broker/Client timeout machinery.
+            observed_at = datetime.now(UTC)
             started, deadline, hold = row["execution_started_at"], row["deadline_at"], row["hold_until"]
             if started is None and state in {"running", "completed"}:
-                started = row["observation_time"]
+                started = observed_at
                 deadline = started + timedelta(seconds=row["execution_timeout_seconds"])
                 if row["business_deadline_at"] is not None:
                     deadline = min(deadline, row["business_deadline_at"])
                 if hold_seconds is not None and row["status"] == "running":
                     hold = max(value for value in (hold, deadline, started + timedelta(seconds=hold_seconds))
                         if value is not None)
-            return await (await conn.execute("UPDATE models.attempts SET provider_state=%s,provider_observed_at=now(),"
+            return await (await conn.execute("UPDATE models.attempts SET provider_state=%s,provider_observed_at=%s,"
                 "execution_started_at=%s,deadline_at=%s,hold_until=%s,revision=revision+1 WHERE attempt_id=%s RETURNING *",
-                (state, started, deadline, hold, attempt_id))).fetchone()
+                (state, observed_at, started, deadline, hold, attempt_id))).fetchone()
 
     async def checkpoint(self, attempt_id, *, provider_handle=None, first_output_ms=None):
         async with self.database.transaction(control=True) as conn:

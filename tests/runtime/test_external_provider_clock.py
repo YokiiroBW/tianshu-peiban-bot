@@ -8,6 +8,7 @@ from datetime import UTC, datetime, timedelta
 from aiohttp import web
 import pytest
 
+import tianshu.models.ledger as ledger_module
 from tianshu.models.broker import ModelBroker
 from tianshu.models.client import ModelClient
 from tianshu.models.http import create_broker_app
@@ -97,8 +98,9 @@ async def test_local_provider_queue_keeps_reservation_and_freezes_one_server_exe
                 assert broker.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 0
 
                 state["value"] = "running"
+                before_running = datetime.now(UTC)
                 running = await observe()
-                assert running.execution_started_at > first.started_at
+                assert before_running <= running.execution_started_at <= datetime.now(UTC)
                 assert running.deadline_at == running.execution_started_at + timedelta(seconds=1)
                 assert permit.request.budget.deadline_at == running.deadline_at
                 assert permit.request.budget.cancellation_id == original.budget.cancellation_id
@@ -113,7 +115,7 @@ async def test_local_provider_queue_keeps_reservation_and_freezes_one_server_exe
             persisted = await broker.ledger.get(original.attempt_id)
             assert persisted["provider_state"] == "completed"
             assert persisted["provider_handle"] == "prompt-original"
-            assert original.budget.deadline_at < persisted["started_at"]
+            assert original.budget.deadline_at < persisted["execution_started_at"]
     finally:
         await provider_runner.cleanup()
 
@@ -259,3 +261,55 @@ async def test_provider_clock_observation_rechecks_identity_exact_handle_and_sou
         assert persisted["provider_state"] is None
         assert persisted["status"] == "running" and persisted["dispatch"] == "submitted"
         assert broker.scheduler.snapshot()["fixture-account"]["active"] == 1
+
+
+async def test_provider_clock_uses_one_broker_utc_only_after_the_original_row_lock(database, tmp_path, monkeypatch):
+    await seed(database)
+    validating = asyncio.Event()
+    calls = []
+    expected = datetime(2037, 1, 2, 3, 4, 5, tzinfo=UTC)
+    clock = {"value": expected - timedelta(minutes=1)}
+
+    class ObservedClock:
+        @staticmethod
+        def now(zone):
+            assert zone is UTC
+            calls.append(clock["value"])
+            return clock["value"]
+
+    async def validate_persistence(_connection, _context, _refs):
+        validating.set()
+        return True
+
+    original = request(execution_timeout_seconds=600)
+    async with running_broker(database, tmp_path, validate_persistence=validate_persistence) as (broker, client):
+        permit = await broker.begin_external(original)
+        await permit.submitted("prompt-original")
+        monkeypatch.setattr(ledger_module, "datetime", ObservedClock)
+        observation = None
+        try:
+            async with database.transaction() as connection:
+                await connection.execute("SELECT attempt_id FROM models.attempts WHERE attempt_id=%s FOR UPDATE",
+                    (original.attempt_id,))
+                observation = asyncio.create_task(client.observe_external(original.attempt_id,
+                    context=original.context, provider_handle="prompt-original", state="running"))
+                await asyncio.wait_for(validating.wait(), 3)
+                assert not observation.done() and not calls
+                clock["value"] = expected
+            observed = await asyncio.wait_for(observation, 3)
+            assert calls == [expected]
+            assert observed.execution_started_at == expected
+            assert observed.deadline_at == expected + timedelta(seconds=600)
+            persisted = await broker.ledger.get(original.attempt_id)
+            assert persisted["provider_observed_at"] == expected
+            clock["value"] = expected + timedelta(seconds=60)
+            repeated = await client.observe_external(original.attempt_id, context=original.context,
+                provider_handle="prompt-original", state="completed")
+            assert repeated.execution_started_at == expected
+            assert repeated.deadline_at == observed.deadline_at
+            assert (await broker.ledger.get(original.attempt_id))["provider_observed_at"] == clock["value"]
+            await permit.rejected("synthetic_cleanup")
+        finally:
+            if observation is not None:
+                observation.cancel()
+                await asyncio.gather(observation, return_exceptions=True)
