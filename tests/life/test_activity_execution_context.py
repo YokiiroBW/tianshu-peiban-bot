@@ -1,4 +1,5 @@
 """Recovery observes the exact authorized context accepted for the execution."""
+from dataclasses import replace
 from importlib.resources import files
 
 import pytest
@@ -17,10 +18,10 @@ from test_goal_source_transaction import source_life
 from test_planner_execution import ReadPage
 
 
-async def grant_web_scope(value, identifier):
+async def grant_extra_scope(value, identifier):
     async with value.database.transaction() as connection:
-        await connection.execute("INSERT INTO identity.scopes(scope_id,actor_id,person_id,kind,label) "
-            "VALUES (%s,%s,'owner-person','private','Synthetic administrator web scope')",
+        await connection.execute("INSERT INTO identity.scopes(scope_id,actor_id,kind,label) "
+            "VALUES (%s,%s,'project','Synthetic newly granted project scope')",
             (identifier, value.context.actor_id))
         await connection.execute("INSERT INTO identity.scope_grants VALUES (%s,'owner',ARRAY['*'])", (identifier,))
 
@@ -32,9 +33,18 @@ async def prepare_resume(value, *, reading):
     refs = await value.sources.record_event(original, producer="test.life-context", event_id="original-checkpoint",
         revision=1, occurred_at=NOW, origin_kind=OriginKind.TOOL_RESULT,
         parts=(InputPart("text", "An original checkpoint with one unread selected candidate."),))
-    await grant_web_scope(value, "accepted-web-scope")
+    async with value.database.transaction(read_only=True) as connection:
+        original_intake = await value.identity.intake_scope(original, connection=connection)
+    # Expanding read authorization must not also redirect source intake into a
+    # second private domain for the same person. The original support stays private.
+    await grant_extra_scope(value, "accepted-extra-scope")
     current = await value.identity.context("owner", actor_id=original.actor_id)
     assert set(original.scope_ids) < set(current.scope_ids)
+    async with value.database.transaction(read_only=True) as connection:
+        assert await value.identity.intake_scope(current, connection=connection) == original_intake
+    assert (await value.identity.check_many(current, (refs,)))[0]
+    extra_only = replace(current, scope_ids=("accepted-extra-scope",), audience=("accepted-extra-scope",))
+    assert not (await value.identity.check_many(extra_only, (refs,)))[0]
     selected = {"capability_id": "content.read", "arguments": {"url": "https://example.test/selected"}}
     remaining = {"capability_id": "content.read", "arguments": {"url": "https://example.test/remaining"},
         "content_key": "remaining"}
@@ -100,7 +110,7 @@ async def test_explicit_resume_freezes_its_authorized_context_for_restart_reconc
         await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_timeout',"
             "resume_condition='review_failure',last_result_revision=1,last_receipt_id=%s WHERE id='resumed-context'",
             (failure.receipt_id,))
-    await grant_web_scope(value, "later-unaccepted-scope")
+    await grant_extra_scope(value, "later-unaccepted-scope")
     restarted = LifeWorker(value.life, None, None, catalog, actions, None)
     await restarted.recover()
     recovered = await recovery_job(value)

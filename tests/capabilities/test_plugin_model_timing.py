@@ -141,12 +141,17 @@ async def test_serial_wait_precedes_plugin_execution_and_active_handles_are_revo
     instance = {"id": "plugin", "package_id": "package", "version": "1", "revision": 1,
         "config": {}, "secret_snapshot": {}, "desired_state": "enabled"}
     document = {"id": "call", "snapshot": instance, "package_version": "1", "action": "read",
-        "input": {}, "write": False, "intent_key": "original"}
+        "input": {}, "write": False, "intent_key": "original", "execution": "accepted",
+        "effect": "none", "dispatch": "not_sent"}
     package = {"manifest": {"capabilities": {"required": [], "optional": []}},
-        "description": {"actions": [{"id": "read", "timeout_seconds": .01, "output_schema": {}}]}}
+        "description": {"actions": [{"id": "read", "effect": "read", "timeout_seconds": .01, "output_schema": {}}]}}
 
     async def local(operation, *args, **kwargs):
         return await operation(*args, **kwargs)
+
+    async def update_call(identifier, **changes):
+        assert identifier == document["id"]
+        document.update(changes)
 
     async def call(method, params, *, timeout):
         if method == "plugin.cancel":
@@ -158,7 +163,7 @@ async def test_serial_wait_precedes_plugin_execution_and_active_handles_are_revo
         return {"effect": "none", "result": {}}
 
     child = SimpleNamespace(call=call)
-    host = SimpleNamespace(repository=SimpleNamespace(call=AsyncMock(return_value=document), update_call=AsyncMock()),
+    host = SimpleNamespace(repository=SimpleNamespace(call=AsyncMock(return_value=document), update_call=AsyncMock(side_effect=update_call)),
         local=local, instance=AsyncMock(return_value=instance), package=AsyncMock(return_value=package),
         worker=AsyncMock(return_value=child), locks=defaultdict(asyncio.Lock), workers={"plugin": (child, 1)},
         available_capabilities=set())
@@ -176,6 +181,9 @@ async def test_serial_wait_precedes_plugin_execution_and_active_handles_are_revo
     else:
         release.set()
     await task
+    assert document["execution"] == ("cancelled" if cancelled else "succeeded")
+    assert document["effect"] == "none"
+    assert document["error"] == ({"code": "cancelled", "retriable": False} if cancelled else None)
     assert not value.contexts and not value.authorizers
     with pytest.raises(Fault, match="permission_denied"):
         await value.callback("plugin", "host.log", {"context_ref": references[0]})

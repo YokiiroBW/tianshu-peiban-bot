@@ -262,7 +262,7 @@ async def test_original_plan_reconciles_and_explicit_resume_uses_new_identity(im
     assert state.ledger[state.planning.receipt.attempt_id] == original_plan
     assert await state.owner.resume(state.action.action_id, state.context,
                                     client_request_id="explicit-resume") == done
-    assert [request.function for request in state.requests] == ["image.plan", "vision"]
+    assert [request.function for request in state.requests] == ["image.plan", "image.consistency"]
     assert len(state.resources) == 1
     state.adapter.submit.assert_awaited_once()
     async with state.database.transaction(read_only=True) as connection:
