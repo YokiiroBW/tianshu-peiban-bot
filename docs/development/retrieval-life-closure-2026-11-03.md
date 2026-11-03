@@ -59,3 +59,36 @@ HTTP 查询为同一中性文本“日程与天气”。候选计时与完整 HT
 两角色 planning.reason 均为 `actor_resting`、last_error=null，下一次仍是 **11 月 4 日 07:00**。澄汐旧的 23:31 next_due 已实际恢复并转为正常休息；今晚两份日记 revision=reviewed_revision=1。超过 4 项的行为已由隔离用例证明，夜间没有改变作息制造第 5 项；最终上线后的自然 QQ 回复和次日连续自主活动尚无实机样本。
 
 边界：发布前 22:40:07 已有一条独立 `channels.ingest` / `input_media_required` 失败（job 68797）；不是本次新增，本批未修改该通道问题。不得把以上受影响入口验收解释为所有历史错误已清除或长期语义质量已验证。两次发布回执、只读诊断和 HTTP/主机读回分别保存在上述 NR-09 私有目录；记录不含真实聊天正文或凭据。
+
+## 后续全链路复查（2026-11-04 00:39，上海时间）
+
+用户要求再次排查当前全链路。本轮仅执行实机只读诊断、两个实际 Memory query 和记录更新，没有修改产品代码、模型配置、队列/数据状态或主动发送消息。证据目录为原协调根私有 `.runtime/chain-check-20261104-0031/`。
+
+### 当前正常部分
+
+- 实际源码/镜像/容器仍与上述最终发布一致，重启计数 0，配置与 11 挂载不变。interactive/model-broker/worker 均 ready，两 QQ available，容量守护 active、约 69.1 GB 可用；PG 无锁等待和 idle in transaction。
+- 00:33 聚合：发布后 13 批 Memory 整理 applied、45 条材料、10 批含原图，未发现新增整理失败/隔离。00:36 待整理为 0。75 次嵌入、17 次反思成功（00:33 快照），索引运行项随后完成；剩余 6 条无向量经历均是旧的 source_unavailable/revoked，而非活跃向量重建失败。历史明确取消未改。
+- 237 个通道事件均 consumed（两连接 90/147），42 条群消息为 observed/reply_required=false，无未完成 turn/expression。没有新的自然应答或消息发送，不能据此确认发送端到端。
+- 两份 11 月 3 日日记 reviewed_revision=revision=1、last_error=null。两角色休息中，life.clock 及 life.plan 已排到 11 月 4 日 07:00；午夜尚未触发晨间自主活动，取消日上限的长期实机效果仍未验证。
+- 插件、媒体、书籍、音乐、漫画、天气、基础设施及两个角色图片/语音/能力目录读取入口均返回成功。ComfyUI `/system_stats`、`/queue` 实测 200，1 个设备、无运行/待处理队列。语音无连接/档案符合当前未绑定要求，没有新生成、下载或真实语音验收。
+- Loki 日志检索正常，首次 `/ready` 返回等待 15 秒就绪的 503，后续确认 200，所有列出服务 Running。当前 3 条模型内部 504 与下述 3 次重排超时一一对应；没有其他应用 HTTP 5xx 聚合。基础设施 stats/compose 为 partial，原因包括停止容器、block I/O 不可得、部分 compose 文件或权限不可得，属于采集完整性限制，未据此改动其他 NAS 服务。
+
+### 已确认问题一：成长材料准备仍会阻塞同分区
+
+智乃主处理分区 `d8b0bbd287faba4a37df131d47b5ab05f09704572b8e5f9aff25800d3fb08fa3` 为 `reflection_material_budget_exceeded`，没有 active_batch，14 个输入仍待处理。首个输入 revision=1、sequence=5763、记录于 11 月 3 日 23:34:49，属于普通 human Episode；这不是旧数据格式不兼容。阻塞仍在主处理表，未进入模型重试表。
+
+使用生产 `o200k_base`、原人格和真实 `MemoryService.episodes_by_refs` 授权投影，只在独立只读进程计数，没有模型调用：完整单条输入 **11,914 tokens**，有效预算 **10,952**；正文 2,920 字符，58 条 source_refs 占 2,684 tokens，动态 consolidation 状态约 954 tokens。仅从数据库原行计数为 10,922，加入真实读取时装配的整理状态后才得到正确的超限结果，不能以原行/替身测算代替生产材料。
+
+根因在两处：`growth_observations.episode_material` 对 human 等非工具输入直接 wire 整个 Episode，将来源账本与动态整理状态带入反思提示；`select_batch` 缩到单条仍超限时，`growth._organize` 保存 blocked_material，而 `changed` 对 REVIEW_ERRORS 不再排后续任务。大输入因此挡住了同分区之后的小输入。NR-09 未修改这些 Growth 逻辑。
+
+**纠正上一轮结论：**此前诊断仅检查 `growth_retry_batches.state=blocked`，遗漏 `organize_state.blocked_material`。本记录上文及前次 CURRENT 中“Growth 阻塞为 0”只证明重试表没有阻塞，不代表完整 Growth 链路正常。今后应合并主处理分区、重试批次及实际未消费输入核对。
+
+建议修复方向：Growth 使用明确的语义输入投影，模型只接收必要经历、语义和短引用；完整来源/权限/CAS 仍由程序与原记录保留。仅移出模型可见的来源账本和整理状态，当前输入测算为 **8,177 tokens**，无需裁剪人格或扩大窗口；这只是只读反事实测算，尚未实现或验收。同时应为单条过大材料提供有界独立处理，让同分区后续有效输入继续，不能把未处理材料标成 reviewed。
+
+### 已确认问题二：云端重排仍会耗尽 30 秒窗口
+
+00:33 实际中性查询“日程与天气”：智乃 **9.234 秒/6 条**，无检索超时缺项，保留旧 `old_record_context_incomplete`；澄汐 **33.656 秒/6 条**，缺项 `rerank_unavailable`，由基础检索降级返回。两个请求没有 lexical/vector timeout，前次 SQL 修复没有复发，但当前不能称完整检索始终正常或快速。
+
+发布后自然后台重排在 00:02、00:08 各超时一次，本次前台探针于 00:33 又超时一次。三次排队约 0.070/0.072/0.132 秒，实际执行约 29.94/29.94/29.88 秒，结果保持 timeout_unknown，没有错误地把排队算入执行。两次后台对应批次分别在 00:03:07、00:09:44 applied，preparation.remote_degradations=1，证明确实保留基础结果继续整理；本次前台也保留了 6 条证据。供应商未返回输出的内部原因还不能仅凭本地超时确定。
+
+下一步应优先收口 Growth 材料投影及单条阻塞，再优化重排文档总量和可选等待策略，并核对供应商延迟；不以延长 SQL 窗口、清除旧回执、反复重发外部动作代替修复。本轮发现仍未修复，后续实施需要按具体改动做相关验证与串行发布。
