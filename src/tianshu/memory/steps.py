@@ -82,8 +82,10 @@ class ModelSteps:
                         raise AppError("model_outcome_unknown", status=503,
                             details={"attempt_id": original.attempt_id, "action": "observe_original_attempt"})
                     await self._outcome(step_id, receipt.status, receipt.error_code)
-                    raise AppError(receipt.error_code or "model_outcome_"+receipt.status, status=503,
+                    explicit = getattr(receipt,"cancellation_reason",None) == "explicit_cancel"
+                    raise AppError("explicit_cancel" if explicit else receipt.error_code or "model_outcome_"+receipt.status, status=503,
                         details={"attempt_id": original.attempt_id, "status": receipt.status,
+                                 "cancellation_reason":getattr(receipt,"cancellation_reason",None),
                                  "action": "observe_original_attempt"})
         except BaseException as exc:
             if not isinstance(exc, AppError) or exc.code not in {"source_unavailable"}:
@@ -101,8 +103,10 @@ class ModelSteps:
                 "UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() WHERE step_id=%s AND state<>'source_revoked'",
                 (result.receipt.status, result.receipt.error_code, step_id))
         if result.receipt.status != "succeeded":
-            raise AppError(result.receipt.error_code or "model_outcome_"+result.receipt.status,
-                status=503, details={"attempt_id": original.attempt_id, "status": result.receipt.status})
+            explicit = getattr(result.receipt,"cancellation_reason",None) == "explicit_cancel"
+            raise AppError("explicit_cancel" if explicit else result.receipt.error_code or "model_outcome_"+result.receipt.status,
+                status=503, details={"attempt_id": original.attempt_id, "status": result.receipt.status,
+                    "cancellation_reason":getattr(result.receipt,"cancellation_reason",None)})
         return result, original
 
     async def _outcome(self, step_id, status, error_code):

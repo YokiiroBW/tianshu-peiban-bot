@@ -66,7 +66,12 @@ class MemoryWorkers:
                     "AND b.status='quarantined')) AND (lease_until IS NULL OR lease_until<now()) "
                     "FOR UPDATE SKIP LOCKED", (row["partition_id"],))).fetchone()
                 if current:
-                    await self.consolidation._schedule_on(conn, row["partition_id"], datetime.now(UTC), suffix="recover")
+                    state=await (await conn.execute("SELECT active_batch_id FROM memory.consolidation_state WHERE partition_id=%s",
+                        (row["partition_id"],))).fetchone()
+                    if state["active_batch_id"] is not None:
+                        await self.consolidation._schedule_on(conn,row["partition_id"],datetime.now(UTC),suffix="recover")
+                    else:
+                        await self.consolidation.retries.arm_on(conn,row["partition_id"])
         async with self.database.transaction() as conn:
             now = datetime.now(UTC)
             bucket = int(now.timestamp())//30+1

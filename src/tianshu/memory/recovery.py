@@ -15,6 +15,7 @@ from tianshu.types import ServiceClass
 from . import codec
 from .authority import context_record
 from .consolidation import context_from_bound
+from .consolidation_retry import explicit_retry_available, protocol_refresh_available, semantic_output_failure
 from .extraction_contract import SCHEMA_VERSION, legacy_extraction_schema, validate_proposal
 from .materials import batch_frozen, smaller_material_prefix
 
@@ -104,6 +105,12 @@ class ConsolidationRecovery:
         if batch and batch["status"] == "quarantined":
             result["isolated"]=True
             result["blocks_following"]=False
+            result["retry_due_at"]=wire(batch.get("retry_due_at"))
+            result["selected_step_id"]=batch.get("selected_step_id")
+        if protocol_refresh_available(batch):
+            result["action"]="refresh_material"
+        elif explicit_retry_available(batch) and result["action"] != "configure_budget":
+            result["action"]="retry_computation"
         if batch and batch["status"] == "stale" and batch["manifest"].get("quarantine"):
             result["held_for_refresh"]=True
         if batch and visible.get(batch["batch_id"]):
@@ -168,9 +175,26 @@ class ConsolidationRecovery:
                 await self.memory.jobs.enqueue(conn,JobSpec("memory.observe_legacy",
                     "memory-legacy-explicit-observe:"+body["client_request_id"],{"batch_id":batch["batch_id"]},ServiceClass.ELASTIC))
             else:
+                if batch["status"] == "quarantined":
+                    # A user-requested observation can see a late original now,
+                    # but must not advance the independent retry's due time.
+                    data["retry_due_at"]=wire(batch.get("retry_due_at"))
                 await self.memory.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
                     suffix="explicit:"+body["client_request_id"])
             data.update(queued=True,action="observe_original_attempt")
+        elif (batch and batch["status"] == "failed" and batch["schema_version"] != LEGACY_VERSION
+                and semantic_output_failure(batch)
+                and not protocol_refresh_available(batch)
+                and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
+            state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
+                (batch["partition_id"],))).fetchone()
+            original_context=context_from_bound(state["authority_bound"])
+            if await self.memory.consolidation.retries.resume_on(conn,batch,original_context,body["client_request_id"]):
+                data.update(queued=True,action="retry_computation")
+            elif current["extraction_state"] not in {"completed","completed_with_missing"}:
+                # Exhausted semantic output cannot escape its finite recovery
+                # allowance by creating a fresh batch for unchanged input.
+                data["action"]="wait_for_new_evidence"
         elif current["extraction_state"] not in {"completed","completed_with_missing","legacy_abandoned"}:
             original_context=context
             if current.get("consolidation_partition_id"):
