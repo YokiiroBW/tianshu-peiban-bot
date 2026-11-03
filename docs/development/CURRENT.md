@@ -1,6 +1,6 @@
 # 2026-11-04 807 前端检查与发布
 
-新版前端已在独立受管分支 `codex/frontend-807` 完成检查和必要修正，保留当前 NR-10 全部后端实现。当前源码检出为 `C:/Users/Administrator/.codex/worktrees/frontend-807/tianshu-peiban-bot`；原统一检出当前已不存在。42 项前端定向验证有效通过，正在推送并串行发布。精确范围、来源与收据见[807 交付](frontend-807-2026-11-04.md)。下文为既有运行记录。
+新版前端已在独立受管分支 `codex/frontend-807` 完成检查和必要修正，保留当前 NR-10 全部后端实现。当前源码检出为 `C:/Users/Administrator/.codex/worktrees/frontend-807/tianshu-peiban-bot`；原统一检出当前已不存在。42 项前端定向验证有效通过，已于 03:20 完成推送及上线，实际运行 `03130711fd6961dde31335a300aae23bbf58d9b7`；三进程 ready、两个 QQ available，配置与 11 挂载保持，5 个线上页面检查正常。精确范围、来源与收据见[807 交付](frontend-807-2026-11-04.md)。下文为既有运行记录。
 
 # 2026-11-04 02:07 NR-10 后台输入统一 200000，原成长阻塞已恢复
 
