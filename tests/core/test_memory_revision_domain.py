@@ -55,6 +55,23 @@ async def apply(core, context, batch, operations):
             batch_id=batch["batch_id"], frozen=batch, operations=operations)
 
 
+async def test_image_upload_origin_stays_human_without_becoming_a_self_confirmation(core, ordinary_users):
+    alice, _ = ordinary_users
+    image = await core.sources.record_event(alice, producer="web", event_id="synthetic-image-evidence",
+        revision=1, occurred_at=datetime.now(UTC),
+        parts=({"kind": "image", "text": "合成图片中的可见内容"},), origin_kind=OriginKind.HUMAN)
+    async with core.database.transaction() as conn:
+        description = (await core.sources.describe_for_write_on(conn, alice, image))[0]
+    assert description["origin_kind"] == "human"
+    assert description["locator"]["part_kind"] == "image"
+    with pytest.raises(AppError, match="claim_self_confirmation_unproven"):
+        await fact(core, alice, image, "可见物品")
+    observed = await fact(core, alice, image, "可见物品", assertion="observed")
+    assert observed.assertion == "observed"
+    text = await fact(core, alice, await original(core, alice, "synthetic-explicit-statement", "这是我的物品"), "我的物品")
+    assert text.assertion == "self_confirmed"
+
+
 async def test_different_values_and_conditions_do_not_invent_contradiction(core, ordinary_users):
     alice, _ = ordinary_users
     first = await fact(core, alice, await original(core, alice, "multi-apple", "我喜欢苹果"))

@@ -14,6 +14,7 @@ from tianshu.types import ServiceClass
 from . import codec
 from .domain_utils import (CLAIM_PREDICATE_PATTERN, lexical, optional_time, parse_time,
                            semantic_fingerprint, unique_refs)
+from .evidence_policy import attributable_statement
 from .semantic_links import SemanticLinks
 
 
@@ -96,9 +97,16 @@ class RevisionService:
             speaker_id != subject_id or any(not any(
                 proof_by_key[(ref.source_id, ref.revision)]["origin_kind"] == "human"
                 and proof_by_key[(ref.source_id, ref.revision)]["speaker_id"] == subject_id
+                and attributable_statement(proof_by_key[(ref.source_id, ref.revision)])
                 for ref in group) for group in support["groups"])
         ):
-            raise AppError("claim_self_confirmation_unproven", status=403)
+            raise AppError("claim_self_confirmation_unproven", status=403, details={
+                "path": ["support_groups"], "expected": "attributable human statement by subject",
+                "actual": [{"origin_kind": item["origin_kind"], "speaker_id": item["speaker_id"],
+                            "part_kind": (item.get("locator") or {}).get("part_kind"),
+                            "mime_type": (item.get("media") or {}).get("mime_type")}
+                           for item in proof[:8]],
+                "hint": "图片上传、OCR或reply/mention结构不能独立证明本人确认。"})
         value, conditions = body.get("value"), body.get("conditions", {})
         if not isinstance(conditions, dict) or len(json.dumps(wire(value), ensure_ascii=False)) > 16000:
             raise AppError("invalid_claim_value")

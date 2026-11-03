@@ -55,6 +55,9 @@ async def test_extraction_pins_profile_and_overrides_native_route_budget_only_fo
         assert configured.parameters['response_format']=={'type':'json_object'}
     else:
         assert 'reasoning_effort' not in configured.parameters and 'response_format' not in configured.parameters
+    if protocol=='gemini.generate':
+        assert configured.parameters['generationConfig']['responseMimeType']=='application/json'
+        assert 'responseMimeType' not in profile['output_parameters']['generationConfig']
 
 
 def test_unknown_or_incomplete_output_never_authorizes_a_contract_repair():
@@ -81,6 +84,7 @@ def test_optional_rejected_output_is_omitted_as_a_whole_before_touching_source_e
     diagnostic=json.loads(repaired.messages[-1].parts[0].text)['output_repair']
     assert diagnostic['previous_output_omitted']=='input_budget' and 'previous_output' not in diagnostic
     assert diagnostic['diagnostic']['path']==['operations',0,'target','create']
+    assert diagnostic['previous_output_fragment']['json_excerpt']=='rejected candidate'
 
 
 def test_disabled_thinking_repair_omits_effort_without_changing_the_original():

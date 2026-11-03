@@ -9,6 +9,7 @@ from tianshu.models.budgets import with_output_tokens
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.errors import AppError
 from tianshu.types import RequestBudget
+from .proposal_diagnostics import DIAGNOSTIC_BYTES, FRAGMENT_BYTES, repair_diagnostic
 
 MODEL_REQUEST_SECONDS = 300
 REPAIR_LIMIT = 1
@@ -23,6 +24,8 @@ REPAIRABLE = frozenset({
     "memory_consolidation_create_target", "memory_consolidation_support_target",
     "memory_consolidation_revision_target", "memory_context_ref_invalid",
     "memory_context_range_required", "memory_context_query_required",
+    "memory_context_range_invalid", "memory_consolidation_time_invalid",
+    "memory_consolidation_record_context_required", "memory_consolidation_historical_target",
     "claim_self_confirmation_unproven", "claim_actor_author_unproven", "claim_speaker_mismatch",
 })
 REPAIR_INSTRUCTION = (
@@ -44,11 +47,30 @@ def repair_input_estimate(counter,instruction,messages,attempt_id):
     tokenizer boundary margin; the concrete repair is still measured again.
     """
     diagnostic={"error_code":max(REPAIRABLE,key=lambda code:(len(code),code)),
-        "path":["operations",63,"payload","completion_basis","material_refs",15],
-        "validator":"unevaluatedProperties","line":128000,"column":128000,"position":128000}
+        "path":["targets",31,"operations",63,"payload","completion_basis","material_refs",15],
+        "validator":"unevaluatedProperties", "actual":"诊"*(DIAGNOSTIC_BYTES//3)}
     message=_repair_message({"original_attempt_id":attempt_id,"diagnostic":diagnostic,
-        "previous_output_omitted":"input_budget"})
+        "previous_output_omitted":"input_budget",
+        "previous_output_fragment":{"path":diagnostic["path"], "json_excerpt":"证"*(FRAGMENT_BYTES//3)}})
     return counter.measure(instruction+REPAIR_INSTRUCTION,(*messages,message),())[0]+64
+
+
+def _output_fragment(candidate, diagnostic, *, maximum=FRAGMENT_BYTES):
+    path = diagnostic.get("path", [])
+    parent_path = path[:-1] if path and isinstance(path[-1], str) else path
+    try:
+        value = json.loads(candidate)
+        for key in parent_path:
+            value = value[key]
+        excerpt = json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+        fragment = {"path": parent_path, "json_excerpt": excerpt[:maximum]}
+    except (ValueError, TypeError, KeyError, IndexError):
+        position = diagnostic.get("position", 0)
+        offset = max(0, position-maximum//3) if type(position) is int else 0
+        fragment = {"offset": offset, "json_excerpt": candidate[offset:offset+maximum]}
+    while len(json.dumps(fragment, ensure_ascii=False).encode()) > maximum and fragment["json_excerpt"]:
+        fragment["json_excerpt"] = fragment["json_excerpt"][:-16]
+    return fragment
 
 
 def deepseek_chat(profile):
@@ -65,6 +87,9 @@ async def native_request(models, request):
         # https://api-docs.deepseek.com/guides/thinking_mode/
         # https://api-docs.deepseek.com/guides/json_mode/
         parameters.update(reasoning_effort="low", response_format={"type": "json_object"})
+    elif profile["protocol"] == "gemini.generate":
+        parameters["generationConfig"] = {**parameters.get("generationConfig", {}),
+                                           "responseMimeType": "application/json"}
     return replace(request, route_id=profile["route_id"], route_revision=profile["route_revision"],
         protocol=profile["protocol"], parameters=parameters,
         execution_timeout_seconds=MODEL_REQUEST_SECONDS,
@@ -97,9 +122,7 @@ def repairable(result, original, code):
 
 def repair_request(original, step_id, result, error, counter, input_tokens):
     """One new, recorded correction of known output; never mutates/replays its attempt."""
-    details = error.details or {}
-    diagnostic = {"error_code": error.code, **{key: details[key] for key in
-        ("path", "validator", "line", "column", "position") if key in details}}
+    diagnostic = repair_diagnostic(error)
     candidate = "".join(part.text or "" for part in result.parts if part.kind == "text")
     correction = {"original_attempt_id": original.attempt_id,
         "diagnostic": diagnostic, "previous_output": candidate}
@@ -117,10 +140,11 @@ def repair_request(original, step_id, result, error, counter, input_tokens):
     selected = messages()
     estimate = counter.measure(instruction, selected, ())[0]
     if estimate > input_tokens:
-        # Failed output is optional diagnostic context. Original evidence is
-        # always complete and unchanged; never trim it to fit a repair.
+        # Keep the exact failing item's finite excerpt. Original evidence is
+        # always complete and unchanged; it is never trimmed for a repair.
         correction.pop("previous_output")
         correction["previous_output_omitted"] = "input_budget"
+        correction["previous_output_fragment"] = _output_fragment(candidate, diagnostic)
         selected = messages()
         estimate = counter.measure(instruction, selected, ())[0]
     if estimate > input_tokens:
