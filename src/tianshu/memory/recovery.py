@@ -15,7 +15,7 @@ from tianshu.types import ServiceClass
 from . import codec
 from .authority import context_record
 from .consolidation import context_from_bound
-from .consolidation_retry import explicit_retry_available, protocol_refresh_available, semantic_output_failure
+from .consolidation_retry import explicit_retry_available, protocol_refresh_available, semantic_output_failure, rpc_recovery_available
 from .extraction_contract import SCHEMA_VERSION, legacy_extraction_schema, validate_proposal
 from .materials import batch_frozen, smaller_material_prefix
 
@@ -111,6 +111,8 @@ class ConsolidationRecovery:
             result["action"]="refresh_material"
         elif explicit_retry_available(batch) and result["action"] != "configure_budget":
             result["action"]="retry_computation"
+        elif rpc_recovery_available(batch):
+            result["action"]="observe_original_attempt"
         if batch and batch["status"] == "stale" and batch["manifest"].get("quarantine"):
             result["held_for_refresh"]=True
         if batch and visible.get(batch["batch_id"]):
@@ -182,6 +184,12 @@ class ConsolidationRecovery:
                 await self.memory.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
                     suffix="explicit:"+body["client_request_id"])
             data.update(queued=True,action="observe_original_attempt")
+        elif rpc_recovery_available(batch):
+            state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
+                (batch["partition_id"],))).fetchone()
+            original_context=context_from_bound(state["authority_bound"])
+            if await self.memory.consolidation.retries.resume_rpc_on(conn,batch,original_context,body["client_request_id"]):
+                data.update(queued=True,action="observe_original_attempt")
         elif (batch and batch["status"] == "failed" and batch["schema_version"] != LEGACY_VERSION
                 and semantic_output_failure(batch)
                 and not protocol_refresh_available(batch)

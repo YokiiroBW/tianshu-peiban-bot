@@ -10,7 +10,6 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid5
 
-from aiohttp import ClientError
 from psycopg.types.json import Jsonb
 
 from tianshu.models.retry import retry_delay_seconds, transient_model_failure
@@ -20,9 +19,11 @@ from tianshu.types import RequestBudget
 from . import codec
 from .generation import MODEL_REQUEST_SECONDS
 from .materials import batch_frozen
+from .model_outcome import observe_original
 
 OBSERVE_SECONDS = 30
 EXPLICIT_RETRY_LIMIT = 1
+RPC_WRAPPERS = frozenset({"internal_error","broker_error","model_transport_unknown"})
 
 
 def failure_code(error):
@@ -60,6 +61,13 @@ def protocol_refresh_available(batch):
     # through MaterialBuilder. Replaying its old verbose prompt is ineffective.
     return bool(explicit_retry_available(batch)
                 and batch_frozen(batch).get("model_protocol") != "memory.proposal.v2")
+
+
+def rpc_recovery_available(batch):
+    return bool(batch and batch["status"]=="failed" and batch["step_ids"]
+        and batch["schema_version"]!="memory.legacy-extraction.v0" and batch.get("selected_step_id") is None
+        and batch.get("proposal_digest") is None
+        and batch.get("error_code") in RPC_WRAPPERS)
 
 
 class ConsolidationRetries:
@@ -125,32 +133,42 @@ class ConsolidationRetries:
         if batch.get("selected_step_id"):
             return batch["selected_step_id"], True
         current = attempts[-1]
-        receipt = None
+        outcome = None
         if batch["status"] == "quarantined":
-            try:
-                receipt = await self.steps.models.status(current["model_attempt_id"])
-            except (AppError, TimeoutError, OSError, ClientError):
-                await self._postpone(batch, owner=owner)
-                return None
-            if receipt and getattr(receipt, "cancellation_reason", None) == "explicit_cancel":
+            current_step,request=await self.steps.recorded(current["step_id"])
+            outcome=await observe_original(self.steps.models,request)
+            await self._recovery_observation(batch,current["step_id"],outcome,owner=owner)
+            if outcome.explicit_cancel:
                 raise AppError("explicit_cancel", status=409, details={"status": "cancelled"})
         # A late original is only a candidate; application below selects the
         # actual winner under the batch lock. Rejected semantic outputs cannot
         # be selected again merely because their physical receipt succeeded.
         for candidate in attempts:
-            if candidate["rejected_error"] or candidate["status"] == "prepared":
+            if candidate["rejected_error"]:
                 continue
-            result = await self.steps.models.result(candidate["model_attempt_id"], context=context)
-            if result is not None and result.receipt.status == "succeeded":
+            if candidate["status"] == "prepared" and not (candidate["step_id"]==current["step_id"] and outcome and outcome.result):
+                continue
+            if candidate["step_id"]==current["step_id"] and outcome is not None:
+                observed=outcome
+            else:
+                _,request=await self.steps.recorded(candidate["step_id"])
+                observed=await observe_original(self.steps.models,request)
+            if observed.result is not None and observed.status == "succeeded":
                 return candidate["step_id"], True
         if batch["status"] != "quarantined":
             return current["step_id"], False
-        status = receipt.status if receipt else current["status"]
-        code = (receipt.error_code if receipt else None) or current["error_code"] or batch["error_code"]
+        status,code=outcome.status,outcome.code
+        if outcome.receipt is None:
+            if current_step["state"]=="prepared" and not current["rejected_error"]:
+                return current["step_id"],False
+            # Persisted old wrapper codes never substitute for a missing
+            # current authoritative receipt, including after another restart.
+            await self._postpone(batch,code=code,owner=owner)
+            return None
         if status in {"queued", "running", "dispatching"} or status == "succeeded" and not current["rejected_error"]:
             await self._postpone(batch, code=code, owner=owner)
             return None
-        if current["status"] == "prepared" and not current["rejected_error"]:
+        if current["status"] == "prepared" and current_step["state"] == "prepared" and not current["rejected_error"]:
             return current["step_id"], False
         if batch.get("retry_due_at") and batch["retry_due_at"] > datetime.now(UTC):
             return None
@@ -159,6 +177,22 @@ class ConsolidationRetries:
             if not retryable_code(code, status):
                 raise AppError(code, status=409, details={"status": status})
         return await self._successor(batch, context, current, owner=owner)
+
+    async def _recovery_observation(self,batch,step_id,outcome,*,owner=None):
+        if not batch["manifest"].get("rpc_recoveries"):
+            return
+        async with self.database.transaction() as conn:
+            await self.consolidation._lock_owned_partition(conn,batch["partition_id"],owner)
+            fresh=await (await conn.execute("SELECT manifest FROM memory.consolidation_batches WHERE batch_id=%s "
+                "AND status='quarantined' FOR UPDATE",(batch["batch_id"],))).fetchone()
+            if fresh:
+                manifest=deepcopy(fresh["manifest"])
+                for recovery in reversed(manifest.get("rpc_recoveries",())):
+                    if recovery["step_id"]==step_id:
+                        recovery["latest_original_observation"]=outcome.record()
+                        await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s WHERE batch_id=%s",
+                            (Jsonb(manifest),batch["batch_id"]))
+                        break
 
     async def _successor(self, batch, context, previous, *, owner):
         _, original = await self.steps.recorded(previous["step_id"])
@@ -204,18 +238,16 @@ class ConsolidationRetries:
             return False
         code = failure_code(error)
         details = getattr(error, "details", None) or {}
+        if not (transient_model_failure(code) or details.get("status") in {"queued","running","succeeded"}
+                or details.get("original_observation") in {"confirmed","missing","unavailable"}):
+            return False
         recorded_step, original = await self.steps.recorded(batch["step_ids"][-1])
-        try:
-            receipt = await self.steps.models.status(original.attempt_id)
-        except (AppError, TimeoutError, OSError, ClientError):
-            receipt = None
-            control_unknown = True
-        else:
-            control_unknown = False
-        status = receipt.status if receipt else ("prepared" if recorded_step["state"] == "prepared" else details.get("status") or "unknown")
-        code = (receipt.error_code if receipt else None) or code
-        explicit = bool(receipt and getattr(receipt, "cancellation_reason", None) == "explicit_cancel")
-        if explicit:
+        outcome=await observe_original(self.steps.models,original)
+        receipt=outcome.receipt
+        control_unknown=receipt is None
+        status="prepared" if receipt is None and recorded_step["state"]=="prepared" else outcome.status
+        code=outcome.code
+        if outcome.explicit_cancel:
             await self.consolidation._failure(batch["partition_id"],batch_id,
                 AppError("explicit_cancel",status=409,details={"status":"cancelled"}),owner=owner)
             return True
@@ -236,7 +268,9 @@ class ConsolidationRetries:
             attempt = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s AND step_id=%s",
                                                (batch_id, original.intent_id))).fetchone()
             delay = OBSERVE_SECONDS if control_unknown or status in {"queued", "running", "succeeded"} else retry_delay_seconds(attempt["number"])
-            failure = wire(receipt) if receipt else {"status": status, "error_code": code, "control_unavailable": control_unknown}
+            failure = outcome.record()
+            if details.get("rpc_failure"):
+                failure["rpc_failure"]=details["rpc_failure"]
             await conn.execute("UPDATE memory.consolidation_attempts SET status=%s,error_code=%s,first_failure=COALESCE(first_failure,%s),"
                 "updated_at=now() WHERE batch_id=%s AND step_id=%s", (status, code, Jsonb(failure), batch_id, original.intent_id))
             manifest = deepcopy(fresh["manifest"])
@@ -267,6 +301,45 @@ class ConsolidationRetries:
         values = [value for value in (state["wake_due_at"], held["due"]) if value is not None]
         if values and state["active_batch_id"] is None:
             await self.consolidation._schedule_on(conn, partition_id, min(values), suffix="retry")
+
+    async def resume_rpc_on(self,conn,batch,context,request_id):
+        """Reopen only a failed RPC wrapper for authoritative original observation."""
+        if not rpc_recovery_available(batch):
+            return False
+        if not await self.consolidation.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
+            raise AppError("source_unavailable",status=403)
+        await self.consolidation.identity.check_context(context,connection=conn)
+        step_id=batch["step_ids"][-1]
+        step=await (await conn.execute("SELECT request,state,error_code FROM memory.model_steps WHERE step_id=%s",(step_id,))).fetchone()
+        if not step or step["state"]=="source_revoked":
+            raise AppError("source_unavailable",status=403)
+        rejected=await (await conn.execute("SELECT rejected_error FROM memory.consolidation_attempts WHERE step_id=%s",(step_id,))).fetchone()
+        if rejected and rejected["rejected_error"]:
+            return False
+        for episode in batch["manifest"]["episodes"]:
+            row=await (await conn.execute("SELECT revision,sequence,extraction_cursor,active FROM memory.episodes "
+                "WHERE episode_id=%s FOR UPDATE",(episode["episode_id"],))).fetchone()
+            if (not row or not row["active"] or row["revision"]!=episode["revision"] or row["sequence"]!=episode["sequence"]
+                    or row["extraction_cursor"]!=episode["before"]):
+                raise AppError("memory_consolidation_episode_changed",status=409)
+        await self.adopt_on(conn,batch)
+        previous={"status":step["state"],"error_code":step["error_code"],"authority":"memory_step_snapshot",
+                  "rpc_failure":{"error_code":batch["error_code"]}}
+        await conn.execute("UPDATE memory.consolidation_attempts SET first_failure=COALESCE(first_failure,%s) WHERE step_id=%s",
+            (Jsonb(previous),step_id))
+        manifest=deepcopy(batch["manifest"])
+        manifest.setdefault("rpc_recoveries",[]).append({"request_id":request_id,"step_id":step_id,
+            "attempt_id":step["request"]["attempt_id"],"previous_batch_status":batch["status"],
+            "previous_error_code":batch["error_code"],"previous_step":previous,"queued_at":wire(datetime.now(UTC))})
+        await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined',manifest=%s,retry_due_at=now(),"
+            "retry_requested=false,updated_at=now() WHERE batch_id=%s",(Jsonb(manifest),batch["batch_id"]))
+        for episode in batch["manifest"]["episodes"]:
+            before=Jsonb(episode["before"]) if episode["before"] is not None else None
+            await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_unknown',extraction_started_at=NULL "
+                "WHERE episode_id=%s AND revision=%s AND sequence=%s AND active AND extraction_cursor IS NOT DISTINCT FROM %s",
+                (episode["episode_id"],episode["revision"],episode["sequence"],before))
+        await self.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),suffix="rpc-recovery:"+request_id)
+        return True
 
     async def resume_on(self, conn, batch, context, request_id):
         if not explicit_retry_available(batch):

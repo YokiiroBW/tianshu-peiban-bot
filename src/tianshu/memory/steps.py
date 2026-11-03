@@ -9,6 +9,7 @@ from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from .authority import request_identity
+from .model_outcome import needs_rpc_observation, observe_original
 
 
 class ModelSteps:
@@ -75,27 +76,51 @@ class ModelSteps:
             if dispatch:
                 result = await self.models.generate(stored)
             else:
-                result = await self.models.result(original.attempt_id, context=original.context)
+                outcome=await observe_original(self.models,original)
+                result=outcome.result
                 if result is None:
-                    receipt = await self.models.status(original.attempt_id)
-                    if receipt is None:
-                        raise AppError("model_outcome_unknown", status=503,
-                            details={"attempt_id": original.attempt_id, "action": "observe_original_attempt"})
-                    await self._outcome(step_id, receipt.status, receipt.error_code)
-                    explicit = getattr(receipt,"cancellation_reason",None) == "explicit_cancel"
-                    raise AppError("explicit_cancel" if explicit else receipt.error_code or "model_outcome_"+receipt.status, status=503,
-                        details={"attempt_id": original.attempt_id, "status": receipt.status,
-                                 "cancellation_reason":getattr(receipt,"cancellation_reason",None),
-                                 "action": "observe_original_attempt"})
+                    if outcome.receipt:
+                        await self._outcome(step_id,outcome.status,outcome.receipt.error_code)
+                    raise outcome.exception(original.attempt_id)
         except BaseException as exc:
-            if not isinstance(exc, AppError) or exc.code not in {"source_unavailable"}:
+            # A generation RPC can fail after Models already persisted its
+            # actual outcome. Only that original result/receipt may replace the
+            # transport wrapper; arbitrary internal_error is never retry policy.
+            reconcile = dispatch and needs_rpc_observation(exc)
+            if reconcile:
+                # Persist the crossed-boundary uncertainty before any control
+                # await, so cancellation during reconciliation still leaves a
+                # recoverable original identity and propagates immediately.
+                async with self.database.transaction() as conn:
+                    await conn.execute("UPDATE memory.model_steps SET state='unknown',error_code=%s,updated_at=now() "
+                        "WHERE step_id=%s AND state NOT IN ('source_revoked','succeeded','failed','cancelled')",
+                        (getattr(exc,"code","model_transport_unknown"),step_id))
+                try:
+                    outcome=await observe_original(self.models,original)
+                except AppError as authority_error:
+                    exc=authority_error
+                else:
+                    async with self.database.transaction() as conn:
+                        await conn.execute("UPDATE memory.consolidation_attempts SET first_failure=COALESCE(first_failure,%s),"
+                            "updated_at=now() WHERE step_id=%s",(Jsonb(outcome.record(rpc_error=exc)),step_id))
+                    if outcome.result is not None and outcome.status=="succeeded":
+                        result=outcome.result
+                        exc=None
+                    else:
+                        if outcome.receipt:
+                            await self._outcome(step_id,outcome.status,outcome.receipt.error_code)
+                        exc=outcome.exception(original.attempt_id,rpc_error=exc)
+            if exc is not None and (not isinstance(exc, AppError) or exc.code not in {"source_unavailable"}):
                 known_cancel = isinstance(exc, AppError) and (exc.details or {}).get("dispatch") == "not_started" and (exc.details or {}).get("status") == "cancelled"
+                observed=(getattr(exc,"details",None) or {}).get("status")
+                state=observed if observed in {"queued","running","succeeded","failed","cancelled","unknown"} else "unknown"
                 async with self.database.transaction() as conn:
                     await conn.execute(
                         "UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() "
                         "WHERE step_id=%s AND state NOT IN ('source_revoked','succeeded','failed','cancelled')",
-                        ("cancelled" if known_cancel else "unknown",getattr(exc, "code", "model_transport_unknown"), step_id))
-            raise
+                        ("cancelled" if known_cancel else state,getattr(exc, "code", "model_transport_unknown"), step_id))
+            if exc is not None:
+                raise exc
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn, original.context, original.source_refs):
                 raise AppError("source_unavailable", status=403)
