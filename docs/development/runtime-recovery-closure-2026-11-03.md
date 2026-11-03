@@ -66,3 +66,17 @@ Memory 准备优先完整新材料、原图与引用来源。在预算试装期�
 待整理 Memory 从上线后初次读回的 210 条降到 20:48 的 167 条，另 1 条正在整理，新输入仍在到达。最老待处理材料为当日 17:50，积压尚未清空。剩余 2 条 `consolidation_failed` 已核对为历史 `explicit_cancel`，按取消语义保留。已有 `completed_with_missing` 仍如实表示对应历史来源/背景缺项，不能把本次成功外推为所有历史上下文已补齐。
 
 本批已修复已定位的三个实现缺口并完成对应实际恢复；没有发送 QQ 测试消息，也未把受影响入口与自然流量验证扩大解释为所有外部服务、长期语义质量或全历史积压验收。
+
+## 整体链路复查：2026-11-03 21:26
+
+用户再次要求检查整体链路。本轮仅执行当前生产元数据/原生读取、两个中性 Memory 查询及有界只读 SQL 诊断，没有修改产品代码、持久配置或主动发送 QQ 消息。运行版本、容器、配置及 11 挂载仍保持，零重启、三进程 ready、两 QQ available，PG 无锁等待或闲置事务；无上线后新增失败队列任务、超期 todo 或 Memory failed/quarantined。Loki 首次 readiness 提示就绪等待，随后为 200，服务全 Running、环 ACTIVE，近期日志可查；Prometheus 目标 up 且无活动告警。
+
+**新确认的前台检索问题。** 两个角色通过原生 `/api/v1/memory/query` 查询“日程与天气”，分别在 2.078/2.141 秒返回 `deadline_exceeded`/504。生效整体请求预算为 70.6 秒，而 `MemoryRetrieval.local_budget` 把整个词法候选事务限制为 2 秒。使用相同权限上下文和既有 CandidateStore 的只读诊断，默认 JIT 下 claims 耗时 6.732 秒、matters 0.819 秒，后续过程在 12 秒诊断上限超时；仅在诊断事务内 `SET LOCAL jit=off` 后，四类候选仍合计 6.958 秒（1.440/0.176/2.027/3.279 秒）。因此不能只关闭 JIT 或延长云端模型窗口来认定修复；需优化词法候选 SQL、来源证明重复工作及分阶段预算，并保持最终权限/版本复检。聊天上下文复用该检索路径；21:26 自然私聊的 turn 已 completed、表达 delivered、QQ `send_private_msg` confirmed，但 missing 含 `memory_unavailable`，证明召回降级已影响实际聊天。
+
+**日程持续推进限制。** 两角色均在当天中午前后完成 4 项活动，未来/运行活动为 0；定时器仍正常唤醒，最新原因 `unchanged_decision_material`。`day_plan.MAX_ACTIVITIES=4` 的规划统计和持久化准入都包括 completed，已做完活动仍占全天名额。应区分历史活动与未来安排容量，并保留有界空闲重新考虑，不能通过制造忙碌或无限调用模型解决。该限制、上述候选 SQL/本地预算以及媒体观察代码相对 NR-08 基线均未改动。
+
+**其他核对。** 截至 21:26，新流程已 applied 51 批、187 条材料，50 批含图，远端候选入口至多一次；Memory pending 70，最老 20:12，Growth 无阻塞。6 条缺向量旧 Episode 的 index 状态为 revoked/source_unavailable，当前 claims/matters/reflections 无缺向量。上线后 3 次 rerank 为真实约 30 秒执行超时，排队仅 0.07–0.09 秒，已降级基础排序而未阻断整理。插件/视频/书籍/音乐/漫画/天气/基础设施原生读取及两角色的 Memory/Growth/Life/图片/语音配置读取均可用；ComfyUI `/system_stats` 与 `/queue` 实际返回 200，队列为空。没有新生成图片或全媒体下载验收。
+
+4 条书源扫描均完成且下一次原生任务已按相同 generation 排到次日 12:27；页面 `media_worker_observation_missing` 来自上一次观察的 worker 已被发布替换，任务本身没有丢失。NAS 采集为 partial：统计缺块 IO 等部分指标，Compose 存在旧文件不可用/权限或比较范围不足，不能把这类状态等同当前天枢主服务故障。昨日日记 revision 已 reviewed 且无错误，今日日记尚未到 23:00 闭日。
+
+证据仍在本任务私有 `.runtime/nr08-runtime-20261103/`：`recheck_host_2115.json`、`recheck_chain_2115.json`、`recheck_detail_2118.json`、`recheck_exceptions_2121.json`、`recheck_http_2123.json`、`recheck_query_local_2125.json`、`recheck_second_query_2127.json`、`recheck_closing_2127.json`、`recheck_conversation_tail_2128.json`。文件名是诊断标签，实际观察时间以各回执字段为准；临时诊断的长 SQL 预算和 JIT 设置没有写回服务。
