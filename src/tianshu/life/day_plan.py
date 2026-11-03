@@ -1,4 +1,4 @@
-"""A few executable appointments and genuine free time, with per-activity fences."""
+"""Rolling executable appointments and free time, with per-activity fences."""
 from datetime import UTC, datetime, time, timedelta
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
@@ -13,7 +13,6 @@ from .clock import awake_and_due, hour
 from .continuation import action_resolved
 
 
-MAX_ACTIVITIES = 4
 GAP_MINUTES = 20
 COMMITMENT_MARGIN = timedelta(minutes=10)
 
@@ -213,31 +212,24 @@ class DayPlans:
             "UPDATE life.day_slots s SET state='cancelled',reason='goal_not_active',revision=s.revision+1 "
             "FROM life.activities a WHERE s.activity_id=a.id AND s.state='planned' AND a.waiting_reason='goal_not_active' AND s.actor_id=%s AND s.scope_ids<@%s::text[]", (context.actor_id,list(context.scope_ids)))
         retained = await (await connection.execute(
-            "SELECT * FROM life.day_slots WHERE actor_id=%s AND day=%s AND kind='activity' AND state NOT IN ('cancelled','carried') ORDER BY starts_at",
+            "SELECT * FROM life.day_slots WHERE actor_id=%s AND day=%s AND kind='activity' AND state IN ('planned','running') ORDER BY starts_at",
             (context.actor_id, day))).fetchall()
         start, end = awake_window(routine, now)
         if start is None:
             return 0
-        occupied = [(row["starts_at"], row["ends_at"]) for row in retained if row["state"] in {'planned','running'}]
+        occupied = [(row["starts_at"], row["ends_at"]) for row in retained]
         for commitment in frozen_data["commitments"]:
             due = commitment.get("due_at")
             if due:
                 due = datetime.fromisoformat(due) if isinstance(due, str) else due
                 occupied.append((due - COMMITMENT_MARGIN, due + COMMITMENT_MARGIN))
         offered = ([decision["activity"]] if decision["activity"] else []) + decision.get("arrangements", [])
-        total_minutes = sum(max(0, (row["ends_at"] - max(row["starts_at"], now)).total_seconds() / 60) for row in retained if row["state"] in {'planned','running'})
-        available_minutes = (end - start).total_seconds() / 60
         created = 0
-        retained_ids = {row["activity_id"] for row in retained}
         for index, activity in enumerate(offered):
             identifier = activity.get("existing_activity_id")
-            if identifier not in retained_ids and len(retained_ids) >= MAX_ACTIVITIES:
-                continue
             duration = timedelta(minutes=activity["duration_minutes"])
-            if total_minutes + duration.total_seconds() / 60 > available_minutes * .65:
-                continue
             begins = now + timedelta(minutes=activity.get("after_minutes", index * GAP_MINUTES))
-            period = next_gap(begins, duration, end - timedelta(minutes=GAP_MINUTES), occupied)
+            period = next_gap(begins, duration, end, occupied)
             if period is None:
                 continue
             begins, finish = period
@@ -280,8 +272,6 @@ class DayPlans:
             await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{identifier}:{version}",
                 {"activity_id": identifier, "expected_revision": version, "context": wire(context)}, scheduled_at=begins, subject_id=context.actor_id))
             occupied.append((begins, finish))
-            retained_ids.add(identifier)
-            total_minutes += duration.total_seconds() / 60
             created += 1
         await self._free_time(connection, context, day, start, end, decision.get("free_time_reason") or "留白，允许休息和临时变化",refs)
         return created

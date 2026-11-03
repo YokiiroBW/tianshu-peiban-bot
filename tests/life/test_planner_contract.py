@@ -167,6 +167,17 @@ async def test_business_plugin_weather_and_public_commands_remain_available_to_p
 
 
 @pytest.mark.asyncio
+async def test_rolling_policy_does_not_invalidate_a_frozen_request_with_the_original_task_only():
+    request = await make_request([choice("content.read")])
+    suffix = "\n\n" + planner.ROLLING_SCHEDULE
+    assert request.system.endswith(suffix)
+    original = replace(request, system=request.system.removesuffix(suffix))
+    assert planner.frozen_material(original) == planner.frozen_material(request)
+    decision, _ = planner.decision(result(activity()), original)
+    assert decision["activity"]["capability_id"] == "content.read"
+
+
+@pytest.mark.asyncio
 async def test_budget_reduction_keeps_contract_and_explains_omitted_capability():
     large = choice(
         "video.observe", {"type": "object", "description": "large actual schema " * 10000}

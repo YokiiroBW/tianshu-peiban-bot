@@ -13,7 +13,7 @@ from tianshu.sources.dependencies import unique_refs
 from tianshu.models.retry import retry_delay_seconds, transient_model_failure
 from .computation_retry import outcome
 from . import planner
-from .day_plan import awake_window, MAX_ACTIVITIES
+from .day_plan import awake_window
 from .model_budget import generation_request, generation_profile
 
 
@@ -30,6 +30,21 @@ def review_time(routine, now, boundary):
     # A normal tick, changing seconds or passive affect decay does not expire it.
     seconds = min(10800, max(5400, (routine or {}).get("idle_seconds", 5400)))
     return min(now + timedelta(seconds=seconds), boundary)
+
+
+def decision_review_at(mark):
+    """A valid decision's saved idle deadline remains useful after its work ends.
+
+    Older accepted plans and the removed daily quota did not set review_after.
+    Reuse their existing deadline; errors and unresolved generations retain their
+    own observation/repair rules instead of becoming periodic fresh attempts.
+    """
+    if mark.get("review_after") is not None:
+        return mark["review_after"]
+    pending = mark.get("generation_key") and not mark.get("generation_consumed")
+    if mark.get("decision_fingerprint") and not mark.get("last_error") and not pending:
+        return mark.get("next_due_at")
+    return None
 
 
 def scene(context):
@@ -93,7 +108,7 @@ class PlanningEngine:
             return
         if (mark["planned_watermark"] == mark["change_watermark"]
                 and (not mark["generation_key"] or mark["generation_consumed"])
-                and not due(mark["repair_due_at"], now) and not due(mark["review_after"], now)):
+                and not due(mark["repair_due_at"], now) and not due(decision_review_at(mark), now)):
             return
         # A private chat/Growth event is a change notification, not the author
         # identity of the actor's entire day. The saved configuration owns it.
@@ -166,21 +181,16 @@ class PlanningEngine:
                 data["repair"] = {"reason": mark["last_error"], "number": mark["repair_count"],
                                   "instruction": "Return one complete compact JSON decision; no previous partial output is an activity."}
                 repair_ready = True
-        if not pending and not repair_ready and mark["decision_fingerprint"] == material and not due(mark["review_after"], now):
+        if not pending and not repair_ready and mark["decision_fingerprint"] == material and not due(decision_review_at(mark), now):
             await self.finish(context, mark, "unchanged_decision_material", fingerprint=material)
             return
         scheduled = [row for row in daily["slots"] if row["kind"] == "activity" and row["state"] in {"planned", "running"}
                      and row["starts_at"] <= now < row["ends_at"]]
         running = any(row["state"] == "running" for row in daily["unfinished"])
         important = not mark["change_watermark"].startswith(("rhythm:", "activity-", "growth:"))
-        if not pending and (scheduled or running) and not important and not mark["change_watermark"].startswith("growth:"):
+        if not pending and (scheduled or running) and not important:
+            # Interest/style notifications wait for the current activity too.
             await self.finish(context, mark, "existing_activity_continues", fingerprint=material)
-            return
-        count = len({row["activity_id"] for row in daily["slots"] if row["kind"] == "activity" and row["state"] not in {"cancelled", "carried"}})
-        continuation = any(row["state"] == "dormant" and row["waiting_reason"] in {"continuation_available", "follow_up_available", "day_finished"}
-                           for row in daily["unfinished"])
-        if not pending and count >= MAX_ACTIVITIES and not important and not continuation:
-            await self.finish(context, mark, "day_arrangements_complete", fingerprint=material)
             return
         frozen = None
         observe = False
@@ -470,10 +480,13 @@ class PlanningEngine:
 
     async def finish(self, context, mark, reason, **kwargs):
         async with self.life.database.transaction() as connection:
+            dates = [value for value in (mark["repair_due_at"], decision_review_at(mark))
+                     if value is not None and value > datetime.now(UTC)]
+            if dates and "next_due" not in kwargs:
+                # Harmless ticks must not slide the saved idle review forever.
+                kwargs["next_due"] = min(dates)
             await self._finish(connection, context, mark, reason, **kwargs)
             # A newer harmless notification has a new CAS revision. Rebind the
             # existing future window to that revision instead of losing its job.
-            dates = [value for value in (mark["repair_due_at"], mark["review_after"])
-                     if value is not None and value > datetime.now(UTC)]
             if dates and reason not in {"actor_resting", "routine_disabled"}:
                 await self.schedule(connection, context, mark, min(dates), "due")

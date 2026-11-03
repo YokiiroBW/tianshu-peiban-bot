@@ -125,6 +125,14 @@ TASK = (
 )
 
 
+ROLLING_SCHEDULE = (
+    "Scheduling policy: the small activity/arrangements output bounds one decision, not a daily quota. "
+    "Completed history does not consume future capacity. Freely balance feasible activities and free time. "
+    "An activity ending or an idle review becoming due is a reason to choose a new activity or more free time, "
+    "even without new conversation. Preserve commitments and current work; never repeat completed work or unknown actions."
+)
+
+
 def eligible_capabilities(choices):
     return [
         item["definition"]
@@ -220,7 +228,9 @@ async def request(assembler, context, budget, *, key, persona, data, refs, growt
     # The existing assembler owns persona, sourced material and optional retrieval.
     # Reserve the application system task before assembly, then measure the final
     # actual system/messages. No protocol-specific parameter is guessed here.
-    task_tokens = assembler.counter.measure(TASK, (), ())[0] + 32
+    # Keep the original task anchor readable for already frozen v2 requests.
+    task = TASK + "\n\n" + ROLLING_SCHEDULE
+    task_tokens = assembler.counter.measure(task, (), ())[0] + 32
     reserved = model_request.max_output_tokens if model_request is not None else RESERVED_OUTPUT_TOKENS
     working = json.loads(json.dumps(data))
     while True:
@@ -266,7 +276,7 @@ async def request(assembler, context, budget, *, key, persona, data, refs, growt
                 working["coverage"]["omitted_commitment_count"] += 1
             else:
                 raise AppError("planner_context_budget_exceeded", status=413) from None
-    system = pack.system + "\n\n" + TASK
+    system = pack.system + "\n\n" + task
     estimated, _, _ = assembler.counter.measure(system, pack.messages, ())
     if estimated > INPUT_BODY_TOKENS:
         raise AppError("planner_context_budget_exceeded", status=413)

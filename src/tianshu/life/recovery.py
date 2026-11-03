@@ -20,7 +20,8 @@ async def recover(worker):
         plans = await (await connection.execute(
             "SELECT p.*,c.context FROM life.plan_watermarks p JOIN life.routines c USING(actor_id) "
             "WHERE c.enabled AND (p.planned_watermark<>p.change_watermark OR (p.generation_key IS NOT NULL AND NOT p.generation_consumed) "
-            "OR p.repair_due_at IS NOT NULL OR p.review_after IS NOT NULL)")).fetchall()
+            "OR p.repair_due_at IS NOT NULL OR p.review_after IS NOT NULL "
+            "OR (p.decision_fingerprint IS NOT NULL AND p.last_error IS NULL AND p.next_due_at IS NOT NULL))")).fetchall()
         work = []
         for table in ("activities", "commitments", "contact_candidates"):
             states = {"activities": ("planned", "running", "dormant"),
@@ -34,9 +35,9 @@ async def recover(worker):
             context = await scheduled_context(life, row["context"])
             await life.identity.check(context)
             pending = row["planned_watermark"] != row["change_watermark"] or (row["generation_key"] and not row["generation_consumed"])
-            dates = [value for value in (row["repair_due_at"], row["review_after"]) if value is not None]
+            from .planning_engine import PlanningEngine, decision_review_at
+            dates = [value for value in (row["repair_due_at"], decision_review_at(row)) if value is not None]
             async with life.database.transaction() as connection:
-                from .planning_engine import PlanningEngine
                 await PlanningEngine(worker).schedule(connection,context,row,datetime.now(UTC) if pending else min(dates),"recover")
         except AppError as error:
             if error.status not in {401, 403, 404, 409, 410}:
