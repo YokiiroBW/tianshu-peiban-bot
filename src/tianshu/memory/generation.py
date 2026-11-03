@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import json
+import re
 from uuid import NAMESPACE_URL, uuid5
 
 from tianshu.models.budgets import with_output_tokens
@@ -33,6 +34,18 @@ REPAIR_INSTRUCTION = (
     "\n上次输出未提交。按诊断修正候选并返回完整JSON；仍以冻结来源为准，候选不是证据。"
     "不得省略目标或把未知冒充no_change。"
 )
+_JSON_FENCE = re.compile(r"\A```(?:json)?[ \t]*\r?\n(?P<body>[\s\S]*?)\r?\n```\Z", re.IGNORECASE)
+
+
+def decode_model_json(text):
+    """Accept raw JSON or one complete JSON/untagged fence, with no surrounding prose."""
+    if isinstance(text, str):
+        match = _JSON_FENCE.fullmatch(text.strip())
+        if match:
+            text = match["body"]
+    # json.loads rejects trailing text, multiple fenced blocks and malformed
+    # bodies. Object shape and semantics remain the proposal validator's job.
+    return json.loads(text)
 
 
 def _repair_message(value):
@@ -60,7 +73,7 @@ def _output_fragment(candidate, diagnostic, *, maximum=FRAGMENT_BYTES):
     path = diagnostic.get("path", [])
     parent_path = path[:-1] if path and isinstance(path[-1], str) else path
     try:
-        value = json.loads(candidate)
+        value = decode_model_json(candidate)
         for key in parent_path:
             value = value[key]
         excerpt = json.dumps(value, ensure_ascii=False, separators=(",", ":"))

@@ -8,7 +8,8 @@ from types import SimpleNamespace
 import pytest
 
 from tianshu.memory.consolidation import Consolidation
-from tianshu.memory.generation import native_request, repairable, repair_request, repair_input_estimate
+from tianshu.memory.extraction_contract import MODEL_PROTOCOL, SCHEMA_VERSION, parse_model_proposal
+from tianshu.memory.generation import decode_model_json, native_request, repairable, repair_request, repair_input_estimate
 from tianshu.models.budgets import effective_output_tokens
 from tianshu.models.types import ModelCompletion, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.errors import AppError
@@ -117,25 +118,27 @@ def test_near_cap_input_reserves_a_complete_repair_before_freezing_sources(conte
         'query':None,'reason':'需要上下文','outcome':'provided'},) if context_round else ()
     step_id='near_cap:step:'+str(context_round)
     bare=pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
-    data['materials']['m1']['text']='x'*(11940-bare.estimated_input_tokens)
+    overhead=repair_input_estimate(pipeline.counter,bare.system,bare.messages,bare.attempt_id)-bare.estimated_input_tokens
+    input_limit=max(16384,bare.estimated_input_tokens+overhead+256)
+    near_cap=input_limit-64
+    data['materials']['m1']['text']='x'*(near_cap-bare.estimated_input_tokens)
     original_text=data['materials']['m1']['text']
-    pipeline.policy=replace(pipeline.policy,max_input_tokens=12000)
+    pipeline.policy=replace(pipeline.policy,max_input_tokens=input_limit)
     with pytest.raises(AppError,match='memory_consolidation_input_budget') as caught:
         pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
-    assert caught.value.details['request_estimated']==11940
-    assert caught.value.details['repair_required_tokens']>12000
+    assert caught.value.details['request_estimated']==near_cap
+    assert caught.value.details['repair_required_tokens']>input_limit
     assert data['materials']['m1']['text']==original_text
     # Production selects a smaller complete source prefix before freezing. Place
     # this first request exactly at the combined request+reserved-repair limit.
-    overhead=repair_input_estimate(pipeline.counter,bare.system,bare.messages,bare.attempt_id)-bare.estimated_input_tokens
-    data['materials']['m1']['text']='x'*(12000-overhead-bare.estimated_input_tokens)
+    data['materials']['m1']['text']='x'*(input_limit-overhead-bare.estimated_input_tokens)
     first=pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
-    assert repair_input_estimate(pipeline.counter,first.system,first.messages,first.attempt_id)==12000
+    assert repair_input_estimate(pipeline.counter,first.system,first.messages,first.attempt_id)==input_limit
     rejected=result(text='invalid candidate '*10000)
     repaired=repair_request(first,'near_cap:repair',rejected,
         AppError('memory_consolidation_invalid',status=502,
-            details={'path':['operations',0,'target','create'],'validator':'type'}),pipeline.counter,12000)
-    assert repaired.estimated_input_tokens<=12000
+            details={'path':['operations',0,'target','create'],'validator':'type'}),pipeline.counter,input_limit)
+    assert repaired.estimated_input_tokens<=input_limit
     assert repaired.messages[0]==first.messages[0] and repaired.source_refs==first.source_refs
     assert json.loads(first.messages[0].parts[0].text)['materials'][0]['text']==data['materials']['m1']['text']
     assert json.loads(repaired.messages[-1].parts[0].text)['output_repair']['previous_output_omitted']=='input_budget'
@@ -147,18 +150,78 @@ def test_invalid_json_reports_position_without_loosening_the_decoder():
     assert caught.value.details['position']>0 and caught.value.details['line']==1
 
 
-def test_new_native_policy_rearms_an_old_irreducible_known_truncation_without_mutating_its_request():
+@pytest.mark.parametrize('template',[
+    '{}', '```json\n{}\n```', '```\n{}\n```', '\r\n```json\r\n{}\r\n```\r\n',
+])
+def test_only_a_complete_single_json_fence_is_normalized_before_full_validation(template):
+    frozen={'model_protocol':MODEL_PROTOCOL,'batch_id':'single-json-fence',
+        'subjects':{'person':{'subject_id':'person'}},'targets':{'person':{'new_material_ids':[]}},
+        'materials':{},'records':{}}
+    output={'targets':[{'subject_id':'person','status':'no_change','operations':[],'unresolved':[]}],
+        'needs_context':[]}
+    decoded=decode_model_json(template.format(json.dumps(output)))
+    assert decoded==output
+    assert parse_model_proposal(frozen,decoded)['target_results'][0]['status']=='no_change'
+    invalid={**output,'targets':[]}
+    with pytest.raises(AppError,match='memory_consolidation_target_coverage'):
+        parse_model_proposal(frozen,decode_model_json(template.format(json.dumps(invalid))))
+
+
+@pytest.mark.parametrize('text',[
+    '说明\n```json\n{"a":1}\n```',
+    '```json\n{"a":1}\n```\n说明',
+    '```json\n{"a":1}\n```\n```json\n{"b":2}\n```',
+    '```json\n{"a":}\n```',
+    '```python\n{"a":1}\n```',
+])
+def test_surrounding_prose_multiple_blocks_and_invalid_json_are_rejected(text):
+    with pytest.raises(json.JSONDecodeError):
+        decode_model_json(text)
+
+
+def test_budgeted_repair_excerpt_uses_the_same_fenced_json_decoder():
+    original=request()
+    candidate={'targets':[{'operations':[{'target':{'create':{'id':'n1'}}}]}],
+        'padding':'x'*20000}
+    class Counter:
+        def measure(self,instruction,messages,tools):
+            correction=json.loads(messages[-1].parts[0].text)['output_repair']
+            return (20000 if 'previous_output' in correction else 1000,None)
+    repaired=repair_request(original,'fenced:repair',result(text='```json\n'+json.dumps(candidate)+'\n```'),
+        AppError('memory_consolidation_invalid',status=502,
+            details={'path':['targets',0,'operations',0,'target','create'],'validator':'type'}),Counter(),12000)
+    correction=json.loads(repaired.messages[-1].parts[0].text)['output_repair']
+    fragment=correction['previous_output_fragment']
+    assert fragment['path']==['targets',0,'operations',0,'target']
+    assert json.loads(fragment['json_excerpt'])=={'create':{'id':'n1'}}
+    assert repaired.messages[0]==original.messages[0] and repaired.source_refs==original.source_refs
+
+
+def test_known_old_protocol_refresh_and_finite_v2_retry_preserve_the_frozen_request():
+    from copy import deepcopy
+    from tianshu.memory.consolidation_retry import explicit_retry_available
     from tianshu.memory.recovery import ConsolidationRecovery
     memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
     memory.consolidation=Consolidation(memory)
     recovery=ConsolidationRecovery(memory,None)
     episode={'extraction_state':'consolidation_failed','extraction_cursor':{'protocol':'memory.consolidation.v1'},
         'extraction_missing':[]}
-    batch={'batch_id':'old-minimum','status':'failed','error_code':'memory_consolidation_output_truncated',
+    batch={'batch_id':'old-minimum','schema_version':SCHEMA_VERSION,
+        'status':'failed','error_code':'memory_consolidation_output_truncated',
         'step_ids':['original-step'],'manifest':{'budget':{'input_tokens':12000,'output_tokens':4096,'reasoning_tokens':8192},
             'steps':{'original-step':{'materials':{'m1':{'role':'new','source_refs':[{'source_id':'source','revision':1,
                 'locator':{'start':0,'end':1}}]}}}}}}
+    original=deepcopy(batch)
     assert recovery._status_value(episode,batch,{})['action']=='refresh_material'
     assert set(batch['manifest']['budget'])=={'input_tokens','output_tokens','reasoning_tokens'}
     current={**batch,'manifest':{**batch['manifest'],'budget':memory.consolidation._budget_record()}}
-    assert recovery._status_value(episode,current,{})['action']=='configure_budget'
+    assert recovery._status_value(episode,current,{})['action']=='refresh_material'
+    native=deepcopy(current)
+    native['manifest']['steps']['original-step']['model_protocol']=MODEL_PROTOCOL
+    assert recovery._status_value(episode,native,{})['action']=='configure_budget'
+    native['error_code']='memory_consolidation_invalid'
+    assert recovery._status_value(episode,native,{})['action']=='retry_computation'
+    assert explicit_retry_available(native)
+    native['manifest']['explicit_recoveries']=[{'step_id':'one-explicit-recovery'}]
+    assert not explicit_retry_available(native)
+    assert batch==original
