@@ -5,6 +5,7 @@ import json
 from uuid import uuid4
 
 from tianshu.models.types import ModelRequest
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.completion import content_completion
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
@@ -228,7 +229,7 @@ class WritingService:
             persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
             budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=10))
             pack = await self.assembler.assemble(context, "writing", recipe["instruction"] or recipe["chapter_title"], budget,
-                persona_text=persona.prompt_text if persona else "", max_input_tokens=32000, reserved_output_tokens=6000,
+                persona_text=persona.prompt_text if persona else "", max_input_tokens=BACKGROUND_INPUT_TOKENS + 6000, reserved_output_tokens=6000,
                 contributions=(ContextContribution("writing_recipe", json.dumps(recipe, ensure_ascii=False, default=str), refs, context.scope_ids, 90, True, str(recipe["work_revision"])),))
             async def current_generation(connection):
                 current = await (await connection.execute("SELECT generation_id,state,generation_cancel_requested FROM life.chapters WHERE id=%s FOR UPDATE", (chapter_id,))).fetchone()

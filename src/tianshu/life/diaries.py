@@ -11,12 +11,13 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from .validation import revision, text
 from .writing import can_edit, generated_text, generation_error
 from . import publications
 from tianshu.conversation.types import InputPart
 from tianshu.conversation.generation import GenerationRequests
-from .model_budget import generation_request, DIARY_INPUT_TOKENS
+from .model_budget import generation_request
 from .diary_automation import DiaryAutomation, automatic_view, diary_experience
 from .diary_materials import assemble_diary_material, frozen_recipe
 from .computation_retry import freeze_recipe
@@ -243,7 +244,7 @@ class DiaryService:
                     attempt_id=generation_id, function="reflect")
                 budget = selected.budget
                 pack, _material = await assemble_diary_material(self.assembler, context, recipe, instruction, budget,
-                    persona_text=persona.prompt_text if persona else "", input_tokens=DIARY_INPUT_TOKENS,
+                    persona_text=persona.prompt_text if persona else "", input_tokens=BACKGROUND_INPUT_TOKENS,
                     output_tokens=selected.max_output_tokens)
                 request = replace(selected, messages=tuple(pack.messages), system=pack.system,
                     estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),

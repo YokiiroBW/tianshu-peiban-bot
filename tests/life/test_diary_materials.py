@@ -12,7 +12,7 @@ import pytest
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.life.diaries import DiaryService
 from tianshu.life.diary_materials import MATERIAL_PREFIX, SELECTION_KEY, assemble_diary_material, frozen_recipe
-from tianshu.life.model_budget import DIARY_INPUT_TOKENS, INPUT_TOKENS
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -28,6 +28,7 @@ def material(request):
 @pytest.mark.asyncio
 async def test_daily_semantics_preserve_discovery_read_failure_imagined_and_unknown_image_boundaries(database):
     value = await fixture(database, unknown=True)
+    value.diaries.assembler.assemble = AsyncMock(wraps=value.diaries.assembler.assemble)
     technical = "TECHNICAL_PAYLOAD_NOT_DIARY " * 5000
     cases = (
         ("discovery", "寻找容器故障切换资料", {"capability_id": "content.discover", "execution": "succeeded",
@@ -56,6 +57,9 @@ async def test_daily_semantics_preserve_discovery_read_failure_imagined_and_unkn
     with pytest.raises(TimeoutError):
         await value.diaries.generate(diary["id"], diary["generation_id"])
     request = value.models.calls[0]
+    assembly = value.diaries.assembler.assemble.await_args.kwargs
+    assert assembly["max_input_tokens"] == BACKGROUND_INPUT_TOKENS + request.max_output_tokens
+    assert assembly["reserved_output_tokens"] == request.max_output_tokens
     view = material(request)
     by_id = {episode["episode_id"]: episode for episode in view["episodes"]}
     assert "TECHNICAL_PAYLOAD_NOT_DIARY" not in json.dumps(wire(request.messages))
@@ -104,9 +108,11 @@ async def test_diary_uses_exact_independent_200000_input_budget_and_omits_whole_
     instruction = "Only describe the supplied day."
     pack, view = await assemble_diary_material(assembler, value.context, recipe, instruction,
         RequestBudget(datetime.now(UTC)+timedelta(minutes=5)), persona_text=persona,
-        input_tokens=DIARY_INPUT_TOKENS, output_tokens=16384)
-    assert DIARY_INPUT_TOKENS == 200000 and INPUT_TOKENS == 16000
-    assert pack.token_usage.estimated_tokens <= 200000
+        input_tokens=BACKGROUND_INPUT_TOKENS, output_tokens=16384)
+    assert BACKGROUND_INPUT_TOKENS == 200000
+    assert pack.token_usage.estimated_tokens <= BACKGROUND_INPUT_TOKENS
+    assert pack.token_usage.reserved_output_tokens == 16384
+    assert pack.token_usage.limit_tokens == BACKGROUND_INPUT_TOKENS + 16384
     assert persona in pack.system
     assert "summary" not in view["episodes"][0]
     assert view["episodes"][0]["diary_coverage"]["omitted_units"] == ["summary"]
@@ -116,7 +122,7 @@ async def test_diary_uses_exact_independent_200000_input_budget_and_omits_whole_
     with pytest.raises(AppError, match="context_mandatory_budget_exceeded"):
         await assemble_diary_material(assembler, value.context, recipe, instruction,
             RequestBudget(datetime.now(UTC)+timedelta(minutes=5)), persona_text=oversized,
-            input_tokens=DIARY_INPUT_TOKENS, output_tokens=16384)
+            input_tokens=BACKGROUND_INPUT_TOKENS, output_tokens=16384)
 
 
 @pytest.mark.asyncio

@@ -9,8 +9,6 @@ from tianshu.runtime.errors import AppError
 from tianshu.types import RequestBudget, ServiceClass
 
 
-INPUT_TOKENS = 16000
-DIARY_INPUT_TOKENS = 200000
 DEFAULT_OUTPUT_TOKENS = 16384
 DEFAULT_EXECUTION_SECONDS = 300
 

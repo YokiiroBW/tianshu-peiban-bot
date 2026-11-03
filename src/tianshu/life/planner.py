@@ -8,6 +8,7 @@ from jsonschema import Draft202012Validator
 from jsonschema.exceptions import ValidationError
 
 from tianshu.capabilities.catalog import is_administrative
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS as INPUT_BODY_TOKENS
 from tianshu.models.types import ModelRequest
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -15,7 +16,7 @@ from tianshu.types import ContextContribution, ServiceClass
 from tianshu.conversation.generation import attempt_for
 from .directions import criterion_schema
 from .contact_planning import schema as contact_schema
-from .model_budget import INPUT_TOKENS as INPUT_BODY_TOKENS, DEFAULT_OUTPUT_TOKENS, DEFAULT_EXECUTION_SECONDS
+from .model_budget import DEFAULT_OUTPUT_TOKENS, DEFAULT_EXECUTION_SECONDS
 
 
 CONTRACT = "life.plan:v2"
