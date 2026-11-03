@@ -12,6 +12,7 @@ import pytest
 
 from tianshu.memory.candidates import CandidateSelection
 from tianshu.memory.indexing import evidence_text, index_text, rerank_text
+import tianshu.memory.retrieval as retrieval_module
 from tianshu.memory.retrieval import MemoryRetrieval
 from tianshu.memory.types import MemoryEvidenceUnit, MemoryQueryPlan, RecordRef, SemanticLink
 from tianshu.runtime.errors import AppError
@@ -265,6 +266,60 @@ async def test_final_refill_timeout_keeps_only_previously_fully_checked_units():
     assert [item.id for item in page.items] == ["r01"]
     assert "memory_final_check_timeout" in page.coverage.missing
     assert len(setup.calls.local) == 2 and setup.calls.reread[0][1] is setup.calls.reread[1][1]
+
+
+@pytest.mark.parametrize("rerank,withdrawn", [(False, 0), (False, 6), (True, 0), (True, 24)])
+async def test_mmr_only_computes_the_needed_prefix_and_extends_in_the_same_order_on_refill(monkeypatch, rerank, withdrawn):
+    setup = pipeline(128, settings={"rerank": rerank})
+    for index, row in enumerate(setup.rows):
+        row["vector"] = [1.0, 0.0] if index < 6 else [0.0, 1.0]
+    # The first diverse pick is r06, followed by the remaining leading scores.
+    # Both vector groups are then represented, so the rest follows base scores.
+    order = ["r00", "r06", "r01", "r02", "r03", "r04", "r05"] + ["r%02d" % index for index in range(7, 128)]
+    similarity, comparisons = retrieval_module.similarity, []
+    def counted(left, right):
+        comparisons.append((left["_id"], right["_id"]))
+        return similarity(left, right)
+    monkeypatch.setattr(retrieval_module, "similarity", counted)
+    if rerank:
+        async def withdraw(_request):
+            setup.revoked.update("source:r%02d" % index for index in range(withdrawn))
+        setup.models.after_rerank = withdraw
+        expected = ["r%02d" % index for index in range(withdrawn, withdrawn + 6)]
+        rounds = max(24, withdrawn + 6)
+    else:
+        setup.revoked.update("source:" + identifier for identifier in order[:withdrawn])
+        expected = order[withdrawn:withdrawn + 6]
+        rounds = withdrawn + 6
+    page = await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), budget(), limit=6)
+    assert [item.id for item in page.items] == expected
+    assert len(comparisons) == rounds * 128 - rounds * (rounds + 1) // 2
+    assert len(comparisons) < 128 * (128 - 1) // 2
+    assert len(setup.calls.models) == int(rerank)
+    if rerank:
+        assert len(setup.calls.models[0].native_payload["documents"]) == 24
+    if withdrawn:
+        final_reads = setup.calls.reread[1:] if rerank else setup.calls.reread
+        assert all(conn is final_reads[0][1] for _, conn, _ in final_reads)
+
+
+async def test_preparation_timeout_replays_the_most_relevant_unchecked_prefix_for_final_validation(monkeypatch):
+    setup = pipeline(128, settings={"rerank": True})
+    similarity, comparisons = retrieval_module.similarity, []
+    def counted(left, right):
+        comparisons.append((left["_id"], right["_id"]))
+        return similarity(left, right)
+    monkeypatch.setattr(retrieval_module, "similarity", counted)
+    async def interrupt_preparation(_selected):
+        if len(setup.calls.reread) == 1:
+            raise TimeoutError()
+    setup.store.before_reread = interrupt_preparation
+    page = await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), budget(), limit=6)
+    assert [item.id for item in page.items] == ["r%02d" % index for index in range(6)]
+    assert [len(rows) for rows, _, _ in setup.calls.reread] == [24, 6]
+    assert setup.calls.reread[1][0] == setup.calls.reread[0][0][:6]
+    assert "memory_candidate_check_timeout" in page.coverage.missing and not setup.calls.models
+    assert len(comparisons) == 24 * 128 - 24 * 25 // 2
 
 
 async def test_parent_expiry_during_optional_work_stops_final_work_without_extending_the_deadline():

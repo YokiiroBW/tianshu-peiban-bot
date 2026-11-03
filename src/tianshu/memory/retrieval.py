@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+from itertools import chain, islice
 import math
 from uuid import uuid4
 
@@ -42,18 +43,28 @@ def similarity(left, right):
     return len(a & b) / max(len(a | b), 1)
 
 
-def mmr(candidates, limit, weight=0.72):
-    remaining, chosen = list(candidates), []
-    maxima = {record_key(row): 0.0 for row in remaining}
-    while remaining and len(chosen) < limit:
-        selected = max(remaining, key=lambda row: weight * row["score"] -
-                       (1 - weight) * maxima[record_key(row)])
-        remaining.remove(selected)
-        chosen.append(selected)
-        for row in remaining:
-            key = record_key(row)
-            maxima[key] = max(maxima[key], similarity(row, selected))
-    return chosen
+class _MmrOrder:
+    """A replayable ranked prefix; extend it only when a consumer needs more."""
+
+    def __init__(self, candidates, weight=0.72):
+        self.remaining, self.chosen = list(candidates), []
+        self.maxima = {record_key(row): 0.0 for row in self.remaining}
+        self.count, self.weight = len(self.remaining), weight
+
+    def __len__(self):
+        return self.count
+
+    def __iter__(self):
+        for index in range(self.count):
+            if index == len(self.chosen):
+                selected = max(self.remaining, key=lambda row: self.weight * row["score"] -
+                               (1 - self.weight) * self.maxima[record_key(row)])
+                self.remaining.remove(selected)
+                self.chosen.append(selected)
+                for row in self.remaining:
+                    key = record_key(row)
+                    self.maxima[key] = max(self.maxima[key], similarity(row, selected))
+            yield self.chosen[index]
 
 
 def contributions(units):
@@ -204,19 +215,19 @@ class MemoryRetrieval:
         """Read the selected versions and their complete relations again after ranking."""
         if not rows:
             return (), ()
-        maximum = len(rows) if limit is None else min(limit, len(rows))
-        selected, missing, position = [], [], 0
+        maximum = len(rows) if limit is None else limit
+        selected, missing, iterator = [], [], iter(rows)
         try:
             # One transaction/deadline for the whole fill, including replacement
             # candidates. Background reads retain Database's existing bound.
             async with self.database.transaction(budget, read_only=True) as conn:
                 await conn.execute("SELECT set_config('jit','off',true)")
-                while position < len(rows) and len(selected) < maximum:
+                while len(selected) < maximum:
                     if budget is not None:
                         budget.check()
-                    count = maximum - len(selected)
-                    batch = rows[position:position + count]
-                    position += len(batch)
+                    batch = tuple(islice(iterator, maximum - len(selected)))
+                    if not batch:
+                        break
                     checked, unavailable = await self._checked_on(conn, context, plan, batch, snapshot=snapshot)
                     selected.extend(checked)
                     missing.extend(unavailable)
@@ -255,7 +266,9 @@ class MemoryRetrieval:
         for row in fused.values():
             row["score"] /= maximum
         count = min(int(plan.budget.get("max_candidates", 128)), 128)
-        candidates = mmr(sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:count], count)
+        candidates = _MmrOrder(sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:count])
+        if not candidates:
+            return (), tuple(dict.fromkeys(missing))
         ranked, remote = [], None
         if plan.query and self.settings.get("rerank", False) and len(candidates) > 1:
             remote = self.remote_phase(budget, float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)))
@@ -304,8 +317,10 @@ class MemoryRetrieval:
         # Rehydration keeps the final answer and its source closure indivisible.
         preferred = [row for row, _ in ranked]
         chosen = {record_key(row) for row in preferred}
-        remaining = [row for row in candidates if record_key(row) not in chosen]
-        final, unavailable = await self._checked(context, plan, preferred + remaining, self.local_budget(budget),
+        # A fresh iterator replays every cached prefix row, including candidates
+        # whose preparation timed out before they were completely checked.
+        remaining = (row for row in candidates if record_key(row) not in chosen)
+        final, unavailable = await self._checked(context, plan, chain(preferred, remaining), self.local_budget(budget),
             limit=limit, partial=True, parent=budget, phase="memory_final_check")
         missing.extend(unavailable)
         return tuple(unit for _, unit in final), tuple(dict.fromkeys(missing))

@@ -30,3 +30,9 @@ A 导出 `memory.candidates.CandidateSelection` frozen dataclass（`rows: tuple[
 - `tests/core/test_memory_evidence_retrieval.py`：复用真实来源组合、五类、时态/list、重排撤回及 Context/工具用例；新增 `test_rerank_final_recheck_fills_withdrawn_top_result_without_hydrating_all_candidates`，真实 Sources 撤回后 limit=1 的 reread 批次为准备 3 条、最终 1 条失效、再补 1 条，且同一 final 连接；原重排测试增加源台账未发送断言。
 
 新增测试属于隔离夹具与受控模型，不能证明生产延迟或真实供应商语义质量。实际 HTTP 检索、自然聊天缺项与性能由根按 NR-09 授权串行验收；不可将原候选微基准当成端到端结论。
+
+## MMR 按需前缀返修
+
+根静态审查指出首版提前计算完整 128 候选的 MMR 顺序。本次使用同域 `_MmrOrder` 按需扩展并缓存已选前缀/相似度最大值，常规返回只计算所需轮次；准备阶段只取最多 `max(limit,24)` 个完整单位，最终失效补位才继续原 MMR 顺序。最终补位仍在原事务和固定截止内。每次遍历可从缓存前缀重放，准备超时取出但尚未完整校验的候选仍优先进入最终检查，不因 iterator 消费而丢失。
+
+新增 `test_mmr_only_computes_the_needed_prefix_and_extends_in_the_same_order_on_refill` 四参数，128 候选下计数少量返回/一次重排/源撤回续取的实际比较次数，使用两组正交向量验证多样性排序；新增 `test_preparation_timeout_replays_the_most_relevant_unchecked_prefix_for_final_validation`，证明前置 24 条超时后仍重放最高相关前 6 条且不重算前缀。独立返修仅做 diff 检查，未运行测试、编译或构建；根集中验证上述新目标并复用其他有效结果。
