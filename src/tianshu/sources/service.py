@@ -720,7 +720,7 @@ class SourceService:
                 raise AppError("source_unavailable", status=403)
             rows = await (
                 await conn.execute(
-                    "SELECT q.ordinal,v.source_id,v.revision,v.media,v.origin_kind,v.speaker_id,v.occurred_at,v.locator,o.owner_id,o.person_id,o.actor_id,"
+                    "SELECT q.ordinal,v.source_id,v.revision,v.media,v.origin_kind,v.speaker_id,v.occurred_at,v.locator,v.scope_ids,o.owner_id,o.person_id,o.actor_id,"
                     "length(v.content) AS total,substring(v.content from q.position+1 for q.maximum) AS content "
                     "FROM unnest(%s::text[],%s::bigint[],%s::integer[],%s::integer[]) WITH ORDINALITY "
                     "q(source_id,revision,position,maximum,ordinal) JOIN sources.versions v USING(source_id,revision) JOIN sources.originals o USING(source_id) ORDER BY q.ordinal",
@@ -770,6 +770,8 @@ class SourceService:
                     "media": media,
                     "origin_kind": row["origin_kind"],
                     "speaker_id": row["speaker_id"],
+                    "source_person_id": row["person_id"],
+                    "scope_ids": row["scope_ids"],
                     "can_revoke": can_revoke,
                     "occurred_at": row["occurred_at"],
                     "locator": row["locator"],
