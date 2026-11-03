@@ -9,7 +9,8 @@ import pytest
 
 from tianshu.companion.growth import GrowthService
 from tianshu.companion import reflection_output
-from tianshu.companion.reflection_output import FrozenEpisode, frozen_episodes, output_example, prepare_reflections
+from tianshu.companion.reflection_output import FrozenEpisode, episode_references, frozen_episodes, output_example, prepare_reflections
+from tianshu.companion.growth_output_repair import repair_reserve_tokens
 from tianshu.companion.service import CompanionService
 from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
@@ -83,6 +84,7 @@ class Models:
     async def generate(self, request):
         payload = self.payloads[len(self.calls)]
         self.calls.append(request)
+        payload = model_payload(payload, request)
         output = payload if isinstance(payload, str) else json.dumps(payload, ensure_ascii=False)
         result = ModelResult((ModelPart("text", text=output),) if self.status == "succeeded" else (),
             ModelReceipt(request.attempt_id, request.intent_id, self.status, "submitted" if self.status == "succeeded" else "unknown", "route", 1,
@@ -94,6 +96,19 @@ class Models:
         self.reads.append(attempt_id)
         self.read_contexts.append(context)
         return self.results.get(attempt_id)
+
+
+def model_payload(payload, request):
+    if not isinstance(payload, dict) or "notes" not in payload:
+        return payload
+    try:
+        references = episode_references(request, frozen_episodes(request, check_dependencies=False))
+    except AppError:
+        return payload
+    aliases = {identifier: alias for alias, identifier in references.items()}
+    return {**payload, "notes": [{**item, "episode_ids": [aliases.get(ref, ref) if isinstance(ref, str) else ref
+        for ref in item["episode_ids"]]} if isinstance(item, dict) and isinstance(item.get("episode_ids"), list)
+        else item for item in payload["notes"]]}
 
 
 async def prepare(database, models):
@@ -494,11 +509,11 @@ async def test_reasoning_and_complete_small_batch_share_the_reserved_output_budg
     await growth.organize("actor", signature(sorted(context.scope_ids)), 1)
     request = models.calls[0]
     usage = assembler.pack.token_usage
-    assert request.max_output_tokens == usage.reserved_output_tokens
+    assert request.max_output_tokens + repair_reserve_tokens(assembler.counter) == usage.reserved_output_tokens
     # The observed 2565 reasoning tokens must no longer leave only 435 for JSON.
     assert request.max_output_tokens - 2565 >= 3000
-    assert usage.limit_tokens - usage.reserved_output_tokens >= 10843
-    assert usage.estimated_tokens + request.max_output_tokens <= usage.limit_tokens
+    assert usage.limit_tokens - request.max_output_tokens == reflection_output.INPUT_TOKEN_BUDGET
+    assert usage.estimated_tokens + usage.reserved_output_tokens <= usage.limit_tokens
     assert len(memory.proposals) == 3
 
 
@@ -694,10 +709,11 @@ async def test_reflection_identity_uses_original_generation_scope_and_all_frozen
     wider_batch = {**episodes, "unselected": replace(episodes["episode"], episode_id="unselected")}
     assert len({first, identity(replace(request, attempt_id="another-attempt")),
         identity(replace(request, intent_id="another-material")), identity(inputs=revised),
-        identity(inputs=wider_batch), identity(replace(request,
-            context=replace(request.context, scope_ids=("different-scope",))))}) == 6
-    changed_output = replace(result, parts=(ModelPart("text", text=json.dumps({"notes": [
-        {**note("interest"), "content": "同一个原结果身份下发生了正文漂移"}]})),))
+        identity(replace(request, context=replace(request.context, scope_ids=("different-scope",))))}) == 5
+    with pytest.raises(AppError, match="reflection_material_contract_invalid"):
+        identity(inputs=wider_batch)
+    changed_output = replace(result, parts=(ModelPart("text", text=json.dumps(model_payload({"notes": [
+        {**note("interest"), "content": "同一个原结果身份下发生了正文漂移"}]}, request))),))
     # Content drift must retain the same ID so Memory can reject a real conflict.
     assert prepare_reflections(changed_output, context, episodes, request.source_refs,
         request=request)[0].proposal.proposal_id == first

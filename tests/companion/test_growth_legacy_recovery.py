@@ -16,7 +16,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, SourceRef
 from tianshu.companion.growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED
 from tianshu.companion.reflection_output import frozen_episodes, prepare_reflections
-from test_growth_output import Authority, Models, note, prepare, retry_state, state
+from test_growth_output import Authority, Models, model_payload, note, prepare, retry_state, state
 
 
 async def legacy_checkpoint(database, *, context=None, error=None):
@@ -292,7 +292,7 @@ async def test_active_old_epoch_review_reads_only_original_under_current_bounded
     growth, memory, models, context, original, saved = await active_original(database)
     if status == "succeeded":
         models.results[original.attempt_id] = ModelResult(
-            (ModelPart("text", text=json.dumps({"notes": [note()]}, ensure_ascii=False)),),
+            (ModelPart("text", text=json.dumps(model_payload({"notes": [note()]}, original), ensure_ascii=False)),),
             replace(models.results[original.attempt_id].receipt, status="succeeded", dispatch="submitted"))
     authority = EpochAuthority(allow_refresh=False)
     growth.companion.identity = authority
@@ -347,7 +347,7 @@ async def test_active_old_epoch_review_reads_only_original_under_current_bounded
 async def test_old_success_with_new_episode_revision_is_refused_for_explicit_review(database, monkeypatch):
     growth, memory, models, context, original, saved = await active_original(database)
     models.results[original.attempt_id] = ModelResult(
-        (ModelPart("text", text=json.dumps({"notes": [note()]})),),
+        (ModelPart("text", text=json.dumps(model_payload({"notes": [note()]}, original))),),
         replace(models.results[original.attempt_id].receipt, status="succeeded", dispatch="submitted"))
     authority = EpochAuthority(allow_refresh=True)
     growth.companion.identity = authority
@@ -411,7 +411,7 @@ async def paused_generation(database, payload, *, old=False, refs=None):
     await growth.organize("actor", scope, 1)
     request = models.calls[0]
     models.results[request.attempt_id] = ModelResult(
-        (ModelPart("text", text=json.dumps(payload, ensure_ascii=False)),),
+        (ModelPart("text", text=json.dumps(model_payload(payload, request), ensure_ascii=False)),),
         replace(models.results[request.attempt_id].receipt, status="succeeded", dispatch="submitted"))
     if old:
         async with database.transaction() as connection:

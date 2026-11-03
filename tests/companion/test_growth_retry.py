@@ -8,11 +8,11 @@ import json
 import pytest
 
 from tianshu.companion.growth import GrowthService
-from tianshu.companion.reflection_output import frozen_episodes
+from tianshu.companion.reflection_output import episode_references, frozen_episodes
 from tianshu.conversation.codec import signature
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.errors import AppError
-from test_growth_output import note, prepare, state
+from test_growth_output import model_payload, note, prepare, state
 
 
 class ScriptedModels:
@@ -23,7 +23,7 @@ class ScriptedModels:
         spec = self.script[len(self.calls)]
         self.calls.append(request)
         kinds = spec.get("kinds", ())
-        notes = [{**note(kind), "episode_ids": list(frozen_episodes(request))} for kind in kinds]
+        notes = [{**note(kind), "episode_ids": list(episode_references(request, frozen_episodes(request)))} for kind in kinds]
         for value in notes:
             if spec.get("affect"):
                 value["affect"] = {"appraisal": "对原经历的感受", "valence": 0.2, "arousal": 0.2,
@@ -232,7 +232,7 @@ async def test_late_original_response_cannot_apply_after_successor_was_selected(
         if len(models.calls) == 1:
             started.set()
             await release.wait()
-            return replace(result, parts=(ModelPart("text", text=json.dumps({"notes": [note("style")]})),),
+            return replace(result, parts=(ModelPart("text", text=json.dumps(model_payload({"notes": [note("style")]}, request))),),
                 receipt=replace(result.receipt, status="succeeded"), completion=ModelCompletion("complete", ("stop",)))
         return result
 

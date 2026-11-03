@@ -13,7 +13,10 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from .growth_recovery import authorization_error, sequence
-from .reflection_output import IDENTITY_PROTOCOL, REVIEW_ERRORS, frozen_episodes
+from .growth_output_repair import (correction_available, corrected_request, output_diagnostic,
+                                   review_available, upgrade_request)
+from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, REVIEW_ERRORS,
+                                frozen_episodes, frozen_material, prepare_reflections, validate_batch_request)
 
 
 def error_code(error):
@@ -63,15 +66,17 @@ class GrowthRetries:
             scheduled_at=row["due_at"] or datetime.now(UTC), subject_id=row["actor_id"]),
             queueing_lock=f"growth-retry:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}")
 
-    async def defer(self, state, batch, code, result=None):
+    async def defer(self, state, batch, code, result=None, *, diagnostic=None):
         """One CAS moves this owner to the tail; later input never joins its batch."""
         key = batch.get("retry_key", batch["material_key"])
         number = batch.get("attempt_number", 1)
         explicit_cancel = bool(result and getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel")
         if explicit_cancel:
             code = "explicit_cancel"
-        retryable = transient_model_failure(code, cancelled=explicit_cancel)
-        due = datetime.now(UTC) + timedelta(seconds=retry_delay_seconds(number)) if retryable else None
+        correcting = bool(result and result.receipt.status == "succeeded" and diagnostic is not None
+                          and correction_available(batch, code))
+        retryable = correcting or transient_model_failure(code, cancelled=explicit_cancel)
+        due = datetime.now(UTC) + timedelta(seconds=0 if correcting else retry_delay_seconds(number)) if retryable else None
         async with self.database.transaction() as connection:
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
@@ -89,6 +94,10 @@ class GrowthRetries:
             if row["state"] == "completed" or row["current_material_key"] != batch["material_key"]:
                 return {"state": "changed_since_original_result_read"}
             reserved = {**batch, "retry_key": key, "attempt_number": number}
+            if correcting:
+                reserved.update(output_repair_count=batch.get("output_repair_count", 0)+1,
+                    output_repair={"rejected_material_key": batch["material_key"],
+                        "diagnostic": output_diagnostic(code, diagnostic), "attempt_id": result.receipt.attempt_id})
             row = await (await connection.execute(
                 "UPDATE companion.growth_retry_batches SET batch=%s,state=%s,due_at=%s,last_error=%s,"
                 "waiting_on_original=%s,explicit_retry=false,history=%s,revision=revision+1,updated_at=now() "
@@ -183,7 +192,24 @@ class GrowthRetries:
                     and not transient_model_failure(code)):
                 return await self.postpone(row, code=code, blocked=True)
             episodes = frozen_episodes(request)
-            repeat_rejected_output = row["explicit_retry"] and row["last_error"] in REVIEW_ERRORS
+            row = {**row, "batch": validate_batch_request(row["batch"], request, episodes)}
+            pending_repair = (row["batch"].get("output_repair") or {}).get("rejected_material_key") == row["current_material_key"]
+            if pending_repair and (result is None or result.receipt.status != "succeeded"):
+                return await self.postpone(row)
+            manual_output = row["explicit_retry"] and row["last_error"] in REVIEW_ERRORS
+            if manual_output and not pending_repair and not review_available(row["batch"], row["last_error"]):
+                return await self.postpone(row, code=row["last_error"], blocked=True)
+            output_error = None
+            if manual_output and result and result.receipt.status == "succeeded":
+                try:
+                    prepare_reflections(result, context, episodes, request.source_refs, request=request)
+                except AppError as error:
+                    output_error = error
+                else:
+                    # Exact duplicates may now be harmless. Reuse the known
+                    # original rather than paying for an unnecessary candidate.
+                    manual_output = False
+            repeat_rejected_output = pending_repair or manual_output
             successor = result is None or result.receipt.status != "succeeded" or repeat_rejected_output
             if successor:
                 # Cancellation is a current Models projection, not an immutable
@@ -196,7 +222,7 @@ class GrowthRetries:
                     return await self.postpone(row)
                 if result and result.receipt.status == "succeeded" and not repeat_rejected_output:
                     successor = False
-                elif result and not row["explicit_retry"]:
+                elif result and result.receipt.status != "succeeded" and not row["explicit_retry"]:
                     latest_code = result.receipt.error_code or ("reflection_outcome_unknown"
                         if result.receipt.status == "unknown" else "reflection_generation_" + result.receipt.status)
                     if not transient_model_failure(latest_code):
@@ -206,6 +232,18 @@ class GrowthRetries:
             candidate = replace(request, intent_id=key, attempt_id=attempt_for(key), context=context,
                 budget=RequestBudget(datetime.now(UTC)+timedelta(minutes=3)), execution_timeout_seconds=180.0,
                 max_queue_wait=None, provider_session_scope="intent") if successor else request
+            repair_update = {}
+            if successor and (pending_repair or output_error and output_error.code in CORRECTABLE_ERRORS):
+                if not pending_repair and not correction_available(row["batch"], output_error.code):
+                    return await self.postpone(row, code=output_error.code, blocked=True)
+                diagnostic = (row["batch"]["output_repair"]["diagnostic"] if pending_repair
+                              else output_diagnostic(output_error.code, output_error.details))
+                candidate = corrected_request(candidate, result, diagnostic, self.growth.assembler.counter)
+                repair_update = {"output_repair_count": row["batch"].get("output_repair_count", 0) + int(not pending_repair),
+                    "output_repair": {"rejected_material_key": row["current_material_key"],
+                        "diagnostic": diagnostic, "attempt_id": request.attempt_id}}
+            elif successor and manual_output:
+                candidate = upgrade_request(candidate)
             activated = None
 
             async def claim(connection):
@@ -230,7 +268,11 @@ class GrowthRetries:
                 batch = {**row["batch"], "material_key": key, "context": wire(candidate.context),
                     "start_cursor": current["cursor"], "end_cursor": later_cursor(current["cursor"], row["batch"]["end_cursor"]),
                     "watermark": current["watermark"], "attempt_number": number,
-                    "reflection_identity_protocol": IDENTITY_PROTOCOL, "material_at": material_time(episodes).isoformat()}
+                    "reflection_identity_protocol": IDENTITY_PROTOCOL, "material_at": material_time(episodes).isoformat(),
+                    **repair_update}
+                payload = frozen_material(candidate)
+                if payload.get("model_protocol") == OUTPUT_PROTOCOL:
+                    batch.update(reflection_output_protocol=OUTPUT_PROTOCOL, episode_refs=payload["episode_refs"])
                 if successor:
                     batch.pop("legacy_material", None)
                     batch.pop("identity_conversion_key", None)
@@ -289,7 +331,8 @@ class GrowthRetries:
         row = await (await connection.execute(
             "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s AND retry_key=%s FOR UPDATE",
             (current["actor_id"], current["scope_key"], retry_key))).fetchone()
-        if not row or row["state"] != "blocked" or not manual_retry_allowed(row["last_error"]):
+        if (not row or row["state"] != "blocked" or not manual_retry_allowed(row["last_error"])
+                or not review_available(row["batch"], row["last_error"])):
             raise AppError("reflection_retry_not_available", status=409)
         if not self.growth.recovery.same_scene(caller, context_from_record(row["batch"]["context"])):
             raise AppError("reflection_recovery_context_mismatch", status=403)
@@ -306,10 +349,12 @@ class GrowthRetries:
 
     async def blocked_for_scene(self, connection, state, caller):
         rows = await (await connection.execute(
-            "SELECT retry_key,batch->'context' AS context,last_error FROM companion.growth_retry_batches "
+            "SELECT retry_key,batch->'context' AS context,batch->'output_repair_count' AS output_repair_count,"
+            "last_error FROM companion.growth_retry_batches "
             "WHERE actor_id=%s AND scope_key=%s AND state='blocked' ORDER BY created_at,retry_key",
             (state["actor_id"], state["scope_key"]))).fetchall()
         return next((row["retry_key"] for row in rows if manual_retry_allowed(row["last_error"])
+            and review_available({"output_repair_count": row.get("output_repair_count") or 0}, row["last_error"])
             and self.growth.recovery.same_scene(caller, context_from_record(row["context"]))), None)
 
     async def recover(self):

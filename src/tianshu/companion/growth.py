@@ -21,9 +21,11 @@ from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.models.completion import completion_from_native
 from .growth_materials import select_batch, reflectable
 from .growth_observations import MATERIAL_PROTOCOL, material_coverages
+from .growth_output_repair import review_available
 from .growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED, GrowthRecovery, authorization_error
 from .growth_retry import GrowthRetries, error_code, later_cursor, manual_retry_allowed, material_time
-from .reflection_output import (IDENTITY_PROTOCOL, OUTPUT_TOKEN_BUDGET, REVIEW_ERRORS, frozen_episodes, prepare_reflections)
+from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, OUTPUT_TOKEN_BUDGET,
+                                REVIEW_ERRORS, frozen_episodes, prepare_reflections, validate_batch_request)
 
 
 class GrowthService:
@@ -208,14 +210,15 @@ class GrowthService:
             material_key = "organize:" + signature({"context": self.generations.context_key(context),
                 "episodes": [(item.episode_id, item.revision) for item in episodes],
                 "persona": (actor["persona_id"], actor["persona_revision"]), "generation_revision": state["generation_revision"],
-                "material_protocol": MATERIAL_PROTOCOL})
+                "material_protocol": MATERIAL_PROTOCOL, "output_protocol": OUTPUT_PROTOCOL})
             owner["material_key"] = material_key
             batch = {"material_key": material_key, "context": wire(context), "start_cursor": state["cursor"],
                      "end_cursor": end_cursor, "watermark": state["watermark"], "has_more": has_more,
                      "inputs": [(item.episode_id, item.revision) for item in episodes],
                      "material_coverage": material_coverages(episodes),
                      "material_at": max(item.occurred_at for item in episodes).isoformat(),
-                     "reflection_identity_protocol": IDENTITY_PROTOCOL}
+                     "reflection_identity_protocol": IDENTITY_PROTOCOL, "reflection_output_protocol": OUTPUT_PROTOCOL,
+                     "episode_refs": {"e"+str(index+1): item.episode_id for index, item in enumerate(episodes)}}
             request = ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
@@ -318,6 +321,7 @@ class GrowthService:
             if completion.state == "incomplete":
                 raise AppError("reflection_content_incomplete", details={"stop_reasons": completion.stop_reasons})
             episodes = frozen_episodes(frozen)
+            batch = validate_batch_request(batch, frozen, episodes)
             batch = {**batch, "material_at": material_time(episodes).isoformat()}
             state = {**state, "active_batch": batch}
             if any(not item.source_refs for item in episodes.values()):
@@ -389,6 +393,9 @@ class GrowthService:
             if error.code not in REVIEW_ERRORS | {"reflection_not_original_evidence", "reflection_original_evidence_required", "reflection_episode_unavailable", "reflection_episode_revision_conflict"}:
                 raise
             code = error.code if error.code in REVIEW_ERRORS else "reflection_material_contract_invalid"
+            if code in CORRECTABLE_ERRORS:
+                outcome = await self.retries.defer(state, batch, code, result, diagnostic=error.details)
+                return {**outcome, "state": "rejected", "recovery": outcome["state"]}
             await self._rejected(actor_id, scope_key, material_key, code)
             return {"state": "rejected", "error_code": code, "attempt_id": result.receipt.attempt_id}
         return {"state": "reviewed", "cursor": batch["end_cursor"], "has_more": batch["has_more"]}
@@ -562,7 +569,8 @@ class GrowthService:
                 "FROM companion.organize_state s WHERE actor_id=%s AND scope_key=%s",
                 (context.actor_id,signature(sorted(context.scope_ids))))).fetchone()
             retries = await (await connection.execute(
-                "SELECT retry_key,batch->'context' AS context,current_material_key,previous_material_key,attempt_number,"
+                "SELECT retry_key,batch->'context' AS context,batch->'output_repair_count' AS output_repair_count,"
+                "current_material_key,previous_material_key,attempt_number,"
                 "state,due_at,last_error,waiting_on_original,outcome,revision FROM companion.growth_retry_batches "
                 "WHERE actor_id=%s AND scope_key=%s ORDER BY CASE state WHEN 'active' THEN 0 WHEN 'waiting' THEN 1 "
                 "WHEN 'blocked' THEN 2 ELSE 3 END,due_at NULLS LAST,updated_at DESC LIMIT 20",
@@ -577,6 +585,7 @@ class GrowthService:
             review["retry_batches"] = [{**{key: value for key, value in retry.items() if key != "context"},
                 "attempt_id": attempt_for(retry["current_material_key"]),
                 "can_request_review": retry["state"] == "blocked" and manual_retry_allowed(retry["last_error"])
+                    and review_available({"output_repair_count": retry.get("output_repair_count") or 0}, retry["last_error"])
                     and self.recovery.same_scene(context, context_from_record(retry["context"]))}
                 for retry in retries]
             original = context_from_record(review.pop("recovery_context"))
