@@ -26,7 +26,10 @@ from .ledger import AttemptLedger, context_fingerprint, digest, receipt
 from .protocols import NativeCompiler, ResponseCollector, normalize_usage, requested_capabilities
 from .scheduler import QuotaScheduler
 from .types import ModelEvent, ModelResult, ModelUsage
-from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
+from .budgets import (
+    MAX_INLINE_MEDIA_BYTES, MAX_INLINE_MEDIA_PARTS,
+    effective_output_tokens, with_output_tokens, merged_parameters,
+)
 from .estimation import input_tokens
 from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, waiting_expired, ExternalExecutionClock
 from .transport import validate_provider_session
@@ -92,7 +95,7 @@ class ModelBroker:
                         raise AppError("media_size_unknown", status=422)
                     inline_bytes += actual.size_bytes
                     count += 1
-                    if inline_bytes > 32 * 1024 * 1024 or count > 128:
+                    if inline_bytes > MAX_INLINE_MEDIA_BYTES or count > MAX_INLINE_MEDIA_PARTS:
                         raise AppError("model_inline_media_budget_exceeded", status=413)
                     dependencies.extend(refs)
                     part = replace(part, media=actual)

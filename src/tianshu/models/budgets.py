@@ -2,6 +2,9 @@
 
 from tianshu.runtime.errors import AppError
 
+MAX_INLINE_MEDIA_BYTES = 32 * 1024 * 1024
+MAX_INLINE_MEDIA_PARTS = 128
+
 
 def merged_parameters(plan, request):
     value = dict(plan.parameters)
