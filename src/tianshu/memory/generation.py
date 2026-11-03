@@ -26,6 +26,7 @@ REPAIRABLE = frozenset({
     "memory_context_range_required", "memory_context_query_required",
     "memory_context_range_invalid", "memory_consolidation_time_invalid",
     "memory_consolidation_record_context_required", "memory_consolidation_historical_target",
+    "matter_completion_requires_human_report",
     "claim_self_confirmation_unproven", "claim_actor_author_unproven", "claim_speaker_mismatch",
 })
 REPAIR_INSTRUCTION = (

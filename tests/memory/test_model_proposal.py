@@ -10,7 +10,7 @@ from tianshu.memory.extraction_contract import (
     MODEL_PROTOCOL, consolidation_example, consolidation_instruction,
     consolidation_schema, model_schema, parse_model_proposal, validate_proposal,
 )
-from tianshu.memory.generation import repair_diagnostic
+from tianshu.memory.generation import REPAIRABLE, repair_diagnostic
 from tianshu.runtime.errors import AppError
 
 
@@ -168,3 +168,23 @@ def test_context_range_matches_the_existing_business_bound():
     with pytest.raises(AppError, match="memory_context_range_invalid") as caught:
         parse_model_proposal(frozen(), output)
     assert caught.value.details["path"] == ["needs_context", 0]
+
+
+def test_completion_diagnostic_rejects_an_image_only_report_and_preserves_third_party_reports():
+    data, output = frozen(), changed()
+    operation = output["targets"][0]["operations"][0]
+    operation.update(kind="upsert_matter", support_groups=[["m2"]], payload={
+        "title": "登记", "state": "completed", "due_at": None, "summary": "报告完成", "conditions": {},
+        "completion_basis": {"kind": "human_report", "material_refs": ["m2"]}})
+    with pytest.raises(AppError, match="matter_completion_requires_human_report") as caught:
+        parse_model_proposal(data, output)
+    diagnostic = repair_diagnostic(caught.value)
+    assert diagnostic["path"] == ["targets", 0, "operations", 0, "payload", "completion_basis", "material_refs"]
+    assert diagnostic["actual"] == ["m2"] and caught.value.code in REPAIRABLE
+    # The reporter can be someone other than the subject whose matter completes.
+    data["materials"]["m3"]["text"] = "a 已经完成登记"
+    operation["support_groups"] = [["m2", "m3"]]
+    operation["payload"]["completion_basis"]["material_refs"].append("m3")
+    compiled = parse_model_proposal(data, output)
+    assert compiled["operations"][0]["subject_id"] == "a"
+    assert compiled["operations"][0]["payload"]["completion_basis"]["kind"] == "human_report"

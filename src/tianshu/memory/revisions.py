@@ -232,10 +232,22 @@ class RevisionService:
             current_status=previous["current_status"], reason=reason)
 
     async def completion_basis_on(self, conn, context, basis, support, *, materials=None):
+        def require_human_report(descriptions):
+            if not any(item["origin_kind"] == "human" and item.get("speaker_id")
+                       and attributable_statement(item) for item in descriptions):
+                raise AppError("matter_completion_requires_human_report", status=403, details={
+                    "path": ["completion_basis", "material_refs"],
+                    "actual": [{"origin_kind": item["origin_kind"], "speaker_id": item.get("speaker_id"),
+                                "part_kind": (item.get("locator") or {}).get("part_kind")}
+                               for item in descriptions[:8]],
+                    "expected": "at least one attributable human statement reporting completion",
+                    "hint": "图片/OCR/技术结构不能单独报告完成；可与真人文字共同作证，也允许真人转述他人完成。"})
+
         if basis is None:
             human = [item for item in support["descriptions"] if item["origin_kind"] == "human"]
             if not human:
                 raise AppError("matter_completion_basis_required")
+            require_human_report(human)
             return {"kind": "human_report", "source_refs": wire(support["source_refs"])}
         if not isinstance(basis, dict) or basis.get("kind") not in {"human_report", "action_receipt"}:
             raise AppError("invalid_matter_completion_basis")
@@ -252,8 +264,7 @@ class RevisionService:
             raise AppError("matter_completion_support_missing")
         if basis["kind"] == "human_report":
             described = await self.sources.describe_for_write_on(conn, context, refs)
-            if not described or any(item["origin_kind"] != "human" for item in described):
-                raise AppError("matter_completion_requires_human_report", status=403)
+            require_human_report(described)
             return {"kind": "human_report", "source_refs": wire(refs)}
         receipts = []
         for item in chosen:

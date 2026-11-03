@@ -53,3 +53,40 @@ async def test_an_image_can_support_a_statement_but_cannot_create_an_independent
     assert (await values(text, image))["assertion"] == "self_confirmed"
     with pytest.raises(AppError, match="claim_self_confirmation_unproven"):
         await values(text, image, groups=lambda refs: ((refs[0],), (refs[1],)))
+
+
+async def completion_report(descriptions, *, explicit=True):
+    records = [{"source_id": "report_" + str(index), "revision": 1,
+        "origin_kind": "human", "speaker_id": "reporter", **description}
+        for index, description in enumerate(descriptions)]
+    refs = tuple(SourceRef(item["source_id"], 1) for item in records)
+    class Sources:
+        async def describe_for_write_on(self, *_args):
+            return tuple(records)
+    sources = Sources()
+    writer = RevisionService(SimpleNamespace(memory=SimpleNamespace(sources=sources), sources=sources, jobs=None))
+    # A model-provided text label cannot override the authoritative source part.
+    materials = {"m" + str(index+1): {"source_refs": (ref,), "evidence_kind": "text"}
+                 for index, ref in enumerate(refs)}
+    support = {"descriptions": records, "source_refs": refs}
+    basis = {"kind": "human_report", "material_refs": list(materials)} if explicit else None
+    return await writer.completion_basis_on(None, SimpleNamespace(person_id="subject"), basis, support,
+                                             materials=materials if explicit else None)
+
+
+@pytest.mark.parametrize("explicit", [True, False])
+@pytest.mark.parametrize("locator", [
+    {"part_kind": "image"},
+    {"part_kind": "text", "metadata": {"is_ocr": True}},
+    {"part_kind": "reply"},
+])
+async def test_completion_requires_a_statement_in_explicit_and_legacy_human_reports(explicit, locator):
+    with pytest.raises(AppError, match="matter_completion_requires_human_report"):
+        await completion_report([{"locator": locator}], explicit=explicit)
+
+
+async def test_human_report_can_combine_an_image_with_an_attributed_report_about_someone_else():
+    image = {"locator": {"part_kind": "image"}, "media": {"mime_type": "image/png"}}
+    report = {"speaker_id": "another_person", "locator": {"part_kind": "text"}}
+    result = await completion_report([image, report])
+    assert result["kind"] == "human_report" and len(result["source_refs"]) == 2

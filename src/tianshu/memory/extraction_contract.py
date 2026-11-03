@@ -207,6 +207,17 @@ def validate_proposal(frozen, proposal):
                     raise proposal_error("claim_self_confirmation_unproven", [*path, "support_groups", group_index],
                         actual=group, expected="attributable human statement by subject",
                         hint="上传图片/OCR/引用或mention结构不等于本人确认；图像事实按observed/quoted/inferred语义。")
+        basis = payload.get("completion_basis") or {}
+        if (frozen.get("model_protocol") == MODEL_PROTOCOL and operation["kind"] == "upsert_matter"
+                and payload["state"] == "completed" and basis.get("kind") == "human_report"):
+            refs = basis["material_refs"]
+            if not any(frozen["materials"][ref].get("origin_kind") == "human"
+                       and frozen["materials"][ref].get("speaker_id")
+                       and attributable_statement(frozen["materials"][ref]) for ref in refs):
+                raise proposal_error("matter_completion_requires_human_report",
+                    [*path, "payload", "completion_basis", "material_refs"], actual=refs,
+                    expected="at least one attributable human statement reporting completion",
+                    hint="图片/OCR/技术结构不能单独报告完成；可与真人文字共同作证，也允许真人转述他人完成。")
         if (payload.get("valid_from") and payload.get("valid_until")
                 and datetime.fromisoformat(payload["valid_until"]) <= datetime.fromisoformat(payload["valid_from"])):
             raise proposal_error("memory_consolidation_time_invalid", [*path, "payload", "valid_until"],
@@ -324,7 +335,7 @@ def consolidation_instruction(frozen):
         "生效界写valid_from/valid_until，不只conditions；transition:target指旧r,payload为新Claim;successor_ref声明未用n勿另add;自动关旧区间并supersedes;effective_at=新valid_from=旧valid_until。"
         "日粒度用原时区日界，粒度留conditions；未知null，不以发言/入库时间代填；相对时间据occurred_at/context.time_zone。"
         "due_at仅有据约定/截止，缺时刻null，粒度/条件留conditions/summary；Claim可about_matter关联，勿重复。"
-        "completed须真人明确报告完成(human_report，仅报告)或材料内成功Action/Receipt(action_receipt，真实执行)。"
+        "completed须真人明确报告完成(human_report，至少一条可归属真人陈述，可转述他人完成；图片/OCR/技术结构不能单独报告完成)或材料内成功Action/Receipt(action_receipt，真实执行)。"
         "缺此不得completed，不造回执/不以失败称成功；ACTOR虚构不证真人/外部完成；Matter不触发提醒/任务/执行。"
         "hypothesis保留条件/支持/反例，不改稳定人格/权限；置信度非概率。"
         "操作含support_groups(组内AND/组间OR)、必要context_refs、全部旧读取reads及理由；"
