@@ -17,9 +17,8 @@ from tianshu.types import SourceRef
 from .types import AffectUpdate, ReflectionProposal
 
 
-# Reasoning and visible JSON share the provider's output allowance. Correction
-# overhead is reserved inside the unchanged 13k input ceiling.
-INPUT_TOKEN_BUDGET = 13000
+# Reasoning and visible JSON share this output allowance. The shared background
+# input ceiling and its correction reserve are owned by the material builders.
 OUTPUT_TOKEN_BUDGET = 8192
 IDENTITY_PROTOCOL = "growth.reflection.v2"
 OUTPUT_PROTOCOL = "growth.reflection.output.v3"

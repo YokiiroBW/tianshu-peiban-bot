@@ -12,10 +12,12 @@ from tianshu.companion import growth_materials
 from tianshu.companion.growth_materials import material
 from tianshu.companion.growth_output_repair import corrected_request
 from tianshu.companion.reflection_output import (
-    INPUT_TOKEN_BUDGET, MATERIAL_PREFIX, OUTPUT_PROTOCOL, OUTPUT_REPAIR_RESERVE,
+    MATERIAL_PREFIX, OUTPUT_PROTOCOL, OUTPUT_REPAIR_RESERVE,
     episode_references, frozen_episodes, frozen_material, output_schema, prepare_reflections, validate_batch_request,
 )
 from tianshu.conversation.codec import signature
+from tianshu.conversation.context.assembly import TokenCounter
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelCompletion, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
@@ -90,13 +92,18 @@ def test_only_identical_full_semantics_are_deduplicated(field):
 def test_correction_never_trims_evidence_to_fit_its_budget():
     request, _ = original_request()
     result = output(request, [{**note(), "episode_ids": ["wrong"]}])
-    class Counter:
-        def measure(self, *_args):
-            return INPUT_TOKEN_BUDGET+1, None
-    saved = deepcopy(request)
+    counter = TokenCounter()
+    diagnostic = {"error_code": "reflection_support_invalid"}
+    baseline = corrected_request(request, result, diagnostic, counter)
+    full = replace(request, system="x" * (BACKGROUND_INPUT_TOKENS - baseline.estimated_input_tokens))
+    saved = deepcopy(full)
+    corrected = corrected_request(full, result, diagnostic, counter)
+    assert corrected.estimated_input_tokens == 200000
+    assert corrected.max_output_tokens == full.max_output_tokens
+    assert corrected.source_refs == full.source_refs and frozen_material(corrected) == frozen_material(full)
     with pytest.raises(AppError, match="reflection_material_budget_exceeded"):
-        corrected_request(request, result, {"error_code": "reflection_support_invalid"}, Counter())
-    assert request == saved and request.execution_timeout_seconds == 180
+        corrected_request(replace(full, system=full.system + "x"), result, diagnostic, counter)
+    assert full == saved and full.execution_timeout_seconds == 180
 
 
 def test_short_mapping_cannot_be_borrowed_from_another_batch():
@@ -114,7 +121,7 @@ async def test_reference_error_reserves_one_correction_and_restart_reuses_exact_
     scope = signature(sorted(context.scope_ids))
     rejected = await growth.organize("actor", scope, 1)
     original = models.calls[0]
-    assert original.estimated_input_tokens+OUTPUT_REPAIR_RESERVE <= INPUT_TOKEN_BUDGET
+    assert original.estimated_input_tokens+OUTPUT_REPAIR_RESERVE <= BACKGROUND_INPUT_TOKENS
     original_result = models.results[original.attempt_id]
     saved = await growth.generations.request(original.attempt_id, context)
     row = await retry_state(database)

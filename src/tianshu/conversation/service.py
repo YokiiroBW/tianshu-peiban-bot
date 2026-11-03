@@ -8,6 +8,7 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest, ToolSpec
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
@@ -26,6 +27,7 @@ from .expression import expression_turn_state
 
 CHAT_EXECUTION_SECONDS = 15 * 60
 TURN_SETTLEMENT_SECONDS = 60
+AUTONOMOUS_OUTPUT_RESERVE = 2048
 
 
 def _business_deadline(row):
@@ -296,9 +298,11 @@ class ConversationService:
         budget = RequestBudget(row["deadline_at"])
         if budget.remaining() <= 0:
             raise AppError("deadline_exceeded", status=408)
+        input_budget = ({"max_input_tokens": BACKGROUND_INPUT_TOKENS + AUTONOMOUS_OUTPUT_RESERVE,
+                         "reserved_output_tokens": AUTONOMOUS_OUTPUT_RESERVE} if row.get("autonomous") else {})
         pack = await self.assembler.assemble(context, "chat", "\n".join(part.text for part in input_parts(row["input_parts"]) if part.text), budget,
             persona_text=persona.prompt_text if persona else "", recent_messages=messages+continuation,
-            tools=tools, contributions=contributions)
+            tools=tools, contributions=contributions, **input_budget)
         required = {"text"}
         if tools:
             required.add("tools")

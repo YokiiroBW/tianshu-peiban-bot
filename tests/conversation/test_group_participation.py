@@ -8,9 +8,12 @@ import pytest
 from tianshu.conversation.codec import document
 from tianshu.conversation.dependencies import ConversationDependencies
 from tianshu.conversation.participation import GroupParticipation, eligible
+from tianshu.conversation.context.assembly import ContextAssembler
+from tianshu.conversation.service import ConversationService
 from tianshu.conversation.types import InputMessage, InputPart
 from tianshu.life.attention import AttentionPolicy
 from tianshu.models.types import ModelMessage, ModelPart, ModelReceipt, ModelResult
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.types import OriginKind, SourceRef, TrustedContext
 
@@ -63,6 +66,10 @@ async def prepare(database, *, authorized=True):
             (document(ctx), document(refs), document(refs), now, now, now+timedelta(minutes=2), now+timedelta(minutes=1)),
         )
     class Identity:
+        async def check(self, *_args):
+            pass
+        async def check_many(self, _context, groups):
+            return tuple(True for _ in groups)
         async def for_participation(self, original, *, source_refs):
             return replace(original, origin_kind=OriginKind.ACTOR, delivery_allowed=True) if authorized else None
     class Sources:
@@ -127,3 +134,34 @@ async def test_unknown_participation_reads_original_attempt_without_another_char
         row = await (await connection.execute("SELECT request,state FROM conversation.generation_requests")).fetchone()
     assert row["request"] is None
     assert row["state"] == "invalidated"
+
+
+@pytest.mark.asyncio
+async def test_group_participation_has_200000_input_but_keeps_256_output_and_frozen_unknown(database):
+    participation, service = await prepare(database)
+    async def topic(*_args, **_kwargs):
+        return SimpleNamespace(items=({"speaker": "user", "parts": [{"kind": "text", "text": "x"}],
+            "source_refs": [{"source_id": "original", "revision": 1}]},))
+    service.messages = topic
+    service._message = ConversationService._message
+    class BoundaryAssembler(ContextAssembler):
+        calls = 0
+        async def assemble(self, *args, **kwargs):
+            self.calls += 1
+            base = await super().assemble(*args, **kwargs)
+            padding = BACKGROUND_INPUT_TOKENS - base.token_usage.estimated_tokens
+            recent = kwargs["recent_messages"]
+            message = recent[-1]
+            filled = replace(message, parts=(replace(message.parts[0], text="x" * (padding + 1)),))
+            self.pack = await super().assemble(*args, **{**kwargs, "recent_messages": (*recent[:-1], filled)})
+            return self.pack
+    assembler = BoundaryAssembler(service.identity, None, None)
+    service.assembler = assembler
+    await participation.decide("turn")
+    request = service.models.calls[0]
+    assert request.estimated_input_tokens == BACKGROUND_INPUT_TOKENS == 200000
+    assert request.max_output_tokens == assembler.pack.token_usage.reserved_output_tokens == 256
+    assert assembler.pack.token_usage.limit_tokens == 200000 + 256
+    await participation.decide("turn")
+    assert assembler.calls == len(service.models.calls) == 1
+    assert service.models.reads == [request.attempt_id]

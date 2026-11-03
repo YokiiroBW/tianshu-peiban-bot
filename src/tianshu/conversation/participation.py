@@ -3,6 +3,7 @@ import json
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelRequest
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.errors import AppError
@@ -12,6 +13,9 @@ from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from .codec import context_from_record, document, signature, source_refs
 from .generation import GenerationRequests, attempt_for
 from .persistence import lock_material_row
+
+
+PARTICIPATION_OUTPUT_TOKENS = 256
 
 
 def eligible(context, message, *, now=None):
@@ -194,10 +198,11 @@ class GroupParticipation:
             pack = await self.service.assembler.assemble(context, "participation", "", RequestBudget(row["participation_deadline"]),
                 persona_text=persona.prompt_text if persona else "",
                 recent_messages=tuple(self.service._message(item["speaker"],item["parts"]) for item in reversed(recent.items)),
-                contributions=(contribution,), reserved_output_tokens=256)
+                contributions=(contribution,), max_input_tokens=BACKGROUND_INPUT_TOKENS + PARTICIPATION_OUTPUT_TOKENS,
+                reserved_output_tokens=PARTICIPATION_OUTPUT_TOKENS)
             frozen = ModelRequest(material_key, attempt_id, "participation", ServiceClass.ELASTIC, context,
                 RequestBudget(row["participation_deadline"]), tuple(pack.messages), system=pack.system,
-                max_output_tokens=256, source_refs=tuple(pack.source_refs),
+                max_output_tokens=PARTICIPATION_OUTPUT_TOKENS, source_refs=tuple(pack.source_refs),
                 estimated_input_tokens=pack.token_usage.estimated_tokens, persona_revision=persona.revision if persona else None,
                 execution_timeout_seconds=90.0, business_deadline_at=row["participation_deadline"])
         try:

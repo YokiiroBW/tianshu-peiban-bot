@@ -2,13 +2,14 @@
 
 import json
 
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.runtime.errors import AppError
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import ContextContribution
 from .growth_observations import episode_material
 from .growth_output_repair import repair_reserve_tokens
 from .reflection_output import (
-    CONTENT_MAX_LENGTH, INPUT_TOKEN_BUDGET, MAX_NOTES, OUTPUT_TOKEN_BUDGET,
+    CONTENT_MAX_LENGTH, MAX_NOTES, OUTPUT_TOKEN_BUDGET,
     TITLE_MAX_LENGTH, output_example, output_schema, short_material,
 )
 
@@ -70,7 +71,7 @@ async def select_batch(assembler, context, page, persona_text, budget, revision)
             pack = await assembler.assemble(
                 context, "reflect", "Review new experiences without forcing a change.", budget,
                 persona_text=persona_text,
-                max_input_tokens=INPUT_TOKEN_BUDGET + OUTPUT_TOKEN_BUDGET,
+                max_input_tokens=BACKGROUND_INPUT_TOKENS + OUTPUT_TOKEN_BUDGET,
                 reserved_output_tokens=OUTPUT_TOKEN_BUDGET + repair_reserve_tokens(assembler.counter),
                 contributions=(ContextContribution("new_experiences", json.dumps(material(selected), ensure_ascii=False),
                     refs, context.scope_ids, 80, True, str(revision)),),

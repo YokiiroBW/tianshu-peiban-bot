@@ -8,10 +8,12 @@ import pytest
 
 from tianshu.companion.growth_materials import material, reflectable, select_batch
 from tianshu.companion.growth_observations import episode_material, material_coverages
-from tianshu.companion.reflection_output import frozen_episodes
+from tianshu.companion.growth_output_repair import repair_reserve_tokens
+from tianshu.companion.reflection_output import OUTPUT_TOKEN_BUDGET, frozen_episodes
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.memory.types import Episode, EpisodePage
 from tianshu.models.types import ModelRequest
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
@@ -29,7 +31,7 @@ class Authority:
 async def test_large_page_selects_complete_prefix_and_preserves_authored_persona():
     context = TrustedContext("p", "a", None, None, ("s",), ("s",), 1, OriginKind.ACTOR)
     first = Episode("e1", "event1", 1, "a", OriginKind.HUMAN, datetime.now(UTC),
-        "明确的完整经历。" * 100, (SourceRef("s1", 1),), ("s",), None, Coverage(True), 1, "e:1")
+        "明确的完整经历。" * 1000, (SourceRef("s1", 1),), ("s",), None, Coverage(True), 1, "e:1")
     items = tuple(replace(first, episode_id=f"e{i}", sequence=i, cursor=f"e:{i}") for i in range(1, 33))
     page = EpisodePage(items, "e:32", Coverage(False), "e:32")
     selected, pack, cursor, more = await select_batch(ContextAssembler(Authority(), None, None), context, page,
@@ -40,6 +42,32 @@ async def test_large_page_selects_complete_prefix_and_preserves_authored_persona
     assert more
     assert "保留的固定人格" in pack.system
     assert pack.token_usage.estimated_tokens + pack.token_usage.reserved_output_tokens <= pack.token_usage.limit_tokens
+
+
+@pytest.mark.asyncio
+async def test_reflection_input_reaches_200000_with_correction_and_output_reserved_separately():
+    context = TrustedContext("p", "a", None, None, ("s",), ("s",), 1, OriginKind.ACTOR)
+    first = Episode("e1", "event1", 1, "a", OriginKind.HUMAN, datetime.now(UTC), "x",
+        (SourceRef("s1", 1),), ("s",), None, Coverage(True), 1, "e:1")
+    assembler = ContextAssembler(Authority(), None, None)
+    deadline = RequestBudget(datetime.now(UTC) + timedelta(minutes=3))
+    _, small, _, _ = await select_batch(assembler, context, EpisodePage((first,), None, Coverage(True), "e:1"),
+        "固定人格", deadline, 1)
+    reserve = repair_reserve_tokens(assembler.counter)
+    room = BACKGROUND_INPUT_TOKENS - reserve - small.token_usage.estimated_tokens
+    full = replace(first, summary="x" * (1 + room))
+    selected, pack, _, _ = await select_batch(assembler, context,
+        EpisodePage((full,), None, Coverage(True), "e:1"), "固定人格", deadline, 1)
+    assert BACKGROUND_INPUT_TOKENS == 200000 and selected == (full,)
+    assert pack.token_usage.estimated_tokens + reserve == 200000
+    assert pack.token_usage.limit_tokens == 200000 + OUTPUT_TOKEN_BUDGET
+    assert pack.token_usage.reserved_output_tokens == OUTPUT_TOKEN_BUDGET + reserve
+    assert full.summary in json.dumps(wire(pack.messages), ensure_ascii=False)
+    overflow = replace(full, summary=full.summary + "x")
+    with pytest.raises(AppError, match="reflection_material_budget_exceeded"):
+        await select_batch(assembler, context, EpisodePage((overflow,), None, Coverage(True), "e:1"),
+            "固定人格", deadline, 1)
+    assert first.summary == "x" and overflow.source_refs == full.source_refs
 
 
 @pytest.mark.asyncio

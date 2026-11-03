@@ -16,6 +16,7 @@ from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.memory.types import Episode, EpisodePage
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelRequest, ModelResult
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.runtime.commands import CommandStore
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
@@ -512,7 +513,7 @@ async def test_reasoning_and_complete_small_batch_share_the_reserved_output_budg
     assert request.max_output_tokens + repair_reserve_tokens(assembler.counter) == usage.reserved_output_tokens
     # The observed 2565 reasoning tokens must no longer leave only 435 for JSON.
     assert request.max_output_tokens - 2565 >= 3000
-    assert usage.limit_tokens - request.max_output_tokens == reflection_output.INPUT_TOKEN_BUDGET
+    assert usage.limit_tokens - request.max_output_tokens == BACKGROUND_INPUT_TOKENS
     assert usage.estimated_tokens + usage.reserved_output_tokens <= usage.limit_tokens
     assert len(memory.proposals) == 3
 
@@ -648,6 +649,41 @@ async def test_source_backed_budget_failure_is_not_converted_to_unavailable_or_s
         inputs = await (await connection.execute("SELECT state,reviewed_revision,missing FROM companion.growth_inputs")).fetchall()
     assert len(inputs) == 2 and all(row == {"state": "pending", "reviewed_revision": 0, "missing": []} for row in inputs)
     assert (await state(database))["cursor"] is None
+
+
+@pytest.mark.asyncio
+async def test_existing_budget_blocker_resumes_fourteen_pending_versions_through_normal_review_cas(database):
+    models = Models({"notes": []})
+    growth, memory, jobs, context, _notifications = await prepare(database, models)
+    first = replace(memory.episode, summary="完整旧阻塞材料" * 4000)
+    tail = tuple(replace(memory.episode, episode_id="budget-tail-"+str(index), event_id="budget-tail-"+str(index),
+        sequence=index, cursor="e:"+str(index)) for index in range(2, 15))
+    memory.episode, memory.episodes = first, (first, *tail)
+    for episode in tail:
+        await growth.changed(context, episode.event_id, episode=episode)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE companion.organize_state SET last_error='reflection_material_budget_exceeded',"
+            "blocked_material=%s", (document({"episode_id": first.episode_id, "revision": first.revision}),))
+    view = (await growth.view(context))["review"]
+    assert view["pending_inputs"] == 14 and view["batch"] is None and view["can_request_review"]
+    with pytest.raises(AppError, match="revision_conflict"):
+        await growth.request_review(context, {"client_request_id": "stale-budget-resume", "expected_revision": view["revision"] - 1})
+    assert models.calls == [] and (await state(database))["last_error"] == "reflection_material_budget_exceeded"
+    resumed = await growth.request_review(context,
+        {"client_request_id": "resume-budget-200000", "expected_revision": view["revision"]})
+    assert resumed.revision == view["revision"] + 1 and jobs.items[-1].payload["expected_revision"] == resumed.revision
+    async with database.transaction(read_only=True) as connection:
+        pending = await (await connection.execute("SELECT reviewed_revision,state FROM companion.growth_inputs")).fetchall()
+    assert len(pending) == 14 and all(row == {"reviewed_revision": 0, "state": "pending"} for row in pending)
+    result = await growth.organize(context.actor_id, signature(sorted(context.scope_ids)), resumed.revision)
+    assert result["state"] == "reviewed" and result["cursor"] == "e:14" and len(models.calls) == 1
+    request = models.calls[0]
+    assert 13000 < request.estimated_input_tokens < BACKGROUND_INPUT_TOKENS
+    assert request.max_output_tokens == 8192 and request.execution_timeout_seconds == 180
+    assert len(frozen_episodes(request)) == 14
+    async with database.transaction(read_only=True) as connection:
+        reviewed = await (await connection.execute("SELECT revision,reviewed_revision,state FROM companion.growth_inputs")).fetchall()
+    assert all(row["revision"] == row["reviewed_revision"] == 1 and row["state"] == "reviewed" for row in reviewed)
 
 
 @pytest.mark.asyncio

@@ -11,10 +11,11 @@ from tianshu.conversation.codec import document
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.service import ConversationService
 from tianshu.models.types import ModelReceipt, ModelResult
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
-from tianshu.types import Coverage, OriginKind, Receipt, TrustedContext
+from tianshu.types import Coverage, OriginKind, Receipt, ServiceClass, TrustedContext
 
 
 class Authority:
@@ -122,6 +123,35 @@ async def prepare(database, models, *, oversized=False, blocked=False):
             "%s,%s,'[]',%s,'[]','queued','tianshu',true,%s,now(),now(),%s)",
             (document(context), document(parts), document(parts), message["id"], datetime.now(UTC)+timedelta(minutes=2)))
     return service, context, authority
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("autonomous", [False, True])
+async def test_only_autonomous_chat_gets_200000_input_and_keeps_its_original_output_budget(database, autonomous):
+    models = Models()
+    service, context, _ = await prepare(database, models)
+    async def no_history(*_args, **_kwargs):
+        return Page((), None, Coverage(True))
+    service.messages = no_history
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute("SELECT * FROM conversation.turns WHERE turn_id='turn'")).fetchone()
+    row = {**row, "autonomous": autonomous, "input_parts": [{"kind": "text", "text": "x"}]}
+    _, small, _ = await service._prepare_model_request(context, row, "small", [])
+    target = BACKGROUND_INPUT_TOKENS if autonomous else 16000 - 2048
+    text = "x" * (1 + target - small.token_usage.estimated_tokens)
+    row = {**row, "input_parts": [{"kind": "text", "text": text}]}
+    request, pack, _ = await service._prepare_model_request(context, row, "full", [])
+    assert BACKGROUND_INPUT_TOKENS == 200000 and pack.token_usage.estimated_tokens == target
+    assert pack.token_usage.limit_tokens == (200000 + 2048 if autonomous else 16000)
+    assert pack.token_usage.reserved_output_tokens == request.max_output_tokens == 2048
+    assert request.service_class == (ServiceClass.ELASTIC if autonomous else ServiceClass.INTERACTIVE)
+    assert request.business_deadline_at == (row["deadline_at"] if autonomous else None)
+    assert request.execution_timeout_seconds == 900 and request.estimated_input_tokens == target
+    assert any(part.text == text for message in request.messages for part in message.parts)
+    overflow = {**row, "input_parts": [{"kind": "text", "text": "x" * (target + 1)}]}
+    with pytest.raises(AppError, match="context_mandatory_budget_exceeded"):
+        await service._prepare_model_request(context, overflow, "oversize", [])
+    assert models.calls == models.reads == []
 
 
 @pytest.mark.asyncio

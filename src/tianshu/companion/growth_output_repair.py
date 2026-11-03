@@ -5,10 +5,11 @@ import json
 
 from tianshu.capabilities.contracts import model_json
 from tianshu.life.writing import generated_text
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.errors import AppError
 from .reflection_output import (
-    CORRECTABLE_ERRORS, INPUT_TOKEN_BUDGET, MATERIAL_PREFIX, OUTPUT_ERRORS, OUTPUT_REPAIR_LIMIT, OUTPUT_REPAIR_RESERVE,
+    CORRECTABLE_ERRORS, MATERIAL_PREFIX, OUTPUT_ERRORS, OUTPUT_REPAIR_LIMIT, OUTPUT_REPAIR_RESERVE,
     episode_references, frozen_episodes, frozen_material, short_material,
 )
 
@@ -90,8 +91,8 @@ def corrected_request(request, result, diagnostic, counter):
     message = _message(correction)
     candidate = replace(candidate, messages=(*candidate.messages, message))
     estimate = counter.measure(candidate.system, candidate.messages, candidate.tools)[0]
-    if estimate > INPUT_TOKEN_BUDGET:
+    if estimate > BACKGROUND_INPUT_TOKENS:
         raise AppError("reflection_material_budget_exceeded", status=413,
-            details={"estimated": estimate, "input_budget": INPUT_TOKEN_BUDGET,
+            details={"estimated": estimate, "input_budget": BACKGROUND_INPUT_TOKENS,
                      "repair": True, "original_attempt_id": result.receipt.attempt_id})
     return replace(candidate, estimated_input_tokens=estimate)
