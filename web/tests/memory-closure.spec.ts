@@ -352,6 +352,73 @@ test("episode recovery follows server actions and unknown only observes the orig
   await expect(page.getByText(/当前未派发新整理任务/)).toBeVisible();
 });
 
+test("retry computation uses the existing resume command and waits for actual results", async ({ page }) => {
+  const writes: Record<string, unknown>[] = [];
+  const retry = {
+    batch_id: "original-retry-batch",
+    status: "failed",
+    action: "retry_computation",
+    target_results: [],
+    unresolved: [],
+    coverage,
+  };
+  let releaseResume = () => {};
+  const resumeResponse = new Promise<void>((resolve) => {
+    releaseResume = resolve;
+  });
+  await page.route(apiPath("memory/episodes"), (route) =>
+    answer(route, {
+      ...emptyPage,
+      watermark: "7",
+      items: [{
+        episode_id: "retry-computation",
+        revision: 7,
+        event_id: "retry-event",
+        origin_kind: "human",
+        occurred_at: "2026-11-03T00:00:00Z",
+        summary: "暂时失败后等待继续整理的材料",
+        source_refs: [],
+        coverage,
+        extraction_state: "consolidation_failed",
+        consolidation: retry,
+      }],
+    }),
+  );
+  await page.route(apiPath("memory/extraction/status"), (route) =>
+    answer(route, { ...retry, episode_id: "retry-computation", revision: 7 }),
+  );
+  await page.route(apiPath("memory/extraction/resume"), async (route) => {
+    const body = route.request().postDataJSON();
+    writes.push(body);
+    await resumeResponse;
+    return answer(route, command(body, {
+      action: "retry_computation", queued: true, batch_id: "original-retry-batch",
+    }, 7));
+  });
+  await page.goto("/#/memory");
+  await page.getByLabel("读取范围").selectOption("actor");
+  await page.getByRole("button", { name: "经历与反思", exact: true }).click();
+  const resume = page.getByRole("button", { name: "重试记忆整理", exact: true });
+  await expect(resume).toBeVisible();
+  await expect(page.getByText(/重新核对材料与权限后安排独立重试/)).toBeVisible();
+  expect(writes).toHaveLength(0);
+  try {
+    await resume.click();
+    await expect.poll(() => writes.length).toBe(1);
+    expect(writes[0]).toMatchObject({
+      actor_id: "actor", episode_id: "retry-computation", expected_revision: 7,
+    });
+    await expect(resume).toBeDisabled();
+    await expect(page.getByText("正在提交并读取回执…", { exact: true })).toBeVisible();
+    await expect(page.getByText(/本批已提交|已完成本次材料|执行完成/)).toHaveCount(0);
+  } finally {
+    releaseResume();
+  }
+  await expect(page.getByText(/已排队，尚未表示整理成功/)).toBeVisible();
+  await expect(page.getByText(/本批已提交|已完成本次材料|执行完成/)).toHaveCount(0);
+  expect(writes).toHaveLength(1);
+});
+
 test("a known stale late result holds its original material for explicit refresh", async ({ page }) => {
   const writes: Record<string, unknown>[] = [];
   const held = {

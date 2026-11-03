@@ -14,7 +14,7 @@ const stateNames: Record<string, string> = {
   waiting_model: "等待原模型请求结果",
   quarantined: "原请求结果未知，已隔离，不阻塞后续整理",
   consolidation_unknown: "原请求结果未知，已隔离，不阻塞后续整理",
-  consolidation_stale: "迟到结果已过期，原材料等待明确重新准备",
+  consolidation_stale: "迟到结果已过期，按当前材料重新准备",
   ready: "结果待原子提交",
   applied: "本批已提交",
   stale: "固定材料已变化",
@@ -38,7 +38,11 @@ const actions: Record<string, { label: string; description: string }> = {
   observe_original_attempt: {
     label: "观察原执行",
     description:
-      "仅观察原 batch、step 和 attempt；原结果未确认前不会新建模型请求。",
+      "保留原执行记录并查询结果；临时失败会自动稍后独立重试。",
+  },
+  retry_computation: {
+    label: "重试记忆整理",
+    description: "保留原执行记录，重新核对材料与权限后安排独立重试。",
   },
   refresh_material: {
     label: "重新准备当前材料",
@@ -74,7 +78,7 @@ export function ConsolidationStatus({
       </p>
       {value.held_for_refresh && (
         <p>
-          迟到结果与当前材料或记忆版本不一致，未写入；原材料保留，需明确重新准备后继续。
+          迟到结果与当前材料或记忆版本不一致，未写入；保留原记录，按当前材料重新准备。
         </p>
       )}
       {recovery && (
@@ -220,7 +224,7 @@ export function EpisodeProcessing({
       {status.error && <p role="alert">{status.error}</p>}
       {manageable &&
         value?.action &&
-        ["observe_original_attempt", "refresh_material"].includes(
+        ["observe_original_attempt", "refresh_material", "retry_computation"].includes(
           value.action,
         ) && (
           <button
