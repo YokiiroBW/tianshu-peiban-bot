@@ -423,7 +423,7 @@ async def test_invalid_or_truncated_output_does_not_partially_commit_or_advance(
         step=await (await conn.execute('SELECT state FROM memory.model_steps WHERE step_id=%s',(batch['step_ids'][0],))).fetchone()
     assert batch['status']=='failed'
     assert step['state']=='succeeded'
-    assert batch['error_code']==('memory_consolidation_output_truncated' if failure=='truncated' else 'memory_consolidation_invalid')
+    assert batch['error_code']==('memory_consolidation_output_truncated' if failure=='truncated' else 'memory_consolidation_target_coverage')
 
 async def test_sparse_identity_resolution_does_not_truncate_a_301_member_group(core):
     group='synthetic_large_group'
