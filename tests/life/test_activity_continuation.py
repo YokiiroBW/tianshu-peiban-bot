@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from tianshu.conversation import generation
 from tianshu.conversation.codec import document, signature
 from tianshu.life import day_plan, planning_engine, service, worker
 from tianshu.life.continuation import MAX_WINDOW_STEPS, automatic_step, execution_window
@@ -32,7 +33,9 @@ class FixedTime(datetime):
 
 @pytest.fixture(autouse=True)
 def fixed_time(monkeypatch):
-    for module in (worker, planning_engine, day_plan, service):
+    # Original-request admission must see the same business clock as Life's
+    # frozen sleep boundary, even when this historical scenario runs later.
+    for module in (worker, planning_engine, day_plan, service, generation):
         monkeypatch.setattr(module, "datetime", FixedTime)
 
 
@@ -220,7 +223,9 @@ async def test_old_checkpoint_goes_to_normal_planning_and_future_activity_does_n
     current = await mark(database)
     await value.worker.plan("actor", current["revision"], wire(value.context))
     after = await mark(database)
+    assert after["last_error"] is None, after["reason"]
     assert len(value.models.calls) == 1 and not value.actions.calls
+    assert value.models.calls[0].business_deadline_at == NOW.replace(hour=23, minute=59)
     assert after["reason"] == "no_meaningful_activity" and after["review_after"] is not None
     assert (await activity(database))["action_id"] == "discovery"  # Choosing rest is valid.
     await value.worker.life.signal(value.context, "rhythm:unchanged-after-review")
