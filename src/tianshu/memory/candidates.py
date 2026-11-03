@@ -1,15 +1,25 @@
 """Authorized SQL candidates over the existing Memory tables and embedding profile."""
 
 from datetime import UTC, datetime
-from dataclasses import replace
+from dataclasses import dataclass, replace
+from uuid import uuid4
 
 from pgvector import Vector
 from pgvector.psycopg import register_vector_async
+from psycopg.errors import QueryCanceled
 
+from .candidate_sources import check_rows_on
 from .domain_utils import lexical
 
 
 EXACT_VECTOR_CANDIDATES = 2000
+LEXICAL_BATCH_ROWS = 128
+
+
+@dataclass(frozen=True)
+class CandidateSelection:
+    rows: tuple[dict, ...]
+    missing: tuple[str, ...]
 
 
 def source_predicate(groups, derivations, explicit):
@@ -39,6 +49,7 @@ class CandidateStore:
     def selection(self, context, plan, family, *, snapshot=None, include_unknown=False):
         args, clauses = [], []
         relation, relation_args = "", []
+        relation_where, relation_scoped_args = "", []
         knowledge_time = plan.known_at if plan.time_mode == "known_at" else snapshot
         moment = plan.valid_at or plan.known_at or snapshot or datetime.now(UTC)
         if family == "claim":
@@ -131,11 +142,12 @@ class CandidateStore:
                 clauses.append("r.matter_id=ANY(%s::text[])")
                 args.append(list(plan.matter_refs))
             elif family == "claim":
-                related = ("EXISTS(SELECT 1 FROM memory.semantic_links l WHERE l.actor_id=%s AND l.state='active' "
+                relation_where = ("l.actor_id=%s AND l.state='active' "
                     "AND l.relation_kind='about_matter' AND ((l.from_kind=" + kind + " AND l.from_id=" + key + " AND l.to_kind='matter' AND l.to_id=ANY(%s::text[])) "
                     "OR (l.to_kind=" + kind + " AND l.to_id=" + key + " AND l.from_kind='matter' AND l.from_id=ANY(%s::text[]))) "
                     "AND EXISTS(SELECT 1 FROM jsonb_array_elements(l.scope_groups) sg WHERE ARRAY(SELECT jsonb_array_elements_text(sg))<@%s::text[])")
-                related_args = [context.actor_id, list(plan.matter_refs), list(plan.matter_refs), list(context.scope_ids)]
+                related = "EXISTS(SELECT 1 FROM memory.semantic_links l WHERE " + relation_where
+                related_args = relation_scoped_args = [context.actor_id, list(plan.matter_refs), list(plan.matter_refs), list(context.scope_ids)]
                 clauses.append(related + ")")
                 args.extend(related_args)
                 relation = (related + " "
@@ -147,6 +159,10 @@ class CandidateStore:
                 clauses.append("false")
         select = (f"r.*,{actor} AS actor_id,{key} AS _id,{kind} AS _kind,{head} AS head_revision,"
                   f"{head} AS current_revision,{content} AS _content,{embedding} AS _embedding,{profile} AS _profile")
+        lexical_column = "NULL::text" if family == "matter" and table != "memory.matters r" else "r.lexical"
+        candidate_select = (f"{actor} AS actor_id,{subject} AS subject_id,{key} AS _id,{kind} AS _kind,r.revision,"
+                            f"{head} AS head_revision,{head} AS current_revision,{content} AS _content,"
+                            f"{lexical_column} AS lexical,r.recorded_at")
         scoped = " AND ".join(clauses)
         authority = source_predicate(groups, derivations, explicit) + (" AND " + relation if relation else "")
         viewer = list(context.scope_ids)
@@ -155,26 +171,79 @@ class CandidateStore:
                 "scoped_where": scoped, "scoped_args": args,
                 "groups": groups, "derivations": derivations, "explicit": explicit,
                 "relation": relation, "relation_args": relation_args,
+                "relation_where": relation_where, "relation_scoped_args": relation_scoped_args,
+                "candidate_select": candidate_select,
                 "key": key, "kind": kind, "search": search, "content": content,
                 "embedding": embedding, "profile": profile}
 
     async def lexical(self, context, plan, budget, *, limit=96):
         tsquery, fragments = query_terms(plan.query)
-        rows = []
-        async with self.database.transaction(budget, read_only=True) as conn:
-            for family in families(plan.evidence_kinds):
-                parts = self.selection(context, plan, family)
-                if tsquery:
-                    relevance = "ts_rank_cd(" + parts["search"] + ",to_tsquery('simple',%s))"
-                    match = " AND (" + parts["search"] + "@@to_tsquery('simple',%s) OR " + parts["content"] + " ILIKE ANY(%s::text[]))"
-                    args = (tsquery, *parts["args"], tsquery, fragments, limit)
-                else:
-                    relevance, match = "0::real", ""
-                    args = (*parts["args"], limit)
-                rows.extend(await (await conn.execute("SELECT " + parts["select"] + "," + relevance + " AS relevance "
-                    "FROM " + parts["table"] + " WHERE " + parts["where"] + match +
-                    " ORDER BY relevance DESC,recorded_at DESC NULLS LAST," + parts["key"] + " LIMIT %s", args)).fetchall())
-        return sorted(rows, key=lambda row: (row["relevance"], row.get("recorded_at") or datetime.min.replace(tzinfo=UTC)), reverse=True)[:256]
+        rows, missing = [], []
+        selected_families = families(plan.evidence_kinds)
+        position = 0
+        try:
+            async with self.database.transaction(budget, read_only=True) as conn:
+                await conn.execute("SELECT set_config('jit','off',true)")
+                await self.memory.identity.check_context(context, connection=conn)
+                for position, family in enumerate(selected_families):
+                    try:
+                        # A statement cancellation rolls back this family's
+                        # cursor, not prior fully source-checked batches.
+                        async with conn.transaction():
+                            await self._lexical_family_on(conn, context, plan, family, budget,
+                                tsquery, fragments, limit, rows, missing)
+                    except (TimeoutError, QueryCanceled):
+                        missing.append("lexical_candidate_timeout:" + family)
+        except (TimeoutError, QueryCanceled):
+            missing.extend("lexical_candidate_timeout:" + family for family in selected_families[position:])
+        ranked = sorted(rows, key=lambda row: (
+            row["relevance"], row.get("recorded_at") or datetime.min.replace(tzinfo=UTC)), reverse=True)[:256]
+        return CandidateSelection(tuple(ranked), tuple(dict.fromkeys(missing)))
+
+    async def _lexical_family_on(self, conn, context, plan, family, budget, tsquery, fragments, limit, rows, missing):
+        if budget:
+            budget.check()
+        parts = self.selection(context, plan, family)
+        relation = "NULL::jsonb"
+        relation_args = ()
+        if parts["relation_where"]:
+            relation = ("COALESCE((SELECT jsonb_agg(jsonb_build_object('supports',l.support_groups,"
+                        "'derivations',l.derivation_refs)) FROM memory.semantic_links l WHERE " +
+                        parts["relation_where"] + "),'[]'::jsonb)")
+            relation_args = tuple(parts["relation_scoped_args"])
+        if tsquery:
+            relevance = "ts_rank_cd(" + parts["search"] + ",to_tsquery('simple',%s))"
+            match = " AND (" + parts["search"] + "@@to_tsquery('simple',%s) OR " + parts["content"] + " ILIKE ANY(%s::text[]))"
+            text_args, match_args = (tsquery,), (tsquery, fragments)
+        else:
+            relevance, match, text_args, match_args = "0::real", "", (), ()
+        query = ("SELECT " + parts["candidate_select"] + "," + parts["groups"] + " AS _supports," +
+                 parts["derivations"] + " AS _derivations," + parts["explicit"] + " AS _explicit," +
+                 relation + " AS _relation_proofs," + relevance + " AS relevance FROM " + parts["table"] +
+                 " WHERE " + parts["scoped_where"] + match +
+                 " ORDER BY relevance DESC,recorded_at DESC NULLS LAST," + parts["key"])
+        cursor = conn.cursor(name="memory_lexical_" + uuid4().hex)
+        # DECLARE fixes the sorted result for this cursor. No OFFSET or moving
+        # rank/time boundary can skip a readable record after a filtered batch.
+        await cursor.execute(query, (*relation_args, *text_args, *parts["scoped_args"], *match_args))
+        accepted = 0
+        while accepted < limit:
+            if budget:
+                budget.check()
+            batch = await cursor.fetchmany(LEXICAL_BATCH_ROWS)
+            if not batch:
+                break
+            checked = await check_rows_on(self.memory.sources, conn, context, batch)
+            for row, allowed in zip(batch, checked, strict=True):
+                if allowed is None:
+                    missing.append("lexical_source_budget:" + family)
+                elif allowed and accepted < limit:
+                    rows.append({key: value for key, value in row.items() if key not in
+                                 {"_supports", "_derivations", "_explicit", "_relation_proofs"}})
+                    accepted += 1
+        # On error the enclosing savepoint closes the cursor, so an attempted
+        # CLOSE in an aborted transaction cannot mask the original exception.
+        await cursor.close()
 
     async def has_vectors(self, context, plan, fingerprint, budget):
         """Only a complete authorized selection may prove this vector lane empty.
@@ -183,6 +252,7 @@ class CandidateStore:
         SQL timeout is unknown, never evidence that the domain has no vectors.
         """
         async with self.database.transaction(budget, read_only=True) as conn:
+            await conn.execute("SELECT set_config('jit','off',true)")
             for family in families(plan.evidence_kinds):
                 p = self.selection(context, plan, family)
                 row = await (await conn.execute(
@@ -254,6 +324,7 @@ class CandidateStore:
     async def page(self, context, plan, budget, *, after=(None, None), snapshot=None, limit=50):
         rows = []
         async with self.database.transaction(budget, read_only=True) as conn:
+            await conn.execute("SELECT set_config('jit','off',true)")
             for family in families(plan.evidence_kinds):
                 p = self.selection(context, plan, family, snapshot=snapshot)
                 tsquery, fragments = query_terms(plan.query)
@@ -282,6 +353,7 @@ class CandidateStore:
         missing = []
         if plan.time_mode == "known_at":
             async with self.database.transaction(budget, read_only=True) as conn:
+                await conn.execute("SELECT set_config('jit','off',true)")
                 for family in families(plan.evidence_kinds):
                     p = self.selection(context, plan, family, include_unknown=True)
                     if await (await conn.execute("SELECT 1 FROM " + p["table"] + " WHERE " + p["where"] +
