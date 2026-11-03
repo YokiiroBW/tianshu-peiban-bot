@@ -4,7 +4,10 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
+import json
 
+from pgvector import Vector
+from pgvector.psycopg import register_vector_async
 from psycopg import sql
 from psycopg.types.json import Jsonb
 import pytest
@@ -161,6 +164,9 @@ async def test_about_matter_requires_the_relationships_own_complete_sources(core
             from_ref=RecordRef("claim", claim.claim_id, claim.revision),
             to_ref=RecordRef("matter", matter.matter_id, matter.revision), relation_kind="about_matter", support=support)
     plan = MemoryQueryPlan(matter_refs=(matter.matter_id,), evidence_kinds=("claim",))
+    await index_claim(core, claim)
+    vectors, bounded = await core.retrieval.store.vectors(alice, plan, unit_vector(), "fixture", budget())
+    assert not bounded and [row["_id"] for row in vectors] == [claim.claim_id]
     assert identities((await core.retrieval.store.lexical(alice, plan, budget())).rows) == identities(
         await old_authorized_selection(core, alice, plan))
     async with core.database.transaction() as conn:
@@ -169,6 +175,16 @@ async def test_about_matter_requires_the_relationships_own_complete_sources(core
     selected = await core.retrieval.store.lexical(alice, plan, budget())
     assert not selected.rows and not selected.missing
     assert not await old_authorized_selection(core, alice, plan)
+    vectors, bounded = await core.retrieval.store.vectors(alice, plan, unit_vector(), "fixture", budget())
+    assert not bounded and not vectors
+    assert not await core.retrieval.store.has_vectors(alice, plan, "fixture", budget())
+    async with core.database.transaction() as conn:
+        await register_vector_async(conn)
+        await conn.execute("UPDATE memory.matters SET embedding=%s,embedding_profile='fixture',state='completed',completion_basis=%s "
+            "WHERE matter_id=%s", (Vector(unit_vector()), Jsonb({"source_refs": wire(private)}), matter.matter_id))
+    vectors, bounded = await core.retrieval.store.vectors(alice, MemoryQueryPlan(evidence_kinds=("matter",)),
+        unit_vector(), "fixture", budget())
+    assert not bounded and not vectors
 
 
 @pytest.mark.parametrize("failure", ("statement_cancel", "timeout"))
@@ -209,9 +225,17 @@ async def test_interrupted_family_keeps_verified_batches_and_releases_its_cursor
         assert (await (await connection.execute("SELECT current_setting('jit') AS jit")).fetchone())["jit"] == original_jit
 
 
-async def test_real_task_cancellation_and_context_revocation_propagate_cleanly(core, ordinary_users, monkeypatch):
+@pytest.mark.parametrize("lane", ("lexical", "vector"))
+async def test_real_task_cancellation_and_context_revocation_propagate_cleanly(core, ordinary_users, monkeypatch, lane):
     alice, _ = ordinary_users
-    await fact(core, alice, "candidate_cancel")
+    value = await fact(core, alice, "candidate_cancel")
+    if lane == "vector":
+        await index_claim(core, value)
+    async def select(context):
+        plan = MemoryQueryPlan(evidence_kinds=("claim",))
+        if lane == "vector":
+            return await core.retrieval.store.vectors(context, plan, unit_vector(), "fixture", budget())
+        return await core.retrieval.store.lexical(context, plan, budget())
     entered = asyncio.Event()
     check = core.sources.check_many_on
     async with core.database.pool.connection() as connection:
@@ -226,18 +250,159 @@ async def test_real_task_cancellation_and_context_revocation_propagate_cleanly(c
         with monkeypatch.context() as patch:
             patch.setattr(core.database.pool, "connection", pinned)
             patch.setattr(core.sources, "check_many_on", wait_in_sql)
-            task = asyncio.create_task(core.retrieval.store.lexical(alice,
-                MemoryQueryPlan(evidence_kinds=("claim",)), budget()))
+            task = asyncio.create_task(select(alice))
             await entered.wait()
             task.cancel()
             with pytest.raises(asyncio.CancelledError):
                 await task
         cursors = await (await connection.execute("SELECT count(*) AS count FROM pg_cursors "
-            "WHERE name LIKE 'memory_lexical_%'")).fetchone()
+            "WHERE name LIKE 'memory_%'")).fetchone()
         assert cursors["count"] == 0
         assert (await (await connection.execute("SELECT 1 AS usable")).fetchone())["usable"] == 1
         assert (await (await connection.execute("SELECT current_setting('jit') AS jit")).fetchone())["jit"] == original_jit
     with pytest.raises(AppError) as revoked:
-        await core.retrieval.store.lexical(replace(alice, access_epoch=alice.access_epoch + 1),
-            MemoryQueryPlan(evidence_kinds=("claim",)), budget())
+        await select(replace(alice, access_epoch=alice.access_epoch + 1))
     assert revoked.value.status in {401, 403, 409}
+
+
+def unit_vector(first=1.0, second=0.0):
+    return [first, second] + [0.0] * 1022
+
+
+async def index_claim(core, value):
+    async with core.database.transaction() as conn:
+        await register_vector_async(conn)
+        await conn.execute("UPDATE memory.claim_revisions SET embedding=%s,embedding_profile='fixture' "
+            "WHERE claim_id=%s AND revision=%s", (Vector(unit_vector()), value.claim_id, value.revision))
+
+
+async def old_authorized_vectors(core, context, plan, limit=96):
+    """Original complete authority + cosine order, independent of batched proofs."""
+    p = core.retrieval.store.selection(context, plan, "claim")
+    async with core.database.transaction(budget(), read_only=True) as conn:
+        await register_vector_async(conn)
+        await conn.execute("SELECT set_config('jit','off',true)")
+        return await (await conn.execute("SELECT " + p["select"] + ",1-(" + p["embedding"] +
+            "<=>%s) AS relevance FROM " + p["table"] + " WHERE " + p["where"] + " AND " + p["profile"] +
+            "='fixture' AND " + p["embedding"] + " IS NOT NULL ORDER BY (" + p["embedding"] +
+            "<=>%s)+0," + p["key"] + " LIMIT %s", (Vector(unit_vector()), *p["args"], Vector(unit_vector()), limit))).fetchall()
+
+
+async def test_vectors_and_profile_probe_continue_after_260_unreadable_nearest_rows(core, ordinary_users, monkeypatch):
+    alice, bob = ordinary_users
+    value = await fact(core, alice, "vector_paging")
+    await index_claim(core, value)
+    private = await original(core, bob, "vector_paging_private")
+    await copies(core, value, [{"claim_id": f"vector_{index:04d}",
+        "source_refs": private if index < 260 else value.source_refs,
+        "support_groups": (private,) if index < 260 else (value.source_refs,),
+        "embedding": json.dumps(unit_vector() if index < 260 else unit_vector(0.8, 0.6))} for index in range(261)])
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.claim_revisions SET embedding_profile='seed_only' WHERE claim_id=%s", (value.claim_id,))
+    check, calls = core.sources.check_many_on, []
+    async def counted(conn, context, groups):
+        calls.append(groups)
+        return await check(conn, context, groups)
+    monkeypatch.setattr(core.sources, "check_many_on", counted)
+    plan, store = MemoryQueryPlan(evidence_kinds=("claim",)), core.retrieval.store
+    assert await store.has_vectors(alice, plan, "fixture", budget())
+    assert len(calls) >= 3
+    calls.clear()
+    rows, bounded = await store.vectors(alice, plan, unit_vector(), "fixture", budget(), limit=1)
+    assert not bounded and [row["_id"] for row in rows] == ["vector_0260"]
+    assert len(calls) >= 3
+    assert rows[0]["vector"] == pytest.approx(unit_vector(0.8, 0.6))
+    assert not await store.has_vectors(bob, plan, "fixture", budget())
+    assert not await store.has_vectors(alice, plan, "other-profile", budget())
+    async def unprovable(conn, context, groups):
+        raise AppError("source_dependency_budget_exceeded", status=503)
+    monkeypatch.setattr(core.sources, "check_many_on", unprovable)
+    with pytest.raises(AppError) as unknown:
+        await store.has_vectors(alice, plan, "fixture", budget())
+    assert unknown.value.code == "memory_vector_candidate_budget"
+    rows, bounded = await store.vectors(alice, plan, unit_vector(), "fixture", budget())
+    assert not rows and bounded
+
+
+async def test_exact_vector_batches_match_authorized_distance_order_and_required_sources(core, ordinary_users):
+    alice, bob = ordinary_users
+    value = await fact(core, alice, "vector_order")
+    await index_claim(core, value)
+    private = await original(core, bob, "vector_order_private")
+    await copies(core, value, [
+        {"claim_id": "vector_or", "embedding": json.dumps(unit_vector(0.9, 0.1)),
+         "support_groups": (private, value.source_refs)},
+        {"claim_id": "vector_required", "embedding": json.dumps(unit_vector()), "derivation_refs": private},
+        {"claim_id": "vector_counterexample", "embedding": json.dumps(unit_vector()), "counterexample_refs": private},
+        {"claim_id": "vector_further", "embedding": json.dumps(unit_vector(0.4, 0.6))},
+    ])
+    plan = MemoryQueryPlan(evidence_kinds=("claim",))
+    expected = await old_authorized_vectors(core, alice, plan)
+    actual, bounded = await core.retrieval.store.vectors(alice, plan, unit_vector(), "fixture", budget())
+    assert not bounded and identities(actual) == identities(expected)
+    assert {row["_id"] for row in actual} == {value.claim_id, "vector_or", "vector_further"}
+
+
+async def test_ann_shortfall_uses_exact_batches_only_when_needed_and_preserves_partial_fallback(
+        core, ordinary_users, monkeypatch):
+    from tianshu.memory import candidates
+    alice, _ = ordinary_users
+    value = await fact(core, alice, "vector_ann")
+    await index_claim(core, value)
+    await copies(core, value, [{"claim_id": f"ann_{index}",
+        "embedding": json.dumps(unit_vector(1.0, 0.1 * (index + 1)))} for index in range(5)])
+    store, plan = core.retrieval.store, MemoryQueryPlan(evidence_kinds=("claim",))
+    ann, exact, calls = store._ann_vectors_on, store._exact_vectors_on, []
+    fail_exact = False
+    async def short_ann(conn, context, parts, values, fingerprint, limit, **kwargs):
+        calls.append("ann")
+        return await ann(conn, context, parts, values, fingerprint, 1, **kwargs)
+    async def exact_fallback(*args, **kwargs):
+        calls.append("exact")
+        result = await exact(*args, **kwargs)
+        if fail_exact:
+            raise TimeoutError("late_exact_timeout")
+        return result
+    monkeypatch.setattr(candidates, "EXACT_VECTOR_CANDIDATES", 2)
+    monkeypatch.setattr(store, "_ann_vectors_on", short_ann)
+    monkeypatch.setattr(store, "_exact_vectors_on", exact_fallback)
+    rows, bounded = await store.vectors(alice, plan, unit_vector(), "fixture", budget(), limit=1)
+    assert not bounded and len(rows) == 1 and calls == ["ann"]
+    calls.clear()
+    expected = await old_authorized_vectors(core, alice, plan, limit=3)
+    rows, bounded = await store.vectors(alice, plan, unit_vector(), "fixture", budget(), limit=3)
+    assert not bounded and identities(rows) == identities(expected) and calls == ["ann", "exact"]
+    fail_exact = True
+    rows, bounded = await store.vectors(alice, plan, unit_vector(), "fixture", budget(), limit=3)
+    assert bounded and identities(rows) == identities(expected)
+
+
+@pytest.mark.parametrize("failure", ("statement_cancel", "timeout"))
+async def test_vector_late_batch_failure_retains_proved_rows_and_cleans_cursor(core, ordinary_users, monkeypatch, failure):
+    alice, _ = ordinary_users
+    value = await fact(core, alice, "vector_interrupt")
+    await index_claim(core, value)
+    await copies(core, value, [{"claim_id": f"vector_interrupt_{index:04d}"} for index in range(150)])
+    check, calls = core.sources.check_many_on, 0
+    async with core.database.pool.connection() as connection:
+        @asynccontextmanager
+        async def pinned(*, timeout=None):
+            yield connection
+        async def fail_second(conn, context, groups):
+            nonlocal calls
+            calls += 1
+            if calls == 2:
+                if failure == "timeout":
+                    raise TimeoutError("late_vector_timeout")
+                await conn.execute("SELECT set_config('statement_timeout','10ms',true)")
+                await conn.execute("SELECT pg_sleep(0.1)")
+            return await check(conn, context, groups)
+        monkeypatch.setattr(core.database.pool, "connection", pinned)
+        monkeypatch.setattr(core.sources, "check_many_on", fail_second)
+        rows, bounded = await core.retrieval.store.vectors(alice, MemoryQueryPlan(evidence_kinds=("claim",)),
+            unit_vector(), "fixture", budget(), limit=200)
+        assert bounded and len(rows) == 128 and len({row["_id"] for row in rows}) == 128
+        assert all(row["vector"] == pytest.approx(unit_vector()) for row in rows)
+        cursors = await (await connection.execute("SELECT count(*) AS count FROM pg_cursors WHERE name LIKE 'memory_%'")).fetchone()
+        assert cursors["count"] == 0
+        assert (await (await connection.execute("SELECT 1 AS usable")).fetchone())["usable"] == 1

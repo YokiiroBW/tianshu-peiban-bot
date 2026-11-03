@@ -8,6 +8,7 @@ from pgvector import Vector
 from pgvector.psycopg import register_vector_async
 from psycopg.errors import QueryCanceled
 
+from tianshu.runtime.errors import AppError
 from .candidate_sources import check_rows_on
 from .domain_utils import lexical
 
@@ -39,6 +40,18 @@ def query_terms(query):
     fragments = ["%" + token.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_") + "%"
                  for token in tokens if len(token) > 1 or len(token) == 1 and "\u3400" <= token <= "\u9fff"]
     return tsquery, fragments
+
+
+def _proof_projection(parts):
+    relation, args = "NULL::jsonb", ()
+    if parts["relation_where"]:
+        relation = ("COALESCE((SELECT jsonb_agg(jsonb_build_object('supports',l.support_groups,"
+                    "'derivations',l.derivation_refs)) FROM memory.semantic_links l WHERE " +
+                    parts["relation_where"] + "),'[]'::jsonb)")
+        args = tuple(parts["relation_scoped_args"])
+    return (parts["candidate_select"] + "," + parts["groups"] + " AS _supports," +
+            parts["derivations"] + " AS _derivations," + parts["explicit"] + " AS _explicit," +
+            relation + " AS _relation_proofs"), args
 
 
 class CandidateStore:
@@ -204,28 +217,28 @@ class CandidateStore:
         if budget:
             budget.check()
         parts = self.selection(context, plan, family)
-        relation = "NULL::jsonb"
-        relation_args = ()
-        if parts["relation_where"]:
-            relation = ("COALESCE((SELECT jsonb_agg(jsonb_build_object('supports',l.support_groups,"
-                        "'derivations',l.derivation_refs)) FROM memory.semantic_links l WHERE " +
-                        parts["relation_where"] + "),'[]'::jsonb)")
-            relation_args = tuple(parts["relation_scoped_args"])
+        projection, proof_args = _proof_projection(parts)
         if tsquery:
             relevance = "ts_rank_cd(" + parts["search"] + ",to_tsquery('simple',%s))"
             match = " AND (" + parts["search"] + "@@to_tsquery('simple',%s) OR " + parts["content"] + " ILIKE ANY(%s::text[]))"
             text_args, match_args = (tsquery,), (tsquery, fragments)
         else:
             relevance, match, text_args, match_args = "0::real", "", (), ()
-        query = ("SELECT " + parts["candidate_select"] + "," + parts["groups"] + " AS _supports," +
-                 parts["derivations"] + " AS _derivations," + parts["explicit"] + " AS _explicit," +
-                 relation + " AS _relation_proofs," + relevance + " AS relevance FROM " + parts["table"] +
+        query = ("SELECT " + projection + "," + relevance + " AS relevance FROM " + parts["table"] +
                  " WHERE " + parts["scoped_where"] + match +
                  " ORDER BY relevance DESC,recorded_at DESC NULLS LAST," + parts["key"])
-        cursor = conn.cursor(name="memory_lexical_" + uuid4().hex)
+        await self._scan_candidates_on(conn, context, query,
+            (*proof_args, *text_args, *parts["scoped_args"], *match_args), rows, missing,
+            limit=limit, budget=budget, lane="lexical", source_gap="lexical_source_budget:" + family)
+
+    async def _scan_candidates_on(self, conn, context, query, args, rows, missing, *,
+                                  limit, budget, lane, source_gap):
+        if budget:
+            budget.check()
+        cursor = conn.cursor(name="memory_" + lane + "_" + uuid4().hex)
         # DECLARE fixes the sorted result for this cursor. No OFFSET or moving
         # rank/time boundary can skip a readable record after a filtered batch.
-        await cursor.execute(query, (*relation_args, *text_args, *parts["scoped_args"], *match_args))
+        await cursor.execute(query, args)
         accepted = 0
         while accepted < limit:
             if budget:
@@ -236,12 +249,12 @@ class CandidateStore:
             checked = await check_rows_on(self.memory.sources, conn, context, batch)
             for row, allowed in zip(batch, checked, strict=True):
                 if allowed is None:
-                    missing.append("lexical_source_budget:" + family)
+                    missing.append(source_gap)
                 elif allowed and accepted < limit:
                     rows.append({key: value for key, value in row.items() if key not in
                                  {"_supports", "_derivations", "_explicit", "_relation_proofs"}})
                     accepted += 1
-        # On error the enclosing savepoint closes the cursor, so an attempted
+        # On error the enclosing transaction/savepoint closes the cursor, so a
         # CLOSE in an aborted transaction cannot mask the original exception.
         await cursor.close()
 
@@ -253,73 +266,112 @@ class CandidateStore:
         """
         async with self.database.transaction(budget, read_only=True) as conn:
             await conn.execute("SELECT set_config('jit','off',true)")
+            await self.memory.identity.check_context(context, connection=conn)
+            missing = []
             for family in families(plan.evidence_kinds):
                 p = self.selection(context, plan, family)
-                row = await (await conn.execute(
-                    "SELECT EXISTS(SELECT 1 FROM " + p["table"] + " WHERE " + p["where"] +
-                    " AND " + p["profile"] + "=%s AND " + p["embedding"] + " IS NOT NULL LIMIT 1) AS present",
-                    (*p["args"], fingerprint))).fetchone()
-                if row["present"]:
+                projection, proof_args = _proof_projection(p)
+                rows = []
+                await self._scan_candidates_on(conn, context,
+                    "SELECT " + projection + " FROM " + p["table"] + " WHERE " + p["scoped_where"] +
+                    " AND " + p["profile"] + "=%s AND " + p["embedding"] + " IS NOT NULL ORDER BY " + p["key"],
+                    (*proof_args, *p["scoped_args"], fingerprint), rows, missing,
+                    limit=1, budget=budget, lane="vector_probe", source_gap="vector_source_budget")
+                if rows:
                     return True
+            if missing:
+                raise AppError("memory_vector_candidate_budget", status=503)
         return False
 
-    async def _exact_vectors_on(self, conn, context, parts, values, fingerprint, limit):
+    async def _vector_scan_on(self, conn, context, parts, values, fingerprint, limit, *,
+                              exact, budget=None, rows=None, missing=None):
         p = parts
-        # Materialization separates cheap scope/version filtering from recursive
-        # Sources work. Repeated rows share one complete proof, not just its OR
-        # supports: derivations and counterexample/completion dependencies are AND.
-        relation = (" AND EXISTS(SELECT 1 FROM " + p["table"] + " WHERE " + p["key"] +
-                    "=s._id AND r.revision=s.revision AND " + p["relation"] + ")") if p["relation"] else ""
-        proof = source_predicate("proof.support_groups", "proof.derivation_refs", "proof.explicit_refs")
-        viewer = list(context.scope_ids)
-        return await (await conn.execute(
-            "WITH scoped AS MATERIALIZED(SELECT " + p["key"] + " AS _id,r.revision," +
-            p["embedding"] + " AS _embedding," + p["groups"] + " AS support_groups," +
-            p["derivations"] + " AS derivation_refs," + p["explicit"] + " AS explicit_refs FROM " + p["table"] +
-            " WHERE " + p["scoped_where"] + " AND " + p["profile"] + "=%s AND " + p["embedding"] + " IS NOT NULL), "
-            "support_sets AS MATERIALIZED(SELECT proof.*," + proof + " AS usable "
-            "FROM(SELECT DISTINCT support_groups,derivation_refs,explicit_refs FROM scoped) proof), "
-            "allowed AS MATERIALIZED(SELECT s._id,s.revision,s._embedding FROM scoped s "
-            "JOIN support_sets proofs USING(support_groups,derivation_refs,explicit_refs) WHERE proofs.usable" + relation + "), "
-            "nearest AS(SELECT _id,revision,_embedding<=>%s AS distance FROM allowed ORDER BY distance,_id LIMIT %s) "
-            "SELECT " + p["select"] + "," + p["embedding"] + "::real[] AS vector,1-n.distance AS relevance "
-            "FROM " + p["table"] + " JOIN nearest n ON " + p["key"] + "=n._id AND r.revision=n.revision "
-            "ORDER BY n.distance,n._id",
-            (*p["scoped_args"], fingerprint, viewer, viewer, viewer, *p["relation_args"], Vector(values), limit),
-        )).fetchall()
+        rows = [] if rows is None else rows
+        missing = [] if missing is None else missing
+        projection, proof_args = _proof_projection(p)
+        distance = "(" + p["embedding"] + "<=>%s)"
+        # +0 forces the exact path to sort all cheap scoped distances rather
+        # than accepting a bounded HNSW scan. Only fetched batches prove sources.
+        order = distance + ("+0," + p["key"] if exact else "")
+        query = ("SELECT " + projection + "," + p["embedding"] + "::real[] AS vector,1-" + distance +
+                 " AS relevance FROM " + p["table"] + " WHERE " + p["scoped_where"] +
+                 " AND " + p["profile"] + "=%s AND " + p["embedding"] + " IS NOT NULL ORDER BY " + order)
+        args = (*proof_args, Vector(values), *p["scoped_args"], fingerprint, Vector(values))
+        if not exact:
+            # Preserve the original bounded ORDER BY distance LIMIT shape that
+            # admits HNSW. A filtered shortfall takes the exact cursor below;
+            # this raw ANN prefix can never prove the readable lane exhausted.
+            query += " LIMIT %s"
+            args += (limit,)
+        await self._scan_candidates_on(conn, context, query,
+            args, rows, missing,
+            limit=limit, budget=budget, lane="vector", source_gap="vector_source_budget")
+        return rows
+
+    async def _exact_vectors_on(self, conn, context, parts, values, fingerprint, limit, *,
+                                budget=None, rows=None, missing=None):
+        return await self._vector_scan_on(conn, context, parts, values, fingerprint, limit,
+            exact=True, budget=budget, rows=rows, missing=missing)
+
+    async def _ann_vectors_on(self, conn, context, parts, values, fingerprint, limit, *,
+                              budget=None, rows=None, missing=None):
+        return await self._vector_scan_on(conn, context, parts, values, fingerprint, limit,
+            exact=False, budget=budget, rows=rows, missing=missing)
+
+    @staticmethod
+    def _merge_vectors(*groups, limit):
+        selected = {}
+        for group in groups:
+            for row in group:
+                selected[(row["_kind"], row["_id"], row["revision"])] = row
+        return sorted(selected.values(), key=lambda row: (-row["relevance"], row["_id"]))[:limit]
 
     async def vectors(self, context, plan, values, fingerprint, budget, *, limit=96):
-        rows, bounded = [], False
-        async with self.database.transaction(budget, read_only=True) as conn:
-            await register_vector_async(conn)
-            # These short, source-checked queries spend more time compiling than
-            # executing with JIT. Keep the setting local to this transaction.
-            await conn.execute("SELECT set_config('jit','off',true),set_config('hnsw.iterative_scan','strict_order',true),"
-                "set_config('hnsw.ef_search',%s,true),set_config('hnsw.max_scan_tuples',%s,true)",
-                (str(min(max(int(self.settings.get("ef_search", 128)), 96), 1000)),
-                 str(min(max(int(self.settings.get("max_scan_tuples", 20000)), 1000), 50000))))
-            for family in families(plan.evidence_kinds):
-                p = self.selection(context, plan, family)
-                profile = " AND " + p["profile"] + "=%s AND " + p["embedding"] + " IS NOT NULL"
-                count = await (await conn.execute(
-                    "SELECT count(*) AS count FROM(SELECT 1 FROM " + p["table"] + " WHERE " +
-                    p["scoped_where"] + profile + " LIMIT %s) q",
-                    (*p["scoped_args"], fingerprint, EXACT_VECTOR_CANDIDATES + 1),
-                )).fetchone()
-                # This internal upper bound chooses a distance algorithm, never
-                # authority. It deliberately does not repeat Sources proofs.
-                if count["count"] <= EXACT_VECTOR_CANDIDATES:
-                    if count["count"]:
-                        rows.extend(await self._exact_vectors_on(conn, context, p, values, fingerprint, limit))
-                    continue
-                selected = await (await conn.execute("SELECT " + p["select"] + "," + p["embedding"] + "::real[] AS vector,"
-                    "1-(" + p["embedding"] + "<=>%s) AS relevance FROM " + p["table"] + " WHERE " + p["where"] + profile +
-                    " ORDER BY " + p["embedding"] + "<=>%s LIMIT %s",
-                    (Vector(values), *p["args"], fingerprint, Vector(values), limit))).fetchall()
-                if len(selected) < limit:
-                    selected = await self._exact_vectors_on(conn, context, p, values, fingerprint, limit)
-                rows.extend(selected)
-        return sorted(rows, key=lambda row: -row["relevance"])[:256], bounded
+        selected, missing, bounded = {}, [], False
+        try:
+            async with self.database.transaction(budget, read_only=True) as conn:
+                await register_vector_async(conn)
+                # Keep JIT and ANN settings local to this transaction.
+                await conn.execute("SELECT set_config('jit','off',true),set_config('hnsw.iterative_scan','strict_order',true),"
+                    "set_config('hnsw.ef_search',%s,true),set_config('hnsw.max_scan_tuples',%s,true)",
+                    (str(min(max(int(self.settings.get("ef_search", 128)), 96), 1000)),
+                     str(min(max(int(self.settings.get("max_scan_tuples", 20000)), 1000), 50000))))
+                await self.memory.identity.check_context(context, connection=conn)
+                for family in families(plan.evidence_kinds):
+                    rows = selected.setdefault(family, [])
+                    try:
+                        async with conn.transaction():
+                            if budget:
+                                budget.check()
+                            p = self.selection(context, plan, family)
+                            count = await (await conn.execute(
+                                "SELECT count(*) AS count FROM(SELECT 1 FROM " + p["table"] + " WHERE " +
+                                p["scoped_where"] + " AND " + p["profile"] + "=%s AND " + p["embedding"] +
+                                " IS NOT NULL LIMIT %s) q", (*p["scoped_args"], fingerprint, EXACT_VECTOR_CANDIDATES + 1),
+                            )).fetchone()
+                            if not count["count"]:
+                                continue
+                            options = {"budget": budget, "rows": rows, "missing": missing}
+                            if count["count"] <= EXACT_VECTOR_CANDIDATES:
+                                await self._exact_vectors_on(conn, context, p, values, fingerprint, limit, **options)
+                            else:
+                                await self._ann_vectors_on(conn, context, p, values, fingerprint, limit, **options)
+                                if len(rows) < limit:
+                                    approximate, exact = tuple(rows), []
+                                    try:
+                                        await self._exact_vectors_on(conn, context, p, values, fingerprint, limit,
+                                            budget=budget, rows=exact, missing=missing)
+                                    finally:
+                                        # A late exact timeout must not erase
+                                        # already proved ANN or exact batches.
+                                        rows[:] = self._merge_vectors(approximate, exact, limit=limit)
+                                    rows[:] = exact
+                    except (TimeoutError, QueryCanceled):
+                        bounded = True
+        except (TimeoutError, QueryCanceled):
+            bounded = True
+        rows = [row for group in selected.values() for row in group]
+        return sorted(rows, key=lambda row: -row["relevance"])[:256], bounded or bool(missing)
 
     async def page(self, context, plan, budget, *, after=(None, None), snapshot=None, limit=50):
         rows = []

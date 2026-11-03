@@ -308,10 +308,10 @@ async def test_vector_jit_is_transaction_local_and_keeps_authorized_results(core
     exact = store._exact_vectors_on
     observed, fail_after_query = [], False
 
-    async def checked_exact(connection, *args):
+    async def checked_exact(connection, *args, **kwargs):
         setting = await (await connection.execute("SELECT current_setting('jit') AS jit")).fetchone()
         observed.append(setting["jit"])
-        rows = await exact(connection, *args)
+        rows = await exact(connection, *args, **kwargs)
         if fail_after_query:
             raise TimeoutError("synthetic_vector_timeout")
         return rows
@@ -338,8 +338,8 @@ async def test_vector_jit_is_transaction_local_and_keeps_authorized_results(core
                     assert restored["jit"] == "on"
 
                 fail_after_query = True
-                with pytest.raises(TimeoutError, match="synthetic_vector_timeout"):
-                    await store.vectors(bob, plan, [1.0] + [0.0] * 1023, "fixture", budget())
+                rows, bounded = await store.vectors(bob, plan, [1.0] + [0.0] * 1023, "fixture", budget())
+                assert bounded and {row["_id"] for row in rows} == {first.claim_id, second.claim_id}
                 async with core.database.transaction(read_only=True) as following:
                     restored = await (await following.execute("SELECT current_setting('jit') AS jit")).fetchone()
                     assert observed == ["off", "off"] and restored["jit"] == "on"

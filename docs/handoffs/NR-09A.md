@@ -24,3 +24,25 @@ JIT 仅在候选短读事务内关闭：lexical、has_vectors、page、known-at 
 - `tests/core/test_candidate_selection.py::test_real_task_cancellation_and_context_revocation_propagate_cleanly`：真实 SQL 等待中取消任务不被降级，连接/游标/JIT 干净退出；过期上下文传播权限错误。
 
 实际验证仅静态 diff 阅读与 `git diff --check`，未运行测试、构建、应用、生产或真实模型。候选微基准属于根此前同快照可行性证据，不代表本补丁已获得真实端到端耗时或聊天验收；根集中测试、部署并读回后确认。
+
+## 实机向量支路补齐
+
+根在运行 `89170d85458774309d921344295fc236d28604a6` 确认词法已为 0.507/0.2266 秒且无词法缺项，但完整查询仍有 `vector_query_timeout`。旧 exact 向量路径仍对完整域先做 Sources 递归证明；原 0.8 秒窗口外的只读定位也显示约 2.3 秒乃至 10 秒未结束。这是尚未覆盖到的同根因，非模型排队问题。补丁基线改为该实际运行提交；旧 A 分支因根 cherry-pick 历史无法 fast-forward，完整保留，在同一受管 tree 的 `codex/nr09-vector-candidates` 分支继续。
+
+词法、向量与 profile 存在性读取复用同一证明投影和稳定批读取器。向量先做原 scope/版本/profile 筛选与廉价 cosine 距离排序，再按批调用相同 `check_rows_on` 完整校验；不足继续，直至足量、耗尽或原预算到期。exact 用距离 `+0` 和 ID 稳定排序以确保完整 scoped 域精确排序，取批前没有全域递归来源证明。返回 `vector` 真实值供原 MMR 使用；原 `vectors -> (rows, bounded)` 合同不变。
+
+保留 `EXACT_VECTOR_CANDIDATES=2000` 原分流。较大域仍保留原可使用 HNSW 的 `ORDER BY embedding <=> vector LIMIT limit`、strict_order、ef_search 和 max_scan_tuples，未加 MATERIALIZED/二次排序或全局 PG 设置；该原始 ANN 前缀授权后不足便走新 exact 游标续取，不把 ANN 前 N 条当作完整空域。exact 回退若晚批失败，已证明的 ANN 与 exact 行按 ID/版本去重、距离排序后保留。SQL/截止超时或不可证明来源都会如实返回 `bounded=True`，但权限/上下文/外部取消传播。
+
+`has_vectors` 不再做全域递归 EXISTS。它按廉价 scoped/profile 游标寻找并完整证明一个可读候选；证明失败的前批不会挡住后续可读条目。穷尽所有候选后才能返回 False，只有来源预算 unknown 而无法证明空时抛 `AppError('memory_vector_candidate_budget', status=503)`。与 NR-09B 新窄接线配套：仅在 vector_candidates 阶段映射为 `vector_candidate_budget`，检查父截止并保留成功词法，不调用 embedding。没有用 TimeoutError 冒充来源预算 unknown。
+
+补充定向目标（仍仅编写，未运行）：
+
+- `tests/core/test_candidate_selection.py::test_vectors_and_profile_probe_continue_after_260_unreadable_nearest_rows`：向量/存在性均越过前 260 条无权候选；保留实际 vector；隔离其他 profile/权限；来源预算 unknown 不伪报空。
+- `tests/core/test_candidate_selection.py::test_exact_vector_batches_match_authorized_distance_order_and_required_sources`：与原完整来源/距离 SQL 的 ID/版本/分数/顺序一致；OR supports、AND derivation/counterexample 不丢。
+- `tests/core/test_candidate_selection.py::test_about_matter_requires_the_relationships_own_complete_sources`：原词法关系用例增加向量及存在性证明，并覆盖事项 completion 依据不可读。
+- `tests/core/test_candidate_selection.py::test_ann_shortfall_uses_exact_batches_only_when_needed_and_preserves_partial_fallback`：在测试中缩小分流阈值，实际执行 ANN 查询，模拟短结果后执行实际 exact；足量时不回退，晚失败不丢已证明结果。
+- `tests/core/test_candidate_selection.py::test_vector_late_batch_failure_retains_proved_rows_and_cleans_cursor`：statement cancellation/Timeout 两场景，前 128 条已证明记录和向量保留，bounded=True，原连接/cursor 可用。
+- `tests/core/test_candidate_selection.py::test_real_task_cancellation_and_context_revocation_propagate_cleanly`：参数化 lexical/vector，真实取消与上下文错误都传播，连接/cursor/JIT 退出干净。
+- `tests/core/test_memory_evidence_retrieval.py::test_vector_jit_is_transaction_local_and_keeps_authorized_results`：仅适配私有 exact 新参数和‘局部 Timeout 保留有效行 + bounded’行为，原来源/JIT 断言保持。
+
+建议复用并运行既有五类型/OR 支持、历史版本、空授权 profile 向量用例；共享扫描器装配变化由本文件原词法续取/取消用例覆盖。窗口、模型绑定、向量索引/DDL、来源权限规则与最终复检均未放宽。新增性能收益和真实缺项消除仍由根实际验证。
