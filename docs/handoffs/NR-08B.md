@@ -24,6 +24,8 @@ manifest 新增有限数字 `preparation`：
 
 验证状态：7 个变更 Python 文件已做 AST 语法解析和静态 diff 检查，未导入应用、运行测试/构建、访问生产或调用真实模型。
 
+集中验证首轮暴露的两个图文预算夹具已改用部署配置相同的 `TokenCounter("o200k_base")`，保留原 16,384 上限。极限原文改用不同 SHA256 片段，显式确认空前缀可装、完整文本超限后再搜索边界，避免重复 `x` 被真实 tokenizer 高度压缩而失去边界覆盖。此窄修仅做静态检查，两个失败用例和相邻准备用例由根复验。
+
 新增测试文件为 `tests/memory/test_preparation.py`，覆盖真实后台端口保留 Page/缺项、诊断有界且 manifest 完整、纯图片不发空白查询。集中验证精确目标如下：
 
 - `tests/memory/test_preparation.py`

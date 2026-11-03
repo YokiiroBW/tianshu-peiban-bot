@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from copy import deepcopy
 from dataclasses import replace
 from datetime import UTC, datetime
+from hashlib import sha256
 import json
 from types import SimpleNamespace
 
@@ -378,7 +379,7 @@ async def test_large_old_candidates_cannot_evict_fitted_new_or_referenced_images
     refresh_read_set(frozen)
     memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
     pipeline=Consolidation(memory)
-    pipeline.counter=TokenCounter()
+    pipeline.counter=TokenCounter("o200k_base")
     actual_request=pipeline._request
     def request(context,value,step_id):
         if value["records"]:
@@ -400,18 +401,25 @@ async def test_candidate_diagnostic_reserve_protects_limit_sized_original_text_a
     from tianshu.memory.preparation import CANDIDATE_GAP_CODES, CANDIDATE_GAP_CODE_CHARACTERS
 
     image=original("new_image",mime="image/png")
-    speech=original("speech",text="x"*40000)
+    # Distinct digest fragments cross the real tokenizer's input limit without
+    # the extreme compression of a repeated single character.
+    source_text=" ".join(sha256(str(index).encode("ascii")).hexdigest() for index in range(1024))
+    speech=original("speech",text=source_text)
     selected=builder((image,speech))
     template=await selected.build(CONTEXT,[episode(1,[image,speech])],"reserved-limit",include_records=False)
     pipeline=Consolidation(SimpleNamespace(database=None,identity=None,sources=None,jobs=None))
     pipeline.policy=replace(pipeline.policy,max_old_records=2)
-    pipeline.counter=TokenCounter()
+    pipeline.counter=TokenCounter("o200k_base")
     def prefix(length):
         value=deepcopy(template)
-        value["materials"]["m2"]["text"]="x"*length
+        value["materials"]["m2"]["text"]=source_text[:length]
         value["materials"]["m2"]["source_refs"][0]["locator"]["end"]=length
         return value
-    low,high=0,40000
+    pipeline._budgeted_request(CONTEXT,prefix(0),"reserve-limit",reserve_candidates=True)
+    with pytest.raises(AppError) as over_limit:
+        pipeline._budgeted_request(CONTEXT,prefix(len(source_text)),"reserve-limit",reserve_candidates=True)
+    assert over_limit.value.code=="memory_consolidation_input_budget"
+    low,high=0,len(source_text)
     while low<high:
         middle=(low+high+1)//2
         try:
@@ -420,7 +428,7 @@ async def test_candidate_diagnostic_reserve_protects_limit_sized_original_text_a
         except AppError as error:
             assert error.code=="memory_consolidation_input_budget"
             high=middle-1
-    assert 0<low<40000
+    assert 0<low<len(source_text)
     frozen=prefix(low)
     original_materials=deepcopy(frozen["materials"])
     frozen["selection_coverage"]["record_candidates_missing"]=[
