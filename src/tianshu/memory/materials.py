@@ -144,7 +144,7 @@ def append_context_material(materials,read,*,extra=None):
             exact_present=exact_present or reference_key(existing)==reference_key(source)
             if not span:
                 continue
-            if material.get("media") and not material.get("text") and "end" not (existing.locator or {}):
+            if material.get("media") and not material.get("text") and "end" not in (existing.locator or {}):
                 # An image-only reference does not claim its source's text ranges.
                 continue
             lower=(existing.locator or {}).get("start",0)
