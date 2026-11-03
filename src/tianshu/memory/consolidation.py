@@ -20,8 +20,9 @@ from . import codec
 from .authority import context_record
 from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolidation_instruction, parse_model_proposal
 from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request, repair_input_estimate, repair_diagnostic, decode_model_json
-from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, expand_record_endpoints, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, reference_key, smaller_material_prefix
+from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, expand_record_endpoints, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, reference_key, refresh_read_set, smaller_material_prefix
 from .consolidation_retry import ConsolidationRetries, failure_code
+from .preparation import candidate_coverage_reserve
 from tianshu.models.retry import transient_model_failure
 
 _ACTIVE = {"prepared", "waiting_model", "ready"}
@@ -275,15 +276,16 @@ class Consolidation:
             text_ceiling = min(text_ceiling, smaller.get("text_ceiling", text_ceiling))
         while True:
             try:
-                frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,
-                    max_new_materials=max_new_materials,reads=reads,budget=budget)
+                reads.metrics.count("assembly_attempts")
+                with reads.metrics.phase("assembly_ms"):
+                    frozen=await self.materials.build(context,rows,batch_id,text_ceiling=text_ceiling,
+                        max_new_materials=max_new_materials,reads=reads,budget=budget,include_records=False)
                 if not frozen:
                     await self._idle(state["partition_id"], owner, state["dirty_generation"])
                     return None
                 step_id=batch_id+":step:0"
-                request=self._budgeted_request(context,frozen,step_id) if has_new_material(frozen) else None
-                if request:
-                    request=await native_request(self.steps.models,request)
+                request=self._budgeted_request(context,frozen,step_id,metrics=reads.metrics,
+                    reserve_candidates=True) if has_new_material(frozen) else None
                 break
             except AppError as exc:
                 if exc.code not in {"memory_consolidation_input_budget","memory_identity_candidates_too_large"}:
@@ -312,9 +314,20 @@ class Consolidation:
                         text_ceiling=1
                     else:
                         text_ceiling=max(1,text_ceiling//2)
+        if request:
+            # Only this final new-material/source range can incur optional remote
+            # work. Candidate size never starts another material-build trial.
+            await self.materials.attach_records(context,frozen,reads=reads,budget=budget)
+            request=self._budgeted_request(context,frozen,step_id,metrics=reads.metrics,allow_required_context=False)
+            with reads.metrics.phase("route_ms"):
+                request=await native_request(self.steps.models,request)
         dependencies = self.materials.dependencies(frozen)
         manifest = {"frozen": frozen_mapping(frozen), "episodes": frozen["episodes"], "source_budget":text_ceiling,
             "budget":self._budget_record(),
+            "preparation":{**reads.metrics.snapshot(),"final_episodes":len(frozen["episodes"]),
+                "final_materials":len(frozen["materials"]),"final_new_materials":sum(
+                    item["role"]=="new" for item in frozen["materials"].values()),
+                "final_images":sum(part.kind=="image" for message in request.messages for part in message.parts) if request else 0},
             "authority_bound": context_record(context), "generation": state["dirty_generation"],
             "steps": {step_id: frozen_mapping(frozen)} if request else {}, "context_round": 0}
         async with self.database.transaction() as conn:
@@ -402,32 +415,89 @@ class Consolidation:
     def _input_budget_record(self):
         # These settings determine the smallest complete input we can prepare.
         # Scheduling changes alone do not make a rejected input fit its budget.
-        return {**self._budget_record(),"input_layout":"consolidation-matter-semantics-v2",
+        return {**self._budget_record(),"input_layout":"consolidation-fitted-materials-v3",
             **{name:getattr(self.policy,name) for name in
             ("max_episodes","max_subjects","max_materials","max_old_records",
              "context_messages","max_source_characters","time_zone")}}
 
-    def _budgeted_request(self,context,frozen,step_id):
+    def _candidate_diagnostic_reserve(self,request):
+        payload=json.loads(request.messages[0].parts[0].text)
+        extra=candidate_coverage_reserve(self.policy.max_old_records)
+        payload["coverage"].update(extra)
+        worst=(ModelMessage("user",(ModelPart("text",text=json.dumps(payload,ensure_ascii=False,separators=(",",":"))),
+            *request.messages[0].parts[1:])),*request.messages[1:])
+        base=max(request.estimated_input_tokens,
+            repair_input_estimate(self.counter,request.system,request.messages,request.attempt_id))
+        measured=max(self.counter.measure(request.system,worst,())[0],
+            repair_input_estimate(self.counter,request.system,worst,request.attempt_id))-base
+        # Codes are finite ASCII identifiers. This byte upper bound also covers
+        # tokenizers that compress the synthetic repeated identifier unusually
+        # well, plus the JSON-string escaping and token boundaries around it.
+        bounded=len(json.dumps(json.dumps(extra,separators=(",",":"))).encode("utf-8"))+32
+        return max(0,measured,bounded)
+
+    def _budgeted_request(self,context,frozen,step_id,*,metrics=None,allow_required_context=True,reserve_candidates=False):
         """Keep whole old records when possible; explicit stubs can be expanded once."""
         candidates=list(reversed(frozen["records"]))
         while True:
             try:
-                return self._request(context,frozen,step_id)
+                if metrics is None:
+                    request=self._request(context,frozen,step_id)
+                    reserve=self._candidate_diagnostic_reserve(request) if reserve_candidates else 0
+                else:
+                    metrics.count("trial_count")
+                    with metrics.phase("fit_ms"):
+                        request=self._request(context,frozen,step_id)
+                        reserve=self._candidate_diagnostic_reserve(request) if reserve_candidates else 0
+                required=max(request.estimated_input_tokens,
+                    repair_input_estimate(self.counter,request.system,request.messages,request.attempt_id))+reserve
+                if required>self.policy.max_input_tokens:
+                    raise AppError("memory_consolidation_input_budget",details={"estimated":required,
+                        "candidate_diagnostic_reserve":reserve,"new_characters":sum(
+                            len(item["text"]) for item in frozen["materials"].values() if item["role"]=="new")})
+                return request
             except AppError as exc:
                 if exc.code != "memory_consolidation_input_budget":
                     raise
                 if self._omit_context_message(frozen):
                     continue
-                if not candidates and self._omit_context_message(frozen,allow_required=True):
+                if candidates:
+                    key=candidates.pop(0)
+                    record=frozen["records"][key]
+                    frozen["records"][key]={name:record[name] for name in
+                        ("kind","id","revision","head_revision","current_status","subject_id","source_refs","scope_ids") if name in record}
+                    frozen["records"][key]["content_omitted"]=True
+                    frozen.setdefault("selection_coverage",{}).setdefault("record_content_omitted",[]).append(key)
                     continue
-                if not candidates:
-                    raise
-                key=candidates.pop(0)
-                record=frozen["records"][key]
-                frozen["records"][key]={name:record[name] for name in
-                    ("kind","id","revision","head_revision","current_status","subject_id","source_refs","scope_ids") if name in record}
-                frozen["records"][key]["content_omitted"]=True
-                frozen.setdefault("selection_coverage",{}).setdefault("record_content_omitted",[]).append(key)
+                if frozen["records"]:
+                    self._omit_record(frozen)
+                    continue
+                if allow_required_context and self._omit_context_message(frozen,allow_required=True):
+                    continue
+                raise
+
+    @staticmethod
+    def _omit_record(frozen):
+        """Candidate overhead cannot evict previously fitted new or quoted originals."""
+        key=next(reversed(frozen["records"]))
+        del frozen["records"][key]
+        coverage=frozen.setdefault("selection_coverage",{})
+        coverage.setdefault("record_omitted",[]).append(key)
+        if key in coverage.get("record_content_omitted",[]):
+            coverage["record_content_omitted"].remove(key)
+        for record in frozen["records"].values():
+            links=record.get("relations",())
+            kept=[link for link in links if key not in (link.get("from_ref"),link.get("to_ref"))]
+            if len(kept)<len(links):
+                record["relations"]=kept
+                coverage["record_relations_omitted"]=coverage.get("record_relations_omitted",0)+len(links)-len(kept)
+        remaining={item.get("subject_id") for item in frozen["records"].values()}
+        for subject in tuple(frozen.get("candidate_subject_ids",())):
+            if subject not in remaining:
+                frozen["subjects"].pop(subject,None)
+                frozen["targets"].pop(subject,None)
+                frozen["candidate_subject_ids"].remove(subject)
+        refresh_read_set(frozen)
 
     @staticmethod
     def _omit_context_message(frozen, *, allow_required=False):
@@ -765,7 +835,8 @@ class Consolidation:
                         and set(item["processed_material_ids"]) & set(episode["material_ids"])
                         for item in proposal["target_results"]) or None in unresolved or proposal["needs_context"]:
                     missing.add("semantic_unresolved")
-                if frozen.get("selection_coverage",{}).get("record_content_omitted"):
+                if any(frozen.get("selection_coverage",{}).get(name) for name in
+                        ("record_content_omitted","record_omitted","record_relations_omitted")):
                     missing.add("old_record_context_incomplete")
                 if any(item.get("referenced_context") for item in frozen.get("selection_coverage",{}).get("context_omitted",())):
                     missing.add("referenced_context_incomplete")

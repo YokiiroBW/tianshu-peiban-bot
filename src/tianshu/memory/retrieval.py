@@ -310,10 +310,9 @@ class MemoryRetrieval:
         # This port is the consolidation background read. Its old 55-second
         # preparation clock is not a business expiry. Each DB/profile/provider
         # phase keeps its own execution bound; waiting for Models consumes none.
-        page = await self.query(context, MemoryQueryPlan(query=query, subject_ids=tuple(subject_ids),
+        return await self.query(context, MemoryQueryPlan(query=query, subject_ids=tuple(subject_ids),
             matter_refs=tuple(matter_refs), evidence_kinds=tuple(kinds)), None,
             limit=min(max(int(limit), 1), 32), service_class=ServiceClass.ELASTIC)
-        return tuple(page.items)
 
     async def revalidate(self, context, records, budget):
         """Recheck current automatic context material without rebinding a stale version."""

@@ -10,9 +10,10 @@ import pytest
 from tianshu.memory.extraction_contract import SCHEMA_VERSION
 from tianshu.models.types import ModelCompletion,ModelMessage,ModelPart,ModelReceipt,ModelRequest,ModelResult
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.api import Page
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import OriginKind,RequestBudget,ServiceClass
+from tianshu.types import Coverage,OriginKind,RequestBudget,ServiceClass
 from psycopg.types.json import Jsonb
 
 
@@ -178,7 +179,7 @@ async def test_irreducible_truncated_input_stops_without_another_attempt_or_batc
     assert state['active_batch_id'] is None and state['wake_due_at'] is None
 
 
-async def test_unknown_smaller_attempt_is_observed_with_its_original_material_map(core, ordinary_users):
+async def test_lost_success_smaller_attempt_is_consumed_with_its_original_material_map(core, ordinary_users):
     alice, _ = ordinary_users
     model = FixedConsolidator(truncated=True)
     configure(core, model)
@@ -189,14 +190,14 @@ async def test_unknown_smaller_attempt_is_observed_with_its_original_material_ma
     model.truncated, model.unknown = False, True
     await core.workers.consolidate(partition)
     active = await latest_batch(core, partition)
-    assert active['status'] == 'quarantined'
+    assert active['status'] == 'applied'
     assert len(model.requests) == 2 and new_texts(model.requests[1]) == ['先前原文']
     attempt = model.requests[1].attempt_id
     stored_map = active['manifest']['steps'][active['step_ids'][-1]]
 
     later = await observe(core, alice, 'later_during_unknown', '后来原文')
-    await core.workers.consolidate(partition)
-    observed = await latest_batch(core, partition)
+    await core.memory.consolidation._execute(active['batch_id'],alice)
+    observed = await batch_by_id(core,active['batch_id'])
     assert len(model.requests) == 2 and model.requests[1].attempt_id == attempt
     assert observed['batch_id'] == active['batch_id'] and observed['status'] == 'applied'
     assert observed['manifest']['steps'][observed['step_ids'][-1]] == stored_map
@@ -255,7 +256,7 @@ async def test_supplemented_truncation_reduces_the_original_range_and_preserves_
     assert any(item.value == '尾部事实' for item in (await core.claims.list(alice)).items)
 
 
-async def test_candidate_preparation_uses_one_lease_budget_across_input_shrinks(core, ordinary_users, monkeypatch):
+async def test_candidate_preparation_recalls_once_after_multiple_input_shrinks(core, ordinary_users, monkeypatch):
     from tianshu.memory.consolidation import COMMIT_RESERVE_SECONDS, MODEL_REQUEST_SECONDS
 
     alice, _ = ordinary_users
@@ -263,7 +264,8 @@ async def test_candidate_preparation_uses_one_lease_budget_across_input_shrinks(
     configure(core, model)
     pipeline = core.memory.consolidation
     first = await observe(core, alice, "candidate_budget_first", "前文")
-    await observe(core, alice, "candidate_budget_last", "尾部事实")
+    for index in range(3):
+        await observe(core,alice,"candidate_budget_later_"+str(index),"后续原文"+str(index))
     partition = (await row(core, first))["consolidation_partition_id"]
     budgets = []
     async def candidates(context, query, budget, **kwargs):
@@ -273,21 +275,60 @@ async def test_candidate_preparation_uses_one_lease_budget_across_input_shrinks(
         assert budget.deadline_at == state["lease_until"] - timedelta(
             seconds=MODEL_REQUEST_SECONDS + COMMIT_RESERVE_SECONDS)
         budgets.append(budget)
-        return ()
+        assert query=="前文"
+        return Page((),None,Coverage(True))
     pipeline.materials.record_candidates = candidates
     request = pipeline._budgeted_request
     attempts = 0
-    def shrink_once(*args, **kwargs):
+    def shrink_twice(*args, **kwargs):
         nonlocal attempts
         attempts += 1
-        if attempts == 1:
+        if attempts <= 2:
             raise AppError("memory_consolidation_input_budget")
         return request(*args, **kwargs)
-    monkeypatch.setattr(pipeline, "_budgeted_request", shrink_once)
+    monkeypatch.setattr(pipeline, "_budgeted_request", shrink_twice)
     await core.workers.consolidate(partition)
-    assert len(budgets) == 2 and budgets[0] is budgets[1]
+    assert len(budgets) == 1
     assert 0 < budgets[0].remaining() <= 55
     assert len(model.requests) == 1 and model.requests[0].budget.remaining() > 100
+    diagnostics=(await latest_batch(core,partition))["manifest"]["preparation"]
+    assert diagnostics["assembly_attempts"]==3 and diagnostics["remote_calls"]==1
+    assert diagnostics["source_reads"]==4 and diagnostics["final_episodes"]==1
+    assert diagnostics["final_materials"]==1 and diagnostics["final_images"]==0
+    assert diagnostics["trial_count"]>=2 and diagnostics["elapsed_ms"]>=diagnostics["remote_ms"]>=0
+
+
+@pytest.mark.parametrize("remote_failure",["raised","rerank_unavailable"])
+async def test_candidate_preparation_degrades_to_local_records_without_missing_originals(core,ordinary_users,remote_failure):
+    alice,_=ordinary_users
+    model=FixedConsolidator()
+    configure(core,model)
+    refs=await core.sources.record_event(alice,producer="web",event_id="local-candidate",revision=1,
+        occurred_at=datetime.now(UTC),parts=({"text":"既有阅读兴趣"},),origin_kind=OriginKind.HUMAN)
+    async with core.database.transaction() as conn:
+        old=await core.claims.put_on(conn,alice,{"subject_id":alice.person_id,"speaker_id":alice.person_id,
+            "predicate":"interest","value":"阅读","assertion":"self_confirmed","source_refs":refs},automatic=True)
+    calls=[]
+    async def candidates(context,query,budget,**kwargs):
+        calls.append(query)
+        if remote_failure=="raised":
+            raise TimeoutError("synthetic candidate outage")
+        return Page((),None,Coverage(False,missing=("ranked_selection","rerank_unavailable")))
+    core.memory.consolidation.materials.record_candidates=candidates
+    episode=await observe(core,alice,"new-under-local-fallback","可用的新原件")
+    partition=(await row(core,episode))["consolidation_partition_id"]
+    await core.workers.consolidate(partition)
+    batch=await latest_batch(core,partition)
+    assert batch["status"]=="applied" and len(calls)==1 and len(model.requests)==1
+    assert any(item["id"]==old.claim_id for item in batch["manifest"]["frozen"]["records"].values())
+    missing=batch["manifest"]["frozen"]["selection_coverage"]["record_candidates_missing"]
+    assert ("remote_candidates_unavailable" if remote_failure=="raised" else "rerank_unavailable") in missing
+    assert (await row(core,episode))["extraction_state"]=="completed"
+    assert (await row(core,episode))["extraction_missing"]==[]
+    diagnostics=batch["manifest"]["preparation"]
+    assert diagnostics["remote_calls"]==1
+    assert diagnostics["remote_failures"]==int(remote_failure=="raised")
+    assert diagnostics["remote_degradations"]==int(remote_failure!="raised")
 
 
 async def test_input_budget_change_resumes_the_same_unadvanced_material_without_a_new_episode(core,ordinary_users):
@@ -354,7 +395,7 @@ async def test_input_budget_change_resumes_the_same_unadvanced_material_without_
 
 async def test_budget_configuration_change_keeps_an_unknown_original_attempt(core,ordinary_users):
     alice,_=ordinary_users
-    model=FixedConsolidator(unknown=True)
+    model=HeldConsolidator()
     configure(core,model)
     episode=await observe(core,alice,'unknown_before_budget_change','尾部事实')
     original=await row(core,episode)
@@ -369,6 +410,7 @@ async def test_budget_configuration_change_keeps_an_unknown_original_attempt(cor
         result=await core.workers.recovery.resume_on(conn,alice,{'episode_id':episode.episode_id,
             'expected_revision':episode.revision,'client_request_id':'unknown_budget_observation'})
     assert result.data['action']=='observe_original_attempt'
+    model.release()
     await core.workers.consolidate(partition)
     assert len(model.requests)==1 and model.requests[0].attempt_id==first_attempt
     assert (await row(core,episode))['extraction_state']=='completed'
@@ -390,19 +432,22 @@ async def test_shared_prefix_uses_one_model_request_for_several_new_episodes(cor
     assert any(item.value=='尾部事实' for item in (await core.claims.list(alice)).items)
 
 
-async def test_unknown_recovery_keeps_original_attempt_and_local_material_map(core,ordinary_users):
+async def test_lost_success_consumes_original_attempt_and_keeps_material_map(core,ordinary_users):
     alice,_=ordinary_users
     model=FixedConsolidator(unknown=True)
     configure(core,model)
     first=await observe(core,alice,'unknown_original','尾部事实')
     original=await row(core,first)
     await core.workers.consolidate(original['consolidation_partition_id'])
-    assert (await row(core,first))['extraction_cursor']=={'protocol':SCHEMA_VERSION}
+    assert (await row(core,first))['extraction_state']=='completed'
+    completed=await latest_batch(core,original['consolidation_partition_id'])
+    frozen_map=completed['manifest']['steps'][completed['step_ids'][-1]]
     later=await observe(core,alice,'unrelated_later','后来新材料')
-    await core.workers.consolidate(original['consolidation_partition_id'])
+    await core.memory.consolidation._execute(completed['batch_id'],alice)
     assert len(model.requests)==1
     assert (await row(core,first))['extraction_state']=='completed'
     assert (await row(core,later))['extraction_state']=='pending'
+    assert (await batch_by_id(core,completed['batch_id']))['manifest']['steps'][completed['step_ids'][-1]]==frozen_map
     assert any(item.value=='尾部事实' for item in (await core.claims.list(alice)).items)
 
 
@@ -514,7 +559,7 @@ async def test_reflection_time_view_and_frozen_episode_version_are_explicit(core
 
 async def test_pending_receipt_reports_only_frozen_targets_without_inventing_results(core,ordinary_users):
     alice,_=ordinary_users
-    model=FixedConsolidator(unknown=True)
+    model=HeldConsolidator()
     configure(core,model)
     episode=await observe(core,alice,'pending_targets','尾部事实')
     before=await row(core,episode)
@@ -1040,7 +1085,7 @@ async def test_stub_dependency_gets_one_deterministic_supplement_or_explicit_unr
         if kwargs.get('context_round') and not supplement_fits:
             raise AppError('memory_consolidation_input_budget')
         return request(context,frozen,step_id,**kwargs)
-    def stub_request(context,frozen,step_id):
+    def stub_request(context,frozen,step_id,**kwargs):
         for key,record in frozen['records'].items():
             frozen['records'][key]={name:record[name] for name in
                 ('kind','id','revision','head_revision','current_status','subject_id','source_refs','scope_ids') if name in record}

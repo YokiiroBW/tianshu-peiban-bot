@@ -2,6 +2,7 @@
 
 from contextlib import asynccontextmanager
 from copy import deepcopy
+from dataclasses import replace
 from datetime import UTC, datetime
 import json
 from types import SimpleNamespace
@@ -10,10 +11,12 @@ import pytest
 
 from tianshu.conversation.context.assembly import TokenCounter
 from tianshu.memory.materials import (
-    ConsolidationPolicy, MaterialBuilder, append_context_material, frozen_mapping,
+    ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, frozen_mapping,
     has_new_material, material_capabilities, model_material, model_messages,
 )
 from tianshu.models.budgets import MAX_INLINE_MEDIA_BYTES
+from tianshu.runtime.api import Page
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, MediaRef, OriginKind, SourceRef, TrustedContext
 
@@ -308,3 +311,132 @@ def test_existing_text_payload_and_legacy_frozen_protocol_keep_their_original_pa
     assert json.loads(messages[0].parts[0].text) == payload
     assert payload["materials"][0]["text"] == "仍然是原文"
     assert "model_protocol" not in payload and "evidence_kind" not in payload["materials"][0]
+
+
+@pytest.mark.asyncio
+async def test_preparation_fits_images_before_one_remote_recall_and_reuses_selected_range():
+    image=original("new_image",mime="image/png")
+    speech=original("first_speech",text="先确定这条原文和原图。")
+    following=original("following",text="下批材料不能进入本次召回。")
+    selected=builder((image,speech,following))
+    rows=[episode(1,[image,speech]),episode(2,[following])]
+    reads=PreparationReads(selected.sources)
+    calls=[]
+    async def candidates(context,query,budget,**kwargs):
+        calls.append(query)
+        return Page((),None,Coverage(True))
+    async def old_records(context,subjects,matters,materials,*,reads,budget=None):
+        query=" ".join(item["text"] for item in materials.values() if item["role"]=="new")
+        await reads.candidates(candidates,context,query,budget)
+        return {}
+    selected.old_records=old_records
+    await selected.build(CONTEXT,rows,"trial-large",reads=reads,include_records=False)
+    fitted=await selected.build(CONTEXT,rows[:1],"trial-fit",reads=reads,include_records=False)
+    assert not calls
+    before=model_messages(fitted,selected.policy)
+    await selected.attach_records(CONTEXT,fitted,reads=reads)
+    await selected.attach_records(CONTEXT,fitted,reads=reads)
+    assert calls==[" 先确定这条原文和原图。"]
+    assert model_messages(fitted,selected.policy)==before
+    assert material_capabilities(fitted)==frozenset({"text","vision"})
+    assert len(selected.sources.calls)==3 and reads.metrics.snapshot()["remote_calls"]==1
+    assert fitted["targets"]["alice"]["new_material_ids"]==["m1","m2"]
+
+
+@pytest.mark.asyncio
+async def test_preparation_remote_cache_is_bound_to_authority_and_keeps_degradation():
+    reads=PreparationReads(Sources(()))
+    calls=[]
+    async def candidates(context,query,budget,**kwargs):
+        calls.append((context,query))
+        return Page((),None,Coverage(False,missing=("ranked_selection","rerank_unavailable")))
+    await reads.candidates(candidates,CONTEXT,"query",None,subject_ids=("alice",))
+    await reads.candidates(candidates,CONTEXT,"query",None,subject_ids=("alice",))
+    assert len(calls)==1 and reads.candidate_missing==("ranked_selection","rerank_unavailable")
+    await reads.candidates(candidates,replace(CONTEXT,access_epoch=2),"query",None,subject_ids=("alice",))
+    assert len(calls)==2
+
+
+@pytest.mark.asyncio
+async def test_large_old_candidates_cannot_evict_fitted_new_or_referenced_images(monkeypatch):
+    from tianshu.memory.consolidation import Consolidation
+    from tianshu.memory.materials import refresh_read_set
+
+    reply=original("reply",text='{"kind":"reply","metadata":{}}',speaker=None,
+        part_kind="reply",event="message:group:2",metadata={"reply_to_event_id":"message:group:1"})
+    image=original("new_image",mime="image/png",event="message:group:2")
+    quoted=original("quoted_image",mime="image/png",event="message:group:1",speaker="bob")
+    selected=builder((reply,image,quoted))
+    bind_conversation(selected,[conversation_message(1,quoted)])
+    frozen=await selected.build(CONTEXT,[episode(1,[reply,image])],"budget-candidates",include_records=False)
+    originals=deepcopy(frozen["materials"])
+    frozen["records"]={"r0":{"kind":"claim","id":"old","revision":4,"subject_id":"charlie",
+        "content":"可选旧记录","source_refs":wire((SourceRef("old_source",1),))}}
+    frozen["subjects"]["charlie"]={"subject_id":"charlie","name":"Charlie","kind":"person","revision":1,"aliases":[]}
+    frozen["targets"]["charlie"]={"new_material_ids":[]}
+    frozen["candidate_subject_ids"]=["charlie"]
+    refresh_read_set(frozen)
+    memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
+    pipeline=Consolidation(memory)
+    pipeline.counter=TokenCounter()
+    actual_request=pipeline._request
+    def request(context,value,step_id):
+        if value["records"]:
+            raise AppError("memory_consolidation_input_budget")
+        return actual_request(context,value,step_id)
+    monkeypatch.setattr(pipeline,"_request",request)
+    request=pipeline._budgeted_request(CONTEXT,frozen,"candidate-trial",allow_required_context=False)
+    assert frozen["materials"]==originals
+    assert frozen["selection_coverage"]["record_omitted"]==["r0"]
+    assert "context_omitted" not in frozen["selection_coverage"]
+    assert "charlie" not in frozen["subjects"] and "charlie" not in frozen["targets"]
+    assert frozen["read_set"]==[]
+    assert sum(part.kind=="image" for message in request.messages for part in message.parts)==2
+
+
+@pytest.mark.asyncio
+async def test_candidate_diagnostic_reserve_protects_limit_sized_original_text_and_image(monkeypatch):
+    from tianshu.memory.consolidation import Consolidation
+    from tianshu.memory.preparation import CANDIDATE_GAP_CODES, CANDIDATE_GAP_CODE_CHARACTERS
+
+    image=original("new_image",mime="image/png")
+    speech=original("speech",text="x"*40000)
+    selected=builder((image,speech))
+    template=await selected.build(CONTEXT,[episode(1,[image,speech])],"reserved-limit",include_records=False)
+    pipeline=Consolidation(SimpleNamespace(database=None,identity=None,sources=None,jobs=None))
+    pipeline.policy=replace(pipeline.policy,max_old_records=2)
+    pipeline.counter=TokenCounter()
+    def prefix(length):
+        value=deepcopy(template)
+        value["materials"]["m2"]["text"]="x"*length
+        value["materials"]["m2"]["source_refs"][0]["locator"]["end"]=length
+        return value
+    low,high=0,40000
+    while low<high:
+        middle=(low+high+1)//2
+        try:
+            pipeline._budgeted_request(CONTEXT,prefix(middle),"reserve-limit",reserve_candidates=True)
+            low=middle
+        except AppError as error:
+            assert error.code=="memory_consolidation_input_budget"
+            high=middle-1
+    assert 0<low<40000
+    frozen=prefix(low)
+    original_materials=deepcopy(frozen["materials"])
+    frozen["selection_coverage"]["record_candidates_missing"]=[
+        str(index)+"x"*(CANDIDATE_GAP_CODE_CHARACTERS-1) for index in range(CANDIDATE_GAP_CODES)]
+    frozen["records"]={"r"+str(index):{"kind":"claim","id":"old_"+str(index),"revision":1,
+        "subject_id":"alice","source_refs":[]} for index in range(2)}
+    actual_request=pipeline._request
+    def request(context,value,step_id):
+        if value["records"]:
+            raise AppError("memory_consolidation_input_budget")
+        return actual_request(context,value,step_id)
+    monkeypatch.setattr(pipeline,"_request",request)
+    request=pipeline._budgeted_request(CONTEXT,frozen,"reserve-limit-final",allow_required_context=False)
+    assert frozen["materials"]==original_materials
+    assert request.estimated_input_tokens<=pipeline.policy.max_input_tokens
+    payload=json.loads(request.messages[0].parts[0].text)
+    assert payload["coverage"]["record_omitted"]==2
+    assert len(payload["coverage"]["record_candidates_missing"])==CANDIDATE_GAP_CODES
+    assert sum(part.kind=="image" for message in request.messages for part in message.parts)==1

@@ -5,7 +5,9 @@ from dataclasses import dataclass, replace
 from datetime import UTC,datetime,timedelta
 import json
 import re
+from time import perf_counter
 
+from aiohttp import ClientError
 from tianshu.models.estimation import media_tokens
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.commands import body_hash
@@ -22,6 +24,7 @@ from .material_media import (
     evidence_kind, image_aliases, image_key, image_media, material_relations, read_view,
     reply_event_ids as _reply_event_ids, source_speaker, visible_media,
 )
+from .preparation import PreparationMetrics, candidate_coverage_view
 from .types import RecordRef
 
 
@@ -101,6 +104,12 @@ class PreparationReads:
         self.sources=sources
         self.windows={}
         self.source_sets={}
+        self.neighborhoods={}
+        self.subject_sets={}
+        self.record_sets={}
+        self.candidate_sets={}
+        self.candidate_missing=()
+        self.metrics=PreparationMetrics()
 
     async def source_set(self,builder,context,row):
         key=(body_hash(context_record(context)),row["episode_id"],row["revision"],row["sequence"])
@@ -117,7 +126,9 @@ class PreparationReads:
         cached=self.windows.get(key)
         if cached is None or (cached["content"] is not None and cached["next_position"] is not None
                 and len(cached["content"])<maximum):
-            cached=await self.sources.read(context,source,requested)
+            self.metrics.count("source_reads")
+            with self.metrics.phase("source_ms"):
+                cached=await self.sources.read(context,source,requested)
             self.windows[key]=deepcopy(cached)
         result=deepcopy(cached)
         if result["content"] is not None and len(result["content"])>maximum:
@@ -126,6 +137,44 @@ class PreparationReads:
             result.update(content=result["content"][:maximum],next_position=end,
                 coverage=replace(result["coverage"],complete=False,ranges=({"start":span["start"],"end":end},)))
         return result
+
+    async def conversation(self,port,context,**selection):
+        key=body_hash({"authority":context_record(context),"selection":wire(selection)})
+        if key not in self.neighborhoods:
+            self.metrics.count("conversation_reads")
+            with self.metrics.phase("conversation_ms"):
+                self.neighborhoods[key]=deepcopy(await port(context,**selection))
+        return deepcopy(self.neighborhoods[key])
+
+    async def subjects(self,builder,context,subject_ids,*,aliases=(),include_group=True):
+        selected=tuple(sorted(subject_ids))
+        names=tuple(sorted(aliases))
+        key=body_hash({"authority":context_record(context),"subjects":selected,"aliases":names,"group":include_group})
+        if key not in self.subject_sets:
+            self.metrics.count("identity_reads")
+            with self.metrics.phase("identity_ms"):
+                async with builder.database.transaction(read_only=True) as conn:
+                    self.subject_sets[key]=deepcopy(await builder.identity.resolve_memory_subjects_on(
+                        conn,context,selected,aliases=names,include_group=include_group))
+        return deepcopy(self.subject_sets[key])
+
+    async def candidates(self,port,context,query,budget,**selection):
+        key=body_hash({"authority":context_record(context),"query":query,"selection":wire(selection)})
+        if key not in self.candidate_sets:
+            self.metrics.count("remote_calls")
+            with self.metrics.phase("remote_ms"):
+                try:
+                    page=await port(context,query,budget,**selection)
+                    missing=tuple(page.coverage.missing)
+                    if set(missing)-{"ranked_selection"}:
+                        self.metrics.count("remote_degradations")
+                    self.candidate_sets[key]=(tuple(page.items),missing)
+                except (AppError,TimeoutError,OSError,ClientError) as exc:
+                    self.metrics.count("remote_failures")
+                    code=getattr(exc,"code",None)
+                    self.candidate_sets[key]=((),(code if isinstance(code,str) and code else "remote_candidates_unavailable",))
+        values,self.candidate_missing=self.candidate_sets[key]
+        return deepcopy(values)
 
 
 def append_context_material(materials,read,*,extra=None):
@@ -215,6 +264,11 @@ def frozen_mapping(value):
     return result
 
 
+def refresh_read_set(frozen):
+    frozen["read_set"]=[{"kind":item["kind"],"id":item["id"],"revision":item["revision"],
+        "head_revision":item.get("head_revision") or item["revision"]} for item in frozen["records"].values()]
+
+
 def expand_record_endpoints(records):
     """An evidence unit's relation endpoints are real reads, even without an operation."""
     result=deepcopy(records)
@@ -279,6 +333,7 @@ def model_material(value, policy, *, context_round=0, requests=()):
     aliases=image_aliases(value["materials"])
     relations=material_relations(value["materials"])
     payload["model_protocol"]=value["model_protocol"]
+    payload["coverage"]=candidate_coverage_view(payload["coverage"])
     for material in payload["materials"]:
         key=material["id"]
         original=value["materials"][key]
@@ -311,6 +366,10 @@ def has_new_material(value) -> bool:
     return any(item.get("role")=="new" and
         (bool((item.get("text") or "").strip()) or image_media(item) is not None)
         for item in value.get("materials",{}).values())
+
+
+def material_query(materials):
+    return " ".join(item["text"] for item in materials.values() if item["role"]=="new").strip()
 
 
 def material_capabilities(value) -> frozenset[str]:
@@ -367,7 +426,7 @@ class MaterialBuilder:
         return refs, missing
 
     async def build(self, context, rows, batch_id, *, text_ceiling=None, max_new_materials=None,
-                    reads=None, budget: RequestBudget | None = None):
+                    reads=None, budget: RequestBudget | None = None, include_records=True):
         """Take a complete episode/source prefix; a huge source alone uses an exact range cursor."""
         text_ceiling = text_ceiling or min(self.policy.max_source_characters, self.policy.max_input_tokens // 2)
         reads=reads or PreparationReads(self.sources)
@@ -465,7 +524,7 @@ class MaterialBuilder:
         selection_coverage = {}
         if self.conversation and context.conversation_id and has_new_material({"materials":materials}):
             earliest = min(row["occurred_at"] for row in rows[:len(episodes)])
-            neighborhood = await self.conversation(context, end=earliest,
+            neighborhood = await reads.conversation(self.conversation,context, end=earliest,
                 start=earliest-timedelta(days=1),
                 limit=max(1,self.policy.context_messages))
             cutoff = neighborhood["cutoff"]
@@ -473,7 +532,7 @@ class MaterialBuilder:
                 neighborhood={**neighborhood,"items":()}
             explicit_refs=sorted({event for item in materials.values() for event in _reply_event_ids(item.get("locator"))})[:32]
             if explicit_refs:
-                quoted=await self.conversation(context,cutoff=cutoff,event_ids=explicit_refs,limit=min(32,len(explicit_refs)))
+                quoted=await reads.conversation(self.conversation,context,cutoff=cutoff,event_ids=explicit_refs,limit=min(32,len(explicit_refs)))
                 existing={item["message_id"] for item in neighborhood["items"]}
                 neighborhood={**neighborhood,"items":tuple(neighborhood["items"])+tuple(
                     item for item in quoted["items"] if item["message_id"] not in existing)}
@@ -539,10 +598,9 @@ class MaterialBuilder:
                 if locator.get(key):
                     matter_ids.add(locator[key])
         matter_ids.update(row["matter_id"] for row in rows[:len(episodes)] if row["matter_id"])
-        async with self.database.transaction(read_only=True) as conn:
-            subjects = await self.identity.resolve_memory_subjects_on(conn, context, linked_ids, aliases=names)
-            subjects = {item["subject_id"]: {"subject_id": item["subject_id"], "name": item["display_name"],
-                        "aliases": list(item["aliases"]), "kind": item["kind"], "revision": item["revision"]} for item in subjects}
+        resolved=await reads.subjects(self,context,linked_ids,aliases=names)
+        subjects = {item["subject_id"]: {"subject_id": item["subject_id"], "name": item["display_name"],
+                    "aliases": list(item["aliases"]), "kind": item["kind"], "revision": item["revision"]} for item in resolved}
         if any(author not in subjects for author in authors):
             raise AppError("memory_material_author_unavailable", status=403)
         targets = {subject: {"new_material_ids": [key for key, item in materials.items()
@@ -554,16 +612,6 @@ class MaterialBuilder:
             actor_subject = "actor:"+context.actor_id
             subjects[actor_subject] = {"subject_id": actor_subject, "name": context.actor_id, "aliases": [], "kind": "actor", "revision": 1}
             targets[actor_subject] = {"new_material_ids": [key for key,item in materials.items() if item["role"] == "new"]}
-        records = expand_record_endpoints(await self.old_records(context, subjects, matter_ids, materials, budget=budget))
-        referenced_subjects = {item.get("subject_id") for item in records.values()} - set(subjects) - {None}
-        if referenced_subjects:
-            async with self.database.transaction(read_only=True) as conn:
-                related = await self.identity.resolve_memory_subjects_on(conn,context,referenced_subjects,include_group=False)
-            for item in related:
-                subject_id=item["subject_id"]
-                subjects[subject_id]={"subject_id":subject_id,"name":item["display_name"],"kind":item["kind"],
-                    "aliases":list(item["aliases"]),"revision":item["revision"]}
-                targets[subject_id]={"new_material_ids":[]}
         relations=material_relations(materials)
         for key,item in materials.items():
             item.update(relations[key])
@@ -576,20 +624,57 @@ class MaterialBuilder:
                 for episode in episodes:
                     if episode["episode_id"]==item["episode_id"]:
                         episode["missing"]=sorted(set(episode["missing"])|missing)
-        return {"batch_id": batch_id, "schema_version": SCHEMA_VERSION,"model_protocol":"memory.proposal.v2",
+        frozen={"batch_id": batch_id, "schema_version": SCHEMA_VERSION,"model_protocol":"memory.proposal.v2",
             "context": {"actor_id": context.actor_id, "conversation_id": context.conversation_id,
                         "time_zone": self.policy.time_zone, "cutoff_at": wire(max(row["occurred_at"] for row in rows[:len(episodes)])),
                         "message_cutoff": cutoff},
-            "subjects": subjects, "materials": materials, "targets": targets, "records": records,
+            "subjects": subjects, "materials": materials, "targets": targets, "records": {},
             "selection_coverage":selection_coverage,
-            "read_set": [{"kind": item["kind"], "id": item["id"], "revision": item["revision"],
-                          "head_revision":item.get("head_revision") or item["revision"]} for item in records.values()],
+            "candidate_matter_ids":sorted(matter_ids),"read_set":[],
             "episodes": episodes}
+        if include_records:
+            await self.attach_records(context,frozen,reads=reads,budget=budget)
+        return frozen
 
-    async def old_records(self, context, subjects, matter_ids, materials, *, budget=None):
+    async def attach_records(self,context,frozen,*,reads=None,budget=None):
+        """Enrich an already fitted material range once, without rebuilding that range."""
+        reads=reads or PreparationReads(self.sources)
+        matter_ids=set(frozen.get("candidate_matter_ids",()))
+        subjects=frozen["subjects"]
+        added_before=set(frozen.get("candidate_subject_ids",()))
+        material_subjects={key:value for key,value in subjects.items() if key not in added_before}
+        key=body_hash({"authority":context_record(context),"subjects":material_subjects,"matters":sorted(matter_ids),
+            "materials":[{"source_refs":item["source_refs"],"text":item.get("text",""),
+                "changed_records":(item.get("actual_result") or {}).get("changed_records",())}
+                for item in frozen["materials"].values() if item["role"]=="new"]})
+        if key not in reads.record_sets:
+            records=await self.old_records(context,material_subjects,matter_ids,frozen["materials"],reads=reads,budget=budget)
+            reads.record_sets[key]=(deepcopy(records),reads.candidate_missing)
+        records,candidate_missing=deepcopy(reads.record_sets[key])
+        frozen["records"]=expand_record_endpoints(records)
+        if candidate_missing:
+            frozen.setdefault("selection_coverage",{})["record_candidates_missing"]=list(candidate_missing)
+        related_ids=sorted({item.get("subject_id") for item in frozen["records"].values()}-set(material_subjects)-{None})
+        added=[]
+        for start in range(0,len(related_ids),128):
+            related=await reads.subjects(self,context,related_ids[start:start+128],include_group=False)
+            for item in related:
+                subject_id=item["subject_id"]
+                subjects[subject_id]={"subject_id":subject_id,"name":item["display_name"],"kind":item["kind"],
+                    "aliases":list(item["aliases"]),"revision":item["revision"]}
+                frozen["targets"][subject_id]={"new_material_ids":[]}
+                added.append(subject_id)
+        frozen["candidate_subject_ids"]=added
+        refresh_read_set(frozen)
+        return frozen
+
+    async def old_records(self, context, subjects, matter_ids, materials, *, budget=None,reads=None):
         """Per-subject candidates plus explicit matters plus lexical candidates, deduped by stable ID."""
+        reads=reads or PreparationReads(self.sources)
+        reads.candidate_missing=()
+        local_started=perf_counter()
         candidates = {}
-        query = " ".join(item["text"] for item in materials.values() if item["role"] == "new")
+        query = material_query(materials)
         explicit_claim_ids=sorted({record["id"] for item in materials.values()
             for record in (item.get("actual_result") or {}).get("changed_records",())
             if record.get("kind") in {"claim","hypothesis"}})
@@ -634,17 +719,14 @@ class MaterialBuilder:
                 if refs:
                     value=codec.matter(row,selected_refs=refs,relations=links.get(row["matter_id"],()))
                     candidates.setdefault(("matter",row["matter_id"]),wire(build_evidence_unit(value)))
+        reads.metrics.values["local_records_ms"]+=(perf_counter()-local_started)*1000
         if self.record_candidates and query:
-            try:
-                values=await self.record_candidates(context,query,budget,subject_ids=tuple(subjects),
-                    matter_refs=tuple(matter_ids),kinds=("claim","hypothesis","matter"),limit=self.policy.max_old_records)
-                for value in values:
-                    item=wire(value)
-                    if item["kind"] in {"claim","hypothesis","matter"}:
-                        candidates.setdefault((item["kind"],item["id"]),item)
-            except (AppError,TimeoutError):
-                # Sparse exact/lexical candidates above remain available inside this batch's budget.
-                pass
+            values=await reads.candidates(self.record_candidates,context,query,budget,subject_ids=tuple(subjects),
+                matter_refs=tuple(sorted(matter_ids)),kinds=("claim","hypothesis","matter"),limit=self.policy.max_old_records)
+            for value in values:
+                item=wire(value)
+                if item["kind"] in {"claim","hypothesis","matter"}:
+                    candidates.setdefault((item["kind"],item["id"]),item)
         # Explicit event identity wins, then round-robin the sparse subject union. The
         # largest speaker's history cannot consume every slot before a quiet speaker.
         explicit = [item for item in candidates.values() if item["kind"] == "matter" and item["id"] in matter_ids]
