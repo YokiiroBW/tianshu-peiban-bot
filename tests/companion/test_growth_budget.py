@@ -76,7 +76,8 @@ async def test_one_huge_discovery_becomes_a_source_backed_observation_and_tail_c
         coverage=Coverage(False, missing=("coverage_unknown",)))
     tail = replace(episode, episode_id="tail", actual_result={"execution": "succeeded"}, sequence=5, cursor="e:5")
     context = TrustedContext("p", "a", None, None, ("s",), ("s",), 1, OriginKind.ACTOR)
-    selected, pack, cursor, more = await select_batch(ContextAssembler(Authority(), None, None), context,
+    assembler = ContextAssembler(Authority(), None, None, settings={"tokenizer": "o200k_base"})
+    selected, pack, cursor, more = await select_batch(assembler, context,
         EpisodePage((episode, tail), None, Coverage(True), "e:5"), "始终保留的作者人格",
         RequestBudget(datetime.now(UTC) + timedelta(minutes=3)), 1)
     assert selected == (episode, tail) and cursor == "e:5" and not more
@@ -95,8 +96,10 @@ async def test_one_huge_discovery_becomes_a_source_backed_observation_and_tail_c
         RequestBudget(datetime.now(UTC) + timedelta(minutes=3)), tuple(pack.messages),
         system=pack.system, source_refs=tuple(pack.source_refs))
     frozen = frozen_episodes(request)
-    assert frozen[episode.episode_id].revision == 2
-    assert frozen[episode.episode_id].source_refs == episode.source_refs
+    assert set(frozen) == {episode.episode_id, tail.episode_id}
+    for item in selected:
+        assert frozen[item.episode_id].revision == item.revision
+        assert frozen[item.episode_id].source_refs == item.source_refs
 
 
 def test_action_body_is_a_whole_unit_or_explicitly_unassessed_and_original_is_unchanged():
