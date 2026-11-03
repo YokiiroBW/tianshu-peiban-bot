@@ -164,6 +164,49 @@ async def test_partial_lexical_missing_keeps_completed_rows_and_runs_the_vector_
     assert setup.calls.source_groups
 
 
+@pytest.mark.parametrize("empty_lexical", [False, True])
+async def test_vector_existence_budget_unknown_keeps_lexical_with_missing_without_embedding(empty_lexical):
+    setup = pipeline(settings={"vector": True})
+    if empty_lexical:
+        setup.store.lexical_rows = ()
+    setup.errors["vector_exists"] = AppError("memory_vector_candidate_budget", status=503)
+    page = await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), budget(), limit=2)
+    assert [item.id for item in page.items] == ([] if empty_lexical else ["r00", "r01"])
+    assert page.coverage.missing == ("vector_candidate_budget", "ranked_selection")
+    assert not page.coverage.complete and not setup.calls.embeddings and not setup.calls.models
+    assert bool(setup.calls.source_groups) == (not empty_lexical)
+
+
+async def test_vector_existence_budget_unknown_still_obeys_the_parent_deadline():
+    setup = pipeline(settings={"vector": True})
+    parent = budget()
+    async def exhausted(*_args):
+        object.__setattr__(parent, "_monotonic_deadline", 0)
+        raise AppError("memory_vector_candidate_budget", status=503)
+    setup.store.has_vectors = exhausted
+    with pytest.raises(TimeoutError, match="request_deadline_exceeded"):
+        await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), parent, limit=2)
+    assert not setup.calls.embeddings and not setup.calls.reread
+
+
+@pytest.mark.parametrize("phase,error", [
+    ("vector_exists", AppError("permission_denied", status=403)),
+    ("vector_exists", AppError("invalid_source_context", status=400)),
+    ("vector_exists", asyncio.CancelledError()),
+    ("vector_exists", AppError("memory_support_budget_exceeded", status=503)),
+    ("vector_exists", AppError("memory_vector_candidate_budget", status=403)),
+    ("vector", AppError("memory_vector_candidate_budget", status=503)),
+])
+async def test_vector_existence_budget_mapping_does_not_swallow_other_authority_or_phase_errors(phase, error):
+    setup = pipeline(settings={"vector": True})
+    setup.errors[phase] = error
+    with pytest.raises(type(error)) as raised:
+        await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), budget(), limit=2)
+    assert raised.value is error and not setup.calls.reread
+    if phase == "vector_exists":
+        assert not setup.calls.embeddings
+
+
 @pytest.mark.parametrize("error", [TimeoutError(), psycopg.errors.QueryCanceled("statement timeout")])
 async def test_lexical_lane_timeout_does_not_discard_vector_evidence(error):
     setup = pipeline(settings={"vector": True})

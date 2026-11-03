@@ -36,3 +36,11 @@ A 导出 `memory.candidates.CandidateSelection` frozen dataclass（`rows: tuple[
 根静态审查指出首版提前计算完整 128 候选的 MMR 顺序。本次使用同域 `_MmrOrder` 按需扩展并缓存已选前缀/相似度最大值，常规返回只计算所需轮次；准备阶段只取最多 `max(limit,24)` 个完整单位，最终失效补位才继续原 MMR 顺序。最终补位仍在原事务和固定截止内。每次遍历可从缓存前缀重放，准备超时取出但尚未完整校验的候选仍优先进入最终检查，不因 iterator 消费而丢失。
 
 新增 `test_mmr_only_computes_the_needed_prefix_and_extends_in_the_same_order_on_refill` 四参数，128 候选下计数少量返回/一次重排/源撤回续取的实际比较次数，使用两组正交向量验证多样性排序；新增 `test_preparation_timeout_replays_the_most_relevant_unchecked_prefix_for_final_validation`，证明前置 24 条超时后仍重放最高相关前 6 条且不重算前缀。独立返修仅做 diff 检查，未运行测试、编译或构建；根集中验证上述新目标并复用其他有效结果。
+
+## 向量存在性未决的窄降级
+
+基线 `89170d85458774309d921344295fc236d28604a6`，独立分支 `codex/nr09-vector-degradation`；原 `codex/nr09-retrieval` 及提交保留。根已实证词法修复与部分结果保留，A 继续在 CandidateStore 内修复向量来源批量证明；本块不改其查询或来源合同。
+
+双方确认唯一窄码 `AppError('memory_vector_candidate_budget',status=503)`：has_vectors 尚未找到合法候选、又因完整来源证明预算耗尽无法证明该向量域为空时抛出。`_vectors` 只在 `vector_candidates` 阶段将该精确码/状态映射为已有 `vector_candidate_budget` 缺项，先执行父预算检查，再跳过 embedding 并保留词法结果。该码不加入通用 optional_failure；权限/上下文/其他来源预算错误、外部取消、其他阶段同名错误均传播。`vectors` 的 `(rows,bounded)` 合同与部分结果路径不变。
+
+根精确验证 `tests/memory/test_retrieval_degradation.py` 新增三项目标：`test_vector_existence_budget_unknown_keeps_lexical_with_missing_without_embedding`（有/无词法两个参数）、`test_vector_existence_budget_unknown_still_obeys_the_parent_deadline`、`test_vector_existence_budget_mapping_does_not_swallow_other_authority_or_phase_errors`（六个边界参数）。只做 diff 检查；未测试、编译、构建或操作生产/真实模型。

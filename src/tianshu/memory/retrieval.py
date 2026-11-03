@@ -160,6 +160,11 @@ class MemoryRetrieval:
                 self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", VECTOR_SQL_SECONDS))))
             return rows, ("vector_candidate_budget",) if incomplete else ()
         except PHASE_ERRORS as exc:
+            if (phase == "vector_candidates" and isinstance(exc, AppError)
+                    and exc.code == "memory_vector_candidate_budget" and exc.status == 503):
+                if budget is not None:
+                    budget.check()
+                return [], ("vector_candidate_budget",)
             self._degrade(exc, budget, model=phase in {"embedding_profile", "embedding"})
             reason = ("vector_query_timeout" if phase == "vector" and isinstance(
                 exc, (TimeoutError, psycopg.errors.QueryCanceled)) else getattr(exc, "code", phase + "_unavailable"))
