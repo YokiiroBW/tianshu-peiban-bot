@@ -372,3 +372,28 @@ async def test_embedding_step_recovers_successful_original_rpc_result_with_its_o
         intent="embedding-rpc",source_refs=episode.source_refs)
     assert values==[1.0]+[0.0]*1023 and len(model.requests)==1
     assert model.requests[0].function=="embed" and model.requests[0].execution_timeout_seconds==30
+
+
+@pytest.mark.parametrize("wrapper",[False,True])
+@pytest.mark.parametrize("status,error",[("unknown","consumer_interrupted"),("cancelled","model_cancelled"),("cancelled",None)])
+async def test_confirmed_cancellation_keeps_receipt_error_separate_from_control_decision(core,ordinary_users,wrapper,status,error):
+    alice,_=ordinary_users
+    model=RpcModels(status,error=error,wrapper=wrapper)
+    answer=model.answer
+    def cancelled_answer(request,status="succeeded",error=None):
+        result=answer(request,status,error)
+        return replace(result,receipt=replace(result.receipt,cancellation_reason="explicit_cancel"))
+    model.answer=cancelled_answer
+    steps=ModelSteps(core.database,model,core.sources)
+    episode=await observe(core,alice,"receipt-cancel-"+str(wrapper)+"-"+status+"-"+str(error))
+    request=ModelRequest("receipt-cancel-step","receipt-cancel-attempt","embed",ServiceClass.ELASTIC,alice,
+        RequestBudget(datetime.now(UTC)+timedelta(seconds=30)),(),source_refs=episode.source_refs,execution_timeout_seconds=30)
+    with pytest.raises(AppError) as raised:
+        await steps.run(request.intent_id,request)
+    assert raised.value.code=="explicit_cancel"
+    assert raised.value.details["status"]==status and raised.value.details["receipt_error_code"]==error
+    assert raised.value.details["cancellation_reason"]=="explicit_cancel"
+    step,_=await steps.recorded(request.intent_id)
+    assert step["state"]==status and step["error_code"]==error
+    receipt=model.results[request.attempt_id].receipt
+    assert receipt.status==status and receipt.error_code==error and len(model.requests)==1

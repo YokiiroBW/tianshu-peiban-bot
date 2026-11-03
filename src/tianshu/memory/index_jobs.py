@@ -268,6 +268,7 @@ class IndexJobs:
         details = getattr(error, "details", None) or {}
         status = details.get("status")
         explicit_cancel = code == "explicit_cancel" or details.get("cancellation_reason") == "explicit_cancel"
+        receipt_code = details.get("receipt_error_code", code)
         if transient_model_failure(code) and not explicit_cancel:
             try:
                 receipt = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
@@ -277,6 +278,7 @@ class IndexJobs:
             status = receipt.status if receipt else status or "unknown"
             code = (receipt.error_code if receipt else None) or code
             explicit_cancel = bool(receipt and getattr(receipt, "cancellation_reason", None) == "explicit_cancel")
+            receipt_code = receipt.error_code if receipt else code
         status = status or "failed"
         async with self.database.transaction() as conn:
             owned = await (await conn.execute("SELECT * FROM memory.index_jobs WHERE index_id=%s AND lease_owner=%s "
@@ -285,7 +287,7 @@ class IndexJobs:
             if not owned:
                 return
             await conn.execute("UPDATE memory.index_attempts SET status=%s,error_code=%s,updated_at=now() "
-                "WHERE index_id=%s AND number=%s", (status, code, job["index_id"], attempt["number"]))
+                "WHERE index_id=%s AND number=%s", (status, receipt_code if explicit_cancel else code, job["index_id"], attempt["number"]))
             successor = None
             if explicit_cancel:
                 state, delay = "cancelled", None

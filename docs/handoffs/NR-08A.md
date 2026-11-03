@@ -31,3 +31,9 @@
 根首轮报告 A 新用例全部通过，索引调用方另有一项实质取消回归及冻结计时桩的两个参数用例失败。本次仅修这两个位置：`IndexJobs._failure` 直接消费 ModelSteps 已确认的 `explicit_cancel` 或 `cancellation_reason`，不再依赖错误码仍为 transient 才能识别取消，也不为已确认取消再次读控制面；原 Models unknown 回执保持。冻结计时测试补齐原 attempt 的 `status` 桩，产品不加入 `hasattr` 兼容。
 
 根复验目标：`tests/core/test_memory_index_retry.py::test_later_explicit_cancel_overrides_a_retryable_interrupted_unknown_without_changing_it`、`tests/core/test_retrieval_timing.py::test_existing_index_step_keeps_frozen_timing_and_rejects_changed_payload` 的两个参数，以及既有索引取消边界。返修仅做这两个 Python 文件的静态语法检查和 diff 检查，不运行测试或重复已通过范围。
+
+## 取消决策与原回执审计分离
+
+根定向复验 23 项中 22 项通过；剩余原未知回执后来明确取消的用例已正确取消索引任务，但 attempt 审计误写了决策码。两条非成功异常路径现补传 `details.receipt_error_code`，明确取消时 `model_steps` / `index_attempts` 保留该原码（含空码），索引任务 `last_error` 仍为 `explicit_cancel`，不修改原 Models 回执。新增 `test_confirmed_cancellation_keeps_receipt_error_separate_from_control_decision`，覆盖 RPC 包装和直接返回，以及 unknown/consumer_interrupted、cancelled/model_cancelled、cancelled/空码六个参数。根只需复验该参数用例及原索引迟到取消用例，复用其余 22 项有效结果。
+
+本次仅执行四个 Python 文件的无导入、无 pyc 静态语法检查及 diff 检查；不运行测试、构建或真实调用。

@@ -111,14 +111,18 @@ class ModelSteps:
                             await self._outcome(step_id,outcome.status,outcome.receipt.error_code)
                         exc=outcome.exception(original.attempt_id,rpc_error=exc)
             if exc is not None and (not isinstance(exc, AppError) or exc.code not in {"source_unavailable"}):
-                known_cancel = isinstance(exc, AppError) and (exc.details or {}).get("dispatch") == "not_started" and (exc.details or {}).get("status") == "cancelled"
-                observed=(getattr(exc,"details",None) or {}).get("status")
+                details=getattr(exc,"details",None) or {}
+                known_cancel = isinstance(exc, AppError) and details.get("dispatch") == "not_started" and details.get("status") == "cancelled"
+                observed=details.get("status")
                 state=observed if observed in {"queued","running","succeeded","failed","cancelled","unknown"} else "unknown"
+                code=getattr(exc,"code","model_transport_unknown")
+                if details.get("cancellation_reason")=="explicit_cancel":
+                    code=details.get("receipt_error_code",code)
                 async with self.database.transaction() as conn:
                     await conn.execute(
                         "UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() "
                         "WHERE step_id=%s AND state NOT IN ('source_revoked','succeeded','failed','cancelled')",
-                        ("cancelled" if known_cancel else state,getattr(exc, "code", "model_transport_unknown"), step_id))
+                        ("cancelled" if known_cancel else state,code, step_id))
             if exc is not None:
                 raise exc
         async with self.database.transaction() as conn:
@@ -131,6 +135,7 @@ class ModelSteps:
             explicit = getattr(result.receipt,"cancellation_reason",None) == "explicit_cancel"
             raise AppError("explicit_cancel" if explicit else result.receipt.error_code or "model_outcome_"+result.receipt.status,
                 status=503, details={"attempt_id": original.attempt_id, "status": result.receipt.status,
+                    "receipt_error_code":result.receipt.error_code,
                     "cancellation_reason":getattr(result.receipt,"cancellation_reason",None)})
         return result, original
 

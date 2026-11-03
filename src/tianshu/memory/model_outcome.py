@@ -76,6 +76,7 @@ class OriginalOutcome:
                  "original_observation":"confirmed" if self.receipt else "unavailable" if self.control_error else "missing"}
         if self.receipt:
             details.update(dispatch=self.receipt.dispatch,
+                receipt_error_code=self.receipt.error_code,
                 cancellation_reason=getattr(self.receipt,"cancellation_reason",None))
         if self.control_error:
             details["control_error"]=self.control_error
