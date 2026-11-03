@@ -26,13 +26,28 @@ export function RuntimeCards({
         )[db?.size_scope ?? ""] ?? "统计范围尚未取得");
   return (
     <>
-      <section className="media-card overview-system" aria-label="系统状态">
-        <div className="media-section-head">
-          <h2>
-            <Cpu aria-hidden="true" />
-            系统状态
-          </h2>
-          <a href="#/media/runtime" aria-label="查看运行状态详情">
+      <section
+        className="curio-card media-card overview-system"
+        aria-label="系统状态"
+      >
+        <div className="section-head media-section-head">
+          <div className="section-title-group">
+            <div className="section-seal-icon" aria-hidden="true">
+              枢
+            </div>
+            <div>
+              <h2 className="section-title">
+                <Cpu aria-hidden="true" className="sr-only" />
+                系统状态
+              </h2>
+              <div className="section-sub">天枢主进程负载</div>
+            </div>
+          </div>
+          <a
+            className="ink-link"
+            href="#/media/runtime"
+            aria-label="查看运行状态详情"
+          >
             <ArrowRight aria-hidden="true" />
           </a>
         </div>
@@ -40,14 +55,14 @@ export function RuntimeCards({
           {runtime?.cpu_percent == null ? "—" : `${runtime.cpu_percent}%`}
           <span>CPU · 天枢进程</span>
         </div>
-        <dl className="overview-facts">
-          <div>
-            <dt>进程内存</dt>
-            <dd>{bytes(runtime?.memory_bytes)}</dd>
+        <dl className="kv-list overview-facts">
+          <div className="kv-row">
+            <dt className="k">进程内存</dt>
+            <dd className="v">{bytes(runtime?.memory_bytes)}</dd>
           </div>
-          <div>
-            <dt>已运行</dt>
-            <dd>{uptime(runtime?.uptime_seconds)}</dd>
+          <div className="kv-row">
+            <dt className="k">已运行</dt>
+            <dd className="v">{uptime(runtime?.uptime_seconds)}</dd>
           </div>
         </dl>
         {details && (
@@ -58,12 +73,24 @@ export function RuntimeCards({
           </p>
         )}
       </section>
-      <section className="media-card overview-database" aria-label="数据库状态">
-        <div className="media-section-head">
-          <h2>
-            <Database aria-hidden="true" />
-            数据库
-          </h2>
+
+      <section
+        className="curio-card media-card overview-database"
+        aria-label="数据库状态"
+      >
+        <div className="section-head media-section-head">
+          <div className="section-title-group">
+            <div className="section-seal-icon" aria-hidden="true">
+              库
+            </div>
+            <div>
+              <h2 className="section-title">
+                <Database aria-hidden="true" className="sr-only" />
+                数据库
+              </h2>
+              <div className="section-sub">媒体数据库存储与延迟</div>
+            </div>
+          </div>
           <StatusRail
             tone={db?.state === "ready" ? "blue" : "gray"}
             label={db?.state === "ready" ? "可读取" : "未取得"}
@@ -73,18 +100,18 @@ export function RuntimeCards({
           {bytes(db?.size_bytes)}
           <span>媒体数据库 · {databaseEngine}</span>
         </div>
-        <dl className="overview-facts">
-          <div>
-            <dt>摘要查询</dt>
-            <dd>{db ? `${db.query_ms} ms` : "—"}</dd>
+        <dl className="kv-list overview-facts">
+          <div className="kv-row">
+            <dt className="k">摘要查询</dt>
+            <dd className="v">{db ? `${db.query_ms} ms` : "—"}</dd>
           </div>
-          <div>
-            <dt>结构版本</dt>
-            <dd>{db ? `v${db.schema_version}` : "—"}</dd>
+          <div className="kv-row">
+            <dt className="k">结构版本</dt>
+            <dd className="v">{db ? `v${db.schema_version}` : "—"}</dd>
           </div>
-          <div>
-            <dt>大小统计范围</dt>
-            <dd>{sizeScope}</dd>
+          <div className="kv-row">
+            <dt className="k">大小统计范围</dt>
+            <dd className="v">{sizeScope}</dd>
           </div>
         </dl>
         {details && (
@@ -94,13 +121,27 @@ export function RuntimeCards({
           </p>
         )}
       </section>
-      <section className="media-card overview-network" aria-label="网络速率">
-        <h2>
-          <Network aria-hidden="true" />
-          网络速率
-        </h2>
+
+      <section
+        className="curio-card media-card overview-network"
+        aria-label="网络速率"
+      >
+        <div className="section-head media-section-head">
+          <div className="section-title-group">
+            <div className="section-seal-icon" aria-hidden="true">
+              脉
+            </div>
+            <div>
+              <h2 className="section-title">
+                <Network aria-hidden="true" className="sr-only" />
+                网络速率
+              </h2>
+              <div className="section-sub">容器吞吐实时采样</div>
+            </div>
+          </div>
+        </div>
         <dl className="overview-network-rates">
-          <div>
+          <div className="curio-rate-box">
             <dt>↓ 接收</dt>
             <dd>
               {runtime?.receive_bytes_per_second == null
@@ -108,7 +149,7 @@ export function RuntimeCards({
                 : `${bytes(runtime.receive_bytes_per_second)}/s`}
             </dd>
           </div>
-          <div>
+          <div className="curio-rate-box">
             <dt>↑ 发送</dt>
             <dd>
               {runtime?.send_bytes_per_second == null
@@ -139,13 +180,28 @@ export function LatencyCard({
   details?: boolean;
 }) {
   return (
-    <section className="media-card overview-latency" aria-label="网络连接延迟">
-      <div className="media-section-head">
-        <h2>
-          <Activity aria-hidden="true" />
-          连接延迟
-        </h2>
-        <a href="#/media/runtime" aria-label="查看连接测量详情">
+    <section
+      className="curio-card media-card overview-latency"
+      aria-label="网络连接延迟"
+    >
+      <div className="section-head media-section-head">
+        <div className="section-title-group">
+          <div className="section-seal-icon" aria-hidden="true">
+            驿
+          </div>
+          <div>
+            <h2 className="section-title">
+              <Activity aria-hidden="true" className="sr-only" />
+              连接延迟
+            </h2>
+            <div className="section-sub">端到端回路探测</div>
+          </div>
+        </div>
+        <a
+          className="ink-link"
+          href="#/media/runtime"
+          aria-label="查看连接测量详情"
+        >
           <ArrowRight aria-hidden="true" />
         </a>
       </div>
@@ -183,9 +239,17 @@ export function RuntimePanel({
       className="media-stack media-runtime-details"
       aria-label="运行状态详情"
     >
-      <div className="media-section-head">
-        <h2>运行状态</h2>
-        <a className="overview-text-link" href="#/media">
+      <div className="page-top-bar media-section-head">
+        <div className="page-identity">
+          <span className="role-seal-avatar">枢</span>
+          <div className="page-title-wrap">
+            <h2>运行状态</h2>
+            <p className="page-title-meta">
+              进程资源、数据库、网络与下载引擎详情
+            </p>
+          </div>
+        </div>
+        <a className="button curio-btn overview-text-link" href="#/media">
           返回概览
         </a>
       </div>
@@ -193,7 +257,7 @@ export function RuntimePanel({
         <RuntimeCards view={view} details />
         <LatencyCard responseMs={responseMs} stale={stale} details />
       </div>
-      <section className="media-card" aria-label="下载引擎详情">
+      <section className="curio-card media-card" aria-label="下载引擎详情">
         <h2>下载引擎</h2>
         <StatusRail
           tone={tone(mediaEngineState(view.engine))}
@@ -244,7 +308,7 @@ export function RuntimePanel({
           引擎版本：{view.engine.version || "尚未取得"} · 工作进程最近观测：
           {timestamp(view.engine.observed_at)}
         </p>
-        <a className="overview-text-link" href="#/media/accounts">
+        <a className="ink-link overview-text-link" href="#/media/accounts">
           管理视频账号与媒体库
           <ArrowRight aria-hidden="true" />
         </a>

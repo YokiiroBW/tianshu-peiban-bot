@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useAuth } from "../../app/Auth";
 import { useDomainCommand } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import { shortHashTag } from "../../design/humanize";
 import RelationshipPanel from "../companion/relationships/RelationshipPanel";
 import { SharedPortrait } from "./SharedPortrait";
 import { Interactions } from "./Interactions";
@@ -9,6 +10,7 @@ import { ReplyPermissions } from "./ReplyPermissions";
 import { ProactivePanel } from "./ProactivePanel";
 import { AccountLinkPanel } from "./AccountLinkPanel";
 import { personName, type Person } from "./types";
+
 export function PersonDetail({
   person,
   actorId,
@@ -33,17 +35,24 @@ export function PersonDetail({
   return (
     <section className="people-detail">
       <header className="people-person-header">
-        <span className="people-avatar large">
+        <span className="role-seal-avatar people-avatar large">
           {personName(person).slice(0, 1)}
         </span>
         <div>
           <h2>{personName(person)}</h2>
           <p className="muted">
-            人物 {person.person_id} · 修订 {person.revision}
+            人物档案{" "}
+            <span className="curio-tech-code" title={person.person_id}>
+              {shortHashTag(person.person_id)}
+            </span>{" "}
+            · 修订 {person.revision}
           </p>
         </div>
       </header>
-      <nav className="people-detail-tabs" aria-label="人物详情">
+      <nav
+        className="people-detail-tabs workspace-tabs-bar"
+        aria-label="人物详情"
+      >
         {[
           ["overview", "身份"],
           ["portrait", "认识与记忆"],
@@ -53,7 +62,12 @@ export function PersonDetail({
           ["proactive", "主动联系"],
           ["accounts", "账号关联"],
         ].map(([id, label]) => (
-          <button key={id} aria-pressed={tab === id} onClick={() => setTab(id)}>
+          <button
+            key={id}
+            className={`ws-tab${tab === id ? " active" : ""}`}
+            aria-pressed={tab === id}
+            onClick={() => setTab(id)}
+          >
             {label}
           </button>
         ))}

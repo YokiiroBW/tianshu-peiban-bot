@@ -18,10 +18,38 @@ import { RuntimeCards, LatencyCard } from "./RuntimePanel";
 import "./overview.css";
 
 const metrics = [
-  { key: "published", label: "已完成", icon: CheckCheck, tone: "blue" },
-  { key: "processing", label: "处理中", icon: LoaderCircle, tone: "blue" },
-  { key: "queued", label: "等待队列", icon: ListVideo, tone: "yellow" },
-  { key: "attention", label: "需要处理", icon: TriangleAlert, tone: "red" },
+  {
+    key: "published",
+    label: "已完成",
+    seal: "成",
+    sub: "已归档入库任务",
+    icon: CheckCheck,
+    tone: "blue",
+  },
+  {
+    key: "processing",
+    label: "处理中",
+    seal: "行",
+    sub: "当前活跃传输流",
+    icon: LoaderCircle,
+    tone: "blue",
+  },
+  {
+    key: "queued",
+    label: "等待队列",
+    seal: "候",
+    sub: "排期等待拉取",
+    icon: ListVideo,
+    tone: "yellow",
+  },
+  {
+    key: "attention",
+    label: "需要处理",
+    seal: "警",
+    sub: "需人工核验重试",
+    icon: TriangleAlert,
+    tone: "red",
+  },
 ] as const;
 
 export function OverviewPanel({
@@ -52,70 +80,106 @@ export function OverviewPanel({
       .slice(0, 5);
   return (
     <section className="media-overview" aria-label="订阅概览">
-      <div className="overview-kpis" aria-label="全部下载任务统计">
+      {/* 一体咬合式四联任务 KPI 博古横格 */}
+      <div
+        className="curio-kpi-lattice overview-kpis"
+        aria-label="全部下载任务统计"
+      >
         {metrics.map((metric) => (
           <a
-            className={`overview-kpi overview-tone-${metric.tone}`}
+            className={`kpi-cell overview-kpi overview-tone-${metric.tone}`}
             href={
-              metric.key === "attention"
-                ? attentionJobsHref()
-                : "#/media/jobs"
+              metric.key === "attention" ? attentionJobsHref() : "#/media/jobs"
             }
             key={metric.key}
             aria-label={`${metric.label}，${available ? count(counts[metric.key]) + " 个任务" : "总量暂不可用"}，打开下载中心`}
           >
-            <span className="overview-icon">
-              <metric.icon aria-hidden="true" />
-            </span>
             <div>
-              <span className="overview-kpi-label">{metric.label}</span>
-              <strong className="overview-kpi-value">
+              <div className="kpi-head">
+                <span
+                  className={`section-seal-icon${metric.tone === "red" ? " is-seal-alert" : ""}`}
+                >
+                  {metric.seal}
+                </span>
+                <span className="overview-kpi-label">{metric.label}</span>
+              </div>
+              <strong
+                className={`kpi-num overview-kpi-value${metric.tone === "red" ? " is-seal-alert-text" : ""}`}
+              >
                 {available ? count(counts[metric.key]) : "—"}
               </strong>
+              <div className="kpi-sub">{metric.sub}</div>
             </div>
             <ArrowRight className="overview-kpi-arrow" aria-hidden="true" />
           </a>
         ))}
       </div>
+
       {available ? (
-        <p className="overview-total muted">
-          累计 {count(counts.total)} 个任务 · 其中 {count(counts.cancelled)}{" "}
-          个已取消
-        </p>
+        <div className="overview-total-banner">
+          <p className="overview-total muted">
+            累计 {count(counts.total)} 个任务 · 其中 {count(counts.cancelled)}{" "}
+            个已取消
+          </p>
+          <a className="ink-link" href="#/media/jobs">
+            打开下载中心 →
+          </a>
+        </div>
       ) : (
         <p className="overview-unavailable muted" role="status">
           任务总量暂不可用。仍可到下载中心查看已读取的任务。
         </p>
       )}
-      <div className="overview-columns">
-        <aside className="overview-system-column" aria-label="系统与网络摘要">
+
+      {/* 三栏十卡博古列阵 */}
+      <div className="media-dashboard-grid overview-columns">
+        <aside
+          className="media-col-stack overview-system-column"
+          aria-label="系统与网络摘要"
+        >
           <RuntimeCards view={view} />
         </aside>
-        <div className="overview-main">
+
+        <div className="media-col-stack overview-main">
           <OverviewSubscriptions view={view} />
           <OverviewSubscriptions view={view} music />
           <BookOverview view={view} />
         </div>
-        <aside className="overview-side" aria-label="存储与下载摘要">
+
+        <aside
+          className="media-col-stack overview-side"
+          aria-label="存储与下载摘要"
+        >
           <OverviewStorage view={view} />
           <LatencyCard responseMs={responseMs} stale={stale} />
-          <section className="media-card overview-recent" aria-label="最近下载">
-            <div className="media-section-head">
-              <h2>最近下载</h2>
-              <a className="overview-text-link" href="#/media/jobs">
+          <section
+            className="curio-card media-card overview-recent"
+            aria-label="最近下载"
+          >
+            <div className="section-head media-section-head">
+              <div className="section-title-group">
+                <div className="section-seal-icon" aria-hidden="true">
+                  录
+                </div>
+                <div>
+                  <h2 className="section-title">最近下载</h2>
+                  <div className="section-sub">三类媒体最近活动队列</div>
+                </div>
+              </div>
+              <a className="ink-link overview-text-link" href="#/media/jobs">
                 全部
                 <ArrowRight aria-hidden="true" />
               </a>
             </div>
             <div
-              className="overview-recent-tabs"
+              className="overview-recent-tabs workspace-tabs-bar"
               role="group"
               aria-label="最近下载类型"
             >
               {(["video", "audio", "book"] as const).map((kind) => (
                 <button
                   key={kind}
-                  className={medium === kind ? "is-selected" : ""}
+                  className={`ws-tab ${medium === kind ? "is-selected active" : ""}`}
                   aria-pressed={medium === kind}
                   onClick={() => setMedium(kind)}
                 >
@@ -148,15 +212,17 @@ export function OverviewPanel({
                 ))}
               </div>
             ) : (
-              <p className="overview-empty muted">
-                近期暂无
-                {medium === "video"
-                  ? "视频"
-                  : medium === "audio"
-                    ? "音乐"
-                    : "书籍"}
-                任务
-              </p>
+              <div className="empty-box">
+                <p className="overview-empty muted">
+                  近期暂无
+                  {medium === "video"
+                    ? "视频"
+                    : medium === "audio"
+                      ? "音乐"
+                      : "书籍"}
+                  任务
+                </p>
+              </div>
             )}
           </section>
         </aside>

@@ -5,6 +5,10 @@ import {
 } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import { SourceEvidence } from "../../components/SourceEvidence";
+import {
+  humanizeScopeTarget,
+  sanitizeInternalText,
+} from "../../design/humanize";
 import { useMemoryCursor } from "./pagination";
 import { CoverageNote } from "./EvidenceDetails";
 import { EpisodeProcessing } from "./ConsolidationStatus";
@@ -52,23 +56,23 @@ export default function MemoryReview({
       <div className="section-heading">
         <h3>经历与反思</h3>
         <button
-          className="button"
+          className="button curio-btn"
           disabled={view.loading}
           onClick={() => void view.refresh()}
         >
           刷新
         </button>
       </div>
-      <div className="models-actions">
+      <div className="models-actions workspace-tabs-bar">
         <button
-          className="button"
+          className={`button ws-tab${collection === "episodes" ? " active" : ""}`}
           aria-pressed={collection === "episodes"}
           onClick={() => setCollection("episodes")}
         >
           经历记录
         </button>
         <button
-          className="button"
+          className={`button ws-tab${collection === "reflections" ? " active" : ""}`}
           aria-pressed={collection === "reflections"}
           onClick={() => setCollection("reflections")}
         >
@@ -93,19 +97,21 @@ export default function MemoryReview({
             {view.data.items.map((item) =>
               "episode_id" in item ? (
                 <li key={`${item.episode_id}:${item.revision}`}>
-                  <small>
+                  <small className="meta-tag">
                     {time(item.occurred_at)} · 修订 {item.revision} · 系统记录于{" "}
                     {time(item.recorded_at)}
                   </small>
-                  <p className="memory-prewrap">{item.summary}</p>
+                  <p className="memory-prewrap" style={{ marginTop: "8px" }}>
+                    {item.summary}
+                  </p>
                   <p className="muted">{episodeOrigin(item)}</p>
                   <p className="muted">
                     原作者：
                     {item.speaker_id
-                      ? (identities[item.speaker_id] ?? item.speaker_id)
+                      ? humanizeScopeTarget(item.speaker_id, identities)
                       : "未知（来源未证明唯一作者）"}
                     {item.person_id
-                      ? ` · 相关人物：${identities[item.person_id] ?? item.person_id}`
+                      ? ` · 相关人物：${humanizeScopeTarget(item.person_id, identities)}`
                       : ""}
                   </p>
                   <CoverageNote coverage={item.coverage} />
@@ -131,11 +137,13 @@ export default function MemoryReview({
                 </li>
               ) : (
                 <li key={`${item.proposal_id}:${item.revision}`}>
-                  <small>
+                  <small className="meta-tag">
                     {time(item.occurred_at)} · {item.kind} · 可修订的解释 ·
                     系统记录于 {time(item.recorded_at)}
                   </small>
-                  <p className="memory-prewrap">{item.content}</p>
+                  <p className="memory-prewrap" style={{ marginTop: "8px" }}>
+                    {item.content}
+                  </p>
                   {!!Object.keys(item.conditions).length && (
                     <details>
                       <summary>适用条件</summary>
@@ -147,7 +155,7 @@ export default function MemoryReview({
                       <summary>反例与限制</summary>
                       <ul>
                         {item.counterexamples.map((text, index) => (
-                          <li key={index}>{text}</li>
+                          <li key={index}>{sanitizeInternalText(text)}</li>
                         ))}
                       </ul>
                     </details>

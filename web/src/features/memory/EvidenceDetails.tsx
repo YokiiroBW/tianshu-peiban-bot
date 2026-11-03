@@ -6,9 +6,15 @@ import {
 } from "../../api/useDomainResource";
 import { SourceEvidence } from "../../components/SourceEvidence";
 import { DetailCard } from "../../components/DetailCard";
+import {
+  humanizeScopeTarget,
+  sanitizeInternalText,
+  shortHashTag,
+} from "../../design/humanize";
 import { useMemoryCursor } from "./pagination";
 import {
   assertionNames,
+  evidenceKinds,
   showValue,
   time,
   type EvidenceUnit,
@@ -37,7 +43,10 @@ const statuses: Record<string, string> = {
   counterexample: "反例",
   about_matter: "关联事项",
 };
-export const memoryLabel = (value: string) => statuses[value] ?? value;
+
+export const memoryLabel = (value: string) =>
+  statuses[value] ?? sanitizeInternalText(value);
+
 const missingNames: Record<string, string> = {
   coverage_unknown: "本次记录没有提供素材覆盖范围，不能据此认定已读完或看完。",
   observation_analysis_unavailable: "观察分析尚未形成可核验的材料。",
@@ -55,16 +64,17 @@ const missingNames: Record<string, string> = {
   recorded_at_unknown: "系统记录时间未知",
   valid_from_unknown: "有效起始时间未知",
 };
+
 export function CoverageNote({ coverage }: { coverage?: Coverage | null }) {
   if (!coverage) return <p className="muted">本次覆盖范围未知。</p>;
   return (
-    <div className="memory-coverage">
+    <div className="memory-coverage curio-coverage-note">
       <p className="muted">
         {coverage.complete ? "本次读取范围完整" : "本次读取仍有后续或证据缺项"}
-        {coverage.total != null ? ` · ${coverage.total} 项` : ""}
+        {coverage.total != null ? ` · 共 ${coverage.total} 项` : ""}
       </p>
       {!!coverage.missing.length && (
-        <ul>
+        <ul className="curio-missing-list">
           {coverage.missing.map((reason) => (
             <li key={reason}>
               {missingNames[reason] ?? "部分材料或时间依据尚未完整确认"}
@@ -96,6 +106,7 @@ type DetailFields = RevisionDetails & {
   interpretation?: boolean;
   completion_basis?: Matter["completion_basis"];
 };
+
 export function EvidenceDetails({
   item,
   scope,
@@ -112,7 +123,7 @@ export function EvidenceDetails({
           <dt>主体</dt>
           <dd>
             {item.subject_id
-              ? (identities[item.subject_id] ?? item.subject_id)
+              ? humanizeScopeTarget(item.subject_id, identities)
               : "共享事项或未指定主体"}
           </dd>
         </div>
@@ -120,7 +131,7 @@ export function EvidenceDetails({
           <dt>原作者</dt>
           <dd>
             {item.speaker_id
-              ? (identities[item.speaker_id] ?? item.speaker_id)
+              ? humanizeScopeTarget(item.speaker_id, identities)
               : "未知（来源未证明唯一作者）"}
           </dd>
         </div>
@@ -256,7 +267,8 @@ function RelationEndpoint({
     <section className="memory-relation-endpoint">
       <p>
         <strong>
-          {fallback.kind} · {fallback.id} · v{fallback.revision}
+          {evidenceKinds[fallback.kind] ?? fallback.kind} ·{" "}
+          {shortHashTag(fallback.id)} · v{fallback.revision}
         </strong>
       </p>
       {item ? (
@@ -272,6 +284,7 @@ function RelationEndpoint({
     </section>
   );
 }
+
 export function EvidenceRelations({
   relations = [],
   scope,
@@ -386,6 +399,7 @@ function HistoryPage({
     </div>
   );
 }
+
 export function EvidenceHistory({
   kind,
   id,
@@ -401,7 +415,8 @@ export function EvidenceHistory({
   return (
     <div>
       <button
-        className="text-link"
+        type="button"
+        className="text-link ink-link"
         aria-expanded={open}
         onClick={() => setOpen(!open)}
       >

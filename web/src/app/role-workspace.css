@@ -1,73 +1,88 @@
 .role-picker {
-  padding: 12px 12px 16px;
+  padding: 6px 0 10px;
   margin: 4px 0 8px;
-  border-bottom: 1px solid var(--color-line, #dfe5ee);
+  border-bottom: 1px dashed var(--border-outer);
 }
 .role-picker label {
   display: grid;
-  gap: 8px;
+  gap: 6px;
   font-size: 12px;
-  color: var(--color-muted, #6a768c);
+  color: var(--text-secondary);
 }
 .role-picker select {
   width: 100%;
   min-width: 0;
-  background: var(--color-surface);
-  border: 1px solid var(--color-line, #dfe5ee);
-  border-radius: 12px;
-  padding: 10px 9px;
-  color: var(--color-text, #29334d);
+  background: var(--bg-card);
+  border: 1px solid var(--border-outer);
+  border-radius: 2px;
+  padding: 7px 9px;
+  color: var(--text-primary);
   font: inherit;
-  font-size: 14px;
+  font-size: 12.5px;
 }
 .role-section-heading {
   display: flex;
   gap: 18px;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 24px;
+  margin-bottom: 18px;
+  padding: 14px 18px;
+  background: var(--bg-card);
+  border: 1.5px solid var(--border-outer);
+  border-radius: 2px;
+  box-shadow: var(--shadow-card);
 }
 .role-section-heading h2 {
   margin: 0;
-  font-size: 24px;
-  letter-spacing: -0.5px;
+  font-family: var(--font-serif);
+  font-size: 20px;
+  letter-spacing: 0.03em;
 }
 .role-section-heading p {
-  margin: 7px 0 0;
-  color: var(--color-muted, #6a768c);
-  font-size: 14px;
+  margin: 5px 0 0;
+  color: var(--text-secondary);
+  font-size: 12.5px;
 }
 .role-context-avatar {
   display: grid;
   place-items: center;
-  width: 50px;
-  height: 50px;
+  width: 44px;
+  height: 44px;
   flex: none;
-  border-radius: 16px;
-  background: #727ba91a;
-  color: #626a98;
-  font-size: 22px;
+  border-radius: 2px;
+  border: 1.5px solid var(--seal);
+  background: var(--seal-soft);
+  color: var(--seal);
+  font-family: var(--font-serif);
+  font-size: 20px;
+  font-weight: 700;
 }
 .role-identity-title {
   display: flex;
-  gap: 15px;
+  gap: 14px;
   align-items: center;
 }
 .role-page .role-list,
 .bot-connection-cards {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
-  gap: 18px;
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  gap: 16px;
   align-items: start;
 }
 .role-page .role-list > button,
 .bot-connection-card {
-  border: 1px solid var(--color-line, #e5e7f0);
-  background: var(--color-surface);
-  border-radius: 22px;
-  padding: 24px;
+  border: 1.5px solid var(--border-outer);
+  background: var(--bg-card);
+  border-radius: 2px;
+  padding: 20px;
   text-align: left;
-  box-shadow: 0 7px 24px #33436207;
+  box-shadow: var(--shadow-card);
+  transition: all 0.2s;
+}
+.role-page .role-list > button:hover,
+.bot-connection-card:hover {
+  border-color: var(--accent);
+  box-shadow: var(--shadow-hover);
 }
 .bot-connection-card header {
   display: flex;
@@ -78,31 +93,33 @@
   grid-template-columns: repeat(auto-fill, minmax(min(100%, 310px), 1fr));
 }
 .bot-connection-card {
-  min-height: 225px;
+  min-height: 210px;
 }
 .bot-policy-hint {
-  font-size: 13px;
-  color: var(--color-muted);
+  font-size: 12.5px;
+  color: var(--text-secondary);
 }
 .bot-policy-hint summary {
   cursor: pointer;
 }
 .bot-policy-hint p {
-  margin-top: 12px;
+  margin-top: 10px;
 }
 .bot-connection-card h3 {
   margin: 0;
-  font-size: 18px;
+  font-family: var(--font-serif);
+  font-size: 16px;
 }
 .bot-connection-card p {
-  color: var(--color-muted, #64748b);
-  font-size: 13px;
+  color: var(--text-secondary);
+  font-size: 12.5px;
   overflow-wrap: anywhere;
 }
 .bot-connection-card .bot-card-qq {
-  font-size: 20px;
+  font-family: var(--font-mono);
+  font-size: 18px;
   letter-spacing: 0.4px;
-  color: var(--color-text, #2a3449);
+  color: var(--text-primary);
 }
 .role-model-grid {
   display: grid;
@@ -110,63 +127,76 @@
   gap: 16px;
 }
 .role-model-card {
-  padding: 22px;
-  border: 1px solid var(--color-line, #e5e7f0);
-  background: var(--color-surface);
-  border-radius: 20px;
+  padding: 18px;
+  border: 1.5px solid var(--border-outer);
+  background: var(--bg-card);
+  border-radius: 2px;
   display: grid;
-  gap: 13px;
+  gap: 12px;
+  box-shadow: var(--shadow-card);
 }
 .role-model-card h3,
 .role-model-card p {
   margin: 0;
 }
 .role-model-card p {
-  font-size: 13px;
-  color: var(--color-muted, #64748b);
+  font-size: 12.5px;
+  color: var(--text-secondary);
 }
 .role-settings-page {
-  max-width: 1200px;
+  max-width: 1280px;
   margin: auto;
 }
 .role-settings-tabs {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
-  border-bottom: 1px solid var(--color-line, #e1e5ec);
-  padding-bottom: 12px;
-  margin-bottom: 22px;
+  gap: 4px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-outer);
+  padding: 4px;
+  border-radius: 2px;
+  margin-bottom: 18px;
 }
 .role-settings-tabs button {
-  border: 0;
+  border: 1px solid transparent;
   background: none;
-  padding: 10px 15px;
-  border-radius: 10px;
-  color: var(--color-muted, #64748b);
+  padding: 7px 14px;
+  border-radius: 2px;
+  color: var(--text-secondary);
   font: inherit;
+  font-size: 12.5px;
   cursor: pointer;
 }
 .role-settings-tabs button[aria-selected="true"] {
-  background: #6475ab15;
-  color: #5268a4;
+  background: var(--bg-card);
+  color: var(--accent);
+  border-color: var(--border-inner);
   font-weight: 600;
 }
 .life-workspace-tabs {
-  background: none !important;
-  border-bottom: 1px solid var(--color-line, #dce1eb);
-  padding: 0 0 14px !important;
-  gap: 5px !important;
+  display: flex;
+  align-items: center;
+  gap: 4px !important;
+  background: var(--bg-subtle) !important;
+  border: 1px solid var(--border-outer) !important;
+  padding: 4px !important;
+  border-radius: 2px !important;
+  flex-wrap: wrap;
 }
 .life-workspace-tabs > .button {
-  border: 0;
-  background: none;
-  border-radius: 10px;
+  border: 1px solid transparent;
+  background: transparent;
+  border-radius: 1px;
   box-shadow: none;
-  color: var(--color-muted, #64748b);
+  color: var(--text-secondary);
+  min-height: 1.9rem;
+  padding: 4px 11px;
+  font-size: 12px;
 }
 .life-workspace-tabs > .button[aria-selected="true"] {
-  color: #5c6a9c;
-  background: #6575a713;
+  color: var(--accent);
+  background: var(--bg-card);
+  border-color: var(--border-inner);
   font-weight: 600;
 }
 .life-runtime-grid:has(> .panel) {
@@ -179,26 +209,27 @@
   margin-top: 0;
 }
 .life-page .life-toolbar {
-  padding-bottom: 20px;
-  border-bottom: 1px solid var(--color-line, #e1e5ec);
+  padding-bottom: 14px;
+  border-bottom: 1px dashed var(--border-outer);
 }
 .chat-page {
-  max-width: 1240px;
+  max-width: 1280px;
   margin: auto;
 }
 .chat-page .chat-selectors {
   grid-template-columns: 1fr;
 }
 .role-danger-zone {
-  margin-top: 28px;
-  padding-top: 20px;
-  border-top: 1px solid var(--color-line, #e3e6ed);
+  margin-top: 24px;
+  padding-top: 18px;
+  border-top: 1px dashed var(--border-outer);
 }
 .role-danger-zone .button {
-  color: #a5424f;
+  color: var(--seal);
+  border-color: var(--seal-border);
 }
 .role-page .role-header .eyebrow {
-  color: var(--color-muted, #64748b);
+  color: var(--text-secondary);
 }
 
 .role-list-top,
@@ -208,7 +239,7 @@
 .role-page .role-list-item {
   display: grid;
   gap: 12px;
-  min-height: 180px;
+  min-height: 170px;
 }
 .chat-page.chat-console {
   min-height: 70vh;
@@ -225,19 +256,19 @@
   align-items: start;
 }
 .writing-create {
-  margin-top: 24px;
+  margin-top: 20px;
 }
 .asset-content-layout:has(.bookshelves) {
   grid-template-columns: minmax(0, 1fr);
 }
 .life-activity-overview {
   grid-template-columns: repeat(6, minmax(0, 1fr)) !important;
-  gap: 20px;
+  gap: 16px;
 }
 .life-activity-overview > .panel {
   grid-column: span 2;
-  padding: 22px;
-  border-radius: 20px;
+  padding: 18px;
+  border-radius: 2px;
 }
 .life-activity-overview > .life-activities-card {
   grid-column: span 4;
@@ -246,17 +277,17 @@
   display: flex;
   gap: 9px;
   align-items: center;
-  font-size: 16px;
+  font-size: 15px;
 }
 .life-activity-overview h3 > svg {
-  width: 18px;
-  height: 18px;
-  color: var(--color-accent);
+  width: 17px;
+  height: 17px;
+  color: var(--accent);
 }
 .life-activity-overview .life-record {
-  background: var(--color-input);
-  border-color: var(--color-line);
-  font-size: 14px;
+  background: var(--bg-subtle);
+  border-color: var(--border-inner);
+  font-size: 13.5px;
 }
 .life-goal-card > .life-record {
   padding: 0;
@@ -264,38 +295,38 @@
   background: none;
 }
 .life-now-card {
-  border-top: 3px solid #b7c9bb !important;
+  border-top: 3px solid var(--accent) !important;
 }
 .life-feeling-card {
-  border-top: 3px solid #cebcca !important;
+  border-top: 3px solid var(--seal) !important;
 }
 .life-goal-card {
-  border-top: 3px solid #b6c2d8 !important;
+  border-top: 3px solid var(--amber) !important;
 }
 .life-activity-overview .muted,
 .life-activity-overview small {
   font-size: 12px;
   line-height: 1.7;
-  color: var(--color-muted);
+  color: var(--text-secondary);
 }
 .life-activity-overview > .panel > .button {
-  margin-top: 16px;
+  margin-top: 14px;
 }
 .role-model-card label {
   display: grid;
-  gap: 9px;
-  font-size: 13px;
+  gap: 8px;
+  font-size: 12.5px;
 }
 .role-model-card select {
   width: 100%;
   min-width: 0;
-  min-height: 42px;
+  min-height: 38px;
   font: inherit;
-  color: var(--color-text);
-  background: var(--color-input);
-  border: 1px solid var(--color-line);
-  border-radius: 11px;
-  padding: 9px;
+  color: var(--text-primary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-outer);
+  border-radius: 2px;
+  padding: 7px 9px;
 }
 .knowledge-shelf {
   display: grid;
@@ -309,24 +340,24 @@
 }
 .chat-page .chat-turn-heading summary {
   font-size: 11px;
-  color: var(--color-muted);
+  color: var(--text-secondary);
 }
 .chat-page .chat-message {
-  border-radius: 18px;
-  padding: 16px 20px;
+  border-radius: 2px;
+  padding: 14px 18px;
   max-width: min(85%, 760px);
-  line-height: 1.8;
+  line-height: 1.75;
 }
 .chat-page .user-message {
-  border-bottom-right-radius: 5px;
+  border-right: 3px solid var(--accent);
 }
 .chat-page .actor-message {
-  border-bottom-left-radius: 5px;
-  border: 1px solid var(--color-line);
+  border-left: 3px solid var(--seal);
+  border: 1px solid var(--border-outer);
 }
 .chat-page .chat-composer {
-  border-top: 1px solid var(--color-line);
-  padding-top: 16px;
+  border-top: 1px dashed var(--border-outer);
+  padding-top: 14px;
 }
 @media (max-width: 1100px) {
   .life-activity-overview {
@@ -342,10 +373,10 @@
 @media (max-width: 640px) {
   .role-section-heading {
     gap: 10px;
-    margin-bottom: 18px;
+    margin-bottom: 14px;
   }
   .role-section-heading h2 {
-    font-size: 21px;
+    font-size: 18px;
   }
   .life-activity-overview {
     grid-template-columns: minmax(0, 1fr) !important;

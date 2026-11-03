@@ -30,6 +30,7 @@ type Workspace = {
   selectConversation: (value: ConversationSelection | null) => void;
 };
 const Context = createContext<Workspace | null>(null);
+
 export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
   const key = `tianshu-workspace-role:${session?.username ?? ""}`;
@@ -41,6 +42,7 @@ export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
   const active = useRef<AbortController | null>(null);
   const identity = useRef(session?.csrf);
   identity.current = session?.csrf;
+
   async function refresh() {
     if (!session?.authenticated) return;
     active.current?.abort();
@@ -84,6 +86,7 @@ export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
       setActor("");
     }
   }
+
   useEffect(() => {
     setRoles([]);
     setActor("");
@@ -91,9 +94,11 @@ export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
     void refresh();
     return () => active.current?.abort();
   }, [session?.csrf]);
+
   useEffect(() => {
     setConversation(null);
   }, [actor, session?.csrf]);
+
   function select(id: string) {
     if (
       id !== actor &&
@@ -109,6 +114,7 @@ export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
     saveRolePreference(key, id);
     return true;
   }
+
   return (
     <Context.Provider
       value={{
@@ -127,17 +133,39 @@ export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
     </Context.Provider>
   );
 }
+
 export function useRoleWorkspace() {
   const value = useContext(Context);
   if (!value) throw new Error("role_workspace_missing");
   return value;
 }
+
 export function RolePicker() {
   const { roles, actor, select, error } = useRoleWorkspace();
+  const currentRole = roles.find((r) => r.id === actor);
+  const roleName = currentRole?.name ?? "角色";
+  const sealChar = roleName.slice(0, 1) || "角";
+
   return (
-    <div className="role-picker">
-      <label>
-        <span>当前角色</span>
+    <div className="role-picker curio-role-picker">
+      <div className="role-selector-box">
+        <div className="role-selector-info">
+          <div className="role-mini-seal" aria-hidden="true">
+            {sealChar}
+          </div>
+          <div className="role-selector-meta">
+            <div className="role-selector-kicker">当前角色</div>
+            <div className="role-selector-title">
+              {currentRole ? roleName : "暂未选择角色"}
+            </div>
+          </div>
+        </div>
+        <span className="cinnabar-seal role-status-seal">
+          {currentRole?.state === "active" ? "已启用" : "未启用"}
+        </span>
+      </div>
+      <label className="curio-role-select-label">
+        <span className="sr-only">当前角色</span>
         <select
           aria-label="当前角色"
           value={actor}

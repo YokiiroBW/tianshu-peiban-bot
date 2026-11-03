@@ -49,7 +49,10 @@ const terminal: Record<string, string> = {
   aborted: "已停止",
 };
 
-function waitingText(execution: ExecutionObservation | undefined, state?: string) {
+function waitingText(
+  execution: ExecutionObservation | undefined,
+  state?: string,
+) {
   if (state === "unknown") return "结果未知，请核对原任务";
   if (state && terminal[state]) return terminal[state];
   if (execution?.wait_reason === "execution_lane_unresolved")
@@ -73,15 +76,23 @@ export function ExecutionStatus({
   compact?: boolean;
 }) {
   return (
-    <div className="execution-status">
-      {!compact && <p>执行通道：{executionLaneName(execution?.execution_lane)}</p>}
-      <p>{waitingText(execution, state)}</p>
+    <div className="execution-status curio-execution-receipt">
+      <div className="curio-receipt-head">
+        {!compact && (
+          <span className="celadon-tag">
+            执行通道：{executionLaneName(execution?.execution_lane)}
+          </span>
+        )}
+        <span className="meta-tag">{waitingText(execution, state)}</span>
+      </div>
       {execution?.scheduled_at && execution.wait_reason === "scheduled" && (
-        <p>计划时间：{new Date(execution.scheduled_at).toLocaleString("zh-CN")}</p>
+        <p className="muted">
+          计划时间：{new Date(execution.scheduled_at).toLocaleString("zh-CN")}
+        </p>
       )}
       {execution && (
-        <details>
-          <summary>调度详情</summary>
+        <details className="curio-details-box">
+          <summary className="ink-link">调度详情</summary>
           <pre>{JSON.stringify(execution, null, 2)}</pre>
         </details>
       )}

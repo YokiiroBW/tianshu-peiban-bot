@@ -6,6 +6,8 @@ import type { Page } from "../../api/contracts";
 import type { LifeAccessView, LifeState } from "../life/domainTypes";
 import { activityLabels } from "../life/domainTypes";
 import type { DevicesView } from "../home/deviceTypes";
+import { CurioSectionHead } from "../../components/curio/OrientalWidgets";
+import { sanitizeInternalText } from "../../design/humanize";
 
 type Upcoming = {
   id: string;
@@ -15,6 +17,17 @@ type Upcoming = {
   state: string;
   reason: string | null;
 };
+
+const commitmentStateLabels: Record<string, string> = {
+  planned: "已约定",
+  active: "进行中",
+  pending: "待履行",
+  overdue: "已到约定时间",
+  completed: "已完成",
+  cancelled: "已取消",
+  expired: "已过期",
+};
+
 export default function WorkbenchPage() {
   const workspace = useRoleWorkspace();
   const access = useDomainResource<LifeAccessView>(
@@ -32,18 +45,24 @@ export default function WorkbenchPage() {
   const devices = useDomainResource<DevicesView>("devices/view");
   const name =
     workspace.roles.find((row) => row.id === workspace.actor)?.name ?? "角色";
+
   return (
     <div className="workbench">
       <HostResources />
       <div className="workspace-columns">
-        <section className="panel">
-          <header className="section-heading">
-            <h2>{name}的近况</h2>
-            <a className="text-link" href="#/roles/life">
-              生活
-              <ArrowUpRight aria-hidden="true" />
-            </a>
-          </header>
+        <section className="curio-card panel">
+          <CurioSectionHead
+            seal="况"
+            level={2}
+            title={`${name}的近况`}
+            subtitle="当前活动、衣着与主观心绪"
+            action={
+              <a className="ink-link text-link" href="#/roles/life">
+                生活
+                <ArrowUpRight aria-hidden="true" />
+              </a>
+            }
+          />
           {access.error && <p role="alert">{access.error}</p>}
           {state.error && <p role="alert">{state.error}</p>}
           {!workspace.actor ? (
@@ -57,12 +76,14 @@ export default function WorkbenchPage() {
               </p>
               {state.data.activity && (
                 <p>
-                  {activityLabels[state.data.activity.state] ??
-                    state.data.activity.state}
+                  <span className="celadon-tag">
+                    {activityLabels[state.data.activity.state] ??
+                      state.data.activity.state}
+                  </span>
                 </p>
               )}
               <p>穿着：{state.data.outfit?.description ?? "未选择服装"}</p>
-              <p>
+              <p className="mood-quote-box">
                 {state.data.affect.feelings.find((feeling) =>
                   feeling.appraisal.trim(),
                 )?.appraisal ?? "暂时没有新的主观记录。"}
@@ -70,7 +91,7 @@ export default function WorkbenchPage() {
               {state.data.missing.length > 0 && (
                 <p>本次缺失：{state.data.missing.join("、")}</p>
               )}
-              <small>
+              <small className="muted">
                 读取于{" "}
                 {new Date(state.data.observed_at).toLocaleString("zh-CN")} ·
                 角色生活场景为想象状态
@@ -79,82 +100,114 @@ export default function WorkbenchPage() {
           ) : (
             <p>正在读取当前生活状态…</p>
           )}
-          <a className="text-link" href="#/roles/room">
-            打开小屋
-          </a>
-        </section>
-        <section className="panel">
-          <header className="section-heading">
-            <h2>家庭设备</h2>
-            <a className="text-link" href="#/home/devices">
-              设备与控制
-              <ArrowUpRight aria-hidden="true" />
+          <div className="curio-card-foot-link">
+            <a className="ink-link text-link" href="#/roles/room">
+              打开小屋 →
             </a>
-          </header>
+          </div>
+        </section>
+
+        <section className="curio-card panel">
+          <CurioSectionHead
+            seal="器"
+            level={2}
+            title="家庭设备"
+            subtitle="已登记连接与环境观测读数"
+            action={
+              <a className="ink-link text-link" href="#/home/devices">
+                设备与控制
+                <ArrowUpRight aria-hidden="true" />
+              </a>
+            }
+          />
           {devices.error && <p role="alert">{devices.error}</p>}
           {devices.data ? (
             <div className="quiet-content">
-              <p>
+              <p className="meta-tag">
                 {devices.data.connections.length}个已登记连接 ·{" "}
                 {devices.data.readings.length}项已保存观测
               </p>
               {!devices.data.readings.length && <p>尚无实际设备读数。</p>}
-              {devices.data.readings.slice(0, 6).map((row) => (
-                <p key={`${row.connection_id}:${row.entity_id}`}>
-                  <strong>{row.label || row.entity_id}</strong>：
-                  {row.state ?? "未知"}{" "}
-                  {row.attributes.unit_of_measurement ?? ""}
-                  <br />
-                  <small>
-                    {row.connection_id} ·{" "}
-                    {new Date(row.observed_at).toLocaleString("zh-CN")}
-                  </small>
-                </p>
-              ))}
+              <div className="kv-list" style={{ marginTop: "10px" }}>
+                {devices.data.readings.slice(0, 6).map((row) => (
+                  <div
+                    className="kv-row"
+                    key={`${row.connection_id}:${row.entity_id}`}
+                  >
+                    <div>
+                      <strong>{row.label || row.entity_id}</strong>
+                      <br />
+                      <small className="muted">
+                        {sanitizeInternalText(row.connection_id)} ·{" "}
+                        {new Date(row.observed_at).toLocaleString("zh-CN")}
+                      </small>
+                    </div>
+                    <span className="v">
+                      {row.state ?? "未知"}{" "}
+                      {row.attributes.unit_of_measurement ?? ""}
+                    </span>
+                  </div>
+                ))}
+              </div>
             </div>
           ) : (
             !devices.error && <p>正在读取已记录设备状态…</p>
           )}
         </section>
       </div>
-      <section className="panel">
-        <header className="section-heading">
-          <h2>
-            <CalendarDays aria-hidden="true" />
-            近期约定
-          </h2>
-          <a className="text-link" href="#/roles/commitments">
-            管理约定
-            <ArrowUpRight aria-hidden="true" />
-          </a>
-        </header>
+
+      <section className="curio-card panel">
+        <CurioSectionHead
+          seal="约"
+          level={2}
+          title={
+            <>
+              <CalendarDays aria-hidden="true" className="sr-only" />
+              近期约定
+            </>
+          }
+          subtitle="角色与伙伴之间待履行的明确约定"
+          action={
+            <a className="ink-link text-link" href="#/roles/commitments">
+              管理约定
+              <ArrowUpRight aria-hidden="true" />
+            </a>
+          }
+        />
         {commitments.error && <p role="alert">{commitments.error}</p>}
         {commitments.data && (
           <>
-            {commitments.data.items
-              .filter(
-                (row) =>
-                  !["completed", "cancelled", "expired"].includes(row.state),
-              )
-              .sort((a, b) =>
-                (a.due_at ?? "9999").localeCompare(b.due_at ?? "9999"),
-              )
-              .map((row) => (
-                <article className="domain-record" key={row.id}>
-                  <strong>{row.title}</strong>
-                  <p>
-                    {row.due_at
-                      ? new Date(row.due_at).toLocaleString("zh-CN", {
-                          timeZone: row.timezone,
-                        })
-                      : "尚未约定时间"}{" "}
-                    · {row.state}
-                  </p>
-                  {row.reason && <p>{row.reason}</p>}
-                </article>
-              ))}
+            <div className="domain-grid">
+              {commitments.data.items
+                .filter(
+                  (row) =>
+                    !["completed", "cancelled", "expired"].includes(row.state),
+                )
+                .sort((a, b) =>
+                  (a.due_at ?? "9999").localeCompare(b.due_at ?? "9999"),
+                )
+                .map((row) => (
+                  <article className="curio-card domain-record" key={row.id}>
+                    <strong>{row.title}</strong>
+                    <p className="muted" style={{ marginTop: "6px" }}>
+                      {row.due_at
+                        ? new Date(row.due_at).toLocaleString("zh-CN", {
+                            timeZone: row.timezone,
+                          })
+                        : "尚未约定时间"}{" "}
+                      ·{" "}
+                      <span className="celadon-tag">
+                        {commitmentStateLabels[row.state] ?? row.state}
+                      </span>
+                    </p>
+                    {row.reason && (
+                      <p style={{ marginTop: "6px" }}>{row.reason}</p>
+                    )}
+                  </article>
+                ))}
+            </div>
             {commitments.data.items.length === 0 && (
-              <p>当前读取范围没有约定。</p>
+              <p className="muted">当前读取范围没有约定。</p>
             )}
             {!commitments.data.coverage.complete && (
               <p className="muted">

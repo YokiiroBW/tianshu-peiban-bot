@@ -1,106 +1,178 @@
-/* Single source: management-v2 materials; Docker overrides follow docker-status-v3. */
-:root {
+/* ==========================================================================
+   天枢 (Tianshu) · 定稿方案 8-07
+   「多宝博古 · 宋式格架规整列阵」× 昼夜双境流转系统 (Curio Cabinet Lattice)
+   唯一视觉权威 Token 定义
+   ========================================================================== */
+
+:root,
+:root[data-theme="day"],
+:root[data-theme="light"] {
   color-scheme: light;
-  --color-bg: #e7ebf7;
-  --color-text: #232c45;
-  --color-muted: #55617b;
-  --color-line: rgb(87 106 154 / 18%);
-  --color-glass: rgb(250 252 255 / 56%);
-  --color-surface: #fdfefe;
-  --color-input: #f3f5fc;
-  --color-shine: rgb(255 255 255 / 95%);
-  --color-accent: #465bd6;
-  --color-accent-text: #384abc;
-  --color-selection: #e8ecfc;
-  --color-blue: #3264b9;
-  --color-yellow: #8b6218;
-  --color-red: #b24453;
-  --color-gray: #59667b;
-  --color-backdrop: rgb(20 28 48 / 35%);
-  --color-blue-soft: #eaf1fc;
-  --color-yellow-soft: #fbf2df;
-  --color-red-soft: #fceef0;
-  --color-gray-soft: #edf0f5;
-  --gradient-blue: #d5e6f6;
-  --gradient-lilac: #e0dcf1;
-  --gradient-rose: #f1e0e8;
-  --material-background:
-    radial-gradient(ellipse at 25% 0%, var(--gradient-blue), transparent 65%),
-    radial-gradient(ellipse at 100% 15%, var(--gradient-rose), transparent 55%),
-    linear-gradient(140deg, var(--color-bg), var(--gradient-lilac));
-  --shadow-panel: 0 14px 40px -23px rgb(63 69 130 / 35%);
-  --shadow-glass:
-    0 18px 50px -28px rgb(60 74 131 / 44%), inset 0 1px 0 var(--color-shine);
-  --font-body: "Segoe UI", "Microsoft YaHei", system-ui, sans-serif;
-  --text-small: 0.875rem;
-  --text-body: 1rem;
-  --text-section: 1.125rem;
-  --text-title: clamp(1.65rem, 3vw, 2rem);
+
+  /* ☀️ 昼境（宣纸官窑粉青格架 · 温润雅致、横平竖直） */
+  --bg-canvas: #f3efe4;
+  --bg-sidebar: #eae4d5;
+  --bg-card: #faf8f2;
+  --bg-card-alt: #f4f0e6;
+  --bg-subtle: #eee9dc;
+  --bg-elevated: rgba(250, 248, 242, 0.94);
+
+  --text-primary: #1f2421;
+  --text-secondary: #4e5651;
+  --text-muted: #7b827c;
+
+  --accent: #355e58;
+  --accent-soft: rgba(53, 94, 88, 0.11);
+  --accent-border: rgba(53, 94, 88, 0.34);
+
+  --seal: #b3422c;
+  --seal-soft: rgba(179, 66, 44, 0.11);
+  --seal-border: rgba(179, 66, 44, 0.34);
+
+  --amber: #9c6b26;
+  --amber-soft: rgba(156, 107, 38, 0.12);
+
+  --border-outer: #c2b9a5;
+  --border-inner: #dcd5c4;
+  --corner-ornament: #8d826c;
+
+  --shadow-card: 0 3px 12px rgba(45, 40, 30, 0.045);
+  --shadow-hover: 0 8px 24px rgba(45, 40, 30, 0.09);
+
+  --canvas-glow: radial-gradient(
+    circle at 80% 8%,
+    rgba(179, 66, 44, 0.045),
+    transparent 45%
+  );
+  --rice-paper-noise: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.8' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+
+  /* 字体栈：人文宋刻衬线 + 清晰无衬线 + 等宽读数 */
+  --font-serif:
+    "Noto Serif SC", "Source Han Serif SC", "Songti SC", "STSong", "SimSun",
+    serif;
+  --font-sans:
+    "Noto Sans SC", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei",
+    system-ui, sans-serif;
+  --font-mono:
+    "JetBrains Mono", "Cascadia Mono", "Consolas", ui-monospace, monospace;
+  --font-body: var(--font-sans);
+
+  /* 兼容既有业务组件 CSS 变量别名（全面映射到宋式宣纸粉青体系） */
+  --color-bg: var(--bg-canvas);
+  --color-text: var(--text-primary);
+  --color-muted: var(--text-secondary);
+  --color-line: var(--border-outer);
+  --color-glass: var(--bg-elevated);
+  --color-surface: var(--bg-card);
+  --color-input: var(--bg-subtle);
+  --color-shine: rgba(255, 253, 248, 0.85);
+  --color-accent: var(--accent);
+  --color-accent-text: var(--accent);
+  --color-selection: var(--accent-soft);
+  --color-blue: var(--accent);
+  --color-yellow: var(--amber);
+  --color-red: var(--seal);
+  --color-gray: var(--text-muted);
+  --color-backdrop: rgba(24, 22, 18, 0.45);
+  --color-blue-soft: var(--accent-soft);
+  --color-yellow-soft: var(--amber-soft);
+  --color-red-soft: var(--seal-soft);
+  --color-gray-soft: var(--bg-subtle);
+  --material-background: var(--canvas-glow), var(--bg-canvas);
+  --shadow-panel: var(--shadow-card);
+  --shadow-glass: var(--shadow-card);
+
+  /* 尺寸与宋式规整折角圆角 */
+  --text-small: 0.8125rem;
+  --text-body: 0.9375rem;
+  --text-section: 1.05rem;
+  --text-title: clamp(1.35rem, 2.2vw, 1.65rem);
   --space-1: 0.25rem;
   --space-2: 0.5rem;
   --space-3: 0.75rem;
   --space-4: 1rem;
-  --space-5: 1.5rem;
-  --space-6: 2rem;
-  --space-7: 3rem;
-  --radius-control: 0.75rem;
-  --radius-panel: 1.25rem;
-  --radius-shell: 1.75rem;
-  --radius-pill: 99rem;
-  --focus-ring: 3px solid var(--color-accent);
-  --focus-offset: 3px;
-  --blur-glass: 24px;
-  --duration-fast: 160ms;
-  --duration-enter: 240ms;
-  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --space-5: 1.25rem;
+  --space-6: 1.75rem;
+  --space-7: 2.5rem;
+  --radius-control: 2px;
+  --radius-panel: 2px;
+  --radius-shell: 2px;
+  --radius-pill: 2px;
+  --focus-ring: 2px solid var(--seal);
+  --focus-offset: 2px;
+  --blur-glass: 8px;
+  --duration-fast: 180ms;
+  --duration-enter: 260ms;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
   --layer-header: 10;
   --layer-skip: 20;
-  --layout-sidebar: 14.5rem;
-  --control-height: 2.75rem;
+  --layout-sidebar: 256px;
+  --control-height: 2.25rem;
   --rail-width: 3px;
 }
 
+/* 🌙 夜境（乌金大漆描金格架 · 深夜护眼陪伴） */
+:root[data-theme="night"],
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --color-bg: #202537;
-  --color-text: #f0f2fb;
-  --color-muted: #c2cbe0;
-  --color-line: rgb(197 205 236 / 20%);
-  --color-glass: rgb(44 52 77 / 65%);
-  --color-surface: #293045;
-  --color-input: #35405a;
-  --color-shine: rgb(226 234 255 / 20%);
-  --color-accent: #a7b6ff;
-  --color-accent-text: #b9c8ff;
-  --color-selection: #3b4565;
-  --color-blue: #91baff;
-  --color-yellow: #e2c492;
-  --color-red: #ffa3b2;
-  --color-gray: #b2bfd2;
-  --color-blue-soft: #293c58;
-  --color-yellow-soft: #493f2c;
-  --color-red-soft: #50333e;
-  --color-gray-soft: #354052;
-  --gradient-blue: #374668;
-  --gradient-lilac: #4a405f;
-  --gradient-rose: #514254;
-  --shadow-panel: 0 12px 32px -16px rgb(5 10 37 / 47%);
+
+  --bg-canvas: #121514;
+  --bg-sidebar: #171b1a;
+  --bg-card: #1c2120;
+  --bg-card-alt: #212726;
+  --bg-subtle: #252c2a;
+  --bg-elevated: rgba(28, 33, 32, 0.95);
+
+  --text-primary: #eae4d7;
+  --text-secondary: #a8a295;
+  --text-muted: #706c63;
+
+  --accent: #d4a85f;
+  --accent-soft: rgba(212, 168, 95, 0.14);
+  --accent-border: rgba(212, 168, 95, 0.38);
+
+  --seal: #d96b52;
+  --seal-soft: rgba(217, 107, 82, 0.16);
+  --seal-border: rgba(217, 107, 82, 0.42);
+
+  --amber: #e2b86b;
+  --amber-soft: rgba(226, 184, 107, 0.15);
+
+  --celadon-night: #66b5ac;
+
+  --border-outer: rgba(212, 168, 95, 0.32);
+  --border-inner: rgba(212, 168, 95, 0.14);
+  --corner-ornament: rgba(212, 168, 95, 0.62);
+
+  --shadow-card: 0 8px 28px rgba(0, 0, 0, 0.45);
+  --shadow-hover: 0 12px 36px rgba(0, 0, 0, 0.65);
+
+  --canvas-glow: radial-gradient(
+    circle at 80% 8%,
+    rgba(212, 168, 95, 0.08),
+    transparent 50%
+  );
+  --color-shine: rgba(212, 168, 95, 0.14);
+  --color-backdrop: rgba(5, 7, 7, 0.68);
 }
 
 :root[data-transparency="reduce"] {
-  --color-glass: var(--color-surface);
+  --color-glass: var(--bg-card);
   --blur-glass: 0px;
 }
+
 @media (prefers-reduced-transparency: reduce) {
   :root {
-    --color-glass: var(--color-surface);
+    --color-glass: var(--bg-card);
     --blur-glass: 0px;
   }
 }
+
 :root[data-motion="reduce"] {
   --duration-fast: 0ms;
   --duration-enter: 0ms;
 }
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --duration-fast: 0ms;

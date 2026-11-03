@@ -6,13 +6,24 @@ import { StoragePanel } from "./StoragePanel";
 export function OverviewStorage({ view }: { view: MediaView }) {
   const volumes = storageVolumes(view);
   return (
-    <section className="media-card overview-capacity" aria-label="存储空间">
-      <div className="media-section-head">
-        <h2>
-          <HardDrive aria-hidden="true" />
-          存储空间
-        </h2>
-        <a className="overview-text-link" href="#/media/storage">
+    <section
+      className="curio-card media-card overview-capacity"
+      aria-label="存储空间"
+    >
+      <div className="section-head media-section-head">
+        <div className="section-title-group">
+          <div className="section-seal-icon" aria-hidden="true">
+            仓
+          </div>
+          <div>
+            <h2 className="section-title">
+              <HardDrive aria-hidden="true" className="sr-only" />
+              存储空间
+            </h2>
+            <div className="section-sub">本地与挂载卷容量监测</div>
+          </div>
+        </div>
+        <a className="ink-link overview-text-link" href="#/media/storage">
           详情
           <ArrowRight aria-hidden="true" />
         </a>
@@ -32,7 +43,7 @@ export function OverviewStorage({ view }: { view: MediaView }) {
             <div className="overview-capacity-volume" key={volume.storage_id}>
               <div className="overview-capacity-label">
                 <span>{volume.label}</span>
-                <strong>
+                <strong className="celadon-tag">
                   {valid ? `${percent.toFixed(1)}% 可用` : "未取得"}
                 </strong>
               </div>
@@ -42,11 +53,14 @@ export function OverviewStorage({ view }: { view: MediaView }) {
               </div>
               {valid && (
                 <div
-                  className="overview-capacity-track"
+                  className="storage-bar-track overview-capacity-track"
                   role="img"
                   aria-label={`${volume.label}剩余 ${percent.toFixed(1)}%`}
                 >
-                  <span style={{ width: `${percent}%` }} />
+                  <span
+                    className="storage-bar-fill"
+                    style={{ width: `${percent}%` }}
+                  />
                 </div>
               )}
             </div>
@@ -60,7 +74,7 @@ export function OverviewStorage({ view }: { view: MediaView }) {
         </p>
       )}
       {volumes.length > 2 && (
-        <a className="overview-text-link" href="#/media/storage">
+        <a className="ink-link overview-text-link" href="#/media/storage">
           查看全部 {volumes.length} 个磁盘
         </a>
       )}
@@ -75,9 +89,15 @@ export function StorageDetails({ view }: { view: MediaView }) {
       className="media-stack media-storage-details"
       aria-label="存储空间详情"
     >
-      <div className="media-section-head">
-        <h2>存储空间</h2>
-        <a className="overview-text-link" href="#/media">
+      <div className="page-top-bar media-section-head">
+        <div className="page-identity">
+          <span className="role-seal-avatar">仓</span>
+          <div className="page-title-wrap">
+            <h2>存储空间</h2>
+            <p className="page-title-meta">磁盘卷宗与媒体分类容量详情</p>
+          </div>
+        </div>
+        <a className="button curio-btn overview-text-link" href="#/media">
           返回概览
         </a>
       </div>
@@ -87,17 +107,17 @@ export function StorageDetails({ view }: { view: MediaView }) {
           volumes,
         }}
       />
-      <div className="media-card">
+      <div className="curio-card media-card">
         <h2>目录与归档设置</h2>
         <p className="muted">
           磁盘按实际文件系统合并。分类占用沿用视频与 Emby
           的统计，音乐文件计入其他占用；音乐独立磁盘的分类暂不统计。
         </p>
         <div className="media-actions">
-          <a className="button" href="#/media/accounts">
+          <a className="button curio-btn" href="#/media/accounts">
             视频媒体库设置
           </a>
-          <a className="button" href="#/media/music">
+          <a className="button curio-btn" href="#/media/music">
             音乐归档与 Navidrome
           </a>
         </div>

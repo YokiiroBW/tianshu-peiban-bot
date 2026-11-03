@@ -6,6 +6,11 @@ import {
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { SourceEvidence } from "../../components/SourceEvidence";
+import { CurioSectionHead } from "../../components/curio/OrientalWidgets";
+import {
+  dedupeTitleAndBody,
+  sanitizeInternalText,
+} from "../../design/humanize";
 import type { GrowthView } from "./domainTypes";
 import { DetailCard } from "../../components/DetailCard";
 import { useMemoryCursor } from "../memory/pagination";
@@ -22,6 +27,7 @@ function reviewReason(code: string) {
     return "部分原始经历依据缺失或已变化，本批尚未写入新的成长记录。";
   return "本批材料或模型结果尚未满足落库条件；已经保存的成长记录仍可查看。";
 }
+
 export default function GrowthPage() {
   const { actor } = useRoleWorkspace();
   const scope = actorScope(actor);
@@ -42,23 +48,27 @@ export default function GrowthPage() {
   const discoveryOnly = materialMissing.has(
     "discovery_metadata_only_body_not_read",
   );
-  const unassessedContent = [...materialMissing].some(
-    (reason) => reason.endsWith("_not_assessed"),
+  const unassessedContent = [...materialMissing].some((reason) =>
+    reason.endsWith("_not_assessed"),
   );
   const sourcePartial = [...materialMissing].some(
     (reason) =>
       reason !== "discovery_metadata_only_body_not_read" &&
       !reason.endsWith("_not_assessed"),
   );
+
   return (
     <div className="domain-workspace">
-      <header className="domain-toolbar">
-        <div>
-          <p className="eyebrow">经历、手记与成长</p>
-          <h2>这次变化来自哪里</h2>
+      <header className="page-top-bar domain-toolbar">
+        <div className="page-identity">
+          <span className="role-seal-avatar">悟</span>
+          <div className="page-title-wrap">
+            <p className="eyebrow">经历、手记与成长</p>
+            <h2>这次变化来自哪里</h2>
+          </div>
         </div>
         <button
-          className="button"
+          className="button curio-btn"
           disabled={!actor || view.loading}
           onClick={() => void view.refresh()}
         >
@@ -75,26 +85,35 @@ export default function GrowthPage() {
         <p role="status">正在读取角色的手记与变化…</p>
       )}
       {view.data && (
-        <section className="panel">
-          <p>
-            手记表达角色当时的理解，事实与推断保留各自依据。想象活动只支持主观反思，不能证明现实活动或真实工具成功。
-          </p>
+        <section className="curio-card panel">
+          <CurioSectionHead
+            seal="省"
+            title="角色手记、兴趣与表达变化"
+            subtitle="手记表达角色当时的理解，事实与推断保留各自依据。想象活动只支持主观反思，不能证明现实活动或真实工具成功。"
+          />
           {review && (
-            <section className="memory-consolidation" aria-label="成长整理进度">
+            <section
+              className="memory-consolidation curio-consolidation-bar"
+              aria-label="成长整理进度"
+            >
               <h3>整理进度与固定材料</h3>
               <p>
                 待处理经历版本：{review.pending_inputs ?? "尚未取得"} ·
                 待观察原请求：{review.pending_original_requests ?? "尚未取得"}
               </p>
               {review.retry_summary &&
-                (review.retry_summary.waiting > 0 || review.retry_summary.active > 0) && (
+                (review.retry_summary.waiting > 0 ||
+                  review.retry_summary.active > 0) && (
                   <div role="status" aria-label="成长自动重试">
                     <p>
-                      等待重试 {review.retry_summary.waiting} 批 · 正在处理重试 {review.retry_summary.active} 批。
+                      等待重试 {review.retry_summary.waiting} 批 · 正在处理重试{" "}
+                      {review.retry_summary.active} 批。
                       暂时失败的材料已单独保留，后续经历可以继续整理。
                     </p>
                     {review.retry_summary.next_retry_at && (
-                      <p>下一次重试：{time(review.retry_summary.next_retry_at)}</p>
+                      <p>
+                        下一次重试：{time(review.retry_summary.next_retry_at)}
+                      </p>
                     )}
                   </div>
                 )}
@@ -104,23 +123,49 @@ export default function GrowthPage() {
                   {review.retry_batches.map((retry) => (
                     <section key={retry.retry_key}>
                       <p>
-                        {{ waiting: retry.waiting_on_original ? "等待原执行结果" : "等待自动重试",
-                          active: "正在处理", completed: "已完成", blocked: "已停止自动重试" }[retry.state]}
+                        {
+                          {
+                            waiting: retry.waiting_on_original
+                              ? "等待原执行结果"
+                              : "等待自动重试",
+                            active: "正在处理",
+                            completed: "已完成",
+                            blocked: "已停止自动重试",
+                          }[retry.state]
+                        }
                         · 已安排尝试 {retry.attempt_number} 次
                         {retry.due_at && ` · 下次 ${time(retry.due_at)}`}
                       </p>
                       {retry.state === "blocked" && (
-                        <p>此批未自动重试，原因保留为 {retry.last_error ?? "尚未取得"}。后续经历不受此批阻挡。</p>
+                        <p>
+                          此批未自动重试，原因保留为{" "}
+                          {retry.last_error ?? "尚未取得"}
+                          。后续经历不受此批阻挡。
+                        </p>
                       )}
                       {retry.outcome === "historical_only" && (
-                        <p>保留了较新经历形成的当前状态；此批只补充历史手记，原判断仍可追溯。</p>
+                        <p>
+                          保留了较新经历形成的当前状态；此批只补充历史手记，原判断仍可追溯。
+                        </p>
                       )}
                       <p className="muted">执行记录：{retry.attempt_id}</p>
                       {view.data?.can_review && retry.can_request_review && (
-                        <button className="button" disabled={action.busy} onClick={async () => {
-                          if (await action.run("companion/growth/review", { ...scope, retry_key: retry.retry_key }, review.revision))
-                            await view.refresh();
-                        }}>重新整理这批材料</button>
+                        <button
+                          className="button"
+                          disabled={action.busy}
+                          onClick={async () => {
+                            if (
+                              await action.run(
+                                "companion/growth/review",
+                                { ...scope, retry_key: retry.retry_key },
+                                review.revision,
+                              )
+                            )
+                              await view.refresh();
+                          }}
+                        >
+                          重新整理这批材料
+                        </button>
                       )}
                     </section>
                   ))}
@@ -130,7 +175,8 @@ export default function GrowthPage() {
                 <div aria-label="反思材料范围">
                   {!!review.partial_inputs && (
                     <p>
-                      有 {review.partial_inputs} 条经历按有限材料整理，保留了未评估范围。
+                      有 {review.partial_inputs}{" "}
+                      条经历按有限材料整理，保留了未评估范围。
                     </p>
                   )}
                   {discoveryOnly && (
@@ -164,12 +210,14 @@ export default function GrowthPage() {
                       ? "已固定的原请求材料"
                       : "本次固定经历批次"}
                   </summary>
-                  <p>材料标识：{review.batch.material_key}</p>
+                  <p>
+                    材料标识：{sanitizeInternalText(review.batch.material_key)}
+                  </p>
                   {review.batch.inputs?.length ? (
                     <ul>
                       {review.batch.inputs.map(([id, revision]) => (
                         <li key={`${id}:${revision}`}>
-                          {id} · v{revision}
+                          {sanitizeInternalText(id)} · v{revision}
                         </li>
                       ))}
                     </ul>
@@ -215,8 +263,10 @@ export default function GrowthPage() {
                 <details open>
                   <summary>停留的原始材料</summary>
                   <p>
-                    经历：{review.blocked_material.episode_id ?? "尚未取得"} ·
-                    版本 {review.blocked_material.revision ?? "未知"}
+                    经历：
+                    {sanitizeInternalText(review.blocked_material.episode_id) ||
+                      "尚未取得"}{" "}
+                    · 版本 {review.blocked_material.revision ?? "未知"}
                   </p>
                   <pre>{showValue(review.blocked_material)}</pre>
                 </details>
@@ -266,79 +316,85 @@ export default function GrowthPage() {
           {!view.data.items.length && !view.data.reflections.length && (
             <p className="muted">当前可读范围还没有成长记录。</p>
           )}
-          <div className="domain-grid">
-            {[...view.data.items, ...view.data.reflections].map((item) => (
-              <article
-                className="domain-record"
-                key={`${item.kind}:${item.id}:${item.revision}`}
-              >
-                <header>
-                  <strong>{item.title}</strong>
-                  <span className="badge">
-                    {
+          <div className="domain-grid curio-growth-grid">
+            {[...view.data.items, ...view.data.reflections].map((item) => {
+              const { displayTitle, displayBody } = dedupeTitleAndBody(
+                item.title,
+                item.content,
+              );
+              return (
+                <article
+                  className="curio-card domain-record"
+                  key={`${item.kind}:${item.id}:${item.revision}`}
+                >
+                  <header className="section-head">
+                    <strong>{displayTitle}</strong>
+                    <span className="celadon-tag badge">
                       {
-                        reflection: "角色手记",
-                        interest: "兴趣",
-                        style: "表达习惯",
-                      }[item.kind]
-                    }
-                  </span>
-                </header>
-                <p>{item.content}</p>
-                {item.reason && (
-                  <p>
-                    {item.reason === "explicit_user_change"
-                      ? "用户明确调整"
-                      : item.reason}
-                  </p>
-                )}
-                {item.occurred_at && (
-                  <time dateTime={item.occurred_at}>
-                    {time(item.occurred_at)}
-                  </time>
-                )}
-                {!!Object.keys(item.conditions).length && (
-                  <DetailCard title="适用条件">
-                    <pre>{showValue(item.conditions)}</pre>
-                  </DetailCard>
-                )}
-                {!!item.counterexamples.length && (
-                  <DetailCard title="反例与限制">
-                    <ul>
-                      {item.counterexamples.map((value, index) => (
-                        <li key={index}>{value}</li>
-                      ))}
-                    </ul>
-                  </DetailCard>
-                )}
-                <DetailCard title="允许查看的经历依据">
-                  <SourceEvidence sources={item.evidence} scope={scope} />
-                </DetailCard>
-                {item.can_modify &&
-                  ["style", "interest"].includes(item.kind) && (
-                    <button
-                      className="button"
-                      disabled={action.busy}
-                      onClick={async () => {
-                        if (
-                          await action.run(
-                            item.state === "revoked"
-                              ? "companion/growth/restore"
-                              : "companion/growth/revoke",
-                            { ...scope, id: item.id },
-                            item.revision,
-                          )
-                        )
-                          await view.refresh();
-                      }}
-                    >
-                      {item.state === "revoked"
-                        ? "恢复这项变化"
-                        : "撤回这项变化"}
-                    </button>
+                        {
+                          reflection: "角色手记",
+                          interest: "兴趣",
+                          style: "表达习惯",
+                        }[item.kind]
+                      }
+                    </span>
+                  </header>
+                  {displayBody && <p>{displayBody}</p>}
+                  {item.reason && (
+                    <p className="muted">
+                      {item.reason === "explicit_user_change"
+                        ? "用户明确调整"
+                        : sanitizeInternalText(item.reason)}
+                    </p>
                   )}
-              </article>
-            ))}
+                  {item.occurred_at && (
+                    <time className="meta-tag" dateTime={item.occurred_at}>
+                      {time(item.occurred_at)}
+                    </time>
+                  )}
+                  {!!Object.keys(item.conditions).length && (
+                    <DetailCard title="适用条件">
+                      <pre>{showValue(item.conditions)}</pre>
+                    </DetailCard>
+                  )}
+                  {!!item.counterexamples.length && (
+                    <DetailCard title="反例与限制">
+                      <ul>
+                        {item.counterexamples.map((value, index) => (
+                          <li key={index}>{sanitizeInternalText(value)}</li>
+                        ))}
+                      </ul>
+                    </DetailCard>
+                  )}
+                  <DetailCard title="允许查看的经历依据">
+                    <SourceEvidence sources={item.evidence} scope={scope} />
+                  </DetailCard>
+                  {item.can_modify &&
+                    ["style", "interest"].includes(item.kind) && (
+                      <button
+                        className="button"
+                        disabled={action.busy}
+                        onClick={async () => {
+                          if (
+                            await action.run(
+                              item.state === "revoked"
+                                ? "companion/growth/restore"
+                                : "companion/growth/revoke",
+                              { ...scope, id: item.id },
+                              item.revision,
+                            )
+                          )
+                            await view.refresh();
+                        }}
+                      >
+                        {item.state === "revoked"
+                          ? "恢复这项变化"
+                          : "撤回这项变化"}
+                      </button>
+                    )}
+                </article>
+              );
+            })}
           </div>
           <div className="domain-actions">
             {cursor.previous && (

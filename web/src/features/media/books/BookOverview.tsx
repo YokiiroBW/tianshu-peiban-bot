@@ -6,37 +6,47 @@ export function BookOverview({ view }: { view: MediaView }) {
   const books = view.overview?.books;
   return (
     <section
-      className="media-card overview-subscriptions"
+      className="curio-card media-card overview-subscriptions"
       aria-label="书籍订阅状态"
     >
-      <div className="media-section-head">
-        <h2>
-          <BookOpen aria-hidden="true" />
-          书籍订阅
-        </h2>
-        <a className="overview-text-link" href="#/media/books">
+      <div className="section-head media-section-head">
+        <div className="section-title-group">
+          <div className="section-seal-icon" aria-hidden="true">
+            卷
+          </div>
+          <div>
+            <h2 className="section-title">
+              <BookOpen aria-hidden="true" className="sr-only" />
+              书籍订阅
+            </h2>
+            <div className="section-sub">书源追更与本地 EPUB 典藏</div>
+          </div>
+        </div>
+        <a className="ink-link overview-text-link" href="#/media/books">
           管理书籍
           <ArrowRight aria-hidden="true" />
         </a>
       </div>
-      <dl className="media-facts">
-        <div>
-          <dt>追更中</dt>
-          <dd>{count(books?.active)}</dd>
+
+      <dl className="sub-stat-grid curio-book-stat-grid media-facts">
+        <div className="sub-stat-box">
+          <dt className="s-label">追更中</dt>
+          <dd className="s-val">{count(books?.active)}</dd>
         </div>
-        <div>
-          <dt>已暂停</dt>
-          <dd>{count(books?.paused)}</dd>
+        <div className="sub-stat-box">
+          <dt className="s-label">已暂停</dt>
+          <dd className="s-val">{count(books?.paused)}</dd>
         </div>
-        <div>
-          <dt>需要处理</dt>
-          <dd>{count(books?.attention)}</dd>
+        <div className="sub-stat-box">
+          <dt className="s-label">需要处理</dt>
+          <dd className="s-val">{count(books?.attention)}</dd>
         </div>
-        <div>
-          <dt>本地 EPUB</dt>
-          <dd>{count(books?.files)}</dd>
+        <div className="sub-stat-box">
+          <dt className="s-label">本地 EPUB</dt>
+          <dd className="s-val">{count(books?.files)}</dd>
         </div>
       </dl>
+
       <div className="overview-card-footer">
         <span className="muted">
           {books

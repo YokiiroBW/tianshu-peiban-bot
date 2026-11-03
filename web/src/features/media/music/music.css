@@ -5,15 +5,17 @@
 }
 .music-scope {
   padding: 12px 16px;
-  border: 1px solid var(--color-line);
-  border-radius: 12px;
-  color: var(--color-muted);
+  border: 1px solid var(--border-outer);
+  border-left: 3px solid var(--accent);
+  background: var(--bg-subtle);
+  border-radius: 2px;
+  color: var(--text-secondary);
   line-height: 1.65;
 }
 .music-settings-grid {
   display: grid;
   grid-template-columns: minmax(260px, 0.85fr) minmax(0, 1.15fr);
-  gap: 18px;
+  gap: 16px;
   align-items: start;
 }
 .music-settings-grid > *,
@@ -23,17 +25,17 @@
 .music-select-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(130px, 0.6fr) auto;
-  gap: 12px;
+  gap: 10px;
   align-items: end;
 }
 .music-account,
 .music-playlist {
   display: flex;
-  gap: 16px;
+  gap: 14px;
   justify-content: space-between;
   align-items: center;
-  padding: 14px 0;
-  border-bottom: 1px solid var(--color-line);
+  padding: 12px 0;
+  border-bottom: 1px dashed var(--border-outer);
 }
 .music-account > div:first-child,
 .music-playlist > div:first-child {
@@ -42,7 +44,7 @@
 }
 .music-account p,
 .music-playlist p {
-  margin-top: 6px;
+  margin-top: 4px;
 }
 .music-actions {
   display: flex;
@@ -52,11 +54,11 @@
 .music-playlists {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0 24px;
+  gap: 0 20px;
 }
 .music-directory-result {
   overflow-wrap: anywhere;
-  font-size: 13px;
+  font-size: 12.5px;
 }
 .music-track-table {
   max-width: 100%;
@@ -70,12 +72,13 @@
 }
 .music-track-table th,
 .music-track-table td {
-  padding: 12px 10px;
-  border-bottom: 1px solid var(--color-line);
+  padding: 10px 8px;
+  border-bottom: 1px dashed var(--border-inner);
   overflow-wrap: anywhere;
 }
 .music-track-table th {
-  color: var(--color-muted);
+  color: var(--text-muted);
+  font-family: var(--font-serif);
   font-size: 12px;
 }
 @media (max-width: 760px) {
@@ -97,7 +100,7 @@
   font-size: 0.85rem;
 }
 .music-downloads {
-  border-bottom: 1px solid var(--color-line);
+  border-bottom: 1px dashed var(--border-outer);
   padding-bottom: 1rem;
 }
 .music-downloads .detail-card-content form {

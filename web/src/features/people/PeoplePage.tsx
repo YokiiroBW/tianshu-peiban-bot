@@ -9,6 +9,7 @@ import {
 } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import { shortHashTag } from "../../design/humanize";
 import { AccountLinkPanel } from "./AccountLinkPanel";
 import { PersonDetail } from "./PersonDetail";
 import { personName, type Person } from "./types";
@@ -40,19 +41,27 @@ export default function PeoplePage({ section }: { section: number }) {
     );
   return (
     <div className="people-page">
-      <header className="people-page-heading">
-        <div>
-          <h2>人物目录</h2>
-          <p>只显示当前身份有权访问的人物；渠道账号和应用登录独立关联。</p>
+      <header className="page-top-bar people-page-heading">
+        <div className="page-identity">
+          <span className="role-seal-avatar">友</span>
+          <div className="page-title-wrap">
+            <h2>人物目录</h2>
+            <p className="page-title-meta">
+              只显示当前身份有权访问的人物；渠道账号和应用登录独立关联。
+            </p>
+          </div>
         </div>
-        <button className="button" onClick={() => void page.refresh()}>
-          <RefreshCw size={16} />
+        <button
+          className="button curio-btn"
+          onClick={() => void page.refresh()}
+        >
+          <RefreshCw size={15} />
           刷新
         </button>
       </header>
       {page.error && <p role="alert">{page.error}</p>}
       <div className="people-workspace scroll-layout">
-        <aside className="people-directory scroll-pane">
+        <aside className="curio-card people-directory scroll-pane">
           <label className="people-search">
             <Search size={16} />
             <input
@@ -77,11 +86,13 @@ export default function PeoplePage({ section }: { section: number }) {
                     onClick={() => setChosen(row.person_id)}
                   >
                     <span className="people-avatar">
-                      <UserRound size={18} />
+                      <UserRound size={17} />
                     </span>
                     <span>
                       <strong>{personName(row)}</strong>
-                      <small>{row.person_id}</small>
+                      <small className="curio-tech-code" title={row.person_id}>
+                        {shortHashTag(row.person_id)}
+                      </small>
                     </span>
                   </button>
                 </li>
@@ -154,7 +165,7 @@ export default function PeoplePage({ section }: { section: number }) {
             </details>
           )}
         </aside>
-        <div className="people-detail-area scroll-pane">
+        <div className="curio-card people-detail-area scroll-pane">
           {person ? (
             <PersonDetail
               key={`${person.person_id}:${person.revision}:${workspace.actor}`}

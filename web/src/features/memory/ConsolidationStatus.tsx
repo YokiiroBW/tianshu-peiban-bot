@@ -6,6 +6,11 @@ import {
   type DomainTarget,
 } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import {
+  humanizeScopeTarget,
+  sanitizeInternalText,
+  shortHashTag,
+} from "../../design/humanize";
 import { showValue, type Consolidation } from "./types";
 import "./memory.css";
 
@@ -34,11 +39,11 @@ const stateNames: Record<string, string> = {
   no_extractable_text: "当前材料没有可用于整理的文字内容。",
   source_unavailable: "原始依据已不可用。",
 };
+
 const actions: Record<string, { label: string; description: string }> = {
   observe_original_attempt: {
     label: "观察原执行",
-    description:
-      "保留原执行记录并查询结果；临时失败会自动稍后独立重试。",
+    description: "保留原执行记录并查询结果；临时失败会自动稍后独立重试。",
   },
   retry_computation: {
     label: "重试记忆整理",
@@ -62,6 +67,7 @@ const actions: Record<string, { label: string; description: string }> = {
       "旧映射无法证明，保留原执行回执；尚未处理材料由当前整理流程接续。",
   },
 };
+
 export function ConsolidationStatus({
   value,
   identities = {},
@@ -70,19 +76,23 @@ export function ConsolidationStatus({
   identities?: Record<string, string>;
 }) {
   const recovery = value.action ? actions[value.action] : undefined;
+  const batchDisplay = value.batch_id ? shortHashTag(value.batch_id) : null;
+
   return (
-    <div className="memory-consolidation">
-      <p>
+    <div className="memory-consolidation curio-consolidation-bar">
+      <div className="curio-consolidation-summary">
         <strong>整理状态：{stateNames[value.status] ?? "状态尚未确认"}</strong>
-        {value.batch_id ? ` · 批次 ${value.batch_id}` : " · 尚无固定批次"}
-      </p>
+        <span className="curio-tech-code" title={value.batch_id ?? undefined}>
+          {batchDisplay ? `批次 ${batchDisplay}` : "尚无固定批次"}
+        </span>
+      </div>
       {value.held_for_refresh && (
         <p>
           迟到结果与当前材料或记忆版本不一致，未写入；保留原记录，按当前材料重新准备。
         </p>
       )}
       {recovery && (
-        <p>
+        <p className="muted curio-consolidation-hint">
           {recovery.label}：{recovery.description}
         </p>
       )}
@@ -99,21 +109,21 @@ export function ConsolidationStatus({
         </p>
       )}
       {!!value.targets?.length && (
-        <p>
+        <p className="curio-targets-line">
           固定目标：
           {value.targets
-            .map((target) => identities[target.subject_id] ?? target.subject_id)
+            .map((target) => humanizeScopeTarget(target.subject_id, identities))
             .join("、")}
         </p>
       )}
       {!!value.target_results?.length && (
         <div className="memory-target-results">
-          <h4>已提交的逐人覆盖</h4>
-          <ul>
+          <h4 className="sr-only">已提交的逐人覆盖</h4>
+          <ul className="curio-coverage-grid">
             {value.target_results.map((result) => (
-              <li key={result.subject_id}>
+              <li key={result.subject_id} className="curio-coverage-chip">
                 <strong>
-                  {identities[result.subject_id] ?? result.subject_id}
+                  {humanizeScopeTarget(result.subject_id, identities)}
                 </strong>{" "}
                 ·{" "}
                 {{
@@ -138,11 +148,11 @@ export function ConsolidationStatus({
             {value.unresolved.map((item, index) => (
               <li key={index}>
                 {item.subject_id
-                  ? (identities[item.subject_id] ?? item.subject_id)
+                  ? humanizeScopeTarget(item.subject_id, identities)
                   : "共享材料"}{" "}
                 ·{" "}
                 {typeof item.reason === "string"
-                  ? item.reason
+                  ? sanitizeInternalText(item.reason, identities)
                   : "缺少充分证据，暂不形成确定结论"}
               </li>
             ))}
@@ -201,56 +211,60 @@ export function EpisodeProcessing({
     !status.loading && inspection?.snapshot === initial ? status.data : null;
   const value = status.accessLost ? undefined : (observed ?? initial);
   return (
-    <div>
+    <div className="curio-episode-processing">
       {value?.status ? (
         <ConsolidationStatus value={value} identities={identities} />
       ) : (
-        <p>
+        <p className="muted">
           {extractionState && !status.accessLost
             ? `记忆整理：${stateNames[extractionState] ?? "原记录的整理状态尚未确认"}`
             : "尚未取得实际整理批次和恢复动作。"}
         </p>
       )}
-      <button
-        className="text-link"
-        disabled={status.loading}
-        onClick={() => {
-          setInspection({ snapshot: initial });
-          if (inspect) void status.refresh();
-        }}
-      >
-        读取最新处理状态
-      </button>
-      {status.error && <p role="alert">{status.error}</p>}
-      {manageable &&
-        value?.action &&
-        ["observe_original_attempt", "refresh_material", "retry_computation"].includes(
-          value.action,
-        ) && (
-          <button
-            className="button"
-            disabled={command.busy || status.loading}
-            onClick={async () => {
-              const result = await command.run(
-                "memory/extraction/resume",
-                { ...scope, episode_id: episodeId },
-                observed?.revision ?? revision,
-              );
-              setInspection({ snapshot: initial });
-              if (result) {
-                if (inspect) await status.refresh();
-                await refresh();
-              }
-            }}
-          >
-            {actions[value.action].label}
-          </button>
+      <div className="curio-episode-processing-actions">
+        <button
+          className="text-link ink-link"
+          disabled={status.loading}
+          onClick={() => {
+            setInspection({ snapshot: initial });
+            if (inspect) void status.refresh();
+          }}
+        >
+          读取最新处理状态
+        </button>
+        {manageable &&
+          value?.action &&
+          [
+            "observe_original_attempt",
+            "refresh_material",
+            "retry_computation",
+          ].includes(value.action) && (
+            <button
+              className="button curio-btn"
+              disabled={command.busy || status.loading}
+              onClick={async () => {
+                const result = await command.run(
+                  "memory/extraction/resume",
+                  { ...scope, episode_id: episodeId },
+                  observed?.revision ?? revision,
+                );
+                setInspection({ snapshot: initial });
+                if (result) {
+                  if (inspect) await status.refresh();
+                  await refresh();
+                }
+              }}
+            >
+              {actions[value.action].label}
+            </button>
+          )}
+        {value?.action === "configure_budget" && (
+          <a className="text-link ink-link" href="#/settings/models">
+            查看模型与预算配置
+          </a>
         )}
-      {value?.action === "configure_budget" && (
-        <a className="text-link" href="#/settings/models">
-          查看模型与预算配置
-        </a>
-      )}
+      </div>
+      {status.error && <p role="alert">{status.error}</p>}
       <CommandFeedback {...command} />
       {command.result?.data && (
         <p role="status">

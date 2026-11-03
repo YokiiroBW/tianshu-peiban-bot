@@ -5,6 +5,7 @@ import {
   type DomainTarget,
 } from "../../api/useDomainResource";
 import { SourceEvidence } from "../../components/SourceEvidence";
+import { shortHashTag } from "../../design/humanize";
 import {
   CoverageNote,
   EvidenceDetails,
@@ -16,6 +17,7 @@ import {
   type EvidenceUnit,
   type MemoryTimeQuery,
 } from "./types";
+
 export function MemoryEvidenceSearch({
   scope,
   query,
@@ -112,7 +114,12 @@ export function MemoryEvidenceSearch({
             {view.data.items.map((item) => (
               <li key={`${item.kind}:${item.id}:${item.revision}`}>
                 <h4>
-                  {evidenceKinds[item.kind] ?? item.kind} · {item.id}
+                  <span className="celadon-tag">
+                    {evidenceKinds[item.kind] ?? item.kind}
+                  </span>{" "}
+                  <span className="curio-tech-code" title={item.id}>
+                    {shortHashTag(item.id)}
+                  </span>
                 </h4>
                 <p className="memory-prewrap">{item.content}</p>
                 <EvidenceDetails item={item} scope={scope} />

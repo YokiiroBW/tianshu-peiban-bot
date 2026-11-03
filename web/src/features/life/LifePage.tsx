@@ -1,6 +1,7 @@
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { useDomainResource } from "../../api/useDomainResource";
 import { StatePanel } from "../../components/StatePanel";
+import { getShichenInfo } from "../../design/shichen";
 import { DailyLife } from "./DailyLife";
 import { LifeWorkspace } from "./LifeWorkspace";
 import { WritingPanel } from "./WritingPanel";
@@ -29,23 +30,46 @@ export default function LifePage({
   const scopeKey = `${workspace.actor}:${workspace.conversation?.conversation_id ?? ""}:${workspace.conversation?.person_id ?? ""}`;
   const name =
     workspace.roles.find((role) => role.id === workspace.actor)?.name ?? "角色";
+  const shichen = getShichenInfo(new Date(), state.data?.timezone);
+
   if (!workspace.actor)
     return (
       <StatePanel kind="empty" title="先选择一位角色">
         <p>从侧栏打开角色的生活、日记与作品。</p>
       </StatePanel>
     );
+
   return (
     <div className="life-page scroll-page">
-      <header className="role-section-heading">
-        <div className="role-identity-title">
-          <span className="role-context-avatar">{name.slice(0, 1)}</span>
-          <div>
+      <header className="page-top-bar role-section-heading">
+        <div className="page-identity role-identity-title">
+          <span className="role-seal-avatar role-context-avatar">
+            {name.slice(0, 1)}
+          </span>
+          <div className="page-title-wrap">
             <h2>
-              {name}的
-              {mode === "diary" ? "日记" : mode === "writing" ? "创作" : "生活"}
+              <span>
+                {name}的
+                {mode === "diary"
+                  ? "日记"
+                  : mode === "writing"
+                    ? "创作"
+                    : "生活"}
+              </span>
+              <span className="cinnabar-seal">
+                印 ·{" "}
+                {mode === "diary"
+                  ? "日末手书"
+                  : mode === "writing"
+                    ? "文心雕龙"
+                    : "生活卷宗"}
+              </span>
+              <span className="celadon-tag">
+                {shichen.isDaytime ? "角色昼间" : "角色夜间"} ·{" "}
+                {shichen.fullLabel}
+              </span>
             </h2>
-            <p>
+            <p className="page-title-meta">
               {mode === "life"
                 ? "近况、计划与真实经历，也留一点想象的空间。"
                 : mode === "diary"
@@ -55,13 +79,13 @@ export default function LifePage({
           </div>
         </div>
         <button
-          className="button"
+          className="button curio-btn"
           onClick={() => {
             void access.refresh();
             void state.refresh();
           }}
         >
-          刷新
+          ↻ 刷新
         </button>
       </header>
       {access.error && <p role="alert">{access.error}</p>}

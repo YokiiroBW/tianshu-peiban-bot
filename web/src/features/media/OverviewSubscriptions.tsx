@@ -12,6 +12,10 @@ export function OverviewSubscriptions({
   const data = view.overview?.music;
   const subscriptions = view.subscriptions;
   const title = music ? "音乐订阅" : "视频订阅";
+  const sealChar = music ? "乐" : "影";
+  const subtitle = music
+    ? "歌单自动同步与本地曲库"
+    : "按订阅规则持续检测并拉取更新";
   const total = music ? data?.total : subscriptions.length;
   const href = music ? "#/media/music" : "#/media/video";
   const groups = music
@@ -56,21 +60,30 @@ export function OverviewSubscriptions({
   let offset = 0;
   return (
     <section
-      className="media-card overview-subscriptions"
+      className="curio-card media-card overview-subscriptions"
       aria-label={`${title}状态`}
     >
-      <div className="media-section-head">
-        <h2>
-          <Icon aria-hidden="true" />
-          {title}
-        </h2>
-        <a className="overview-text-link" href={href}>
+      <div className="section-head media-section-head">
+        <div className="section-title-group">
+          <div className="section-seal-icon" aria-hidden="true">
+            {sealChar}
+          </div>
+          <div>
+            <h2 className="section-title">
+              <Icon aria-hidden="true" className="sr-only" />
+              {title}
+            </h2>
+            <div className="section-sub">{subtitle}</div>
+          </div>
+        </div>
+        <a className="ink-link overview-text-link" href={href}>
           管理{music ? "歌单" : "订阅"}
           <ArrowRight aria-hidden="true" />
         </a>
       </div>
-      <div className="overview-subscription-monitor">
-        <div className="overview-ring">
+
+      <div className="sub-ring-layout overview-subscription-monitor">
+        <div className="donut-wrap overview-ring">
           <svg
             viewBox="0 0 180 180"
             role="img"
@@ -96,24 +109,28 @@ export function OverviewSubscriptions({
               ) : null;
             })}
           </svg>
-          <div className="overview-ring-center">
+          <div className="donut-center overview-ring-center">
             <strong>{count(total)}</strong>
             <span>{music ? "已订阅歌单" : "订阅来源"}</span>
           </div>
         </div>
-        <div className="overview-subscription-legend">
+
+        <div className="sub-stat-grid overview-subscription-legend">
           {facts.map((g) => (
             <div
-              className={`overview-legend-row overview-tone-${g.tone}`}
+              className={`sub-stat-box overview-legend-row overview-tone-${g.tone}`}
               key={g.label}
             >
-              <span className="overview-dot" aria-hidden="true" />
-              <span>{g.label}</span>
-              <strong>{count(g.value)}</strong>
+              <div className="s-label">
+                <span className="overview-dot" aria-hidden="true" />
+                <span>{g.label}</span>
+              </div>
+              <strong className="s-val">{count(g.value)}</strong>
             </div>
           ))}
         </div>
       </div>
+
       <div className="overview-card-footer">
         {total === 0 ? (
           <span className="muted">还没有{title}</span>
@@ -136,7 +153,7 @@ export function OverviewSubscriptions({
                 {count(subscriptions.reduce((n, s) => n + s.counts.members, 0))}
               </strong>
             </span>
-            <span className="muted">按订阅规则持续更新</span>
+            <span className="celadon-tag">按订阅规则持续更新</span>
           </>
         )}
       </div>
