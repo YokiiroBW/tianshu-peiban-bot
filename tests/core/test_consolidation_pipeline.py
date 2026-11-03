@@ -8,6 +8,7 @@ import json
 import pytest
 
 from tianshu.memory.extraction_contract import SCHEMA_VERSION
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelCompletion,ModelMessage,ModelPart,ModelReceipt,ModelRequest,ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.api import Page
@@ -402,8 +403,11 @@ async def test_budget_configuration_change_keeps_an_unknown_original_attempt(cor
     partition=original['consolidation_partition_id']
     await core.workers.consolidate(partition)
     first_attempt=model.requests[0].attempt_id
+    async with core.database.transaction(read_only=True) as conn:
+        frozen_request=(await (await conn.execute('SELECT request FROM memory.model_steps WHERE step_id=%s',
+            (model.requests[0].intent_id,))).fetchone())['request']
     pipeline=core.memory.consolidation
-    pipeline.policy=pipeline.materials.policy=replace(pipeline.policy,max_input_tokens=32000)
+    pipeline.policy=pipeline.materials.policy=replace(pipeline.policy,max_input_tokens=BACKGROUND_INPUT_TOKENS)
     status=await core.memory.extraction_status(alice,episode.episode_id)
     assert status['action']=='observe_original_attempt'
     async with core.database.transaction() as conn:
@@ -414,6 +418,10 @@ async def test_budget_configuration_change_keeps_an_unknown_original_attempt(cor
     await core.workers.consolidate(partition)
     assert len(model.requests)==1 and model.requests[0].attempt_id==first_attempt
     assert (await row(core,episode))['extraction_state']=='completed'
+    async with core.database.transaction(read_only=True) as conn:
+        persisted=(await (await conn.execute('SELECT request FROM memory.model_steps WHERE step_id=%s',
+            (model.requests[0].intent_id,))).fetchone())['request']
+    assert persisted==frozen_request
 
 
 async def test_shared_prefix_uses_one_model_request_for_several_new_episodes(core,ordinary_users):

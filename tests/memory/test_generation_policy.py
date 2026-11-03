@@ -10,7 +10,7 @@ import pytest
 from tianshu.memory.consolidation import Consolidation
 from tianshu.memory.extraction_contract import MODEL_PROTOCOL, SCHEMA_VERSION, parse_model_proposal
 from tianshu.memory.generation import decode_model_json, native_request, repairable, repair_request, repair_input_estimate
-from tianshu.models.budgets import effective_output_tokens
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS, effective_output_tokens
 from tianshu.models.types import ModelCompletion, ModelMessage, ModelPart, ModelReceipt, ModelRequest, ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
@@ -100,11 +100,12 @@ def test_disabled_thinking_repair_omits_effort_without_changing_the_original():
 
 
 @pytest.mark.parametrize('context_round',[0,1])
-def test_near_cap_input_reserves_a_complete_repair_before_freezing_sources(context_round):
+@pytest.mark.parametrize('input_cap',[None,BACKGROUND_INPUT_TOKENS],ids=['configured-small','background-default'])
+def test_near_cap_input_reserves_a_complete_repair_before_freezing_sources(context_round,input_cap):
     from tianshu.conversation.context.assembly import TokenCounter
     pipeline=Consolidation(SimpleNamespace(database=None,identity=None,sources=None,jobs=None))
     pipeline.counter=TokenCounter()
-    pipeline.policy=replace(pipeline.policy,max_input_tokens=32000)
+    pipeline.policy=replace(pipeline.policy,max_input_tokens=input_cap or 32000)
     original=request()
     data={'batch_id':'near_cap','context':{'actor_id':'actor','conversation_id':None,
         'time_zone':'Asia/Shanghai','cutoff_at':datetime.now(UTC).isoformat(),'message_cutoff':0},
@@ -119,7 +120,7 @@ def test_near_cap_input_reserves_a_complete_repair_before_freezing_sources(conte
     step_id='near_cap:step:'+str(context_round)
     bare=pipeline._request(original.context,data,step_id,context_round=context_round,requests=requests)
     overhead=repair_input_estimate(pipeline.counter,bare.system,bare.messages,bare.attempt_id)-bare.estimated_input_tokens
-    input_limit=max(16384,bare.estimated_input_tokens+overhead+256)
+    input_limit=input_cap or max(16384,bare.estimated_input_tokens+overhead+256)
     near_cap=input_limit-64
     data['materials']['m1']['text']='x'*(near_cap-bare.estimated_input_tokens)
     original_text=data['materials']['m1']['text']
@@ -139,6 +140,7 @@ def test_near_cap_input_reserves_a_complete_repair_before_freezing_sources(conte
         AppError('memory_consolidation_invalid',status=502,
             details={'path':['operations',0,'target','create'],'validator':'type'}),pipeline.counter,input_limit)
     assert repaired.estimated_input_tokens<=input_limit
+    assert repaired.max_output_tokens==first.max_output_tokens==12288
     assert repaired.messages[0]==first.messages[0] and repaired.source_refs==first.source_refs
     assert json.loads(first.messages[0].parts[0].text)['materials'][0]['text']==data['materials']['m1']['text']
     assert json.loads(repaired.messages[-1].parts[0].text)['output_repair']['previous_output_omitted']=='input_budget'

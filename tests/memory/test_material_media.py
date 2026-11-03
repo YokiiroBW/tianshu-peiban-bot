@@ -265,6 +265,7 @@ async def test_historical_images_are_bounded_by_whole_messages_with_reply_origin
     speech = original("speech", text="看看我说的这张。", event="message:group:100")
     history = [original("history_"+str(index), mime="image/png", event="message:group:"+str(index)) for index in range(1, 8)]
     selected = builder((reply, speech, *history), context_messages=6)
+    selected.policy = replace(selected.policy, max_input_tokens=16384)
     messages = [conversation_message(index, image) for index, image in enumerate(history, 1)]
     bind_conversation(selected, messages, neighborhood=messages[1:])
     frozen = await selected.build(CONTEXT, [episode(1, [reply, speech])], "batch_context_budget")
@@ -408,7 +409,7 @@ async def test_candidate_diagnostic_reserve_protects_limit_sized_original_text_a
     selected=builder((image,speech))
     template=await selected.build(CONTEXT,[episode(1,[image,speech])],"reserved-limit",include_records=False)
     pipeline=Consolidation(SimpleNamespace(database=None,identity=None,sources=None,jobs=None))
-    pipeline.policy=replace(pipeline.policy,max_old_records=2)
+    pipeline.policy=replace(pipeline.policy,max_input_tokens=16384,max_old_records=2)
     pipeline.counter=TokenCounter("o200k_base")
     def prefix(length):
         value=deepcopy(template)

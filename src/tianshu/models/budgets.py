@@ -1,7 +1,8 @@
-"""Resolve native output limits before compilation, metering and admission."""
+"""Shared generation input policy and native output limits."""
 
 from tianshu.runtime.errors import AppError
 
+BACKGROUND_INPUT_TOKENS = 200000
 MAX_INLINE_MEDIA_BYTES = 32 * 1024 * 1024
 MAX_INLINE_MEDIA_PARTS = 128
 

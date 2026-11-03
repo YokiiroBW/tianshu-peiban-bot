@@ -8,6 +8,7 @@ import re
 from time import perf_counter
 
 from aiohttp import ClientError
+from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.estimation import media_tokens
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.commands import body_hash
@@ -32,9 +33,7 @@ from .types import RecordRef
 class ConsolidationPolicy:
     quiet_seconds: int = 120
     max_wait_seconds: int = 600
-    # The full protocol plus a minimal sourced observation and repair reserve
-    # can exceed 12k under the conservative UTF-8 counter (12,545 observed).
-    max_input_tokens: int = 16384
+    max_input_tokens: int = BACKGROUND_INPUT_TOKENS
     max_output_tokens: int = 4096
     reasoning_reserve_tokens: int = 8192
     max_episodes: int = 32
@@ -51,7 +50,7 @@ class ConsolidationPolicy:
         selected = {name: values[name] for name in cls.__dataclass_fields__ if name in values}
         result = cls(**selected)
         if not (0 <= result.quiet_seconds <= result.max_wait_seconds <= 86400
-                and 4000 <= result.max_input_tokens <= 128000
+                and 4000 <= result.max_input_tokens <= BACKGROUND_INPUT_TOKENS
                 and 512 <= result.max_output_tokens <= 32000 and 0 <= result.reasoning_reserve_tokens <= 64000
                 and 1 <= result.max_episodes <= 64 and 1 <= result.max_subjects <= 64 and 1 <= result.max_materials <= 128
                 and 1 <= result.max_old_records <= 128 and 0 <= result.context_messages <= 32
