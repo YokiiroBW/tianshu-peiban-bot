@@ -228,5 +228,6 @@ def create_module(memory, retrieval, workers, identity):
             Migration("0021_memory_consolidation", files("tianshu.memory").joinpath("0021_memory_consolidation.sql").read_text()),
             Migration("0022_memory_runtime", files("tianshu.memory").joinpath("0022_memory_runtime.sql").read_text()),
             Migration("0023_memory_index_retry", files("tianshu.memory").joinpath("0023_memory_index_retry.sql").read_text()),
+            Migration("0024_memory_consolidation_retry", files("tianshu.memory").joinpath("0024_memory_consolidation_retry.sql").read_text()),
         ),
     )

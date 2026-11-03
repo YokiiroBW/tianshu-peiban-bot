@@ -102,7 +102,7 @@ class SourceService:
             return ()
         rows = await (
             await conn.execute(
-                "SELECT source_id,revision,scope_ids,evidence_unit,origin_kind,occurred_at,speaker_id "
+                "SELECT source_id,revision,scope_ids,evidence_unit,origin_kind,occurred_at,speaker_id,locator,media "
                 "FROM sources.versions WHERE (source_id,revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
                 ([ref.source_id for ref in source_refs], [ref.revision for ref in source_refs]),
             )

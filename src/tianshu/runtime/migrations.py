@@ -31,6 +31,7 @@ def product_migrations(jobs):
         ("0021_memory_consolidation", "tianshu.memory", ("0021_memory_consolidation.sql",)),
         ("0022_memory_runtime", "tianshu.memory", ("0022_memory_runtime.sql",)),
         ("0023_memory_index_retry", "tianshu.memory", ("0023_memory_index_retry.sql",)),
+        ("0024_memory_consolidation_retry", "tianshu.memory", ("0024_memory_consolidation_retry.sql",)),
         ("0030_companion", "tianshu.companion", ("schema.sql",)),
         ("0031_life", "tianshu.life", ("schema.sql",)),
         ("0032_conversation", "tianshu.conversation", ("schema.sql",)),
