@@ -19,7 +19,7 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, Tr
 from . import codec
 from .authority import context_record
 from .extraction_contract import SCHEMA_VERSION, consolidation_example, consolidation_instruction, parse_model_proposal
-from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request, repair_input_estimate, repair_diagnostic
+from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request, repair_input_estimate, repair_diagnostic, decode_model_json
 from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, expand_record_endpoints, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, reference_key, smaller_material_prefix
 from .consolidation_retry import ConsolidationRetries, failure_code
 from tianshu.models.retry import transient_model_failure
@@ -583,7 +583,7 @@ class Consolidation:
             raise AppError("memory_consolidation_output_incomplete",status=502,
                 details={"stop_reasons":sorted(normalized)})
         try:
-            proposal = json.loads("".join(part.text or "" for part in result.parts if part.kind == "text"))
+            proposal = decode_model_json("".join(part.text or "" for part in result.parts if part.kind == "text"))
         except (TypeError, ValueError) as exc:
             raise AppError("memory_consolidation_output_invalid", status=502,details={
                 key:getattr(exc,field) for key,field in (("line","lineno"),("column","colno"),("position","pos"))
