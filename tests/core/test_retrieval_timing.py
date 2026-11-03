@@ -212,8 +212,13 @@ async def test_existing_index_step_keeps_frozen_timing_and_rejects_changed_paylo
         reads.append(attempt_id)
         return unknown
 
+    async def status(attempt_id):
+        assert attempt_id == attempt
+        return unknown.receipt
+
     monkeypatch.setattr(core.models, "generate", generate)
     monkeypatch.setattr(core.models, "result", result, raising=False)
+    monkeypatch.setattr(core.models, "status", status, raising=False)
     with pytest.raises(AppError, match="model_outcome_unknown"):
         await core.steps.run(intent+":"+fingerprint, original)
     async with core.database.transaction(read_only=True) as connection:

@@ -25,3 +25,9 @@
 根集中验证：上述新文件，并复用受影响的 `tests/core/test_consolidation_pipeline.py`、`tests/core/test_memory_index_retry.py` 和现有 embedding 用例。无需恢复未变的全量工作区测试。
 
 只执行无导入、无 pyc 的 `compile(source,path,'exec')` 静态语法检查（5 个 Python 文件）及 `git diff --check`；均通过。没有运行 pytest、构建、应用导入、真实模型、QQ、生产恢复或部署。真实 RPC/原失败恢复与生产验收由根按当前授权集中执行，静态通过不等于业务通过。
+
+## 集中首轮定向返修
+
+根首轮报告 A 新用例全部通过，索引调用方另有一项实质取消回归及冻结计时桩的两个参数用例失败。本次仅修这两个位置：`IndexJobs._failure` 直接消费 ModelSteps 已确认的 `explicit_cancel` 或 `cancellation_reason`，不再依赖错误码仍为 transient 才能识别取消，也不为已确认取消再次读控制面；原 Models unknown 回执保持。冻结计时测试补齐原 attempt 的 `status` 桩，产品不加入 `hasattr` 兼容。
+
+根复验目标：`tests/core/test_memory_index_retry.py::test_later_explicit_cancel_overrides_a_retryable_interrupted_unknown_without_changing_it`、`tests/core/test_retrieval_timing.py::test_existing_index_step_keeps_frozen_timing_and_rejects_changed_payload` 的两个参数，以及既有索引取消边界。返修仅做这两个 Python 文件的静态语法检查和 diff 检查，不运行测试或重复已通过范围。

@@ -267,8 +267,8 @@ class IndexJobs:
                                       delay=retry_delay_seconds(1) if retry else None)
         details = getattr(error, "details", None) or {}
         status = details.get("status")
-        explicit_cancel = False
-        if transient_model_failure(code):
+        explicit_cancel = code == "explicit_cancel" or details.get("cancellation_reason") == "explicit_cancel"
+        if transient_model_failure(code) and not explicit_cancel:
             try:
                 receipt = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
             except Exception:
