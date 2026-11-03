@@ -518,6 +518,7 @@ async def test_rerank_rechecks_sources_and_drops_the_whole_unit(core, ordinary_u
     calls = []
     async def rerank(request):
         documents = [json.loads(value) for value in request.native_payload["documents"]]
+        assert all("source_refs" not in document and "coverage" not in document for document in documents)
         by_id = {document["id"]: document for document in documents}
         assert set(by_id) == {old.claim_id, good.claim_id}
         document = by_id[old.claim_id]
@@ -543,6 +544,43 @@ async def test_rerank_rechecks_sources_and_drops_the_whole_unit(core, ordinary_u
         evidence_kinds=("claim",), coverage_mode="list"), budget())
     assert [item.id for item in historical.items] == [good.claim_id]
     assert historical.items[0].source_refs == good.source_refs
+
+
+async def test_rerank_final_recheck_fills_withdrawn_top_result_without_hydrating_all_candidates(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    old = await fact(core, alice, "rerank_fill_old", "咖啡旧说法", predicate="preference.fill.old")
+    good = await fact(core, alice, "rerank_fill_good", "咖啡独立依据", predicate="preference.fill.good")
+    spare = await fact(core, alice, "rerank_fill_spare", "咖啡备用依据", predicate="preference.fill.spare")
+    core.retrieval.settings = {"vector": False, "rerank": True}
+    reads, requests = [], []
+    reread = core.retrieval.store.reread
+
+    async def capture_read(conn, context, plan, rows, **kwargs):
+        reads.append((tuple(row["_id"] for row in rows), conn))
+        return await reread(conn, context, plan, rows, **kwargs)
+
+    async def rerank(request):
+        requests.append(request)
+        documents = [json.loads(value) for value in request.native_payload["documents"]]
+        assert {value["id"] for value in documents} == {old.claim_id, good.claim_id, spare.claim_id}
+        await core.sources.invalidate(alice, {"source_id": old.source_refs[0].source_id,
+            "expected_revision": 1, "client_request_id": "rerank_fill_withdraw"}, forgotten=True)
+        order = [next(index for index, value in enumerate(documents) if value["id"] == identifier)
+                 for identifier in (old.claim_id, good.claim_id, spare.claim_id)]
+        return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"),
+            native_response={"results": [{"index": index} for index in order]})
+
+    monkeypatch.setattr(core.retrieval.store, "reread", capture_read)
+    monkeypatch.setattr(core.models, "generate", rerank)
+    page = await core.retrieval.query(alice, MemoryQueryPlan(query="咖啡", evidence_kinds=("claim",)),
+        core.retrieval.foreground_budget(), limit=1)
+    assert [unit.id for unit in page.items] == [good.claim_id] and len(requests) == 1
+    assert [len(rows) for rows, _ in reads] == [3, 1, 1]
+    assert reads[1][0] == (old.claim_id,) and reads[2][0] == (good.claim_id,)
+    assert reads[1][1] is reads[2][1]
+    assert "memory_revision_changed" in page.coverage.missing
+    assert page.items[0].source_refs == good.source_refs
+    assert all(await core.sources.check_many(alice, tuple(unit.source_refs for unit in page.items)))
 
 
 async def test_context_rechecks_background_revision_even_when_old_sources_remain_readable(core, ordinary_users, monkeypatch):

@@ -10,6 +10,7 @@ import pytest
 
 from tianshu.capabilities.catalog import Catalog
 from tianshu.conversation.context.assembly import ContextAssembler
+from tianshu.memory.candidates import CandidateSelection
 from tianshu.memory.embedding import Embeddings
 from tianshu.memory.module import create_module
 from tianshu.memory.retrieval import MemoryRetrieval
@@ -73,7 +74,7 @@ def pipeline(*, settings=None):
 
         async def lexical(self, _context, _plan, budget):
             self.note("lexical", budget)
-            return rows
+            return CandidateSelection(tuple(rows), ())
 
         async def has_vectors(self, _context, _plan, _profile, budget):
             self.note("vector_exists", budget)

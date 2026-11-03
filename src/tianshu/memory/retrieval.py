@@ -14,15 +14,18 @@ from tianshu.runtime.errors import AppError
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceClass
 from . import codec
-from .candidates import CandidateStore
+from .candidates import CandidateSelection, CandidateStore
 from .domain_utils import lexical
 from .display import display_evidence_on
 from .evidence import build_evidence_unit, select_supports_on
-from .indexing import evidence_text
+from .indexing import evidence_text, rerank_text
 from .query_plan import parse_plan, read_cursor, write_cursor
 from .retrieval_budget import (MODEL_EXECUTION_SECONDS, PROFILE_READ_SECONDS, SQL_READ_SECONDS,
-                               VECTOR_SQL_SECONDS, foreground_budget as make_foreground_budget)
+                               VECTOR_SQL_SECONDS, foreground_budget as make_foreground_budget, optional_failure)
 from .types import MemoryQueryPlan, RecordRef
+
+
+PHASE_ERRORS = (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error, OSError)
 
 
 def record_key(row):
@@ -107,6 +110,15 @@ class MemoryRetrieval:
         return (RequestBudget(deadline, trace_id=parent.trace_id, cancellation_id=parent.cancellation_id),
                 spare - 0.05)
 
+    @staticmethod
+    def _degrade(error, parent, *, model=False):
+        # A lane's shorter deadline may expire; the caller's business deadline
+        # and external cancellation never become permission to keep working.
+        if parent is not None:
+            parent.check()
+        if not optional_failure(error, model=model):
+            raise error
+
     async def _vectors(self, context, plan, budget, source_refs, service_class):
         seconds = float(self.settings.get("embedding_seconds", MODEL_EXECUTION_SECONDS))
         if self.remote_phase(budget, seconds) is None:
@@ -136,7 +148,8 @@ class MemoryRetrieval:
             rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
                 self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", VECTOR_SQL_SECONDS))))
             return rows, ("vector_candidate_budget",) if incomplete else ()
-        except (AppError, TimeoutError, aiohttp.ClientError, psycopg.Error) as exc:
+        except PHASE_ERRORS as exc:
+            self._degrade(exc, budget, model=phase in {"embedding_profile", "embedding"})
             reason = ("vector_query_timeout" if phase == "vector" and isinstance(
                 exc, (TimeoutError, psycopg.errors.QueryCanceled)) else getattr(exc, "code", phase + "_unavailable"))
             return [], (reason,)
@@ -174,31 +187,65 @@ class MemoryRetrieval:
             result.append((row, build_evidence_unit(value, relations=related, time_mode=plan.time_mode)))
         return result
 
-    async def _checked(self, context, plan, rows, budget, *, snapshot=None):
-        """Read the selected versions and their complete relations again after ranking."""
-        if not rows:
-            return (), ()
-        async with self.database.transaction(budget, read_only=True) as conn:
-            reread = await self.store.reread(conn, context, plan, rows, snapshot=snapshot)
-            missing = ["memory_revision_changed"] if any(row is None for row in reread) else []
-            hydrated = await self._hydrate_on(conn, context, plan, [row for row in reread if row is not None])
-            if len(hydrated) < sum(row is not None for row in reread):
-                missing.append("memory_evidence_unavailable")
-            displayed = await display_evidence_on(self.memory, conn, context, [unit for _, unit in hydrated])
+    async def _checked_on(self, conn, context, plan, rows, *, snapshot=None):
+        reread = await self.store.reread(conn, context, plan, rows, snapshot=snapshot)
+        missing = ["memory_revision_changed"] if any(row is None for row in reread) else []
+        hydrated = await self._hydrate_on(conn, context, plan, [row for row in reread if row is not None])
+        if len(hydrated) < sum(row is not None for row in reread):
+            missing.append("memory_evidence_unavailable")
+        displayed = await display_evidence_on(self.memory, conn, context, [unit for _, unit in hydrated])
         if any(unit is None for unit in displayed):
             missing.append("memory_evidence_unavailable")
         return tuple((row, unit) for (row, _), unit in zip(hydrated, displayed, strict=True)
                      if unit is not None), tuple(missing)
 
+    async def _checked(self, context, plan, rows, budget, *, snapshot=None, limit=None,
+                       partial=False, parent=None, phase="memory_evidence_check"):
+        """Read the selected versions and their complete relations again after ranking."""
+        if not rows:
+            return (), ()
+        maximum = len(rows) if limit is None else min(limit, len(rows))
+        selected, missing, position = [], [], 0
+        try:
+            # One transaction/deadline for the whole fill, including replacement
+            # candidates. Background reads retain Database's existing bound.
+            async with self.database.transaction(budget, read_only=True) as conn:
+                await conn.execute("SELECT set_config('jit','off',true)")
+                while position < len(rows) and len(selected) < maximum:
+                    if budget is not None:
+                        budget.check()
+                    count = maximum - len(selected)
+                    batch = rows[position:position + count]
+                    position += len(batch)
+                    checked, unavailable = await self._checked_on(conn, context, plan, batch, snapshot=snapshot)
+                    selected.extend(checked)
+                    missing.extend(unavailable)
+        except PHASE_ERRORS as exc:
+            if not partial:
+                raise
+            self._degrade(exc, parent)
+            missing.append(phase + ("_timeout" if isinstance(exc, (TimeoutError, psycopg.errors.QueryCanceled))
+                                    else "_unavailable"))
+        return tuple(selected), tuple(dict.fromkeys(missing))
+
     async def _ranked(self, context, plan, budget, *, limit, source_refs, service_class):
         missing = []
-        lexical_rows = await self.store.lexical(context, plan, self.local_budget(budget))
+        try:
+            selection = await self.store.lexical(context, plan, self.local_budget(budget))
+        except PHASE_ERRORS as exc:
+            self._degrade(exc, budget)
+            reason = ("lexical_candidate_timeout" if isinstance(exc, (TimeoutError, psycopg.errors.QueryCanceled))
+                      else "lexical_candidate_unavailable")
+            selection = CandidateSelection((), (reason,))
+        missing.extend(selection.missing)
+        if budget is not None:
+            budget.check()
         vector_rows = []
         if plan.query and self.settings.get("vector", True):
             vector_rows, unavailable = await self._vectors(context, plan, budget, source_refs, service_class)
             missing.extend(unavailable)
         fused = {}
-        for route in (lexical_rows, vector_rows):
+        for route in (selection.rows, vector_rows):
             for rank, row in enumerate(route):
                 current = fused.setdefault(record_key(row), {**row, "score": 0.0})
                 current["score"] += 1 / (60 + rank + 1)
@@ -208,19 +255,24 @@ class MemoryRetrieval:
         for row in fused.values():
             row["score"] /= maximum
         count = min(int(plan.budget.get("max_candidates", 128)), 128)
-        ranked = mmr(sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:count], max(limit, 24))
-        checked, unavailable = await self._checked(context, plan, ranked, self.local_budget(budget))
-        missing.extend(unavailable)
-        ranked = list(checked)
-        if plan.query and self.settings.get("rerank", False) and len(ranked) > 1:
-            documents = [evidence_text(unit) for _, unit in ranked]
+        candidates = mmr(sorted(fused.values(), key=lambda row: row["score"], reverse=True)[:count], count)
+        ranked, remote = [], None
+        if plan.query and self.settings.get("rerank", False) and len(candidates) > 1:
             remote = self.remote_phase(budget, float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)))
             if remote is None:
                 missing.append("rerank_budget_insufficient")
-        else:
-            remote = None
+            else:
+                checked, unavailable = await self._checked(context, plan, candidates, self.local_budget(budget),
+                    limit=max(limit, 24), partial=True, parent=budget, phase="memory_candidate_check")
+                missing.extend(unavailable)
+                ranked = list(checked)
+                remote = (self.remote_phase(budget, float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)))
+                          if len(ranked) > 1 else None)
+                if len(ranked) > 1 and remote is None:
+                    missing.append("rerank_budget_insufficient")
         if remote is not None:
             remote_budget, queue_wait = remote
+            documents = [rerank_text(unit) for _, unit in ranked]
             request = ModelRequest("memory-rerank:" + str(uuid4()), str(uuid4()), "rerank",
                 service_class, context, remote_budget, (), required_capabilities=frozenset({"rerank"}),
                 max_output_tokens=0, native_payload={"query": plan.query, "documents": documents, "top_n": limit},
@@ -230,7 +282,11 @@ class MemoryRetrieval:
             request = replace(request, max_queue_wait=queue_wait)
             try:
                 result = await self.models.generate(request)
-                indexes = (result.native_response or {}).get("results", ()) if result.receipt.status == "succeeded" else ()
+                if result.receipt.status != "succeeded":
+                    cancelled = getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel"
+                    raise AppError("explicit_cancel" if cancelled else result.receipt.error_code or "model_outcome_" + result.receipt.status,
+                                   status=503)
+                indexes = (result.native_response or {}).get("results", ())
                 order, seen = [], set()
                 for item in indexes:
                     index = item.get("index") if isinstance(item, dict) else None
@@ -241,13 +297,18 @@ class MemoryRetrieval:
                     ranked = order + [value for index, value in enumerate(ranked) if index not in seen]
                 else:
                     missing.append("rerank_unavailable")
-            except (AppError, TimeoutError, aiohttp.ClientError):
+            except PHASE_ERRORS as exc:
+                self._degrade(exc, budget, model=True)
                 missing.append("rerank_unavailable")
         # Rerank can outlive a correction, endpoint withdrawal or permission change.
         # Rehydration keeps the final answer and its source closure indivisible.
-        final, unavailable = await self._checked(context, plan, [row for row, _ in ranked], self.local_budget(budget))
+        preferred = [row for row, _ in ranked]
+        chosen = {record_key(row) for row in preferred}
+        remaining = [row for row in candidates if record_key(row) not in chosen]
+        final, unavailable = await self._checked(context, plan, preferred + remaining, self.local_budget(budget),
+            limit=limit, partial=True, parent=budget, phase="memory_final_check")
         missing.extend(unavailable)
-        return tuple(unit for _, unit in final[:limit]), tuple(dict.fromkeys(missing))
+        return tuple(unit for _, unit in final), tuple(dict.fromkeys(missing))
 
     async def query(self, context, plan, budget, *, source_refs=(), cursor=None, limit=50,
                     service_class=ServiceClass.INTERACTIVE):
@@ -259,7 +320,14 @@ class MemoryRetrieval:
             raise AppError("actor_required")
         if type(limit) is not int or not 1 <= limit <= 100:
             raise AppError("invalid_memory_query_limit")
-        missing = list(await self.store.coverage_gaps(context, plan, self.local_budget(budget)))
+        try:
+            missing = list(await self.store.coverage_gaps(context, plan, self.local_budget(budget)))
+        except PHASE_ERRORS as exc:
+            if plan.coverage_mode == "list":
+                raise
+            self._degrade(exc, budget)
+            missing = ["memory_coverage_timeout" if isinstance(exc, (TimeoutError, psycopg.errors.QueryCanceled))
+                       else "memory_coverage_unavailable"]
         next_cursor = None
         if plan.coverage_mode == "list":
             after, snapshot = read_cursor(context, plan, cursor)
@@ -298,6 +366,8 @@ class MemoryRetrieval:
         for unit in units:
             missing.extend(unit.coverage.missing)
         missing = tuple(dict.fromkeys(missing))
+        if budget is not None:
+            budget.check()
         return Page(units, next_cursor, Coverage(plan.coverage_mode == "list" and not next_cursor and not missing,
             missing=missing, representation="memory_evidence",
             ranges=({"selection": plan.coverage_mode, "time_mode": plan.time_mode,
