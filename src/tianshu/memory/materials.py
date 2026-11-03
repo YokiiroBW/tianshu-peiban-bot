@@ -6,6 +6,8 @@ from datetime import UTC,datetime,timedelta
 import json
 import re
 
+from tianshu.models.estimation import media_tokens
+from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -16,6 +18,10 @@ from .authority import context_record
 from .domain_utils import lexical
 from .extraction_contract import SCHEMA_VERSION
 from .evidence import build_evidence_unit
+from .material_media import (
+    evidence_kind, image_aliases, image_key, image_media, material_relations, read_view,
+    reply_event_ids as _reply_event_ids, source_speaker, visible_media,
+)
 from .types import RecordRef
 
 
@@ -123,15 +129,23 @@ class PreparationReads:
 
 
 def append_context_material(materials,read,*,extra=None):
-    """Source ranges, not body equality, decide which context has already been sent."""
-    if not read["content"] or not read["coverage"].ranges:
-        return 0
-    span=read["coverage"].ranges[0]
+    """Append uncovered source ranges and original images without renumbering aliases."""
+    view=read_view(read)
     source=read["source_ref"]
-    ranges=[(span["start"],span["end"])]
+    span=read["coverage"].ranges[0] if read["coverage"].ranges else None
+    ranges=[(span["start"],span["end"])] if view["text"] and span else []
+    image_present=bool(view["media"] and image_key(view) not in
+        {image_key(item) for item in materials.values() if image_key(item)})
+    exact_present=False
     for material in materials.values():
         for existing in codec.refs(material["source_refs"]):
             if (existing.source_id,existing.revision)!=(source.source_id,source.revision):
+                continue
+            exact_present=exact_present or reference_key(existing)==reference_key(source)
+            if not span:
+                continue
+            if material.get("media") and not material.get("text") and "end" not (existing.locator or {}):
+                # An image-only reference does not claim its source's text ranges.
                 continue
             lower=(existing.locator or {}).get("start",0)
             upper=(existing.locator or {}).get("end",span["end"])
@@ -145,37 +159,29 @@ def append_context_material(materials,read,*,extra=None):
                     if upper<end:
                         remaining.append((upper,end))
             ranges=remaining
-    for start,end in ranges:
-        selected=SourceRef(source.source_id,source.revision,{**(source.locator or {}),"start":start,"end":end})
+    additions=list(ranges)
+    if not additions and (image_present or (not exact_present and
+            (view["coverage_missing"] or (read.get("locator") or {}).get("part_kind") in {"reply","mention","mention_all","reference"}))):
+        additions=[None]
+    for index,part_range in enumerate(additions):
+        if part_range is None:
+            selected,text=source,""
+        else:
+            start,end=part_range
+            selected=SourceRef(source.source_id,source.revision,{**(source.locator or {}),"start":start,"end":end})
+            text=view["text"][start-span["start"]:end-span["start"]]
+        media=view["media"] if image_present and index==0 else None
         key="m"+str(max((int(item[1:]) for item in materials),default=0)+1)
-        materials[key]={"role":"context","speaker_id":read["speaker_id"],"origin_kind":read["origin_kind"],
+        materials[key]={"role":"context","speaker_id":source_speaker(read),"origin_kind":read["origin_kind"],
             "occurred_at":wire(read["occurred_at"]),"reply_to":[],
-            "text":read["content"][start-span["start"]:end-span["start"]],
+            "text":text,"media":media,
+            "evidence_kind":evidence_kind(text,media),
+            "coverage_missing":view["coverage_missing"],
+            "source_person_id":read.get("source_person_id"),"scope_ids":read.get("scope_ids",[]),
+            "source_occurred_at":wire(read["occurred_at"]),
             "source_refs":wire((selected,)),"original_ref":wire(source),"locator":read["locator"],"actual_result":None,
             **(extra or {})}
-    return len(ranges)
-
-
-def _reply_event_ids(locator):
-    values = []
-    for data in (locator or {}, (locator or {}).get("metadata") or {}):
-        for key in ("reply_to", "reply_to_event_id", "quoted_event_id", "message_id"):
-            value = data.get(key)
-            if isinstance(value,(str,int)):
-                values.append(str(value))
-            elif isinstance(value,dict):
-                candidate = value.get("event_id") or value.get("id")
-                if candidate is not None:
-                    values.append(str(candidate))
-    if (locator or {}).get("part_kind") == "reply":
-        metadata=(locator or {}).get("metadata") or {}
-        value=metadata.get("original_message_id") or metadata.get("event_id")
-        event=(locator or {}).get("event_id","")
-        if value is not None:
-            values.append(str(value))
-            if event.startswith("message:") and event.count(":")>=2:
-                values.append(event.rsplit(":",1)[0]+":"+str(value))
-    return values
+    return len(additions)
 
 
 def prefix_boundary(materials, episodes):
@@ -240,7 +246,7 @@ def expand_record_endpoints(records):
     return result
 
 
-def model_material(value, policy, *, context_round=0, requests=()):
+def _legacy_model_material(value, policy, *, context_round=0, requests=()):
     return {"schema_version": SCHEMA_VERSION, "batch_id": value["batch_id"],
         "context": {**value["context"], "context_round": context_round},
         "subjects": list(value["subjects"].values()),
@@ -264,6 +270,52 @@ def model_material(value, policy, *, context_round=0, requests=()):
         "budget": {"max_output_tokens": policy.max_output_tokens,
                    "reasoning_reserve_tokens": policy.reasoning_reserve_tokens,
                    "max_context_rounds": max(0, 1-context_round)}}
+
+
+def model_material(value, policy, *, context_round=0, requests=()):
+    payload=_legacy_model_material(value,policy,context_round=context_round,requests=requests)
+    if value.get("model_protocol") != "memory.proposal.v2":
+        return payload
+    aliases=image_aliases(value["materials"])
+    relations=material_relations(value["materials"])
+    payload["model_protocol"]=value["model_protocol"]
+    for material in payload["materials"]:
+        key=material["id"]
+        original=value["materials"][key]
+        metadata=(original.get("locator") or {}).get("metadata") or {}
+        material.update(relations[key],evidence_kind=original.get("evidence_kind","text"),
+            media=visible_media(original,aliases.get(key)),coverage_missing=original.get("coverage_missing",[]))
+        if original.get("reported_at") is not None:
+            material["reported_at"]=original["reported_at"]
+        material["mention_subject_ids"]=[subject for subject in material["mention_subject_ids"] if subject in value["subjects"]]
+        material["quoted_author"]={name:metadata[name] for name in
+            ("original_author_display_name","verified_original_author_person_id") if metadata.get(name) is not None}
+    return payload
+
+
+def model_messages(value, policy, *, context_round=0, requests=()) -> tuple[ModelMessage,...]:
+    """The leading JSON remains readable on recovery; images use the same local aliases."""
+    payload=model_material(value,policy,context_round=context_round,requests=requests)
+    parts=[ModelPart("text",text=json.dumps(wire(payload),ensure_ascii=False,separators=(",",":")))]
+    if value.get("model_protocol") == "memory.proposal.v2":
+        aliases=image_aliases(value["materials"])
+        for alias,material in value["materials"].items():
+            if aliases.get(alias) != alias:
+                continue
+            parts.extend((ModelPart("text",text="原图对应材料 "+alias+"；作者、时间和引用关系以该材料为准。"),
+                ModelPart("image",media=image_media(material))))
+    return (ModelMessage("user",tuple(parts)),)
+
+
+def has_new_material(value) -> bool:
+    return any(item.get("role")=="new" and
+        (bool((item.get("text") or "").strip()) or image_media(item) is not None)
+        for item in value.get("materials",{}).values())
+
+
+def material_capabilities(value) -> frozenset[str]:
+    return frozenset({"text","vision"} if any(image_media(item) is not None
+        for item in value.get("materials",{}).values()) else {"text"})
 
 
 class MaterialBuilder:
@@ -341,33 +393,40 @@ class MaterialBuilder:
                 if source_index == index and position is not None:
                     requested["position"] = position
                 original = await reads.read(context, ref, requested)
-                speaker = original["speaker_id"]
-                if not speaker and original["origin_kind"] == "actor":
-                    speaker = "actor:" + context.actor_id
+                view = read_view(original)
+                missing.update(view["coverage_missing"])
+                speaker = source_speaker(original,context.actor_id)
                 coverage_subject = row["person_id"] if row["origin_kind"] == "human" and row["person_id"] else speaker or "actor:"+context.actor_id
                 if coverage_subject not in authors and len(authors) >= self.policy.max_subjects:
                     stop = True
                     break
                 authors.add(coverage_subject)
-                content = original["content"]
-                if content:
-                    span = original["coverage"].ranges[0]
+                content = view["text"]
+                if content or view["media"] or view["coverage_missing"] or original["content"] is not None:
+                    span = original["coverage"].ranges[0] if original["coverage"].ranges else {}
                     selected = SourceRef(ref.source_id, ref.revision, {**(ref.locator or {}), **span})
-                    key = reference_key(selected)
+                    # One source may be reported again in a later episode. Keep that
+                    # speaker's occurrence; model_messages deduplicates only the image.
+                    key = row["episode_id"], reference_key(selected)
                     local_id = seen.get(key)
                     if local_id is None:
                         local_id = "m" + str(len(materials)+len(staged)+1)
                         seen[key] = local_id
                         staged.append((local_id, {"role": "new", "speaker_id": speaker,
-                            "origin_kind": original["origin_kind"], "occurred_at": wire(original["occurred_at"] or row["occurred_at"]),
-                            "reply_to": [], "text": content, "source_refs": wire((selected,)),
+                            "origin_kind": original["origin_kind"], "occurred_at": wire(row["occurred_at"]
+                                if (original.get("locator") or {}).get("kind") in {"channel_original","channel_media_representation"}
+                                else original["occurred_at"] or row["occurred_at"]),
+                            "source_occurred_at":wire(original["occurred_at"]),"source_person_id":original.get("source_person_id"),
+                            "reply_to": [], **view, "source_refs": wire((selected,)),
                             "locator": original["locator"], "episode_id": row["episode_id"],
                             "episode_revision": row["revision"], "reporting_speaker_id": row["person_id"],
+                            "reported_at":wire(row["occurred_at"]),
                             "coverage_subject_id": coverage_subject,
                             "original_ref": wire(ref), "action_id": row["action_id"], "receipt_id": row["receipt_id"],
-                            "actual_result": row["actual_result"], "scope_ids": row["scope_ids"]}))
+                            "actual_result": row["actual_result"], "scope_ids": original.get("scope_ids",row["scope_ids"]),
+                            "conversation_id": row.get("conversation_id",context.conversation_id)}))
                         used += len(content)
-                elif original["media"]:
+                if original["media"] and not view["media"]:
                     actual=row["actual_result"] or {}
                     consumption=actual.get("consumption") if isinstance(actual,dict) else None
                     if not consumption or consumption.get("analysis_completed") is not True:
@@ -401,10 +460,10 @@ class MaterialBuilder:
             kept={item["episode_id"] for item in episodes}
             materials={key:item for key,item in materials.items() if item.get("episode_id") in kept}
             authors={item["coverage_subject_id"] for item in materials.values()}
-            seen={reference_key(ref):key for key,item in materials.items() for ref in codec.refs(item["source_refs"])}
         # Context is deliberately contiguous as well as quote-based; sparse replies alone miss pronouns.
         cutoff = 0
-        if self.conversation and context.conversation_id:
+        selection_coverage = {}
+        if self.conversation and context.conversation_id and has_new_material({"materials":materials}):
             earliest = min(row["occurred_at"] for row in rows[:len(episodes)])
             neighborhood = await self.conversation(context, end=earliest,
                 start=earliest-timedelta(days=1),
@@ -418,15 +477,40 @@ class MaterialBuilder:
                 existing={item["message_id"] for item in neighborhood["items"]}
                 neighborhood={**neighborhood,"items":tuple(neighborhood["items"])+tuple(
                     item for item in quoted["items"] if item["message_id"] not in existing)}
-            for message in neighborhood["items"]:
-                for ref in codec.refs(message["source_refs"]):
-                    if len(materials) >= self.policy.max_materials:
-                        break
-                    original = await reads.read(context, ref, {"max_characters": min(1200,max(64,text_ceiling//4))})
-                    if not original["content"]:
-                        continue
-                    append_context_material(materials,original,extra={"message_id":message["message_id"],
-                        "speaker_id":original["speaker_id"] or ("actor:"+context.actor_id if original["origin_kind"]=="actor" else None)})
+            # Select whole historical messages and reserve images with the existing
+            # media estimate. Explicit reply originals have priority; the caller's
+            # full protocol counter still makes the final input-budget decision.
+            media_ceiling=max(0,self.policy.max_input_tokens//2-
+                sum(len(item["text"].encode("utf-8")) for item in materials.values()))
+            ordered=sorted(neighborhood["items"],key=lambda item:item.get("event_id") not in explicit_refs)
+            for message in ordered:
+                required=message.get("event_id") in explicit_refs
+                refs=codec.refs(message["source_refs"])
+                omitted=None
+                if len(refs)>self.policy.max_materials:
+                    omitted="context_material_limit_omitted"
+                else:
+                    expanded=dict(materials)
+                    for ref in refs:
+                        original=await reads.read(context,ref,{"max_characters":min(1200,max(64,text_ceiling//4))})
+                        append_context_material(expanded,original,extra={"message_id":message["message_id"],
+                            "context_message_id":message["message_id"],"context_required":required,
+                            "conversation_id":context.conversation_id,
+                            "occurred_at":wire(message["occurred_at"]),
+                            "scope_ids":original.get("scope_ids",list(context.scope_ids)),
+                            "speaker_id":source_speaker(original,context.actor_id)})
+                    if len(expanded)>self.policy.max_materials:
+                        omitted="context_material_limit_omitted"
+                    elif (not required and set(filter(None,(image_key(item) for item in expanded.values()))) -
+                            set(filter(None,(image_key(item) for item in materials.values()))) and
+                            len(set(image_aliases(expanded).values()))*media_tokens("image")>media_ceiling):
+                        omitted="context_image_budget_omitted"
+                    else:
+                        materials=expanded
+                if omitted:
+                    selection_coverage[omitted]=selection_coverage.get(omitted,0)+1
+                    if required:
+                        selection_coverage["required_context_omitted"]=selection_coverage.get("required_context_omitted",0)+1
         linked_ids, names, matter_ids = set(), set(), set()
         linked_ids.update(authors)
         for material in materials.values():
@@ -480,21 +564,24 @@ class MaterialBuilder:
                 subjects[subject_id]={"subject_id":subject_id,"name":item["display_name"],"kind":item["kind"],
                     "aliases":list(item["aliases"]),"revision":item["revision"]}
                 targets[subject_id]={"new_material_ids":[]}
-        # Real quote/reply event IDs resolve only to aliases of actual supplied material.
-        events = {}
-        for key, item in materials.items():
-            locator = item.get("locator") or {}
-            for field in ("event_id", "message_id"):
-                if locator.get(field):
-                    events[str(locator[field])] = key
-        for item in materials.values():
-            locator = item.get("locator") or {}
-            item["reply_to"] = list(dict.fromkeys(events[value] for value in _reply_event_ids(locator) if value in events))
-        return {"batch_id": batch_id, "schema_version": SCHEMA_VERSION,
+        relations=material_relations(materials)
+        for key,item in materials.items():
+            item.update(relations[key])
+            if item["role"]=="new" and _reply_event_ids(item.get("locator")):
+                missing=set()
+                if not item["reply_to"]:
+                    missing.add("quoted_context_unavailable")
+                elif any(materials[parent].get("coverage_missing") for parent in item["reply_to"]):
+                    missing.add("quoted_material_incomplete")
+                for episode in episodes:
+                    if episode["episode_id"]==item["episode_id"]:
+                        episode["missing"]=sorted(set(episode["missing"])|missing)
+        return {"batch_id": batch_id, "schema_version": SCHEMA_VERSION,"model_protocol":"memory.proposal.v2",
             "context": {"actor_id": context.actor_id, "conversation_id": context.conversation_id,
                         "time_zone": self.policy.time_zone, "cutoff_at": wire(max(row["occurred_at"] for row in rows[:len(episodes)])),
                         "message_cutoff": cutoff},
             "subjects": subjects, "materials": materials, "targets": targets, "records": records,
+            "selection_coverage":selection_coverage,
             "read_set": [{"kind": item["kind"], "id": item["id"], "revision": item["revision"],
                           "head_revision":item.get("head_revision") or item["revision"]} for item in records.values()],
             "episodes": episodes}
