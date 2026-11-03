@@ -44,3 +44,5 @@ A 导出 `memory.candidates.CandidateSelection` frozen dataclass（`rows: tuple[
 双方确认唯一窄码 `AppError('memory_vector_candidate_budget',status=503)`：has_vectors 尚未找到合法候选、又因完整来源证明预算耗尽无法证明该向量域为空时抛出。`_vectors` 只在 `vector_candidates` 阶段将该精确码/状态映射为已有 `vector_candidate_budget` 缺项，先执行父预算检查，再跳过 embedding 并保留词法结果。该码不加入通用 optional_failure；权限/上下文/其他来源预算错误、外部取消、其他阶段同名错误均传播。`vectors` 的 `(rows,bounded)` 合同与部分结果路径不变。
 
 根精确验证 `tests/memory/test_retrieval_degradation.py` 新增三项目标：`test_vector_existence_budget_unknown_keeps_lexical_with_missing_without_embedding`（有/无词法两个参数）、`test_vector_existence_budget_unknown_still_obeys_the_parent_deadline`、`test_vector_existence_budget_mapping_does_not_swallow_other_authority_or_phase_errors`（六个边界参数）。只做 diff 检查；未测试、编译、构建或操作生产/真实模型。
+
+向量候选现可在本地阶段超时后返回 `(rows,True)`，消费后立即检查原 query parent，避免父截止到期后继续 MMR、重排或最终复检；`budget=None` 后台路径保持。新增 `test_partial_vectors_check_real_parent_before_rerank_and_keep_background_without_deadline` 两参数，分别确认部分返回后父截止传播且不再复检/重排，以及后台部分返回继续并保留缺项。此追加仅做 diff 检查，不运行测试或编译。

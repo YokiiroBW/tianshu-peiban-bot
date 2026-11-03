@@ -189,6 +189,26 @@ async def test_vector_existence_budget_unknown_still_obeys_the_parent_deadline()
     assert not setup.calls.embeddings and not setup.calls.reread
 
 
+@pytest.mark.parametrize("foreground", [True, False])
+async def test_partial_vectors_check_real_parent_before_rerank_and_keep_background_without_deadline(foreground):
+    setup = pipeline(settings={"vector": True, "rerank": True})
+    parent = budget() if foreground else None
+    async def partial(*_args):
+        if parent is not None:
+            object.__setattr__(parent, "_monotonic_deadline", 0)
+        return tuple(setup.rows[1:2]), True
+    setup.store.vectors = partial
+    if foreground:
+        with pytest.raises(TimeoutError, match="request_deadline_exceeded"):
+            await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), parent, limit=2)
+        assert not setup.calls.models and not setup.calls.reread
+    else:
+        page = await setup.retrieval.query(context(), MemoryQueryPlan(query="咖啡"), None, limit=2)
+        assert len(page.items) == 2 and "vector_candidate_budget" in page.coverage.missing
+        assert len(setup.calls.models) == 1 and setup.calls.models[0].business_deadline_at is None
+    assert len(setup.calls.embeddings) == 1
+
+
 @pytest.mark.parametrize("phase,error", [
     ("vector_exists", AppError("permission_denied", status=403)),
     ("vector_exists", AppError("invalid_source_context", status=400)),

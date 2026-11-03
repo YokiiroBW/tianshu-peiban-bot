@@ -158,6 +158,8 @@ class MemoryRetrieval:
             phase = "vector"
             rows, incomplete = await self.store.vectors(context, plan, values, fingerprint,
                 self.phase_budget(budget, float(self.settings.get("vector_sql_seconds", VECTOR_SQL_SECONDS))))
+            if budget is not None:
+                budget.check()
             return rows, ("vector_candidate_budget",) if incomplete else ()
         except PHASE_ERRORS as exc:
             if (phase == "vector_candidates" and isinstance(exc, AppError)
