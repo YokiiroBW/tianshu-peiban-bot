@@ -23,6 +23,7 @@ from .candidate_sources import SourceProofGroups, check_group_batches_on, check_
 from .domain_utils import lexical
 from .display import display_evidence_on
 from .embedding import normalized_input
+from .episode_original import needs_original_text, read_original_text
 from .evidence import build_evidence_unit, select_supports_on
 from .indexing import evidence_text, index_text, rerank_text
 from .learning_index import LearningEvidence
@@ -192,7 +193,10 @@ class MemoryRetrieval:
                     continue
                 value = (codec.claim(row, proof) if row["_kind"] in {"claim", "hypothesis"} else
                          codec.matter(row, selected_refs=proof) if row["_kind"] == "matter" else codec.episode(row))
-                authorized[key] = body_hash(normalized_input(index_text(build_evidence_unit(value))))
+                unit = build_evidence_unit(value)
+                if row["_kind"] == "episode" and needs_original_text(row):
+                    unit = replace(unit, content=row.get("lexical") or "")
+                authorized[key] = body_hash(normalized_input(index_text(unit)))
             kinds, identifiers, revisions = zip(*keys)
             params = (profile_key, generation, list(kinds), list(identifiers), list(revisions))
             vectors = await (await conn.execute(
@@ -355,6 +359,12 @@ class MemoryRetrieval:
                     coverage = replace(unit.coverage, complete=False,
                         missing=tuple(dict.fromkeys((*unit.coverage.missing, "media_unavailable"))))
                     unit = replace(unit, content="", actual_result=None, coverage=coverage)
+            if row["_kind"] == "episode" and needs_original_text(row):
+                row = {**row, "_supplement_unavailable": True}
+                reason = "media_unavailable" if "media_unavailable" in (row.get("extraction_missing") or ()) else "original_text_fallback"
+                coverage = replace(unit.coverage, complete=False,
+                    missing=tuple(dict.fromkeys((*unit.coverage.missing, reason))))
+                unit = replace(unit, content="", actual_result=None, coverage=coverage)
             result.append((row, unit))
         return result
 
@@ -363,25 +373,9 @@ class MemoryRetrieval:
         result, missing = [], []
         for row, unit in pairs:
             refs = codec.refs(row["source_refs"])
-            chunks, size, partial = [], 0, False
+            content, partial = "", False
             try:
-                for start in range(0, len(refs), 8):
-                    if size >= 24000:
-                        partial = True
-                        break
-                    selections = tuple((ref, {"max_characters": 24000 - size}) for ref in refs[start:start + 8])
-                    if budget is None:
-                        values = await self.memory.sources.read_many(context, selections)
-                    else:
-                        async with budget.timeout():
-                            values = await self.memory.sources.read_many(context, selections)
-                    for value in values:
-                        content = value.get("content")
-                        if value.get("representation") == "text" and isinstance(content, str) and content:
-                            remaining = 24000 - size
-                            chunks.append(content[:remaining])
-                            size += len(chunks[-1])
-                            partial |= len(content) > remaining or not value["coverage"].complete
+                content, partial = await read_original_text(self.memory.sources, context, refs, budget)
             except AppError as error:
                 if error.status in {401, 403, 404}:
                     missing.append("memory_evidence_unavailable")
@@ -392,12 +386,12 @@ class MemoryRetrieval:
             except (TimeoutError, aiohttp.ClientError, OSError):
                 partial = True
             reasons = list(unit.coverage.missing)
-            if not chunks:
+            if not content:
                 reasons.append("original_text_unavailable")
             elif partial:
                 reasons.append("original_text_partial")
             coverage = replace(unit.coverage, complete=False, missing=tuple(dict.fromkeys(reasons)))
-            result.append((row, replace(unit, content="\n".join(chunks), coverage=coverage)))
+            result.append((row, replace(unit, content=content, coverage=coverage)))
         return tuple(result), tuple(dict.fromkeys(missing))
 
     async def _checked_on(self, conn, context, plan, rows, *, snapshot=None, derivation_refs=(), behavior_refs=()):
@@ -692,7 +686,7 @@ class MemoryRetrieval:
                        "not_recalled": "unknown"}
         if not candidates:
             return _RankedUnits((), diagnostics), tuple(dict.fromkeys(missing))
-        ranked, remote, rank_sources, rank_behaviors = [], None, (), ()
+        ranked, rerank_candidates, remote, rank_sources, rank_behaviors = [], [], None, (), ()
         # A reranker helps decide the cut when near-ranked candidates compete.
         # A complete structured list or a clearly separated cut does not need it.
         close_cut = (len(ordered) > limit and
@@ -706,30 +700,24 @@ class MemoryRetrieval:
                     limit=max(limit, 24), partial=True, parent=budget, phase="memory_candidate_check", purpose=purpose)
                 missing.extend(unavailable)
                 ranked = list(checked)
-                # Reflection has a typed source reference but no shared
-                # cross-domain dependency field for later rerank validation.
-                # Keep it in local ranking instead of deriving other results
-                # from text whose owner cannot be rechecked downstream.
-                if any(getattr(unit, "learning_ref", None) for _, unit in ranked):
-                    ranked = []
-                    remote = None
-                    missing.append("rerank_learning_dependency_unavailable")
-                else:
-                    remote = (self.remote_phase(budget, float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)))
-                              if len(ranked) > 1 else None)
-                if len(ranked) > 1 and remote is None:
+                # Non-behavior reflections have no downstream dependency port.
+                # Preserve their local slots while reranking the other items.
+                rerank_candidates = [item for item in ranked if not getattr(item[1], "learning_ref", None)]
+                remote = (self.remote_phase(budget, float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)))
+                          if len(rerank_candidates) > 1 else None)
+                if len(rerank_candidates) > 1 and remote is None:
                     missing.append("rerank_budget_insufficient")
         if remote is not None:
             remote_budget, queue_wait = remote
-            documents = [rerank_text(unit) for _, unit in ranked]
-            proposed_behaviors = unique_behavior_refs(*(getattr(unit, "behavior_refs", ()) for _, unit in ranked),
-                *((unit.behavior_ref,) if getattr(unit, "behavior_ref", None) else () for _, unit in ranked))
+            documents = [rerank_text(unit) for _, unit in rerank_candidates]
+            proposed_behaviors = unique_behavior_refs(*(getattr(unit, "behavior_refs", ()) for _, unit in rerank_candidates),
+                *((unit.behavior_ref,) if getattr(unit, "behavior_ref", None) else () for _, unit in rerank_candidates))
             request = ModelRequest("memory-rerank:" + str(uuid4()), str(uuid4()), "rerank",
                 service_class, context, remote_budget, (), required_capabilities=frozenset({"rerank"}),
                 max_output_tokens=0, native_payload={"query": plan.query, "documents": documents, "top_n": min(limit, len(documents))},
                 execution_timeout_seconds=float(self.settings.get("rerank_seconds", MODEL_EXECUTION_SECONDS)),
                 business_deadline_at=remote_budget.deadline_at if budget is not None else None,
-                source_refs=unique_refs(source_refs, *(unit.source_refs for _, unit in ranked)),
+                source_refs=unique_refs(source_refs, *(unit.source_refs for _, unit in rerank_candidates)),
                 behavior_refs=proposed_behaviors, behavior_purpose=purpose if proposed_behaviors else None,
                 data_generation=data_generation)
             proposed_sources = request.source_refs
@@ -744,9 +732,9 @@ class MemoryRetrieval:
                 order, seen = [], set()
                 for item in indexes:
                     index = item.get("index") if isinstance(item, dict) else None
-                    if type(index) is int and 0 <= index < len(ranked) and index not in seen:
+                    if type(index) is int and 0 <= index < len(rerank_candidates) and index not in seen:
                         seen.add(index)
-                        order.append(ranked[index])
+                        order.append(rerank_candidates[index])
                 if order:
                     sources_valid = await self._derivation_valid(context, proposed_sources, self.local_budget(budget))
                     behaviors_valid = (await self._behavior_dependencies_valid(context, proposed_behaviors, purpose,
@@ -754,7 +742,8 @@ class MemoryRetrieval:
                     if sources_valid and behaviors_valid:
                         rank_sources = proposed_sources
                         rank_behaviors = proposed_behaviors
-                        ranked = order + [value for index, value in enumerate(ranked) if index not in seen]
+                        reranked_iter = iter(order + [value for index, value in enumerate(rerank_candidates) if index not in seen])
+                        ranked = [value if getattr(value[1], "learning_ref", None) else next(reranked_iter) for value in ranked]
                     else:
                         ranked = []
                         missing.append("rerank_behaviors_unavailable" if sources_valid else "rerank_inputs_revoked")

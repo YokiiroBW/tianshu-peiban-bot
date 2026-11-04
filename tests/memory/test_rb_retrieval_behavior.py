@@ -162,6 +162,43 @@ async def test_reflection_uses_growth_learning_records_and_preserves_typed_refer
         "learning_revision_history_unavailable",)
 
 
+async def test_rerank_keeps_reflection_local_but_still_reranks_other_candidates():
+    sources = (SourceRef("reflection", 1), SourceRef("first", 1), SourceRef("second", 1))
+    rows = [{"_kind": kind, "_id": name, "revision": 1, "_content": name, "lexical": name}
+            for kind, name in (("learning", "reflection"), ("claim", "first"), ("claim", "second"))]
+    common = dict(revision=1, actor_id="actor", subject_id="person", speaker_id="person", assertion="reported",
+        conditions={}, occurred_at=None, valid_from=None, valid_until=None, recorded_at=datetime.now(UTC),
+        matter_id=None, current_status="current", state="active", scope_ids=("scope",), coverage=Coverage(True))
+    units = {"reflection": LearningEvidence(kind="learning", id="reflection", content="反思私有内容",
+                 source_refs=(sources[0],), learning_ref={"kind": "reflection", "id": "reflection", "revision": 1}, **common),
+             "first": MemoryEvidenceUnit(kind="claim", id="first", content="first", source_refs=(sources[1],), **common),
+             "second": MemoryEvidenceUnit(kind="claim", id="second", content="second", source_refs=(sources[2],), **common)}
+
+    class Models:
+        async def generate(self, request):
+            assert all("反思私有内容" not in document for document in request.native_payload["documents"])
+            assert {ref.source_id for ref in request.source_refs} == {"first", "second"}
+            return SimpleNamespace(receipt=SimpleNamespace(status="succeeded"),
+                                   native_response={"results": [{"index": 1}, {"index": 0}]})
+
+    retrieval = MemoryRetrieval(SimpleNamespace(database=None, models=Models()), None,
+                                {"vector": False, "rerank": True, "rerank_seconds": 1})
+
+    async def lexical(_context, _plan, _budget):
+        return CandidateSelection(tuple(rows), ())
+
+    async def checked(_context, _plan, candidates, _budget, *, limit, **_options):
+        return tuple((row, units[row["_id"]]) for row in list(candidates)[:limit]), ()
+
+    async def valid(*_args):
+        return True
+
+    retrieval._lexical, retrieval._checked, retrieval._derivation_valid = lexical, checked, valid
+    result, _ = await retrieval._ranked(context(), MemoryQueryPlan(query="内容"), deadline(), limit=2,
+        source_refs=(), service_class=ServiceClass.INTERACTIVE, purpose="conversation")
+    assert [unit.id for unit in result] == ["reflection", "second"]
+
+
 @pytest.mark.parametrize("withdrawn", [False, True])
 async def test_rerank_preserves_the_full_input_source_closure_or_discards_invalid_order(withdrawn):
     refs = (SourceRef("query", 1), SourceRef("first", 1), SourceRef("second", 1))

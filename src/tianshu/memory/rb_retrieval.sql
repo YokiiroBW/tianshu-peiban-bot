@@ -76,6 +76,18 @@ CREATE TABLE memory.learning_index_refs (
 CREATE INDEX learning_refs_search ON memory.learning_index_refs USING gin(search_vector);
 CREATE INDEX learning_refs_actor_recorded ON memory.learning_index_refs(actor_id,recorded_at,rule_id,revision);
 
+-- An empty post-withdrawal summary must remain searchable by authorized
+-- original text, including after the Episode head advances. Only lexemes and
+-- their source identities are projected; the original body remains in Sources.
+CREATE TABLE memory.episode_original_terms (
+    episode_id text NOT NULL,
+    revision bigint NOT NULL,
+    source_refs jsonb NOT NULL,
+    search_vector tsvector NOT NULL,
+    PRIMARY KEY(episode_id,revision)
+);
+CREATE INDEX episode_original_terms_search ON memory.episode_original_terms USING gin(search_vector);
+
 -- Source invalidation first makes the authoritative rows unreadable. The
 -- existing asynchronous purge then clears the corresponding derived vectors.
 CREATE FUNCTION memory.purge_search_vectors() RETURNS trigger LANGUAGE plpgsql AS $$
@@ -88,6 +100,7 @@ BEGIN
             AND object_id=OLD.matter_id AND revision=OLD.revision;
     ELSIF TG_TABLE_NAME = 'episodes' THEN
         DELETE FROM memory.search_vectors WHERE kind='episode' AND object_id=OLD.episode_id;
+        DELETE FROM memory.episode_original_terms WHERE episode_id=OLD.episode_id;
     END IF;
     RETURN NEW;
 END $$;

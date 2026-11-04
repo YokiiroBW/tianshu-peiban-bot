@@ -168,14 +168,18 @@ class CandidateStore:
                     clauses.append("(r.recorded_at<=%s OR r.recorded_at IS NULL)")
                     args.append(snapshot)
             else:
-                table = "memory.episodes h JOIN memory.episode_revisions r ON r.episode_id=h.episode_id AND r.actor_id=h.actor_id"
+                table = ("memory.episodes h JOIN memory.episode_revisions r ON r.episode_id=h.episode_id AND r.actor_id=h.actor_id "
+                    "LEFT JOIN memory.episode_original_terms ot ON ot.episode_id=r.episode_id AND ot.revision=r.revision "
+                    "AND ot.source_refs=r.source_refs")
                 head = "h.revision"
-                search, embedding, profile, derivations = "to_tsvector('simple',r.summary)", "NULL::vector", "NULL::text", "h.source_refs"
+                search = "(to_tsvector('simple',r.summary)||COALESCE(ot.search_vector,''::tsvector))"
+                embedding, profile, derivations = "NULL::vector", "NULL::text", "h.source_refs"
                 supplements = "(r.supplement_refs||h.supplement_refs)"
                 clauses.extend(("h.active", "r.active", "h.scope_ids<@%s::text[]"))
                 args.append(list(context.scope_ids))
                 extra_projection = (",h.sequence AS sequence,'not_historical'::text AS extraction_state,"
-                    "ARRAY[]::text[] AS extraction_missing,h.source_refs AS derivation_refs,"
+                    "CASE WHEN r.revision=h.revision THEN h.extraction_missing ELSE ARRAY[]::text[] END AS extraction_missing,"
+                    "(r.summary='') AS _original_text_required,h.source_refs AS derivation_refs,"
                     "ARRAY(SELECT DISTINCT unnest(r.scope_ids||h.scope_ids)) AS scope_ids,"
                     "h.supplement_refs AS _head_supplement_refs")
                 if knowledge_time is None:

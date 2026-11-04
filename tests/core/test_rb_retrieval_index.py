@@ -187,6 +187,33 @@ async def test_same_episode_revision_with_changed_material_keeps_original_succes
     assert original == {"status": "succeeded", "model_attempt_id": first_request.attempt_id}
 
 
+async def test_missing_media_rebuilds_original_text_search_for_current_and_history(core, ordinary_users):
+    context, _ = ordinary_users
+    occurred = datetime.now(UTC)
+    refs = await core.sources.record_event(context, producer="web", event_id="original-recall", revision=1,
+        occurred_at=occurred, parts=({"kind": "text", "text": "原始文字可以找回"},), origin_kind=OriginKind.HUMAN)
+    episode = await core.memory.observe_episode(context, {"event_id": "original-recall", "summary": "图片摘要",
+        "occurred_at": occurred, "origin_kind": "human", "source_refs": refs})
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.episodes SET summary='',lexical='',supplement_refs='[]',"
+            "extraction_missing=ARRAY['media_unavailable'] WHERE episode_id=%s", (episode.episode_id,))
+        await conn.execute("UPDATE memory.episode_revisions SET summary='',supplement_refs='[]' "
+            "WHERE episode_id=%s AND revision=%s", (episode.episode_id, episode.revision))
+    bind_models(core)
+    await core.workers.index_jobs.index_object("episode", episode.episode_id, episode.revision, await generation(core))
+    budget = lambda: RequestBudget(datetime.now(UTC) + timedelta(seconds=10))
+    current = await core.retrieval.query(context, MemoryQueryPlan(query="原始文字", evidence_kinds=("episode",)), budget())
+    history = await core.retrieval.query(context, MemoryQueryPlan(query="原始文字", evidence_kinds=("episode",),
+        time_mode="known_at", known_at=datetime.now(UTC), coverage_mode="list"), budget())
+    assert current.items[0].content == history.items[0].content == "原始文字可以找回"
+    assert "media_unavailable" in current.items[0].coverage.missing
+    async with core.database.transaction(read_only=True) as conn:
+        projection = await (await conn.execute("SELECT source_refs,search_vector::text AS terms "
+            "FROM memory.episode_original_terms WHERE episode_id=%s AND revision=%s",
+            (episode.episode_id, episode.revision))).fetchone()
+    assert projection["source_refs"] == wire(refs) and projection["terms"]
+
+
 async def test_a_late_embedding_cannot_reactivate_a_withdrawn_source(core, ordinary_users):
     context, _ = ordinary_users
     value = await fact(core, context, "withdraw-before-index-result")

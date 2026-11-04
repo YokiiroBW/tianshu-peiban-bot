@@ -15,12 +15,14 @@ from tianshu.models.codec import request_from_wire
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.serialization import wire
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import RequestBudget, ServiceClass
 from . import codec
 from .candidate_sources import check_rows_on
 from .domain_utils import lexical
 from .embedding import normalized_input
+from .episode_original import needs_original_text, read_original_text
 from .evidence import build_evidence_unit
 from .indexing import index_text
 from .index_recovery import IndexRecovery, MAX_ATTEMPTS
@@ -94,6 +96,11 @@ class IndexJobs:
         unit = build_evidence_unit(value)
         if supplements:
             unit = replace(unit, source_refs=unique_refs(unit.source_refs, supplements))
+        if kind == "episode" and needs_original_text(row):
+            # The writer deliberately cleared a summary that depended on a
+            # withdrawn supplement. The separately authorized original's
+            # lexemes are the only remaining semantic index material.
+            unit = replace(unit, content=row.get("lexical") or "")
         proof["_supports"] = [unit.source_refs]
         if (await check_rows_on(self.memory.sources, conn, context, (proof,)))[0] is not True:
             raise AppError("source_unavailable", status=403)
@@ -133,10 +140,14 @@ class IndexJobs:
     async def _material(self, kind, object_id, revision, generation):
         # Keyword visibility never depends on a supplier succeeding. Both queue
         # deliveries and consistency recovery use this same canonical document.
+        if kind == "episode":
+            await self._prepare_original_lexical(object_id, revision, generation)
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn, generation)
             loaded = await self._load_on(conn, kind, object_id, revision)
             if loaded is None:
+                return None
+            if kind == "episode" and needs_original_text(loaded[0]) and not loaded[0].get("lexical"):
                 return None
             _, context, refs, content = loaded
             if not await self.memory.sources.validate_persistence(conn, context, refs):
@@ -144,10 +155,38 @@ class IndexJobs:
             fresh = await self._load_on(conn, kind, object_id, revision, lock=True)
             if fresh is None or fresh[2:] != loaded[2:]:
                 return None
-            table, key = TABLES[kind]
-            await conn.execute(f"UPDATE memory.{table} SET lexical=%s WHERE {key}=%s AND revision=%s",
-                               (lexical(content), object_id, revision))
+            if kind != "episode" or not needs_original_text(fresh[0]):
+                table, key = TABLES[kind]
+                await conn.execute(f"UPDATE memory.{table} SET lexical=%s WHERE {key}=%s AND revision=%s",
+                                   (lexical(content), object_id, revision))
             return fresh
+
+    async def _prepare_original_lexical(self, object_id, revision, generation):
+        """Rebuild a missing-media Episode's terms from its original Sources."""
+        async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn, generation)
+            loaded = await self._load_on(conn, "episode", object_id, revision)
+        if loaded is None or not needs_original_text(loaded[0]):
+            return
+        row, context, refs, _ = loaded
+        originals = codec.refs(row["source_refs"])
+        content, _partial = await read_original_text(self.memory.sources, context, originals)
+        if not content:
+            return
+        terms = lexical(content)
+        async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn, generation)
+            fresh = await self._load_on(conn, "episode", object_id, revision, lock=True)
+            if (fresh is None or not needs_original_text(fresh[0]) or fresh[2] != refs or
+                    codec.refs(fresh[0]["source_refs"]) != originals or
+                    not await self.memory.sources.validate_persistence(conn, context, refs)):
+                return
+            await conn.execute("UPDATE memory.episodes SET lexical=%s WHERE episode_id=%s AND revision=%s",
+                               (terms, object_id, revision))
+            await conn.execute("INSERT INTO memory.episode_original_terms(episode_id,revision,source_refs,search_vector) "
+                "VALUES(%s,%s,%s,to_tsvector('simple',%s)) ON CONFLICT(episode_id,revision) DO UPDATE "
+                "SET source_refs=EXCLUDED.source_refs,search_vector=EXCLUDED.search_vector",
+                (object_id, revision, Jsonb(wire(originals)), terms))
 
     async def index_object(self, kind, object_id, revision, generation):
         try:
@@ -589,7 +628,8 @@ class IndexJobs:
                         "AND v.revision=r.revision AND v.kind=CASE WHEN r.memory_kind='hypothesis' THEN 'hypothesis' ELSE 'claim' END)) "
                         "AND (r.claim_id,r.revision)>(%s,%s) ORDER BY r.claim_id,r.revision LIMIT %s")
                 else:
-                    query = (f"SELECT r.{key} AS id,r.revision FROM memory.{table} r WHERE r.active AND (r.lexical='' OR NOT EXISTS("
+                    original_fields = ",r.summary,r.lexical,r.extraction_missing" if kind == "episode" else ""
+                    query = (f"SELECT r.{key} AS id,r.revision{original_fields} FROM memory.{table} r WHERE r.active AND (r.lexical='' OR NOT EXISTS("
                         f"SELECT 1 FROM memory.search_vectors v WHERE v.profile_key=%s AND v.generation=%s AND v.kind='{kind}' "
                         f"AND v.object_id=r.{key} AND v.revision=r.revision)) "
                         f"AND (r.{key},r.revision)>(%s,%s) ORDER BY r.{key},r.revision LIMIT %s")
@@ -598,6 +638,12 @@ class IndexJobs:
                     if not row.get("eligible", True):
                         continue
                     object_kind = row.get("kind", kind)
+                    if object_kind == "episode" and needs_original_text(row) and not row.get("lexical"):
+                        await self.memory.jobs.enqueue(conn, JobSpec("memory.index_object", "memory-original-index:" + str(uuid4()),
+                            {"kind": object_kind, "id": row["id"], "revision": row["revision"], "generation": generation},
+                            ServiceClass.ELASTIC, data_generation=generation),
+                            queueing_lock=f"memory-original-index:{generation}:{row['id']}:{row['revision']}")
+                        continue
                     try:
                         loaded = await self._load_on(conn, object_kind, row["id"], row["revision"])
                     except AppError as error:
