@@ -14,7 +14,7 @@ from .evidence import temporal_selection
 from .types import MemoryQueryPlan
 
 
-EVIDENCE_KINDS = ("claim", "hypothesis", "matter", "episode", "reflection")
+EVIDENCE_KINDS = ("claim", "hypothesis", "matter", "episode", "learning")
 PLAN_FIELDS = {"query", "subject_ids", "matter_refs", "time_mode", "valid_at", "known_at",
                "evidence_kinds", "coverage_mode", "budget"}
 QUERY_PROPERTIES = {
@@ -45,6 +45,7 @@ def parse_plan(value):
     query = value.get("query", "")
     if not isinstance(query, str) or len(query) > 4000:
         raise AppError("invalid_memory_query")
+    query = query.strip()
     collections = {}
     for name in ("subject_ids", "matter_refs", "evidence_kinds"):
         items = value.get(name, EVIDENCE_KINDS if name == "evidence_kinds" else ())

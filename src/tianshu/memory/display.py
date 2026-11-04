@@ -7,8 +7,8 @@ nor supply historical identity evidence, and never expand the selected people.
 from collections.abc import Mapping
 from dataclasses import replace
 
-from tianshu.runtime.errors import AppError
 from . import codec
+from .candidate_sources import SourceProofGroups, check_group_batches_on
 
 
 def _get(value, name, default=None):
@@ -62,24 +62,17 @@ async def display_evidence_on(memory, conn, context, values):
     values = tuple(values)
     if not values:
         return ()
-    checks, batch, size = [], [], 0
+    grouped, proofs = SourceProofGroups(), []
     for value in values:
         raw = _get(value, "source_refs")
         if raw is None:
             source = _get(value, "source_ref")
             raw = () if source is None else (source,)
         refs = codec.refs(raw)
-        if len(refs) > 2048:
-            raise AppError("memory_evidence_source_budget_exceeded", status=503)
-        if batch and size + len(refs) > 2048:
-            checks.extend(await memory.sources.check_many_on(conn, context, tuple(batch)))
-            batch, size = [], 0
-        batch.append(refs)
-        size += len(refs)
-    if batch:
-        checks.extend(await memory.sources.check_many_on(conn, context, tuple(batch)))
-    allowed = [index for index, (value, checked) in enumerate(zip(values, checks, strict=True))
-        if checked and set(_get(value, "scope_ids", ())) <= set(context.scope_ids)]
+        proofs.append(grouped.add(refs))
+    checks = await check_group_batches_on(memory.sources, conn, context, grouped.values)
+    allowed = [index for index, (value, proof) in enumerate(zip(values, proofs, strict=True))
+        if all(checks[item] is True for item in proof) and set(_get(value, "scope_ids", ())) <= set(context.scope_ids)]
     labels = await resolve_display_on(memory.identity, conn, context, tuple(values[index] for index in allowed))
     result = [None] * len(values)
     for index, subjects in zip(allowed, labels, strict=True):

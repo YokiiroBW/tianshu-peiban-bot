@@ -8,8 +8,9 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage
 from . import codec
+from .candidate_sources import SourceProofGroups, check_group_batches_on
 from .domain_utils import optional_time, unique_refs
-from .types import ClaimRevision, Episode, MatterView, MemoryEvidenceUnit, ReflectionView
+from .types import ClaimRevision, Episode, MatterView, MemoryEvidenceUnit
 
 
 def required_refs(value):
@@ -22,35 +23,21 @@ def required_refs(value):
 
 async def select_supports_on(sources, conn, context, rows):
     """Alternative evidence is OR; every support and necessary derivation is AND."""
-    candidates = []
+    candidates, grouped = [], SourceProofGroups()
     for index, row in enumerate(rows):
         derivation = required_refs(row)
         groups = row.get("support_groups") or [row["source_refs"]]
         for group in reversed(groups):
             refs = unique_refs((*codec.refs(group), *derivation))
             if refs:
-                candidates.append((index, refs))
+                # Each chunk remains part of the same AND proof. Splitting a
+                # large group never turns a partial source check into access.
+                candidates.append((index, refs, grouped.add(refs)))
     selected = [None] * len(rows)
-    position = 0
-    while position < len(candidates):
-        owners, groups, count = [], [], 0
-        while position < len(candidates) and len(groups) < 1024:
-            owner, refs = candidates[position]
-            if len(refs) > 2048:
-                raise AppError("memory_support_budget_exceeded", status=503)
-            if groups and count + len(refs) > 2048:
-                break
-            position += 1
-            if selected[owner] is not None:
-                continue
-            owners.append(owner)
-            groups.append(refs)
-            count += len(refs)
-        if groups:
-            checked = await sources.check_many_on(conn, context, tuple(groups))
-            for owner, refs, valid in zip(owners, groups, checked):
-                if valid and selected[owner] is None:
-                    selected[owner] = refs
+    checked = await check_group_batches_on(sources, conn, context, grouped.values)
+    for owner, refs, indexes in candidates:
+        if selected[owner] is None and all(checked[index] is True for index in indexes):
+            selected[owner] = refs
     return selected
 
 
@@ -78,8 +65,6 @@ def temporal_coverage(value, *, time_mode="current", valid_at=None):
             missing.append("matter_effective_time_inferred_from_report")
         if value.state == "completed" and value.completion_basis is None:
             missing.append("completion_basis_unknown")
-    if isinstance(value, ReflectionView) and time_mode == "valid_at":
-        missing.append("reflection_valid_time_unknown")
     return tuple(missing)
 
 
@@ -153,14 +138,5 @@ def build_evidence_unit(value, *, relations=(), time_mode="current", temporal_mi
             actual_result=value.actual_result,
             occurred_at=value.occurred_at, valid_from=None, valid_until=None,
             matter_id=value.matter_id, current_status="current", state="active", **common,
-        )
-    if isinstance(value, ReflectionView):
-        return MemoryEvidenceUnit(
-            kind="reflection", id=value.proposal_id, revision=value.revision,
-            subject_id=value.person_id, speaker_id="actor:" + value.actor_id,
-            assertion="inferred", content=value.content, conditions=value.conditions,
-            occurred_at=value.occurred_at, valid_from=None, valid_until=None, matter_id=None,
-            current_status="current", state="active", interpretation=True, **common,
-            episode_ids=value.episode_ids, counterexamples=value.counterexamples,
         )
     raise TypeError("unsupported_memory_evidence_type")

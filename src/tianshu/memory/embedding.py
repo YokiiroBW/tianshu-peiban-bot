@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 import math
+import unicodedata
 from uuid import NAMESPACE_URL, uuid5
 
 from tianshu.models.types import ModelRequest
@@ -9,6 +10,13 @@ from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.types import ServiceClass
 from .retrieval_budget import MODEL_EXECUTION_SECONDS
+
+
+PREPROCESSING_VERSION = "unicode-nfc-v1"
+
+
+def normalized_input(text):
+    return unicodedata.normalize("NFC", text)
 
 
 class Embeddings:
@@ -22,7 +30,26 @@ class Embeddings:
         profile = profile.get("profile", profile)
         if profile.get("dimensions") != 1024 or profile.get("normalization") not in {"none", "l2"}:
             raise AppError("invalid_embedding_profile", status=503)
-        return profile, body_hash(profile)
+        # The space key describes the model and preprocessing, not dimensions
+        # alone. A profile change never makes old vectors valid for a new model.
+        identity = {name: profile.get(name) for name in ("route_id", "route_fingerprint", "provider_id", "model",
+            "model_version", "dimensions", "normalization", "query_instruction", "space_id")}
+        return profile, body_hash({"profile": identity, "preprocessing": PREPROCESSING_VERSION})
+
+    @staticmethod
+    def request(context, text, budget, *, intent, profile, fingerprint, query=False,
+                source_refs=(), service_class=ServiceClass.ELASTIC, max_queue_wait=None,
+                execution_seconds=None, business_deadline_at=None, data_generation=None):
+        prefix = profile.get("query_instruction", "") if query else ""
+        return ModelRequest(
+            intent, str(uuid5(NAMESPACE_URL, intent + ":" + fingerprint)), "embed",
+            service_class, context, budget, (), required_capabilities=frozenset({"embed"}),
+            max_output_tokens=0, native_payload={"input": [normalized_input(prefix + text)]},
+            source_refs=tuple(source_refs), max_queue_wait=max_queue_wait,
+            route_id=profile.get("route_id"), route_revision=profile.get("route_revision"),
+            execution_timeout_seconds=execution_seconds if execution_seconds is not None else MODEL_EXECUTION_SECONDS,
+            business_deadline_at=business_deadline_at, data_generation=data_generation,
+        )
 
     async def vector(
         self,
@@ -38,30 +65,17 @@ class Embeddings:
         max_queue_wait=None,
         execution_seconds=None,
         business_deadline_at=None,
+        data_generation=None,
     ):
         # A query's existence check and its embedding use the same profile.
         # This is request-local reuse, never a second profile cache.
         budget.check()
         profile, fingerprint = profile_snapshot if profile_snapshot is not None else await self.profile()
         budget.check()
-        prefix = profile.get("query_instruction", "") if query else ""
-        request = ModelRequest(
-            intent,
-            str(uuid5(NAMESPACE_URL, intent + ":" + fingerprint)),
-            "embed",
-            service_class,
-            context,
-            budget,
-            (),
-            required_capabilities=frozenset({"embed"}),
-            max_output_tokens=0,
-            native_payload={"input": [prefix + text]},
-            source_refs=tuple(source_refs),
-            execution_timeout_seconds=execution_seconds if execution_seconds is not None else MODEL_EXECUTION_SECONDS,
-            business_deadline_at=business_deadline_at,
-        )
-        if max_queue_wait is not None:
-            request = replace(request, max_queue_wait=max_queue_wait)
+        request = self.request(context, text, budget, intent=intent, profile=profile,
+            fingerprint=fingerprint, query=query, source_refs=source_refs, service_class=service_class,
+            max_queue_wait=max_queue_wait, execution_seconds=execution_seconds,
+            business_deadline_at=business_deadline_at, data_generation=data_generation)
         step_id = intent + ":" + fingerprint
         if not query:
             try:
@@ -86,8 +100,20 @@ class Embeddings:
             if query
             else await self.steps.run(step_id, request)
         )
+        return self.decode(result, profile, fingerprint)
+
+    @staticmethod
+    def decode(result, profile, fingerprint):
         if result.receipt.status != "succeeded":
             raise AppError(result.receipt.error_code or "embedding_outcome_unknown", status=503)
+        # The provider may select an alternate route after the profile read.
+        # A successful vector is usable only when its receipt proves the same
+        # space; equal dimensions do not establish compatibility.
+        for field in ("route_id", "route_revision", "provider_id", "model", "quota_group"):
+            expected = profile.get(field)
+            if expected is not None and getattr(result.receipt, field, None) != expected:
+                raise AppError("embedding_profile_rebuild_required", status=503,
+                               details={"reason": "embedding_receipt_profile_mismatch", "field": field})
         payload = result.native_response or {}
         data = payload.get("data")
         if not isinstance(data, list) or len(data) != 1 or not isinstance(data[0], dict):

@@ -13,7 +13,7 @@ from tianshu.types import RequestBudget
 MODEL_EXECUTION_SECONDS = 30.0
 PROFILE_READ_SECONDS = 1.0
 SQL_READ_SECONDS = 2.0
-VECTOR_SQL_SECONDS = 0.8
+VECTOR_SQL_SECONDS = 2.0
 
 OPTIONAL_MODEL_UNAVAILABLE = frozenset({
     "embedding_profile_not_configured", "embedding_profile_rebuild_required",

@@ -33,7 +33,7 @@ class _Proof:
                      _all(checked[index] for index in self.required)))
 
 
-class _Groups:
+class SourceProofGroups:
     def __init__(self):
         self.values = []
         self.positions = {}
@@ -83,20 +83,13 @@ async def _check_on(sources, conn, context, groups):
         return (None,)
 
 
-async def check_rows_on(sources, conn, context, rows):
-    """Return true/false/unknown per row; never return a partially proved row."""
-    groups, rules = _Groups(), []
-    for row in rows:
-        own = groups.proof(row["_supports"], row["_derivations"], row["_explicit"])
-        related = row.get("_relation_proofs")
-        links = None if related is None else tuple(groups.proof(
-            link["supports"], link["derivations"]) for link in related)
-        rules.append((own, links))
+async def check_group_batches_on(sources, conn, context, groups):
+    """Check deduplicated chunks under both Sources group and root limits."""
     checked, position = [], 0
-    while position < len(groups.values):
+    while position < len(groups):
         batch, keys = [], set()
-        while position < len(groups.values) and len(batch) < SOURCE_GROUPS:
-            group = groups.values[position]
+        while position < len(groups) and len(batch) < SOURCE_GROUPS:
+            group = groups[position]
             added = {(ref.source_id, ref.revision) for ref in group}
             if batch and len(keys | added) > SOURCE_KEYS:
                 break
@@ -104,5 +97,18 @@ async def check_rows_on(sources, conn, context, rows):
             keys.update(added)
             position += 1
         checked.extend(await _check_on(sources, conn, context, tuple(batch)))
+    return tuple(checked)
+
+
+async def check_rows_on(sources, conn, context, rows):
+    """Return true/false/unknown per row; never return a partially proved row."""
+    groups, rules = SourceProofGroups(), []
+    for row in rows:
+        own = groups.proof(row["_supports"], row["_derivations"], row["_explicit"])
+        related = row.get("_relation_proofs")
+        links = None if related is None else tuple(groups.proof(
+            link["supports"], link["derivations"]) for link in related)
+        rules.append((own, links))
+    checked = await check_group_batches_on(sources, conn, context, groups.values)
     return tuple(_all((own.evaluate(checked), True if links is None else
                       _any(link.evaluate(checked) for link in links))) for own, links in rules)

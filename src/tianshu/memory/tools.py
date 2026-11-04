@@ -12,6 +12,7 @@ from .claims import command_fingerprint
 from .evidence import build_evidence_unit
 from .query_plan import QUERY_PROPERTIES
 from .source_trace import SourceTrace, TRACE_SCHEMA
+from .retrieval import unique_behavior_refs
 
 
 class MemoryTool:
@@ -134,11 +135,15 @@ def register_tools(catalog, memory, retrieval):
                         resolution_missing.append("subject_unresolved")
                 plan["subject_ids"] = tuple(dict.fromkeys((*plan.get("subject_ids", ()), *(item["subject_id"] for item in subjects))))
             page = await retrieval.query(action.context, plan, request_budget, limit=action.arguments.get("limit", limit),
-                cursor=action.arguments.get("cursor"), source_refs=action.source_refs)
+                cursor=action.arguments.get("cursor"), source_refs=action.source_refs,
+                purpose="history" if plan.get("time_mode", "current") != "current" else "tool")
         coverage = replace(page.coverage, complete=False,
             missing=tuple(dict.fromkeys((*page.coverage.missing, *resolution_missing)))) if resolution_missing else page.coverage
         return {"items": page.items, "next_cursor": page.next_cursor, "coverage": coverage,
                 "resolved_subjects": tuple({key: item[key] for key in ("subject_id", "display_name", "kind")} for item in subjects),
+                "behavior_refs": unique_behavior_refs(*(getattr(item, "behavior_refs", ()) for item in page.items),
+                    *((item.behavior_ref,) if getattr(item, "behavior_ref", None) else () for item in page.items)),
+                "learning_refs": tuple(item.learning_ref for item in page.items if getattr(item, "learning_ref", None)),
                 "source_refs": unique_refs(*(item.source_refs for item in page.items))}
 
     async def search(action):
