@@ -4,6 +4,7 @@
 - 实现提交：`38e4ac346ad08e058649aa77c6f197d240599fd1`；本交接随其后的独立文档提交交付，集成时取本分支 HEAD。
 - 配额 profile 增量实现：`76c56aae0c3a799898b0631590d617a57fb6544a`；该提交之后仍需包含本交接更新。
 - 代际与行为引用增量实现：`d3c2ff50cd280a6c643f33048c9f35aa0cde5f71`；本交接随其后的独立文档提交交付，集成时取本分支 HEAD。
+- 配置补载公平分页增量实现：`7944756689108edfeeeb061a21a63933facdfcc9`；本交接随其后的独立文档提交交付，集成时取本分支 HEAD。
 - 范围：`src/tianshu/models/`、`tests/models/test_rb_*.py` 和本交接；没有修改共享 Runtime 装配、公共类型、迁移注册、配置根或其他领域。
 
 ## 实现
@@ -23,7 +24,8 @@
 - `generation_profile(request)` 返回选中 plan 的 `quota_group`；`embedding_profile()` 返回其配置路由的 `quota_group`；receipt 的 `quota_group` 仍是实际物理 attempt 的额度域。非特权 embedding 请求可使用当前 embedding profile 的 route_id/revision 和 native payload，仍复核路由版本及向量空间 fingerprint。
 - 调用方先持久化稳定 attempt ID 和请求内容摘要。receipt 的 `request_digest`、`completion_digest` 可核对丢失的 ACK；同请求而完成通知未能确认时，使用相同 request 和 JobSpec 重提交。`ModelEvent.sequence` 供观察者识别重放片段。
 - `await models.observe_usage(attempt_id, *, context, provider_handle, usage: ModelUsage)` 只接受匹配原 handle、当前授权有效的 reported 计数；晚到用量递增原账本 revision，不改变 unknown 结果。
-- 配置恢复：`pending_configuration_reloads(limit=100)`、`configuration_reload_status(event_id)`、`reload(configuration_event_id=event_id, expected_revision=revision)`；保存响应含 `configuration_event_id` 和 `broker_reload`，pending 时含 `error_code=broker_reload_pending`。
+- 配置恢复：`pending_configuration_reloads(limit=100, cursor=None)` 返回 `{"items": [...], "next_cursor": cursor | None}`；这是从旧 list 返回值调整的接口。每条仍按原 `event_id` 和 `revision` 调用 `reload(configuration_event_id=event_id, expected_revision=revision)`，状态可通过 `configuration_reload_status(event_id)` 查询；保存响应含 `configuration_event_id` 和 `broker_reload`，pending 时含 `error_code=broker_reload_pending`。
+- Ops 首次以 `cursor=None` 开始一轮，逐页原样传回 `next_cursor`，本页单个事件失败时继续其他事件和后续页；`next_cursor=None` 表示本轮结束，下次调度从 `cursor=None` 回扫失败或新增事件。若每次调度限制页数，需跨调度保留当前游标，不能每次固定取第一页。游标内部以 `(created_at,event_id)` 作为位置和本轮上界；上界使持续新增不会无限延长本轮。它不是跨请求数据库快照：并发事务可能在游标之后才提交较早事件，由下一轮回扫覆盖。原事件 ID、revision、状态均不因分页修改。
 - Models 进程需独立注册 JobQueue 的 producer-only 路由并 `await jobs.open()`，将 `jobs=jobs` 注入 `ModelBroker`，停止时关闭；producer 需覆盖各域 completion task 和可信 lane。未注入 jobs 时 outbox 保留 pending，不能认为通知已送达。
 - `ModelBroker(..., statistics=services.statistics, upstream_connections=<正整数>, diagnostic_connections=<正整数>)`；默认真实上游连接池 64 + 诊断池 4，须纳入部署资源总预算。`ModelClient` 的 `max_connections`、`due_connections`、`background_connections`、`control_connections` 可按角色切片。统计补投可调用 `await broker.ledger.backfill_statistics(batch_size=200)`，生产者名 `models`。
 - OpenCode 会话哈希只读 `runtime.installation_generation` 单例 `id`；Runtime 迁移必须先创建并初始化单例。缺失返回 `installation_generation_missing`，不从旧配置导入代际。
@@ -46,4 +48,5 @@
 - 集成前旧测试中有需要按新合同调整的假设：`test_retry.py` 断言固定无抖动秒数；`test_execution_timing.py` 中云 ModelRequest 仍假设保留前台空闲位；`test_cancellation_reasons.py` 的部分客户端断连断言仍假设调用自动取消；`test_native_settlement.py`、`test_output_budget.py` 等直接 mock 旧私有 `_events`/ledger，需适配实际持久接口。上述为静态识别，未运行，不能称为已验证失败或通过。
 - 最终集成仍需核实 Runtime 的 `JobSpec` 新字段、producer-only route、代际、StatisticsProjection 的实际接口与迁移顺序，以及各领域 completion/RecoveryPolicy/CAS 接线；统计业务应用由领域事实证明。真实云服务、真实 QQ、部署、清库及生产均未操作。
 - 本增量新增代际拒绝、切换后 outbox 终态、行为引用跨 RPC 及准入后真实发送前失效的回归用例，仅做静态审阅和 `git diff --cached --check`，尚未执行；需 Runtime 新 `JobSpec` 和协调者集中验证。数据库检查与外部 provider 网络调用不构成分布式原子事务，已发出的调用仍只能依原回执/unknown 处理。
+- 配置补载公平分页增量新增 105 条相同时间戳、前 100 条保持 pending、跨 HTTP 传游标和并发插入回扫用例；本窗口未运行，需协调者集中验证及 Ops 接线。
 - Retrieval 原有 `Embeddings.profile()` 对整个 profile 做 hash；新增 quota_group 会改变该哈希。仅额度域变化不代表向量空间变化，已提醒协调者由 Retrieval 根据向量空间/语义字段维护 profile 身份。增量用例 `test_rb_profile_quota.py` 未运行。
