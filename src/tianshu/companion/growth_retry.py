@@ -15,7 +15,7 @@ from tianshu.types import RequestBudget
 from .growth_recovery import authorization_error, sequence
 from .growth_policy import OWNER, MAX_ATTEMPTS, fail as fail_recovery, succeed as succeed_recovery, field
 from .growth_output_repair import (correction_available, corrected_request, output_diagnostic,
-                                   review_available, upgrade_request)
+                                   review_available)
 from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, REVIEW_ERRORS,
                                 frozen_episodes, frozen_material, prepare_reflections, validate_batch_request)
 
@@ -156,11 +156,6 @@ class GrowthRetries:
                     "UPDATE companion.growth_inputs SET retry_key=%s,updated_at=now() "
                     "WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s AND reviewed_revision<revision",
                     (key, state["actor_id"], state["scope_key"], identifier, version))
-            if batch.get("legacy_material"):
-                await connection.execute(
-                    "UPDATE companion.growth_legacy_requests SET state='abandoned',error_code=%s,updated_at=now() "
-                    "WHERE actor_id=%s AND scope_key=%s AND material_key=%s AND state='pending'",
-                    (code, state["actor_id"], state["scope_key"], batch["material_key"]))
             revision = current["revision"] + 1
             await connection.execute(
                 "UPDATE companion.organize_state SET active_batch=NULL,blocked_material=NULL,last_error=NULL,"
@@ -345,8 +340,6 @@ class GrowthRetries:
                 repair_update = {"output_repair_count": row["batch"].get("output_repair_count", 0) + int(not pending_repair),
                     "output_repair": {"rejected_material_key": row["current_material_key"],
                         "diagnostic": diagnostic, "attempt_id": request.attempt_id}}
-            elif successor and manual_output:
-                candidate = upgrade_request(candidate)
             activated = None
 
             async def claim(connection):
@@ -389,19 +382,7 @@ class GrowthRetries:
                     batch['probe_token'] = field(reservation, 'probe_token')
                     batch['recovery_observe_only'] = field(reservation, 'status') != 'reserved'
                 payload = frozen_material(candidate)
-                if payload.get("model_protocol") == OUTPUT_PROTOCOL:
-                    batch.update(reflection_output_protocol=OUTPUT_PROTOCOL, episode_refs=payload["episode_refs"])
-                if successor:
-                    batch.pop("legacy_material", None)
-                    batch.pop("identity_conversion_key", None)
-                elif batch.get("legacy_material"):
-                    # Yielding excluded this original from the legacy scanner.
-                    # The exact reserved original can re-enter identity conversion
-                    # only after current source/version checks and this owner CAS.
-                    await connection.execute(
-                        "UPDATE companion.growth_legacy_requests SET state='pending',error_code=NULL,updated_at=now() "
-                        "WHERE actor_id=%s AND scope_key=%s AND material_key=%s AND state='abandoned'",
-                        (actor_id, scope_key, key))
+                batch.update(reflection_output_protocol=OUTPUT_PROTOCOL, episode_refs=payload["episode_refs"])
                 updated_retry = await (await connection.execute(
                     "UPDATE companion.growth_retry_batches SET state='active',batch=%s,current_material_key=%s,"
                     "previous_material_key=%s,attempt_number=%s,due_at=NULL,explicit_retry=false,waiting_on_original=false,"

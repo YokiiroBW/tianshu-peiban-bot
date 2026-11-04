@@ -13,6 +13,7 @@
 - 反思正文落在 Companion `learning_reflections`，Memory 接口只接收索引引用和临时 `search_text`。原始回复样例通过 Conversation 的公开接口关联 turn、输入和多条输出，只保留定位和依赖，使用时重读原件、来源、规则状态及语义版本。样例选择、表达和实际送达分别计数；明确负反馈可停用样例。
 - Growth 输入记录低价值日常休息的跳过原因，仅对明确标为低信息的想象经历做汇总，并保留未评估明细的覆盖缺口。独立失败材料让后续输入继续；异步 Models 请求持久化原始意图，单独观察权威回执。实际重试、一次 JSON/schema 修正及 quota 变更接入共享 RecoveryPolicy 原 lineage 与预算；unknown 不当作失败重发。
 - 来源失效按 actor 分区枚举并清理本域内容；统计由原材料/重试账本与 outbox 游标补投。Operations 提供针对单个 Growth 重试项的 inspect/invoke/observe，原事务执行注入 guard。
+- RB-20 已移除旧库 Growth 请求清单、扫描/转换、旧版反思提案协议与旧清单恢复入口；新版同代际材料、原请求观察、授权刷新、重试及额度保持。
 
 ## 公开接口及装配
 
@@ -26,15 +27,16 @@
 8. 来源服务可用 `CompanionDependencies.actors_for_source(connection, refs, kind)` 枚举分片，再对每个 actor 调 `invalidate_actor(connection, refs, kind, actor_id=...)`；旧 `invalidate` 仍委托相同实现。变更未传播前，材料读取仍独立核验来源。
 9. Operations 如注册 `growth.operations.inspect/invoke/observe`，目标为 `{'actor_id', 'scope_key', 'retry_key'}`，使用 `observation_only/domain_managed`，并向 `set_operations_guard` 注入原事务 guard；窄口唤醒已有领域恢复，不由 Operations 额外预留物理 attempt。`growth.operations.progress(limit=64)` 返回无正文的真实待重试批进度，字段有 `role/material_id/target/dependency/due_at/eligible/version/error_family/paused/cancelled/executing/waiting_dependency`；该窄口的 error family 是 `growth_retry_stalled`。未知原结果、未到期、暂停、取消、忙碌、依赖冷却和预算耗尽不标为 eligible；标为 eligible 前读取权威回执并复核授权和来源，最终唤醒仍在原事务核对版本。
 10. 统计注入后 `growth.observations.replay(generation, cursor=None)` 按材料和重试账本逐页补投再清空 outbox，只有补投完成才标 producer complete。恢复服务接口、续接原因和额度依赖按协调者发布的 `rb-observation-contract-2026-11-05.md` 装配。
+11. Conversation 调用 `await growth.input_learning_status(context, inputs=tuple({'input_id': ..., 'event_id': ..., 'event_revision': ...}, ...))`，按输入顺序返回 tuple。每项包含 `input_id/event_id/event_revision/state/revision_state/episode_id/episode_revision/source_refs/revision_evidence/revision_evidence_complete/coverage_missing/reason`。`state` 为 `pending/failed/reviewed/unavailable/not_recorded`；`revision_state` 为 `applied/unresolved/not_recorded`。`revision_evidence` 每项精确为 `rule_id/revision/semantic_revision/action/proposal_id/attempt_id`，action 为 `revise` 或 `retract`；只有修订快照与相同 proposal 的支持事件及原来源版本均匹配、场景和全部依赖授权有效时才为 applied。其余缺失按 not_recorded/unresolved 返回，不从整批成功推断。Episode 补充版本与输入 event_revision 分别核对；`coverage_missing` 保留已处理材料的缺口，证据超过上限时 `revision_evidence_complete=false`，不把未覆盖部分当作不存在。该接口只读取并锁定已有来源与 Episode 进行一致性验证，不新建学习账本或读 Conversation 私表。
 
 ## DDL 与任务注册
 
-- `src/tianshu/companion/habit_revisions.sql` 为 `0039_companion_learning`，必须在本域 `0030_companion`、`0034_companion_growth_batches`、`0037_companion_growth_retry` 之后运行；`companion.module` 已声明，协调者还需在全局 product migrations 中注册并与其他包的编号、顺序对齐。
+- `src/tianshu/companion/habit_revisions.sql` 为 `0039_companion_learning`，必须在本域 `0030_companion`、`0034_companion_growth_batches`、`0037_companion_growth_retry` 之后运行；`companion.module` 已声明，协调者还需在全局 product migrations 中注册并与其他包的编号、顺序对齐。`0034` 的新安装 schema 已去除旧清单和旧扫描字段；新增 `0040_companion_remove_legacy_growth`（`growth_remove_legacy.sql`）在 0039 后删除曾存在的这些对象，并建立原事件支持和输入状态查询索引；不会清除新版 `growth_inputs`、`active_batch`、`growth_retry_batches` 和原模型回执。全局注册由协调者负责。
 - 本域 `companion.module` 注册 `companion.organize`、`companion.growth.retry`、`companion.growth.input_retry`、`companion.episode_changed`、`companion.growth.statistics`；请协调者将任务放入相应后台 lane。`growth.recover()` 只由 `bot-background` 启动。所有异步 payload 使用冻结 generation，业务事务提交前校验。
-- 新增管理路由：`growth/revise`、`growth/unresolved/dismiss`、`growth/history`、`growth/reflections`、`growth/examples/view`、`growth/examples/reject`；原 `growth/view`、`growth/revoke`、`growth/restore`、`growth/review` 继续使用本域账本。`valid_at` 的反思查询明确返回 `reflection_valid_time_unknown` 覆盖缺口，不推断未知生效期。
+- 新增管理路由：`growth/revise`、`growth/unresolved/dismiss`、`growth/history`、`growth/reflections`、`growth/examples/view`、`growth/examples/reject`；原 `growth/view`、`growth/revoke`、`growth/restore`、`growth/review` 继续使用本域账本。`valid_at` 的反思查询明确返回 `reflection_valid_time_unknown` 覆盖缺口，不推断未知生效期。`growth/view` 去掉 `legacy_state/legacy_*`，当前不可用材料缺口为 `input_missing`，`pending_original_requests` 统计当前 active batch 和等待原回执的 retry；前端需相应删除旧扫描界面。
 
 ## 未验证和集成限制
 
 - 按本批授权，未运行测试、构建、烟测、真实模型或生产操作。已静态审阅差异并运行 `git diff --cached --check`，无空白错误；`test_rb_growth_*` 文件为待协调者统一执行的用例，并非通过记录。本工作树的共享 `ModelRequest` 和 `JobSpec` 尚无新增 `data_generation` 字段，需先合入 Models/Runtime 实现再运行。
 - Memory、Conversation、Models、RecoveryPolicy、Statistics、Operations、Runtime 的跨域接口和注册须协调者合入后集中核对；尤其是上述 Models 接纳代次原子性，以及原回执 unknown、quota 变更、输出纠正、来源撤回、并发纠正、索引回读与真实群/回复场景。此提交本身不能证明全链路业务收敛。
-- 当前授权为清空全部天枢业务数据后保留配置；旧业务反思双账本和旧在途材料不提供迁移保证。既有非 `test_rb_*` 测试夹具可能仍调用旧的同步 Models/Memory 接口或缺少 generation，应由协调者在集成验证时按最终合同调整，不得用夹具通过替代真实接入。
+- 当前授权为清空全部天枢业务数据后保留配置；旧业务反思双账本、旧在途材料及 v3/无协议旧提案不提供迁移或恢复入口。既有非 `test_rb_*` 测试夹具可能仍依赖旧扫描字段、协议或同步 Models/Memory 接口，应由协调者在集成验证时按最终合同调整，不得用夹具通过替代真实接入。

@@ -29,6 +29,9 @@ class Authority:
     async def validate_persistence(self, *_args):
         return True
 
+    async def refresh_scheduled_context(self, context, **_kwargs):
+        return context
+
 
 class Jobs:
     def __init__(self):
@@ -142,6 +145,8 @@ async def test_submit_wakes_same_frozen_batch_and_commits_once(database):
     assert completion.task == 'companion.organize' and completion.payload['actor_id'] == 'actor'
     assert request.data_generation == completion.data_generation == completion.payload['generation'] == GENERATION
     assert all(spec.data_generation == GENERATION for spec in growth.jobs.items)
+    review = (await growth.view(context))['review']
+    assert review['pending_original_requests'] == 1 and 'legacy_state' not in review
 
     note = {'kind': 'style', 'title': '称呼', 'content': '以后不要使用这个称呼',
         'episode_ids': ['e1'], 'conditions': {'when': ['称呼'], 'unless': []}, 'counterexamples': [],
@@ -158,6 +163,7 @@ async def test_submit_wakes_same_frozen_batch_and_commits_once(database):
     async with database.transaction(read_only=True) as connection:
         row = await (await connection.execute('SELECT state,revision,semantic_revision,support_count FROM companion.style_rules')).fetchone()
     assert row == {'state': 'active', 'revision': 1, 'semantic_revision': 1, 'support_count': 1}
+    assert (await growth.view(context))['review']['pending_original_requests'] == 0
 
 
 @pytest.mark.asyncio
@@ -186,3 +192,25 @@ async def test_stale_generation_does_not_start_an_attempt(database):
     with pytest.raises(AssertionError):
         await growth.organize('actor', key, 1, '00000000-0000-4000-8000-000000000099')
     assert not models.submitted
+
+
+@pytest.mark.asyncio
+async def test_authorization_resume_observes_the_same_current_attempt(database):
+    growth, context, _memory, models, _policy, key = await setup_growth(database)
+    await growth.organize('actor', key, 1, GENERATION)
+    original = models.submitted[0][0]
+    async with database.transaction(read_only=True) as connection:
+        state = await (await connection.execute(
+            'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s', ('actor', key))).fetchone()
+    blocked = await growth.recovery.block(state, AppError('access_changed', status=403))
+    assert blocked['recovery'] == 'observe_original_attempt'
+    command = await growth.request_review(context, {'client_request_id': 'resume-same-attempt',
+                                                     'expected_revision': state['revision']})
+    assert command.data['recovery'] == 'observe_original_attempt'
+    async with database.transaction(read_only=True) as connection:
+        resumed = await (await connection.execute(
+            'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s', ('actor', key))).fetchone()
+    assert resumed['active_batch']['material_key'] == state['active_batch']['material_key']
+    assert resumed['blocked_material']['recovery'] == 'observe_original_attempt'
+    await growth.organize('actor', key, resumed['revision'], GENERATION)
+    assert len(models.submitted) == 1 and models.submitted[0][0].attempt_id == original.attempt_id

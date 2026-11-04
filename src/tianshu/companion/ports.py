@@ -2,7 +2,7 @@
 from typing import Any, Protocol
 from datetime import datetime
 from tianshu.types import TrustedContext, SourceRef, RequestBudget
-from tianshu.memory.types import EpisodePage
+from tianshu.memory.types import Episode, EpisodePage
 from tianshu.runtime.api import Page
 
 
@@ -22,6 +22,8 @@ class MemoryPort(Protocol):
     async def projection(self, context: TrustedContext, person_id: str | None = None,
                          group_id: str | None = None) -> dict: ...
     async def observe_episode(self, context: TrustedContext, episode: dict, *, connection=None) -> Any: ...
+    async def episode_at(self, context: TrustedContext, episode_id: str, *,
+                         time_mode: str = 'current', valid_at=None, known_at=None) -> Episode: ...
     async def episodes_since(self, context: TrustedContext, cursor: str | None,
                              limit: int) -> EpisodePage: ...
     async def episodes_by_refs(self, context: TrustedContext, refs: tuple[tuple[str, int], ...],

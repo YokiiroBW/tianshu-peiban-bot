@@ -73,6 +73,17 @@ def test_unsupplied_rule_or_malformed_json_is_correctable_once():
     assert malformed.value.code == 'reflection_output_invalid' and malformed.value.code in CORRECTABLE_ERRORS
 
 
+def test_retired_frozen_proposal_protocol_is_not_reinterpreted():
+    _, request, _ = request_and_result()
+    part = request.messages[0].parts[0]
+    payload = json.loads(part.text[len(MATERIAL_PREFIX):])
+    for old_protocol in (None, 'growth.reflection.output.v3'):
+        old = {**payload, 'model_protocol': old_protocol}
+        message = replace(request.messages[0], parts=(replace(part, text=MATERIAL_PREFIX+json.dumps(old)),))
+        with pytest.raises(AppError, match='reflection_material_contract_invalid'):
+            frozen_episodes(replace(request, messages=(message,)))
+
+
 def test_only_explicitly_low_information_rest_is_skipped_and_imagined_details_remain_unassessed():
     ref = SourceRef('rest', 1)
     low = episode('rest', 'rest-event', ref, 1, origin=OriginKind.ACTOR,

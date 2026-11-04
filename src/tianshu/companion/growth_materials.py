@@ -11,7 +11,7 @@ from .growth_observations import episode_material
 from .growth_output_repair import repair_reserve_tokens
 from .reflection_output import (
     CONTENT_MAX_LENGTH, MAX_NOTES, OUTPUT_TOKEN_BUDGET,
-    TITLE_MAX_LENGTH, output_example, output_schema, short_material,
+    TITLE_MAX_LENGTH, short_material,
 )
 
 
@@ -57,8 +57,6 @@ def material(episodes, rules=(), examples=(), *, rules_complete=True):
             "and only if its exact original reply usefully illustrates the referenced rule. "
             "Examples are not evidence of user approval and never increase support."
         ),
-        "output_schema": output_schema(item.episode_id for item in episodes),
-        "example": output_example(episodes[0].episode_id),
         "no_change_example": {"notes": []},
     })
 

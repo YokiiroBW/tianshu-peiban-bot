@@ -9,8 +9,8 @@ from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.errors import AppError
 from .reflection_output import (
-    CORRECTABLE_ERRORS, MATERIAL_PREFIX, OUTPUT_ERRORS, OUTPUT_REPAIR_LIMIT, OUTPUT_REPAIR_RESERVE,
-    episode_references, frozen_episodes, frozen_material, short_material,
+    CORRECTABLE_ERRORS, OUTPUT_ERRORS, OUTPUT_REPAIR_LIMIT, OUTPUT_REPAIR_RESERVE,
+    episode_references, frozen_episodes,
 )
 
 REPAIR_INSTRUCTION = ("The rejected candidate is not evidence. Return the complete corrected notes JSON; "
@@ -63,18 +63,8 @@ def output_diagnostic(code, details=None):
     return diagnostic
 
 
-def upgrade_request(request):
-    """A new intent receives aliases; the persisted predecessor remains untouched."""
-    payload = short_material(frozen_material(request))
-    messages = tuple(replace(message, parts=tuple(
-        replace(part, text=MATERIAL_PREFIX + json.dumps(payload, ensure_ascii=False, separators=(",", ":")))
-        if part.kind == "text" and part.text and part.text.startswith(MATERIAL_PREFIX) else part
-        for part in message.parts)) for message in request.messages)
-    return replace(request, messages=messages)
-
-
 def corrected_request(request, result, diagnostic, counter):
-    candidate = upgrade_request(request)
+    candidate = request
     references = episode_references(candidate, frozen_episodes(candidate))
     diagnostic = {**diagnostic, "allowed_refs": list(references)}
     raw = generated_text(result)

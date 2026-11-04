@@ -36,6 +36,7 @@ CREATE TABLE companion.habit_supports (
     PRIMARY KEY (rule_id, event_id)
 );
 CREATE INDEX habit_support_source ON companion.habit_supports USING gin(source_ids);
+CREATE INDEX habit_support_event ON companion.habit_supports(event_id,proposal_id,rule_id);
 
 -- A proposal whose identity cannot be resolved is retained for review and is
 -- never silently turned into a second active rule.
