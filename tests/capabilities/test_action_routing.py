@@ -115,7 +115,11 @@ async def test_http_long_work_keeps_user_class_and_native_business_lane(admitted
 async def test_automatic_and_nested_actions_keep_admitted_class(admitted_actions, parent_class, origin, expected):
     state = admitted_actions
     action = action_for(state, "images.generate", origin=origin)
-    token = CURRENT_EXECUTION.set({"service_class": parent_class}) if parent_class else None
+    token = None
+    if parent_class:
+        async with state.database.transaction(read_only=True) as connection:
+            generation = await state.jobs.current_generation_on(connection)
+        token = CURRENT_EXECUTION.set({"service_class": parent_class, "data_generation": generation})
     try:
         pending = await state.actions.invoke(action, background=True)
     finally:

@@ -55,7 +55,7 @@ async def test_workspace_binding_uses_existing_authorized_scope_and_local_declar
 
 @pytest.mark.asyncio
 async def test_workspace_binding_cannot_be_created_with_an_ungranted_scope():
-    host = SimpleNamespace(bindings=AsyncMock(return_value={"ok": True}))
+    host = SimpleNamespace(repository=SimpleNamespace(), bindings=AsyncMock(return_value={"ok": True}))
     service = SimpleNamespace(host=host, authority=SimpleNamespace(check=AsyncMock()))
     web = WebPlugins(service)
     body = {"instance_id": "instance", "expected_revision": 1, "bindings": [binding()]}

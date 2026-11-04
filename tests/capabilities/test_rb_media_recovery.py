@@ -46,8 +46,10 @@ async def next_generation(database, job):
         job = {**json.loads(saved["body"]), "generation": job["generation"] + 1}
         await conn.execute("UPDATE capability_media.jobs SET generation=%s,body=%s WHERE id='job'",
                            (job["generation"], json.dumps(job)))
-        await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second'")
-        await conn.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=now()-interval '1 second'")
+        # Advance only an existing failed attempt's delay. A successful or
+        # unknown attempt has no retry due and must not acquire one in a test.
+        await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE due_at IS NOT NULL")
+        await conn.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=now()-interval '1 second' WHERE cooldown_until IS NOT NULL")
     return job
 
 
@@ -111,13 +113,49 @@ async def test_book_split_fallback_keeps_the_successful_part_and_its_budget(data
         async with physical_download(media, job, "owner", family="book", material=["chapter", 0],
                                      route="source-b", request={"part": "b"}, partition_size=1):
             pass
+        # A different partition can follow another success without a job
+        # restart; each real continuation retains the same lineage budget.
+        for route, part, size in (("source-c", "c", 3), ("source-d", "d", 2), ("source-e", "e", 2)):
+            async with physical_download(media, job, "owner", family="book", material=["chapter", 0],
+                                         route=route, request={"part": part}, partition_size=size):
+                pass
         async with database.transaction(read_only=True) as conn:
             rows = await (await conn.execute(
                 "SELECT attempt_id,status,continuation_of,continuation_reason FROM runtime.recovery_attempts ORDER BY attempt_number"
             )).fetchall()
-        assert len(rows) == 2 and rows[0]["status"] == rows[1]["status"] == "succeeded"
-        assert rows[1]["continuation_of"] == rows[0]["attempt_id"]
-        assert rows[1]["continuation_reason"] == "capacity_repartition"
+            lineage = await (await conn.execute(
+                "SELECT attempts,max_attempts,due_at FROM runtime.recovery_lineages"
+            )).fetchone()
+        assert len(rows) == 5 and all(item["status"] == "succeeded" for item in rows)
+        assert rows[0]["continuation_of"] is None
+        assert all(item["continuation_of"] == previous["attempt_id"]
+                   and item["continuation_reason"] == "capacity_repartition"
+                   for previous, item in zip(rows, rows[1:]))
+        assert lineage == {"attempts": 5, "max_attempts": 5, "due_at": None}
+        with pytest.raises(Fault, match="media_download_budget_exhausted"):
+            async with physical_download(media, job, "owner", family="book", material=["chapter", 0],
+                                         route="source-f", request={"part": "f"}, partition_size=2):
+                pytest.fail("repartition must not reset the original budget")
+    finally:
+        CURRENT_ACTION.reset(current)
+
+
+@pytest.mark.asyncio
+async def test_book_source_switch_without_a_partition_change_cannot_repeat_success(database):
+    media, job, action = await setup_media(database)
+    current = CURRENT_ACTION.set(action)
+    try:
+        async with physical_download(media, job, "owner", family="book", material=["chapter", 0],
+                                     route="source-a", request={"part": "a"}, partition_size=1):
+            pass
+        job = await next_generation(database, job)
+        with pytest.raises(Fault, match="media_download_original_unresolved"):
+            async with physical_download(media, job, "owner", family="book", material=["chapter", 0],
+                                         route="source-b", request={"part": "b"}, partition_size=1):
+                pytest.fail("ordinary source switching is not capacity repartition")
+        async with database.transaction(read_only=True) as conn:
+            rows = await (await conn.execute("SELECT status FROM runtime.recovery_attempts")).fetchall()
+        assert rows == [{"status": "succeeded"}]
     finally:
         CURRENT_ACTION.reset(current)
 

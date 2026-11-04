@@ -148,10 +148,11 @@ async def test_long_preparation_rechecks_behavior_at_actual_resource_submission(
     original = action()
     validator = AsyncMock(side_effect=Fault("behavior_invalidated", 409))
     owner = SimpleNamespace(owners=SimpleNamespace(check_attempt=AsyncMock()),
+                            authority=SimpleNamespace(check=AsyncMock()),
                             handler=AsyncMock(return_value=object()),
                             catalog=SimpleNamespace(availability=AsyncMock(return_value=Availability(True, True))),
                             check_behaviors=validator)
-    permit = SimpleNamespace(submitted=AsyncMock())
+    permit = SimpleNamespace(submitted=AsyncMock(), rejected=AsyncMock())
     current = {"owner": owner, "attempt": Attempt("attempt", original.action_id),
                "behavior_refs": ({"rule_id": "rule"},), "behavior_purpose": "conversation"}
     action_token = CURRENT_ACTION.set(original)
@@ -163,7 +164,27 @@ async def test_long_preparation_rechecks_behavior_at_actual_resource_submission(
         CURRENT_EXECUTION.reset(execution_token)
         CURRENT_ACTION.reset(action_token)
     permit.submitted.assert_not_awaited()
+    permit.rejected.assert_awaited_once_with("behavior_invalidated")
     validator.assert_awaited_once()
+
+
+@pytest.mark.asyncio
+async def test_revoked_source_before_resource_submission_rejects_unused_permit():
+    original = action()
+    owner = SimpleNamespace(owners=SimpleNamespace(check_attempt=AsyncMock()),
+                            authority=SimpleNamespace(check=AsyncMock(side_effect=Fault("source_revoked", 410))))
+    permit = SimpleNamespace(submitted=AsyncMock(), rejected=AsyncMock())
+    current = {"owner": owner, "attempt": Attempt("attempt", original.action_id)}
+    action_token = CURRENT_ACTION.set(original)
+    execution_token = CURRENT_EXECUTION.set(current)
+    try:
+        with pytest.raises(Fault, match="source_revoked"):
+            await TrackedPermit(permit, current).submitted()
+    finally:
+        CURRENT_EXECUTION.reset(execution_token)
+        CURRENT_ACTION.reset(action_token)
+    permit.submitted.assert_not_awaited()
+    permit.rejected.assert_awaited_once_with("source_revoked")
 
 
 @pytest.mark.asyncio

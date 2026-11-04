@@ -18,7 +18,10 @@ class ExecutionRecovery(unittest.IsolatedAsyncioTestCase):
         conn = SimpleNamespace(
             execute=AsyncMock(
                 return_value=SimpleNamespace(
-                    fetchone=AsyncMock(return_value={"document": '{"service_class":"interactive"}'})
+                    fetchone=AsyncMock(return_value={
+                        "document": '{"service_class":"interactive","data_generation":"generation"}',
+                        "attempt": {"attempt_id": "original-attempt"},
+                    })
                 )
             )
         )
@@ -29,7 +32,7 @@ class ExecutionRecovery(unittest.IsolatedAsyncioTestCase):
 
         service = Actions(
             SimpleNamespace(transaction=transaction),
-            SimpleNamespace(enqueue=AsyncMock()),
+            SimpleNamespace(enqueue=AsyncMock(), assert_generation_on=AsyncMock()),
             SimpleNamespace(availability=AsyncMock(return_value=Availability(True, True))),
             SimpleNamespace(check=AsyncMock()),
         )
@@ -128,7 +131,7 @@ class LeaseFencing(unittest.IsolatedAsyncioTestCase):
 
         owners = ExecutionOwners(
             SimpleNamespace(
-                database=SimpleNamespace(transaction=transaction), worker=False, running={}
+                database=SimpleNamespace(transaction=transaction), worker=False, process_role=None, running={}
             )
         )
         with self.assertRaises(Fault):
@@ -149,3 +152,15 @@ class LeaseFencing(unittest.IsolatedAsyncioTestCase):
         with self.assertRaises(Fault):
             await tracked.submitted()
         permit.rejected.assert_awaited_once_with("action_execution_owner_changed")
+
+    async def test_cancel_before_network_settles_the_unused_permit(self):
+        from tianshu.capabilities.tracking import TrackedPermit
+
+        owner = SimpleNamespace(owners=SimpleNamespace(
+            check_attempt=AsyncMock(side_effect=asyncio.CancelledError)))
+        permit = SimpleNamespace(submitted=AsyncMock(), rejected=AsyncMock())
+        tracked = TrackedPermit(permit, {"owner": owner, "attempt": Attempt("t", "a")})
+        with self.assertRaises(asyncio.CancelledError):
+            await tracked.submitted()
+        permit.submitted.assert_not_awaited()
+        permit.rejected.assert_awaited_once_with("action_execution_cancelled")

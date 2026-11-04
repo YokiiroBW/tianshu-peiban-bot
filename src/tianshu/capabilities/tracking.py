@@ -3,6 +3,7 @@
 import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import replace
+from tianshu.runtime.cancellation import finish_cleanup
 from .execution_context import CURRENT_EXECUTION
 from .external import ProviderError
 
@@ -87,13 +88,28 @@ class TrackedPermit:
 
             action = CURRENT_ACTION.get()
             owner = self.current["owner"]
-            await owner.owners.check_attempt(self.current["attempt"])
-            if action is not None:
-                handler = await owner.handler(action)
-                available = await owner.catalog.availability(action.context, handler)
-                if not available.can_execute:
-                    raise Fault(available.reason or "capability_unavailable", 503)
-            await check_behavior_before_submission(self.current)
+            try:
+                await owner.owners.check_attempt(self.current["attempt"])
+                if action is not None:
+                    await owner.authority.check(action.context, action.source_refs)
+                    handler = await owner.handler(action)
+                    available = await owner.catalog.availability(action.context, handler)
+                    if not available.can_execute:
+                        raise Fault(available.reason or "capability_unavailable", 503)
+                await check_behavior_before_submission(self.current)
+            except BaseException as error:
+                # The provider has not been called yet; preserve that known
+                # no-effect outcome instead of leaving an unused permit unknown.
+                code = getattr(error, "code", None) or (
+                    "action_execution_cancelled" if isinstance(error, asyncio.CancelledError)
+                    else "capability_submission_rejected")
+                try:
+                    await finish_cleanup(self.permit.rejected(code))
+                except Exception:
+                    # A failed control update must not replace the original
+                    # authorization or ownership failure.
+                    pass
+                raise
         await self.permit.submitted(provider_handle=provider_handle)
         if self.current:
             try:
