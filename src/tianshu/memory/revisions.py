@@ -8,9 +8,7 @@ from psycopg.types.json import Jsonb
 
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import ServiceClass
 from . import codec
 from .domain_utils import (CLAIM_PREDICATE_PATTERN, lexical, optional_time, parse_time,
                            semantic_fingerprint, unique_refs)
@@ -110,6 +108,21 @@ class RevisionService:
         value, conditions = body.get("value"), body.get("conditions", {})
         if not isinstance(conditions, dict) or len(json.dumps(wire(value), ensure_ascii=False)) > 16000:
             raise AppError("invalid_claim_value")
+        if predicate == "language.term_meaning":
+            # A group is a real existing Memory subject, not a fictitious
+            # person who can personally confirm each member's interpretation.
+            if (context.conversation_kind != "group" or not context.conversation_id
+                    or subject_id != "group:" + context.conversation_id):
+                raise AppError("memory_group_term_scope_invalid", status=403)
+            if (not isinstance(value, dict) or set(value) != {"term", "meaning"}
+                    or any(not isinstance(value[key], str) or not value[key].strip()
+                           for key in ("term", "meaning"))
+                    or len(value["term"]) > 128 or len(value["meaning"]) > 4000):
+                raise AppError("memory_group_term_value_invalid")
+            if (not speaker_id or speaker_id.startswith("actor:") or assertion == "self_confirmed"
+                    or verify_assertion and not any(item["origin_kind"] == "human"
+                        and item["speaker_id"] == speaker_id for item in proof)):
+                raise AppError("memory_group_term_speaker_unproven", status=403)
         polarity = body.get("polarity", True)
         if type(polarity) is not bool:
             raise AppError("invalid_claim_polarity")
@@ -184,8 +197,8 @@ class RevisionService:
             if effects is not None:
                 effects.extend(invalidated)
         if current_status == "current" and (not previous or previous["semantic_fingerprint"] != fingerprint or previous["embedding"] is None):
-            await self.jobs.enqueue(conn, JobSpec("memory.index_object", f"memory-index:claim:{claim_id}:{revision}",
-                {"kind": "claim", "id": claim_id, "revision": revision}, ServiceClass.ELASTIC, subject_id=values["subject_id"]))
+            await self.memory.enqueue_index_on(conn,kind="claim",object_id=claim_id,revision=revision,
+                key=f"memory-index:claim:{claim_id}:{revision}",subject_id=values["subject_id"])
         row = await (await conn.execute(
             "SELECT r.*,c.actor_id FROM memory.claim_revisions r JOIN memory.claims c USING(claim_id) WHERE r.claim_id=%s AND r.revision=%s",
             (claim_id, revision),
@@ -360,8 +373,8 @@ class RevisionService:
             if effects is not None:
                 effects.extend(invalidated)
         if not previous or previous["semantic_fingerprint"] != fingerprint:
-            await self.jobs.enqueue(conn, JobSpec("memory.index_object", f"memory-index:matter:{matter_id}:{revision}",
-                {"kind": "matter", "id": matter_id, "revision": revision}, ServiceClass.ELASTIC, subject_id=subject_id))
+            await self.memory.enqueue_index_on(conn,kind="matter",object_id=matter_id,revision=revision,
+                key=f"memory-index:matter:{matter_id}:{revision}",subject_id=subject_id)
         return codec.matter(row)
 
     async def validate_read_set_on(self, conn, context, frozen):
@@ -383,8 +396,7 @@ class RevisionService:
             if kind == "claim":
                 await self._claim_head_on(conn, context, object_id, revision)
             else:
-                table, key = {"matter": ("matters", "matter_id"), "episode": ("episodes", "episode_id"),
-                              "reflection": ("reflections", "proposal_id")}.get(kind, (None, None))
+                table, key = {"matter": ("matters", "matter_id"), "episode": ("episodes", "episode_id")}.get(kind, (None, None))
                 if table is None:
                     raise AppError("invalid_memory_record_kind")
                 row = await (await conn.execute(f"SELECT * FROM memory.{table} WHERE {key}=%s FOR UPDATE", (object_id,))).fetchone()
@@ -402,7 +414,7 @@ class RevisionService:
                 row = await (await conn.execute("SELECT * FROM memory.matter_revisions WHERE matter_id=%s AND revision=%s AND actor_id=%s",
                     (object_id, revision, context.actor_id))).fetchone()
             else:
-                table, key = {"episode": ("episodes", "episode_id"), "reflection": ("reflections", "proposal_id")}[kind]
+                table, key = {"episode": ("episodes", "episode_id")}[kind]
                 row = await (await conn.execute(f"SELECT * FROM memory.{table} WHERE {key}=%s AND revision=%s AND actor_id=%s",
                     (object_id, revision, context.actor_id))).fetchone()
             if row is None or row.get("state") == "unsupported" or row.get("active") is False:
@@ -418,8 +430,8 @@ class RevisionService:
             raise AppError("memory_frozen_batch_invalid")
         await self.memory.identity.check_context(context, connection=conn)
         materials, records = frozen["materials"], frozen["records"]
-        all_refs = unique_refs(ref for entry in (*materials.values(), *records.values(), *frozen.get("read_set", ()))
-                               for ref in codec.refs(entry.get("source_refs", ())))
+        all_refs = self.memory.consolidation.materials.dependencies(frozen)
+        generation_refs = self.memory.consolidation.materials.generation_dependencies(frozen)
         if not await self.sources.validate_persistence(conn, context, all_refs):
             raise AppError("source_unavailable", status=403)
         await self.validate_read_set_on(conn, context, frozen)
@@ -465,7 +477,10 @@ class RevisionService:
             try:
                 groups = [unique_refs(ref for alias in group for ref in codec.refs(materials[alias]["source_refs"]))
                           for group in operation["support_groups"]]
-                derivation = [ref for alias in operation["context_refs"] for ref in codec.refs(materials[alias]["source_refs"])]
+                # The model saw the complete selected input. Its generated
+                # conclusion keeps that full dependency closure; evidence
+                # support remains a separate, explicitly attributed subset.
+                derivation = list(generation_refs)
                 for alias in operation["reads"]:
                     if operation["kind"] == "add_support" and alias == operation["target"].get("ref"):
                         continue
@@ -622,32 +637,33 @@ class RevisionService:
                 "derived_invalidations": list({ref["id"]: ref for ref in effects}.values()),
                 "affected_subject_ids": sorted(affected), "semantic_link_ids": link_ids}
 
-    async def source_changed_on(self, conn, sources, kind):
+    async def source_changed_on(self, conn, sources, kind, *, actor_id):
         """All revisions remain subject to current retention; never resurrect an older head."""
         changes = Jsonb(wire(sources))
         patterns = [Jsonb([{"source_id": source.source_id, "revision": source.revision}]) for source in sources]
         affected = await (await conn.execute(
-            "UPDATE memory.claim_revisions SET state='unsupported',content='',value='null',conditions='{}',change_reason='',"
-            "embedding=NULL,embedding_profile=NULL,lexical='' WHERE state='active' "
-            "AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s) AND NOT ("
-            "sources.any_support_usable(support_groups,scope_ids) AND "
-            "sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids) AND "
-            "sources.any_support_usable(jsonb_build_array(counterexample_refs),scope_ids)) RETURNING claim_id,revision",
-            (patterns, changes, kind),
+            "UPDATE memory.claim_revisions r SET state='unsupported',content='',value='null',conditions='{}',change_reason='',"
+            "embedding=NULL,embedding_profile=NULL,lexical='' FROM memory.claims c WHERE r.claim_id=c.claim_id "
+            "AND c.actor_id IS NOT DISTINCT FROM %s AND r.state='active' "
+            "AND r.source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(r.source_refs,%s,%s) AND NOT ("
+            "sources.any_support_usable(r.support_groups,r.scope_ids) AND "
+            "sources.any_support_usable(jsonb_build_array(r.derivation_refs),r.scope_ids) AND "
+            "sources.any_support_usable(jsonb_build_array(r.counterexample_refs),r.scope_ids)) RETURNING r.claim_id,r.revision",
+            (actor_id, patterns, changes, kind),
         )).fetchall()
         await conn.execute(
             "UPDATE memory.matter_revisions SET active=false,title='',summary='',conditions='{}',completion_basis=NULL,change_reason='' "
-            "WHERE active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s) AND NOT ("
+            "WHERE actor_id IS NOT DISTINCT FROM %s AND active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s) AND NOT ("
             "sources.any_support_usable(support_groups,scope_ids) AND sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids) AND "
             "sources.any_support_usable(jsonb_build_array(COALESCE(completion_basis->'source_refs','[]'::jsonb)),scope_ids))",
-            (patterns, changes, kind),
+            (actor_id, patterns, changes, kind),
         )
         await conn.execute(
             "UPDATE memory.matters m SET active=false,title='',summary='',conditions='{}',completion_basis=NULL,change_reason='',"
-            "lexical='',embedding=NULL,embedding_profile=NULL WHERE m.active AND EXISTS(SELECT 1 FROM memory.matter_revisions r "
-            "WHERE r.matter_id=m.matter_id AND r.revision=m.revision AND NOT r.active)")
+            "lexical='',embedding=NULL,embedding_profile=NULL WHERE m.actor_id IS NOT DISTINCT FROM %s AND m.active AND EXISTS(SELECT 1 FROM memory.matter_revisions r "
+            "WHERE r.matter_id=m.matter_id AND r.revision=m.revision AND NOT r.active)", (actor_id,))
         invalid_links = await (await conn.execute(
-            "UPDATE memory.semantic_links SET state='unsupported' WHERE state='active' AND ("
+            "UPDATE memory.semantic_links SET state='unsupported' WHERE actor_id IS NOT DISTINCT FROM %s AND state='active' AND ("
             "(source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s) AND NOT (sources.any_support_usable(support_groups,scope_ids) "
             "AND sources.any_support_usable(jsonb_build_array(derivation_refs),scope_ids))) OR "
             "EXISTS(SELECT 1 FROM memory.claim_revisions r WHERE r.state<>'active' AND "
@@ -656,7 +672,7 @@ class RevisionService:
             "EXISTS(SELECT 1 FROM memory.matter_revisions r WHERE NOT r.active AND "
             "((from_kind='matter' AND from_id=r.matter_id AND from_revision=r.revision) OR "
             "(to_kind='matter' AND to_id=r.matter_id AND to_revision=r.revision)))) RETURNING actor_id",
-            (patterns, changes, kind),
+            (actor_id, patterns, changes, kind),
         )).fetchall()
         for actor_id in sorted({row["actor_id"] for row in invalid_links}):
             await self.links.rebuild_matter_index_on(conn, actor_id)

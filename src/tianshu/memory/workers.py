@@ -34,19 +34,22 @@ class MemoryWorkers:
         if batch:
             return await self.recovery.observe_legacy(batch)
 
-    async def index(self, claim_id, revision):
+    async def index(self, claim_id, revision, generation=None):
         """Finite adapter for already-queued pre-cutover Claim jobs."""
-        return await self.index_object("claim", claim_id, revision)
+        return await self.index_object("claim", claim_id, revision, generation=generation)
 
-    async def index_object(self, kind, id, revision):
-        return await self.index_jobs.index_object(kind, id, revision)
+    async def index_object(self, kind, id, revision, generation=None):
+        return await self.index_jobs.index_object(kind, id, revision, generation=generation)
 
-    async def index_retry(self, index_id):
-        return await self.index_jobs.run(index_id)
+    async def index_retry(self, index_id, completed_attempt_id=None, generation=None):
+        return await self.index_jobs.run(index_id, completed_attempt_id=completed_attempt_id, generation=generation)
 
     async def recover(self):
         await self.recovery.recover()
         await self.index_jobs.recover()
+        await self.consolidation.claim_due_recoveries()
+        if self.memory.statistics is not None:
+            await self.memory.backfill_statistics()
         async with self.database.transaction() as conn:
             rows = await (await conn.execute(
                 "SELECT partition_id FROM memory.consolidation_state WHERE "

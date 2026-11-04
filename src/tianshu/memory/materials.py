@@ -8,6 +8,7 @@ import re
 from time import perf_counter
 
 from aiohttp import ClientError
+from psycopg.types.json import Jsonb
 from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
 from tianshu.models.estimation import media_tokens
 from tianshu.models.types import ModelMessage, ModelPart
@@ -59,15 +60,15 @@ class ConsolidationPolicy:
         return result
 
 
-def partition_identity(context, scope_ids):
-    """A conversation/authority domain, never a group speaker or global sequence."""
+def partition_identity(context, scope_ids, scene_id):
+    """A stable Sources scene; authority is frozen separately for each batch."""
     bound = context_record(context)
     if context.conversation_kind == "group":
         bound["person_id"] = None
     scope_key = body_hash(sorted(scope_ids))
-    identity = {key: bound[key] for key in ("actor_id", "principal_id", "conversation_id", "access_epoch", "scope_ids", "permissions")}
     bound["write_scope_ids"] = sorted(scope_ids)
-    return "memory_partition_" + body_hash({**identity, "scope_key": scope_key})[:48], scope_key, bound
+    bound["scene_id"] = scene_id
+    return "memory_partition_" + body_hash({"scene_id": scene_id})[:48], scope_key, bound
 
 
 def reference_key(ref):
@@ -81,19 +82,68 @@ def batch_frozen(batch):
     return (manifest.get("steps", {}).get(steps[-1]) if steps else None) or manifest.get("frozen", {})
 
 
-def smaller_material_prefix(frozen):
-    """Reduce the actual new input, rather than a ceiling that may not bind it."""
-    materials = [item for item in frozen.get("materials", {}).values() if item["role"] == "new"]
-    if len(materials) > 1:
-        return {"max_new_materials": max(1, len(materials) // 2)}
-    if len(materials) == 1:
-        refs = codec.refs(materials[0]["source_refs"])
-        if len(refs) == 1:
-            span = refs[0].locator or {}
-            start, end = span.get("start"), span.get("end")
-            if type(start) is int and type(end) is int and end - start > 1:
-                return {"max_new_materials": 1, "text_ceiling": (end - start) // 2}
-    return None
+def closed_episode_split(frozen):
+    """Find a boundary that does not cut any known input dependency.
+
+    Do not split a source range or an Episode; explicit replies, source reuse,
+    matters and a shared subject's old records keep their episodes together.
+    An unknown dependency is a reason to retain the original failed batch.
+    """
+    episodes = frozen.get("episodes", ())
+    if len(episodes) < 2 or any(not item.get("complete") for item in episodes):
+        return None
+    positions = {item["episode_id"]: index for index, item in enumerate(episodes)}
+    # Absence of a reply edge cannot prove the absence of an implicit semantic
+    # dependency. Only a producer-certified complete component declaration is
+    # eligible for reorganization; model output is never such a declaration.
+    proof = frozen.get("dependency_closure") or {}
+    components = proof.get("components")
+    if (proof.get("complete") is not True or not isinstance(components, list)
+            or any(not isinstance(component, list) or not component for component in components)):
+        return None
+    declared = [episode for component in components if isinstance(component, list) for episode in component]
+    if len(declared) != len(positions) or set(declared) != set(positions):
+        return None
+    materials = frozen.get("materials", {})
+    edges, source_owners, matter_owners, subjects = [], {}, {}, {}
+    for component in components:
+        owners = [positions[episode] for episode in component]
+        edges.extend((owners[0], other) for other in owners[1:])
+    for alias, item in materials.items():
+        owner = positions.get(item.get("episode_id")) if item.get("role") == "new" else None
+        if owner is None:
+            continue
+        for ref in item.get("reply_to", ()):
+            other = positions.get(materials.get(ref, {}).get("episode_id"))
+            if other is not None:
+                edges.append((owner, other))
+        for ref in item.get("source_refs", ()):
+            key = (ref["source_id"], ref["revision"])
+            if key in source_owners:
+                edges.append((owner, source_owners[key]))
+            source_owners[key] = owner
+        matter = item.get("matter_id") or (item.get("locator") or {}).get("matter_id")
+        if matter:
+            if matter in matter_owners:
+                edges.append((owner, matter_owners[matter]))
+            matter_owners[matter] = owner
+        subjects.setdefault(item.get("coverage_subject_id"), set()).add(owner)
+        if _reply_event_ids(item.get("locator")) and not item.get("reply_to"):
+            return None
+    # An old group-wide record can relate any of the new inputs. A repeated
+    # subject's old record also couples all material for that subject.
+    for record in frozen.get("records", {}).values():
+        subject = record.get("subject_id")
+        if subject is None or str(subject).startswith("group:"):
+            return None
+        owners = sorted(subjects.get(subject, ()))
+        edges.extend((owners[0], other) for other in owners[1:])
+    boundaries = [index for index in range(1, len(episodes))
+                  if all((left < index) == (right < index) for left, right in edges)]
+    if not boundaries:
+        return None
+    boundary = min(boundaries, key=lambda index: (abs(index * 2 - len(episodes)), index))
+    return [list(episodes[:boundary]), list(episodes[boundary:])]
 
 
 class PreparationReads:
@@ -388,20 +438,23 @@ class MaterialBuilder:
             raise RuntimeError("memory_conversation_already_bound")
         self.conversation = port
 
-    async def pending(self, context, partition_id, *, limit=None):
+    async def pending(self, context, partition_id, *, authority=None, limit=None):
         async with self.database.transaction(read_only=True) as conn:
             return await (await conn.execute(
                 "SELECT * FROM memory.episodes WHERE actor_id=%s AND principal_id=%s "
                 "AND consolidation_partition_id=%s AND active "
-                "AND extraction_state='pending' ORDER BY sequence LIMIT %s",
+                "AND extraction_state='pending' AND scope_ids<@%s::text[] "
+                "AND (%s::jsonb IS NULL OR consolidation_authority=%s::jsonb) ORDER BY sequence LIMIT %s",
                 (context.actor_id, context.principal_id, partition_id,
-                 limit or self.policy.max_episodes))).fetchall()
+                 list(context.scope_ids),Jsonb(authority) if authority is not None else None,
+                 Jsonb(authority) if authority is not None else None,limit or self.policy.max_episodes))).fetchall()
 
     async def _sources(self, context, row):
         existing = codec.refs(row["extraction_sources"])
         if existing:
             return existing, set(row["extraction_missing"])
-        refs, missing = codec.refs(row["source_refs"]), set(row["extraction_missing"])
+        refs = unique_refs(codec.refs(row["source_refs"]), codec.refs(row.get("supplement_refs")))
+        missing = set(row["extraction_missing"])
         actual = row["actual_result"] or {}
         consumption = actual.get("consumption") if isinstance(actual, dict) else None
         if row["origin_kind"] == "tool_result" and consumption:
@@ -436,8 +489,19 @@ class MaterialBuilder:
         materials, episodes, seen = {}, [], {}
         used = 0
         authors = set()
+        async with self.database.transaction(read_only=True) as conn:
+            supplement_rows = await (await conn.execute("SELECT episode_id,event_revision,original_ref,supplement_ref "
+                "FROM memory.episode_supplements WHERE episode_id=ANY(%s::text[]) AND active",
+                ([row["episode_id"] for row in rows],))).fetchall()
+        supplements = {(item["episode_id"],item["event_revision"],item["original_ref"]["source_id"],
+                        item["original_ref"]["revision"]): item["supplement_ref"] for item in supplement_rows}
         for row in rows:
-            refs, missing = await reads.source_set(self,context,row)
+            try:
+                refs, missing = await reads.source_set(self,context,row)
+            except AppError as error:
+                error.details = {**(error.details or {}), "episode_id": row["episode_id"],
+                                 "episode_revision": row["revision"], "episode_sequence": row["sequence"]}
+                raise
             before = row["extraction_cursor"] or {"source_index": 0, "position": None, "step": 0}
             index, position = before.get("source_index", 0), before.get("position")
             after = {"protocol": SCHEMA_VERSION, "source_index": index, "position": position, "step": before.get("step", 0)+1}
@@ -450,8 +514,22 @@ class MaterialBuilder:
                 requested = {"max_characters": min(self.policy.max_source_characters, max(1, text_ceiling-used))}
                 if source_index == index and position is not None:
                     requested["position"] = position
-                original = await reads.read(context, ref, requested)
+                try:
+                    original = await reads.read(context, ref, requested)
+                except AppError as error:
+                    error.details = {**(error.details or {}), "episode_id": row["episode_id"],
+                                     "episode_revision": row["revision"], "episode_sequence": row["sequence"]}
+                    raise
                 view = read_view(original)
+                attached = supplements.get((row["episode_id"],row["event_revision"],ref.source_id,ref.revision))
+                if attached and "image_original_unavailable" in view["coverage_missing"]:
+                    supplement_ref = codec.refs((attached,))[0]
+                    if any((value.source_id,value.revision) == (supplement_ref.source_id,supplement_ref.revision)
+                           for value in codec.refs(row.get("supplement_refs"))):
+                        supplement_read = await reads.read(context,supplement_ref,{"max_characters":1})
+                        supplement_view = read_view(supplement_read)
+                        if supplement_view["media"] is not None:
+                            view["coverage_missing"].remove("image_original_unavailable")
                 missing.update(view["coverage_missing"])
                 speaker = source_speaker(original,context.actor_id)
                 coverage_subject = row["person_id"] if row["origin_kind"] == "human" and row["person_id"] else speaker or "actor:"+context.actor_id
@@ -472,7 +550,7 @@ class MaterialBuilder:
                         seen[key] = local_id
                         staged.append((local_id, {"role": "new", "speaker_id": speaker,
                             "origin_kind": original["origin_kind"], "occurred_at": wire(row["occurred_at"]
-                                if (original.get("locator") or {}).get("kind") in {"channel_original","channel_media_representation"}
+                                if (original.get("locator") or {}).get("kind") in {"channel_original","channel_media_representation","media_supplement"}
                                 else original["occurred_at"] or row["occurred_at"]),
                             "source_occurred_at":wire(original["occurred_at"]),"source_person_id":original.get("source_person_id"),
                             "reply_to": [], **view, "source_refs": wire((selected,)),
@@ -481,6 +559,7 @@ class MaterialBuilder:
                             "reported_at":wire(row["occurred_at"]),
                             "coverage_subject_id": coverage_subject,
                             "original_ref": wire(ref), "action_id": row["action_id"], "receipt_id": row["receipt_id"],
+                            "matter_id": row.get("matter_id"),
                             "actual_result": row["actual_result"], "scope_ids": original.get("scope_ids",row["scope_ids"]),
                             "conversation_id": row.get("conversation_id",context.conversation_id)}))
                         used += len(content)
@@ -685,8 +764,8 @@ class MaterialBuilder:
                 "SELECT cr.*,cl.actor_id FROM memory.claims cl JOIN memory.claim_revisions cr ON cr.claim_id=cl.claim_id "
                 "AND cr.revision=cl.current_revision WHERE cl.actor_id=%s AND cr.subject_id=s.subject_id "
                 "AND cr.state='active' AND cr.current_status='current' AND sources.any_support_usable(cr.support_groups,%s::text[]) "
-                "ORDER BY cr.observed_at DESC,cr.claim_id LIMIT 4) r JOIN memory.claims c USING(claim_id)",
-                (people, context.actor_id, list(context.scope_ids)))).fetchall()
+                "ORDER BY cr.observed_at DESC,cr.claim_id LIMIT %s) r JOIN memory.claims c USING(claim_id)",
+                (people, context.actor_id, list(context.scope_ids),self.policy.max_old_records))).fetchall()
             lexical_rows = await (await conn.execute(
                 "SELECT r.*,c.actor_id FROM memory.claims c JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision "
                 "WHERE c.actor_id=%s AND r.state='active' AND (r.current_status='current' OR r.claim_id=ANY(%s::text[])) "
@@ -698,10 +777,11 @@ class MaterialBuilder:
                 "SELECT item.* FROM memory.matters item WHERE item.actor_id=%s AND item.active "
                 "AND item.current_status='current' AND item.subject_id=s.subject_id "
                 "AND sources.any_support_usable(item.support_groups,%s::text[]) "
-                "ORDER BY item.observed_at DESC,item.matter_id LIMIT 4) m "
+                "ORDER BY item.observed_at DESC,item.matter_id LIMIT %s) m "
                 "UNION SELECT m.* FROM memory.matters m WHERE m.actor_id=%s AND m.active "
                 "AND m.matter_id=ANY(%s::text[]) AND sources.any_support_usable(m.support_groups,%s::text[])",
-                (people,context.actor_id,list(context.scope_ids),context.actor_id,sorted(matter_ids),list(context.scope_ids)))).fetchall()
+                (people,context.actor_id,list(context.scope_ids),self.policy.max_old_records,
+                 context.actor_id,sorted(matter_ids),list(context.scope_ids)))).fetchall()
             selected = await self.memory.claims.selected_groups(conn, context, tuple(claim_rows+lexical_rows))
             matter_selected=await self.memory.claims.selected_groups(conn,context,tuple(matter_rows))
             endpoints=[RecordRef("hypothesis" if row.get("memory_kind")=="hypothesis" else "claim",row["claim_id"],row["revision"])
@@ -757,7 +837,16 @@ class MaterialBuilder:
         raise AppError("memory_context_record_kind_invalid",status=502)
 
     @staticmethod
-    def dependencies(frozen):
-        values=(*frozen["materials"].values(),*frozen["records"].values(),*frozen.get("episodes",()))
+    def generation_dependencies(frozen):
+        # Only the model-visible selected materials and records participated in
+        # this computation. An omitted candidate is not a derivation input.
+        values=(*frozen["materials"].values(),*frozen["records"].values())
         return unique_refs(*(unique_refs(codec.refs(item.get("source_refs")),codec.refs(item.get("derivation_refs")),
             *(codec.refs(link.get("source_refs")) for link in item.get("relations",()))) for item in values))
+
+    @staticmethod
+    def dependencies(frozen):
+        # Cursor advancement also checks its original Episode sources, even if
+        # some of those originals are reserved for a later input range.
+        return unique_refs(MaterialBuilder.generation_dependencies(frozen),
+            *(codec.refs(item.get("source_refs")) for item in frozen.get("episodes", ())))

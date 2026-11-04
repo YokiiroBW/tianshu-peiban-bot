@@ -117,7 +117,8 @@ def consolidation_schema(frozen):
                 "status": {"enum": ["changed", "no_change", "unresolved"]},
                 "processed_material_ids": _ids(materials,definition="material"),
                 "operation_ids": {"type": "array", "maxItems": 64, "uniqueItems": True,
-                                  "items": {**_text(64), "pattern": "^op[1-9][0-9]{0,4}$"}}})},
+                                  "items": {**_text(64), "pattern": "^op[1-9][0-9]{0,4}$"}},
+                "reason": _text(1500)}, required=["subject_id", "status", "processed_material_ids", "operation_ids"])},
         "operations": {"type": "array", "maxItems": 64, "items": operation},
         "unresolved": {"type": "array", "maxItems": 32, "items": _object({
             "issue_id": _text(64), "subject_id": {"$ref":"#/$defs/subject_or_null"},
@@ -207,6 +208,18 @@ def validate_proposal(frozen, proposal):
                     raise proposal_error("claim_self_confirmation_unproven", [*path, "support_groups", group_index],
                         actual=group, expected="attributable human statement by subject",
                         hint="上传图片/OCR/引用或mention结构不等于本人确认；图像事实按observed/quoted/inferred语义。")
+        if payload.get("predicate") == "language.term_meaning":
+            group = "group:" + str(frozen.get("context", {}).get("conversation_id") or "")
+            value = payload.get("value")
+            if (operation["subject_id"] != group or group == "group:"
+                    or payload.get("assertion") == "self_confirmed" or not payload.get("speaker_id")):
+                raise proposal_error("memory_group_term_scope_invalid", [*path, "payload"],
+                    expected="actual group subject, human speaker and non-consensus assertion")
+            if (not isinstance(value, dict) or set(value) != {"term", "meaning"}
+                    or any(not isinstance(value[key], str) or not value[key].strip() for key in ("term", "meaning"))
+                    or len(value["term"]) > 128 or len(value["meaning"]) > 4000):
+                raise proposal_error("memory_group_term_value_invalid", [*path, "payload", "value"],
+                    actual=value, expected="object with nonempty term and meaning strings")
         basis = payload.get("completion_basis") or {}
         if (frozen.get("model_protocol") == MODEL_PROTOCOL and operation["kind"] == "upsert_matter"
                 and payload["state"] == "completed" and basis.get("kind") == "human_report"):
@@ -300,7 +313,8 @@ def consolidation_example(frozen):
     """A valid empty-change example, derived from the actual frozen target contract."""
     return {"schema_version": SCHEMA_VERSION, "batch_id": frozen["batch_id"],
             "target_results": [{"subject_id": subject_id, "status": "no_change",
-                                "processed_material_ids": target["new_material_ids"], "operation_ids": []}
+                                "processed_material_ids": target["new_material_ids"], "operation_ids": [],
+                                "reason": "本批没有可供模型处理的新材料"}
                                for subject_id, target in sorted(frozen["targets"].items())],
             "operations": [], "unresolved": [], "needs_context": []}
 
@@ -341,9 +355,14 @@ def consolidation_instruction(frozen):
         "操作含support_groups(组内AND/组间OR)、必要context_refs、全部旧读取reads及理由；"
         "m来源/r旧记录/n新对象，不造真实ID/版本/来源/人物。"
         "target.create为nN字符串，JSON例{\"create\":\"n1\"}，不可包成对象。"
-        "link.target仅{create:nN}建独立关系；payload.from_ref/to_ref仅nN/rN字符串，不包对象；旧r列reads。"
+        "link.target仅{create:nN}建独立关系；端点本主体用nN、旧记录用rN，跨主体用"
+        "{subject_id:该主体ID,ref:nN}；旧r列reads。各主体可各自声明n1，同一主体不得重复声明。"
+        "群内词义仅以language.term_meaning表示，subject为当前group，value为{term,meaning}；"
+        "speaker保留实际真人、assertion用reported/quoted/observed/inferred，单人解释不能称群体自证；"
+        "不同解释与适用条件分别保存，不把人物别名或任务约定当词义。"
         + protocol_rules +
-        "无新增事实用no_change，缺关键依据unresolved；缺目标/重复目标/缺结果均拒绝，不自动补全。"
+        "每个目标的reason说明改变、无改变或未决的依据；无新增事实用no_change，缺关键依据unresolved；"
+        "缺目标/重复目标/缺结果均拒绝，不自动补全。"
         "原件最多有界补查一次，后给最终结果或unresolved；content_omitted不可凭索引推断/修改，需用则needs_context请求record。"
         "补查material.ref仅本批mN，不能用QQ消息ID；record.ref可用索引rN；conversation_range须带时区的start<end且不超过24小时；identity须非空query。"
         "重复转述不算独立支持，不为配额造事实。\n"

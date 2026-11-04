@@ -31,11 +31,26 @@ class Episode:
     speaker_id: str | None = None
     conversation_id: str | None = None
     consolidation: Mapping[str, Any] = field(default_factory=dict)
+    supplement_refs: tuple[SourceRef, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
 class EpisodePage(Page):
     watermark: str
+
+
+@dataclass(frozen=True, slots=True)
+class GroupTermMeaning:
+    claim_id: str
+    revision: int
+    conversation_id: str
+    term: str
+    meaning: str
+    speaker_id: str
+    assertion: str
+    polarity: bool
+    conditions: Mapping[str, Any]
+    source_refs: tuple[SourceRef, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,24 +115,6 @@ class MatterView:
 
 
 @dataclass(frozen=True, slots=True)
-class ReflectionView:
-    proposal_id: str
-    revision: int
-    actor_id: str
-    person_id: str | None
-    episode_ids: tuple[str, ...]
-    content: str
-    kind: str
-    occurred_at: datetime
-    source_refs: tuple[SourceRef, ...]
-    scope_ids: tuple[str, ...]
-    conditions: Mapping[str, Any]
-    counterexamples: tuple[str, ...]
-    interpretation: bool = True
-    recorded_at: datetime | None = None
-
-
-@dataclass(frozen=True, slots=True)
 class RecordRef:
     kind: str
     id: str
@@ -152,7 +149,7 @@ class MemoryQueryPlan:
     time_mode: Literal["current", "valid_at", "known_at"] = "current"
     valid_at: datetime | None = None
     known_at: datetime | None = None
-    evidence_kinds: tuple[str, ...] = ("claim", "hypothesis", "matter", "episode", "reflection")
+    evidence_kinds: tuple[str, ...] = ("claim", "hypothesis", "matter", "episode", "learning")
     coverage_mode: str = "ranked"
     budget: Mapping[str, Any] = field(default_factory=dict)
 
@@ -199,3 +196,4 @@ class MemoryEvidenceUnit:
     head_revision: int | None = None
     # Current authorized Identity labels, hydrated on read; not historical facts.
     display_subjects: tuple[Mapping[str, Any], ...] = ()
+    behavior_refs: tuple[Mapping[str, object], ...] = ()

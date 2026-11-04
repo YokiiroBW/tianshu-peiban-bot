@@ -15,7 +15,7 @@ from tianshu.runtime.migrations import Migration
 from tianshu.types import ServiceClass
 
 
-_INDEX_KINDS = ("claim","episode","hypothesis","matter","reflection")
+_INDEX_KINDS = ("claim","episode","hypothesis","matter")
 
 
 def index_cursor(value,kinds):
@@ -101,16 +101,6 @@ def create_module(memory, retrieval, workers, identity):
         route("relationship", lambda ctx, body: memory.relationship(ctx, body["person_id"]))
         route("relationship/save", memory.save_relationship, write=True)
         route(
-            "reflections",
-            lambda ctx, body: memory.reflection_page(
-                ctx,
-                person_id=body.get("person_id"),
-                cursor=body.get("cursor"),
-                limit=body.get("limit", 40),
-                time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at"),
-            ),
-        )
-        route(
             "episodes",
             lambda ctx, body: memory.episodes_since(ctx, body.get("cursor"), body.get("limit", 50)),
         )
@@ -120,6 +110,9 @@ def create_module(memory, retrieval, workers, identity):
                 ctx, body["start"], body["end"], body.get("limit", 200), body.get("cursor")
             ),
         )
+        route("episodes/get", lambda ctx, body: memory.episode_at(ctx, body["episode_id"],
+            time_mode=body.get("time_mode", "current"), valid_at=body.get("valid_at"),
+            known_at=body.get("known_at")))
 
         async def rebuild(context, body):
             requested=body.get("kinds",[body["kind"]] if "kind" in body else list(_INDEX_KINDS))
@@ -138,13 +131,11 @@ def create_module(memory, retrieval, workers, identity):
                         "AND r.current_status='current' AND sources.any_support_usable(r.support_groups,%s::text[]) "
                         "UNION ALL SELECT 'matter',matter_id,revision,support_groups,source_refs FROM memory.matters WHERE actor_id=%s "
                         "AND active AND current_status='current' AND sources.any_support_usable(support_groups,%s::text[]) "
-                        "UNION ALL SELECT 'episode',episode_id,revision,'[]'::jsonb,source_refs FROM memory.episodes WHERE actor_id=%s "
-                        "AND active AND scope_ids<@%s::text[] "
-                        "UNION ALL SELECT 'reflection',proposal_id,revision,'[]'::jsonb,source_refs FROM memory.reflections WHERE actor_id=%s "
+                        "UNION ALL SELECT 'episode',episode_id,revision,'[]'::jsonb,source_refs||supplement_refs FROM memory.episodes WHERE actor_id=%s "
                         "AND active AND scope_ids<@%s::text[]) SELECT * FROM candidates WHERE kind=ANY(%s::text[]) "
                         "AND (kind,id)>(%s,%s) ORDER BY kind,id LIMIT 201",
                         (
-                            context.actor_id,list(context.scope_ids),context.actor_id,list(context.scope_ids),
+                            context.actor_id,list(context.scope_ids),
                             context.actor_id,list(context.scope_ids),context.actor_id,list(context.scope_ids),
                             list(kinds),after_kind,after_id,
                         ),
@@ -155,9 +146,8 @@ def create_module(memory, retrieval, workers, identity):
                 queued=0
                 for row,refs in zip(rows[:200],selected,strict=True):
                     if enqueue and refs:
-                        await memory.jobs.enqueue(conn,JobSpec("memory.index_object",
-                            f"memory-explicit-reindex:{context.principal_id}:{body['client_request_id']}:{row['kind']}:{row['id']}:{row['revision']}",
-                            {"kind":row["kind"],"id":row["id"],"revision":row["revision"]},ServiceClass.ELASTIC))
+                        await memory.enqueue_index_on(conn,kind=row["kind"],object_id=row["id"],revision=row["revision"],
+                            key=f"memory-explicit-reindex:{context.principal_id}:{body['client_request_id']}:{row['kind']}:{row['id']}:{row['revision']}")
                         queued+=1
                 return CommandResult(
                     body["client_request_id"],
@@ -205,10 +195,9 @@ def create_module(memory, retrieval, workers, identity):
         queue.register("memory.index", workers.index, retryable=False)
         queue.register("memory.index_retry", workers.index_retry, retryable=False, execution_lane=ExecutionLane.MEMORY_INDEX)
         queue.register("memory.recover", workers.recover, retryable=True)
-        queue.register("memory.purge_source", memory.claims.purge_source, retryable=True)
 
     async def start(runtime):
-        if runtime.role == "worker":
+        if runtime.role == "bot-background":
             async with runtime.database.transaction() as conn:
                 bucket = int(datetime.now(UTC).timestamp()) // 30
                 await runtime.jobs.enqueue(
@@ -229,5 +218,6 @@ def create_module(memory, retrieval, workers, identity):
             Migration("0022_memory_runtime", files("tianshu.memory").joinpath("0022_memory_runtime.sql").read_text()),
             Migration("0023_memory_index_retry", files("tianshu.memory").joinpath("0023_memory_index_retry.sql").read_text()),
             Migration("0024_memory_consolidation_retry", files("tianshu.memory").joinpath("0024_memory_consolidation_retry.sql").read_text()),
+            Migration("0025_memory_write", files("tianshu.memory").joinpath("0025_memory_write.sql").read_text()),
         ),
     )

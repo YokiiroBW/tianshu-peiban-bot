@@ -34,6 +34,8 @@ class MemoryService:
         self.claims = None
         self.pipeline_recovery = None
         self.episode_observer = None
+        self.statistics = None
+        self.recovery_policy = None
         self.settings = settings or {}
         from .consolidation import Consolidation
         self.consolidation = Consolidation(self, self.settings.get("consolidation", {}))
@@ -44,10 +46,69 @@ class MemoryService:
     def bind_record_candidates(self,read_port):
         self.consolidation.materials.record_candidates=read_port
 
+    def bind_observability(self, *, statistics, recovery_policy):
+        self.statistics, self.recovery_policy = statistics, recovery_policy
+
+    async def record_batch_statistics_on(self, conn, batch_id, state):
+        row = await (await conn.execute("UPDATE memory.consolidation_batches SET "
+            "observation_revision=observation_revision+1 WHERE batch_id=%s RETURNING partition_id,observation_revision",
+            (batch_id,))).fetchone()
+        partition = await (await conn.execute("SELECT actor_id FROM memory.consolidation_state WHERE partition_id=%s",
+            (row["partition_id"],))).fetchone()
+        event = {"family":"memory", "event_id":"memory-batch:"+batch_id,
+            "revision":row["observation_revision"], "occurred_at":wire(datetime.now(UTC)),
+            "module":"memory", "actor_id":partition["actor_id"], "route_id":None,
+              "dimensions":{"state":"cancelled" if state == "revoked" else state},
+            "metrics":{"memory_applied":int(state == "applied"),"memory_failed":int(state == "failed")}}
+        await conn.execute("INSERT INTO memory.statistics_outbox(batch_id,revision,event) VALUES(%s,%s,%s) "
+            "ON CONFLICT(batch_id) DO UPDATE SET revision=excluded.revision,event=excluded.event,updated_at=now()",
+            (batch_id,row["observation_revision"],Jsonb(event)))
+        if self.statistics and await self.statistics.record_safely_on(conn,event):
+            await conn.execute("UPDATE memory.statistics_outbox SET published_revision=revision WHERE batch_id=%s",
+                (batch_id,))
+
+    async def backfill_statistics(self, *, limit=128):
+        """Reconstruct missing events from the batch ledger and retry its outbox."""
+        if self.statistics is None:
+            return {"complete":False,"reason":"statistics_not_bound"}
+        async with self.database.transaction() as conn:
+            missing = await (await conn.execute("SELECT b.batch_id,b.status FROM memory.consolidation_batches b "
+                "WHERE b.status IN ('applied','failed') AND NOT EXISTS(SELECT 1 FROM memory.statistics_outbox o "
+                "WHERE o.batch_id=b.batch_id) ORDER BY b.updated_at,b.batch_id LIMIT %s FOR UPDATE SKIP LOCKED",
+                (limit,))).fetchall()
+            for batch in missing:
+                await self.record_batch_statistics_on(conn,batch["batch_id"],batch["status"])
+            rows = await (await conn.execute("SELECT * FROM memory.statistics_outbox WHERE published_revision<revision "
+                "ORDER BY updated_at,batch_id LIMIT %s FOR UPDATE SKIP LOCKED",(limit,))).fetchall()
+            for row in rows:
+                if await self.statistics.record_safely_on(conn,row["event"]):
+                    await conn.execute("UPDATE memory.statistics_outbox SET published_revision=%s "
+                        "WHERE batch_id=%s AND revision=%s",(row["revision"],row["batch_id"],row["revision"]))
+            pending = await (await conn.execute("SELECT (SELECT count(*) FROM memory.statistics_outbox "
+                "WHERE published_revision<revision) + (SELECT count(*) FROM memory.consolidation_batches b "
+                "WHERE b.status IN ('applied','failed') AND NOT EXISTS(SELECT 1 FROM memory.statistics_outbox o "
+                "WHERE o.batch_id=b.batch_id)) AS count")).fetchone()
+            complete = pending["count"] == 0
+            # The producer watermark describes only material actually drained.
+            try:
+                async with conn.transaction():
+                    await self.statistics.mark_producer_on(conn,"memory",watermark=wire(datetime.now(UTC)) if complete else None,
+                        complete=complete,detail={"pending":pending["count"]})
+            except Exception:
+                complete = False
+        return {"complete":complete,"pending":pending["count"]}
+
     def bind_episode_observer(self,observer):
         if self.episode_observer is not None:
             raise RuntimeError("memory_episode_observer_already_bound")
         self.episode_observer=observer
+
+    async def enqueue_index_on(self, conn, *, kind, object_id, revision, key, subject_id=None):
+        """Freeze the originating installation in both the job and its arguments."""
+        generation = await self.jobs.current_generation_on(conn)
+        await self.jobs.enqueue(conn, JobSpec("memory.index_object", key,
+            {"kind":kind,"id":object_id,"revision":revision,"generation":generation},
+            ServiceClass.ELASTIC,subject_id=subject_id,data_generation=generation))
 
     async def _episode_observed_on(self,conn,context,row):
         value=codec.episode(row)
@@ -55,6 +116,16 @@ class MemoryService:
             await self.episode_observer(context,f"episode:{value.episode_id}:{value.revision}",
                 episode=value,connection=conn)
         return value
+
+    @staticmethod
+    async def _snapshot_episode_on(conn, episode_id):
+        await conn.execute(
+            "INSERT INTO memory.episode_revisions(episode_id,revision,event_id,actor_id,person_id,conversation_id,"
+            "origin_kind,occurred_at,recorded_at,summary,source_refs,supplement_refs,scope_ids,actual_result,coverage,matter_id,"
+            "speaker_id,semantic_fingerprint,active) SELECT episode_id,revision,event_id,actor_id,person_id,"
+            "conversation_id,origin_kind,occurred_at,recorded_at,summary,source_refs,supplement_refs,scope_ids,actual_result,"
+            "coverage,matter_id,speaker_id,semantic_fingerprint,active FROM memory.episodes WHERE episode_id=%s",
+            (episode_id,))
 
     def bind_claims(self, claims):
         if self.claims is not None:
@@ -112,27 +183,33 @@ class MemoryService:
                 "matter_id": episode.get("matter_id"),
             }
             digest = body_hash(semantic)
-            await self.consolidation.lock_partition_on(conn,context,scope_ids)
+            partition = await self.consolidation.lock_partition_on(conn,context,scope_ids)
             existing = await (
                 await conn.execute(
                     "SELECT * FROM memory.episodes WHERE actor_id=%s AND event_id=%s FOR UPDATE",
                     (context.actor_id, event_id),
                 )
             ).fetchone()
-            if existing and existing["content_hash"] == digest:
+            if existing and revision >= existing["event_revision"] and existing["event_content_hash"] == digest:
+                if revision > existing["event_revision"]:
+                    existing = await (await conn.execute("UPDATE memory.episodes SET event_revision=%s "
+                        "WHERE episode_id=%s RETURNING *", (revision,existing["episode_id"]))).fetchone()
                 if existing.get("speaker_id") != speaker_id:
                     existing=await (await conn.execute("UPDATE memory.episodes SET speaker_id=%s WHERE episode_id=%s RETURNING *",
                         (speaker_id,existing["episode_id"]))).fetchone()
+                    await conn.execute("UPDATE memory.episode_revisions SET speaker_id=%s WHERE episode_id=%s AND revision=%s",
+                        (speaker_id,existing["episode_id"],existing["revision"]))
                 return await self._episode_observed_on(conn,context,existing)
-            if existing and revision <= existing["revision"]:
+            if existing and revision <= existing["event_revision"]:
                 raise AppError("episode_revision_conflict", status=409)
+            semantic_revision = existing["revision"] + 1 if existing else revision
             fields = (
                 event_id,
                 context.actor_id,
                 context.principal_id,
                 context.person_id,
                 context.conversation_id,
-                revision,
+                semantic_revision,
                 str(origin),
                 occurred_at,
                 summary,
@@ -148,6 +225,8 @@ class MemoryService:
                 episode.get("action_id"),
                 episode.get("receipt_id"),
                 digest,
+                revision,
+                digest,
             )
             if existing:
                 episode_id = existing["episode_id"]
@@ -156,6 +235,9 @@ class MemoryService:
                         "UPDATE memory.episodes SET event_id=%s,actor_id=%s,principal_id=%s,person_id=%s,"
                         "conversation_id=%s,revision=%s,origin_kind=%s,occurred_at=%s,summary=%s,source_refs=%s,scope_ids=%s,"
                         "actual_result=%s,coverage=%s,matter_id=%s,action_id=%s,receipt_id=%s,content_hash=%s,"
+                        "event_revision=%s,event_content_hash=%s,"
+                        "supplement_refs='[]',"
+                        "embedding=NULL,embedding_profile=NULL,"
                         "sequence=nextval('memory.revision_sequence'),extraction_state='pending',extraction_cursor='{}',"
                         "extraction_sources='[]',extraction_missing='{}',extraction_started_at=NULL,active=true WHERE episode_id=%s RETURNING *",
                         (*fields, episode_id),
@@ -166,7 +248,8 @@ class MemoryService:
                     await conn.execute(
                         "INSERT INTO memory.episodes(event_id,actor_id,principal_id,person_id,conversation_id,"
                         "revision,origin_kind,occurred_at,summary,source_refs,scope_ids,actual_result,coverage,matter_id,action_id,receipt_id,"
-                        "content_hash,episode_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
+                        "content_hash,event_revision,event_content_hash,episode_id) "
+                        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) RETURNING *",
                         (*fields, episode_id),
                     )
                 ).fetchone()
@@ -176,14 +259,205 @@ class MemoryService:
                 "UPDATE memory.episodes SET recorded_at=now(),lexical=%s,semantic_fingerprint=%s,speaker_id=%s,"
                 "extraction_cursor=%s WHERE episode_id=%s RETURNING *",
                 (lexical(summary), digest, speaker_id, Jsonb({"protocol":SCHEMA_VERSION}),episode_id))).fetchone()
-            await self.consolidation.dirty_on(conn, context, row)
-            await self.jobs.enqueue(conn,JobSpec("memory.index_object",
-                f"memory-episode-index:{episode_id}:{row['revision']}",
-                {"kind":"episode","id":episode_id,"revision":row["revision"]},ServiceClass.ELASTIC))
+            await self._snapshot_episode_on(conn, episode_id)
+            await self.consolidation.dirty_on(conn, context, row, state=partition)
+            await self.enqueue_index_on(conn,kind="episode",object_id=episode_id,revision=row["revision"],
+                key=f"memory-episode-index:{episode_id}:{row['revision']}")
             return await self._episode_observed_on(conn,context,row)
 
     async def episodes_since(self, context, cursor, limit):
         return await self._episodes(context, cursor, limit)
+
+    async def episode_at(self, context, episode_id, *, time_mode="current", valid_at=None, known_at=None):
+        """Read a saved semantic version while enforcing today's authority and retention.
+
+        An Episode has an occurrence time, not an invented effective interval for
+        edits. valid_at filters that occurrence; known_at selects the version
+        actually recorded by that instant. Unknown legacy times stay unknown.
+        """
+        from .evidence import temporal_selection
+        time_mode, valid_at, known_at = temporal_selection(
+            time_mode=time_mode, valid_at=valid_at, known_at=known_at)
+        await self.identity.check_context(context)
+        if not context.actor_id:
+            raise AppError("actor_required")
+        async with self.database.transaction(read_only=True) as conn:
+            await self.identity.check_context(context, connection=conn)
+            head = await (await conn.execute(
+                "SELECT * FROM memory.episodes WHERE episode_id=%s AND actor_id=%s AND active",
+                (episode_id, context.actor_id))).fetchone()
+            if not head or not set(head["scope_ids"]) <= set(context.scope_ids):
+                raise AppError("episode_unavailable", status=404)
+            if time_mode == "known_at" or known_at is not None:
+                snapshot = await (await conn.execute(
+                    "SELECT * FROM memory.episode_revisions WHERE episode_id=%s AND active "
+                    "AND recorded_at<=%s ORDER BY recorded_at DESC,revision DESC LIMIT 1",
+                    (episode_id, known_at))).fetchone()
+            else:
+                snapshot = await (await conn.execute(
+                    "SELECT * FROM memory.episode_revisions WHERE episode_id=%s AND revision=%s AND active",
+                    (episode_id, head["revision"]))).fetchone()
+            if not snapshot:
+                raise AppError("episode_history_unavailable", status=404,
+                    details={"reason": "no_recorded_version_at_requested_time"})
+            if valid_at is not None and snapshot["occurred_at"] > valid_at:
+                raise AppError("episode_unavailable", status=404)
+            if not set(snapshot["scope_ids"]) <= set(context.scope_ids):
+                raise AppError("episode_unavailable", status=404)
+            valid = await self.sources.check_many_on(conn, context,
+                (codec.refs(head["source_refs"]), codec.refs(head["supplement_refs"]),
+                 codec.refs(snapshot["source_refs"]), codec.refs(snapshot["supplement_refs"])))
+            if not all(valid):
+                raise AppError("episode_unavailable", status=404)
+            historical = snapshot["revision"] != head["revision"]
+            # Operational extraction state is not a semantic historical version.
+            row = {**head, **snapshot}
+            if historical:
+                row.update(extraction_state="historical", extraction_missing=["historical_extraction_not_recorded"])
+            return codec.episode(row)
+
+    async def group_term_meanings(self, context, text, *, limit=8):
+        """Return currently sourced interpretations only when this group's term occurs."""
+        from .types import GroupTermMeaning
+        if not isinstance(text, str):
+            raise AppError("invalid_group_term_text")
+        if not text or context.conversation_kind != "group" or not context.conversation_id:
+            return ()
+        limit = min(max(int(limit), 1), 32)
+        await self.identity.check_context(context)
+        async with self.database.transaction(read_only=True) as conn:
+            group = await self.identity.group_on(conn, context)
+            if not group:
+                return ()
+            rows = await (await conn.execute(
+                "SELECT r.*,c.actor_id,c.current_revision FROM memory.claims c "
+                "JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision "
+                "WHERE c.actor_id=%s AND r.subject_id=%s AND r.predicate='language.term_meaning' "
+                "AND r.state='active' AND r.current_status='current' AND r.polarity "
+                "AND (r.valid_from IS NULL OR r.valid_from<=now()) "
+                "AND (r.valid_until IS NULL OR r.valid_until>now()) "
+                "AND length(r.value->>'term')>0 AND strpos(lower(%s),lower(r.value->>'term'))>0 "
+                "ORDER BY length(r.value->>'term') DESC,r.observed_at DESC,r.claim_id LIMIT %s",
+                (context.actor_id, group["subject_id"], text, limit * 4))).fetchall()
+            selected = await self.claims.selected_groups(conn, context, rows)
+            results = []
+            for row, refs in zip(rows, selected, strict=True):
+                value = row["value"]
+                if refs is None or not isinstance(value, dict) or not row["speaker_id"]:
+                    continue
+                if row["assertion"] == "self_confirmed" or not isinstance(value.get("meaning"), str):
+                    continue
+                results.append(GroupTermMeaning(row["claim_id"], row["revision"], context.conversation_id,
+                    value["term"], value["meaning"], row["speaker_id"], row["assertion"], row["polarity"],
+                    row["conditions"], tuple(refs)))
+                if len(results) >= limit:
+                    break
+            return tuple(results)
+
+    async def record_group_term_usage(self, context, event_id, refs, *, outcome):
+        """Record exposure or use, never treating it as evidence or positive feedback."""
+        if (context.conversation_kind != "group" or not context.conversation_id or not context.actor_id
+                or not isinstance(event_id, str) or not event_id or outcome not in {"no_match","matched","explained","used"}):
+            raise AppError("memory_group_term_usage_invalid")
+        refs = tuple(refs)
+        if (len(refs) > 32 or outcome == "no_match" and refs or outcome != "no_match" and not refs
+                or any(not isinstance(ref,(tuple,list)) or len(ref) != 2 or not isinstance(ref[0],str)
+                       or type(ref[1]) is not int or ref[1] < 1 for ref in refs)):
+            raise AppError("memory_group_term_usage_invalid")
+        async with self.database.transaction() as conn:
+            group = await self.identity.group_on(conn,context)
+            if not group:
+                raise AppError("group_projection_forbidden",status=403)
+            if refs:
+                rows = await (await conn.execute("SELECT r.*,c.actor_id,c.current_revision FROM memory.claims c "
+                    "JOIN memory.claim_revisions r ON r.claim_id=c.claim_id AND r.revision=c.current_revision "
+                    "WHERE c.actor_id=%s AND r.subject_id=%s AND r.predicate='language.term_meaning' "
+                    "AND r.state='active' AND r.current_status='current' "
+                    "AND (r.claim_id,r.revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+                    (context.actor_id,group["subject_id"],[ref[0] for ref in refs],[ref[1] for ref in refs]))).fetchall()
+                selected = await self.claims.selected_groups(conn,context,rows)
+                if len(rows) != len(set(tuple(ref) for ref in refs)) or any(item is None for item in selected):
+                    raise AppError("memory_group_term_unavailable",status=409)
+            for claim_id, revision in refs or (("",0),):
+                await conn.execute("INSERT INTO memory.group_term_uses(actor_id,conversation_id,event_id,claim_id,revision,outcome) "
+                    "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                    (context.actor_id,context.conversation_id,event_id,claim_id,revision,outcome))
+
+    async def supplement_episode(self, context, *, episode_id, event_id, event_revision, part_index,
+                                 supplement_revision, original_ref, supplement_ref):
+        """Attach a verified late source to its original Episode without ingesting a new event."""
+        from tianshu.sources.dependencies import unique_refs
+        from .extraction_contract import SCHEMA_VERSION
+        original, supplement = codec.refs((original_ref, supplement_ref))
+        if (not isinstance(episode_id, str) or not isinstance(event_id, str)
+                or type(event_revision) is not int or event_revision < 1
+                or type(part_index) is not int or part_index < 0
+                or type(supplement_revision) is not int or supplement_revision < 1
+                or supplement.revision != supplement_revision):
+            raise AppError("memory_episode_supplement_invalid")
+        async with self.database.transaction() as conn:
+            await self.identity.check_context(context, connection=conn)
+            probe = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s AND actor_id=%s AND active",
+                (episode_id,context.actor_id))).fetchone()
+            if not probe or probe["event_id"] != event_id or probe["event_revision"] != event_revision:
+                raise AppError("episode_unavailable",status=404)
+            if not set(probe["scope_ids"]) <= set(context.scope_ids):
+                raise AppError("episode_unavailable",status=404)
+            originals = codec.refs(probe["source_refs"])
+            if not any((ref.source_id,ref.revision) == (original.source_id,original.revision) for ref in originals):
+                raise AppError("memory_episode_original_mismatch",status=409)
+            descriptions = await self.sources.describe_for_write_on(conn, context, unique_refs(originals, (supplement,)))
+            description = next((item for item in descriptions if item["source_id"] == original.source_id
+                                and item["revision"] == original.revision), None)
+            locator = description["locator"] if description else {}
+            producer = locator.get("producer")
+            if not producer or locator.get("event_id") != event_id or locator.get("part") != part_index:
+                raise AppError("memory_episode_original_mismatch",status=409)
+            if not await self.sources.validate_media_supplement_on(conn,context,supplement,
+                    original_ref=original,producer=producer,event_id=event_id,
+                    event_revision=event_revision,part_index=part_index):
+                raise AppError("memory_episode_supplement_mismatch",status=409)
+            partition = await self.consolidation.lock_partition_on(conn,context,probe["scope_ids"])
+            row = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",
+                (episode_id,))).fetchone()
+            if (not row or not row["active"] or row["revision"] != probe["revision"]
+                    or row["source_refs"] != probe["source_refs"] or row["supplement_refs"] != probe["supplement_refs"]
+                    or row["event_id"] != event_id or row["event_revision"] != event_revision):
+                raise AppError("episode_revision_conflict",status=409)
+            existing = await (await conn.execute("SELECT * FROM memory.episode_supplements WHERE episode_id=%s "
+                "AND event_revision=%s AND part_index=%s AND supplement_revision=%s",
+                (episode_id,event_revision,part_index,supplement_revision))).fetchone()
+            if existing:
+                if existing["original_ref"] != wire(original) or existing["supplement_ref"] != wire(supplement):
+                    raise AppError("memory_episode_supplement_conflict",status=409)
+                return codec.episode(row)
+            latest = await (await conn.execute("SELECT * FROM memory.episode_supplements WHERE episode_id=%s "
+                "AND event_revision=%s AND part_index=%s ORDER BY supplement_revision DESC LIMIT 1",
+                (episode_id,event_revision,part_index))).fetchone()
+            if latest and latest["supplement_revision"] > supplement_revision:
+                raise AppError("memory_episode_supplement_stale",status=409)
+            await conn.execute("UPDATE memory.episode_supplements SET active=false WHERE episode_id=%s "
+                "AND event_revision=%s AND part_index=%s AND active", (episode_id,event_revision,part_index))
+            await conn.execute("INSERT INTO memory.episode_supplements(episode_id,event_id,event_revision,part_index,"
+                "supplement_revision,original_ref,supplement_ref,episode_revision) VALUES(%s,%s,%s,%s,%s,%s,%s,%s)",
+                (episode_id,event_id,event_revision,part_index,supplement_revision,Jsonb(wire(original)),
+                 Jsonb(wire(supplement)),row["revision"]+1))
+            active = await (await conn.execute("SELECT supplement_ref FROM memory.episode_supplements WHERE episode_id=%s "
+                "AND event_revision=%s AND active ORDER BY part_index,supplement_revision",
+                (episode_id,event_revision))).fetchall()
+            supplements = unique_refs(codec.refs(item["supplement_ref"] for item in active))
+            digest = body_hash({"event_content_hash":row["event_content_hash"],"supplement_refs":supplements})
+            row = await (await conn.execute("UPDATE memory.episodes SET revision=revision+1,"
+                "sequence=nextval('memory.revision_sequence'),recorded_at=now(),supplement_refs=%s,content_hash=%s,"
+                "semantic_fingerprint=%s,embedding=NULL,embedding_profile=NULL,extraction_state='pending',"
+                "extraction_started_at=NULL,extraction_cursor=%s,extraction_sources='[]',extraction_missing='{}' "
+                "WHERE episode_id=%s RETURNING *", (Jsonb(wire(supplements)),digest,digest,
+                Jsonb({"protocol":SCHEMA_VERSION}),episode_id))).fetchone()
+            await self._snapshot_episode_on(conn, episode_id)
+            await self.consolidation.dirty_on(conn,context,row,state=partition)
+            await self.enqueue_index_on(conn,kind="episode",object_id=episode_id,revision=row["revision"],
+                key=f"memory-episode-index:{episode_id}:{row['revision']}")
+            return await self._episode_observed_on(conn,context,row)
 
     async def episodes_by_refs(self,context,refs,*,connection=None):
         refs=tuple(refs)
@@ -200,7 +474,7 @@ class MemoryService:
             group=[]
             count=0
             for row in rows:
-                selected=codec.refs(row["source_refs"])
+                selected=(*codec.refs(row["source_refs"]),*codec.refs(row.get("supplement_refs")))
                 if group and count+len(selected)>1800:
                     valid.extend(await self.sources.check_many_on(conn,context,tuple(group)))
                     group=[]
@@ -221,6 +495,47 @@ class MemoryService:
         if not all(valid):
             missing.append("unavailable_sources")
         return Page(items,None,Coverage(not missing,missing=tuple(missing)))
+
+    async def lock_episodes(self, context, refs, *, connection):
+        """Lock selected sources first, then recheck and lock episode heads in ID order."""
+        from .domain_utils import unique_refs
+        refs = tuple(refs)
+        if (len(refs) > 128 or any(not isinstance(item, (tuple, list)) or len(item) != 2
+                or not isinstance(item[0], str) or type(item[1]) is not int or item[1] < 1 for item in refs)
+                or len({item[0] for item in refs}) != len(refs)):
+            raise AppError("invalid_episode_refs")
+        await self.identity.check_context(context, connection=connection)
+        ids = sorted(item[0] for item in refs)
+        expected = dict(refs)
+        first = await (await connection.execute("SELECT * FROM memory.episodes WHERE actor_id=%s "
+            "AND episode_id=ANY(%s::text[]) ORDER BY episode_id", (context.actor_id, ids))).fetchall()
+        if len(first) != len(ids) or any(not row["active"] or row["revision"] != expected[row["episode_id"]]
+                or not set(row["scope_ids"]) <= set(context.scope_ids) for row in first):
+            return EpisodePage((), None, Coverage(False, missing=("episodes_unavailable_or_revised",)), "e:0")
+        sources = unique_refs(ref for row in first
+                              for ref in (*codec.refs(row["source_refs"]), *codec.refs(row["supplement_refs"])))
+        if not await self.sources.validate_persistence(connection, context, sources):
+            return EpisodePage((), None, Coverage(False, missing=("unavailable_sources",)), "e:0")
+        locked = await (await connection.execute("SELECT * FROM memory.episodes WHERE actor_id=%s "
+            "AND episode_id=ANY(%s::text[]) ORDER BY episode_id FOR UPDATE", (context.actor_id, ids))).fetchall()
+        if len(locked) != len(first) or any(
+                old["episode_id"] != row["episode_id"] or not row["active"]
+                or row["revision"] != expected[row["episode_id"]] or row["source_refs"] != old["source_refs"]
+                or row["supplement_refs"] != old["supplement_refs"]
+                or not set(row["scope_ids"]) <= set(context.scope_ids)
+                for old, row in zip(first, locked, strict=True)):
+            return EpisodePage((), None, Coverage(False, missing=("episodes_unavailable_or_revised",)), "e:0")
+        by_id = {row["episode_id"]: codec.episode(row) for row in locked}
+        watermark = "e:" + str(max((row["sequence"] for row in locked), default=0))
+        return EpisodePage(tuple(by_id[item[0]] for item in refs), None, Coverage(True), watermark)
+
+    async def index_learning(self, context, *, rule_id, revision, semantic_revision, kind,
+                             source_refs, scope_ids, search_text, connection):
+        """Delegate the reference projection to the single retrieval index owner."""
+        from .indexing import put_learning_reference_on
+        return await put_learning_reference_on(connection, context, rule_id=rule_id, revision=revision,
+            semantic_revision=semantic_revision, kind=kind, source_refs=source_refs,
+            scope_ids=scope_ids, search_text=search_text)
 
     async def domain_changed_on(self,conn,context,changed,*,source_refs,affected_subject_ids=()):
         """Manual domain commands offer one source-backed change, never replay history."""
@@ -278,7 +593,7 @@ class MemoryService:
             more = len(rows) > limit
             scanned = rows[:limit]
             checked = await self.sources.check_many_on(
-                conn, context, tuple(codec.refs(row["source_refs"]) for row in scanned)
+                conn, context, tuple((*codec.refs(row["source_refs"]),*codec.refs(row.get("supplement_refs"))) for row in scanned)
             )
             if self.pipeline_recovery is not None:
                 visible_rows=tuple(row for row,valid in zip(scanned,checked,strict=True) if valid and row["active"])
@@ -303,114 +618,10 @@ class MemoryService:
             row=await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s AND actor_id=%s AND active",
                 (episode_id,context.actor_id))).fetchone()
             if not row or not set(row["scope_ids"])<=set(context.scope_ids) or not all(
-                    await self.sources.check_many_on(conn,context,(codec.refs(row["source_refs"]),))):
+                    await self.sources.check_many_on(conn,context,((*codec.refs(row["source_refs"]),*codec.refs(row.get("supplement_refs"))),))):
                 raise AppError("episode_unavailable",status=404)
             return {"episode_id":episode_id,"revision":row["revision"],
                 **await self.pipeline_recovery.status_on(conn,context,row)}
-
-    async def record_reflection(self, context, proposal, *, connection=None, episode_revisions=None):
-        if proposal.actor_id != context.actor_id or not proposal.interpretation:
-            raise AppError("reflection_interpretation_required")
-        source_refs = tuple(proposal.source_refs)
-        if not source_refs or not proposal.episode_ids:
-            raise AppError("reflection_original_evidence_required")
-        async with self.connection(connection) as conn:
-            snapshots=await (await conn.execute("SELECT episode_id,revision,source_refs FROM memory.episodes "
-                "WHERE actor_id=%s AND episode_id=ANY(%s) AND active ORDER BY episode_id",
-                (context.actor_id,list(proposal.episode_ids)))).fetchall()
-            if len(snapshots) != len(set(proposal.episode_ids)):
-                raise AppError("reflection_episode_unavailable",status=409)
-            from tianshu.sources.dependencies import unique_refs
-            closure=unique_refs(source_refs,*(codec.refs(row["source_refs"]) for row in snapshots))
-            # An Episode dependency stays a dependency even when the model quoted
-            # only one excerpt. Lock its whole source closure before Episode rows.
-            descriptions = await self.sources.describe_for_write_on(conn, context, closure)
-            originals = await (
-                await conn.execute(
-                    "SELECT episode_id,revision,source_refs FROM memory.episodes WHERE actor_id=%s "
-                    "AND episode_id=ANY(%s) AND active ORDER BY episode_id FOR UPDATE",
-                    (context.actor_id, list(proposal.episode_ids)),
-                )
-            ).fetchall()
-            if len(originals) != len(set(proposal.episode_ids)):
-                raise AppError("reflection_episode_unavailable", status=409)
-            if any((row["revision"],row["source_refs"]) != (before["revision"],before["source_refs"])
-                    for row,before in zip(originals,snapshots,strict=True)):
-                raise AppError("reflection_episode_revision_conflict",status=409)
-            if episode_revisions is not None and any(
-                    episode_revisions.get(row["episode_id"]) != row["revision"] for row in originals):
-                raise AppError("reflection_episode_revision_conflict",status=409)
-            original_refs = tuple(
-                ref for row in originals for ref in codec.refs(row["source_refs"])
-            )
-
-            def covered(ref):
-                for original in original_refs:
-                    if (ref.source_id, ref.revision) != (original.source_id, original.revision):
-                        continue
-                    if not original.locator:
-                        return True
-                    if original.locator == ref.locator:
-                        return True
-                    if "start" in original.locator and "end" in original.locator and ref.locator:
-                        return (
-                            original.locator["start"]
-                            <= ref.locator.get("start", -1)
-                            <= ref.locator.get("end", -1)
-                            <= original.locator["end"]
-                        )
-                return False
-
-            if any(not covered(ref) for ref in source_refs):
-                raise AppError("reflection_not_original_evidence", status=403)
-            source_refs=closure
-            scopes = sorted({scope for item in descriptions for scope in item["scope_ids"]})
-            values = (
-                proposal.proposal_id,
-                context.actor_id,
-                context.principal_id,
-                context.person_id,
-                context.conversation_id,
-                list(proposal.episode_ids),
-                proposal.content,
-                proposal.kind,
-                parse_time(proposal.occurred_at),
-                Jsonb(wire(source_refs)),
-                scopes,
-                Jsonb(wire(proposal.conditions)),
-                list(proposal.counterexamples),
-            )
-            row = await (
-                await conn.execute(
-                    "INSERT INTO memory.reflections(proposal_id,actor_id,principal_id,person_id,conversation_id,episode_ids,content,kind,"
-                    "occurred_at,source_refs,scope_ids,conditions,counterexamples) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
-                    "ON CONFLICT(proposal_id) DO NOTHING RETURNING *",
-                    values,
-                )
-            ).fetchone()
-            if row is None:
-                row = await (
-                    await conn.execute(
-                        "SELECT * FROM memory.reflections WHERE proposal_id=%s AND actor_id=%s",
-                        (proposal.proposal_id, context.actor_id),
-                    )
-                ).fetchone()
-                if (
-                    not row
-                    or row["content"] != proposal.content
-                    or row["source_refs"] != wire(source_refs)
-                ):
-                    raise AppError("reflection_identity_conflict", status=409)
-            from .domain_utils import lexical
-            row = await (await conn.execute(
-                "UPDATE memory.reflections SET recorded_at=COALESCE(recorded_at,now()),lexical=%s,semantic_fingerprint=%s "
-                "WHERE proposal_id=%s RETURNING *",
-                (lexical(proposal.content),body_hash({"kind":proposal.kind,"content":proposal.content,
-                    "conditions":proposal.conditions,"source_refs":source_refs}),proposal.proposal_id))).fetchone()
-            await self.jobs.enqueue(conn,JobSpec("memory.index_object",
-                f"memory-reflection-index:{row['proposal_id']}:{row['revision']}",
-                {"kind":"reflection","id":row["proposal_id"],"revision":row["revision"]},ServiceClass.ELASTIC))
-            return codec.reflection(row)
 
     async def relationship(self, context, person_id):
         selected = await self.identity.context(
@@ -479,57 +690,6 @@ class MemoryService:
             result["source_refs"].extend(detail["source_refs"])
         return result
 
-    async def reflection_page(
-        self, context, *, person_id=None, conversation_id=None, cursor=None, limit=40,
-        time_mode="current",valid_at=None,known_at=None
-    ):
-        await self.identity.check_context(context)
-        from .evidence import temporal_selection
-        time_mode,valid_at,known_at=temporal_selection(time_mode=time_mode,valid_at=valid_at,known_at=known_at)
-        if conversation_id is not None and conversation_id != context.conversation_id:
-            raise AppError("group_projection_forbidden", status=403)
-        limit = min(max(int(limit), 1), 100)
-        async with self.database.transaction(read_only=True) as conn:
-            rows = await (
-                await conn.execute(
-                    "SELECT * FROM memory.reflections WHERE actor_id=%s AND active "
-                    "AND scope_ids<@%s::text[] AND (%s::text IS NULL OR person_id=%s) "
-                    "AND (%s::text IS NULL OR conversation_id=%s) "
-                    "AND (%s::timestamptz IS NULL OR recorded_at IS NULL OR recorded_at<=%s) "
-                    "AND (%s::timestamptz IS NULL OR occurred_at<=%s) "
-                    "AND (%s::text IS NULL OR proposal_id>%s) ORDER BY proposal_id LIMIT %s",
-                    (
-                        context.actor_id,
-                        list(context.scope_ids),
-                        person_id,
-                        person_id,
-                        conversation_id,
-                        conversation_id,
-                        known_at,known_at,valid_at,valid_at,
-                        cursor,
-                        cursor,
-                        limit + 1,
-                    ),
-                )
-            ).fetchall()
-            from .evidence import select_supports_on
-            selected = await select_supports_on(self.sources,conn,context,rows[:limit])
-            checked = [bool(refs) for refs in selected]
-        visible = tuple(codec.reflection(row) for row, valid in zip(rows[:limit], checked) if valid)
-        temporal_missing=[]
-        if any(item.recorded_at is None for item in visible):
-            temporal_missing.append("recorded_at_unknown")
-        if time_mode == "valid_at" and visible:
-            temporal_missing.append("reflection_valid_time_unknown")
-        return Page(
-            visible,
-            rows[limit - 1]["proposal_id"] if len(rows) > limit else None,
-            Coverage(
-                complete=len(rows) <= limit and all(checked) and not temporal_missing,
-                missing=tuple((*(("unavailable_sources",) if not all(checked) else ()),*temporal_missing)),
-            ),
-        )
-
     async def _group_consolidation(self,context):
         """Recent authorized per-person receipts, distinct from a historical fact view."""
         if self.pipeline_recovery is None:
@@ -581,7 +741,6 @@ class MemoryService:
         *,
         claim_limit=100,
         matter_limit=50,
-        reflection_limit=40,
         time_mode="current",
         valid_at=None,
         known_at=None,
@@ -600,26 +759,18 @@ class MemoryService:
             time_mode=time_mode,valid_at=valid_at,known_at=known_at)
         matters = await self.claims.matters(context, subject_id=subject_id, limit=matter_limit,
             time_mode=time_mode,valid_at=valid_at,known_at=known_at)
-        reflections = await self.reflection_page(
-            context,
-            person_id=person_id if not group else None,
-            conversation_id=group_id,
-            limit=reflection_limit,
-            time_mode=time_mode,valid_at=valid_at,known_at=known_at,
-        )
         from .evidence import build_evidence_unit
         hypotheses = tuple(item for item in claim_page.items if item.memory_kind == "hypothesis")
         facts = tuple(item for item in claim_page.items if item.memory_kind != "hypothesis")
-        evidence = tuple(build_evidence_unit(item,time_mode=time_mode,
-            temporal_missing=("reflection_valid_time_unknown",) if time_mode=="valid_at" and hasattr(item,"proposal_id") else ())
-            for item in (*claim_page.items,*matters.items,*reflections.items))
+        evidence = tuple(build_evidence_unit(item,time_mode=time_mode)
+            for item in (*claim_page.items,*matters.items))
         from .display import display_evidence_on
         displayed = ()
         if evidence:
             async with self.database.transaction(read_only=True) as conn:
                 displayed = await display_evidence_on(self,conn,context,evidence)
         evidence = tuple(item for item in displayed if item is not None)
-        pages = (claim_page,matters,reflections)
+        pages = (claim_page,matters)
         missing = [value for page in pages for value in page.coverage.missing]
         if len(evidence)<len(displayed):
             missing.append("memory_evidence_unavailable")
@@ -633,43 +784,60 @@ class MemoryService:
             "claims": facts,
             "hypotheses": hypotheses,
             "matters": matters.items,
-            "reflections": reflections.items,
             "evidence_units": evidence,
             "time": {"mode":time_mode,"valid_at":valid_at,"known_at":known_at},
-            "pages": {"claims":claim_page.next_cursor,"matters":matters.next_cursor,"reflections":reflections.next_cursor},
+            "pages": {"claims":claim_page.next_cursor,"matters":matters.next_cursor},
             "coverage": Coverage(
                 complete=all(page.coverage.complete for page in pages) and not missing,missing=missing
             ),
         }
 
-    async def style_view(self, context, person_id=None):
-        page = await self.reflection_page(context, person_id=person_id, limit=100)
-        evidence = tuple(
-            item for item in page.items if item.kind in {"style", "interaction", "interest"}
-        )
-        return {
-            "evidence": evidence,
-            "counterexamples": tuple(value for item in evidence for value in item.counterexamples),
-            "source_refs": tuple(ref for item in evidence for ref in item.source_refs),
-            "coverage": page.coverage,
-        }
-
     async def link_matter(self, context, source_ref, matter_id):
+        from .extraction_contract import SCHEMA_VERSION
+        from tianshu.sources.dependencies import unique_refs
         async with self.database.transaction() as conn:
-            await self.sources.describe_for_write_on(conn, context, (source_ref,))
+            candidates = await (await conn.execute("SELECT * FROM memory.episodes WHERE actor_id=%s AND principal_id=%s "
+                "AND active AND source_refs @> %s AND matter_id IS DISTINCT FROM %s ORDER BY episode_id LIMIT 129",
+                (context.actor_id,context.principal_id,Jsonb(wire((source_ref,))),matter_id))).fetchall()
+            if len(candidates) > 128:
+                raise AppError("memory_episode_link_budget_exceeded",status=409)
+            refs = unique_refs((source_ref,),*(codec.refs(row["source_refs"]) for row in candidates),
+                *(codec.refs(row.get("supplement_refs")) for row in candidates))
+            await self.sources.describe_for_write_on(conn, context, refs)
             row = await (
                 await conn.execute(
-                    "SELECT scope_ids FROM memory.matters WHERE matter_id=%s AND actor_id=%s",
+                    "SELECT scope_ids,source_refs FROM memory.matters WHERE matter_id=%s AND actor_id=%s AND active",
                     (matter_id, context.actor_id),
                 )
             ).fetchone()
             if not row or not set(row["scope_ids"]) <= set(context.scope_ids):
                 raise AppError("matter_forbidden", status=403)
-            await conn.execute(
-                "UPDATE memory.episodes SET matter_id=%s,sequence=nextval('memory.revision_sequence') "
-                "WHERE actor_id=%s AND source_refs @> %s",
-                (matter_id, context.actor_id, Jsonb(wire((source_ref,)))),
-            )
+            if not (await self.sources.check_many_on(conn,context,(codec.refs(row["source_refs"]),)))[0]:
+                raise AppError("matter_forbidden",status=403)
+            partitions = {}
+            for candidate in candidates:
+                if not set(candidate["scope_ids"]) <= set(context.scope_ids):
+                    raise AppError("episode_unavailable",status=403)
+                key = tuple(sorted(candidate["scope_ids"]))
+                if key not in partitions:
+                    partitions[key] = await self.consolidation.lock_partition_on(conn,context,candidate["scope_ids"])
+            for candidate in candidates:
+                current = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",
+                    (candidate["episode_id"],))).fetchone()
+                if (not current or not current["active"] or current["revision"] != candidate["revision"]
+                        or current["source_refs"] != candidate["source_refs"]):
+                    raise AppError("episode_revision_conflict",status=409)
+                digest = body_hash({"content_hash":current["content_hash"],"matter_id":matter_id})
+                changed = await (await conn.execute("UPDATE memory.episodes SET matter_id=%s,revision=revision+1,"
+                    "sequence=nextval('memory.revision_sequence'),recorded_at=now(),content_hash=%s,semantic_fingerprint=%s,"
+                    "embedding=NULL,embedding_profile=NULL,extraction_state='pending',extraction_cursor=%s,"
+                    "extraction_sources='[]',extraction_missing='{}',extraction_started_at=NULL WHERE episode_id=%s RETURNING *",
+                    (matter_id,digest,digest,Jsonb({"protocol":SCHEMA_VERSION}),current["episode_id"]))).fetchone()
+                await self._snapshot_episode_on(conn,changed["episode_id"])
+                await self.consolidation.dirty_on(conn,context,changed,state=partitions[tuple(sorted(candidate["scope_ids"]))])
+                await self.enqueue_index_on(conn,kind="episode",object_id=changed["episode_id"],revision=changed["revision"],
+                    key=f"memory-episode-index:{changed['episode_id']}:{changed['revision']}")
+                await self._episode_observed_on(conn,context,changed)
 
     async def save_relationship(self, context, body):
         person_id = body["person_id"]
@@ -812,46 +980,117 @@ class MemoryService:
         )
         return replace(result, data=await self.relationship(selected, person_id))
 
-    async def source_changed(self, conn, sources, kind):
+    async def actors_for_source(self, conn, refs, kind):
+        """Identify affected actors for Sources' independently dispatched invalidations."""
+        rows = await (await conn.execute(
+            "WITH i AS (SELECT %s::jsonb AS refs,%s::text AS kind), affected AS ("
+            "SELECT e.actor_id FROM memory.episodes e,i WHERE sources.dependencies_intersect(e.source_refs||e.supplement_refs,i.refs,i.kind) "
+            "UNION SELECT e.actor_id FROM memory.episode_revisions e,i WHERE sources.dependencies_intersect(e.source_refs||e.supplement_refs,i.refs,i.kind) "
+            "UNION SELECT e.actor_id FROM memory.episode_supplements s JOIN memory.episodes e USING(episode_id),i "
+            "WHERE sources.dependencies_intersect(jsonb_build_array(s.supplement_ref),i.refs,i.kind) "
+            "UNION SELECT s.actor_id FROM memory.consolidation_batches b JOIN memory.consolidation_state s USING(partition_id),i "
+            "WHERE sources.dependencies_intersect(b.dependency_refs,i.refs,i.kind) "
+            "UNION SELECT m.request->'context'->>'actor_id' FROM memory.model_steps m,i "
+            "WHERE sources.dependencies_intersect(COALESCE(m.request->'source_refs','[]'::jsonb),i.refs,i.kind) "
+            "UNION SELECT c.actor_id FROM memory.claim_revisions r JOIN memory.claims c USING(claim_id),i "
+            "WHERE sources.dependencies_intersect(r.source_refs,i.refs,i.kind) "
+            "UNION SELECT r.actor_id FROM memory.matter_revisions r,i WHERE sources.dependencies_intersect(r.source_refs,i.refs,i.kind) "
+            "UNION SELECT l.actor_id FROM memory.semantic_links l,i WHERE sources.dependencies_intersect(l.source_refs,i.refs,i.kind) "
+            "UNION SELECT r.actor_id FROM memory.relationships r,i WHERE sources.dependencies_intersect(r.source_refs,i.refs,i.kind) "
+            "UNION SELECT d.actor_id FROM memory.relationship_details d,i WHERE sources.dependencies_intersect(d.source_refs,i.refs,i.kind) "
+            "UNION SELECT r.actor_id FROM memory.learning_index_refs r,i WHERE sources.dependencies_intersect(r.source_refs,i.refs,i.kind)) "
+            "SELECT DISTINCT actor_id FROM affected ORDER BY actor_id NULLS FIRST",
+            (Jsonb(wire(refs)),kind))).fetchall()
+        return tuple(row["actor_id"] for row in rows)
+
+    async def invalidate_actor(self, conn, sources, kind, *, actor_id):
         selected = [
             Jsonb([{"source_id": source.source_id, "revision": source.revision}])
             for source in sources
         ]
-        parameters = (selected, Jsonb(wire(sources)), kind)
+        parameters = (actor_id, selected, Jsonb(wire(sources)), kind)
         if not selected:
             return
         await conn.execute(
             "UPDATE memory.model_steps SET state='source_revoked',request='{}',error_code='source_unavailable' "
-            "WHERE request->'source_refs' @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(request->'source_refs',%s,%s)",
+            "WHERE request->'context'->>'actor_id' IS NOT DISTINCT FROM %s AND request->'source_refs' @> ANY(%s::jsonb[]) "
+            "AND sources.dependencies_intersect(request->'source_refs',%s,%s)",
             parameters,
         )
+        affected_batches = await (await conn.execute("SELECT batch_id,manifest FROM memory.consolidation_batches "
+            "WHERE partition_id IN (SELECT partition_id FROM memory.consolidation_state WHERE actor_id IS NOT DISTINCT FROM %s) "
+            "AND dependency_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(dependency_refs,%s,%s) "
+            "ORDER BY batch_id FOR UPDATE", parameters)).fetchall()
+        for batch in affected_batches:
+            await self.consolidation.cancel_recovery_on(conn,batch["manifest"])
         invalidated = await (await conn.execute(
             "UPDATE memory.consolidation_batches SET status='revoked',error_code='source_unavailable',"
             "manifest='{}',read_set='[]',commit_refs='{}',updated_at=now() "
-            "WHERE dependency_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(dependency_refs,%s,%s) "
+            "WHERE partition_id IN (SELECT partition_id FROM memory.consolidation_state WHERE actor_id IS NOT DISTINCT FROM %s) "
+            "AND dependency_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(dependency_refs,%s,%s) "
             "RETURNING batch_id,partition_id", parameters)).fetchall()
+        if invalidated:
+            await conn.execute("UPDATE memory.consolidation_compilations SET proposal='{}',alias_map='[]',"
+                "source_snapshot='[]',selected=false WHERE batch_id=ANY(%s::text[])",
+                ([batch["batch_id"] for batch in invalidated],))
+            counted = await (await conn.execute("SELECT batch_id FROM memory.statistics_outbox "
+                "WHERE batch_id=ANY(%s::text[])", ([batch["batch_id"] for batch in invalidated],))).fetchall()
+            for batch in counted:
+                await self.record_batch_statistics_on(conn,batch["batch_id"],"revoked")
+        from .indexing import purge_learning_references_on
+        await purge_learning_references_on(conn,sources,kind,actor_id=actor_id)
         for batch in invalidated:
             await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error='source_unavailable',"
                 "lease_owner=NULL,lease_until=NULL WHERE partition_id=%s AND active_batch_id=%s",
                 (batch["partition_id"],batch["batch_id"]))
         await conn.execute(
             "UPDATE memory.episodes SET active=false,summary='',actual_result=NULL,lexical='',embedding=NULL,embedding_profile=NULL,semantic_fingerprint=NULL,"
-            "sequence=nextval('memory.revision_sequence') WHERE active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
+            "sequence=nextval('memory.revision_sequence') WHERE actor_id IS NOT DISTINCT FROM %s AND active "
+            "AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
             parameters,
         )
         await conn.execute(
-            "UPDATE memory.reflections SET active=false,content='',conditions='{}',counterexamples='{}',lexical='',embedding=NULL,embedding_profile=NULL,semantic_fingerprint=NULL,"
-            "revision=revision+1 WHERE active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
-            parameters,
+            "UPDATE memory.episode_revisions SET active=false,summary='',actual_result=NULL,semantic_fingerprint=NULL "
+            "WHERE actor_id IS NOT DISTINCT FROM %s AND active AND (sources.dependencies_intersect(source_refs,%s,%s) "
+            "OR sources.dependencies_intersect(supplement_refs,%s,%s))",
+            (actor_id,Jsonb(wire(sources)),kind,Jsonb(wire(sources)),kind),
         )
+        # Withdrawal of only a later attachment must not erase the separately
+        # accepted original text. Retire that attachment and expose the same
+        # Episode with explicit missing coverage and a new semantic revision.
+        retired = await (await conn.execute("UPDATE memory.episode_supplements s SET active=false FROM memory.episodes e "
+            "WHERE s.episode_id=e.episode_id AND e.actor_id IS NOT DISTINCT FROM %s AND s.active "
+            "AND sources.dependencies_intersect(jsonb_build_array(s.supplement_ref),%s,%s) RETURNING s.episode_id",
+            (actor_id,Jsonb(wire(sources)),kind))).fetchall()
+        for episode_id in sorted({item["episode_id"] for item in retired}):
+            head = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s AND active FOR UPDATE",
+                (episode_id,))).fetchone()
+            if not head:
+                continue
+            live = await (await conn.execute("SELECT supplement_ref FROM memory.episode_supplements WHERE episode_id=%s "
+                "AND event_revision=%s AND active ORDER BY part_index,supplement_revision",
+                (episode_id,head["event_revision"]))).fetchall()
+            supplements = codec.refs(item["supplement_ref"] for item in live)
+            if wire(supplements) == head["supplement_refs"]:
+                continue
+            digest = body_hash({"event_content_hash":head["event_content_hash"],"supplement_refs":supplements})
+            head = await (await conn.execute("UPDATE memory.episodes SET revision=revision+1,"
+                "sequence=nextval('memory.revision_sequence'),recorded_at=now(),supplement_refs=%s,"
+                "content_hash=%s,semantic_fingerprint=%s,summary='',actual_result=NULL,lexical='',embedding=NULL,embedding_profile=NULL,"
+                "extraction_state='completed_with_missing',extraction_started_at=NULL,extraction_sources='[]',"
+                "extraction_missing=ARRAY(SELECT DISTINCT x FROM unnest(extraction_missing||ARRAY['media_unavailable']) x) "
+                "WHERE episode_id=%s RETURNING *", (Jsonb(wire(supplements)),digest,digest,episode_id))).fetchone()
+            await self._snapshot_episode_on(conn,episode_id)
+            await self.enqueue_index_on(conn,kind="episode",object_id=episode_id,revision=head["revision"],
+                key=f"memory-episode-index:{episode_id}:{head['revision']}")
         await conn.execute(
             "UPDATE memory.relationship_details SET active=false,content='',revision=revision+1 "
-            "WHERE active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
+            "WHERE actor_id IS NOT DISTINCT FROM %s AND active AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
             parameters,
         )
         await conn.execute(
             "UPDATE memory.relationships SET summary='',relationship_type='acquaintance',display_label='认识的人',"
-            "revision=revision+1 WHERE source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
+            "revision=revision+1 WHERE actor_id IS NOT DISTINCT FROM %s AND source_refs @> ANY(%s::jsonb[]) AND sources.dependencies_intersect(source_refs,%s,%s)",
             parameters,
         )
-        await self.claims.source_changed(conn, sources, kind)
+        await self.claims.source_changed(conn, sources, kind, actor_id=actor_id)

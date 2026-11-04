@@ -17,7 +17,7 @@ from .authority import context_record
 from .consolidation import context_from_bound
 from .consolidation_retry import explicit_retry_available, protocol_refresh_available, semantic_output_failure, rpc_recovery_available
 from .extraction_contract import SCHEMA_VERSION, legacy_extraction_schema, validate_proposal
-from .materials import batch_frozen, smaller_material_prefix
+from .materials import batch_frozen, closed_episode_split
 
 LEGACY_VERSION = "memory.legacy-extraction.v0"
 LEGACY_TERMINAL = ("completed", "completed_with_missing", "legacy_waiting",
@@ -92,14 +92,19 @@ class ConsolidationRecovery:
                 "required_tokens":budget_failure.get("required_tokens") if budget_failure else None}
             action="refresh_material" if changed else "configure_budget"
         elif (not active and error == "memory_consolidation_output_truncated"
-                and batch and smaller_material_prefix(batch_frozen(batch)) is None
+                and batch and closed_episode_split(batch_frozen(batch)) is None
                 and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
             action="configure_budget"
         result={"batch_id":batch["batch_id"] if batch else None,
             "status":batch["status"] if batch else episode["extraction_state"],
             "error_code":error,"action":action,
             "fragment_cursor":episode["extraction_cursor"],"targets":[],"target_results":[],"unresolved":[],
-            "coverage":{"state":episode["extraction_state"],"missing":episode["extraction_missing"]}}
+            "coverage":{"state":episode["extraction_state"],"missing":episode["extraction_missing"]},
+            "commit_state":"not_committed", "required_context_missing":[],
+            "indexing":{"state":"not_required","objects":[]}}
+        if batch and batch["status"] == "superseded":
+            result["action"] = "wait_for_reorganized_input"
+            result["reorganization"] = batch["manifest"].get("superseded_by_reorganization")
         if budget is not None:
             result["budget_failure"]=budget
         if batch and batch["status"] == "quarantined":
@@ -126,10 +131,20 @@ class ConsolidationRecovery:
                 unresolved=batch["commit_refs"].get("unresolved",[]),
                 context_unfulfilled=batch["commit_refs"].get("context_unfulfilled",[]),
                 step_ids=batch["step_ids"],schema_version=batch["schema_version"])
+            if batch["status"] == "applied":
+                changed = batch["commit_refs"].get("changed", [])
+                result["commit_state"] = "applied"
+                # A durable queued object is not proof that the current index
+                # profile has finished. The retrieval owner supplies readiness.
+                result["indexing"] = {"state":"unknown" if changed else "not_required", "objects":changed}
             own=next((item for item in batch["commit_refs"].get("coverage",())
                 if item["episode_id"] == episode["episode_id"] and item["sequence"] == episode["sequence"]),None)
             if own:
                 result["coverage"]=own
+            missing = result["coverage"].get("missing", [])
+            result["required_context_missing"] = [value for value in missing if value in {
+                "semantic_unresolved", "referenced_context_incomplete", "quoted_context_unavailable",
+                "quoted_material_incomplete", "media_unavailable", "image_original_unavailable"}]
         return result
 
     async def replay_resume_on(self,conn,context,body,original):
@@ -138,7 +153,7 @@ class ConsolidationRecovery:
             "AND active AND scope_ids<@%s::text[]",(body["episode_id"],context.actor_id,list(context.scope_ids)))).fetchone()
         if not episode:
             raise AppError("episode_unavailable",status=404)
-        if not all(await self.sources.check_many_on(conn,context,(codec.refs(episode["source_refs"]),))):
+        if not all(await self.sources.check_many_on(conn,context,((*codec.refs(episode["source_refs"]),*codec.refs(episode.get("supplement_refs"))),))):
             raise AppError("source_unavailable",status=403)
         status=await self.status_on(conn,context,episode)
         return CommandResult(original.client_request_id,revision=episode["revision"],action_id=original.action_id,
@@ -154,7 +169,7 @@ class ConsolidationRecovery:
         batch = await (await conn.execute(
             "SELECT * FROM memory.consolidation_batches WHERE manifest->'episodes' @> %s "
             "ORDER BY created_at DESC LIMIT 1",(Jsonb([{"episode_id":snapshot["episode_id"],"sequence":snapshot["sequence"]}]),))).fetchone()
-        dependencies = codec.refs(snapshot["source_refs"])
+        dependencies = (*codec.refs(snapshot["source_refs"]),*codec.refs(snapshot.get("supplement_refs")))
         if batch:
             from tianshu.sources.dependencies import unique_refs
             dependencies = unique_refs(dependencies,codec.refs(batch["dependency_refs"]))
@@ -172,7 +187,11 @@ class ConsolidationRecovery:
         if status["action"] == "configure_budget":
             data["action"]="configure_budget"
             return CommandResult(body["client_request_id"],revision=current["revision"],data=data)
-        if batch and batch["status"] in {"prepared","waiting_model","ready","quarantined"}:
+        if batch and batch["status"] == "superseded":
+            await self.memory.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
+                suffix="reorganization:"+body["client_request_id"])
+            data.update(queued=True,action="wait_for_reorganized_input")
+        elif batch and batch["status"] in {"prepared","waiting_model","ready","quarantined"}:
             if batch["schema_version"] == LEGACY_VERSION:
                 await self.memory.jobs.enqueue(conn,JobSpec("memory.observe_legacy",
                     "memory-legacy-explicit-observe:"+body["client_request_id"],{"batch_id":batch["batch_id"]},ServiceClass.ELASTIC))
@@ -187,7 +206,7 @@ class ConsolidationRecovery:
         elif rpc_recovery_available(batch):
             state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
                 (batch["partition_id"],))).fetchone()
-            original_context=context_from_bound(state["authority_bound"])
+            original_context=context_from_bound(batch["manifest"].get("authority_bound",state["authority_bound"]))
             if await self.memory.consolidation.retries.resume_rpc_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="observe_original_attempt")
         elif (batch and batch["status"] == "failed" and batch["schema_version"] != LEGACY_VERSION
@@ -196,7 +215,7 @@ class ConsolidationRecovery:
                 and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
             state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
                 (batch["partition_id"],))).fetchone()
-            original_context=context_from_bound(state["authority_bound"])
+            original_context=context_from_bound(batch["manifest"].get("authority_bound",state["authority_bound"]))
             if await self.memory.consolidation.retries.resume_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="retry_computation")
             elif current["extraction_state"] not in {"completed","completed_with_missing"}:

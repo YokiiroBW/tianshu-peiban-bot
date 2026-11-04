@@ -7,7 +7,9 @@ from psycopg.types.json import Jsonb
 from tianshu.models.codec import request_from_wire
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
+from tianshu.types import ServiceClass
 from .authority import request_identity
 from .model_outcome import needs_rpc_observation, observe_original
 
@@ -138,6 +140,55 @@ class ModelSteps:
                     "receipt_error_code":result.receipt.error_code,
                     "cancellation_reason":getattr(result.receipt,"cancellation_reason",None)})
         return result, original
+
+    async def submit_or_observe(self, step_id, partition_id, *, data_generation, observe_only=False):
+        """Submit the frozen attempt once, then release the worker while Models runs."""
+        _, original = await self.recorded(step_id)
+        async with self.database.transaction() as conn:
+            if not await self.sources.validate_persistence(conn, original.context, original.source_refs):
+                raise AppError("source_unavailable", status=403)
+            fresh = await (await conn.execute(
+                "SELECT state FROM memory.model_steps WHERE step_id=%s FOR UPDATE", (step_id,))).fetchone()
+            if not fresh or fresh["state"] == "source_revoked":
+                raise AppError("source_unavailable", status=403)
+            # submit is idempotent for the same attempt and request digest. A
+            # crash between the local marker and submit can safely adopt that
+            # exact request without manufacturing another physical attempt.
+            submit = not observe_only and fresh["state"] in {"prepared", "dispatching"}
+            if submit:
+                await conn.execute("UPDATE memory.model_steps SET state='dispatching',updated_at=now() WHERE step_id=%s",
+                    (step_id,))
+        if submit:
+            completion = JobSpec("memory.consolidate", "memory-model-completion:" + original.attempt_id,
+                {"partition_id": partition_id}, ServiceClass.ELASTIC, subject_id=partition_id,
+                data_generation=data_generation)
+            try:
+                receipt = await self.models.submit(original, completion=completion)
+            except BaseException as exc:
+                if needs_rpc_observation(exc):
+                    # No new physical attempt is authorized by a transport
+                    # error. Persist uncertainty and observe the original.
+                    raise AppError("model_outcome_unknown",status=503,details={
+                        "status":"unknown","attempt_id":original.attempt_id,
+                        "action":"observe_original_attempt"}) from exc
+                raise
+            if receipt.attempt_id != original.attempt_id or receipt.intent_id != original.intent_id:
+                raise AppError("memory_model_result_identity_conflict", status=409)
+            await self._outcome(step_id, receipt.status, receipt.error_code)
+            async with self.database.transaction() as conn:
+                await conn.execute("UPDATE memory.consolidation_attempts SET status=%s,error_code=%s,updated_at=now() "
+                    "WHERE step_id=%s", (receipt.status, receipt.error_code, step_id))
+            if receipt.status in {"queued", "running"}:
+                return None
+        outcome = await observe_original(self.models, original)
+        if outcome.result is not None and outcome.status == "succeeded":
+            await self._outcome(step_id, "succeeded", None)
+            return outcome.result, original
+        if outcome.receipt is not None:
+            await self._outcome(step_id, outcome.status, outcome.receipt.error_code)
+        if outcome.status in {"queued", "running"} or outcome.receipt is None:
+            return None
+        raise outcome.exception(original.attempt_id)
 
     async def _outcome(self, step_id, status, error_code):
         async with self.database.transaction() as conn:

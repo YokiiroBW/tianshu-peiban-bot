@@ -126,11 +126,8 @@ def known_output(result):
 def repairable(result, original, code):
     if not known_output(result):
         return False
-    if code == "memory_consolidation_output_truncated":
-        return (original.protocol == "openai.chat"
-            and original.parameters.get("reasoning_effort") == "low"
-            and original.parameters.get("response_format") == {"type": "json_object"}
-            and original.parameters.get("thinking") != {"type": "disabled"})
+    if code in {"memory_consolidation_output_truncated", "memory_consolidation_output_incomplete"}:
+        return False
     return code in REPAIRABLE and result.completion.state != "incomplete"
 
 

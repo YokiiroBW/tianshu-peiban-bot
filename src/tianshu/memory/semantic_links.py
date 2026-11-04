@@ -40,16 +40,20 @@ class SemanticLinks:
                 "JOIN memory.matters m USING(matter_id) WHERE r.matter_id=%s AND r.revision=%s AND r.actor_id=%s AND r.active",
                 (ref.id, ref.revision, context.actor_id),
             )).fetchone()
-        elif ref.kind in {"episode", "reflection"}:
-            table, key = (("episodes", "episode_id") if ref.kind == "episode" else ("reflections", "proposal_id"))
+        elif ref.kind == "episode":
             row = await (await conn.execute(
-                f"SELECT *,revision AS current_revision FROM memory.{table} WHERE {key}=%s "
+                "SELECT *,revision AS current_revision FROM memory.episodes WHERE episode_id=%s "
                 "AND revision=%s AND actor_id=%s AND active",
                 (ref.id, ref.revision, context.actor_id),
             )).fetchone()
         else:
             raise AppError("invalid_memory_record_kind")
-        selected = (await select_supports_on(self.sources, conn, context, (row,)))[0] if row else None
+        if row and ref.kind == "episode":
+            selected = (*codec.refs(row["source_refs"]), *codec.refs(row.get("supplement_refs")))
+            if not (await self.sources.check_many_on(conn, context, (selected,)))[0]:
+                selected = None
+        else:
+            selected = (await select_supports_on(self.sources, conn, context, (row,)))[0] if row else None
         if selected is None:
             return None
         return {**row, "_selected_refs": selected}
@@ -64,7 +68,7 @@ class SemanticLinks:
             value = codec.matter(public, selected_refs=refs)
         else:
             public["source_refs"] = wire(refs)
-            value = codec.episode(public) if endpoint.kind == "episode" else codec.reflection(public)
+            value = codec.episode(public)
         # Endpoint snapshots carry no nested relations: both sides stay one bounded unit.
         return wire(build_evidence_unit(value))
 

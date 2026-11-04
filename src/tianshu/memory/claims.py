@@ -360,9 +360,5 @@ class ClaimService:
         return Page(tuple(units), "r:" + str(rows[limit - 1]["revision"]) if len(rows) > limit else None,
                     Coverage(len(rows) <= limit and not missing, missing=missing))
 
-    async def source_changed(self, conn, sources, kind, cursor=None):
-        return await self.revisions.source_changed_on(conn, sources, kind)
-
-    async def purge_source(self, sources, kind, cursor=None):
-        async with self.database.transaction() as conn:
-            return await self.source_changed(conn, codec.refs(sources), kind, cursor)
+    async def source_changed(self, conn, sources, kind, *, actor_id):
+        return await self.revisions.source_changed_on(conn, sources, kind, actor_id=actor_id)

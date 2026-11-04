@@ -1,7 +1,7 @@
 """Explicit reconstruction of the persisted domain projections."""
 
 from tianshu.types import Coverage, OriginKind, SourceRef
-from .types import ClaimRevision, Episode, MatterView, RecordRef, ReflectionView, SemanticLink
+from .types import ClaimRevision, Episode, MatterView, RecordRef, SemanticLink
 
 
 def refs(value):
@@ -35,6 +35,7 @@ def episode(row):
         row.get("speaker_id"),
         row.get("conversation_id"),
         row.get("consolidation", {}),
+        refs(row.get("supplement_refs")),
     )
 
 
@@ -105,25 +106,6 @@ def matter(row, claim_ids=(), selected_refs=None, *, relations=()):
         row.get("change_reason", ""),
         tuple(relations),
         row.get("head_revision", row.get("current_revision", row["revision"])),
-    )
-
-
-def reflection(row):
-    return ReflectionView(
-        row["proposal_id"],
-        row["revision"],
-        row["actor_id"],
-        row["person_id"],
-        tuple(row["episode_ids"]),
-        row["content"],
-        row["kind"],
-        row["occurred_at"],
-        refs(row["source_refs"]),
-        tuple(row["scope_ids"]),
-        row["conditions"],
-        tuple(row["counterexamples"]),
-        True,
-        row.get("recorded_at"),
     )
 
 

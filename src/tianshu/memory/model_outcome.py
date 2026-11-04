@@ -27,7 +27,8 @@ def needs_rpc_observation(error):
         return isinstance(error,(TimeoutError,OSError,ClientError))
     # These opaque RPC wrappers authorize a control read, never a new model
     # attempt. Named permanent configuration/authority errors stay terminal.
-    return transient_model_failure(error.code) or error.status>=500 and error.code in {"internal_error","broker_error"}
+    return transient_model_failure(error.code) or error.status>=500 and error.code in {
+        "internal_error","broker_error","model_submission_ack_unknown","model_completion_ack_unknown"}
 
 
 def _control_failure(error):
