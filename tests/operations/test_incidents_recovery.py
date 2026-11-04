@@ -91,6 +91,27 @@ async def test_unknown_original_effect_is_not_replayed(operations_db):
         assert attempt["status"] == "unknown"
 
 
+async def test_uncertain_control_effect_is_reconciled_from_original_receipt(operations_db):
+    store = IncidentStore(operations_db, None, None)
+    incident = await store.ingest({"event_id": "unknown-control", "dependency": "fixture",
+        "error_family": "fixture_failure", "version": "1", "material_id": "config-event"})
+    async def inspect(_row, target):
+        return {"eligible": True, "version": "1", "material_id": target["material_id"],
+                "material_digest": "digest", "dependency": "fixture", "original_state": "failed"}
+    invoke = AsyncMock(return_value={"state": "unknown", "reason": "interrupted"})
+    observe = AsyncMock(return_value={"state": "verified", "observation_ref": "owner:config-event"})
+    action = RecoveryAction("fixture", frozenset({"fixture_failure"}), inspect, invoke, observe,
+                            unknown_observable=True)
+    executor = RecoveryExecutor(operations_db, RecoveryPolicy(), AsyncMock(), (action,))
+    await executor.enqueue_automatic(incident, "fixture", {"material_id": "config-event"})
+    await executor.process_requested()
+    await executor.observe_unknown()
+    result = await store.get(incident["incident_id"])
+    assert result["state"] == "resolved"
+    assert result["targets"][0]["state"] == "verified"
+    invoke.assert_awaited_once()
+
+
 async def test_unknown_original_can_be_observed_without_replaying_it(operations_db):
     store = IncidentStore(operations_db, None, None)
     incident = await store.ingest({"event_id": "observe-original", "dependency": "fixture",

@@ -83,6 +83,26 @@ class OperationsAgent:
             if incident["state"] == "escalated":
                 await self.outbox.enqueue(incident, "escalated")
 
+    async def poll_model_reloads(self):
+        # Configuration changes are durably recorded by Models even if the
+        # original broker reload could not be completed.
+        for pending in await self.diagnosis.models.pending_configuration_reloads(limit=100):
+            event_id, revision = pending.get("event_id"), pending.get("revision")
+            if (not isinstance(event_id, str) or len(event_id) > 170
+                    or type(revision) is not int or revision < 1):
+                continue
+            try:
+                identifier(event_id)
+            except AppError:
+                continue
+            incident = await self.incidents.ingest({
+                "event_id": "ops-model-reload:" + event_id,
+                "dependency": "model-broker", "error_family": "broker_reload_pending",
+                "version": str(revision), "material_id": event_id,
+                "recovery_target": {"material_id": event_id, "version": str(revision)},
+                "affected": ["model-broker"], "severity": "error"})
+            await self.outbox.enqueue(incident, "opened")
+
     async def process_open(self):
         async with self.database.transaction(control=True, read_only=True) as conn:
             incidents = await (await conn.execute("SELECT * FROM operations.incidents "
@@ -145,7 +165,7 @@ class OperationsAgent:
     async def tick(self):
         # Each component is isolated: log/notification failure never interrupts
         # the worker or recursively diagnoses its own transport errors.
-        operations = ((self.host_spool.import_pending,) if self.host_spool else ()) + (self.poll_events, self.poll_progress, self.executor.replay_statistics, self.executor.claim_retries,
+        operations = ((self.host_spool.import_pending,) if self.host_spool else ()) + (self.poll_events, self.poll_progress, self.poll_model_reloads, self.executor.replay_statistics, self.executor.claim_retries,
                       self.executor.process_requested, self.executor.observe_pending, self.executor.observe_unknown,
                       self.diagnosis.observe, self.process_open, self.process_finished_decisions,
                       self.outbox.release_suppressed, self.outbox.deliver_due)

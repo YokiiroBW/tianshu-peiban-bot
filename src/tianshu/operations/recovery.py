@@ -35,6 +35,7 @@ class RecoveryAction:
     observe: Callable[..., Awaitable[dict]]
     max_attempts: int = 3
     observation_only: bool = False
+    unknown_observable: bool = False
     domain_managed: bool = False
     resolves_dependency: bool = False
 
@@ -222,8 +223,9 @@ class RecoveryExecutor:
                 "WHERE r.state='requested' AND r.due_at<=now() ORDER BY r.due_at,r.created_at LIMIT %s FOR UPDATE OF r SKIP LOCKED", (limit,))).fetchall()
             for row in rows:
                 row["owner_token"] = uuid4().hex
+                row["inspection_attempts"] += 1
                 await conn.execute("UPDATE operations.recoveries SET state='inspecting',owner_token=%s,"
-                                   "lease_until=now()+interval '120 seconds' WHERE attempt_id=%s",
+                                   "inspection_attempts=inspection_attempts+1,lease_until=now()+interval '120 seconds' WHERE attempt_id=%s",
                                    (row["owner_token"], row["attempt_id"]))
         outcomes = await asyncio.gather(*(self._execute(row) for row in rows), return_exceptions=True)
         if any(isinstance(outcome, Exception) for outcome in outcomes):
@@ -301,6 +303,14 @@ class RecoveryExecutor:
         try:
             facts = await action.inspect(row, row["target"])
         except Exception as exc:
+            if row["inspection_attempts"] < action.max_attempts:
+                async with self.database.transaction(control=True) as conn:
+                    await conn.execute("UPDATE operations.recoveries SET state='requested',owner_token=NULL,lease_until=NULL,"
+                        "due_at=now()+(%s * interval '1 second'),result=%s "
+                        "WHERE attempt_id=%s AND owner_token=%s AND lease_until>now() AND state='inspecting'",
+                        (30 * row["inspection_attempts"], Jsonb({"reason": type(exc).__name__}),
+                         row["attempt_id"], row["owner_token"]))
+                return
             await self._set_state(row["attempt_id"], row["owner_token"], "unavailable", {"reason": type(exc).__name__})
             return
         required = {"eligible", "version", "material_id", "material_digest", "dependency", "original_state"}
@@ -479,7 +489,7 @@ class RecoveryExecutor:
         for row in rows:
             action = self.actions.get(row["action"])
             facts = (row.get("result") or {}).get("facts")
-            if not action or not action.observation_only or not facts:
+            if not action or not (action.observation_only or action.unknown_observable) or not facts:
                 continue
             try:
                 result = await action.observe(row, row["target"], facts, row["attempt_id"])
@@ -504,6 +514,7 @@ class RecoveryExecutor:
                         probe_token=(row["result"] or {}).get("probe_token"))
                 await conn.execute("UPDATE operations.recoveries SET state=%s,observation=%s,finished_at=now() WHERE attempt_id=%s",
                                    (result["state"], Jsonb(wire(result)), row["attempt_id"]))
+                await self._target_state(conn, row, result["state"])
                 if row["policy_mode"] == "reserved":
                     await self._project(conn, row, phase="reconciled", outcome=result["state"])
                 if result["state"] == "verified":

@@ -97,6 +97,7 @@ CREATE TABLE operations.recoveries (
     action text NOT NULL,
     target jsonb NOT NULL,
     target_id text,
+    inspection_attempts integer NOT NULL DEFAULT 0,
     attempt_number integer,
     state text NOT NULL,
     claim_token text,
