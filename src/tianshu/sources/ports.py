@@ -103,9 +103,11 @@ class SourcePort(Protocol):
         locator: dict,
         source_refs: tuple[SourceRef, ...] = (),
         target: str = "actor",
+        generation: str | None = None,
     ) -> SourceRef: ...
     async def capture(
-        self, context: TrustedContext, *, locator: dict, raw: bytes, mime_type: str
+        self, context: TrustedContext, *, locator: dict, raw: bytes, mime_type: str,
+        generation: str | None = None
     ) -> SourceRef: ...
     async def resolve(self, context: TrustedContext, media: MediaRef) -> tuple[bytes, str]: ...
     def open_media(

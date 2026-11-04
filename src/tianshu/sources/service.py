@@ -36,8 +36,14 @@ class SourceService:
             raise AppError("source_unavailable", status=403)
 
     async def check_many(self, context, refs_groups):
-        async with self.database.transaction(control=True, read_only=True) as conn:
-            return await self.check_many_on(conn, context, refs_groups)
+        from .proofs import normalize_groups
+
+        groups = normalize_groups(refs_groups)
+        refs = tuple(ref for group in groups for ref in group)
+        async with self.database.transaction(control=True) as conn:
+            await self.identity.lock_context_on(conn, context)
+            await self._lock_selected(conn, refs)
+            return await self.check_many_on(conn, context, groups)
 
     async def register_evidence_on(self, connection, context, spec):
         from .evidence import register_on
@@ -89,10 +95,13 @@ class SourceService:
 
     async def validate_persistence(self, conn, context, source_refs):
         """Lock only selected roots/supports until result commit; forgetting locks these first too."""
+        from .proofs import normalize_groups
+
+        source_refs = normalize_groups((source_refs,))[0]
         try:
             await self.identity.lock_context_on(conn, context)
             await self._lock_selected(conn, source_refs)
-            return (await self.check_many_on(conn, context, (tuple(source_refs),)))[0]
+            return (await self.check_many_on(conn, context, (source_refs,)))[0]
         except AppError as exc:
             if exc.status in {401, 403, 409}:
                 return False
@@ -121,27 +130,9 @@ class SourceService:
         )
 
     async def check_many_on(self, conn, context, refs_groups):
-        from psycopg.errors import ProgramLimitExceeded
+        from .proofs import check_many_on
 
-        await self.identity.check_context(context, connection=conn)
-        keys = {(ref.source_id, ref.revision) for group in refs_groups for ref in group}
-        if len(keys) > 2048 or len(refs_groups) > 1024:
-            raise AppError("source_batch_too_large")
-        if any(
-            type(revision) is not int or revision < 1 or not isinstance(key, str)
-            for key, revision in keys
-        ):
-            raise AppError("invalid_source_reference")
-        try:
-            row = await (
-                await conn.execute(
-                    "SELECT sources.check_groups(%s,%s::text[]) AS allowed",
-                    (Jsonb(wire(refs_groups)), list(context.scope_ids)),
-                )
-            ).fetchone()
-        except ProgramLimitExceeded:
-            raise AppError("source_dependency_budget_exceeded", status=503) from None
-        return tuple(row["allowed"])
+        return await check_many_on(self.identity, conn, context, refs_groups)
 
     async def describe_for_write_on(self, conn, context, source_refs):
         """Verified descriptions with source locks held until the caller's write commits."""
@@ -625,7 +616,8 @@ class SourceService:
         async with self.database.transaction() as conn:
             return await publish(conn)
 
-    async def capture(self, context, *, locator, raw, mime_type):
+    async def capture(self, context, *, locator, raw, mime_type, generation=None):
+        generation = await self._freeze_generation(generation)
         await self.check(context)
         base_type = mime_type.partition(";")[0].strip().lower()
         structured = (
@@ -643,7 +635,9 @@ class SourceService:
                 # Non-UTF8 structured originals remain readable as their original byte media.
                 pass
         media = await asyncio.to_thread(self.files.put_bytes, raw, media_type=mime_type)
-        return await self._register_media(context, media, locator, OriginKind.TOOL_RESULT, text)
+        return await self._register_media(
+            context, media, locator, OriginKind.TOOL_RESULT, text, generation=generation,
+        )
 
     async def register_media(
         self, context, media, *, locator, origin_kind=OriginKind.HUMAN, generation=None,
@@ -781,7 +775,9 @@ class SourceService:
             for item in supports
         )
 
-    async def publish_media(self, context, media, *, locator, source_refs=(), target="actor"):
+    async def publish_media(
+        self, context, media, *, locator, source_refs=(), target="actor", generation=None,
+    ):
         """Explicitly copy original bytes to an existing actor or intake scope.
 
         Uploaded/private originals remain private. Their withdrawal still invalidates
@@ -793,14 +789,16 @@ class SourceService:
             raise AppError("actor_required", status=400)
         if "config.publish" not in context.permissions and "*" not in context.permissions:
             raise AppError("forbidden", status=403)
+        generation = await self._freeze_generation(generation)
         return await self._register_media(
             context, media, locator, context.origin_kind, None,
             actor_shared=target == "actor", source_refs=tuple(source_refs), disclosure=True,
+            generation=generation,
         )
 
     async def _register_media(
         self, context, media, locator, origin_kind, content, *,
-        actor_shared=False, source_refs=(), disclosure=False, generation=None,
+        generation, actor_shared=False, source_refs=(), disclosure=False,
     ):
         await self.check(context, source_refs)
         if not self.files.was_written(media):
@@ -812,8 +810,7 @@ class SourceService:
 
         await asyncio.to_thread(verify)
         async with self.database.transaction() as conn:
-            if generation is not None:
-                await self.jobs.assert_generation_on(conn, generation)
+            await self.jobs.assert_generation_on(conn, generation)
             if actor_shared:
                 scope = await self.identity.public_scope(context, connection=conn)
                 intake = (scope,)

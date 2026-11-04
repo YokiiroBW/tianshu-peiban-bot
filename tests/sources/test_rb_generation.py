@@ -40,7 +40,6 @@ async def _record(core, context, event_id, *, connection=None, generation=None):
 
 
 async def _change_generation_during_file_verification(core, monkeypatch, operation_factory):
-    before = await _generation(core)
     entered, release = Event(), Event()
     actual_reader = core.files.open_reader
 
@@ -53,6 +52,11 @@ async def _change_generation_during_file_verification(core, monkeypatch, operati
             yield stream
 
     monkeypatch.setattr(core.files, "open_reader", delayed_reader)
+    await _change_generation_while_pending(core, entered, release, operation_factory)
+
+
+async def _change_generation_while_pending(core, entered, release, operation_factory):
+    before = await _generation(core)
     operation = asyncio.create_task(operation_factory(str(before)))
     try:
         assert await asyncio.to_thread(entered.wait, 5)
@@ -166,6 +170,83 @@ async def test_initial_media_does_not_cross_generation_during_file_verification(
         core, monkeypatch,
         lambda generation: core.sources.register_media(
             alice, media, locator=locator,
+            generation=generation if explicit_generation else None,
+        ),
+    )
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE locator->>'event_id'=%s", (locator["event_id"],)
+        )).fetchone()
+    assert row is None
+
+
+async def test_capture_and_publish_reject_stale_generation(core):
+    context = core.owner
+    current = str(await _generation(core))
+    media = core.files.put_bytes(b"published attachment", media_type="image/png")
+    capture_locator = {"kind": "capture", "event_id": "stale-capture"}
+    publish_locator = {"kind": "publication", "event_id": "stale-publication"}
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await core.sources.capture(
+            context, locator=capture_locator, raw=b"captured", mime_type="text/plain",
+            generation=str(uuid4()),
+        )
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await core.sources.publish_media(
+            context, media, locator=publish_locator, target="current", generation=str(uuid4()),
+        )
+    async with core.database.transaction(read_only=True) as conn:
+        rows = await (await conn.execute(
+            "SELECT source_id FROM sources.versions WHERE locator->>'event_id'=ANY(%s)",
+            ([capture_locator["event_id"], publish_locator["event_id"]],),
+        )).fetchall()
+    assert not rows
+    captured = await core.sources.capture(
+        context, locator=capture_locator, raw=b"captured", mime_type="text/plain", generation=current,
+    )
+    published = await core.sources.publish_media(
+        context, media, locator=publish_locator, target="current", generation=current,
+    )
+    assert await core.sources.check_many(context, ((captured,), (published,))) == (True, True)
+
+
+@pytest.mark.parametrize("explicit_generation", [True, False])
+async def test_capture_freezes_generation_before_storing_file(core, monkeypatch, explicit_generation):
+    context = core.owner
+    entered, release = Event(), Event()
+    actual_put = core.files.put_bytes
+    locator = {"kind": "capture", "event_id": "capture-race"}
+
+    def delayed_put(*args, **kwargs):
+        entered.set()
+        if not release.wait(5):
+            raise RuntimeError("file storage was not released")
+        return actual_put(*args, **kwargs)
+
+    monkeypatch.setattr(core.files, "put_bytes", delayed_put)
+    await _change_generation_while_pending(
+        core, entered, release,
+        lambda generation: core.sources.capture(
+            context, locator=locator, raw=b"captured", mime_type="text/plain",
+            generation=generation if explicit_generation else None,
+        ),
+    )
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE locator->>'event_id'=%s", (locator["event_id"],)
+        )).fetchone()
+    assert row is None
+
+
+@pytest.mark.parametrize("explicit_generation", [True, False])
+async def test_publish_freezes_generation_before_file_verification(core, monkeypatch, explicit_generation):
+    context = core.owner
+    media = core.files.put_bytes(b"published attachment", media_type="image/png")
+    locator = {"kind": "publication", "event_id": "publish-race"}
+    await _change_generation_during_file_verification(
+        core, monkeypatch,
+        lambda generation: core.sources.publish_media(
+            context, media, locator=locator, target="current",
             generation=generation if explicit_generation else None,
         ),
     )
