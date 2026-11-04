@@ -261,10 +261,13 @@ class GrowthRetries:
                         code=None if observed_state == 'succeeded' else observed_code,
                         category=None if observed_state == 'succeeded' else classify_failure(observed_code),
                         probe_token=row['batch'].get('probe_token'))
+                    resolved_batch = current_retry['batch']
+                    if observed_state == 'succeeded':
+                        resolved_batch = {**resolved_batch, 'recovery_succeeded_attempt_id': request.attempt_id}
                     row = await (await connection.execute(
-                        'UPDATE companion.growth_retry_batches SET waiting_on_original=false,revision=revision+1,updated_at=now() '
+                        'UPDATE companion.growth_retry_batches SET batch=%s,waiting_on_original=false,revision=revision+1,updated_at=now() '
                         'WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *',
-                        (actor_id, scope_key, retry_key))).fetchone()
+                        (document(resolved_batch), actor_id, scope_key, retry_key))).fetchone()
             if result is None or result.receipt.status == 'unknown':
                 return await self.postpone(row)
             if result and getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel":

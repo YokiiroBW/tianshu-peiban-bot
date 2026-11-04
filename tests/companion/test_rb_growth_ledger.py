@@ -58,7 +58,7 @@ def proposal(identifier, episode, deps, *, action='create', target=None, content
 @pytest.mark.asyncio
 async def test_independent_support_semantic_revision_history_and_revocation(database):
     ledger, context = await setup_ledger(database)
-    at = datetime(2026, 11, 5, 3, tzinfo=UTC)
+    at = datetime.now(UTC) - timedelta(minutes=5)
     source1, source2 = SourceRef('source-1', 1), SourceRef('source-2', 1)
     first = FrozenEpisode('e1', 1, at, (source1,), 1, 'e:1', 'event-1', 'human', 'person')
     first_proposal = proposal('rule-1', first, (source1,))

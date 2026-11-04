@@ -13,6 +13,7 @@ from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.memory.types import Episode, EpisodePage
 from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.commands import CommandStore
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.types import Coverage, OriginKind, SourceRef, TrustedContext
 

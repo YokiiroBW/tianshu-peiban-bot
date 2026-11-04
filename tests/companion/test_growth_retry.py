@@ -10,9 +10,13 @@ import pytest
 from tianshu.companion.growth import GrowthService
 from tianshu.companion.reflection_output import episode_references, frozen_episodes
 from tianshu.conversation.codec import signature
+from tianshu.memory.types import EpisodePage
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryPolicy
+from tianshu.types import Coverage, SourceRef
 from test_growth_output import model_payload, note, prepare, state
+from test_rb_growth_async import GENERATION, setup_growth
 
 
 class ScriptedModels:
@@ -63,41 +67,124 @@ async def tail(growth, memory, context, *, identifier="later", sequence=2):
     return episode
 
 
+async def current_retry_setup(database):
+    growth, context, memory, models, _policy, scope = await setup_growth(database)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton=true", (GENERATION,))
+    growth.set_observability(statistics=None, recovery_policy=RecoveryPolicy())
+    memory.episode = replace(memory.episode, occurred_at=datetime.now(UTC)-timedelta(minutes=2))
+    memory.episodes = (memory.episode,)
+
+    async def episodes_by_refs(_context, refs, *, connection=None):
+        found = tuple(item for identifier, version in refs for item in memory.episodes
+                      if (item.episode_id, item.revision) == (identifier, version))
+        return EpisodePage(found, None, Coverage(len(found) == len(refs)), found[-1].cursor if found else 'e:0')
+
+    memory.episodes_by_refs = episodes_by_refs
+    return growth, context, memory, models, scope
+
+
+def observed_result(request, status, *, error_code=None, notes=()):
+    aliases = {identifier: alias for alias, identifier in episode_references(request, frozen_episodes(request)).items()}
+    payload = {'notes': [{**value, 'episode_ids': [aliases[identifier] for identifier in value['episode_ids']]}
+                         for value in notes]}
+    parts = (ModelPart('text', text=json.dumps(payload, ensure_ascii=False)),) if status == 'succeeded' else ()
+    receipt = ModelReceipt(request.attempt_id, request.intent_id, status,
+        'unknown' if status == 'unknown' else 'submitted', 'route', 1, 'provider', 'model', 'openai.chat', 'quota',
+        error_code=error_code)
+    return ModelResult(parts, receipt, completion=ModelCompletion('complete', ('stop',)) if parts else ModelCompletion())
+
+
 @pytest.mark.asyncio
 async def test_unknown_yields_exact_versions_tail_advances_and_retry_cannot_regress_cursor(database):
-    models = ScriptedModels({"status": "unknown", "error_code": "transport_unknown", "rpc_error": "ServerDisconnectedError"},
-        {}, {"kinds": ("reflection",)})
-    growth, memory, jobs, context, _ = await prepare(database, models)
-    scope = signature(sorted(context.scope_ids))
-    failure = await growth.organize("actor", scope, 1)
-    original = models.calls[0]
+    growth, context, memory, models, scope = await current_retry_setup(database)
+    await growth.organize('actor', scope, 1, GENERATION)
+    original = models.submitted[0][0]
+    models.results[original.attempt_id] = observed_result(original, 'unknown', error_code='transport_unknown')
+    before_failure = datetime.now(UTC)
+    failure = await growth.organize('actor', scope, 1, GENERATION)
+    after_failure = datetime.now(UTC)
     original_result = models.results[original.attempt_id]
     async with database.transaction(read_only=True) as connection:
         frozen_before = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
     assert failure["state"] == "retry_waiting" and (await state(database))["active_batch"] is None
     row = await retry_row(database)
-    assert row["attempt_number"] == 1 and 25 < (row["due_at"]-datetime.now(UTC)).total_seconds() <= 30
-    assert any(job.task == "companion.growth.retry" for job in jobs.items)
-    await tail(growth, memory, context)
-    await growth.organize("actor", scope, (await state(database))["revision"])
-    assert set(frozen_episodes(models.calls[1])) == {"later"}
+    assert row['attempt_number'] == 1
+    assert before_failure + timedelta(seconds=24) <= row['due_at'] <= after_failure + timedelta(seconds=36)
+    assert row['waiting_on_original']
+    later = replace(memory.episode, episode_id='later', event_id='later', sequence=2, cursor='e:2',
+        occurred_at=memory.episode.occurred_at+timedelta(minutes=1), source_refs=(SourceRef('later', 1),))
+    memory.episodes += (later,)
+    await growth.changed(context, 'event:2', episode=later, generation=GENERATION)
+    await growth.organize('actor', scope, (await state(database))['revision'], GENERATION)
+    later_request = models.submitted[1][0]
+    assert set(frozen_episodes(later_request)) == {'later'}
+    models.results[later_request.attempt_id] = observed_result(later_request, 'succeeded')
+    await growth.organize('actor', scope, (await state(database))['revision'], GENERATION)
     assert (await state(database))["cursor"] == "e:2"
     await due(database)
-    await growth.retries.run("actor", scope, row["retry_key"])
-    assert len(models.calls) == 3 and set(frozen_episodes(models.calls[2])) == {"episode"}
-    assert models.calls[2].attempt_id != original.attempt_id
-    assert models.calls[2].intent_id.startswith(original.intent_id + ":retry:")
-    assert models.calls[2].execution_timeout_seconds == 180 and models.calls[2].business_deadline_at is None
-    assert (await state(database))["cursor"] == "e:2"
-    assert (await retry_row(database))["state"] == "completed"
+    waiting = await growth.retries.run('actor', scope, row['retry_key'], GENERATION)
+    assert waiting['state'] == 'waiting_original' and len(models.submitted) == 2
     assert models.results[original.attempt_id] is original_result
+    assert (await retry_row(database))['waiting_on_original']
+
+    models.results[original.attempt_id] = observed_result(original, 'succeeded', notes=(note('reflection'),))
+    await due(database)
+    recovered = await growth.retries.run('actor', scope, row['retry_key'], GENERATION)
+    assert recovered['state'] == 'reviewed', recovered
+    assert len(models.submitted) == 2
+    assert (await state(database))["cursor"] == "e:2"
+    assert (await retry_row(database))['outcome'] == 'historical_only'
     async with database.transaction(read_only=True) as connection:
         frozen_after = await (await connection.execute(
             "SELECT request FROM conversation.generation_requests WHERE attempt_id=%s", (original.attempt_id,))).fetchone()
         versions = await (await connection.execute("SELECT reviewed_revision,retry_key FROM companion.growth_inputs")).fetchall()
+        attempts = await (await connection.execute(
+            "SELECT status FROM runtime.recovery_attempts WHERE attempt_id=%s", (original.attempt_id,))).fetchall()
+        observations = await (await connection.execute(
+            'SELECT status,error_code,observation_ref FROM runtime.recovery_attempt_observations '
+            'WHERE attempt_id=%s ORDER BY id', (original.attempt_id,))).fetchall()
+        reflections = await (await connection.execute(
+            "SELECT attempt_id,episode_ids,source_refs FROM companion.learning_reflections")).fetchall()
     assert frozen_after == frozen_before and all(item["reviewed_revision"] == 1 and item["retry_key"] is None for item in versions)
-    assert len(memory.proposals) == 1
+    assert attempts == [{'status': 'succeeded'}]
+    assert observations == [
+        {'status': 'unknown', 'error_code': 'transport_unknown', 'observation_ref': None},
+        {'status': 'succeeded', 'error_code': None, 'observation_ref': 'models:'+original.attempt_id},
+    ]
+    assert len(reflections) == 1 and reflections[0]['attempt_id'] == original.attempt_id
+    assert reflections[0]['episode_ids'] == ['episode'] and len(reflections[0]['source_refs']) == 1
+
+
+@pytest.mark.asyncio
+async def test_resolved_unknown_with_invalid_output_uses_budgeted_correction(database):
+    growth, _context, _memory, models, scope = await current_retry_setup(database)
+    await growth.organize('actor', scope, 1, GENERATION)
+    original = models.submitted[0][0]
+    models.results[original.attempt_id] = observed_result(original, 'unknown', error_code='transport_unknown')
+    failure = await growth.organize('actor', scope, 1, GENERATION)
+    completed = observed_result(original, 'succeeded')
+    models.results[original.attempt_id] = replace(completed, parts=(ModelPart('text', text='{'),))
+    await due(database)
+    rejected = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+    assert rejected['state'] == 'rejected' and len(models.submitted) == 1
+
+    await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+    successor = models.submitted[1][0]
+    models.results[successor.attempt_id] = observed_result(successor, 'succeeded', notes=(note('reflection'),))
+    assert (await growth.organize('actor', scope, 1, GENERATION))['state'] == 'reviewed'
+    async with database.transaction(read_only=True) as connection:
+        attempts = await (await connection.execute(
+            'SELECT attempt_id,status FROM runtime.recovery_attempts ORDER BY attempt_number')).fetchall()
+        lineage = await (await connection.execute('SELECT attempts,max_attempts FROM runtime.recovery_lineages')).fetchone()
+        reflections = await (await connection.execute('SELECT attempt_id FROM companion.learning_reflections')).fetchall()
+    assert attempts == [
+        {'attempt_id': original.attempt_id, 'status': 'succeeded'},
+        {'attempt_id': successor.attempt_id, 'status': 'succeeded'},
+    ]
+    assert lineage == {'attempts': 2, 'max_attempts': 4}
+    assert reflections == [{'attempt_id': successor.attempt_id}]
 
 
 @pytest.mark.asyncio
@@ -223,38 +310,64 @@ async def test_older_retry_preserves_newer_projection_and_records_partial_covera
 
 @pytest.mark.asyncio
 async def test_late_original_response_cannot_apply_after_successor_was_selected(database):
+    growth, _context, _memory, models, scope = await current_retry_setup(database)
+    await growth.organize('actor', scope, 1, GENERATION)
+    original = models.submitted[0][0]
     started, release = asyncio.Event(), asyncio.Event()
-    models = ScriptedModels({"status": "unknown", "error_code": "transport_unknown"}, {"kinds": ("style",)})
-    generate = models.generate
+    read, held = growth.generations.read, False
 
-    async def late(request):
-        result = await generate(request)
-        if len(models.calls) == 1:
+    async def delayed_read(attempt_id, *args, **kwargs):
+        nonlocal held
+        result = await read(attempt_id, *args, **kwargs)
+        if attempt_id == original.attempt_id and not held:
+            held = True
             started.set()
             await release.wait()
-            return replace(result, parts=(ModelPart("text", text=json.dumps(model_payload({"notes": [note("style")]}, request))),),
-                receipt=replace(result.receipt, status="succeeded"), completion=ModelCompletion("complete", ("stop",)))
         return result
 
-    models.generate = late
-    growth, memory, _jobs, context, notifications = await prepare(database, models)
-    scope = signature(sorted(context.scope_ids))
-    original_task = asyncio.create_task(growth.organize("actor", scope, 1))
+    growth.generations.read = delayed_read
+    models.results[original.attempt_id] = observed_result(original, 'succeeded', notes=(note('style'),))
+    original_task = asyncio.create_task(growth.organize('actor', scope, 1, GENERATION))
     try:
         await asyncio.wait_for(started.wait(), timeout=10)
-        await growth.organize("actor", scope, 1)  # Observe the original unknown, yielding its pointer.
-        row = await retry_row(database)
+        models.results[original.attempt_id] = observed_result(original, 'unknown', error_code='transport_unknown')
+        failure = await growth.organize('actor', scope, 1, GENERATION)
+        assert failure['state'] == 'retry_waiting'
+
+        # Only a definitive failed receipt permits a second physical attempt.
+        models.results[original.attempt_id] = observed_result(original, 'failed', error_code='upstream_http_503')
         await due(database)
-        await growth.retries.run("actor", scope, row["retry_key"])
-        assert len(memory.proposals) == len(notifications) == 1
+        await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+        assert len(models.submitted) == 1
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE companion.growth_retry_batches SET due_at=now()-interval '1 second'")
+            await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second'")
+            await connection.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=NULL")
+        await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+        successor = models.submitted[1][0]
+        assert successor.attempt_id != original.attempt_id
+
         release.set()
         outcome = await original_task
-        assert outcome["state"] == "superseded_attempt"
-        assert len(memory.proposals) == len(notifications) == 1
+        assert outcome['state'] == 'superseded_attempt' and len(models.submitted) == 2
         async with database.transaction(read_only=True) as connection:
-            count = await (await connection.execute("SELECT count(*) AS n FROM companion.style_rules")).fetchone()
-        assert count["n"] == 1 and (await retry_row(database))["state"] == "completed"
-        assert models.results[models.calls[0].attempt_id].receipt.status == "unknown"
+            count = await (await connection.execute('SELECT count(*) AS n FROM companion.style_rules')).fetchone()
+            attempts = await (await connection.execute(
+                'SELECT attempt_id,status FROM runtime.recovery_attempts ORDER BY attempt_number')).fetchall()
+            lineage = await (await connection.execute(
+                'SELECT attempts,max_attempts FROM runtime.recovery_lineages')).fetchone()
+        assert count['n'] == 0 and attempts == [
+            {'attempt_id': original.attempt_id, 'status': 'failed'},
+            {'attempt_id': successor.attempt_id, 'status': 'reserved'},
+        ]
+        assert lineage == {'attempts': 2, 'max_attempts': 4}
+
+        models.results[successor.attempt_id] = observed_result(successor, 'succeeded', notes=(note('style'),))
+        assert (await growth.organize('actor', scope, 1, GENERATION))['state'] == 'reviewed'
+        async with database.transaction(read_only=True) as connection:
+            rules = await (await connection.execute('SELECT source_refs FROM companion.style_rules')).fetchall()
+        assert len(rules) == 1 and len(rules[0]['source_refs']) == 1
+        assert (await retry_row(database))['state'] == 'completed'
     finally:
         release.set()
         await original_task

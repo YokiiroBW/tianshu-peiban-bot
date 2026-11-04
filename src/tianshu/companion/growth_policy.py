@@ -44,4 +44,8 @@ async def fail(policy, connection, batch, attempt_id, code, *, unknown=False):
 async def succeed(policy, connection, batch, attempt_id):
     if policy is None or not batch.get('lineage_id'):
         raise AppError('growth_recovery_lineage_missing', status=503)
+    # resolve_unknown_on already recorded this exact physical attempt as
+    # succeeded when Models supplied the definitive original receipt.
+    if batch.get('recovery_succeeded_attempt_id') == attempt_id:
+        return
     return await policy.succeed_attempt_on(connection, attempt_id, probe_token=batch.get('probe_token'))
