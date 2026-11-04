@@ -3,6 +3,7 @@
 - 基线：`e2529c95a92857f368111d9ae5b23ee66800b636`。
 - 实现提交：`38e4ac346ad08e058649aa77c6f197d240599fd1`；本交接随其后的独立文档提交交付，集成时取本分支 HEAD。
 - 配额 profile 增量实现：`76c56aae0c3a799898b0631590d617a57fb6544a`；该提交之后仍需包含本交接更新。
+- 代际与行为引用增量实现：`d3c2ff50cd280a6c643f33048c9f35aa0cde5f71`；本交接随其后的独立文档提交交付，集成时取本分支 HEAD。
 - 范围：`src/tianshu/models/`、`tests/models/test_rb_*.py` 和本交接；没有修改共享 Runtime 装配、公共类型、迁移注册、配置根或其他领域。
 
 ## 实现
@@ -26,11 +27,16 @@
 - Models 进程需独立注册 JobQueue 的 producer-only 路由并 `await jobs.open()`，将 `jobs=jobs` 注入 `ModelBroker`，停止时关闭；producer 需覆盖各域 completion task 和可信 lane。未注入 jobs 时 outbox 保留 pending，不能认为通知已送达。
 - `ModelBroker(..., statistics=services.statistics, upstream_connections=<正整数>, diagnostic_connections=<正整数>)`；默认真实上游连接池 64 + 诊断池 4，须纳入部署资源总预算。`ModelClient` 的 `max_connections`、`due_connections`、`background_connections`、`control_connections` 可按角色切片。统计补投可调用 `await broker.ledger.backfill_statistics(batch_size=200)`，生产者名 `models`。
 - OpenCode 会话哈希只读 `runtime.installation_generation` 单例 `id`；Runtime 迁移必须先创建并初始化单例。缺失返回 `installation_generation_missing`，不从旧配置导入代际。
+- `ModelRequest` 新增可信、可序列化字段 `data_generation: str | None`、`behavior_refs: tuple[Mapping[str, Any], ...] = ()`、`behavior_purpose: str | None = None`。任务或派生 Action 必须传自身原冻结 UUID；普通同步/native 请求无显式值时使用 Broker 启动时冻结的代际。`completion: JobSpec` 必须带原 `data_generation`；接受事务同时核对 request 显式值、completion、Broker 冻结值和当前 Runtime 单例，缺失/非法不以当前值代填。引用和显式代际参与请求身份，字段为空的旧请求身份保持稳定。
+- `ModelBroker(..., validate_behaviors=callback)` 由协调者在 Models 进程注入轻量 Growth 包装：`await callback(context, refs, purpose=purpose)`，仅 `True` 表示通过，冲突或暂不可读抛相应 `AppError`。refs 非空必须同时有 purpose、绑定校验器；请求经配额与来源/路由检查后及实际 provider 调用前再次复核，未发出的失败记录为 `dispatch=not_started`。空 refs 不要求绑定。各领域仍须从被选中的材料传递完整可信引用；此接口本身不能推断调用方遗漏的引用。
+- `ModelReceipt` 新增 `data_generation`、`completion_state`（`none`/`pending`/`enqueued`/`expired`）、`completion_error_code`。完成通知跨代际时保留原 attempt 及其状态，通知以 `expired/data_generation_expired` 终态退出 outbox；旧代际、未发送队列在恢复时取消，已提交不确定请求仍为 `unknown`。外部资源 permit 也在接收、准入及标记 submitted 时复核代际，但其所有者仍负责自身物理调用边界。
 - 各领域持有材料、claim 和恢复预算，按 Runtime RecoveryPolicy 预留/结算独立 attempt；Models 不自行构造领域 lineage 或自动重复物理请求。这项分工已由协调者确认。
 
 ## DDL 与清空
 
 由协调者将 `src/tianshu/models/async_execution.sql` 注册到 Models 既有 `0002`、`0004`、`0005`、`0006` 之后，并在 Sources 忘却调用 Models 清理入口之前完成迁移。SQL 新增 submissions、stream_events、quota/route cooldown、configuration_reloads，以及 attempts timing/diagnostic/wire/route/provider revision/input estimate 字段；绑定新增 fallback_routes，quota group 新增可选 cloud_concurrency。
+
+协调者还须在 `async_execution.sql` 之后注册 `src/tianshu/models/generation_fence.sql`，并确保 Runtime 的 `installation_generation` 单例及 `JobSpec.data_generation` 已装配。此迁移只从旧 completion 中已冻结的合法 UUID 回填 attempt 代际，不猜测未知历史代际；不能证明代际的旧排队/通知会进入上述终态。`*.sql` 已由现有 Models package-data 包含。
 
 配置导出/种子需保留绑定的 `fallback_routes` 和作者显式设置的 `cloud_concurrency`。attempt、submission、stream event、cooldown 和 configuration reload 均是本轮应归零的天枢业务数据；统一 `runtime.installation_generation` 必须在新库重新生成，不作为配置回灌。
 
@@ -39,4 +45,5 @@
 - 本窗口**未运行测试、构建或烟测**；只做静态 diff 审阅和 `git diff --cached --check`。新增用例覆盖请求/通知身份、重启、补投、晚用量、回执回放、无正文诊断、连接阶段及路由约束，需由协调者集中运行。
 - 集成前旧测试中有需要按新合同调整的假设：`test_retry.py` 断言固定无抖动秒数；`test_execution_timing.py` 中云 ModelRequest 仍假设保留前台空闲位；`test_cancellation_reasons.py` 的部分客户端断连断言仍假设调用自动取消；`test_native_settlement.py`、`test_output_budget.py` 等直接 mock 旧私有 `_events`/ledger，需适配实际持久接口。上述为静态识别，未运行，不能称为已验证失败或通过。
 - 最终集成仍需核实 Runtime 的 `JobSpec` 新字段、producer-only route、代际、StatisticsProjection 的实际接口与迁移顺序，以及各领域 completion/RecoveryPolicy/CAS 接线；统计业务应用由领域事实证明。真实云服务、真实 QQ、部署、清库及生产均未操作。
+- 本增量新增代际拒绝、切换后 outbox 终态、行为引用跨 RPC 及准入后真实发送前失效的回归用例，仅做静态审阅和 `git diff --cached --check`，尚未执行；需 Runtime 新 `JobSpec` 和协调者集中验证。数据库检查与外部 provider 网络调用不构成分布式原子事务，已发出的调用仍只能依原回执/unknown 处理。
 - Retrieval 原有 `Embeddings.profile()` 对整个 profile 做 hash；新增 quota_group 会改变该哈希。仅额度域变化不代表向量空间变化，已提醒协调者由 Retrieval 根据向量空间/语义字段维护 profile 身份。增量用例 `test_rb_profile_quota.py` 未运行。
