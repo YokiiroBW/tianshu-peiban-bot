@@ -12,12 +12,6 @@ from tianshu.types import OriginKind
 UNRESOLVED = frozenset({"collecting", "generating", "unknown", "cancelling"})
 
 
-def author_scene_key(context):
-    """Identify the authoring scene; access scopes and epochs are not identity."""
-    return signature({key: getattr(context, key) for key in (
-        "principal_id", "actor_id", "person_id", "conversation_id", "conversation_kind")})
-
-
 def diary_experience(episode):
     actual = episode.actual_result or {}
     return (episode.origin_kind in {OriginKind.HUMAN, OriginKind.OBSERVATION, OriginKind.TOOL_RESULT, OriginKind.ACTOR}
@@ -77,7 +71,7 @@ class DiaryAutomation:
             "SELECT timezone FROM life.routines WHERE actor_id=%s", (context.actor_id,))).fetchone()
         if state is None:
             state = await self.life._state(context, connection)
-        scope = author_scene_key(context)
+        scope = self.life.identity.scene_id(context)
         row = await (await connection.execute(
             "INSERT INTO life.diary_days(actor_id,scope_key,day,timezone,context,scope_ids) VALUES(%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT(actor_id,scope_key,day) DO UPDATE SET "
@@ -174,14 +168,12 @@ class DiaryAutomation:
 
     async def matching_day(self, connection, context, day, *, scope_ids=(), timezone=None):
         """Resolve an existing author's day without widening its original scene."""
-        scope_key = author_scene_key(context)
-        scene = {key:getattr(context,key) for key in (
-            "principal_id","actor_id","person_id","conversation_id","conversation_kind")}
+        scope_key = self.life.identity.scene_id(context)
         rows = await (await connection.execute(
             "SELECT * FROM life.diary_days WHERE actor_id=%s AND day=%s AND scope_ids<@%s::text[] "
-            "AND scope_ids @> %s::text[] AND context @> %s::jsonb AND context->'audience'<@%s::jsonb "
+            "AND scope_ids @> %s::text[] AND context->'audience'<@%s::jsonb "
             "AND (%s::text IS NULL OR timezone=%s) AND scope_key=%s LIMIT 2 FOR UPDATE",
-            (context.actor_id,day,list(context.scope_ids),list(scope_ids),document(scene),document(context.audience),
+            (context.actor_id,day,list(context.scope_ids),list(scope_ids),document(context.audience),
              timezone,timezone,scope_key))).fetchall()
         if not rows:
             return None
@@ -189,7 +181,8 @@ class DiaryAutomation:
             raise AppError("diary_day_scope_ambiguous",status=409)
         row = rows[0]
         original = context_from_record(row["context"])
-        if set(original.scope_ids) != set(row["scope_ids"]) or author_scene_key(original) != row["scope_key"]:
+        if (set(original.scope_ids) != set(row["scope_ids"])
+                or self.life.identity.scene_id(original) != row["scope_key"]):
             return None
         reader = await self.diaries._reader(original)
         await self.life.validate_persistence(connection,reader)

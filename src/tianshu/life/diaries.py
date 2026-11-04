@@ -18,7 +18,7 @@ from . import publications
 from tianshu.conversation.types import InputPart
 from tianshu.conversation.generation import GenerationRequests
 from .model_budget import generation_request
-from .diary_automation import DiaryAutomation, automatic_view, author_scene_key, diary_experience
+from .diary_automation import DiaryAutomation, automatic_view, diary_experience
 from .diary_materials import assemble_diary_material, episode_versions, frozen_recipe
 from .computation_retry import freeze_recipe
 from .diary_retry import DiaryRetry
@@ -143,7 +143,7 @@ class DiaryService:
                   "watermark":None,"scan_hash":"","scanned":0,"episodes":[],"material_revisions":[],
                   "coverage":{"complete":False,"missing":["collection_pending"]}, "automatic":automatic}
         async def apply(connection):
-            scene_key = author_scene_key(context)
+            scene_key = self.life.identity.scene_id(context)
             diary_id = str(uuid5(NAMESPACE_URL,f"diary:{context.actor_id}:{day}:{scene_key}"))
             await self.life.validate_persistence(connection,context)
             await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", ("diary:"+diary_id,))

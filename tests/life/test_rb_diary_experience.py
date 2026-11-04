@@ -6,7 +6,8 @@ from importlib.resources import files
 
 import pytest
 
-from tianshu.life.diary_automation import author_scene_key, diary_experience
+from tianshu.identity.service import IdentityService
+from tianshu.life.diary_automation import diary_experience
 from tianshu.life.diary_materials import episode_observation, episode_versions
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.migrations import Migration, migrate
@@ -57,6 +58,9 @@ class Broker:
 
 async def rb_fixture(database):
     value = await fixture(database)
+    # Use the real shared scene contract while keeping this fixture's isolated
+    # authority for source and epoch checks.
+    value.identity.scene_id = IdentityService.scene_id
     async with database.transaction(read_only=True) as connection:
         column = await (await connection.execute(
             "SELECT 1 FROM information_schema.columns WHERE table_schema='life' "
@@ -72,7 +76,7 @@ async def rb_fixture(database):
 
 
 async def begin(value, database, day="2026-11-02"):
-    key = author_scene_key(value.context)
+    key = value.identity.scene_id(value.context)
     await value.diaries.day_closed(value.context, day)
     await value.diaries.review_day(value.context.actor_id, key, day, 1)
     return await collect_current(database, value)
@@ -97,11 +101,11 @@ async def test_scope_change_preserves_one_day_and_reconciles_original_body(datab
 
     wider = replace(value.context, scope_ids=("actor-scope", "new-scope"),
         audience=("actor-scope", "new-scope"))
-    assert author_scene_key(wider) == author_scene_key(value.context)
+    assert value.identity.scene_id(wider) == value.identity.scene_id(value.context)
     await value.diaries.day_closed(wider, "2026-11-02")
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.diary_days SET last_error='old_error',blocked_revision=revision")
-    outcome = await value.diaries.review_day("actor", author_scene_key(wider), "2026-11-02", 2)
+    outcome = await value.diaries.review_day("actor", value.identity.scene_id(wider), "2026-11-02", 2)
     assert outcome["state"] == "reviewed"
     async with database.transaction(read_only=True) as connection:
         days = await (await connection.execute("SELECT * FROM life.diary_days")).fetchall()
@@ -131,13 +135,40 @@ async def test_manual_same_material_retains_the_original_attempt_and_saved_body(
 
 
 @pytest.mark.asyncio
+async def test_group_member_change_reuses_the_saved_day_and_automatic_binding(database):
+    value = await rb_fixture(database)
+    first_context = replace(value.context, person_id="member-a",
+        conversation_id="group-1", conversation_kind="group")
+    second_context = replace(first_context, person_id="member-b")
+    value.context = first_context
+    assert value.identity.scene_id(first_context) == value.identity.scene_id(second_context)
+    diary = await begin(value, database)
+    await value.diaries.generate(diary["id"], diary["generation_id"])
+    value.models.complete(diary["generation_id"])
+    await value.diaries.generate(diary["id"], diary["generation_id"])
+    saved = await diary_state(database)
+
+    command = await value.diaries.request(second_context, {"client_request_id":"other-group-member",
+        "day":"2026-11-02", "expected_revision":saved["revision"]})
+    assert command.data["id"] == saved["id"]
+    await collect_current(database, value)
+    await value.diaries.day_closed(second_context, "2026-11-02")
+    async with database.transaction(read_only=True) as connection:
+        diaries = await (await connection.execute("SELECT * FROM life.diaries")).fetchall()
+        days = await (await connection.execute("SELECT * FROM life.diary_days")).fetchall()
+    assert len(diaries) == len(days) == 1
+    assert diaries[0]["id"] == saved["id"] and diaries[0]["current_revision"] == 1
+    assert days[0]["generation_id"] is None and len(value.models.requests) == 1
+
+
+@pytest.mark.asyncio
 async def test_same_actor_day_different_scenes_do_not_choose_or_overwrite_each_other(database):
     value = await rb_fixture(database)
     first = await begin(value, database)
     other = replace(value.context, conversation_id="other-scene", conversation_kind="group")
-    assert author_scene_key(other) != author_scene_key(value.context)
+    assert value.identity.scene_id(other) != value.identity.scene_id(value.context)
     await value.diaries.day_closed(other, "2026-11-02")
-    await value.diaries.review_day("actor", author_scene_key(other), "2026-11-02", 1)
+    await value.diaries.review_day("actor", value.identity.scene_id(other), "2026-11-02", 1)
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute("SELECT * FROM life.diaries ORDER BY scene_key")).fetchall()
     assert len(rows) == 2 and len({row["id"] for row in rows}) == 2
