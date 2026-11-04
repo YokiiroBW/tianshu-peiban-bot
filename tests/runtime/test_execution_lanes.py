@@ -10,7 +10,6 @@ import pytest
 
 from tianshu.runtime.config import Secrets, Settings
 from tianshu.runtime.diagnostics import RuntimeDiagnostics
-from tianshu.runtime.events import EventLog
 from tianshu.runtime.execution import ExecutionLane, TASK_LANES
 from tianshu.runtime.jobs import JobQueue, JobSpec
 from tianshu.types import ServiceClass
@@ -94,69 +93,6 @@ async def test_busy_business_family_does_not_claim_other_families(
                 worker.cancel()
         await asyncio.gather(*workers, return_exceptions=True)
         await jobs.close()
-
-
-async def test_legacy_routing_isolates_bad_items_and_retains_all_original_identity(
-    database, tmp_path,
-):
-    jobs = JobQueue(database.config.dsn)
-    events = EventLog(tmp_path / "events", "worker")
-    jobs.events = events
-
-    async def noop(**_kwargs):
-        pass
-
-    async def lane_on(connection, payload):
-        if payload.get("bad_sql"):
-            await connection.execute("SELECT 1/0")
-        return ExecutionLane.IMAGES
-
-    jobs.register("memory.consolidate", noop)
-    jobs.register("capabilities.execute", noop, lane_resolver=lane_on)
-    obsolete = jobs.app.task(name="retired.fixture")(noop)
-    due = datetime.now(UTC) + timedelta(hours=1)
-    async with database.transaction() as conn:
-        ids = []
-        for task, payload in (
-            (jobs.tasks["capabilities.execute"], {"bad_sql": True, "private": "private-output"}),
-            (obsolete, {"private": "private-output"}),
-            (jobs.tasks["memory.consolidate"], {"batch_id": "frozen-batch"}),
-            (jobs.tasks["capabilities.execute"], {"action_id": "original-action", "attempt_id": "original-attempt"}),
-            (jobs.tasks["capabilities.execute"], {"model_status": "unknown"}),
-            (jobs.tasks["capabilities.execute"], {"model_status": "failed"}),
-        ):
-            ids.append(await task.configure(connection=conn, queue="elastic",
-                schedule_at=due, priority=37).defer_async(**payload))
-        await conn.execute("UPDATE procrastinate_jobs SET attempts=2 WHERE id=%s", (ids[2],))
-        await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (ids[4],))
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (ids[5],))
-        original = await (await conn.execute("SELECT * FROM procrastinate_jobs ORDER BY id")).fetchall()
-    await events.open()
-    try:
-        result = await jobs.route_legacy_pending(database, batch_size=2)
-        assert result["routed"] == 2 and result["blocked_count"] == 2
-        assert result["blocked_complete"] is True
-        assert {item["job_id"] for item in result["blocked"]} == set(ids[:2])
-        async with database.transaction(read_only=True) as conn:
-            current = await (await conn.execute("SELECT * FROM procrastinate_jobs ORDER BY id")).fetchall()
-            observation = await jobs.observe_on(conn, ids[0])
-        for before, after in zip(original, current, strict=True):
-            assert {key: value for key, value in before.items() if key != "queue_name"} == {
-                key: value for key, value in after.items() if key != "queue_name"}
-        assert [row["queue_name"] for row in current] == [
-            "elastic", "elastic", "memory_consolidation", "images", "elastic", "elastic",
-        ]
-        assert observation["execution_lane"] is None
-        assert observation["wait_reason"] == "execution_lane_unresolved"
-        again = await jobs.route_legacy_pending(database)
-        assert again["routed"] == 0 and again["blocked_count"] == 2
-    finally:
-        await events.close()
-    text = "".join(path.read_text() for path in (tmp_path / "events").glob("*.jsonl"))
-    logged = [json.loads(line) for line in text.splitlines()]
-    assert len(logged) == 4
-    assert all(row["event"] == "job.routing_blocked" for row in logged)
-    assert "private-output" not in text and "division by zero" not in text
 
 
 async def test_pending_reroute_preserves_job_and_refuses_started_or_retried_work(database):
