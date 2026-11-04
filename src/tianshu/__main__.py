@@ -1,4 +1,4 @@
-"""Single installed product entrypoint; production supervision owns the three roles."""
+"""Single product entrypoint with independently supervised runtime roles."""
 
 import argparse
 import asyncio
@@ -6,12 +6,13 @@ import asyncio
 from .runtime.config import Settings
 from .runtime.process import run
 from .runtime.logging import configure
+from .runtime.execution import PROCESS_ROLES
 
 
 def main(argv=None):
     parser = argparse.ArgumentParser(prog="tianshu")
     parser.add_argument(
-        "role", choices=("serve", "interactive", "model-broker", "worker", "migrate")
+        "role", choices=("serve", *PROCESS_ROLES, "migrate")
     )
     parser.add_argument("--config", required=True)
     args = parser.parse_args(argv)

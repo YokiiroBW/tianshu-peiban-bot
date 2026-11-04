@@ -23,6 +23,7 @@ class ContextContribution:
     material_id: str | None = None
     semantic_role: str | None = None
     behavior_ref: Mapping[str, object] | None = None
+    behavior_refs: tuple[Mapping[str, object], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -9,11 +9,11 @@ import re
 
 from jsonschema import Draft202012Validator
 
-from .database import DatabaseConfig
+from .database import DatabaseConfig, resource_budget
 from .errors import AppError
-from .execution import lane_concurrency
+from .execution import PROCESS_ROLES, lane_concurrency
 
-ROLES = ("interactive", "model-broker", "worker")
+ROLES = PROCESS_ROLES
 
 
 class Secrets:
@@ -65,21 +65,13 @@ class Settings:
         return cls(document, Secrets(), path.parent)
 
     def database(self, role):
+        if role not in ROLES:
+            raise ValueError("invalid_process_role")
         value = self.document["database"]
         budgets = value.get("roles", {})
         role_budget = budgets.get(role, {})
-        total = sum(
-            item.get("max_connections", 4)
-            + item.get("control_connections", 2)
-            + item.get("sync_connections", 2)
-            for item in (budgets.get(name, {}) for name in ROLES)
-        )
-        # Each lane has one native Procrastinate worker/LISTEN connection,
-        # independent of its execution concurrency. All workers share one queue
-        # SQL pool; the broker's advisory owner uses one separate connection.
-        total += self.document.get("worker", {}).get("queue_connections", 8)
-        total += len(self.worker_lanes) + 1
-        if total > value.get("connection_budget", 72):
+        budget = resource_budget(self.document, self.enabled_roles)
+        if budget["postgres_connections"] > budget["postgres_limit"]:
             raise ValueError("database_connection_budget_exceeded")
         return DatabaseConfig(
             self.secrets.resolve(value.get("dsn_ref", "TIANSHU_DATABASE_URL")),
@@ -94,8 +86,16 @@ class Settings:
         return lane_concurrency(self.document.get("worker", {}))
 
     @property
+    def enabled_roles(self):
+        return tuple(self.document.get("supervisor", {}).get("roles", ROLES))
+
+    @property
     def model_transport(self):
+        return self.model_transport_for("interactive")
+
+    def model_transport_for(self, role):
         configured = self.document.get("broker", {}).get("transport", {})
+        configured = {**configured, **configured.get("roles", {}).get(role, {})}
         return {
             "max_connections": configured.get("foreground_connections", 8),
             "due_connections": configured.get("due_connections", 4),
