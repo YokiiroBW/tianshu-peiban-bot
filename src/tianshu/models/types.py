@@ -65,6 +65,7 @@ class ModelRequest:
     execution_timeout_seconds: float | None = None
     business_deadline_at: datetime | None = None
     provider_session_scope: Literal["conversation", "intent"] = "intent"
+    allow_configured_fallback: bool = False
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,6 +102,13 @@ class ModelReceipt:
     deadline_at: datetime | None = None
     execution_started_at: datetime | None = None
     cancellation_reason: Literal["explicit_cancel", "consumer_interrupted"] | None = None
+    http_timing: Mapping[str, Any] | None = None
+    diagnostic: Mapping[str, Any] | None = None
+    wire_digest: str | None = None
+    route_selection: Mapping[str, Any] | None = None
+    stream_coverage: Mapping[str, Any] | None = None
+    request_digest: str | None = None
+    completion_digest: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -122,11 +130,12 @@ class ModelResult:
 
 @dataclass(frozen=True, slots=True)
 class ModelEvent:
-    kind: Literal["text", "part", "usage", "native", "receipt"]
+    kind: Literal["accepted", "text", "part", "usage", "native", "receipt"]
     text: str | None = None
     part: ModelPart | None = None
     receipt: ModelReceipt | None = None
     data: Any = None
+    sequence: int | None = None
 
 
 @dataclass(frozen=True, slots=True)

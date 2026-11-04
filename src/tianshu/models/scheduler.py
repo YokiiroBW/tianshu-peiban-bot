@@ -12,6 +12,7 @@ import time
 from tianshu.runtime.errors import AppError
 from tianshu.types import ServiceClass
 from .timing import queue_limit, waiting_budget, validate_timing, waiting_expired
+from .types import ModelRequest
 
 
 def request_cost(units):
@@ -27,6 +28,11 @@ class Waiter:
     units: dict[str, float]
     queued: float
     future: asyncio.Future
+    route_id: str | None = None
+
+    @property
+    def cloud(self):
+        return isinstance(self.request, ModelRequest)
 
     @property
     def tenant(self):
@@ -44,6 +50,9 @@ class GroupState:
     class_streak: int = 0
     rate_classes: dict = field(default_factory=dict)
     pending_start: set[str] = field(default_factory=set)
+    cloud_active: set[str] = field(default_factory=set)
+    blocked_until: float | None = None
+    route_blocked: dict[str, float] = field(default_factory=dict)
 
 
 class QuotaScheduler:
@@ -70,11 +79,42 @@ class QuotaScheduler:
                     )
                 )
                 state.rate_classes[row["attempt_id"]] = ServiceClass(row["service_class"])
-            if row["status"] == "unknown" and row["hold_until"] and row["hold_until"] > now:
+            if row.get("protocol", "external") == "external" and row["status"] == "unknown" and row["hold_until"] and row["hold_until"] > now:
                 state.active[row["attempt_id"]] = (
                     ServiceClass(row["service_class"]),
                     row["hold_until"].timestamp(),
                 )
+
+    def restore_cooldowns(self, rows):
+        for row in rows:
+            state = self.groups.get(row["quota_group"])
+            if state is not None:
+                state.blocked_until = row["blocked_until"].timestamp()
+
+    def restore_route_cooldowns(self, rows):
+        for row in rows:
+            state = self.groups.get(row["quota_group"])
+            if state is not None:
+                state.route_blocked[row["route_id"]] = row["blocked_until"].timestamp()
+
+    async def defer_group(self, group, until):
+        async with self.lock:
+            state = self.groups[group]
+            state.blocked_until = max(state.blocked_until or 0, until.timestamp())
+            self.changed.set()
+
+    async def defer_route(self, group, route_id, until):
+        async with self.lock:
+            state = self.groups[group]
+            state.route_blocked[route_id] = max(state.route_blocked.get(route_id, 0), until.timestamp())
+            self.changed.set()
+
+    async def group_deferred(self, group, route_id=None):
+        async with self.lock:
+            state = self.groups[group]
+            now = time.time()
+            return bool((state.blocked_until and state.blocked_until > now)
+                        or (route_id and state.route_blocked.get(route_id, 0) > now))
 
     async def start(self):
         self.task = asyncio.create_task(self._pump(), name="quota-scheduler")
@@ -91,7 +131,7 @@ class QuotaScheduler:
                         waiter.future.set_exception(AppError("broker_stopping", status=503))
                 state.waiting.clear()
 
-    async def acquire(self, request, group, units):
+    async def acquire(self, request, group, units, *, route_id=None):
         if any(
             type(value) not in (int, float) or not math.isfinite(value) or value < 0
             for value in units.values()
@@ -119,7 +159,7 @@ class QuotaScheduler:
                     details={"unit": unit, "limit": limit},
                 )
         future = asyncio.get_running_loop().create_future()
-        waiter = Waiter(request, dict(units), time.monotonic(), future)
+        waiter = Waiter(request, dict(units), time.monotonic(), future, route_id)
         async with self.lock:
             if self.closed:
                 raise AppError("broker_stopping", status=503)
@@ -139,6 +179,7 @@ class QuotaScheduler:
                 # A cancellation racing with grant must return that grant once.
                 elif future.done() and not future.cancelled() and future.exception() is None:
                     state.active.pop(request.attempt_id, None)
+                    state.cloud_active.discard(request.attempt_id)
                     state.pending_start.discard(request.attempt_id)
                     state.window = deque(
                         item for item in state.window if item[1] != request.attempt_id
@@ -153,6 +194,7 @@ class QuotaScheduler:
         async with self.lock:
             state = self.groups[group]
             old = state.active.pop(attempt_id, None)
+            state.cloud_active.discard(attempt_id)
             state.pending_start.discard(attempt_id)
             if hold_until and old:
                 state.active[attempt_id] = (old[0], hold_until.timestamp())
@@ -218,6 +260,7 @@ class QuotaScheduler:
                         for key, val in state.active.items()
                         if val[1] is None or val[1] > now
                     }
+                    state.cloud_active.intersection_update(state.active)
                     while self._grant(policy, state, now):
                         pass
                 self.changed.clear()
@@ -227,8 +270,6 @@ class QuotaScheduler:
                 pass
 
     def _grant(self, policy, state, now):
-        if len(state.active) >= policy.concurrency:
-            return False
         totals = defaultdict(float)
         background_totals = defaultdict(float)
         background_requests = 0
@@ -244,15 +285,25 @@ class QuotaScheduler:
             limits["tokens"] = policy.tpm
         if policy.rpm is not None:
             limits["requests"] = min(limits.get("requests", policy.rpm), policy.rpm)
-        background = sum(kind != ServiceClass.INTERACTIVE for kind, _ in state.active.values())
+        external_active = {key: value for key, value in state.active.items() if key not in state.cloud_active}
+        background = sum(kind != ServiceClass.INTERACTIVE for kind, _ in external_active.values())
         candidates = []
         for waiter in state.waiting:
             if waiter.future.done():
                 continue
             kind = waiter.request.service_class
+            if waiter.cloud:
+                if state.blocked_until and state.blocked_until > now:
+                    continue
+                if waiter.route_id and state.route_blocked.get(waiter.route_id, 0) > now:
+                    continue
+                if policy.cloud_concurrency is not None and len(state.cloud_active) >= policy.cloud_concurrency:
+                    continue
+            elif len(external_active) >= policy.concurrency:
+                continue
             requested = {**waiter.units, "requests": request_cost(waiter.units)}
             if kind != ServiceClass.INTERACTIVE:
-                if background >= min(
+                if not waiter.cloud and background >= min(
                     policy.background_max, policy.concurrency - policy.interactive_reserve
                 ):
                     continue
@@ -306,6 +357,8 @@ class QuotaScheduler:
         _key, selected = min(candidates, key=lambda item: item[0])
         state.waiting.remove(selected)
         state.active[selected.request.attempt_id] = (selected.request.service_class, None)
+        if selected.cloud:
+            state.cloud_active.add(selected.request.attempt_id)
         state.pending_start.add(selected.request.attempt_id)
         state.window.append((now, selected.request.attempt_id, selected.units))
         state.rate_classes[selected.request.attempt_id] = selected.request.service_class
@@ -322,6 +375,9 @@ class QuotaScheduler:
                 "active": len(state.active),
                 "waiting": len(state.waiting),
                 "unknown_holds": sum(expiry is not None for _, expiry in state.active.values()),
+                "cloud_active": len(state.cloud_active),
+                "blocked_until": datetime.fromtimestamp(state.blocked_until, UTC).isoformat()
+                    if state.blocked_until and state.blocked_until > time.time() else None,
                 "window_requests": sum(request_cost(units) for _, _, units in state.window),
             }
             for group, state in self.groups.items()

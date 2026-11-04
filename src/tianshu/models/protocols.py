@@ -75,6 +75,7 @@ def requested_capabilities(request, stream=False):
 class NativeCompiler:
     def __init__(self, files, secrets):
         self.files, self.secrets = files, secrets
+        self.session_generation = None
 
     def _bytes(self, media):
         if not media or not media.sha256:
@@ -117,7 +118,8 @@ class NativeCompiler:
         secret = api_key if api_key is not None else self.secrets.resolve(plan.credential_ref)
         headers = {"Accept-Encoding": "identity", "Content-Type": "application/json"}
         headers.update(provider_headers(plan.base_url, request.context, request.intent_id,
-            session_scope=request.provider_session_scope, function=request.function))
+            session_scope=request.provider_session_scope, function=request.function,
+            generation=self.session_generation))
         base = plan.base_url.rstrip("/")
         body = dict(request.native_payload) if request.native_payload is not None else None
         parameters = merged_parameters(plan, request)

@@ -5,10 +5,12 @@ This policy never authorizes replay of publishing, delivery or external actions.
 """
 
 import re
+import random
 
 
 _TRANSIENT = frozenset({
     "timeout_unknown", "transport_unknown", "timeouterror", "serverdisconnectederror",
+    "transport_not_sent",
     "serverconnectionerror", "clientconnectionerror", "clientconnectorerror", "clientoserror",
     "clientpayloaderror", "connectionreseterror", "connectionabortederror", "brokenpipeerror",
     "servertimeouterror", "sockettimeouterror", "connectiontimeouterror",
@@ -48,7 +50,7 @@ def transient_model_failure(error_code: str | None, *, cancelled: bool = False) 
 
 
 def retry_delay_seconds(attempt_number: int) -> float:
-    """Delay after failure number 1, 2, 3…: 30, 60, 120… capped at 900s."""
+    """Jittered exponential delay; callers persist the chosen due time once."""
     if type(attempt_number) is not int or attempt_number < 1:
         raise ValueError("positive_attempt_number_required")
-    return float(min(900, 30 * 2 ** min(attempt_number - 1, 5)))
+    return float(min(900, 30 * 2 ** min(attempt_number - 1, 5) * random.uniform(0.8, 1.2)))

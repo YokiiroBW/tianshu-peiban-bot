@@ -49,6 +49,8 @@ def request_from_wire(value):
         value["required_capabilities"] = frozenset(value.get("required_capabilities", ["text"]))
         value["source_refs"] = tuple(SourceRef(**item) for item in value.get("source_refs", []))
         request = ModelRequest(**value)
+        if type(request.allow_configured_fallback) is not bool:
+            raise ValueError("invalid_configured_fallback")
         validate_timing(request)
         validate_provider_session(request.provider_session_scope,
             parameters=request.parameters, native_payload=request.native_payload)
@@ -97,4 +99,4 @@ def result_from_wire(value):
 def event_from_wire(value):
     return ModelEvent(value["kind"], value.get("text"),
         part_from_wire(value["part"]) if value.get("part") else None,
-        receipt_from_wire(value.get("receipt")), value.get("data"))
+        receipt_from_wire(value.get("receipt")), value.get("data"), value.get("sequence"))

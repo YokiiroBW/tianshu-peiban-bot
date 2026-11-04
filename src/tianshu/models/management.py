@@ -81,7 +81,11 @@ async def mutate(services, context, operation, body):
         raise AppError("expected_revision_required")
 
     async def apply(conn):
-        return await _apply_configuration(conn, operation, body, expected, services)
+        from .configuration_reload import record_pending_on
+
+        result = await _apply_configuration(conn, operation, body, expected, services)
+        await record_pending_on(conn, context, "models." + operation, body["client_request_id"], result.revision)
+        return result
 
     async def replay(conn, original):
         return replace(original, data=await configuration(conn, services.settings))
@@ -256,6 +260,7 @@ async def _apply_configuration(conn, operation, body, expected, services):
             body.get("background_rpm_max"),
             Jsonb(body.get("interactive_unit_reserve", {})),
             Jsonb(body.get("background_unit_max", {})),
+            positive(body, "cloud_concurrency", optional=True),
         )
         try:
             QuotaPolicy(
@@ -271,6 +276,7 @@ async def _apply_configuration(conn, operation, body, expected, services):
                 background_rpm_max=values[11],
                 interactive_unit_reserve=body.get("interactive_unit_reserve", {}),
                 background_unit_max=body.get("background_unit_max", {}),
+                cloud_concurrency=values[14],
             )
         except (ValueError, TypeError):
             raise AppError("invalid_quota_reservation") from None
@@ -279,8 +285,8 @@ async def _apply_configuration(conn, operation, body, expected, services):
                 "INSERT INTO models.quota_groups(quota_group,concurrency,"
                 "interactive_reserve,background_max,rpm,tpm,max_queue,max_wait_seconds,"
                 "unknown_hold_seconds,unit_limits,interactive_rpm_reserve,background_rpm_max,"
-                "interactive_unit_reserve,background_unit_max) "
-                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
+                "interactive_unit_reserve,background_unit_max,cloud_concurrency) "
+                "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) "
                 "ON CONFLICT DO NOTHING RETURNING revision",
                 values,
             )
@@ -289,7 +295,7 @@ async def _apply_configuration(conn, operation, body, expected, services):
                 "UPDATE models.quota_groups SET concurrency=%s,"
                 "interactive_reserve=%s,background_max=%s,rpm=%s,tpm=%s,max_queue=%s,"
                 "max_wait_seconds=%s,unknown_hold_seconds=%s,unit_limits=%s,interactive_rpm_reserve=%s,"
-                "background_rpm_max=%s,interactive_unit_reserve=%s,background_unit_max=%s,revision=revision+1 "
+                "background_rpm_max=%s,interactive_unit_reserve=%s,background_unit_max=%s,cloud_concurrency=%s,revision=revision+1 "
                 "WHERE quota_group=%s AND revision=%s RETURNING revision",
                 (*values[1:], values[0], expected),
             )
@@ -302,18 +308,32 @@ async def _apply_configuration(conn, operation, body, expected, services):
         service_class = text(body, "service_class")
         if service_class not in {"interactive", "due", "elastic"}:
             raise AppError("invalid_service_class")
-        values = (function, service_class, body.get("actor_id") or "", text(body, "route_id"))
+        actor_id = body.get("actor_id") or ""
+        route_id = text(body, "route_id")
+        current = await (await conn.execute(
+            "SELECT fallback_routes FROM models.bindings WHERE function=%s AND service_class=%s AND actor_id=%s",
+            (function, service_class, actor_id))).fetchone()
+        fallbacks = body.get("fallback_routes", current["fallback_routes"] if current else [])
+        if (not isinstance(fallbacks, list) or any(not isinstance(item, str) or not item for item in fallbacks)
+                or len(fallbacks) != len(set(fallbacks)) or route_id in fallbacks):
+            raise AppError("invalid_model_fallback_routes")
+        if fallbacks:
+            found = await (await conn.execute("SELECT count(*) AS count FROM models.routes WHERE route_id=ANY(%s)",
+                                               (fallbacks,))).fetchone()
+            if found["count"] != len(fallbacks):
+                raise AppError("model_fallback_route_not_found")
+        values = (function, service_class, actor_id, route_id, fallbacks)
         if expected == 0:
             cursor = await conn.execute(
                 "INSERT INTO models.bindings(function,service_class,actor_id,"
-                "route_id) VALUES(%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING revision",
+                "route_id,fallback_routes) VALUES(%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING revision",
                 values,
             )
         else:
             cursor = await conn.execute(
-                "UPDATE models.bindings SET route_id=%s,revision=revision+1 "
+                "UPDATE models.bindings SET route_id=%s,fallback_routes=%s,revision=revision+1 "
                 "WHERE function=%s AND service_class=%s AND actor_id=%s AND revision=%s RETURNING revision",
-                (values[3], *values[:3], expected),
+                (values[3], values[4], *values[:3], expected),
             )
     elif operation == "embedding-profile":
         values = (
@@ -365,12 +385,17 @@ async def _apply_configuration(conn, operation, body, expected, services):
 
 
 def register_routes(app, services):
-    async def reload_observation(result):
+    async def reload_observation(result, context, operation):
+        from .configuration_reload import event_id
+
+        identity = event_id(context, operation, result["client_request_id"])
         try:
-            await services.models.reload()
+            await services.models.reload(configuration_event_id=identity, expected_revision=result["revision"])
             result["data"]["broker_reload"] = "applied"
         except Exception:
             result["data"]["broker_reload"] = "pending"
+            result["data"]["error_code"] = "broker_reload_pending"
+        result["data"]["configuration_event_id"] = identity
         return result
 
     async def view(request):
@@ -384,7 +409,7 @@ def register_routes(app, services):
         result = await mutate(services, context, request.match_info["operation"], body)
         # Config is committed even if the broker is restarting. Report reload state rather
         # than failing the command and encouraging an unknown write to be repeated.
-        return json_response(await reload_observation(result))
+        return json_response(await reload_observation(result, context, "models." + request.match_info["operation"]))
 
     async def delete(request):
         from .configuration_delete import delete_configuration
@@ -396,7 +421,7 @@ def register_routes(app, services):
         if identifier:
             body["provider_id" if operation == "providers" else "route_id"] = identifier
         result = wire(await delete_configuration(services, context, operation, body))
-        return json_response(await reload_observation(result))
+        return json_response(await reload_observation(result, context, "models." + operation + ".delete"))
 
     async def enumerate_provider(request):
         from .discovery import enumerate_models

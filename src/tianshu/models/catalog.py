@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+import json
 import math
 from typing import Any, Mapping
 
@@ -10,6 +11,7 @@ from tianshu.runtime.errors import AppError
 from .types import ModelRequest
 from .timing import validate_timing, waiting_budget
 from tianshu.runtime.commands import body_hash
+from tianshu.runtime.serialization import wire
 
 FUNCTIONS = (
     "chat",
@@ -31,6 +33,7 @@ FUNCTIONS = (
     "image.plan",
     "image.consistency",
     "video.observe",
+    "ops.diagnose",
 )
 NATIVE_PROTOCOLS = frozenset(
     {
@@ -50,6 +53,26 @@ def embedding_fingerprint(row):
     )
 
 
+def fallback_fits(request, row):
+    """Use configured evidence; never assume another model has the same window."""
+    params = request.parameters
+    generation = params.get("generationConfig") or {}
+    if not isinstance(generation, dict):
+        return False
+    json_mode = (params.get("response_format") is not None or
+                 generation.get("responseMimeType") == "application/json")
+    if json_mode and "json" not in row["verified_capabilities"]:
+        return False
+    evidence = row.get("verification") or {}
+    window = evidence.get("context_window_tokens") if isinstance(evidence, dict) else None
+    estimate = request.estimated_input_tokens
+    if estimate is None:
+        estimate = len(json.dumps(wire((request.system, request.messages, request.tools)),
+            ensure_ascii=False).encode()) + 2048 * sum(
+                part.media is not None for message in request.messages for part in message.parts)
+    return type(window) is int and estimate + request.max_output_tokens <= window
+
+
 @dataclass(frozen=True, slots=True)
 class RoutePlan:
     route_id: str
@@ -62,6 +85,10 @@ class RoutePlan:
     quota_group: str
     verified_capabilities: frozenset[str]
     parameters: Mapping[str, Any]
+    primary_route_id: str | None = None
+    selection_reason: str = "selected_binding"
+    primary_protocol: str | None = None
+    provider_revision: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +107,7 @@ class QuotaPolicy:
     background_rpm_max: int | None = None
     interactive_unit_reserve: Mapping[str, float] = field(default_factory=dict)
     background_unit_max: Mapping[str, float] = field(default_factory=dict)
+    cloud_concurrency: int | None = None
 
     def __post_init__(self):
         for value in (
@@ -94,6 +122,8 @@ class QuotaPolicy:
         for value in (self.rpm, self.tpm, self.background_rpm_max):
             if value is not None and (type(value) is not int or value < 0):
                 raise ValueError("invalid_quota_limit")
+        if self.cloud_concurrency is not None and (type(self.cloud_concurrency) is not int or self.cloud_concurrency < 1):
+            raise ValueError("invalid_quota_limit")
         waits = [self.unknown_hold_seconds]
         if self.max_wait_seconds is not None:
             waits.append(self.max_wait_seconds)
@@ -126,12 +156,12 @@ class ModelCatalog:
     def __init__(self, database):
         self.database = database
 
-    async def bound_route(self, connection, request):
+    async def bound_binding(self, connection, request):
         # An independently bound check wins; otherwise retain the author's
         # existing vision selection, including its actor/global precedence.
         inherited = "vision" if request.function == "image.consistency" else request.function
         binding = await (await connection.execute(
-            "SELECT route_id FROM models.bindings WHERE service_class=%s "
+            "SELECT route_id,fallback_routes FROM models.bindings WHERE service_class=%s "
             "AND function IN (%s,%s,'*') AND actor_id IN (%s,'') "
             "ORDER BY (function=%s) DESC,(function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
             (request.service_class.value, request.function, inherited, request.context.actor_id or "",
@@ -139,9 +169,12 @@ class ModelCatalog:
         if not binding:
             raise AppError("model_function_not_configured", status=503,
                 details={"function": request.function, "service_class": request.service_class.value})
-        return binding["route_id"]
+        return binding
 
-    async def resolve(self, request: ModelRequest) -> RoutePlan:
+    async def bound_route(self, connection, request):
+        return (await self.bound_binding(connection, request))["route_id"]
+
+    async def resolve(self, request: ModelRequest, *, frozen_attempt=None) -> RoutePlan:
         if request.function not in FUNCTIONS:
             raise AppError("unknown_model_function")
         if (
@@ -152,7 +185,17 @@ class ModelCatalog:
             raise AppError("invalid_model_budget")
         validate_timing(request)
         async with self.database.transaction(waiting_budget(request), read_only=True) as conn:
-            if request.route_id:
+            binding = None
+            if frozen_attempt is not None:
+                # A persisted queued attempt owns its original selected route.
+                # It must not silently change when bindings or cooldowns change.
+                route_id = frozen_attempt["route_id"]
+            elif request.route_id:
+                if request.native_payload is None and request.function != "ops.diagnose":
+                    try:
+                        binding = await self.bound_binding(conn, request)
+                    except AppError:
+                        binding = None
                 if not ({"models.route", "*"} & request.context.permissions) and not (
                     request.capability_probe and "models.manage" in request.context.permissions
                 ):
@@ -161,7 +204,7 @@ class ModelCatalog:
                     # an author changes the binding while assembly is in flight.
                     if request.route_revision is None:
                         raise AppError("model_route_forbidden", status=403)
-                    if await self.bound_route(conn, request) != request.route_id:
+                    if not binding or request.route_id not in (binding["route_id"], *binding["fallback_routes"]):
                         raise AppError("model_route_binding_changed", status=409)
                 route_id = request.route_id
             elif request.function == "embed":
@@ -174,25 +217,99 @@ class ModelCatalog:
             else:
                 route_id = await self.bound_route(conn, request)
             cursor = await conn.execute(
-                "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled "
+                "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled,"
+                "p.revision AS provider_revision "
                 "FROM models.routes r JOIN models.providers p USING(provider_id) "
                 "WHERE r.route_id=%s",
                 (route_id,),
             )
             row = await cursor.fetchone()
+            primary = row
+            selection_reason = "selected_binding"
+            primary_route_id = route_id
+            if (binding and request.route_id in binding["fallback_routes"]
+                    and request.route_id != binding["route_id"]):
+                primary_route_id = binding["route_id"]
+                selection_reason = "configured_fallback_selected"
+                if request.function != "embed" and row and not fallback_fits(request, row):
+                    raise AppError("model_fallback_context_unverified", status=422)
             if request.function == "embed":
                 profile = await (
                     await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton")
                 ).fetchone()
-                if not profile or profile["route_id"] != route_id:
+                if not profile:
                     raise AppError("embedding_profile_not_configured", status=503)
                 if row and profile["route_fingerprint"] != embedding_fingerprint(row):
                     raise AppError("embedding_profile_rebuild_required", status=409)
+            if frozen_attempt is not None and (not primary or any(
+                    primary[key] != frozen_attempt[key] for key in ("route_id", "provider_id", "model", "protocol", "quota_group"))
+                    or primary["revision"] != frozen_attempt["route_revision"]
+                    or (frozen_attempt.get("provider_revision") is not None and
+                        primary["provider_revision"] != frozen_attempt["provider_revision"])):
+                raise AppError("model_route_changed_before_execution", status=409)
+            if frozen_attempt is None and request.route_revision is not None and primary and request.route_revision != primary["revision"]:
+                raise AppError("model_route_revision_conflict", status=409)
+            cooldown = None
+            route_cooldown = None
+            if primary:
+                cooldown = await (await conn.execute(
+                    "SELECT blocked_until FROM models.quota_cooldowns WHERE quota_group=%s AND blocked_until>now()",
+                    (primary["quota_group"],))).fetchone()
+                route_cooldown = await (await conn.execute(
+                    "SELECT blocked_until FROM models.route_cooldowns WHERE route_id=%s AND blocked_until>now()",
+                    (primary_route_id,))).fetchone()
+            unavailable = not primary or not primary["enabled"] or not primary["provider_enabled"]
+            # Native proxy aliases and explicitly privileged route choices must
+            # stay exact. Backups are only those configured for this binding.
+            may_fallback = (frozen_attempt is None and request.function != "ops.diagnose" and request.native_payload is None
+                            and (not request.route_id or request.allow_configured_fallback))
+            if may_fallback and (unavailable or cooldown or route_cooldown):
+                try:
+                    binding = await self.bound_binding(conn, request)
+                except AppError:
+                    binding = None
+                if binding and binding["route_id"] == primary_route_id:
+                    for candidate_id in binding["fallback_routes"]:
+                        candidate = await (await conn.execute(
+                            "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled,"
+                            "p.revision AS provider_revision "
+                            "FROM models.routes r JOIN models.providers p USING(provider_id) WHERE r.route_id=%s",
+                            (candidate_id,))).fetchone()
+                        if not candidate or not candidate["enabled"] or not candidate["provider_enabled"]:
+                            continue
+                        # A second key in the same quota domain is not an independent fallback.
+                        if cooldown and candidate["quota_group"] == primary["quota_group"]:
+                            continue
+                        blocked = await (await conn.execute(
+                            "SELECT 1 FROM models.quota_cooldowns WHERE quota_group=%s AND blocked_until>now()",
+                            (candidate["quota_group"],))).fetchone()
+                        route_blocked = await (await conn.execute(
+                            "SELECT 1 FROM models.route_cooldowns WHERE route_id=%s AND blocked_until>now()",
+                            (candidate_id,))).fetchone()
+                        if blocked or route_blocked:
+                            continue
+                        if request.required_capabilities - set(candidate["verified_capabilities"]):
+                            continue
+                        if request.function == "embed":
+                            if embedding_fingerprint(candidate) != profile["route_fingerprint"]:
+                                continue
+                        else:
+                            from .route_adaptation import adapt_request
+                            try:
+                                adapted = adapt_request(request, primary["protocol"], candidate["protocol"])
+                            except AppError:
+                                continue
+                            if not fallback_fits(adapted, candidate):
+                                continue
+                        row = candidate
+                        selection_reason = ("primary_quota_cooldown" if cooldown else
+                                            "primary_route_cooldown" if route_cooldown else "primary_unavailable")
+                        break
         if not row or not row["enabled"] or not row["provider_enabled"]:
             raise AppError("model_route_unavailable", status=503)
-        if request.route_revision is not None and request.route_revision != row["revision"]:
-            raise AppError("model_route_revision_conflict", status=409)
-        if request.protocol and request.protocol != row["protocol"]:
+        if request.protocol and request.protocol != row["protocol"] and not (
+                selection_reason != "selected_binding" or frozen_attempt is not None
+                and (not request.route_id or request.allow_configured_fallback)):
             raise AppError("native_protocol_mismatch", status=422)
         probing = request.capability_probe and bool(
             {"*", "models.probe", "models.manage"} & request.context.permissions
@@ -218,6 +335,10 @@ class ModelCatalog:
             row["quota_group"],
             frozenset(row["verified_capabilities"]),
             row["parameters"],
+            primary_route_id,
+            selection_reason,
+            (request.protocol or primary["protocol"]) if primary else None,
+            row["provider_revision"],
         )
 
     async def policies(self) -> dict[str, QuotaPolicy]:

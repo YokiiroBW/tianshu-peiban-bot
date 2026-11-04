@@ -88,22 +88,38 @@ class ModelClient:
 
     async def generate(self, request):
         timeout = waiting_timeout(request)
+        value = await self._json("/internal/v1/models/generate", body=request,
+                                 timeout=timeout, service_class=request.service_class)
+        return result_from_wire(value)
+
+    async def submit(self, request, *, completion=None):
+        from .async_jobs import completion_record
+
+        record = completion_record(completion)
         try:
-            value = await self._json("/internal/v1/models/generate", body=request,
-                                     timeout=timeout,
-                                     service_class=request.service_class)
-            return result_from_wire(value)
-        except (asyncio.CancelledError, TimeoutError, aiohttp.ClientError) as exc:
-            receipt = await self._cancel_cleanup(request.attempt_id)
-            known = _known_wait_expiry(receipt)
-            if known is not None and not isinstance(exc, asyncio.CancelledError):
-                raise known from None
-            raise
+            value = await self._json("/internal/v1/models/submit",
+                body={"request": request, "completion": record},
+                timeout=waiting_timeout(request), service_class=request.service_class)
+            return receipt_from_wire(value["receipt"])
+        except (TimeoutError, aiohttp.ClientError):
+            from .ledger import digest, submission_digest
+            try:
+                original = await self.status(request.attempt_id)
+            except (AppError, TimeoutError, aiohttp.ClientError):
+                original = None
+            if original is not None:
+                if original.request_digest != submission_digest(request):
+                    raise AppError("attempt_identity_conflict", status=409) from None
+                if record is not None and original.completion_digest != digest(record):
+                    raise AppError("model_completion_ack_unknown", status=503,
+                        details={"attempt_id": request.attempt_id, "action": "resubmit_same_completion"}) from None
+                return original
+            raise AppError("model_submission_ack_unknown", status=503,
+                details={"attempt_id": request.attempt_id, "action": "observe_original_attempt"}) from None
 
     async def stream(self, request):
         timeout = waiting_timeout(request)
         complete = False
-        cleaned_up = False
         try:
             async with self._data_session(request.service_class).post(
                 self.base_url+"/internal/v1/models/stream", json=wire(request),
@@ -127,19 +143,13 @@ class ModelClient:
                     complete = True
                     raise await self._stream_failure(request.attempt_id, "model_stream_incomplete")
         except (TimeoutError, aiohttp.ClientError):
-            cleaned_up = True
             raise await self._stream_failure(request.attempt_id, "model_stream_interrupted") from None
-        finally:
-            if not complete and not cleaned_up:
-                await self._cancel_cleanup(request.attempt_id)
 
     async def _stream_failure(self, attempt_id, code, *, status=502, fallback=None):
         try:
             original = await self.status(attempt_id)
         except (AppError, TimeoutError, aiohttp.ClientError):
             original = fallback
-        if original is None or original.status in {"queued", "running"}:
-            original = await self._cancel_cleanup(attempt_id) or original
         known = _known_wait_expiry(original)
         if known is not None:
             return known
@@ -149,7 +159,9 @@ class ModelClient:
 
     async def _cancel_cleanup(self, attempt_id):
         try:
-            return await finish_cleanup(self.cancel(attempt_id, reason="consumer_interrupted"))
+            value = await finish_cleanup(self._json("/internal/v1/models/attempts/"+attempt_id+"/cancel",
+                body={"external_owner": True}, control=True))
+            return receipt_from_wire(value["receipt"])
         except (AppError, TimeoutError, aiohttp.ClientError):
             # The durable attempt retains its original identity for subsequent status reads.
             pass
@@ -174,8 +186,17 @@ class ModelClient:
             body={"reason": reason}, control=True)
         return receipt_from_wire(value["receipt"])
 
-    async def reload(self):
-        return await self._json("/internal/v1/models/reload", control=True)
+    async def reload(self, *, configuration_event_id=None, expected_revision=None):
+        return await self._json("/internal/v1/models/reload", control=True,
+            body={"configuration_event_id": configuration_event_id, "expected_revision": expected_revision})
+
+    async def configuration_reload_status(self, event_id):
+        return (await self._json("/internal/v1/models/configuration-reloads/"+event_id,
+                                 control=True, method="GET"))["reload"]
+
+    async def pending_configuration_reloads(self, *, limit=100):
+        return (await self._json("/internal/v1/models/configuration-reloads?limit="+str(limit),
+                                 control=True, method="GET"))["items"]
 
     async def snapshot(self):
         return await self._json("/health/ready", control=True, method="GET")
@@ -190,6 +211,11 @@ class ModelClient:
     async def observe_external(self, attempt_id, *, context, provider_handle, state):
         value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/external-observation",
             body={"context": context, "provider_handle": provider_handle, "state": state}, control=True)
+        return receipt_from_wire(value["receipt"])
+
+    async def observe_usage(self, attempt_id, *, context, provider_handle, usage):
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/usage-observation",
+            body={"context": context, "provider_handle": provider_handle, "usage": usage}, control=True)
         return receipt_from_wire(value["receipt"])
 
     @asynccontextmanager

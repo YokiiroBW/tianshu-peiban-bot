@@ -6,6 +6,7 @@ from datetime import UTC, datetime, timedelta
 import hmac
 import json
 from uuid import uuid4
+from hashlib import sha256
 
 from aiohttp import web
 
@@ -15,7 +16,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 from .codec import context_from_wire, external_from_wire, request_from_wire
 from .ledger import receipt
-from .types import ModelRequest
+from .types import ModelRequest, ModelUsage
 
 
 def create_broker_app(broker, token, external_keys=()):
@@ -34,6 +35,17 @@ def create_broker_app(broker, token, external_keys=()):
     async def generate(request):
         model_request = request_from_wire(await request.json())
         return json_response(await broker.generate(model_request))
+
+    async def submit(request):
+        from .async_jobs import completion_spec
+
+        body = await request.json()
+        try:
+            model_request = request_from_wire(body["request"])
+            completion = completion_spec(body["completion"]) if body.get("completion") is not None else None
+        except (KeyError, TypeError, ValueError):
+            raise AppError("invalid_model_submission") from None
+        return json_response({"receipt": await broker.submit(model_request, completion=completion)})
 
     async def stream_error(response, model_request, error, *, native=False):
         try:
@@ -79,7 +91,10 @@ def create_broker_app(broker, token, external_keys=()):
         body = await request.json() if request.can_read_body else {}
         if not isinstance(body, dict):
             raise AppError("invalid_input")
-        result = await broker.cancel(request.match_info["attempt_id"], reason=body.get("reason", "explicit_cancel"))
+        if body.get("external_owner") is True:
+            result = await broker.cancel_external_owner(request.match_info["attempt_id"])
+        else:
+            result = await broker.cancel(request.match_info["attempt_id"], reason=body.get("reason", "explicit_cancel"))
         if result is None:
             raise AppError("attempt_not_found", status=404)
         return json_response({"receipt": result})
@@ -103,8 +118,33 @@ def create_broker_app(broker, token, external_keys=()):
         return json_response({"receipt": await broker.observe_external(request.match_info["attempt_id"],
             context=context, provider_handle=body.get("provider_handle"), state=body.get("state"))})
 
+    async def usage_observation(request):
+        body = await request.json()
+        try:
+            context = context_from_wire(body["context"])
+            usage = ModelUsage(**body["usage"])
+        except (KeyError, TypeError, ValueError):
+            raise AppError("invalid_model_usage_observation") from None
+        return json_response({"receipt": await broker.observe_usage(request.match_info["attempt_id"],
+            context=context, provider_handle=body.get("provider_handle"), usage=usage)})
+
     async def reload(request):
-        return json_response(await broker.reload())
+        body = await request.json() if request.can_read_body else {}
+        body = body or {}
+        if not isinstance(body, dict):
+            raise AppError("invalid_model_configuration_reload")
+        return json_response(await broker.reload(configuration_event_id=body.get("configuration_event_id"),
+                                                 expected_revision=body.get("expected_revision")))
+
+    async def reload_status(request):
+        return json_response({"reload": await broker.configuration_reload_status(request.match_info["event_id"])})
+
+    async def reload_pending(request):
+        try:
+            limit = int(request.query.get("limit", "100"))
+        except ValueError:
+            raise AppError("invalid_reload_limit") from None
+        return json_response({"items": await broker.pending_configuration_reloads(limit=limit)})
 
     async def embedding_profile(request):
         return json_response(await broker.embedding_profile())
@@ -204,7 +244,9 @@ def create_broker_app(broker, token, external_keys=()):
         streaming = bool(body.get("stream")) or ":streamGenerateContent" in request.path
         execution_seconds = min(grant.get("timeout_seconds", 120), 900)
         deadline = datetime.now(UTC) + timedelta(seconds=execution_seconds)
-        identity = str(uuid4())
+        supplied_id = request.headers.get("X-Request-Id")
+        identity = ("native:" + sha256((grant["id"] + "\0" + supplied_id).encode()).hexdigest()
+                    if supplied_id else str(uuid4()))
         context = TrustedContext(
             "model-client:" + grant["id"],
             None,
@@ -218,7 +260,7 @@ def create_broker_app(broker, token, external_keys=()):
         )
         model_request = ModelRequest(
             identity,
-            request.headers.get("X-Request-Id", identity),
+            identity,
             "embed" if protocol == "openai.embedding" else "chat",
             ServiceClass.INTERACTIVE,
             context,
@@ -260,6 +302,8 @@ def create_broker_app(broker, token, external_keys=()):
             async for event in events:
                 if event.kind == "native":
                     await response.write(base64.b64decode(event.data["chunk_b64"]))
+                elif event.kind == "receipt" and event.receipt.status != "succeeded":
+                    raise AppError(event.receipt.error_code or "model_attempt_" + event.receipt.status, status=502)
             await response.write_eof()
         except (asyncio.CancelledError, ConnectionError):
             response.force_close()
@@ -271,13 +315,17 @@ def create_broker_app(broker, token, external_keys=()):
         return response
 
     app.router.add_post("/internal/v1/models/generate", generate)
+    app.router.add_post("/internal/v1/models/submit", submit)
     app.router.add_post("/internal/v1/models/stream", stream)
     app.router.add_post("/internal/v1/models/reload", reload)
+    app.router.add_get("/internal/v1/models/configuration-reloads", reload_pending)
+    app.router.add_get("/internal/v1/models/configuration-reloads/{event_id}", reload_status)
     app.router.add_get("/internal/v1/models/embedding-profile", embedding_profile)
     app.router.add_post("/internal/v1/models/generation-profile", generation_profile)
     app.router.add_get("/internal/v1/models/attempts/{attempt_id}", state)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/result", saved_result)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/external-observation", external_observation)
+    app.router.add_post("/internal/v1/models/attempts/{attempt_id}/usage-observation", usage_observation)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/cancel", cancel)
     app.router.add_post("/internal/v1/resources", external_begin)
     app.router.add_post("/internal/v1/resources/{attempt_id}/{operation}", external_update)

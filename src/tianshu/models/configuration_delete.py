@@ -52,6 +52,9 @@ async def delete_configuration(services, context, operation, body):
             ).fetchone():
                 raise AppError("embedding_profile_in_use", status=409)
             await conn.execute("DELETE FROM models.bindings WHERE route_id=ANY(%s)", (routes,))
+            await conn.execute("UPDATE models.bindings SET fallback_routes=ARRAY(SELECT candidate_id FROM "
+                "unnest(fallback_routes) AS choices(candidate_id) WHERE NOT candidate_id=ANY(%s)),revision=revision+1 "
+                "WHERE fallback_routes && %s::text[]", (routes, routes))
             await conn.execute("DELETE FROM models.routes WHERE route_id=ANY(%s)", (routes,))
             if operation == "providers":
                 await conn.execute(
@@ -86,6 +89,10 @@ async def delete_configuration(services, context, operation, body):
                 raise AppError("revision_conflict", status=409)
         else:
             raise AppError("unknown_model_operation", status=404)
+        from .configuration_reload import record_pending_on
+
+        await record_pending_on(conn, context, "models." + operation + ".delete",
+                                body["client_request_id"], expected + 1)
         return CommandResult(
             body["client_request_id"],
             revision=expected + 1,

@@ -18,7 +18,7 @@ def validate_provider_session(scope, *, parameters=None, native_payload=None):
         raise AppError("independent_session_state_reference", status=409)
 
 
-def provider_headers(base_url, context, intent_id, *, session_scope="conversation", function=None):
+def provider_headers(base_url, context, intent_id, *, session_scope="conversation", function=None, generation=None):
     """Preserve OpenCode's required transport contract without exposing application IDs."""
     validate_provider_session(session_scope)
     target = urlsplit(base_url)
@@ -47,6 +47,8 @@ def provider_headers(base_url, context, intent_id, *, session_scope="conversatio
         "conversation": context.conversation_id,
         "intent": None if session_scope == "conversation" and context.conversation_id else intent_id,
     }
+    if generation is not None:
+        identity["data_generation"] = generation
     if session_scope == "intent":
         if not isinstance(function, str) or not function:
             raise AppError("provider_session_function_required")
