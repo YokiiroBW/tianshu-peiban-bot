@@ -1,0 +1,291 @@
+{
+  "schema_version": 1,
+  "planning_revision": 2,
+  "planning_id": "learning-enhancement-2026-11-04",
+  "date": "2026-11-04",
+  "timezone": "Asia/Shanghai",
+  "state": "superseded_not_dispatched",
+  "canonical_plan": "docs/development/learning-enhancement-queue-2026-11-04.md",
+  "scope": "统一行为消费与上下文选择，区分明确偏好和推断习惯，按需增强样例与群内词义",
+  "id_policy": "LE 编号仅属于本批规划，不占用旧 TS 编号，不修改全局任务板。",
+  "product_implementation_started": false,
+  "production_operations_performed": false,
+  "source": {
+    "checkout": "C:/Users/Administrator/.codex/worktrees/frontend-807/tianshu-peiban-bot",
+    "inspected_head": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
+    "tracked_changes_at_inspection": false,
+    "production_revision_from_existing_record": "03130711fd6961dde31335a300aae23bbf58d9b7",
+    "production_record": "docs/development/CURRENT.md",
+    "production_record_time": "2026-11-04T13:33:00+08:00",
+    "production_rechecked_in_this_task": false,
+    "reference_project_revision": "962276786a7fba8242fcdfaca1bcd9201c80cb01"
+  },
+  "execution": {
+    "default_order": [
+      "LE-01",
+      "LE-02",
+      "LE-05",
+      "LE-03",
+      "LE-04",
+      "LE-06"
+    ],
+    "delivery": "一个完整功能包，内部按依赖实施，集中验证，串行发布",
+    "implementation_authorization": "本轮只要求重新规划和开发队列，未开始产品实现",
+    "assignees": [],
+    "parallel_work_started": false,
+    "verification": "定向有效验证，复用未变化结果；真实模型、发布与外部操作按后续实际授权范围执行"
+  },
+  "shared_files": {
+    "companion_owner": [
+      "src/tianshu/companion/growth.py",
+      "src/tianshu/companion/reflection_output.py",
+      "src/tianshu/companion/growth_materials.py",
+      "src/tianshu/companion/module.py",
+      "src/tianshu/companion/dependencies.py"
+    ],
+    "memory_owner": [
+      "src/tianshu/memory/extraction_contract.py",
+      "src/tianshu/memory/materials.py",
+      "src/tianshu/memory/evidence.py",
+      "src/tianshu/memory/types.py",
+      "src/tianshu/memory/retrieval.py"
+    ],
+    "integration_owner": [
+      "src/tianshu/conversation/service.py",
+      "src/tianshu/conversation/context/assembly.py",
+      "src/tianshu/life/planning_engine.py",
+      "src/tianshu/types/context_materials.py"
+    ],
+    "frontend_owner": [
+      "web/src/features/life/GrowthPage.tsx",
+      "web/src/features/memory",
+      "web/src/features/companion"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "LE-01",
+      "title": "行为消费一致性与上下文选择",
+      "priority": "P1",
+      "type": "existing_path_correction",
+      "status": "planned",
+      "owner_domain": "协调装配，Companion 与 Memory 提供领域接口",
+      "depends_on": [],
+      "evidence": [
+        "src/tianshu/companion/growth.py:350",
+        "src/tianshu/companion/growth.py:540",
+        "src/tianshu/companion/growth.py:627",
+        "src/tianshu/memory/service.py:482",
+        "src/tianshu/memory/evidence.py:157",
+        "src/tianshu/conversation/context/assembly.py:138",
+        "src/tianshu/conversation/context/assembly.py:243",
+        "src/tianshu/life/planning_engine.py:234"
+      ],
+      "deliverables": [
+        "历史反思与当前习惯按同一身份关联和按用途消费",
+        "跨 Memory 与习惯投影去重并遵守撤回状态",
+        "运行时取材与管理查询分离",
+        "授权和 active 过滤前置及有界候选补位",
+        "保护本轮对话依赖后选择长期材料",
+        "逐条完整贡献与不覆盖的版本清单",
+        "最小选择原因记录"
+      ],
+      "acceptance": [
+        "撤回习惯不借 Memory 检索重新生效",
+        "历史追问仍可读取有状态的依据",
+        "同一学习产物不重复注入",
+        "前 40 条撤回仍可取得第 41 条有效规则",
+        "可选材料不挤掉本轮所需上文",
+        "失效和超预算只舍弃对应完整单元",
+        "聊天与规划均验证",
+        "无新增前台模型调用或管理统计查询"
+      ],
+      "migration": "优先无 DDL，必要索引须对应实际查询"
+    },
+    {
+      "id": "LE-02",
+      "title": "有范围的偏好与习惯增量修订",
+      "priority": "P2",
+      "type": "quality_enhancement",
+      "status": "planned",
+      "owner_domain": "Companion",
+      "depends_on": [
+        "LE-01"
+      ],
+      "evidence": [
+        "src/tianshu/companion/reflection_output.py:283",
+        "src/tianshu/companion/growth.py:360",
+        "src/tianshu/companion/growth.py:627",
+        "src/tianshu/companion/schema.sql:47"
+      ],
+      "deliverables": [
+        "区分当次要求持续明确偏好与推断习惯",
+        "保留原提案的稳定规则投影与修订",
+        "实际支持子集与完整生成依赖分开保留",
+        "独立依据去重和条件差异保留",
+        "复用撤回恢复并接通明确纠正",
+        "已解析同一规则的重复提案服从原撤回",
+        "现有成长页版本与调整入口"
+      ],
+      "acceptance": [
+        "临时要求不永久化且长期偏好换话题后仍有效",
+        "当前明确纠正不被旧推断覆盖",
+        "同批无关 Episode 不增加支持次数",
+        "完整生成依赖不被缩小",
+        "同源重放幂等",
+        "同一规则跨批次不堆积",
+        "CAS 冲突可解释",
+        "明确撤回不被同规则重述自动恢复",
+        "冻结和来源失效继续有效",
+        "无反馈或重复使用不算正向支持"
+      ],
+      "migration": "如现有命令收据不足，增量增加 Companion 习惯修订记录；不重建旧规则"
+    },
+    {
+      "id": "LE-03",
+      "title": "按需使用的表达样例",
+      "priority": "P2",
+      "type": "experience_enhancement",
+      "status": "planned",
+      "owner_domain": "Companion，Conversation 提供原对话引用",
+      "depends_on": [
+        "LE-01",
+        "LE-02"
+      ],
+      "evidence": [
+        "src/tianshu/conversation/schema.sql:9",
+        "src/tianshu/conversation/schema.sql:36",
+        "src/tianshu/companion/growth_materials.py:18"
+      ],
+      "deliverables": [
+        "按真实 turn 与回复关系关联样例",
+        "引用原件及规则版本的表达投影",
+        "复用后台批次选择代表样例",
+        "完整条件和否定保留",
+        "按表达场景与剩余预算选择，允许零样例",
+        "样例说法与历史事实分别解释"
+      ],
+      "acceptance": [
+        "交叉发言和多消息合并不错误配对",
+        "未知发送不伪造成功或好评",
+        "私聊样例不越域",
+        "撤回和负反馈后停用",
+        "样例历史事实不冒充当前事实",
+        "无匹配时正常回复且不强行个性化",
+        "不存在采样自我强化"
+      ],
+      "migration": "必要时增加 Companion 自有引用映射，不复制原始聊天库"
+    },
+    {
+      "id": "LE-04",
+      "title": "复用群主体的词义理解",
+      "priority": "P2",
+      "type": "scenario_enhancement",
+      "status": "planned",
+      "owner_domain": "Memory",
+      "depends_on": [
+        "LE-01"
+      ],
+      "evidence": [
+        "src/tianshu/identity/service.py:377",
+        "src/tianshu/identity/service.py:428",
+        "src/tianshu/memory/claims.py:43",
+        "src/tianshu/memory/domain_utils.py:11",
+        "src/tianshu/memory/extraction_contract.py:115",
+        "src/tianshu/memory/service.py:580"
+      ],
+      "deliverables": [
+        "language.term_meaning 证据合同及生产消费样例",
+        "复用已授权 group 主体并保留真实 speaker 与 assertion",
+        "同一整理批次生成词义材料",
+        "仅匹配当前文本的有界解释",
+        "现有群组记忆页展示来源和分歧"
+      ],
+      "acceptance": [
+        "跨群同词不同义隔离",
+        "单人说法不冒称群体共识",
+        "多义分歧不强行合并",
+        "复用真实群主体且不伪造 identity.people",
+        "来源撤回后旧解释失效",
+        "未命中无额外模型调用"
+      ],
+      "migration": "优先复用 Claim JSON 与修订，派生索引可重建，不新增平行词库权威"
+    },
+    {
+      "id": "LE-05",
+      "title": "最小取材记录与效果展示",
+      "priority": "P2",
+      "type": "product_enhancement",
+      "status": "planned",
+      "owner_domain": "Conversation 与现有前端",
+      "depends_on": [
+        "LE-01",
+        "LE-02"
+      ],
+      "evidence": [
+        "src/tianshu/types/context_materials.py:38",
+        "src/tianshu/conversation/context/assembly.py:286",
+        "src/tianshu/conversation/generation.py",
+        "web/src/features/life/GrowthPage.tsx"
+      ],
+      "deliverables": [
+        "随核心读取先接入最小记录，后续材料复用同一清单",
+        "依原请求身份保存最终取材清单",
+        "区分候选省略与实际注入",
+        "成长聊天和群组页面就地展示",
+        "原权限下跳转来源及规则版本",
+        "估计 token 与真实 usage 分开展示"
+      ],
+      "acceptance": [
+        "最终清单与模型请求一致",
+        "多规则版本无覆盖",
+        "来源失效与权限限制继续生效",
+        "历史未记录不补造",
+        "无反馈不显示好评或效果已提升"
+      ],
+      "migration": "必要时为原请求或 turn 增加附属清单字段，不另建请求账本"
+    },
+    {
+      "id": "LE-06",
+      "title": "集中验证与完整交付",
+      "priority": "P1",
+      "type": "delivery_verification",
+      "status": "planned",
+      "owner_domain": "协调者",
+      "depends_on": [
+        "LE-01",
+        "LE-02",
+        "LE-03",
+        "LE-04",
+        "LE-05"
+      ],
+      "deliverables": [
+        "一次受影响定向集合与必要页面验证",
+        "包含不应个性化的代表场景对照",
+        "针对核心选择和样例词义分别检查增益，避免全组合矩阵",
+        "取材时延及实际使用量说明",
+        "受影响迁移核对",
+        "区分本地交付生产发布与真实效果"
+      ],
+      "acceptance": [
+        "相关行为闭合且无新增未解释回归",
+        "前台新增辅助模型调用为零",
+        "保持原窗口与配置",
+        "语义效果不以条目数或自评分替代",
+        "只按后续实际授权范围执行真实模型和发布"
+      ],
+      "migration": "仅核对本批受影响域"
+    }
+  ],
+  "not_in_scope": [
+    "另建学习引擎或向量数据库",
+    "自动改写固定人格",
+    "好感度决定事实可信度",
+    "按固定天数硬删记忆或习惯",
+    "每轮新增评价模型或全量测试门禁",
+    "重复接管现有三项运行故障",
+    "本轮产品实施、真实模型、QQ 消息或生产操作"
+  ],
+  "successor_queue": "tianshu-clean-rebuild-queue-2026-11-04.json",
+  "supersession_reason": "LE完整需求已并入RB；本轮第六版逐项核对，LE仅保留来源，不能再与RB重复派发。"
+}

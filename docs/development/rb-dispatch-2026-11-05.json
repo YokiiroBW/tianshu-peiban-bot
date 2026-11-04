@@ -1,0 +1,296 @@
+{
+  "schema_version": 1,
+  "state": "prepared_for_dispatch",
+  "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "date": "2026-11-05",
+  "model": "gpt-6.1-terra",
+  "reasoning_effort": "max",
+  "requested_tier": "fast",
+  "global_tier_observed": "priority",
+  "baseline_source": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
+  "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
+  "production_writer": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "validation": "all implementations first, then centralized relevant checks; no per-change smoke gates",
+  "reset_scope": "all Tianshu-owned business data/files; configuration-only retention; other services/external shared resources excluded",
+  "automation": "create only after successful fresh deployment; every 30 minutes; gpt-6.1-terra max; inspect full chain, collect and record issues; quiet unless meaningful change/action",
+  "packages": [
+    {
+      "id": "RBW-runtime",
+      "key": "runtime",
+      "title": "运行时与故障隔离",
+      "task_ids": [
+        "RB-03",
+        "RB-05",
+        "RB-22"
+      ],
+      "allowed_paths": [
+        "src/tianshu/runtime/jobs.py",
+        "src/tianshu/runtime/execution.py",
+        "src/tianshu/runtime/database.py",
+        "src/tianshu/runtime/process.py",
+        "src/tianshu/runtime/supervisor.py",
+        "src/tianshu/runtime/composition.py",
+        "src/tianshu/runtime/listeners.py",
+        "src/tianshu/runtime/recovery_policy.py",
+        "src/tianshu/runtime/rb_*.sql",
+        "tests/runtime/test_rb_*.py",
+        "tests/deployment/test_rb_roles.py",
+        "deploy/core/health.py"
+      ],
+      "boundary": "不写product.py/config.py/config.schema.json/schema.sql/migrations.py/events.py/logging.py/diagnostics.py；这些由协调者或日志包写。提供按角色的build_product调用所需协议和队列归属映射。实现持久通知/短任务/恢复策略、六角色运行与独立监督，真实资源预算。恢复分类、预算继承、due/fairness必须可由领域直接调用，不写万能领域状态机。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-models",
+      "key": "models",
+      "title": "Models异步执行与计时",
+      "task_ids": [
+        "RB-04"
+      ],
+      "allowed_paths": [
+        "src/tianshu/models/",
+        "tests/models/test_rb_*.py"
+      ],
+      "boundary": "唯一拥有Models域含ports/client/http/broker/ledger/scheduler/types及域SQL；不写runtime共享装配或types/。新增持久submit及结果通知，完整保留前台流式与原生代理。尽早回报submit和completion通知的确切签名供其他窗口消费，然后继续整块实现。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-sources",
+      "key": "sources",
+      "title": "身份来源与失效传播",
+      "task_ids": [
+        "RB-02"
+      ],
+      "allowed_paths": [
+        "src/tianshu/identity/",
+        "src/tianshu/sources/",
+        "tests/identity/test_rb_*.py",
+        "tests/sources/test_rb_*.py"
+      ],
+      "boundary": "保留原权限上界/当前交集、来源AND/OR及同事务证明；原件及附件补充的来源合同配合Conversation，程序不授新权限。分角色来源通知不回滚原事实；新历史和独立能力都受来源失效。域SQL自行写，公共迁移注册交协调者。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-memory_write",
+      "key": "memory_write",
+      "title": "Memory写入历史与共享整理",
+      "task_ids": [
+        "RB-07",
+        "RB-08",
+        "RB-17"
+      ],
+      "allowed_paths": [
+        "src/tianshu/memory/"
+      ],
+      "boundary": "Memory写入主包，拥有service/claims/revisions/schema/module/proposal/extraction_contract/consolidation/materials/preparation/generation/steps/retry与新增语义历史/词义模块。明确排除检索包拥有的retrieval.py,retrieval_budget.py,query_plan.py,candidates.py,candidate_sources.py,embedding.py,indexing.py,index_jobs.py,evidence.py,evidence_policy.py,display.py,source_trace.py,tools.py。RB17仅群词义。Memory不再拥有当前学习权威；Companion提供typed refs。双遍编译、冻结规范提案、整批提交及失败隔离必须完整。tests/memory/test_rb_write*.py、tests/core/test_rb_consolidation*.py归你。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-retrieval",
+      "key": "retrieval",
+      "title": "检索与索引投影",
+      "task_ids": [
+        "RB-09",
+        "RB-07"
+      ],
+      "allowed_paths": [
+        "src/tianshu/memory/retrieval.py",
+        "src/tianshu/memory/retrieval_budget.py",
+        "src/tianshu/memory/query_plan.py",
+        "src/tianshu/memory/candidates.py",
+        "src/tianshu/memory/candidate_sources.py",
+        "src/tianshu/memory/embedding.py",
+        "src/tianshu/memory/indexing.py",
+        "src/tianshu/memory/index_jobs.py",
+        "src/tianshu/memory/evidence.py",
+        "src/tianshu/memory/evidence_policy.py",
+        "src/tianshu/memory/display.py",
+        "src/tianshu/memory/source_trace.py",
+        "src/tianshu/memory/tools.py",
+        "src/tianshu/memory/rb_retrieval.sql",
+        "tests/memory/test_rb_retrieval*.py",
+        "tests/core/test_rb_retrieval*.py"
+      ],
+      "boundary": "Memory检索子包，不改Memory写入域文件/schema.sql/module.py/types.py。新投影DDL在rb_retrieval.sql，所需types变更回报协调者。真实原生memory工具也必须携带学习引用并尊重用途，不直查Companion私表。2秒fallback；部署示例配置由协调者同步。成功数学复用有界，来源最终复核，中文检索及多支路降级。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-growth",
+      "key": "growth",
+      "title": "Companion学习与表达样例",
+      "task_ids": [
+        "RB-10",
+        "RB-17"
+      ],
+      "allowed_paths": [
+        "src/tianshu/companion/",
+        "tests/companion/test_rb_*.py"
+      ],
+      "boundary": "Companion唯一学习正文/修订/状态权威；RB17你只负责真实回复表达样例，群词义归Memory写入包。保留人格/情绪原功能。material接口按公共合同扩充purpose/query，resolve_behaviors提供当前语义兼容性，support-only与实质变更区分。样例引用Conversation公开读取接口，不跨查私表。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-life",
+      "key": "life",
+      "title": "Life日程与后台执行",
+      "task_ids": [
+        "RB-11",
+        "RB-13",
+        "RB-14"
+      ],
+      "allowed_paths": [
+        "src/tianshu/life/",
+        "tests/life/test_rb_plan*.py",
+        "tests/life/test_rb_activity*.py"
+      ],
+      "boundary": "拥有Life域但排除diaries.py,diary_*.py,writing.py,writing_*.py,generation_control.py,publications.py及rb_experience.sql（经验包拥有）。你拥有service/worker/planner/planning_engine/day_plan/clock/continuation/reading/contacts/能力接线/域schema/module。日记/创作公开入口必须保留，在module里薄装配经验包接口。实际apply返回逐项结果不能只用created，sleep不阻塞后台，角色焦点与工作/步骤分开。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-experience",
+      "key": "experience",
+      "title": "日记创作与语义经历",
+      "task_ids": [
+        "RB-15"
+      ],
+      "allowed_paths": [
+        "src/tianshu/life/diaries.py",
+        "src/tianshu/life/diary_*.py",
+        "src/tianshu/life/writing.py",
+        "src/tianshu/life/writing_*.py",
+        "src/tianshu/life/generation_control.py",
+        "src/tianshu/life/publications.py",
+        "src/tianshu/life/rb_experience.sql",
+        "tests/life/test_rb_diary*.py",
+        "tests/life/test_rb_writing*.py"
+      ],
+      "boundary": "不写Life service/worker/module/schema/day_plan，补充集成需求给协调者。独立日级请求、真实语义经历、正文已保存只对账、手动自动同对象、创作章节和发布读者授权均保留。消费失败不影响Memory/Growth，先用公共模型submit/observe协议分阶段。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-conversation",
+      "key": "conversation",
+      "title": "对话接入与上下文表达",
+      "task_ids": [
+        "RB-06",
+        "RB-12",
+        "RB-16"
+      ],
+      "allowed_paths": [
+        "src/tianshu/conversation/",
+        "src/tianshu/channels/",
+        "tests/conversation/test_rb_*.py",
+        "tests/channels/test_rb_*.py",
+        "tests/context/test_rb_*.py"
+      ],
+      "boundary": "整块承担媒体分片接收、附件补充版本、上下文依赖优先、最终清单、语义失效及发送边界。原事件不可变且不重复回复；群回复所有权、Web/QQ原能力保持。ContextContribution/Pack共享字段由协调者种子定义，若需增补回报，不直接改types/。渠道唯一连接由API拥有，与runtime包接口对齐。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-capabilities",
+      "key": "capabilities",
+      "title": "独立能力与数据边界",
+      "task_ids": [
+        "RB-18"
+      ],
+      "allowed_paths": [
+        "src/tianshu/capabilities/",
+        "src/tianshu/runtime/media.py",
+        "src/tianshu/runtime/comics.py",
+        "packages/tianshu-plugin/",
+        "tests/capabilities/test_rb_*.py"
+      ],
+      "boundary": "独立媒体/项目/资产/家庭/天气/插件等功能全部保留，但用户最新授权此次清空全部天枢自有业务数据与文件，仅导配置。外部非天枢资源不动。实现按角色按需启动、独立任务不用BOT角色、本地目录/后台刷新/选中能力执行复检。公共product/schema注册交协调者。不得连接真实设备或运行下载。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-logs",
+      "key": "logs",
+      "title": "日志后端与持久链",
+      "task_ids": [
+        "RB-24"
+      ],
+      "allowed_paths": [
+        "src/tianshu/runtime/events.py",
+        "src/tianshu/runtime/logging.py",
+        "src/tianshu/runtime/diagnostics.py",
+        "src/tianshu/runtime/rb_logs*.py",
+        "deploy/core/observability/",
+        "tests/runtime/test_rb_logs*.py"
+      ],
+      "boundary": "只日志后端与原诊断API，前端归frontend包；supervisor输出改动通过补丁需求交runtime包/协调者，不同写supervisor.py。完整日志保留，非阻塞批量落盘/缺口可见，准确级别和源端完整续页；不凭opaque cursor假称上游完整。现有system/logs入口保持，system统计由operations提供。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-operations",
+      "key": "operations",
+      "title": "运维Agent、统计与宿主通知",
+      "task_ids": [
+        "RB-23",
+        "RB-25",
+        "RB-26"
+      ],
+      "allowed_paths": [
+        "src/tianshu/operations/",
+        "deploy/core/operations/",
+        "tests/operations/"
+      ],
+      "boundary": "Ops唯一写者，含统计backend，前端归frontend。复用现有Commands/Models/Jobs/凭据和域窄命令，不直写各域私表。实现指定模型诊断、确定性恢复、原结果验证、通知outbox、独立host兜底，不能只有schema或占位API。模型/收件人未配置准确显示，不猜地址。部署脚本只生成不执行。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    },
+    {
+      "id": "RBW-frontend",
+      "key": "frontend",
+      "title": "前端接线、日志与统计页面",
+      "task_ids": [
+        "RB-19",
+        "RB-24",
+        "RB-25"
+      ],
+      "allowed_paths": [
+        "web/"
+      ],
+      "boundary": "统一前端所有者，保留807体验及22类功能，完成独立日志/统计、运维配置/事件、真实业务状态、当前取材与规则历史。先依公共HTTP合同开发；后端response差异及时回报，不能创建mock默认成功或删除旧入口。配置/后端代码不改。不要逐页跑浏览器/构建，统一完成后交协调者集中验证。",
+      "status": "prepared",
+      "thread_id": null,
+      "worktree": null,
+      "commits": []
+    }
+  ]
+}

@@ -1,0 +1,5 @@
+# RB execution: user-requested Fast tier for this project.
+service_tier = "fast"
+
+[features]
+fast_mode = true

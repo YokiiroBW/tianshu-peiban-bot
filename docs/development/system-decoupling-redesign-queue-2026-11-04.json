@@ -1,0 +1,2319 @@
+{
+  "schema_version": 1,
+  "planning_revision": 2,
+  "title": "天枢全链路解耦与空库重构开发队列",
+  "prepared_at": "2026-11-04T17:37:07+08:00",
+  "state": "superseded_not_dispatched",
+  "successor_queue": "tianshu-clean-rebuild-queue-2026-11-04.json",
+  "supersession_reason": "本窗口最新全链路复盘与 LE 第二版合并为 RB 队列；SD 全部映射为需求来源，不重复派发。",
+  "product_implementation_started": false,
+  "production_operations_performed": false,
+  "data_reset_performed": false,
+  "real_model_calls_performed": false,
+  "dispatch_started": false,
+  "assignees": [],
+  "authority": {
+    "document": "system-decoupling-redesign-plan-2026-11-04.md",
+    "queue": "system-decoupling-redesign-queue-2026-11-04.json",
+    "cards": "system-decoupling-redesign-tasks-2026-11-04.md",
+    "scope": "承接 ML 第二版及 LE 第二版，在用户允许丢弃数据的前提下作为新的候选实施入口；旧编号仅作来源，不重复派发。未修改 CURRENT 或全局任务板。"
+  },
+  "sources": {
+    "coordination_root": "C:/YOKI/Codex/tianshu-peiban-bot",
+    "checkout": "C:/Users/Administrator/.codex/worktrees/frontend-807/tianshu-peiban-bot",
+    "checkout_head": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
+    "checkout_tracked_clean_at_read": true,
+    "production_source_from_record": "03130711fd6961dde31335a300aae23bbf58d9b7",
+    "production_record_at": "2026-11-04T13:33:00+08:00",
+    "production_rechecked": false,
+    "previous_plan": "memory-learning-unified-plan-2026-11-04.md",
+    "previous_queue": "memory-learning-unified-queue-2026-11-04.json",
+    "previous_revision": 2,
+    "learning_plan": "learning-enhancement-queue-2026-11-04.md",
+    "learning_revision": 2
+  },
+  "decision": {
+    "selected": "空库重建核心状态与数据结构，复用可靠业务实现",
+    "application_delivery": "单镜像模块化产品，建议 API/Models/前台 worker/后台 worker 四职责进程",
+    "database": "现有 PostgreSQL 与 pgvector；复用 Procrastinate",
+    "discarded_obligations": [
+      "旧业务数据迁移",
+      "旧冻结协议兼容读者",
+      "旧经历历史补齐",
+      "旧缺口批量补偿",
+      "旧供应商上下文会话续接"
+    ],
+    "preserved": [
+      "既有有效功能",
+      "来源与身份授权",
+      "新的版本/遗忘/恢复能力",
+      "现有 Models 物理尝试与配额语义",
+      "外部副作用未知不重放",
+      "200000 后台输入上限及已配置专用执行窗口",
+      "一QQ连接一角色",
+      "独立订阅",
+      "最小必要验证"
+    ],
+    "no_new_systems": [
+      "微服务集群",
+      "第二任务队列",
+      "通用工作流引擎",
+      "万能事实JSON表",
+      "每轮辅助评价模型"
+    ]
+  },
+  "owners": {
+    "R": "Runtime/共享类型/数据库资源/进程/迁移注册",
+    "B": "Models 请求、尝试、配额与异步提交",
+    "S": "Identity/Sources 场景、原件、证据与授权",
+    "M": "Memory 整理、事实、历史与检索",
+    "C": "Companion 人格、习惯与学习",
+    "D": "Conversation/Channels 接收、取材和表达",
+    "L": "Life 日程、执行与日记",
+    "X": "Capabilities/插件/内容及独立外围任务",
+    "F": "现有前端页面与API客户端",
+    "I": "应用总装配、交付包、共享文档与集成验证"
+  },
+  "execution": {
+    "delivery": "完整功能包；按真实依赖分领域开发，收齐后集中必要装配验证；发布与数据切换由届时唯一写者执行",
+    "role_parallelism": "以上为文件责任角色，不是已创建执行者；同文件单写，按可用执行槽安排，不把22卡理解成22并发",
+    "current_action": "仅规划",
+    "default_order": [
+      "SD-01",
+      "SD-02",
+      "SD-03",
+      "SD-04",
+      "SD-05",
+      "SD-06",
+      "SD-07",
+      "SD-08",
+      "SD-09",
+      "SD-10",
+      "SD-11",
+      "SD-12",
+      "SD-13",
+      "SD-14",
+      "SD-15",
+      "SD-16",
+      "SD-17",
+      "SD-18",
+      "SD-19",
+      "SD-20",
+      "SD-21",
+      "SD-22"
+    ],
+    "dependency_semantics": "depends_on 为功能完整收口依赖；can_prepare_after 可先按稳定合同编写领域实现/样例但不提前宣称完成",
+    "global_taskboard_modified": false
+  },
+  "evidence": [
+    {
+      "id": "E01",
+      "root": "coordination",
+      "path": "docs/development/CURRENT.md",
+      "line": 1,
+      "claim": "13:33 三处未恢复业务问题及运行记录；本轮未访问生产"
+    },
+    {
+      "id": "E02",
+      "root": "source",
+      "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md",
+      "line": 53,
+      "claim": "日记正文成功但scope关联状态未收敛，已在历史修复"
+    },
+    {
+      "id": "E03",
+      "root": "source",
+      "path": "docs/development/runtime-recovery-closure-2026-11-03.md",
+      "line": 5,
+      "claim": "RPC包装未知和短引用/重复提案故障及其修复"
+    },
+    {
+      "id": "E04",
+      "root": "source",
+      "path": "docs/development/natural-runtime-closure-2026-11-02.md",
+      "line": 1,
+      "claim": "排队/执行计时、恢复与真实工作闭环的既有修复"
+    },
+    {
+      "id": "E05",
+      "root": "source",
+      "path": "src/tianshu/runtime/product.py",
+      "line": 132,
+      "claim": "Episode事务内调用两个消费者"
+    },
+    {
+      "id": "E06",
+      "root": "source",
+      "path": "src/tianshu/memory/service.py",
+      "line": 52,
+      "claim": "Episode观察者沿原事务执行"
+    },
+    {
+      "id": "E07",
+      "root": "source",
+      "path": "src/tianshu/runtime/process.py",
+      "line": 202,
+      "claim": "多个队列worker同进程及统一退出收尾"
+    },
+    {
+      "id": "E08",
+      "root": "source",
+      "path": "src/tianshu/companion/growth.py",
+      "line": 540,
+      "claim": "管理view与material运行取材共用读取"
+    },
+    {
+      "id": "E09",
+      "root": "source",
+      "path": "src/tianshu/life/day_plan.py",
+      "line": 47,
+      "claim": "续接条件与unfinished候选范围；需结合planner最终校验"
+    },
+    {
+      "id": "E10",
+      "root": "source",
+      "path": "src/tianshu/memory/schema.sql",
+      "line": 1,
+      "claim": "请求/经历/事实/反思及来源数组的当前物理结构"
+    },
+    {
+      "id": "E11",
+      "root": "source",
+      "path": "src/tianshu/conversation/schema.sql",
+      "line": 1,
+      "claim": "生成请求、turn、expression与计划的当前结构"
+    },
+    {
+      "id": "E12",
+      "root": "source",
+      "path": "src/tianshu/conversation/context/assembly.py",
+      "line": 269,
+      "claim": "逐候选完整计量与后续历史预算"
+    },
+    {
+      "id": "E13",
+      "root": "coordination",
+      "path": "docs/development/proactive-companion-repair-r67-2026-10-31.md",
+      "line": 3,
+      "claim": "历史保护期恢复/暂停循环；已有修复须保留"
+    },
+    {
+      "id": "E14",
+      "root": "source",
+      "path": "src/tianshu/runtime/jobs.py",
+      "line": 138,
+      "claim": "事务入队、pending合并及其语义"
+    },
+    {
+      "id": "E15",
+      "root": "source",
+      "path": "src/tianshu/models/client.py",
+      "line": 76,
+      "claim": "generate经RPC等待结果，取消与原结果边界"
+    },
+    {
+      "id": "E16",
+      "root": "source",
+      "path": "src/tianshu/memory/proposal.py",
+      "line": 67,
+      "claim": "现有按目标提案编译，可复用局部引用处理"
+    },
+    {
+      "id": "E17",
+      "root": "source",
+      "path": "src/tianshu/models/scheduler.py",
+      "line": 47,
+      "claim": "现有公平资源调度及unknown保留"
+    },
+    {
+      "id": "E18",
+      "root": "source",
+      "path": "src/tianshu/runtime/database.py",
+      "line": 41,
+      "claim": "已有业务/控制/同步连接预算"
+    },
+    {
+      "id": "E19",
+      "root": "source",
+      "path": "src/tianshu/life/planner.py",
+      "line": 393,
+      "claim": "续接活动最终资格校验"
+    },
+    {
+      "id": "E20",
+      "root": "source",
+      "path": "src/tianshu/life/planning_engine.py",
+      "line": 72,
+      "claim": "已有语义指纹与重规划机制"
+    },
+    {
+      "id": "E21",
+      "root": "source",
+      "path": "src/tianshu/life/schema.sql",
+      "line": 29,
+      "claim": "活动检查点、目标、日程与日记当前数据模型"
+    },
+    {
+      "id": "E22",
+      "root": "source",
+      "path": "src/tianshu/life/diary_automation.py",
+      "line": 39,
+      "claim": "日记材料与自动状态拥有独立scope键"
+    },
+    {
+      "id": "E23",
+      "root": "source",
+      "path": "src/tianshu/memory/candidates.py",
+      "line": 69,
+      "claim": "多类型当前/历史候选读取"
+    },
+    {
+      "id": "E24",
+      "root": "source",
+      "path": "src/tianshu/memory/index_jobs.py",
+      "line": 246,
+      "claim": "向量回写各类业务对象"
+    },
+    {
+      "id": "E25",
+      "root": "source",
+      "path": "src/tianshu/channels/delivery.py",
+      "line": 139,
+      "claim": "已提交边界及既有发送前检查"
+    },
+    {
+      "id": "E26",
+      "root": "source",
+      "path": "src/tianshu/runtime/execution.py",
+      "line": 9,
+      "claim": "现有35个业务通道"
+    },
+    {
+      "id": "E27",
+      "root": "source",
+      "path": "src/tianshu/sources/schema.sql",
+      "line": 1,
+      "claim": "原件、支持组、遗忘及来源变更"
+    },
+    {
+      "id": "E28",
+      "root": "source",
+      "path": "src/tianshu/runtime/schema.sql",
+      "line": 1,
+      "claim": "job keys、commands与projection cursors已有结构"
+    },
+    {
+      "id": "E29",
+      "root": "source",
+      "path": "docs/development/coherent-refactor-execution-2026-10-31.md",
+      "line": 35,
+      "claim": "现有功能、公开API及唯一Broker等已落地基础约定"
+    }
+  ],
+  "external_sources": [
+    {
+      "url": "https://procrastinate.readthedocs.io/en/stable/howto/advanced/queueing_locks.html",
+      "use": "待执行合并不能代替运行互斥"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/17/sql-select.html",
+      "use": "SKIP LOCKED仅用于适用的任务抢占，不用于证明完整业务读取"
+    },
+    {
+      "url": "https://www.postgresql.org/docs/17/storage-toast.html",
+      "use": "避免声称每次热点更新必然重写全部大JSON"
+    },
+    {
+      "url": "https://github.com/pgvector/pgvector#filtering",
+      "use": "过滤分布、迭代补位和索引取舍"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "SD-01",
+      "title": "公共合同、功能保留与数据归属",
+      "owner": "I",
+      "priority": "P1",
+      "depends_on": [],
+      "write_scope": {
+        "I": [
+          "docs/development",
+          "src/tianshu/runtime/product.py",
+          "tests/contracts"
+        ],
+        "R": [
+          "src/tianshu/types"
+        ],
+        "D": [
+          "src/tianshu/conversation/ports.py"
+        ]
+      },
+      "goal": "固定最小引用、场景、请求/结果与模块端口，保留已有功能。",
+      "deliverables": [
+        "建立现有功能/API/配置保留映射，不把旧requirements的target标记当当前实现状态",
+        "定义对象引用、scene_id、request/attempt、消费版本和当前行为资格合同",
+        "共享schema注册由R、总装配由I单写，各域提供自己的迁移片段",
+        "限定同步必要调用与异步派生消费者，移除跨域私表读写的目标清单"
+      ],
+      "acceptance": [
+        "一个QQ连接一角色、独立订阅和现有外围入口均有明确归属",
+        "公共类型不包含领域万能状态或授予权限字段",
+        "原ML/LE范围逐项映射，新卡不重复派发"
+      ],
+      "evidence": [
+        "E29",
+        "E05",
+        "E26"
+      ],
+      "validation_paths": [
+        "tests/contracts"
+      ],
+      "data_change": "合同与基线schema清单；本卡不预先建所有业务表。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": []
+    },
+    {
+      "id": "SD-02",
+      "title": "场景、原件和可复用证据集合",
+      "owner": "S",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01"
+      ],
+      "write_scope": {
+        "S": [
+          "src/tianshu/identity",
+          "src/tianshu/sources",
+          "tests/core/test_source_memory_stories.py"
+        ],
+        "R": [
+          "src/tianshu/runtime/migrations.py"
+        ],
+        "I": [
+          "tests/contracts"
+        ]
+      },
+      "goal": "原件与授权有单一归属，减少重复来源数组并解决scope与业务身份混淆。",
+      "deliverables": [
+        "稳定场景身份与当前授权/epoch分离",
+        "原件按真实版本存储；证据集合按完整AND/OR/反例语义复用",
+        "建立来源到证据集合/派生对象的反向定位",
+        "来源失效同步生效，派生清理异步，当前复检不依赖清理进度",
+        "请求保存原授权上界/场景引用，执行以原范围与当前权限交集复检，不按当前更宽管理员范围重建旧任务",
+        "单来源可直接使用原source/version引用，重复多源才使用共享集合；批读避免N+1，测量关联开销，不能只按JSON体积判断收益"
+      ],
+      "acceptance": [
+        "作者范围变宽不会制造另一份日记或授予新权限",
+        "集合复用不合并不同私域身份",
+        "遗忘/撤回后旧投影和缓存不能读回",
+        "完整来源依赖不因支持子集或去重缩小"
+      ],
+      "evidence": [
+        "E02",
+        "E27",
+        "E10"
+      ],
+      "validation_paths": [
+        "tests/core/test_source_memory_stories.py",
+        "tests/contracts"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-04",
+        "PF-10",
+        "PF-12"
+      ]
+    },
+    {
+      "id": "SD-03",
+      "title": "事务通知与独立消费者",
+      "owner": "R",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01"
+      ],
+      "write_scope": {
+        "R": [
+          "src/tianshu/runtime/jobs.py",
+          "src/tianshu/runtime/schema.sql",
+          "tests/runtime"
+        ],
+        "I": [
+          "src/tianshu/runtime/product.py",
+          "tests/core/test_incremental_consumers.py"
+        ],
+        "M": [
+          "src/tianshu/memory/service.py"
+        ],
+        "C": [
+          "src/tianshu/companion/growth.py"
+        ],
+        "L": [
+          "src/tianshu/life/diary_automation.py"
+        ]
+      },
+      "goal": "用现有队列的可靠通知取代生产事务中执行消费者业务。",
+      "deliverables": [
+        "事务内业务提交与通知入队，载荷只含稳定对象/事件引用",
+        "各消费者独立落库、幂等标记及失败续跑",
+        "区分可合并脏通知与必须逐项消费的事实/命令",
+        "消费游标处理倒序提交、版本缺口和重启，复用已有cursors，不另建第二总线"
+      ],
+      "acceptance": [
+        "Growth/日记消费者异常不回滚已提交Episode",
+        "重复/乱序/倒序提交不漏消费或重复副作用",
+        "pending唤醒合并不误取消doing",
+        "权限失效仍在原读取/提交入口立即受控"
+      ],
+      "evidence": [
+        "E05",
+        "E06",
+        "E14",
+        "E28"
+      ],
+      "validation_paths": [
+        "tests/runtime",
+        "tests/core/test_incremental_consumers.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-03",
+        "PF-12"
+      ]
+    },
+    {
+      "id": "SD-04",
+      "title": "Models异步提交和唯一冻结请求",
+      "owner": "B",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-03"
+      ],
+      "write_scope": {
+        "B": [
+          "src/tianshu/models",
+          "tests/models"
+        ],
+        "M": [
+          "src/tianshu/memory/steps.py"
+        ],
+        "D": [
+          "src/tianshu/conversation/generation.py",
+          "tests/conversation/test_generation_recovery.py"
+        ],
+        "R": [
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "goal": "后台等待释放业务worker；冻结请求与物理尝试统一归Models。",
+      "deliverables": [
+        "增加持久接受的submit/status/result/cancel，复用唯一Broker和attempt ledger",
+        "完整请求只保存一次，领域持有引用，精确摘要与原参数可核对",
+        "完成结果与持久通知可靠关联，重启有界补偿未消费通知",
+        "前台流式继续使用同一结果身份；纯计算重试与外部效果恢复分开"
+      ],
+      "acceptance": [
+        "RPC断开后按同一attempt查证，不重复提交",
+        "等待不占业务worker或DB连接，物理执行仍占配额",
+        "迟到成功与新尝试最多一次应用",
+        "取消与unknown不改成假成功，排队不扣执行时间"
+      ],
+      "evidence": [
+        "E03",
+        "E04",
+        "E15",
+        "E17",
+        "E10",
+        "E11"
+      ],
+      "validation_paths": [
+        "tests/models",
+        "tests/conversation/test_generation_recovery.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "这是必要的公共调用链变更，须覆盖实际消费者；不保留多个冻结请求权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-02",
+        "PF-03",
+        "PF-05",
+        "PF-13",
+        "PF-14"
+      ]
+    },
+    {
+      "id": "SD-05",
+      "title": "前后台进程与共享资源隔离",
+      "owner": "R",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-04"
+      ],
+      "write_scope": {
+        "R": [
+          "src/tianshu/runtime/process.py",
+          "src/tianshu/runtime/supervisor.py",
+          "src/tianshu/runtime/database.py",
+          "src/tianshu/runtime/execution.py",
+          "src/tianshu/runtime/config.schema.json",
+          "tests/runtime"
+        ],
+        "I": [
+          "src/tianshu/runtime/product.py",
+          "tests/deployment"
+        ]
+      },
+      "goal": "把前台接收/控制和后台计算的故障及资源竞争限制在明确边界。",
+      "deliverables": [
+        "同镜像四职责进程，前后台worker消费不重叠队列",
+        "复用35逻辑通道与Models调度，数据库/HTTP/线程总预算独立约束",
+        "控制和真实到期操作保留可用资源，后台按年龄推进",
+        "前后台健康分别暴露，单后台进程故障单独恢复",
+        "模块start/stop按进程角色装配，未配置可选能力仅影响自身可用性；唯一连接拥有者不因多进程重复启动"
+      ],
+      "acceptance": [
+        "后台退出不关闭QQ输入、取消或前台发送",
+        "一个QQ连接唯一所有者、Broker唯一",
+        "混合负载下没有连接预算叠加失控",
+        "常驻内存增加与混合负载收益都有记录，不按进程数猜收益"
+      ],
+      "evidence": [
+        "E07",
+        "E17",
+        "E18",
+        "E26"
+      ],
+      "validation_paths": [
+        "tests/runtime",
+        "tests/deployment"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "共享DB/网络仍有资源竞争；不同功能独立进展不等于无限资源或零相互影响。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-12"
+      ]
+    },
+    {
+      "id": "SD-06",
+      "title": "输入接收与消息单元",
+      "owner": "D",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-02",
+        "SD-03"
+      ],
+      "write_scope": {
+        "D": [
+          "src/tianshu/channels/service.py",
+          "src/tianshu/conversation/service.py",
+          "src/tianshu/conversation/codec.py",
+          "src/tianshu/conversation/types.py",
+          "tests/channels",
+          "tests/conversation/test_turn_rejections.py"
+        ]
+      },
+      "goal": "先可靠保存原事件和可用部分，保持消息/引用/来源身份。",
+      "deliverables": [
+        "不可用媒体按部分覆盖接收，保留原事件回复所有权",
+        "消息在上下文选择前保留event/turn/reply/source/version",
+        "输入入账与后续Memory/Growth消费解耦",
+        "恢复仅推进原输入处理，不产生伪造新消息"
+      ],
+      "acceptance": [
+        "混合文本/坏附件仍保存文本且缺项准确",
+        "重复输入不重复回复",
+        "撤回和纯不可用附件保持真实状态",
+        "跨群/跨角色不串消息"
+      ],
+      "evidence": [
+        "E01",
+        "E11",
+        "E27"
+      ],
+      "validation_paths": [
+        "tests/channels",
+        "tests/conversation/test_turn_rejections.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-13"
+      ]
+    },
+    {
+      "id": "SD-07",
+      "title": "Memory当前状态、语义版本与检索投影",
+      "owner": "M",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-02"
+      ],
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/schema.sql",
+          "src/tianshu/memory/types.py",
+          "src/tianshu/memory/service.py",
+          "src/tianshu/memory/revisions.py",
+          "src/tianshu/memory/index_jobs.py",
+          "src/tianshu/memory/indexing.py",
+          "tests/memory",
+          "tests/core/test_memory_revision_domain.py"
+        ],
+        "R": [
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "goal": "分离语义数据、处理进度与索引，建立窄的可重建检索文档。",
+      "deliverables": [
+        "Claim/Matter保留类型化head/revision，Episode语义版本与提取进度分离",
+        "当前search_documents按对象版本/profile唯一，完整业务记录仍为权威",
+        "去掉索引/游标更新触发的语义修订和重复重算",
+        "热点字段结构化，正文/证据引用与处理状态分开，新schema压平",
+        "新search_documents替换原多处向量索引职责；按时间语义保留可检索版本，当前partial索引与历史读取明确区分，不在旧索引外再叠一套常驻副本"
+      ],
+      "acceptance": [
+        "current/valid_at/known_at语义保持",
+        "索引落后能词法/直接读取且有freshness",
+        "投影可重建，来源失效及时阻止读取",
+        "元数据变动不无故重算同语义向量"
+      ],
+      "evidence": [
+        "E10",
+        "E23",
+        "E24"
+      ],
+      "validation_paths": [
+        "tests/memory",
+        "tests/core/test_memory_revision_domain.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-10",
+        "PF-11"
+      ]
+    },
+    {
+      "id": "SD-08",
+      "title": "共享整理、局部引用和增量算法",
+      "owner": "M",
+      "priority": "P1",
+      "depends_on": [
+        "SD-03",
+        "SD-04",
+        "SD-07"
+      ],
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/materials.py",
+          "src/tianshu/memory/proposal.py",
+          "src/tianshu/memory/extraction_contract.py",
+          "src/tianshu/memory/consolidation.py",
+          "src/tianshu/memory/consolidation_retry.py",
+          "src/tianshu/memory/preparation.py",
+          "tests/core/test_consolidation_pipeline.py",
+          "tests/memory/test_consolidation_contract.py"
+        ]
+      },
+      "goal": "一次共享理解保留多人归属，减少重复材料和机械协议失败。",
+      "deliverables": [
+        "prepare/submit/wait/apply短阶段，原完整源集合与实际支持分别保存",
+        "输出感知分段，确定材料范围后执行必要远端候选召回",
+        "按目标局部别名限定，复用原编译/严格事务校验",
+        "只对语义变化处理；精确重复与相似/矛盾/重复事件分开"
+      ],
+      "acceptance": [
+        "changed/no_change/unresolved完整覆盖，低频参与者保留",
+        "不同目标n1不冲突，目标内歧义拒绝",
+        "输出截断不部分提交，未知不堵所有分区",
+        "少调用不冒称低token或低费用"
+      ],
+      "evidence": [
+        "E01",
+        "E03",
+        "E16",
+        "E24"
+      ],
+      "validation_paths": [
+        "tests/core/test_consolidation_pipeline.py",
+        "tests/memory/test_consolidation_contract.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-02",
+        "PF-03",
+        "PF-11"
+      ]
+    },
+    {
+      "id": "SD-09",
+      "title": "检索、重排与向量计算复用",
+      "owner": "M",
+      "priority": "P1",
+      "depends_on": [
+        "SD-04",
+        "SD-07"
+      ],
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/candidates.py",
+          "src/tianshu/memory/query_plan.py",
+          "src/tianshu/memory/retrieval.py",
+          "src/tianshu/memory/retrieval_budget.py",
+          "src/tianshu/memory/embedding.py",
+          "src/tianshu/memory/indexing.py",
+          "tests/core/test_memory_evidence_retrieval.py",
+          "tests/memory/test_retrieval_degradation.py"
+        ]
+      },
+      "goal": "在窄投影上先候选后正文，按需要调用远端计算。",
+      "deliverables": [
+        "结构过滤、中文完整词项与受控回退，词法/向量预算内并行",
+        "候选只读必要字段，批量来源证明和最终复检",
+        "延续RRF/MMR、ANN补位；精确查询避免无益重排",
+        "请求内向量/计量复用，同文本/profile索引复用，跨请求缓存按收益取舍"
+      ],
+      "acceptance": [
+        "人物/否定/时间/群范围召回质量不退化",
+        "某支路不可用不抹掉其他有效证据",
+        "当前与历史/list严格区分",
+        "共享正文不等于共享权限或任意共享向量"
+      ],
+      "evidence": [
+        "E23",
+        "E24",
+        "E18"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_evidence_retrieval.py",
+        "tests/memory/test_retrieval_degradation.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-03",
+        "PF-10"
+      ]
+    },
+    {
+      "id": "SD-10",
+      "title": "习惯规则、纠正与运行投影",
+      "owner": "C",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-02",
+        "SD-03"
+      ],
+      "write_scope": {
+        "C": [
+          "src/tianshu/companion",
+          "tests/companion"
+        ],
+        "M": [
+          "src/tianshu/memory/evidence.py",
+          "src/tianshu/memory/tools.py"
+        ],
+        "I": [
+          "tests/core/test_incremental_consumers.py"
+        ]
+      },
+      "goal": "当前行为由一个规则权威负责，学习提案与支持可追溯。",
+      "deliverables": [
+        "稳定规则head/revisions，持续明确偏好/临时要求/推断分开",
+        "运行取材脱离管理view，先筛选active/用途/对象再限量补位",
+        "支持、完整依赖、反例、反馈分开；历史反思带行为关联",
+        "明确命令及时修订，语义失效与仅支持变化区分"
+      ],
+      "acceptance": [
+        "撤回不能借Memory/工具/Life重新生效",
+        "41条有效规则不被前40条失效记录挡住",
+        "原文/日记/机器人自用不重复增加支持",
+        "自然语言当次遵守与持久提交状态区分"
+      ],
+      "evidence": [
+        "E08",
+        "E05",
+        "E10"
+      ],
+      "validation_paths": [
+        "tests/companion",
+        "tests/core/test_incremental_consumers.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-03",
+        "PF-11"
+      ]
+    },
+    {
+      "id": "SD-11",
+      "title": "按用途并行取材与上下文预算",
+      "owner": "D",
+      "priority": "P1",
+      "depends_on": [
+        "SD-06",
+        "SD-09",
+        "SD-10"
+      ],
+      "write_scope": {
+        "D": [
+          "src/tianshu/conversation/context",
+          "src/tianshu/conversation/service.py",
+          "tests/context"
+        ],
+        "R": [
+          "src/tianshu/types/context_materials.py"
+        ],
+        "L": [
+          "src/tianshu/life/planning_engine.py"
+        ],
+        "M": [
+          "tests/core/test_memory_evidence_retrieval.py"
+        ]
+      },
+      "goal": "当前对话依赖优先，去掉无关聚合和反复整包计量。",
+      "deliverables": [
+        "相互独立的Memory/规则/Life小状态在资源预算内并行",
+        "来源跟随完整消息单元，最终只汇总真实直接依赖并保留衍生闭包",
+        "单元token估算缓存+最终整包校验，不依赖分词可加假设",
+        "冻结request/round/attempt取材清单和版本，当前未整理输入参与理解"
+      ],
+      "acceptance": [
+        "刚才那个所需上文不被可选样例挤掉",
+        "必要来源失效仍阻止不当使用，未采用且未参与衍生计算的候选不阻断回复",
+        "同kind多规则版本不覆盖",
+        "不新增前台评价LLM，质量与完整token用量分别比较"
+      ],
+      "evidence": [
+        "E08",
+        "E11",
+        "E12"
+      ],
+      "validation_paths": [
+        "tests/context",
+        "tests/core/test_memory_evidence_retrieval.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-05",
+        "PF-10",
+        "PF-14"
+      ]
+    },
+    {
+      "id": "SD-12",
+      "title": "Life对象模型与统一执行资格",
+      "owner": "L",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-02"
+      ],
+      "write_scope": {
+        "L": [
+          "src/tianshu/life/schema.sql",
+          "src/tianshu/life/types.py",
+          "src/tianshu/life/state.py",
+          "src/tianshu/life/day_plan.py",
+          "src/tianshu/life/planner.py",
+          "src/tianshu/life/continuation.py",
+          "tests/life"
+        ],
+        "R": [
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "goal": "分开目标、活动意图、实际步骤和注意力时间，统一续接资格。",
+      "deliverables": [
+        "活动生命周期、typed wait和步骤回执分离；checkpoint按实际活动类型组织",
+        "同一资格函数供候选构建/应用/执行使用",
+        "目标有效性、保护期、用户暂停、来源和未知结果进入资格",
+        "日记day-session和作者业务身份独立于调用方scope哈希"
+      ],
+      "acceptance": [
+        "inactive goal对应旧活动不作为可选续接候选",
+        "空checkpoint可解释且不导致页面500",
+        "保护期内不反复恢复/暂停或增长无用版本",
+        "外部未知步骤不被伪装成未开始"
+      ],
+      "evidence": [
+        "E09",
+        "E19",
+        "E21",
+        "E13",
+        "E02"
+      ],
+      "validation_paths": [
+        "tests/life"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "生命周期、等待与尝试不能合成一个万能state；减少语义重叠而非只减少枚举数量。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-04",
+        "PF-06",
+        "PF-08",
+        "PF-09"
+      ]
+    },
+    {
+      "id": "SD-13",
+      "title": "滚动规划与确定性时间安排",
+      "owner": "L",
+      "priority": "P1",
+      "depends_on": [
+        "SD-04",
+        "SD-12"
+      ],
+      "write_scope": {
+        "L": [
+          "src/tianshu/life/planning_engine.py",
+          "src/tianshu/life/planner.py",
+          "src/tianshu/life/day_plan.py",
+          "src/tianshu/life/opportunities.py",
+          "src/tianshu/life/directions.py",
+          "tests/life"
+        ]
+      },
+      "goal": "模型提出有依据意图，程序保持承诺、作息和有效安排。",
+      "deliverables": [
+        "冻结当前可执行候选，模型选短引用/新意图，程序生成身份与时间",
+        "先强约束过滤再稳定排序，复用现有next_gap和语义指纹",
+        "只重排受影响时间段；远期意向与近期可执行步骤区分",
+        "按依赖成分校验提交，失效候选有限修正，失败保留既有有效计划",
+        "规划准备只读轻量能力目录；远端可用性后台刷新并标明时效，真实派发仍复检，不每次规划遍历全部外部探针"
+      ],
+      "acceptance": [
+        "单个过期候选不清空全天，也不部分应用相依目标/活动",
+        "合法留白与规划拒绝分开",
+        "不恢复每日次数/固定排程占比限制",
+        "旧计划过期或材料变更时不照旧执行"
+      ],
+      "evidence": [
+        "E01",
+        "E09",
+        "E19",
+        "E20"
+      ],
+      "validation_paths": [
+        "tests/life"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "不放宽来源/目标/能力校验换成功率；格式修复和刷新过期输入分开。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-06",
+        "PF-07",
+        "PF-08",
+        "PF-09"
+      ]
+    },
+    {
+      "id": "SD-14",
+      "title": "到期唤醒、资源等待与活动推进",
+      "owner": "L",
+      "priority": "P1",
+      "depends_on": [
+        "SD-03",
+        "SD-05",
+        "SD-12",
+        "SD-13"
+      ],
+      "write_scope": {
+        "L": [
+          "src/tianshu/life/clock.py",
+          "src/tianshu/life/events.py",
+          "src/tianshu/life/worker.py",
+          "src/tianshu/life/planning_engine.py",
+          "src/tianshu/life/generation_control.py",
+          "tests/life"
+        ],
+        "R": [
+          "src/tianshu/runtime/jobs.py",
+          "tests/runtime"
+        ]
+      },
+      "goal": "必要事件和真实时间边界驱动执行，等待不占角色全局锁。",
+      "deliverables": [
+        "下次due取承诺/时段/事件/重试/必要复查最早值",
+        "按业务对象合并脏唤醒，保留正在执行之后一个后继",
+        "角色等待外部图像等结果时释放不必要注意力占用",
+        "只按真实回执推进，用户暂停/保护期与恢复共用资格"
+      ],
+      "acceptance": [
+        "无变化不反复调用规划模型",
+        "到期提醒不被后台LLM排队挡住可执行阶段",
+        "同角色独立活动的后台结果正常推进，同一动作不重复",
+        "跨日/时区/重启/事件乱序不丢承诺",
+        "保护期重复唤醒不新增步骤或空增语义版本，暂停时作息显示继续推进；PF-08未覆盖部分明确补齐或复用证据"
+      ],
+      "evidence": [
+        "E13",
+        "E14",
+        "E17",
+        "E20",
+        "E21"
+      ],
+      "validation_paths": [
+        "tests/life",
+        "tests/runtime"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-06",
+        "PF-07",
+        "PF-08",
+        "PF-09"
+      ]
+    },
+    {
+      "id": "SD-15",
+      "title": "独立反思、经历与日记闭环",
+      "owner": "L",
+      "priority": "P1",
+      "depends_on": [
+        "SD-03",
+        "SD-04",
+        "SD-10",
+        "SD-12"
+      ],
+      "write_scope": {
+        "L": [
+          "src/tianshu/life/diaries.py",
+          "src/tianshu/life/diary_automation.py",
+          "src/tianshu/life/diary_materials.py",
+          "src/tianshu/life/diary_retry.py",
+          "tests/life/test_diary_automation.py"
+        ],
+        "C": [
+          "src/tianshu/companion/growth.py",
+          "src/tianshu/companion/growth_materials.py",
+          "src/tianshu/companion/growth_observations.py",
+          "tests/companion/test_growth_retry.py"
+        ]
+      },
+      "goal": "经历变化分别驱动反思和日记，任一失败不阻止另一功能。",
+      "deliverables": [
+        "消费真实结果语义视图，内部补查/反思/日记不变成新独立证据",
+        "每角色/日期/功能独立请求，不继承上次聊天或失败上下文",
+        "手动/自动使用同day-session，正文成功时业务提交直接更新权威状态",
+        "暂时纯计算失败释放活动位，按原尝试观察或独立重试"
+      ],
+      "acceptance": [
+        "一角色日记失败不阻止其他角色/日期/记忆",
+        "作者scope宽于闭日scope时正确匹配同一对象",
+        "已保存正文状态对账不重新生成",
+        "未知/partial真实进入材料，不能改写为完成"
+      ],
+      "evidence": [
+        "E02",
+        "E04",
+        "E05",
+        "E22"
+      ],
+      "validation_paths": [
+        "tests/life/test_diary_automation.py",
+        "tests/companion/test_growth_retry.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-02",
+        "PF-03",
+        "PF-04",
+        "PF-05",
+        "PF-11",
+        "PF-14"
+      ]
+    },
+    {
+      "id": "SD-16",
+      "title": "表达、发送与业务结果收敛",
+      "owner": "D",
+      "priority": "P1",
+      "depends_on": [
+        "SD-03",
+        "SD-04",
+        "SD-11",
+        "SD-14"
+      ],
+      "write_scope": {
+        "D": [
+          "src/tianshu/conversation/expression.py",
+          "src/tianshu/conversation/rendering.py",
+          "src/tianshu/conversation/results.py",
+          "src/tianshu/channels/delivery.py",
+          "src/tianshu/channels/service.py",
+          "tests/conversation",
+          "tests/channels"
+        ],
+        "X": [
+          "src/tianshu/capabilities"
+        ],
+        "I": [
+          "src/tianshu/runtime/product.py"
+        ]
+      },
+      "goal": "冻结取材、表达和真实外部回执关联，纠正失效只影响未提交部分。",
+      "deliverables": [
+        "实际选中规则语义依赖沿expression/action引用传递",
+        "结果/渲染释放/未提交发送边界做必要批量复检",
+        "已提交或unknown外部效果只沿原身份对账",
+        "业务消费和派生页面事件在领域提交时一起登记"
+      ],
+      "acceptance": [
+        "支持新增不取消回复，实质撤回影响依赖该规则的未提交表达",
+        "等待语音/发送期间变化仍可处理",
+        "多段部分送出不能记成全未发生",
+        "模型成功、业务应用、发送、送达不混为一态"
+      ],
+      "evidence": [
+        "E25",
+        "E11",
+        "E03"
+      ],
+      "validation_paths": [
+        "tests/conversation",
+        "tests/channels"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-13"
+      ]
+    },
+    {
+      "id": "SD-17",
+      "title": "按需表达样例与群词义",
+      "owner": "C",
+      "priority": "P1",
+      "depends_on": [
+        "SD-08",
+        "SD-10",
+        "SD-11"
+      ],
+      "write_scope": {
+        "C": [
+          "src/tianshu/companion",
+          "tests/companion"
+        ],
+        "M": [
+          "src/tianshu/memory/materials.py",
+          "src/tianshu/memory/revisions.py",
+          "src/tianshu/memory/service.py",
+          "tests/core/test_memory_evidence_retrieval.py"
+        ],
+        "D": [
+          "src/tianshu/conversation/service.py"
+        ]
+      },
+      "goal": "保留LE完整功能，采用既有学习和Memory通路。",
+      "deliverables": [
+        "样例按真实turn/回复/合并关系关联，只保留必要原文引用",
+        "群词义复用真实group主体和Claim修订，区分speaker/assertion",
+        "当前输入匹配时有界取材，规则足够时零样例",
+        "来源/规则撤回与负反馈同步停止当前采用"
+      ],
+      "acceptance": [
+        "多人相邻发言不误配对，私聊样例不越域",
+        "单人解释不升级群共识",
+        "样例中的旧事实不进入当前答案",
+        "不按每词/每样例新增模型调用"
+      ],
+      "evidence": [
+        "E08",
+        "E16",
+        "E27"
+      ],
+      "validation_paths": [
+        "tests/companion",
+        "tests/core/test_memory_evidence_retrieval.py"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-11"
+      ]
+    },
+    {
+      "id": "SD-18",
+      "title": "外围功能独立任务与能力接线",
+      "owner": "X",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-03",
+        "SD-04",
+        "SD-05"
+      ],
+      "write_scope": {
+        "X": [
+          "src/tianshu/capabilities",
+          "tests/capabilities"
+        ],
+        "R": [
+          "src/tianshu/runtime/media.py",
+          "src/tianshu/runtime/comics.py"
+        ],
+        "I": [
+          "src/tianshu/runtime/product.py",
+          "tests/integration"
+        ]
+      },
+      "goal": "外围媒体、插件、订阅和基础设施能独立运行并提供真实结果。",
+      "deliverables": [
+        "保留现有插件/媒体/阅读/项目知识等公共能力，不以重构删功能",
+        "订阅/管理任务保持actor可空，不依赖BOT对话/Life状态",
+        "长外部等待采用提交/结果回调及真实资源许可",
+        "错误和能力可用性通知只影响关联任务，不全局重规划"
+      ],
+      "acceptance": [
+        "未配置引擎准确不可用，不用占位成功",
+        "独立订阅无需角色在线",
+        "共享GPU/账号限额不因不同模块重复分配",
+        "后台长任务不会堵控制通道"
+      ],
+      "evidence": [
+        "E26",
+        "E29",
+        "E17"
+      ],
+      "validation_paths": [
+        "tests/capabilities",
+        "tests/integration"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-09",
+        "PF-12"
+      ]
+    },
+    {
+      "id": "SD-19",
+      "title": "页面读模型与状态解释",
+      "owner": "F",
+      "priority": "P1",
+      "depends_on": [
+        "SD-07",
+        "SD-10",
+        "SD-12",
+        "SD-15",
+        "SD-16",
+        "SD-17",
+        "SD-18"
+      ],
+      "can_prepare_after": [
+        "SD-01"
+      ],
+      "write_scope": {
+        "F": [
+          "web/src",
+          "web/tests"
+        ],
+        "D": [
+          "src/tianshu/conversation/module.py"
+        ],
+        "C": [
+          "src/tianshu/companion/module.py"
+        ],
+        "M": [
+          "src/tianshu/memory/module.py"
+        ],
+        "L": [
+          "src/tianshu/life/module.py"
+        ],
+        "B": [
+          "src/tianshu/models/management.py"
+        ]
+      },
+      "goal": "现有页面消费真实统一结果，减少重复聚合和矛盾状态。",
+      "deliverables": [
+        "保留已认可页面结构和完整功能，按新接口接线",
+        "业务/尝试/效果/投影freshness分开展示，主要状态由领域权威计算",
+        "后台进度按实际版本事件刷新，列表有界分页不拉所有原文",
+        "空、加载、未配置、unknown及部分完成均可正常操作"
+      ],
+      "acceptance": [
+        "日记正文成功不继续展示另一权威的旧失败",
+        "已装入不显示为已经改善效果",
+        "请求未知不自动重发写命令",
+        "桌面/窄屏和已有作者操作完整"
+      ],
+      "evidence": [
+        "E02",
+        "E08",
+        "E11",
+        "E29"
+      ],
+      "validation_paths": [
+        "web/tests"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-04"
+      ]
+    },
+    {
+      "id": "SD-20",
+      "title": "全链路计量与代表性评估材料",
+      "owner": "I",
+      "priority": "P1",
+      "depends_on": [
+        "SD-04",
+        "SD-05",
+        "SD-09",
+        "SD-11",
+        "SD-13",
+        "SD-19"
+      ],
+      "can_prepare_after": [
+        "SD-01"
+      ],
+      "write_scope": {
+        "R": [
+          "src/tianshu/runtime/diagnostics.py",
+          "src/tianshu/runtime/events.py"
+        ],
+        "I": [
+          "scripts/evaluation/memory_closure",
+          "docs/development",
+          "tests/integration"
+        ]
+      },
+      "goal": "让耗时、质量和真实结果可归因，避免只看队列清空。",
+      "deliverables": [
+        "阶段计量区分DB等待/取材/队列/执行/首个有效输出/完整发送",
+        "冻结同质量对照故事，按故事家族隔离保留材料",
+        "准备前后台混合负载、进程故障、重启及长模型排队场景",
+        "复用完整日志持久链，先测fsync/序列化再决定是否改批处理，不删日志"
+      ],
+      "acceptance": [
+        "失败/取消/unknown包含在分母和费用范围",
+        "单查询提速没有掩盖来源/召回退化",
+        "日程有效应用与真实执行分开计数",
+        "无未经测量的省钱/提速比例，既有成功检查复用"
+      ],
+      "evidence": [
+        "E04",
+        "E07",
+        "E12",
+        "E17",
+        "E18"
+      ],
+      "validation_paths": [
+        "scripts/evaluation/memory_closure",
+        "tests/integration"
+      ],
+      "data_change": "仅必要阶段字段与计量关联，不建第二日志数据库。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": []
+    },
+    {
+      "id": "SD-21",
+      "title": "新空库安装与单写者切换材料",
+      "owner": "I",
+      "priority": "P1",
+      "depends_on": [
+        "SD-02",
+        "SD-03",
+        "SD-04",
+        "SD-05",
+        "SD-18",
+        "SD-19"
+      ],
+      "can_prepare_after": [
+        "SD-01"
+      ],
+      "write_scope": {
+        "I": [
+          "deploy",
+          "docs/development",
+          "tests/deployment"
+        ],
+        "R": [
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "goal": "交付压平后的新安装，不背负旧业务数据迁移和兼容。",
+      "deliverables": [
+        "各域baseline schema注册，新库初始化；Procrastinate使用原库安装机制",
+        "删除旧协议/旧状态兼容的生产启动分支，旧代码只作源码历史",
+        "可选按字段导出作者配置，旧业务/会话/日程不自动续接",
+        "编写旧写者停止、入站边界、外部已提交任务隔离及唯一入口切换方案"
+      ],
+      "acceptance": [
+        "新空库真实可启动，功能所需配置缺失有明确状态",
+        "不会因新库无账本而重放旧QQ/外部副作用",
+        "清理清单限于已核实天枢资源",
+        "代码回退不靠全库回滚覆盖新数据"
+      ],
+      "evidence": [
+        "E29",
+        "E03",
+        "E25"
+      ],
+      "validation_paths": [
+        "tests/deployment"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "用户已允许弃数据；本规划不执行删除。实际切换需严格限定天枢资源及旧外部请求边界。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-13"
+      ]
+    },
+    {
+      "id": "SD-22",
+      "title": "完整装配与必要集中验收",
+      "owner": "I",
+      "priority": "P1",
+      "depends_on": [
+        "SD-01",
+        "SD-02",
+        "SD-03",
+        "SD-04",
+        "SD-05",
+        "SD-06",
+        "SD-07",
+        "SD-08",
+        "SD-09",
+        "SD-10",
+        "SD-11",
+        "SD-12",
+        "SD-13",
+        "SD-14",
+        "SD-15",
+        "SD-16",
+        "SD-17",
+        "SD-18",
+        "SD-19",
+        "SD-20",
+        "SD-21"
+      ],
+      "can_prepare_after": [
+        "SD-01"
+      ],
+      "write_scope": {
+        "I": [
+          "docs/development",
+          "src/tianshu/runtime/product.py",
+          "tests/integration",
+          "tests/deployment"
+        ],
+        "R": [
+          "tests/runtime"
+        ],
+        "B": [
+          "tests/models"
+        ],
+        "M": [
+          "tests/memory"
+        ],
+        "C": [
+          "tests/companion"
+        ],
+        "D": [
+          "tests/conversation",
+          "tests/channels"
+        ],
+        "L": [
+          "tests/life"
+        ],
+        "X": [
+          "tests/capabilities"
+        ],
+        "F": [
+          "web/tests"
+        ]
+      },
+      "goal": "把领域实现收为一个完整功能包，验证本次改变的边界。",
+      "deliverables": [
+        "收齐源码/合同/页面/安装包，单写者串行装配",
+        "复用未变成功结果，集中运行受影响行为、混合资源及恢复场景",
+        "实际模型/QQ/引擎动作按后续实施授权执行并独立记录",
+        "记录实现、集成、验证、部署和实际效果各阶段，不以文件存在宣布完成"
+      ],
+      "acceptance": [
+        "22卡交付与旧ML/LE功能映射无缺口",
+        "来源/CAS/未知、日程资格、消费者隔离和空库切换均有必要证据",
+        "没有因精简删除有效功能或遗留旧兼容当前写入器",
+        "明确未配置/未触发/未验证项，不追加无关全量门禁",
+        "对应历史修复行为在新结构中保留，受影响PF回归与装配边界有实际证据；旧通过结果不直接继承到变更实现"
+      ],
+      "evidence": [
+        "E01",
+        "E02",
+        "E03",
+        "E13",
+        "E29"
+      ],
+      "validation_paths": [
+        "tests/integration",
+        "tests/deployment"
+      ],
+      "data_change": "本卡在新空库结构上实现；不迁移旧业务数据。",
+      "risk": "保留原来源、版本和物理尝试边界；下游投影不成为第二权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-02",
+        "PF-03",
+        "PF-04",
+        "PF-05",
+        "PF-06",
+        "PF-07",
+        "PF-08",
+        "PF-09",
+        "PF-10",
+        "PF-11",
+        "PF-12",
+        "PF-13",
+        "PF-14"
+      ]
+    }
+  ],
+  "evaluation": {
+    "mode": "规划检查，不运行产品测试",
+    "future_scope": "仅覆盖共享状态、数据结构及受影响功能的定向验证；混合负载/恢复因本次改变而必要",
+    "denominators": [
+      "同质量答案与正确归属",
+      "日程有效应用/真实执行分别计数",
+      "所有物理尝试与未知计量",
+      "排队/执行/首个有效输出/完整回复",
+      "不同角色和后台工作年龄"
+    ],
+    "no_assumed_gains": true
+  },
+  "mapping": {
+    "ML": {
+      "ML-01": [
+        "SD-01",
+        "SD-02",
+        "SD-11"
+      ],
+      "ML-02": [
+        "SD-06"
+      ],
+      "ML-03": [
+        "SD-08"
+      ],
+      "ML-04": [
+        "SD-07",
+        "SD-08",
+        "SD-15",
+        "SD-20"
+      ],
+      "ML-05": [
+        "SD-03",
+        "SD-10",
+        "SD-16"
+      ],
+      "ML-06": [
+        "SD-06",
+        "SD-11",
+        "SD-16"
+      ],
+      "ML-07": [
+        "SD-10"
+      ],
+      "ML-08": [
+        "SD-08"
+      ],
+      "ML-09": [
+        "SD-09"
+      ],
+      "ML-10": [
+        "SD-07",
+        "SD-09"
+      ],
+      "ML-11": [
+        "SD-07"
+      ],
+      "ML-12": [
+        "SD-17"
+      ],
+      "ML-13": [
+        "SD-17"
+      ],
+      "ML-14": {
+        "disposition": "retired_for_fresh_start",
+        "reason": "允许弃现有数据后不实施旧缺口补偿；面向未来的新任务恢复进入 SD-03/04/08/15。"
+      },
+      "ML-15": [
+        "SD-19",
+        "SD-20"
+      ],
+      "ML-16": [
+        "SD-20",
+        "SD-21",
+        "SD-22"
+      ]
+    },
+    "LE": {
+      "LE-01": [
+        "SD-10",
+        "SD-11",
+        "SD-16"
+      ],
+      "LE-02": [
+        "SD-10"
+      ],
+      "LE-03": [
+        "SD-17"
+      ],
+      "LE-04": [
+        "SD-17"
+      ],
+      "LE-05": [
+        "SD-01",
+        "SD-11",
+        "SD-19",
+        "SD-20"
+      ],
+      "LE-06": [
+        "SD-20",
+        "SD-22"
+      ]
+    },
+    "additional_scope": [
+      "SD-03",
+      "SD-04",
+      "SD-05",
+      "SD-12",
+      "SD-13",
+      "SD-14",
+      "SD-15",
+      "SD-18",
+      "SD-21"
+    ],
+    "note": "新增卡来自全链路/日程/数据重构范围；旧卡不恢复为另一组执行者。"
+  },
+  "mapping_note": "ML-14仅旧存量补偿退出，其未来恢复语义仍由新队列覆盖；其余ML/LE全部保留功能映射。",
+  "preserved_fix_policy": {
+    "user_requirement": "重构不得重新引入此前已解决的问题；允许丢弃旧数据不等于允许丢弃修复行为。",
+    "coverage_claim": "本轮针对相关修复记录、当前实现入口和现有用例做映射，不是穷尽全部历史故障审计，也不是重构后的验证通过。",
+    "implementation_rule": "改动所属链路前先对照对应PF；优先复用现有修复。更换数据/接口时迁移等价行为断言，不以删除/放宽断言或跳过场景换通过。",
+    "compatibility_rule": "旧格式专属兼容可随空库路线退出；同一旧测试中的新请求计时、身份、授权、未知及副作用断言不能随之丢弃。",
+    "validation_rule": "只执行本次实际影响的对应回归与新装配边界；源码/输入未变的成功结果复用，不新增日常全量或CI门禁。结构已变的旧通过结果不能自动证明新版本。",
+    "completion_rule": "SD-22按已实施任务汇总PF映射和未覆盖边界；PF-08等缺口未覆盖时明确未验证，不宣称旧问题已全部防住。"
+  },
+  "preserved_fixes": [
+    {
+      "id": "PF-01",
+      "title": "排队与执行时钟",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-04",
+        "SD-05",
+        "SD-14"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/natural-runtime-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/models/timing.py",
+        "src/tianshu/models/scheduler.py",
+        "src/tianshu/models/ledger.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/models/test_execution_timing.py",
+          "name": "test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and_bounded"
+        },
+        {
+          "path": "tests/models/test_execution_timing.py",
+          "name": "test_execution_is_capped_by_the_business_deadline_without_renewing_it"
+        }
+      ],
+      "retained_behavior": "排队不扣执行时长；实际执行开始后固定时钟；真实业务截止仍生效，重启/查询不能刷新截止。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-02",
+      "title": "RPC错误不能覆盖原Models结果",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-04",
+        "SD-08",
+        "SD-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/runtime-recovery-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/model_outcome.py",
+        "src/tianshu/memory/steps.py",
+        "src/tianshu/models/results.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/core/test_memory_rpc_recovery.py",
+          "name": "test_rpc_wrapper_uses_original_receipt_instead_of_internal_error"
+        },
+        {
+          "path": "tests/core/test_memory_rpc_recovery.py",
+          "name": "test_missing_control_never_becomes_permission_to_retry_on_later_wakes"
+        }
+      ],
+      "retained_behavior": "RPC internal_error/断开不等于模型失败；先观察原attempt，控制面不可用不成为重复提交许可。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-03",
+      "title": "纯计算让位、独立尝试与只应用一次",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-03",
+        "SD-04",
+        "SD-08",
+        "SD-09",
+        "SD-10",
+        "SD-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/companion/growth_retry.py",
+        "src/tianshu/memory/index_jobs.py",
+        "src/tianshu/life/computation_retry.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/companion/test_growth_retry.py",
+          "name": "test_unknown_yields_exact_versions_tail_advances_and_retry_cannot_regress_cursor"
+        },
+        {
+          "path": "tests/companion/test_growth_retry.py",
+          "name": "test_late_original_response_cannot_apply_after_successor_was_selected"
+        },
+        {
+          "path": "tests/core/test_memory_index_retry.py",
+          "name": "test_transient_index_yields_to_later_objects_then_retries_once_after_restart"
+        },
+        {
+          "path": "tests/life/test_computation_retry.py",
+          "name": "test_an_unknown_diary_does_not_block_a_later_registered_day"
+        }
+      ],
+      "retained_behavior": "临时计算失败释放业务活动位，后续材料可推进；新attempt独立，迟到结果不重复应用；明确取消、源失效及永久配置错误不自动重试。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-04",
+      "title": "日记scope与正文成功后的状态对账",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-02",
+        "SD-12",
+        "SD-15",
+        "SD-19"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/diary_automation.py",
+        "src/tianshu/life/diaries.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_diary_automation.py",
+          "name": "test_saved_success_reconciles_its_unique_narrower_day_without_rewriting_content_or_receipts"
+        },
+        {
+          "path": "tests/life/test_diary_automation.py",
+          "name": "test_multiple_narrower_days_are_ambiguous_but_an_exact_original_scene_keeps_priority"
+        }
+      ],
+      "retained_behavior": "作者范围较宽仍定位同一合法闭日，歧义不得任取；成功正文只对账派生状态，不重新生成、不改变原时区和来源范围。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-05",
+      "title": "后台请求与供应商上下文隔离",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-04",
+        "SD-11",
+        "SD-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/models/protocols.py",
+        "src/tianshu/conversation/service.py",
+        "src/tianshu/life/diary_materials.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/models/test_provider_transport.py",
+          "name": "test_session_identity_is_stable_for_continuation_and_distinct_for_other_scenes"
+        },
+        {
+          "path": "tests/models/test_provider_transport.py",
+          "name": "test_independent_requests_cannot_inherit_provider_state_from_native_or_route_options"
+        },
+        {
+          "path": "tests/life/test_diary_materials.py",
+          "name": "test_each_day_has_no_chat_previous_day_memory_or_failed_partial_context"
+        }
+      ],
+      "retained_behavior": "后台按角色/场景/功能/intent隔离，不继承聊天、前日日记、失败输出或上游previous-response引用；聊天保留明确的会话连续性。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-06",
+      "title": "规划截断、无效结果与合法留白",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-12",
+        "SD-13",
+        "SD-14"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/planning_engine.py",
+        "src/tianshu/life/planner.py",
+        "src/tianshu/life/day_plan.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_planning_stream_repair.py",
+          "name": "test_known_invalid_results_have_two_bounded_repairs_and_never_become_valid_decisions"
+        },
+        {
+          "path": "tests/life/test_planning_stream_repair.py",
+          "name": "test_repair_applies_one_complete_result_and_keeps_the_original_rejected_record"
+        },
+        {
+          "path": "tests/life/test_planning_stream_repair.py",
+          "name": "test_only_free_slot_returns_200_through_the_registered_day_plan_http_route"
+        }
+      ],
+      "retained_behavior": "截断/不合法提案不能当成有效决策指纹而永远跳过；完整校验后才应用，有界纠正；合法留白可正常读取并在真实边界复查。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-07",
+      "title": "滚动日程不恢复任意次数和占比限制",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-13",
+        "SD-14"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/retrieval-life-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/day_plan.py",
+        "src/tianshu/life/planning_engine.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_rolling_day_plan.py",
+          "name": "test_completed_history_does_not_limit_the_fifth_or_sixth_activity_and_completion_decides_again"
+        },
+        {
+          "path": "tests/life/test_rolling_day_plan.py",
+          "name": "test_long_activities_have_no_fixed_occupancy_ratio_but_obey_real_windows"
+        },
+        {
+          "path": "tests/life/test_rolling_day_plan.py",
+          "name": "test_idle_review_keeps_its_absolute_deadline_across_harmless_ticks_and_reconsiders_once"
+        }
+      ],
+      "retained_behavior": "第五/第六活动可继续，排程只服从真实作息/承诺/保护；普通tick不反复刷新留白截止或无故重新规划。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-08",
+      "title": "保护期内不循环恢复和暂停",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-12",
+        "SD-13",
+        "SD-14"
+      ],
+      "history": {
+        "root": "coordination",
+        "path": "docs/development/proactive-companion-repair-r67-2026-10-31.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/day_plan.py",
+        "src/tianshu/life/continuation.py",
+        "src/tianshu/life/worker.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_activity_continuation.py",
+          "name": "test_due_continuation_respects_existing_time_and_current_activity_protection"
+        },
+        {
+          "path": "tests/life/test_activity_continuation.py",
+          "name": "test_lifecycle_fingerprint_changes_on_due_and_slot_fences_without_per_minute_churn"
+        }
+      ],
+      "retained_behavior": "恢复前即检查保护窗口；重复唤醒不能新增步骤、重复执行或空增语义版本；暂停不阻止作息/房间显示推进，空闲后沿同一检查点续接。",
+      "coverage_note": "部分覆盖：本轮确认单次保护边界及指纹用例，尚未定位完整覆盖R67多次唤醒/版本/步骤/作息联动的现成用例。SD-14须先复用可用覆盖，否则仅补这组真实回归断言；不能将本条标成已验证。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-09",
+      "title": "阅读失败后的同任务续接与执行上下文",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-12",
+        "SD-13",
+        "SD-14",
+        "SD-18"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/natural-runtime-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/reading.py",
+        "src/tianshu/life/continuation.py",
+        "src/tianshu/life/worker.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_read_failure_continuation.py",
+          "name": "test_confirmed_timeout_skips_only_the_unread_candidate_and_retains_success_and_missing"
+        },
+        {
+          "path": "tests/life/test_read_failure_continuation.py",
+          "name": "test_expired_failure_replans_the_same_activity_at_full_quota_with_original_remaining_arguments"
+        },
+        {
+          "path": "tests/life/test_activity_execution_context.py",
+          "name": "test_explicit_resume_freezes_its_authorized_context_for_restart_reconciliation_without_replaying"
+        }
+      ],
+      "retained_behavior": "确认失败只跳过对应未读候选，保留成功和剩余目标；暂停/未知效果不套用跳过；重新安排后实际执行与冻结授权上下文一致。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-10",
+      "title": "检索来源证明、阶段降级和预算",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-02",
+        "SD-07",
+        "SD-09",
+        "SD-11"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/retrieval-life-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/candidates.py",
+        "src/tianshu/memory/retrieval.py",
+        "src/tianshu/memory/retrieval_budget.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/memory/test_candidate_sources.py",
+          "name": "test_alternative_supports_never_discard_required_or_relation_sources"
+        },
+        {
+          "path": "tests/memory/test_candidate_sources.py",
+          "name": "test_large_and_groups_and_many_or_alternatives_use_legal_source_batches"
+        },
+        {
+          "path": "tests/core/test_retrieval_timing.py",
+          "name": "test_short_upstream_deadline_keeps_lexical_evidence_without_starting_remote_work"
+        },
+        {
+          "path": "tests/core/test_retrieval_timing.py",
+          "name": "test_default_foreground_entrypoints_execute_both_thirty_second_phases"
+        }
+      ],
+      "retained_behavior": "保留批量来源证明的AND/OR/关系完整性、候选补位和最终复检；支路失败保留其他有效结果，真实取消/权限失效不能伪装普通降级；不恢复排队扣时。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-11",
+      "title": "图文整理、短引用和一次远端候选准备",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-07",
+        "SD-08",
+        "SD-10",
+        "SD-15",
+        "SD-17"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/runtime-recovery-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/materials.py",
+        "src/tianshu/memory/material_media.py",
+        "src/tianshu/companion/reflection_output.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/memory/test_material_media.py",
+          "name": "test_preparation_fits_images_before_one_remote_recall_and_reuses_selected_range"
+        },
+        {
+          "path": "tests/memory/test_material_media.py",
+          "name": "test_repeated_source_version_keeps_each_reporting_subject_but_sends_one_image"
+        },
+        {
+          "path": "tests/companion/test_growth_short_refs.py",
+          "name": "test_short_mapping_cannot_be_borrowed_from_another_batch"
+        },
+        {
+          "path": "tests/companion/test_growth_short_refs.py",
+          "name": "test_only_identical_full_semantics_are_deduplicated"
+        }
+      ],
+      "retained_behavior": "先确定完整材料范围再调用必要远端召回，试装不反复付费；原图/作者/引用保留，短引用绑定冻结批次；仅完整语义完全相同才无损去重。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-12",
+      "title": "独立订阅的作者授权与故障隔离",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-02",
+        "SD-03",
+        "SD-05",
+        "SD-18"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/capabilities"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/capabilities/test_media_scheduling.py",
+          "name": "test_global_admin_feed_refreshes_epoch_without_selecting_or_borrowing_a_role"
+        },
+        {
+          "path": "tests/capabilities/test_media_scheduling.py",
+          "name": "test_global_admin_feed_stops_when_principal_scope_or_required_permission_is_lost"
+        },
+        {
+          "path": "tests/capabilities/test_media_scheduling.py",
+          "name": "test_real_scope_or_source_loss_blocks_only_its_source"
+        }
+      ],
+      "retained_behavior": "管理员独立订阅不绑定/借用角色；合法授权epoch变化可正常刷新，真实范围/权限丢失只阻止相关任务，不阻塞其他源。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-13",
+      "title": "外部发送未知及迟到取消不产生二次效果",
+      "kind": "historical_fix",
+      "tasks": [
+        "SD-04",
+        "SD-06",
+        "SD-16",
+        "SD-21"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/channels/delivery.py",
+        "src/tianshu/conversation/expression.py",
+        "src/tianshu/models/cancellation_reasons.sql"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/channels/test_transport_cancellation.py",
+          "name": "test_ws_disconnect_keeps_original_unknown_without_second_send"
+        },
+        {
+          "path": "tests/channels/test_delivery_contact_preflight.py",
+          "name": "test_submitted_or_unknown_original_is_never_reclassified_as_a_new_candidate"
+        },
+        {
+          "path": "tests/models/test_cancellation_reasons.py",
+          "name": "test_submitted_model_cancellation_keeps_unknown_and_its_actual_cause"
+        }
+      ],
+      "retained_behavior": "外部已提交/unknown不按新任务重放；明确取消与消费者中断分开，迟到控制不能改写原物理回执。空库切换同样不得重放旧外部任务。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-14",
+      "title": "固定人格与独立日记材料预算",
+      "kind": "established_contract",
+      "tasks": [
+        "SD-04",
+        "SD-11",
+        "SD-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/conversation/context/assembly.py",
+        "src/tianshu/life/diary_materials.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/context/test_budget_units.py",
+          "name": "test_full_persona_is_mandatory_and_estimates_are_honest"
+        },
+        {
+          "path": "tests/life/test_diary_materials.py",
+          "name": "test_diary_uses_exact_independent_200000_input_budget_and_omits_whole_units"
+        },
+        {
+          "path": "tests/life/test_diary_materials.py",
+          "name": "test_daily_semantics_preserve_discovery_read_failure_imagined_and_unknown_image_boundaries"
+        }
+      ],
+      "retained_behavior": "固定人格不可被预算裁掉；动态材料不升为系统权威；保留当前独立输入上限与完整单元预算，发现/读到/想象/未知结果分开。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning"
+    }
+  ]
+}

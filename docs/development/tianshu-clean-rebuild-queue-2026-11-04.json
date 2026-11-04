@@ -1,0 +1,5858 @@
+{
+  "schema_version": 1,
+  "planning_revision": 6,
+  "module_boundary": {
+    "independent_business_modules": [
+      "视频下载",
+      "音乐下载",
+      "图书订阅"
+    ],
+    "current_architecture": "同宿主中的独立 Media 业务及其子模块；共享运行设施和部分下载执行资源，尚非独立部署服务。",
+    "bot_refactor_scope": "只调整 BOT 核心及必要共享接口，RB-18 核验独立边界与调用接线，不重写独立媒体业务。",
+    "reset_boundary": "BOT 空库不清除独立模块配置、订阅、任务、库文件，以及其引用的共享身份、来源、动作回执和队列记录；共库不能整库清除。",
+    "preserved_non_bot_domains": [
+      "项目与经验",
+      "知识与资源资产",
+      "家庭设备与基础设施",
+      "游戏节点",
+      "天气位置",
+      "插件与技能",
+      "外部模型代理"
+    ]
+  },
+  "title": "天枢最终重构队列：局部失败隔离、自我恢复、运维 Agent 与可观测页面",
+  "prepared_at": "2026-11-04",
+  "timezone": "Asia/Shanghai",
+  "state": "implementation_authorized_preparing_dispatch",
+  "product_implementation_started": false,
+  "production_operations_performed": false,
+  "data_reset_performed": false,
+  "real_model_calls_performed": false,
+  "dispatch_started": false,
+  "assignees": [],
+  "authority": {
+    "coordination_root": "C:/YOKI/Codex/tianshu-peiban-bot",
+    "source_root": "C:/Users/Administrator/.codex/worktrees/frontend-807/tianshu-peiban-bot",
+    "reviewed_source_head": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
+    "last_verified_running_source": "03130711fd6961dde31335a300aae23bbf58d9b7",
+    "runtime_evidence_window": "2026-11-04 22:13:37-22:13:39 Asia/Shanghai",
+    "life_snapshot": "2026-11-04 22:13:39 Asia/Shanghai",
+    "live_runtime_refreshed_for_this_plan": true,
+    "other_thread": {
+      "thread_id": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "title": "评估自学习插件对天枢的启发",
+      "planning_revision": 2
+    },
+    "previous_life_snapshot": "2026-11-04 20:22:26 Asia/Shanghai",
+    "source_threads": [
+      {
+        "thread_id": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+        "title": "评估自学习插件对天枢的启发",
+        "reviewed_scope": "全部5轮，LE第二版与其取舍"
+      },
+      {
+        "thread_id": "01a1a2cb-ef99-70f0-a986-453468b13224",
+        "title": "检查天枢全链路运行状态",
+        "reviewed_scope": "全部11轮，已部署2秒配置、延迟诊断和三缺陷最终方案"
+      }
+    ]
+  },
+  "scope": "最终审计与方案队列修订；不实施、不删除、不发通知。BOT核心重构；独立视频/音乐/图书业务仅作边界、共享设施与可观测性适配。",
+  "architecture": {
+    "deployment": "同一产品镜像与模块化单体；API、Models、BOT前台worker、BOT后台worker、独立媒体worker、Operations六类角色按需装配。监控子进程独立重启；复用宿主守护的容器外检测与通知兜底。",
+    "storage": "PostgreSQL+pgvector；Procrastinate同事务入队",
+    "learning_authority": "Companion学习记录/版本/当前状态；Memory仅建引用索引",
+    "cloud_policy": "本地执行结束释放本地许可，unknown结果仍保留；默认无固定4/2/2业务配额",
+    "life_policy": "角色生活焦点、时间承诺与后台工作分开；独占仅约束同一真实资源/动作",
+    "fresh_start": "仅BOT数据域空库；独立媒体及其共享身份/来源/回执/队列引用保留。共享schema变更不得删除它们或依赖废弃BOT表。",
+    "failure_policy": "单份材料只影响其真实依赖；有界纠正、随机退避、故障依赖冷却、配置内兼容备用路由、终止原样死循环。业务结果而非模型自述验证修复。",
+    "operations": "确定性恢复先行；未知/重复故障聚合后交指定运维模型；执行有限登记动作并验证，复杂问题通知配置的管理员或邮箱。运维失败不阻断业务、不递归诊断自身。",
+    "memory_commit_policy": "每个已冻结共享整理批的完整提案在同一事务应用；目标覆盖不是分目标提交。失败在任务/预先闭合的输入批边界隔离，未提交父批可有界重组并被替代，不能从非法输出截取成功目标。"
+  },
+  "owners": {
+    "R": "Runtime/共享类型/数据库资源/进程/迁移注册",
+    "B": "Models 请求、尝试、配额与异步提交",
+    "S": "Identity/Sources 场景、原件、证据与授权",
+    "M": "Memory 整理、事实、历史与检索",
+    "C": "Companion 人格、习惯与学习",
+    "D": "Conversation/Channels 接收、取材和表达",
+    "L": "Life 日程、执行与日记",
+    "X": "Capabilities/插件/内容及独立外围任务",
+    "F": "现有前端页面与API客户端",
+    "I": "应用总装配、交付包、共享文档与集成验证",
+    "O": "Operations事件聚合、指定运维模型、登记恢复动作、验证与管理员通知；不拥有业务结果真相。"
+  },
+  "shared_file_ownership": {
+    "src/tianshu/runtime/product.py": "I",
+    "src/tianshu/runtime/migrations.py": "R",
+    "src/tianshu/runtime/config.schema.json": "R",
+    "src/tianshu/runtime/schema.sql": "R",
+    "src/tianshu/types": "R",
+    "domain_schema_and_module_routes": "所属域负责人单写",
+    "web/src": "F",
+    "plan_and_delivery_records": "I",
+    "src/tianshu/operations (planned)": "O",
+    "cross_domain_task_rule": "RB-17：C写样例/M写词义/D写消费/F写页面；RB-24：R写日志与API/F写页面；RB-25：O写统计投影与API/F写页面。共享注册仍由I/R按既有归属装配。"
+  },
+  "execution": {
+    "model_or_agent_not_selected": true,
+    "new_threads_created": false,
+    "parallel_policy": "独立领域可按已确定合同和夹具准备；depends_on为完成/集成依赖，can_prepare_after不代表可提前宣布完成；同文件同负责人串行。",
+    "release_policy": "生产仅一名实际发布者，切换前刷新运行基线；本轮不发布。",
+    "validation_policy": "卡级必要定向验证复用；RB-21集中覆盖本次新增的材料/路由/日志/进程/运维故障隔离、重启、通知和指标语义。仅隔离环境注入，不把生产故障演练或全库测试作为默认要求。",
+    "stop_condition": "受影响功能完成、必要行为验证和装配检查足够即结束；未知外部行为/无真实样本单列，不无限加测。",
+    "default_order": [
+      "RB-01",
+      "RB-02",
+      "RB-03",
+      "RB-04",
+      "RB-05",
+      "RB-22",
+      "RB-06",
+      "RB-07",
+      "RB-08",
+      "RB-09",
+      "RB-10",
+      "RB-11",
+      "RB-12",
+      "RB-13",
+      "RB-14",
+      "RB-15",
+      "RB-16",
+      "RB-17",
+      "RB-18",
+      "RB-23",
+      "RB-24",
+      "RB-25",
+      "RB-26",
+      "RB-19",
+      "RB-20",
+      "RB-21"
+    ],
+    "owner_semantics": "owner为卡级牵头职责；协作者按领域/共享文件所有权写入，同一路径单写。角色不是当前派发的代理或窗口。",
+    "plan_authority": "RB第六版为唯一候选执行队列；LE/ML/SD仅为来源，禁止重复派发。",
+    "review_stop_condition": "本次明确来源中的全部需求、功能与衔接点有处置、卡归属和必要验证；不将计划覆盖称为实现通过。后续仅新事实/失败/需求或契约变化重开对应项。"
+  },
+  "evidence": {
+    "runtime_review": "docs/development/runtime-chain-review-2026-11-04-evening.md",
+    "life_snapshot": ".runtime/life-chain-explanation-20261104/current.json",
+    "learning_plan": "docs/development/learning-enhancement-queue-2026-11-04.md",
+    "previous_plan": "docs/development/system-decoupling-redesign-plan-2026-11-04.md",
+    "prior_source_evidence": [
+      {
+        "id": "E01",
+        "root": "coordination",
+        "path": "docs/development/CURRENT.md",
+        "line": 1,
+        "claim": "13:33 三处未恢复业务问题及运行记录；本轮未访问生产"
+      },
+      {
+        "id": "E02",
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md",
+        "line": 53,
+        "claim": "日记正文成功但scope关联状态未收敛，已在历史修复"
+      },
+      {
+        "id": "E03",
+        "root": "source",
+        "path": "docs/development/runtime-recovery-closure-2026-11-03.md",
+        "line": 5,
+        "claim": "RPC包装未知和短引用/重复提案故障及其修复"
+      },
+      {
+        "id": "E04",
+        "root": "source",
+        "path": "docs/development/natural-runtime-closure-2026-11-02.md",
+        "line": 1,
+        "claim": "排队/执行计时、恢复与真实工作闭环的既有修复"
+      },
+      {
+        "id": "E05",
+        "root": "source",
+        "path": "src/tianshu/runtime/product.py",
+        "line": 132,
+        "claim": "Episode事务内调用两个消费者"
+      },
+      {
+        "id": "E06",
+        "root": "source",
+        "path": "src/tianshu/memory/service.py",
+        "line": 52,
+        "claim": "Episode观察者沿原事务执行"
+      },
+      {
+        "id": "E07",
+        "root": "source",
+        "path": "src/tianshu/runtime/process.py",
+        "line": 202,
+        "claim": "多个队列worker同进程及统一退出收尾"
+      },
+      {
+        "id": "E08",
+        "root": "source",
+        "path": "src/tianshu/companion/growth.py",
+        "line": 540,
+        "claim": "管理view与material运行取材共用读取"
+      },
+      {
+        "id": "E09",
+        "root": "source",
+        "path": "src/tianshu/life/day_plan.py",
+        "line": 47,
+        "claim": "续接条件与unfinished候选范围；需结合planner最终校验"
+      },
+      {
+        "id": "E10",
+        "root": "source",
+        "path": "src/tianshu/memory/schema.sql",
+        "line": 1,
+        "claim": "请求/经历/事实/反思及来源数组的当前物理结构"
+      },
+      {
+        "id": "E11",
+        "root": "source",
+        "path": "src/tianshu/conversation/schema.sql",
+        "line": 1,
+        "claim": "生成请求、turn、expression与计划的当前结构"
+      },
+      {
+        "id": "E12",
+        "root": "source",
+        "path": "src/tianshu/conversation/context/assembly.py",
+        "line": 269,
+        "claim": "逐候选完整计量与后续历史预算"
+      },
+      {
+        "id": "E13",
+        "root": "coordination",
+        "path": "docs/development/proactive-companion-repair-r67-2026-10-31.md",
+        "line": 3,
+        "claim": "历史保护期恢复/暂停循环；已有修复须保留"
+      },
+      {
+        "id": "E14",
+        "root": "source",
+        "path": "src/tianshu/runtime/jobs.py",
+        "line": 138,
+        "claim": "事务入队、pending合并及其语义"
+      },
+      {
+        "id": "E15",
+        "root": "source",
+        "path": "src/tianshu/models/client.py",
+        "line": 76,
+        "claim": "generate经RPC等待结果，取消与原结果边界"
+      },
+      {
+        "id": "E16",
+        "root": "source",
+        "path": "src/tianshu/memory/proposal.py",
+        "line": 67,
+        "claim": "现有按目标提案编译，可复用局部引用处理"
+      },
+      {
+        "id": "E17",
+        "root": "source",
+        "path": "src/tianshu/models/scheduler.py",
+        "line": 47,
+        "claim": "现有公平资源调度及unknown保留"
+      },
+      {
+        "id": "E18",
+        "root": "source",
+        "path": "src/tianshu/runtime/database.py",
+        "line": 41,
+        "claim": "已有业务/控制/同步连接预算"
+      },
+      {
+        "id": "E19",
+        "root": "source",
+        "path": "src/tianshu/life/planner.py",
+        "line": 393,
+        "claim": "续接活动最终资格校验"
+      },
+      {
+        "id": "E20",
+        "root": "source",
+        "path": "src/tianshu/life/planning_engine.py",
+        "line": 72,
+        "claim": "已有语义指纹与重规划机制"
+      },
+      {
+        "id": "E21",
+        "root": "source",
+        "path": "src/tianshu/life/schema.sql",
+        "line": 29,
+        "claim": "活动检查点、目标、日程与日记当前数据模型"
+      },
+      {
+        "id": "E22",
+        "root": "source",
+        "path": "src/tianshu/life/diary_automation.py",
+        "line": 39,
+        "claim": "日记材料与自动状态拥有独立scope键"
+      },
+      {
+        "id": "E23",
+        "root": "source",
+        "path": "src/tianshu/memory/candidates.py",
+        "line": 69,
+        "claim": "多类型当前/历史候选读取"
+      },
+      {
+        "id": "E24",
+        "root": "source",
+        "path": "src/tianshu/memory/index_jobs.py",
+        "line": 246,
+        "claim": "向量回写各类业务对象"
+      },
+      {
+        "id": "E25",
+        "root": "source",
+        "path": "src/tianshu/channels/delivery.py",
+        "line": 139,
+        "claim": "已提交边界及既有发送前检查"
+      },
+      {
+        "id": "E26",
+        "root": "source",
+        "path": "src/tianshu/runtime/execution.py",
+        "line": 9,
+        "claim": "现有35个业务通道"
+      },
+      {
+        "id": "E27",
+        "root": "source",
+        "path": "src/tianshu/sources/schema.sql",
+        "line": 1,
+        "claim": "原件、支持组、遗忘及来源变更"
+      },
+      {
+        "id": "E28",
+        "root": "source",
+        "path": "src/tianshu/runtime/schema.sql",
+        "line": 1,
+        "claim": "job keys、commands与projection cursors已有结构"
+      },
+      {
+        "id": "E29",
+        "root": "source",
+        "path": "docs/development/coherent-refactor-execution-2026-10-31.md",
+        "line": 35,
+        "claim": "现有功能、公开API及唯一Broker等已落地基础约定"
+      }
+    ],
+    "limitations": [
+      "最新业务快照为22:13:39，只读、可重复读；随后自然任务可改变数量。",
+      "进程退出、日志落盘故障和分页边界为源码可达问题，未在生产注入故障。",
+      "新的7材料失败批未重新解析完整原输出，不预设其具体语法根因；8条source_unavailable turn需与撤回/失权区分。",
+      "现有41个历史测试引用本轮仅核验定位；没有执行产品测试、真实模型调用、主动QQ发送或通知邮件。"
+    ],
+    "final_audit": "docs/development/tianshu-final-system-audit-2026-11-04.md",
+    "final_live_host": ".runtime/chain-check-20261104-1814/final-audit-host.json",
+    "final_live_business": ".runtime/chain-check-20261104-1814/final-audit-business.json"
+  },
+  "external_sources": [
+    {
+      "url": "https://github.com/menglimi/astrbot_plugin_private_companion",
+      "commit": "527bd907eeb54cb055763cc05432e30158a51a26",
+      "use": "日程可见性、主动表达与普通聊天独立；其任务锁/预算实现不是无约束并行"
+    },
+    {
+      "url": "https://github.com/deepseek-ai/deepseek-harness",
+      "use": "DSH是插件化宿主，不等于特定养鱼功能的统一实现"
+    },
+    {
+      "url": "https://github.com/Yuuyuko-uu/dsh-speak-up",
+      "use": "低成本机会唤醒和自然短表达，不把followup tick当实际任务完成"
+    },
+    {
+      "url": "https://github.com/Yuuyuko-uu/dsh-fish-memory",
+      "use": "具体互动细节与少量相关记忆；不照搬固定截取配额"
+    },
+    {
+      "url": "https://github.com/Yuuyuko-uu/dsh-feiyu-mood",
+      "use": "情绪作为表现线索，不作为事实或学习正确信号"
+    },
+    {
+      "url": "https://github.com/NickCharlie/astrbot_plugin_self_learning",
+      "commit": "962276786a7fba8242fcdfaca1bcd9201c80cb01",
+      "use": "按需样例/群词义/学习可解释性，禁止自动权重训练或人格漂移的夸大"
+    },
+    {
+      "url": "https://sre.google/sre-book/addressing-cascading-failures/",
+      "use": "有限重试、随机退避、避免多层重试放大、可选依赖降级；不照搬全局用户配额。"
+    },
+    {
+      "url": "https://procrastinate.readthedocs.io/en/stable/howto/advanced/locks.html",
+      "use": "区分执行锁与等待去重；长延期工作不以大粒度锁阻塞后继。"
+    },
+    {
+      "url": "https://prometheus.io/docs/alerting/latest/alertmanager/",
+      "use": "告警聚合、路由与根因抑制原则；首版复用既有监控和小型Ops通知，不强制安装新的告警栈。"
+    }
+  ],
+  "mapping": {
+    "SD": {
+      "SD-01": [
+        "RB-01"
+      ],
+      "SD-02": [
+        "RB-02"
+      ],
+      "SD-03": [
+        "RB-03"
+      ],
+      "SD-04": [
+        "RB-04"
+      ],
+      "SD-05": [
+        "RB-05"
+      ],
+      "SD-06": [
+        "RB-06"
+      ],
+      "SD-07": [
+        "RB-07"
+      ],
+      "SD-08": [
+        "RB-08"
+      ],
+      "SD-09": [
+        "RB-09"
+      ],
+      "SD-10": [
+        "RB-10"
+      ],
+      "SD-11": [
+        "RB-12"
+      ],
+      "SD-12": [
+        "RB-11"
+      ],
+      "SD-13": [
+        "RB-13"
+      ],
+      "SD-14": [
+        "RB-14"
+      ],
+      "SD-15": [
+        "RB-10",
+        "RB-15"
+      ],
+      "SD-16": [
+        "RB-16"
+      ],
+      "SD-17": [
+        "RB-17"
+      ],
+      "SD-18": [
+        "RB-18"
+      ],
+      "SD-19": [
+        "RB-19",
+        "RB-24",
+        "RB-25"
+      ],
+      "SD-20": [
+        "RB-04",
+        "RB-19",
+        "RB-21",
+        "RB-22",
+        "RB-24",
+        "RB-25"
+      ],
+      "SD-21": [
+        "RB-20"
+      ],
+      "SD-22": [
+        "RB-21"
+      ]
+    },
+    "ML": {
+      "ML-01": [
+        "RB-01",
+        "RB-02",
+        "RB-12"
+      ],
+      "ML-02": [
+        "RB-06"
+      ],
+      "ML-03": [
+        "RB-08"
+      ],
+      "ML-04": [
+        "RB-04",
+        "RB-07",
+        "RB-08",
+        "RB-10",
+        "RB-15",
+        "RB-19",
+        "RB-21"
+      ],
+      "ML-05": [
+        "RB-03",
+        "RB-10",
+        "RB-16"
+      ],
+      "ML-06": [
+        "RB-06",
+        "RB-12",
+        "RB-16"
+      ],
+      "ML-07": [
+        "RB-10"
+      ],
+      "ML-08": [
+        "RB-08"
+      ],
+      "ML-09": [
+        "RB-09"
+      ],
+      "ML-10": [
+        "RB-07",
+        "RB-09"
+      ],
+      "ML-11": [
+        "RB-07"
+      ],
+      "ML-12": [
+        "RB-17"
+      ],
+      "ML-13": [
+        "RB-17"
+      ],
+      "ML-14": {
+        "disposition": "retired_for_fresh_start",
+        "reason": "仅BOT旧业务域的历史缺口补偿与旧数据迁移因本次空库取消；原故障以脱敏合成场景保留，未来新任务恢复进入RB-03/04/08/10/15/22；独立媒体原任务及共享回执不取消。"
+      },
+      "ML-15": [
+        "RB-04",
+        "RB-19",
+        "RB-21"
+      ],
+      "ML-16": [
+        "RB-04",
+        "RB-19",
+        "RB-20",
+        "RB-21"
+      ]
+    },
+    "LE": {
+      "LE-01": [
+        "RB-10",
+        "RB-12",
+        "RB-16"
+      ],
+      "LE-02": [
+        "RB-10"
+      ],
+      "LE-03": [
+        "RB-17"
+      ],
+      "LE-04": [
+        "RB-17"
+      ],
+      "LE-05": [
+        "RB-01",
+        "RB-04",
+        "RB-12",
+        "RB-19",
+        "RB-21"
+      ],
+      "LE-06": [
+        "RB-04",
+        "RB-19",
+        "RB-21"
+      ]
+    }
+  },
+  "preserved_fixes": [
+    {
+      "id": "PF-01",
+      "title": "排队与执行时钟",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-04",
+        "RB-05",
+        "RB-14",
+        "RB-22"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/natural-runtime-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/models/timing.py",
+        "src/tianshu/models/scheduler.py",
+        "src/tianshu/models/ledger.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/models/test_execution_timing.py",
+          "name": "test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and_bounded"
+        },
+        {
+          "path": "tests/models/test_execution_timing.py",
+          "name": "test_execution_is_capped_by_the_business_deadline_without_renewing_it"
+        }
+      ],
+      "retained_behavior": "排队不扣执行时长；实际执行开始后固定时钟；真实业务截止仍生效，重启/查询不能刷新截止。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-01",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-02",
+      "title": "RPC错误不能覆盖原Models结果",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-04",
+        "RB-08",
+        "RB-10",
+        "RB-15",
+        "RB-23"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/runtime-recovery-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/model_outcome.py",
+        "src/tianshu/memory/steps.py",
+        "src/tianshu/models/results.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/core/test_memory_rpc_recovery.py",
+          "name": "test_rpc_wrapper_uses_original_receipt_instead_of_internal_error"
+        },
+        {
+          "path": "tests/core/test_memory_rpc_recovery.py",
+          "name": "test_missing_control_never_becomes_permission_to_retry_on_later_wakes"
+        }
+      ],
+      "retained_behavior": "RPC internal_error/断开不等于模型失败；先观察原attempt，控制面不可用不成为重复提交许可。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-02",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-03",
+      "title": "纯计算让位、独立尝试与只应用一次",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-03",
+        "RB-04",
+        "RB-08",
+        "RB-09",
+        "RB-10",
+        "RB-15",
+        "RB-22",
+        "RB-23"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/companion/growth_retry.py",
+        "src/tianshu/memory/index_jobs.py",
+        "src/tianshu/life/computation_retry.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/companion/test_growth_retry.py",
+          "name": "test_unknown_yields_exact_versions_tail_advances_and_retry_cannot_regress_cursor"
+        },
+        {
+          "path": "tests/companion/test_growth_retry.py",
+          "name": "test_late_original_response_cannot_apply_after_successor_was_selected"
+        },
+        {
+          "path": "tests/core/test_memory_index_retry.py",
+          "name": "test_transient_index_yields_to_later_objects_then_retries_once_after_restart"
+        },
+        {
+          "path": "tests/life/test_computation_retry.py",
+          "name": "test_an_unknown_diary_does_not_block_a_later_registered_day"
+        }
+      ],
+      "retained_behavior": "临时计算失败释放业务活动位，后续材料可推进；新attempt独立，迟到结果不重复应用；明确取消、源失效及永久配置错误不自动重试。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-03",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-04",
+      "title": "日记scope与正文成功后的状态对账",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-02",
+        "RB-10",
+        "RB-11",
+        "RB-15",
+        "RB-19",
+        "RB-23"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/diary_automation.py",
+        "src/tianshu/life/diaries.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_diary_automation.py",
+          "name": "test_saved_success_reconciles_its_unique_narrower_day_without_rewriting_content_or_receipts"
+        },
+        {
+          "path": "tests/life/test_diary_automation.py",
+          "name": "test_multiple_narrower_days_are_ambiguous_but_an_exact_original_scene_keeps_priority"
+        }
+      ],
+      "retained_behavior": "作者范围较宽仍定位同一合法闭日，歧义不得任取；成功正文只对账派生状态，不重新生成、不改变原时区和来源范围。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-04",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-05",
+      "title": "后台请求与供应商上下文隔离",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-04",
+        "RB-10",
+        "RB-12",
+        "RB-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/models/protocols.py",
+        "src/tianshu/conversation/service.py",
+        "src/tianshu/life/diary_materials.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/models/test_provider_transport.py",
+          "name": "test_session_identity_is_stable_for_continuation_and_distinct_for_other_scenes"
+        },
+        {
+          "path": "tests/models/test_provider_transport.py",
+          "name": "test_independent_requests_cannot_inherit_provider_state_from_native_or_route_options"
+        },
+        {
+          "path": "tests/life/test_diary_materials.py",
+          "name": "test_each_day_has_no_chat_previous_day_memory_or_failed_partial_context"
+        }
+      ],
+      "retained_behavior": "后台按角色/场景/功能/intent隔离，不继承聊天、前日日记、失败输出或上游previous-response引用；聊天保留明确的会话连续性。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-05",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-06",
+      "title": "规划截断、无效结果与合法留白",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-14"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/planning_engine.py",
+        "src/tianshu/life/planner.py",
+        "src/tianshu/life/day_plan.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_planning_stream_repair.py",
+          "name": "test_known_invalid_results_have_two_bounded_repairs_and_never_become_valid_decisions"
+        },
+        {
+          "path": "tests/life/test_planning_stream_repair.py",
+          "name": "test_repair_applies_one_complete_result_and_keeps_the_original_rejected_record"
+        },
+        {
+          "path": "tests/life/test_planning_stream_repair.py",
+          "name": "test_only_free_slot_returns_200_through_the_registered_day_plan_http_route"
+        }
+      ],
+      "retained_behavior": "截断/不合法提案不能当成有效决策指纹而永远跳过；完整校验后才应用，有界纠正；合法留白可正常读取并在真实边界复查。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-06",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-07",
+      "title": "滚动日程不恢复任意次数和占比限制",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-13",
+        "RB-14"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/retrieval-life-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/day_plan.py",
+        "src/tianshu/life/planning_engine.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_rolling_day_plan.py",
+          "name": "test_completed_history_does_not_limit_the_fifth_or_sixth_activity_and_completion_decides_again"
+        },
+        {
+          "path": "tests/life/test_rolling_day_plan.py",
+          "name": "test_long_activities_have_no_fixed_occupancy_ratio_but_obey_real_windows"
+        },
+        {
+          "path": "tests/life/test_rolling_day_plan.py",
+          "name": "test_idle_review_keeps_its_absolute_deadline_across_harmless_ticks_and_reconsiders_once"
+        }
+      ],
+      "retained_behavior": "第五/第六活动可继续，排程只服从真实作息/承诺/保护；普通tick不反复刷新留白截止或无故重新规划。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-07",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-08",
+      "title": "保护期内不循环恢复和暂停",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-14"
+      ],
+      "history": {
+        "root": "coordination",
+        "path": "docs/development/proactive-companion-repair-r67-2026-10-31.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/day_plan.py",
+        "src/tianshu/life/continuation.py",
+        "src/tianshu/life/worker.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_activity_continuation.py",
+          "name": "test_due_continuation_respects_existing_time_and_current_activity_protection"
+        },
+        {
+          "path": "tests/life/test_activity_continuation.py",
+          "name": "test_lifecycle_fingerprint_changes_on_due_and_slot_fences_without_per_minute_churn"
+        }
+      ],
+      "retained_behavior": "恢复前即检查保护窗口；重复唤醒不能新增步骤、重复执行或空增语义版本；暂停不阻止作息/房间显示推进，空闲后沿同一检查点续接。",
+      "coverage_note": "部分覆盖：本轮确认单次保护边界及指纹用例，尚未定位完整覆盖R67多次唤醒/版本/步骤/作息联动的现成用例。SD-14须先复用可用覆盖，否则仅补这组真实回归断言；不能将本条标成已验证。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-08",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-09",
+      "title": "阅读失败后的同任务续接与执行上下文",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-14",
+        "RB-18"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/natural-runtime-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/reading.py",
+        "src/tianshu/life/continuation.py",
+        "src/tianshu/life/worker.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/life/test_read_failure_continuation.py",
+          "name": "test_confirmed_timeout_skips_only_the_unread_candidate_and_retains_success_and_missing"
+        },
+        {
+          "path": "tests/life/test_read_failure_continuation.py",
+          "name": "test_expired_failure_replans_the_same_activity_at_full_quota_with_original_remaining_arguments"
+        },
+        {
+          "path": "tests/life/test_activity_execution_context.py",
+          "name": "test_explicit_resume_freezes_its_authorized_context_for_restart_reconciliation_without_replaying"
+        }
+      ],
+      "retained_behavior": "确认失败只跳过对应未读候选，保留成功和剩余目标；暂停/未知效果不套用跳过；重新安排后实际执行与冻结授权上下文一致。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-09",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-10",
+      "title": "检索来源证明、阶段降级和预算",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-02",
+        "RB-07",
+        "RB-09",
+        "RB-12"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/retrieval-life-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/candidates.py",
+        "src/tianshu/memory/retrieval.py",
+        "src/tianshu/memory/retrieval_budget.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/memory/test_candidate_sources.py",
+          "name": "test_alternative_supports_never_discard_required_or_relation_sources"
+        },
+        {
+          "path": "tests/memory/test_candidate_sources.py",
+          "name": "test_large_and_groups_and_many_or_alternatives_use_legal_source_batches"
+        },
+        {
+          "path": "tests/core/test_retrieval_timing.py",
+          "name": "test_short_upstream_deadline_keeps_lexical_evidence_without_starting_remote_work"
+        },
+        {
+          "path": "tests/core/test_retrieval_timing.py",
+          "name": "test_default_foreground_entrypoints_execute_both_thirty_second_phases"
+        }
+      ],
+      "retained_behavior": "保留批量来源证明的AND/OR/关系完整性、候选补位和最终复检；支路失败保留其他有效结果，真实取消/权限失效不能伪装普通降级；不恢复排队扣时。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-10",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-11",
+      "title": "图文整理、短引用和一次远端候选准备",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-07",
+        "RB-08",
+        "RB-10",
+        "RB-15",
+        "RB-17"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/runtime-recovery-closure-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/materials.py",
+        "src/tianshu/memory/material_media.py",
+        "src/tianshu/companion/reflection_output.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/memory/test_material_media.py",
+          "name": "test_preparation_fits_images_before_one_remote_recall_and_reuses_selected_range"
+        },
+        {
+          "path": "tests/memory/test_material_media.py",
+          "name": "test_repeated_source_version_keeps_each_reporting_subject_but_sends_one_image"
+        },
+        {
+          "path": "tests/companion/test_growth_short_refs.py",
+          "name": "test_short_mapping_cannot_be_borrowed_from_another_batch"
+        },
+        {
+          "path": "tests/companion/test_growth_short_refs.py",
+          "name": "test_only_identical_full_semantics_are_deduplicated"
+        }
+      ],
+      "retained_behavior": "先确定完整材料范围再调用必要远端召回，试装不反复付费；原图/作者/引用保留，短引用绑定冻结批次；仅完整语义完全相同才无损去重。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-11",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-12",
+      "title": "独立订阅的作者授权与故障隔离",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-02",
+        "RB-03",
+        "RB-05",
+        "RB-18",
+        "RB-23",
+        "RB-26"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/capabilities"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/capabilities/test_media_scheduling.py",
+          "name": "test_global_admin_feed_refreshes_epoch_without_selecting_or_borrowing_a_role"
+        },
+        {
+          "path": "tests/capabilities/test_media_scheduling.py",
+          "name": "test_global_admin_feed_stops_when_principal_scope_or_required_permission_is_lost"
+        },
+        {
+          "path": "tests/capabilities/test_media_scheduling.py",
+          "name": "test_real_scope_or_source_loss_blocks_only_its_source"
+        }
+      ],
+      "retained_behavior": "管理员独立订阅不绑定/借用角色；合法授权epoch变化可正常刷新，真实范围/权限丢失只阻止相关任务，不阻塞其他源。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-12",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-13",
+      "title": "外部发送未知及迟到取消不产生二次效果",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-04",
+        "RB-06",
+        "RB-16",
+        "RB-20",
+        "RB-22",
+        "RB-23",
+        "RB-26"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/channels/delivery.py",
+        "src/tianshu/conversation/expression.py",
+        "src/tianshu/models/cancellation_reasons.sql"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/channels/test_transport_cancellation.py",
+          "name": "test_ws_disconnect_keeps_original_unknown_without_second_send"
+        },
+        {
+          "path": "tests/channels/test_delivery_contact_preflight.py",
+          "name": "test_submitted_or_unknown_original_is_never_reclassified_as_a_new_candidate"
+        },
+        {
+          "path": "tests/models/test_cancellation_reasons.py",
+          "name": "test_submitted_model_cancellation_keeps_unknown_and_its_actual_cause"
+        }
+      ],
+      "retained_behavior": "外部已提交/unknown不按新任务重放；明确取消与消费者中断分开，迟到控制不能改写原物理回执。空库切换同样不得重放旧外部任务。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-13",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-14",
+      "title": "固定人格与独立日记材料预算",
+      "kind": "established_contract",
+      "tasks": [
+        "RB-04",
+        "RB-10",
+        "RB-12",
+        "RB-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/conversation/context/assembly.py",
+        "src/tianshu/life/diary_materials.py"
+      ],
+      "existing_cases": [
+        {
+          "path": "tests/context/test_budget_units.py",
+          "name": "test_full_persona_is_mandatory_and_estimates_are_honest"
+        },
+        {
+          "path": "tests/life/test_diary_materials.py",
+          "name": "test_diary_uses_exact_independent_200000_input_budget_and_omits_whole_units"
+        },
+        {
+          "path": "tests/life/test_diary_materials.py",
+          "name": "test_daily_semantics_preserve_discovery_read_failure_imagined_and_unknown_image_boundaries"
+        }
+      ],
+      "retained_behavior": "固定人格不可被预算裁掉；动态材料不升为系统权威；保留当前独立输入上限与完整单元预算，发现/读到/想象/未知结果分开。",
+      "coverage_note": "已定位相关现有用例及实现入口；本轮未执行。新结构实施时复用或等价改写受影响断言，不继承旧通过结论。",
+      "review_state": "source_and_case_mapping_only",
+      "execution_state": "not_run_in_planning",
+      "source_queue_id": "PF-14",
+      "existing_case_result": "not_executed_in_this_planning_turn"
+    },
+    {
+      "id": "PF-15",
+      "title": "原图、上下文范围、记录全文和材料覆盖合同",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-06",
+        "RB-08",
+        "RB-12",
+        "RB-22"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/memory-multimodal-recovery-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/memory/preparation.py",
+        "src/tianshu/memory/consolidation.py"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "范围上下界、冻结 material ref、processed/new 覆盖必须一致；关系端点被省略时补取必要全文；原图保留，技术说明不冒充语义身份。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning",
+      "additional_history": [
+        {
+          "root": "source",
+          "path": "docs/development/background-budget-rerank-2026-11-04.md"
+        },
+        {
+          "root": "source",
+          "path": "docs/development/runtime-recovery-closure-2026-11-03.md"
+        }
+      ]
+    },
+    {
+      "id": "PF-16",
+      "title": "内部补取动作不污染生活与学习",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-06",
+        "RB-10",
+        "RB-15",
+        "RB-18",
+        "RB-23",
+        "RB-26"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/conversation/results.py"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "内部 channels.read/get_msg/forward 补取保留原消息与动作审计，不重复生成无原件生活经历；不能把底层 I/O 当作角色学习事实。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-17",
+      "title": "无变化通知不重启高频空轮",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-03",
+        "RB-13",
+        "RB-14",
+        "RB-22",
+        "RB-26"
+      ],
+      "history": {
+        "root": "coordination",
+        "path": "docs/development/proactive-companion-repair-r66-2026-10-31.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/runtime/jobs.py",
+        "src/tianshu/life/clock.py"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "真实新工作/入站/到期仍能唤醒；空通知不刷新已定 due，不不断增加版本、派发或恢复短轮询。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-18",
+      "title": "多模态估算与供应商用量分开",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-04",
+        "RB-12",
+        "RB-18"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/models",
+        "src/tianshu/conversation/context"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "内联图片按视觉输入估计，不把 Base64 字符当文本 token；estimated、reported、proposal byte ceiling 三者不混用。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-19",
+      "title": "图像工作流的固定默认、动态场景与未知结果",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-16",
+        "RB-18"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/life-runtime-fixes-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/capabilities"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "保留固定人物/模型/LoRA/画风及明示分段默认；动态场景不隐式继承旧海景/姿势全文；ComfyUI 原 handle 取回，consistency unknown 不改成 matched，create_only 不自动发送。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-20",
+      "title": "输入处理中撤回的正常取消",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-02",
+        "RB-06",
+        "RB-16"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/nr06-diary-and-computation-retry-2026-11-03.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/channels",
+        "src/tianshu/conversation"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "已撤回输入不创建新 turn/新回复；处理中发现撤回按正常失效/取消收尾，原外部结果仍保留，不能以异常重试重建来源。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-21",
+      "title": "同事务来源证明与真实目标推进",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-02",
+        "RB-03",
+        "RB-14",
+        "RB-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/autonomous-life-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/sources",
+        "src/tianshu/life"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "新建回执与目标/经历提交使用同一数据库事务中的来源验证；独立连接尚看不见未提交回执不代表来源失效；越权仍拒绝。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-22",
+      "title": "首次夜间启动、日界线和日期映射",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-15"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/autonomous-life-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/life/clock.py",
+        "src/tianshu/life/diaries.py"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "首次启动不能把未发生的醒→睡当成闭日；当地日期/时区/纯日期序列化一致；日记 DTO 与原日期吻合。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    },
+    {
+      "id": "PF-23",
+      "title": "成功模型回执的合法消费上下文",
+      "kind": "historical_fix",
+      "tasks": [
+        "RB-02",
+        "RB-04",
+        "RB-13",
+        "RB-14"
+      ],
+      "history": {
+        "root": "source",
+        "path": "docs/development/autonomous-life-closure-2026-11-02.md"
+      },
+      "implementation_paths": [
+        "src/tianshu/models",
+        "src/tianshu/life/planning_engine.py"
+      ],
+      "existing_cases": [],
+      "retained_behavior": "原冻结请求、物理尝试、合法观察者与真实回执对应；权限版本变化合法刷新，不陷入 model_result_context_forbidden 循环；真失权停止应用，不重造执行身份。",
+      "coverage_note": "已读历史修复说明；此条尚未绑定精确现有函数。本轮不声称已验证。改到相应路径时先复用已有相关用例，只补缺失的行为反例。",
+      "review_state": "historical_evidence_and_behavior_mapping",
+      "execution_state": "not_run_in_planning"
+    }
+  ],
+  "issues": [
+    {
+      "id": "UF-01",
+      "title": "不完整响应反复重试，并由 unknown 占位拖慢其他后台请求",
+      "kind": "runtime_confirmed",
+      "tasks": [
+        "RB-04",
+        "RB-05",
+        "RB-08",
+        "RB-19"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md",
+        ".runtime/chain-check-20261104-1814/closing.json"
+      ],
+      "decision": "区分本地执行许可与上游结果；本地调用结束即释放云 API 本地许可，保留 unknown；按同一失败形状改用有界恢复，不无限原样重试。",
+      "acceptance": "23 次不完整响应形状可复现；一个失败批不能让无关请求等 300 秒；上游未知与未知费用仍可见；迟到响应最多应用一次。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "UF-02",
+      "title": "日程候选含失活目标；续接 key 与能力校验冲突",
+      "kind": "runtime_confirmed",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-14"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md",
+        ".runtime/chain-check-20261104-1814/followup.json"
+      ],
+      "decision": "构造、应用、执行复用同一资格规则；模型选择程序签发的候选键，程序解析下一步真实能力。",
+      "acceptance": "完成目标不再成为继续候选；content.read→discovery_page→content.discover 合法衔接；非法提案不清除已有合法日程。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "UF-03",
+      "title": "不可用媒体使整条消息拒绝",
+      "kind": "runtime_confirmed",
+      "tasks": [
+        "RB-06",
+        "RB-16",
+        "RB-18"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "decision": "输入使用 available/unavailable/pending 的分片状态，保留可用内容及原身份；确实依赖缺失片段的能力局部返回缺失。",
+      "acceptance": "复现 39 片段、2 不可用视频、8 可用图片时仍正常入站；补全附件不重复生成 turn 或发送。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "UF-04",
+      "title": "Growth 完整响应的 JSON 语法错误没有进入纠正",
+      "kind": "runtime_confirmed",
+      "tasks": [
+        "RB-04",
+        "RB-10",
+        "RB-19"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "decision": "归一化 JSON/schema/引用错误诊断，已知完整响应可作一次受限纠正；结果未知不作语义修补。",
+      "acceptance": "原 succeeded+stop 但 JSON 无效样本进入一次纠正；再次失败只阻塞该批并准确展示；后续材料可继续。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "UF-05",
+      "title": "Memory 重复 create、引用范围和纠正输出失败",
+      "kind": "runtime_confirmed",
+      "tasks": [
+        "RB-07",
+        "RB-08"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "decision": "模型只生成作用域内别名；程序编译全局身份与依赖关系；有界纠正保留原错误链。",
+      "acceptance": "保留旧批原 maxItems→纠正 duplicate、新批 duplicate→纠正 JSON 无效的真实顺序；不靠任意合并异义记录或无限纠正通过。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "UF-06",
+      "title": "日程只读接口两次约 8.7 秒",
+      "kind": "runtime_confirmed_root_cause_unresolved",
+      "tasks": [
+        "RB-11",
+        "RB-19",
+        "RB-21"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md",
+        ".runtime/chain-check-20261104-1814/http-day-plan-recheck.json"
+      ],
+      "decision": "先分解 SQL、来源证明、序列化耗时，再优化已定位部分；读取精简投影、批量证明和分页。",
+      "acceptance": "报告同规模材料的阶段耗时与整体时延；不把两次样本叫 p95，不预先断言 N+1 或缺索引。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "UF-07",
+      "title": "监控健康但业务阻塞未表达",
+      "kind": "runtime_confirmed",
+      "tasks": [
+        "RB-19",
+        "RB-21"
+      ],
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "decision": "在现有诊断内统一展示输入、业务提交、独立重试、失败年龄、重复失败和 unknown。",
+      "acceptance": "主表正常、重试批 blocked 时仍显示真实失败；无样本、零值、未返回数据分开；模型成功不冒充业务成功。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "SF-01",
+      "title": "学习历史与当前习惯双写，撤回后可能从 Memory 再被注入",
+      "kind": "source_confirmed_risk_no_live_bad_reply_proven",
+      "tasks": [
+        "RB-07",
+        "RB-10",
+        "RB-12"
+      ],
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md"
+      ],
+      "decision": "Companion 唯一拥有学习记录、版本与有效状态；Memory 只建带类型的可重建索引引用。",
+      "acceptance": "撤回/修订后即使旧索引尚存，回复也不能采用旧行为；历史查询可以解释曾学过什么；不依赖双表状态同步正确。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "SF-02",
+      "title": "习惯运行查询先取管理列表 40 条，再筛选有效项",
+      "kind": "source_confirmed",
+      "tasks": [
+        "RB-10"
+      ],
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md"
+      ],
+      "decision": "独立运行查询先按角色/对象/群/时效/active 筛选，再排序和限量，不借用管理分页。",
+      "acceptance": "前 40 条失效、第 41 条有效时仍能选择该有效项；运行查询不附带管理统计。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "SF-03",
+      "title": "可选长期材料先于较早对话获得预算",
+      "kind": "source_confirmed_risk_no_live_bad_reply_proven",
+      "tasks": [
+        "RB-12",
+        "RB-16"
+      ],
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md"
+      ],
+      "decision": "优先保留当前问题所依赖的对话链、工具结果和完整人格，再分配可选记忆与习惯。",
+      "acceptance": "‘刚才第二种’的被指代内容保留；预算不足明确缺口，不把悬空句当完整上下文。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "SF-04",
+      "title": "本次支持子集与整批生成依赖容易混作证据强度",
+      "kind": "source_confirmed_semantic_boundary",
+      "tasks": [
+        "RB-02",
+        "RB-08",
+        "RB-10",
+        "RB-17"
+      ],
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md"
+      ],
+      "decision": "support 与 generation_dependency 分型；独立证据按真实来源/作者/事件计算，派生重复不增加支持。",
+      "acceptance": "一条支持、整批 32 条上下文时支持数仍为 1；来源撤回按各类依赖语义失效。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "SF-05",
+      "title": "同种材料的 content_revisions 可能覆盖",
+      "kind": "source_confirmed",
+      "tasks": [
+        "RB-12",
+        "RB-19"
+      ],
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md"
+      ],
+      "decision": "取材清单按完整记录身份+语义版本标记，不以 kind 作为唯一键。",
+      "acceptance": "同类两个规则同时入选时两条版本均保留；去重仅合并同身份同版本，条件不同的规则不合并。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "SF-06",
+      "title": "Memory 生产事务内直接调用 Growth/Diary 消费者",
+      "kind": "source_confirmed_coupling",
+      "tasks": [
+        "RB-03",
+        "RB-10",
+        "RB-15"
+      ],
+      "evidence": [
+        "source:src/tianshu/runtime/product.py"
+      ],
+      "decision": "生产者事务中只提交事实与原生队列通知，独立消费者提交自身状态和消费回执。",
+      "acceptance": "Growth 注册失败不回滚 Memory 事实；崩溃在提交前后都不丢通知，重复消费不重复产物。",
+      "status": "unresolved_in_current_evidence",
+      "verification": "source_and_prior_readonly_evidence_not_retested_in_planning"
+    },
+    {
+      "id": "NF-01",
+      "title": "监控子进程退出会触发整体关闭",
+      "kind": "source_confirmed_cascade_path",
+      "tasks": [
+        "RB-05",
+        "RB-26",
+        "RB-21"
+      ],
+      "source_evidence": [
+        "src/tianshu/runtime/supervisor.py:133",
+        "src/tianshu/runtime/supervisor.py:258",
+        "src/tianshu/runtime/supervisor.py:292"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "进程按实际必需依赖分类；监控/运维子进程独立重启，BOT和媒体分组恢复。",
+      "acceptance": "模拟Loki/Vector/Grafana退出，健康业务不被同时终止；重新接入继续补传。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "NF-02",
+      "title": "单个队列消费者协程退出会取消其他消费者",
+      "kind": "source_confirmed_cascade_path",
+      "tasks": [
+        "RB-05",
+        "RB-22",
+        "RB-21"
+      ],
+      "source_evidence": [
+        "src/tianshu/runtime/process.py:222",
+        "src/tianshu/runtime/process.py:257"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "消费者独立监管；BOT前台、BOT后台、媒体、运维分配各自进程和连接配额。普通单任务异常与消费者进程异常分别处理。",
+      "acceptance": "一个consumer异常只恢复其执行域，其他域持续提交；不误称普通任务失败会直接导致全停。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "NF-03",
+      "title": "日志落盘失败可以阻止业务开始，慢落盘增加等待",
+      "kind": "source_confirmed_coupling",
+      "tasks": [
+        "RB-03",
+        "RB-05",
+        "RB-24",
+        "RB-26"
+      ],
+      "source_evidence": [
+        "src/tianshu/runtime/events.py:74",
+        "src/tianshu/runtime/api.py:103",
+        "src/tianshu/runtime/jobs.py:69"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "业务事实与审计回执在领域事务持久化；运行日志独立缓冲/批量落盘/补传，后端监控故障不传播到业务入口。",
+      "acceptance": "Loki不可达、日志writer慢/失败的可恢复场景中业务可继续；缓冲耗尽/磁盘满明确容量处理和覆盖，不能丢日志还报完整。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "NF-04",
+      "title": "确定性同步退避与多处恢复缺少端到端尝试归属",
+      "kind": "source_confirmed_policy_gap",
+      "tasks": [
+        "RB-04",
+        "RB-22",
+        "RB-23"
+      ],
+      "source_evidence": [
+        "src/tianshu/models/retry.py:50",
+        "src/tianshu/companion/growth_retry.py:79",
+        "src/tianshu/memory/index_jobs.py:301",
+        "src/tianshu/runtime/jobs.py:91"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "统一错误分类、逻辑请求尝试计数、随机退避和Retry-After；恢复只由领域owner发起，Agent调用同一入口。",
+      "acceptance": "大量相同429不会同时重试；agent、领域和传输层不叠乘尝试；三批27/21/18次的死循环形状在有限恢复后停止。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "NF-05",
+      "title": "标准输出被统一标INFO，级别筛选不能直接信任",
+      "kind": "source_confirmed_observability_gap",
+      "tasks": [
+        "RB-24",
+        "RB-25"
+      ],
+      "source_evidence": [
+        "src/tianshu/runtime/supervisor.py:78",
+        "src/tianshu/runtime/logging.py:27"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "应用原生结构化输出保留真实level，外部原文无法解析则明确未分类，不伪装INFO。",
+      "acceptance": "原WARNING/ERROR在日志页筛选和计数正确；多行trace关联原事件，不能每行各报一次事故。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "NF-06",
+      "title": "日志只按时间戳翻页存在同时间戳漏行风险",
+      "kind": "source_confirmed_edge_case_not_reproduced_live",
+      "tasks": [
+        "RB-24",
+        "RB-21"
+      ],
+      "source_evidence": [
+        "src/tianshu/runtime/diagnostics.py:114",
+        "web/src/features/flow-graph/RuntimeView.tsx:192",
+        "web/src/features/settings/TasksPanel.tsx:852"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "服务端opaque cursor携带边界事件身份，重叠读取、去重并完整耗尽边界；无法证明覆盖时显示缺口。",
+      "acceptance": "超过页上限的同时间戳日志跨页不漏不重；断线跟随和迟到日志语义明确。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "NF-07",
+      "title": "所有模块顺序启动，局部启动失败可阻止整组worker启动",
+      "kind": "source_confirmed_coupling",
+      "tasks": [
+        "RB-01",
+        "RB-05",
+        "RB-18",
+        "RB-26"
+      ],
+      "source_evidence": [
+        "src/tianshu/runtime/process.py:200",
+        "src/tianshu/runtime/product.py:82",
+        "src/tianshu/capabilities/service.py:306"
+      ],
+      "evidence": [
+        "docs/development/tianshu-final-system-audit-2026-11-04.md"
+      ],
+      "decision": "按角色与领域装配依赖；非必需模块失败只降级所属能力，核心数据库/schema不可用则如实停止依赖它的写入。",
+      "acceptance": "无BOT角色/QQ不可用仍可启动独立媒体任务；某插件坏配置不阻止无关模块；状态区分unconfigured/degraded/failed。",
+      "status": "unresolved_source_finding_not_failure_injected",
+      "verification": "source_review_only"
+    },
+    {
+      "id": "SF-07",
+      "title": "日程应用只返回创建数量，全跳过可能被记作主动留白",
+      "kind": "source_confirmed_path_not_reproduced_live",
+      "tasks": [
+        "RB-13",
+        "RB-19",
+        "RB-25"
+      ],
+      "evidence": [
+        "src/tianshu/life/day_plan.py:218",
+        "src/tianshu/life/day_plan.py:233",
+        "src/tianshu/life/day_plan.py:240",
+        "src/tianshu/life/planning_engine.py:318"
+      ],
+      "decision": "返回逐候选应用结果，区分主动留白、排不下、状态变化与非法提案；调度与页面统计使用同一领域结果。",
+      "acceptance": "生成后状态变化、全候选无窗口、主动留白及混合结果分别验证；全部跳过不写主动留白成功指纹，已有成功效果不重放。",
+      "status": "unresolved_in_current_source",
+      "verification": "source_rechecked_c98e23c_no_product_test_or_live_failure_injection"
+    },
+    {
+      "id": "SF-08",
+      "title": "线上2秒检索配置尚未进入代码fallback和新装示例",
+      "kind": "source_confirmed_default_drift_risk",
+      "tasks": [
+        "RB-09",
+        "RB-20"
+      ],
+      "evidence": [
+        "src/tianshu/memory/retrieval_budget.py:16",
+        "deploy/core/settings.example.json:37",
+        "docs/development/CURRENT.md:17"
+      ],
+      "decision": "同步代码fallback、新装配置种子、部署示例和说明为2.0秒，本地查询/来源窗口与两个30秒模型阶段独立。",
+      "acceptance": "省略配置项、部署示例及显式覆盖三个入口读回正确；向量阶段降级仍能返回其他合法结果。",
+      "status": "unresolved_in_current_source",
+      "verification": "source_rechecked_c98e23c_prior_production_config_receipt_not_refreshed"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "RB-01",
+      "title": "功能保留、领域归属与最小合同",
+      "owner": "I",
+      "depends_on": [],
+      "can_prepare_after": [],
+      "goal": "固定本轮结构和旧错行为，给各领域可并行使用的接口。",
+      "reuse_paths": [
+        "src/tianshu/runtime/product.py",
+        "src/tianshu/conversation/ports.py",
+        "src/tianshu/types",
+        "tests/contracts"
+      ],
+      "deliverables": [
+        "按当前 API/页面/配置列出功能保留清单；需求目录只补充产品意图，不冒称全部实现",
+        "定义 scene/source_ref、业务命令、冻结请求/attempt、结果通知、行为规则引用、取材清单最小合同",
+        "分清计划、开发、集成、部署、真实使用；23条保留行为、22组当前问题及两窗口逐项结论均有归属和具体关闭条件",
+        "共享装配、配置与迁移注册单写，领域提供接口及本域 schema",
+        "在实现前固定BOT reset/retain/seed数据归属表及共享引用闭包；区分本次基线重建、普通后续升级与发布回退。",
+        "固定原事件/消息修订与附件补充修订、规范提案/编译版本/别名映射、日程逐项应用结果三个最小合同；按所属领域实现，不另建万能状态表。",
+        "本次feature_inventory固定现有导航/领域API的22类能力及reset/retain/seed处置；覆盖创作章节、小屋服装、共读授权、群画像/关系、项目知识/经验、资源资产、设备/基础设施/游戏、天气、插件技能及原生模型代理，不再只写保留现有功能。",
+        "公共合同逐项列出生产者、实际消费者、事实权威与卡级负责人；学习消费包括聊天、原生memory工具、Life、Growth、日记和历史读取；六类角色的入口/连接/任务/start-stop归属随合同固定。"
+      ],
+      "remove_or_replace": [
+        "不创建万能任务状态/统一事实大表；不新增任务审批、用户开关或流程门禁"
+      ],
+      "acceptance": [
+        "聊天、角色、群、多媒体、记忆、关系冻结、成长、日程、日记、图像、阅读、订阅、插件、管理和诊断入口均有保留归属",
+        "所有旧 SD/ML/LE 需求有迁移映射；历史问题不能只列标题，没有对应行为",
+        "原17次用户请求、LE/ML/SD44项来源任务、22类功能均有保留/改造/明确替代处置；API/UI/配置/数据归属与负责人一致，不将存在菜单当作实机功能已验。"
+      ],
+      "data_change": "合同与空库 schema 所有权清单；各域自行完成具体 schema。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [],
+      "issue_ids": [
+        "NF-07"
+      ],
+      "planning_sources": [
+        "SD-01",
+        "ML-01",
+        "LE-05"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-06"
+      ],
+      "closure_point_ids": [
+        "CP-01",
+        "CP-02"
+      ],
+      "source_crosscheck_ids": [
+        "CW-06",
+        "CW-07"
+      ],
+      "collaborators": [
+        "R",
+        "S",
+        "B",
+        "M",
+        "C",
+        "D",
+        "L",
+        "X",
+        "F",
+        "O"
+      ],
+      "whole_review_ids": [
+        "RI-02",
+        "RI-06",
+        "RI-07",
+        "RI-10"
+      ]
+    },
+    {
+      "id": "RB-02",
+      "title": "稳定场景、来源与分型证据",
+      "owner": "S",
+      "depends_on": [
+        "RB-01"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "把身份、授权变化和证据支持分开，避免版本散落和来源证明重复。",
+      "reuse_paths": [
+        "src/tianshu/identity",
+        "src/tianshu/sources",
+        "tests/core/test_source_memory_stories.py"
+      ],
+      "deliverables": [
+        "使用稳定 scene_id，权限集合及授权 epoch 独立版本化；内部引用用明确类型",
+        "单一来源直接引用；多来源才用规范化 evidence set，区分 required、alternative support、generation dependency",
+        "提供同事务来源证明、批量证明与当前源状态查询；授权刷新仍受原 scope/permission 上界约束",
+        "Sources 与 Identity 不反向依赖 Memory/Companion/Life",
+        "对保留模块的主体/scope/source及JSON嵌入引用保留最小完整集合；身份主键和已签发引用不能因BOT清空而变成悬空。",
+        "来源反向定位覆盖新版Episode语义历史、Companion学习历史、词义/样例与搜索投影；同步失去读取资格，异步清理不影响撤回生效。新进程/新任务沿原授权上界与当前权限交集执行。"
+      ],
+      "remove_or_replace": [
+        "删除 scope 哈希充当业务对象身份和多处复制来源展开列表的实现"
+      ],
+      "acceptance": [
+        "同事务新建回执可验证；别连接尚不可见不能把真实成功变成目标 0",
+        "来源撤回后立即失去使用资格；AND/OR 及多主体归属不退化为一个扁平集合",
+        "全局管理员订阅 actor_id=null 仍能合法刷新授权；一个源失权只影响该源"
+      ],
+      "data_change": "稳定场景、原件版本、必要的证据集合；权限本身不由关系或学习授予。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-04",
+        "PF-10",
+        "PF-12",
+        "PF-20",
+        "PF-21",
+        "PF-23"
+      ],
+      "issue_ids": [
+        "SF-04"
+      ],
+      "planning_sources": [
+        "SD-02",
+        "ML-01"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-01"
+      ],
+      "source_crosscheck_ids": [
+        "CW-15"
+      ],
+      "whole_review_ids": [
+        "RI-01",
+        "RI-03"
+      ],
+      "feature_ids": [
+        "FI-01",
+        "FI-03",
+        "FI-04"
+      ]
+    },
+    {
+      "id": "RB-03",
+      "title": "事务通知、短任务与到期唤醒",
+      "owner": "R",
+      "depends_on": [
+        "RB-01"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "用现有持久队列解开跨域回调，等待时不占工作者。",
+      "reuse_paths": [
+        "src/tianshu/runtime/jobs.py",
+        "src/tianshu/runtime/schema.sql",
+        "src/tianshu/runtime/product.py",
+        "tests/core/test_incremental_consumers.py",
+        "tests/runtime"
+      ],
+      "deliverables": [
+        "原事务写领域结果并使用 Procrastinate 同连接入队；消费者独立事务写结果+消费回执",
+        "只对‘需要重新计算’的通知按 domain/key 合并，以 dirty revision 和稳定工作键处理消费期间的新变化",
+        "命令、实际输入、外部结果和计费 attempt 不合并；失败分型与 due 持久化",
+        "短事务领取任务/完成 CAS；网络调用和模型等待期间释放数据库连接，重启恢复通知",
+        "逻辑处理水位与覆盖完成水位分开；隔离材料形成明确待修集合，修好后新尝试回补，不把游标前进冒充全部成功。",
+        "任务归属与payload版本明确；旧BOT命令受数据代际隔离，媒体原任务身份保持；恢复链计数不因新job ID重置。",
+        "持久任务/结果记录是事实，LISTEN/NOTIFY仅唤醒。注册前结果已到、通知丢失、重启和通知乱序均可按稳定逻辑键补查；有界恢复扫描只查due/未收口工作，不恢复全表高频轮询。"
+      ],
+      "remove_or_replace": [
+        "删除每个消费域的影子队列与生产者内业务回调；移除无变化通知重新启动高频空轮"
+      ],
+      "acceptance": [
+        "提交前崩溃无幽灵任务，提交后崩溃任务可恢复；消费重放无重复产物",
+        "A 消费中收到 B 变化时 B 不丢；没有新材料时不增加语义版本/不停唤醒",
+        "不用 max(sequence) 充当已消费证明，避免事务提交乱序漏消费",
+        "领域提交与通知入队、Models接受与调用方保存引用、结果落账与消费确认三个断点分别可恢复；重复同身份不同内容拒绝，同身份同内容返回原结果。"
+      ],
+      "data_change": "使用现有队列和本域必要的消费版本/唯一键；不另建事件总线数据库。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-03",
+        "PF-12",
+        "PF-17",
+        "PF-21"
+      ],
+      "issue_ids": [
+        "SF-06",
+        "NF-03"
+      ],
+      "planning_sources": [
+        "SD-03",
+        "ML-05"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-01"
+      ],
+      "closure_point_ids": [
+        "CP-02",
+        "CP-03",
+        "CP-05"
+      ],
+      "whole_review_ids": [
+        "RI-05"
+      ]
+    },
+    {
+      "id": "RB-04",
+      "title": "Models 单份请求、异步结果与云 API 调度",
+      "owner": "B",
+      "depends_on": [
+        "RB-02",
+        "RB-03"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "一次冻结请求，物理尝试独立；云 API 本地占用与未知结果分离。",
+      "reuse_paths": [
+        "src/tianshu/models",
+        "src/tianshu/memory/steps.py",
+        "src/tianshu/conversation/generation.py",
+        "tests/models",
+        "src/tianshu/models/broker.py",
+        "src/tianshu/models/transport.py"
+      ],
+      "deliverables": [
+        "统一 submit/observe/cancel 端口和可靠结果通知，冻结内容只存 Models 一份，调用域只保存 request_ref",
+        "普通云 API 取消固定 4/2/2 业务许可及 unknown 300 秒占位；保留真实连接/内存资源边界，明确配置的上游额度仍尊重",
+        "local execution ended 与 upstream outcome 分开；真实 GPU 排队任务保留原 handle 与资源语义",
+        "已知完整但业务非法、传输失败、外部状态未知分型；保留可取得 usage、完成判据和有界诊断",
+        "同请求形状重复失败有有限自动恢复；429/Retry-After 延后受影响路由的任务，等待不 sleep 占 worker；不自动换用户模型",
+        "为每个用途配置主路由与兼容备用路由、实际quota_domain；尊重Retry-After、不同key同额度域不盲轮换；记录路由选择及降级原因。",
+        "ops.diagnose 使用用户指定路由及独立容量/凭据范围；模型服务本身不可用时由确定性守护直接通知，不让Agent反复诊断自身。",
+        "备用route适配只影响具体attempt；保留逻辑输入和原结果，记录实际协议/route/wire摘要。嵌入备选必须满足同向量空间条件，否则交Memory建立独立profile。",
+        "在既有HTTP入口按attempt记录本地调度等待、连接池等待、DNS、建连、请求发送、响应头/首个body字节、首个有效输出和读取完成的可观测时间点；embedding/rerank非流式路径同样覆盖。",
+        "计时注明连接复用、阶段可观测性及嵌套关系；无法分离TCP/TLS时报告建连合计，不将DNS与包含它的建连时长重复相加。等待响应不命名为纯推理耗时；供应商内部排队/计算无证据时保持未知。",
+        "异步submit使用调用方预先持久化的稳定request/attempt与内容摘要；模型接受后RPC丢失先查原身份，结果早于通知订阅仍可观察。明确领域与Models之间的持久交接，不要求跨进程长事务。",
+        "前台流式、非流式及原生代理使用同一请求/尝试权威；观察者断开和用户明确取消分开。重连不能创建第二物理请求，重放已留存片段保持顺序/完成标志；未持久片段范围如实呈现。"
+      ],
+      "remove_or_replace": [
+        "删除 Memory/Conversation 中重复整份请求；删除把 unknown 账本状态直接作为云并发许可的规则",
+        "取消固定空闲交互模型位和未实际配置的日 token 闸门；保留用户明确额度"
+      ],
+      "acceptance": [
+        "本地请求结束后无关后台任务可提交；原 unknown 和未知费用保留，不写伪成功",
+        "排队不消耗执行时钟，执行开始后不续期；真实业务 deadline 始终生效",
+        "独立重试最多应用一次；迟到旧结果不能覆盖新结果；中断/明确取消语义保持",
+        "可重现输出已出现但响应不完整，诊断有内容形状且不泄露正文/凭据",
+        "BOT重建后的上游会话身份纳入数据代际，不能继承重建前provider历史；同一新代际内的合法聊天连续性仍保留。",
+        "隔离HTTP夹具区分连接池等待、慢响应头、慢正文及提前断流；复用连接/非流式/取消的不可观测阶段不填伪0，首个网络字节不等于首个有效文本token。",
+        "接受成功但ACK丢失、结果先到、消费后崩溃、流式断连后观察、显式取消分别验证；无重复付费提交或重复应用假设，真实unknown保持，实际请求重试费用计入。"
+      ],
+      "data_change": "request/attempt/observation 保持不同事实；请求正文唯一归属，局部引用不重建请求身份。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-02",
+        "PF-03",
+        "PF-05",
+        "PF-13",
+        "PF-14",
+        "PF-18",
+        "PF-23"
+      ],
+      "issue_ids": [
+        "UF-01",
+        "UF-04",
+        "NF-04"
+      ],
+      "planning_sources": [
+        "SD-04",
+        "SD-20",
+        "ML-04",
+        "ML-15",
+        "ML-16",
+        "LE-05",
+        "LE-06"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-02"
+      ],
+      "closure_point_ids": [
+        "CP-04"
+      ],
+      "source_crosscheck_ids": [
+        "CW-02",
+        "CW-18"
+      ],
+      "whole_review_ids": [
+        "RI-05"
+      ],
+      "feature_ids": [
+        "FI-12",
+        "FI-19"
+      ]
+    },
+    {
+      "id": "RB-05",
+      "title": "前后台进程和实际资源隔离",
+      "owner": "R",
+      "depends_on": [
+        "RB-03",
+        "RB-04"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "按故障影响范围隔离进程、消费者和资源；监控故障不杀业务，BOT后台故障不杀独立媒体。",
+      "reuse_paths": [
+        "src/tianshu/runtime/process.py",
+        "src/tianshu/runtime/supervisor.py",
+        "src/tianshu/runtime/database.py",
+        "src/tianshu/runtime/execution.py",
+        "src/tianshu/runtime/config.schema.json",
+        "tests/runtime",
+        "src/tianshu/runtime/config.py",
+        "src/tianshu/runtime/composition.py",
+        "src/tianshu/runtime/listeners.py",
+        "deploy/core/health.py"
+      ],
+      "deliverables": [
+        "同产品镜像内按需装配 API、Models、BOT前台worker、BOT后台worker、媒体worker、Operations 六类角色；部署不强制拆成六个独立产品。",
+        "逻辑通道继续标识业务，实际 I/O、CPU、本地引擎分别使用资源池；长模型等待返回队列，避免 35 个固定串行孤岛",
+        "前台控制操作保留必要数据库容量；后台公平轮转，以实际持续工作量防饿死",
+        "worker 租约只覆盖领取/提交语义，长外部等待用句柄观察；同一 owner 的旧租约不能继续写",
+        "监督器逐角色有限重启与退避；监控子进程不作为全产品退出条件；shared DB故障区分依赖范围。",
+        "一个队列consumer退出不能cancel所有worker；初始化按领域隔离，未配置的可选功能准确降级。",
+        "重算六角色实际总连接/线程/HTTP资源预算，包括每角色队列池、LISTEN连接、broker owner、媒体和运维；每角色只实例化所属执行通道。",
+        "按process_role_matrix配置唯一OneBot/QQ连接拥有者、唯一Models Broker、Life时钟与来源传播消费者、各任务队列的owner。API保留监听/控制；独立能力worker承接媒体及非BOT管理任务，不能每个角色调用完整build_product/start。",
+        "同步修改新角色启动参数、监听、配置schema、健康聚合、Docker探针与日志role过滤；liveness、角色ready、模块可用性、业务有进展分开。可选日志/运维/媒体未配置不导致API被整体重启。",
+        "退出时先停止领取/入站，持久保存在途引用与取消原因，再释放owner；租约过期后的旧owner不得继续提交。正常停止、崩溃和仅观察者断连不得全部解释为用户取消。"
+      ],
+      "remove_or_replace": [
+        "不以一个全局并发 1 队列替换现有隔离；不以天枢的日程作息限制云后台工作"
+      ],
+      "acceptance": [
+        "同一角色阅读、记忆整理和聊天可并进，某路模型卡住不占其他任务处理器",
+        "后台有持续进展且前台取消可达；重启不重复外部动作；数据库连接不会被模型等待耗尽",
+        "总资源预算按启用角色准确核算；持续前台/到期负载不饿死后台和媒体；统计查询不能耗尽取消与状态查询连接。",
+        "六角色同时启动仍只有一个QQ连接owner和一个Broker；单角色重启不复制clock、订阅或外部提交。旧三角色硬编码的ready/日志筛选/部署探针全部有新归属。"
+      ],
+      "data_change": "进程/连接池配置和任务领取状态；不引入 Redis/Kafka/新微服务。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-12"
+      ],
+      "issue_ids": [
+        "UF-01",
+        "NF-01",
+        "NF-02",
+        "NF-03",
+        "NF-07"
+      ],
+      "planning_sources": [
+        "SD-05"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-01"
+      ],
+      "closure_point_ids": [
+        "CP-03"
+      ],
+      "collaborators": [
+        "I",
+        "B",
+        "D",
+        "X",
+        "O"
+      ],
+      "whole_review_ids": [
+        "RI-06"
+      ],
+      "feature_ids": [
+        "FI-02",
+        "FI-13",
+        "FI-18",
+        "FI-19"
+      ]
+    },
+    {
+      "id": "RB-06",
+      "title": "分片输入与附件渐进补全",
+      "owner": "D",
+      "depends_on": [
+        "RB-02",
+        "RB-03"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "缺一个附件只缺该附件，消息身份保持。",
+      "reuse_paths": [
+        "src/tianshu/channels/ingress.py",
+        "src/tianshu/channels/service.py",
+        "src/tianshu/conversation/service.py",
+        "src/tianshu/conversation/types.py",
+        "src/tianshu/conversation/codec.py",
+        "tests/channels",
+        "tests/conversation"
+      ],
+      "deliverables": [
+        "接入、存原件、建立 turn、附件解析按明确状态接线；preserve 原始片段顺序与来源",
+        "不可用媒体作为结构化缺失进入上下文，原图可用时交给支持视觉的路径",
+        "原event_id、消息revision、original_parts及其digest冻结；迟到附件按原part/source建立独立补充修订和理解覆盖版本，不能改原正文后重新ingest或伪造一条新消息。",
+        "撤回输入在各异步边界正常取消派生工作，不新建 turn",
+        "BOT自动归档回填使用切换下界，不因游标清空回灌全部旧聊天；用户主动引用旧内容仍按授权的新输入处理。",
+        "附件补全通知仅更新依赖该片段的理解、记忆与学习投影；补取本身不重复接收/回复，不生成独立的重复事实。确有补充表达需求时沿既有表达命令建立与原turn关联的单独决策。",
+        "临时下载失败有界补取；路径映射缺失等待配置变化；来源撤回后晚到附件不能复活原消息或派生材料。"
+      ],
+      "remove_or_replace": [
+        "删除任一 media=None 直接拒绝整条消息；不把全部媒体强制压成 OCR 文本"
+      ],
+      "acceptance": [
+        "UF-03 的混合输入通过，依赖不可用视频的具体能力如实失败",
+        "接收重复事件和附件迟到不重复入站/回复；处理中撤回不冒充系统异常",
+        "混合文字/引用/不可用图片、纯不可用图片和缺路径文件均能留下正确接收与缺项状态；同一附件重复通知、乱序到达及处理中撤回不重复turn、发送或记忆，且原消息修订哈希不变。"
+      ],
+      "data_change": "消息原件/part 状态/附件引用保留一份；事实缺失和传输错误分开。 原消息与附件补充分别版本化；保留原件不可变和更新理解的关联。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-13",
+        "PF-15",
+        "PF-16",
+        "PF-20"
+      ],
+      "issue_ids": [
+        "UF-03"
+      ],
+      "planning_sources": [
+        "SD-06",
+        "ML-02",
+        "ML-06"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-02",
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-05",
+        "CW-06",
+        "CW-09"
+      ],
+      "feature_ids": [
+        "FI-02",
+        "FI-03"
+      ]
+    },
+    {
+      "id": "RB-07",
+      "title": "Memory 当前事实、修订与搜索投影",
+      "owner": "M",
+      "depends_on": [
+        "RB-02"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "正文、历史和索引分工明确，消除第二份有效行为账本。",
+      "reuse_paths": [
+        "src/tianshu/memory/schema.sql",
+        "src/tianshu/memory/types.py",
+        "src/tianshu/memory/service.py",
+        "src/tianshu/memory/revisions.py",
+        "src/tianshu/memory/index_jobs.py",
+        "src/tianshu/memory/indexing.py",
+        "tests/memory"
+      ],
+      "deliverables": [
+        "事实/事项/关系维持明确类型，以 head 指向语义 revision，进度与访问统计分离",
+        "搜索文档为可重建投影；学习规则索引只引用 Companion 记录和版本，当前状态须由所属域解析",
+        "当前与历史查询使用显式用途；撤回原件立即使派生材料不能被消费，索引可异步清理",
+        "原文正文、媒体对象和向量各归一处；保存具体时间、主体、否定、条件，不只留摘要",
+        "索引profile按嵌入空间区分，profile重建期间当前词法/结构化读取继续；不得将不同模型同维向量混存为同一有效profile。",
+        "承接ML-11：Episode仅在语义内容变化时追加历史，提取游标/索引状态不复制正文；current/valid_at/known_at分开。学习历史由Companion单一权威承接，不另建可编辑Reflection副本。",
+        "搜索投影按对象语义版本/profile写回并复核当前head；旧版本索引晚到不得覆盖新版本或让撤回内容复活。索引未就绪使用合法词法/结构化原域读并报告freshness。",
+        "关系/好感账本仍属Memory，角色—人物冻结不授予权限；短期情绪仍归Companion。作者明确冻结策略作为配置保留，新自动数值不从旧BOT业务回灌。"
+      ],
+      "remove_or_replace": [
+        "删除多域复制学习正文/active 状态；删除业务 JSON 内重复嵌入的大证据正文和向量"
+      ],
+      "acceptance": [
+        "更改/撤回事实后当前查询不回旧结论，历史查询仍能解释演变",
+        "暂未建向量不丢关键词/结构化召回；不同条件记录不会因为文字相似被合并",
+        "角色想象和第三方观点不写成用户客观事实；关系冻结与权限独立保持",
+        "经历语义编辑后各时间模式能读到真实已保存版本；历史/缓存/派生索引也服从遗忘。旧embedding晚于新版本返回不覆盖当前head，元数据变化不产生新语义历史。"
+      ],
+      "data_change": "新空库 typed head/revision 与 search_document；新产生历史仍保留，旧迁移链可压平。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-10",
+        "PF-11"
+      ],
+      "issue_ids": [
+        "UF-05",
+        "SF-01"
+      ],
+      "planning_sources": [
+        "SD-07",
+        "ML-04",
+        "ML-10",
+        "ML-11"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-04",
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-11",
+        "CW-17"
+      ],
+      "collaborators": [
+        "C",
+        "D"
+      ],
+      "whole_review_ids": [
+        "RI-03",
+        "RI-07"
+      ],
+      "feature_ids": [
+        "FI-04",
+        "FI-05"
+      ]
+    },
+    {
+      "id": "RB-08",
+      "title": "共享整理、局部别名编译与覆盖闭环",
+      "owner": "M",
+      "depends_on": [
+        "RB-03",
+        "RB-04",
+        "RB-07",
+        "RB-22"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "保留群聊一次共享理解，机械身份交给程序。",
+      "reuse_paths": [
+        "src/tianshu/memory/materials.py",
+        "src/tianshu/memory/proposal.py",
+        "src/tianshu/memory/extraction_contract.py",
+        "src/tianshu/memory/consolidation.py",
+        "src/tianshu/memory/consolidation_retry.py",
+        "src/tianshu/memory/preparation.py",
+        "tests/core/test_consolidation_pipeline.py"
+      ],
+      "deliverables": [
+        "同一材料组共享一次多主体理解。两遍编译：先按主体+局部别名登记声明，再统一解析create、successor、关系端点和反例引用；跨主体引用显式限定，同作用域重名或歧义给出双方位置而不猜测。",
+        "按输入语义闭合和预计输出规模分段；保留原图、上下文范围及一次准备召回，不按每个人重复全套请求",
+        "完整校验后的canonical proposal、alias map、compiler/schema version、来源快照和摘要作为同一逻辑批次的冻结提交输入；引用只来自该批。编译后重启不重新猜映射，摘要不足时在冻结前有界lookup补齐原件。",
+        "每目标记录changed/no_change/unresolved与原因，但同一完整合法提案的操作、全部目标覆盖和提交回执在整批同一事务提交；协议非法或CAS失败不提交其中的成功目标。合法unresolved作为覆盖缺项，不等于协议损坏。",
+        "确定性编号/协议问题优先复用原完整模型结果本地编译，不额外请求模型；修编译器时新增可追溯编译尝试，保留旧映射且只选一个当前提交输入。语义错误有限纠正，来源/状态变化重新取材，取消/撤回停止，截断不猜补。",
+        "失败隔离位于任务/输入批边界。只对未提交父批的确定性材料/容量问题按已证明闭合的输入依赖有界重组；显式替代父批并禁止其迟到结果应用，子批各自产生完整提案和原子回执，共享原恢复预算及覆盖归属；不能按人物切割非法输出。429/上游故障不拆批放大请求。",
+        "承接ML-08：同事项/待修订记录与回复引用优先，人物间公平选材，保留低频发言、短句和表情的真实语义；输入/输出容量联合计量，不用每人固定条数截断换低成本。分项记录原件、必要上下文、候选范围、逐目标理解/提交和索引就绪。"
+      ],
+      "remove_or_replace": [
+        "删除模型填写全局 UUID/CAS/任意恢复令牌；移除重复 create 后无限原样重试",
+        "收回分目标部分提交设计；保留整批事务，在独立工作之间隔离失败，不拆断同批关系、覆盖或来源一致性。"
+      ],
+      "acceptance": [
+        "PF-11/PF-15 与 UF-05 的范围、覆盖、maxItems、重复别名和错误纠正形状均有反例",
+        "多人归属不丢；共享材料不重复模型调用；不同语义记录不被模糊去重",
+        "A/B各声明n1可稳定编译且跨人关系准确；同主体重复及歧义拒绝；相同输入/编译版本产生相同ID和摘要。整批中途失败零写入，已提交批重放返回原回执，重启和迟到结果不重复对象、不回退游标。",
+        "本地编号修复不新增模型调用；生成期间来源变化或用户取消仍阻止提交；父批被重组后不能迟到提交，子批覆盖不重复计算且预算不重置。",
+        "低频人物及短回复依赖不漏；optional候选省略与required上下文缺失不同，旧缺项不能靠改标签变完整；正常共享理解、必要补查及纠正的物理调用分别计数。"
+      ],
+      "data_change": "原逻辑批次保存一份材料集合、规范提案、别名映射、编译版本/摘要、逐目标覆盖与整批回执；引用Models原请求/结果。必要重组记录父子替代及覆盖归属。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-02",
+        "PF-03",
+        "PF-11",
+        "PF-15"
+      ],
+      "issue_ids": [
+        "UF-01",
+        "UF-05",
+        "SF-04"
+      ],
+      "planning_sources": [
+        "SD-08",
+        "ML-03",
+        "ML-04",
+        "ML-08"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-01"
+      ],
+      "closure_point_ids": [
+        "CP-04"
+      ],
+      "source_crosscheck_ids": [
+        "CW-07",
+        "CW-08",
+        "CW-09",
+        "CW-15"
+      ],
+      "whole_review_ids": [
+        "RI-01",
+        "RI-04"
+      ],
+      "feature_ids": [
+        "FI-04"
+      ]
+    },
+    {
+      "id": "RB-09",
+      "title": "候选检索、重排与计算复用",
+      "owner": "M",
+      "depends_on": [
+        "RB-04",
+        "RB-07"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "先缩小候选，再取正文和证明，复用不变计算。",
+      "reuse_paths": [
+        "src/tianshu/memory/candidates.py",
+        "src/tianshu/memory/query_plan.py",
+        "src/tianshu/memory/retrieval.py",
+        "src/tianshu/memory/retrieval_budget.py",
+        "src/tianshu/memory/embedding.py",
+        "tests/core/test_memory_evidence_retrieval.py",
+        "tests/memory/test_retrieval_degradation.py",
+        "deploy/core/settings.example.json",
+        "src/tianshu/runtime/config.schema.json"
+      ],
+      "deliverables": [
+        "结构化主体/场景/时间/当前状态约束优先，词法与向量返回小型 ID/分数集合，再批量证明并按需要补候选",
+        "有条件使用融合与多样性选择；只在候选接近且用途需要时重排，不能仅为缩时取消语义质量",
+        "向量复用键包含规范化输入、模型/维度/预处理版本；重排复用还需 query 和候选版本",
+        "同请求只准备一次图片、token 估计和所需材料；撤回/权限变化使缓存失效",
+        "将本地向量候选查询与来源校验窗口的代码fallback、新装配置种子、部署示例及配置文档统一为2.0秒；不得只依赖生产配置覆盖。既有显式用户设置继续生效，embedding/rerank各30秒独立。",
+        "承接ML-09/SD-09：中文整词/短语/姓名优先并保留合法单字回退；独立词法/向量支路在原总预算和连接预算内并行，成功支路保留。复用既有RRF/MMR、批量来源校验和有界补位，不新造检索系统。",
+        "精确对象/list走结构化查询，完整列表不等于top-k；诊断分开候选未召回、资格/预算丢弃和最终装入。跨请求成功数学结果缓存仅在代表负载证明净收益后采用小容量/短TTL，绝不缓存权限决定、失败或unknown。"
+      ],
+      "remove_or_replace": [
+        "删除全授权域大正文扫描与逐候选独立来源往返；不按每个无语义变化重建向量"
+      ],
+      "acceptance": [
+        "省略配置项和使用部署示例两种新装入口均实际加载2.0秒本地候选/来源窗口；显式覆盖仍可用，embedding/rerank各30秒及合法词法降级语义保持。",
+        "短预算仍有合法词法结果；大 AND/OR 支持组不超参数限额；source-filter 后有界补候选",
+        "记录同规模质量与端到端时间/调用数；ANN 命中不能证明完整清单",
+        "同维不同嵌入空间的备选不能查询旧索引；索引切换尚未完成时沿用可用profile或词法降级，并如实显示覆盖。",
+        "中文姓名/合法单字、否定/时间、多主体、前批失权后的补位与支路失败均保留质量；缓存冷/热/低命中分别有开销和省掉的实际调用证据，未证明收益时只保留请求内及相同索引文本复用。"
+      ],
+      "data_change": "向量、词法索引与轻量计算缓存作为派生数据；不新增第二事实存储。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-03",
+        "PF-10"
+      ],
+      "issue_ids": [
+        "SF-08"
+      ],
+      "planning_sources": [
+        "SD-09",
+        "ML-09",
+        "ML-10"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-04"
+      ],
+      "source_crosscheck_ids": [
+        "CW-01"
+      ],
+      "whole_review_ids": [
+        "RI-03",
+        "RI-04"
+      ],
+      "feature_ids": [
+        "FI-04"
+      ]
+    },
+    {
+      "id": "RB-10",
+      "title": "唯一学习账本、偏好修订与 Growth 恢复",
+      "owner": "C",
+      "depends_on": [
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-07",
+        "RB-22"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "让学会、暂时采用、撤回和历史解释来自一个权威。",
+      "reuse_paths": [
+        "src/tianshu/companion/growth.py",
+        "src/tianshu/companion/growth_materials.py",
+        "src/tianshu/companion/growth_observations.py",
+        "src/tianshu/companion/reflection_output.py",
+        "src/tianshu/companion/growth_retry.py",
+        "tests/companion"
+      ],
+      "deliverables": [
+        "Companion 拥有 learning record/revision/current status；有效习惯是本域读视图，Memory 仅索引引用",
+        "当前明确指令优先于旧推断；偏好有角色/对象/群/场景/有效期/条件/反例；明确纠正修订同一规则",
+        "运行候选查询先 active/scope/validity 再排序/limit；管理分页和 retry 统计分离",
+        "Growth 支持子集与生成依赖分开；过滤技术噪声，低信息想象事件汇总，保留有意义体验",
+        "JSON/schema/引用错误一次受限纠正；按批持久失败且后续材料公平推进",
+        "失败材料进入其独立恢复集合；后续输入推进但不虚报学习覆盖。已知来源撤回/用户取消不交Agent绕过。",
+        "稳定rule_id承载支持、修订、撤回与恢复；已解析到同一被撤回规则的重述不能换ID自行恢复，未知语义相似保留待辨别。持续明确偏好不因话题相似度低而漏选；本轮/今日要求按范围到期。",
+        "支持次数按实际独立事件去重；完整生成依赖继续用于来源与授权复核，不缩成模型所选support子集。低频仅影响选择排序，不按天自动删除、不永久保护高频；关系冻结暂停对应自动更新，用户明确纠正仍生效。",
+        "规则语义/范围/状态变化与support_only/统计变化分开；向各消费者提供批量当前资格与语义兼容性，不因任意revision增加使正常回复失效。",
+        "明确界面命令/已解析原生命令在原事务修订；自然语言纠正先在本轮遵守，再由原事件形成持久修订，归属未明时不猜删规则，也不宣称永久偏好已保存。"
+      ],
+      "remove_or_replace": [
+        "删除有效行为双账本及管理列表前 40 条充当运行候选；移除自我重复增信"
+      ],
+      "acceptance": [
+        "撤回规则从普通检索和习惯入口均不再采用；第 41 条合法规则可被选中",
+        "‘今天’不固化为永久偏好；群内词义不泄露到其他群；用户当前要求不被习惯盖过",
+        "UF-04 原始错误及 source/dependency/迟到结果反例通过；静态人格不被自动重写",
+        "同源多派生产物与跨批重述不重复增信；并发纠正CAS可解释；换话题仍遵守持续偏好，同一撤回规则换ID不能复活；历史查询仍可读取带当时状态和当前失效说明的授权依据。",
+        "新增支持不取消回答；真正撤回/适用范围变化使依赖该规则的未提交表达失效；本轮已遵守、持久已提交和仍待整理分别可见。"
+      ],
+      "data_change": "本域学习 head/revision 与索引通知；用户事实仍归 Memory，避免反向依赖。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-02",
+        "PF-03",
+        "PF-04",
+        "PF-05",
+        "PF-11",
+        "PF-14",
+        "PF-16"
+      ],
+      "issue_ids": [
+        "UF-04",
+        "SF-01",
+        "SF-02",
+        "SF-04",
+        "SF-06"
+      ],
+      "planning_sources": [
+        "SD-10",
+        "SD-15",
+        "ML-04",
+        "ML-05",
+        "ML-07",
+        "LE-01",
+        "LE-02"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-01"
+      ],
+      "closure_point_ids": [
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-11",
+        "CW-12",
+        "CW-14",
+        "CW-15",
+        "CW-20"
+      ],
+      "whole_review_ids": [
+        "RI-02",
+        "RI-03"
+      ],
+      "feature_ids": [
+        "FI-05",
+        "FI-06",
+        "FI-07"
+      ]
+    },
+    {
+      "id": "RB-11",
+      "title": "Life 对象解耦与统一执行资格",
+      "owner": "L",
+      "depends_on": [
+        "RB-02",
+        "RB-03"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "角色当前生活状态与后台工作分别建模，资格只实现一处。",
+      "reuse_paths": [
+        "src/tianshu/life/schema.sql",
+        "src/tianshu/life/types.py",
+        "src/tianshu/life/state.py",
+        "src/tianshu/life/day_plan.py",
+        "src/tianshu/life/continuation.py",
+        "tests/life"
+      ],
+      "deliverables": [
+        "goal 表达目的，intent 表达待做工作，step/checkpoint 表达执行，role focus/timeline 只表达生活与承诺",
+        "提案生成、提交和执行复用 eligibility，输出明确候选键/原因/版本",
+        "读模型只包含页面所需摘要和原因，检查点正文按需读取；PF-08 的暂停与保护行为有新归属"
+      ],
+      "remove_or_replace": [
+        "删除把所有 running 工作都限制为每角色一个的总锁；真实独占设备或同一动作保持资源级排他",
+        "保护期只保护已有承诺/专注，不限制无冲突的记忆和学习"
+      ],
+      "acceptance": [
+        "同角色聊天、后台阅读、Growth 可以并行；真实时间冲突仍被正确处理",
+        "已完成目标没有继续候选；scope 更新不重造活动身份；暂停不造成版本抖动",
+        "UI能分清‘角色在休息’与‘后台任务仍在执行’"
+      ],
+      "data_change": "职责明确的 Life 数据对象；不为所有领域引入通用工作流表。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-04",
+        "PF-06",
+        "PF-08",
+        "PF-09",
+        "PF-22"
+      ],
+      "issue_ids": [
+        "UF-02",
+        "UF-06"
+      ],
+      "planning_sources": [
+        "SD-12"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-03"
+      ],
+      "feature_ids": [
+        "FI-08",
+        "FI-11"
+      ]
+    },
+    {
+      "id": "RB-12",
+      "title": "对话依赖优先、分用途取材与预算",
+      "owner": "D",
+      "depends_on": [
+        "RB-06",
+        "RB-09",
+        "RB-10",
+        "RB-11"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "先理解眼前对话，再选有用记忆，减少重复 token 工作。",
+      "reuse_paths": [
+        "src/tianshu/conversation/context",
+        "src/tianshu/types/context_materials.py",
+        "tests/context"
+      ],
+      "deliverables": [
+        "保留完整人格和当前输入所需的引用对话/工具结果，再分配可选记忆、规则和样例；用途区分聊天、规划、整理、日记",
+        "各域读材料可并行，使用同一总 deadline；可选域失败只移除完整可选单元",
+        "actual selection manifest 按记录身份+语义版本保存，复核有效性时不被相同 kind 覆盖",
+        "单元 token 估计按内容/模型版本复用，最终包做必要总量检查；没有材料不主动填满预算",
+        "聊天、Life规划使用各自用途的完整材料单元；当前对话已有同一依据时不重复展开。候选选择后、请求冻结前按稳定ID/revision复核当前状态，清单记录最终装入项及实际省略原因；不引入前台辅助LLM或新的远程重排。",
+        "近期消息保留event/turn/reply/source/revision直到选定完整单元再汇总直接来源；仅从未参与模型或衍生计算且最终未选的候选可排除，已用材料与重排/生成完整依赖不得缩小。",
+        "尚未长期整理的新消息可通过原会话/原件参与本轮理解；明确纠正与旧事实按可证明的修订关系处理，无法证明覆盖时并列冲突，不新建短期事实库。",
+        "原生memory工具、聊天、Life、Growth、日记和历史读取共用用途/行为资格解释；Memory不直查Companion私表。当前事实、历史依据、动态风格和明确约束保持类型。"
+      ],
+      "remove_or_replace": [
+        "删除先塞长期材料再截断当前指代链的顺序；不重复每个候选全包 tokenize",
+        "删除规则作为静态 system 人格正文不断改写的做法"
+      ],
+      "acceptance": [
+        "‘刚才第二种’保留必要上文；同类多条修订不互相覆盖；撤回学习规则无复活入口",
+        "背景输入 200000；普通聊天 16000/输出预留 2048 保持，embedding/rerank 不套此预算",
+        "完整人格保留；估计 token、字节上限、provider usage 分开呈现",
+        "可选Memory/Growth服务不可达时保留当前对话继续；必需输入缺失准确说明，不能凭空补全用户意思。",
+        "零记忆、零习惯、零向量的首次对话可正常取材；备选模型装不下完整必需材料时明确局部不可用，不默默截断人格和当前指代链。",
+        "聊天选style、规划选interest的代表场景正确；不需个性化时零规则/样例合法；选材后撤回不进入最终请求，多个同kind材料版本均保留，预算舍弃项不显示为已注入。",
+        "未选且未参与衍生计算的候选撤回不无故取消回复；已采用来源撤回仍生效。新消息未整理也不被旧事实压掉，原生memory工具不能绕过被撤回习惯。"
+      ],
+      "data_change": "冻结取材身份与版本的小清单；正文复用原权威记录和 Models 请求。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-05",
+        "PF-10",
+        "PF-14",
+        "PF-15",
+        "PF-18"
+      ],
+      "issue_ids": [
+        "SF-01",
+        "SF-03",
+        "SF-05"
+      ],
+      "planning_sources": [
+        "SD-11",
+        "ML-01",
+        "ML-06",
+        "LE-01",
+        "LE-05"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-04",
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-11",
+        "CW-12",
+        "CW-13",
+        "CW-14",
+        "CW-17",
+        "CW-18",
+        "CW-19",
+        "CW-20"
+      ],
+      "collaborators": [
+        "M",
+        "C",
+        "L",
+        "I"
+      ],
+      "whole_review_ids": [
+        "RI-01",
+        "RI-02"
+      ],
+      "feature_ids": [
+        "FI-02",
+        "FI-06",
+        "FI-07"
+      ]
+    },
+    {
+      "id": "RB-13",
+      "title": "事件驱动规划与轻量时间安排",
+      "owner": "L",
+      "depends_on": [
+        "RB-04",
+        "RB-11",
+        "RB-12",
+        "RB-22"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "日程由有效变化和真实到期触发，模型负责选择，程序负责排时间。",
+      "reuse_paths": [
+        "src/tianshu/life/planning_engine.py",
+        "src/tianshu/life/planner.py",
+        "src/tianshu/life/day_plan.py",
+        "src/tianshu/life/opportunities.py",
+        "src/tianshu/life/directions.py",
+        "tests/life"
+      ],
+      "deliverables": [
+        "新目标/当前活动完成/结果到达/材料语义变化/用户干预触发重算；next_due 取真实边界，clock 仅兜底",
+        "模型选择合法候选和意图，程序解析 continuation key 并计算 next gap；真实预约/时区与日界线继续约束",
+        "有效空计划保存绝对 next_review；失败不写有效指纹；已知完整错误按原有最多两次纠正，传输重试独立",
+        "可执行独立片段仅在完整可解析且各自验证后应用，goal 与依赖活动成组；保留旧合法计划",
+        "应用返回逐候选结果：scheduled、intentional_idle、deferred_no_slot、stale_state、invalid_proposal及原因/对象/版本/下次触发。零创建数不能决定主动留白；有效意图但全跳过时保留未完成结果。",
+        "调度按应用结果选择等待真实窗口、刷新失效候选或有限语义纠正；仅明确留白才保存其有效空白指纹与绝对复查时点。混合成功与等待逐项保留，已完成的目标修改/联系动作不被重放。",
+        "规划读取本地能力声明与后台刷新、带验证时间的可用性快照；不每次规划串行探测全部外部连接。实际执行对所选能力当前授权/配置/必要可用性复检，未知不能伪造可执行。"
+      ],
+      "remove_or_replace": [
+        "删除普遍套用的 15 分钟最短、20 分钟间隔、90 分钟等下一次再说等对后台工作的限制",
+        "不恢复全天四项、固定占用比例和固定每日目标数；真实承诺/休息偏好仍是产品语义"
+      ],
+      "acceptance": [
+        "两个 UF-02 样本都能沿合法候选继续；完整无效与截断提案不伪造成功",
+        "第 5/6 项活动仍可创建；无关 tick 不推迟空计划绝对复查时间；不因分钟变化反复调用模型",
+        "已有预约、日界线与首次夜间启动的正确行为保持",
+        "生成时合法、应用前revision变化；全部候选因无时间窗跳过；明确选择留白；部分安排成功部分过期，四类结果可区分。前三者不能都被标为no_meaningful_activity，重复结果不重复排程、目标变更或联系。",
+        "一个未选外部能力探测慢/失败不拖住整轮规划；所选能力配置变化仍在派发前正确拒绝或刷新，不用缓存掩盖失权。"
+      ],
+      "data_change": "独立意图、版本化计划和 due；一次建议最多几个未来候选仅为输出大小，不是每日限额。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-06",
+        "PF-07",
+        "PF-08",
+        "PF-09",
+        "PF-17",
+        "PF-22",
+        "PF-23"
+      ],
+      "issue_ids": [
+        "UF-02",
+        "SF-07"
+      ],
+      "planning_sources": [
+        "SD-13"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-03",
+        "CW-04",
+        "CW-09",
+        "CW-12"
+      ],
+      "whole_review_ids": [
+        "RI-04"
+      ],
+      "feature_ids": [
+        "FI-08"
+      ]
+    },
+    {
+      "id": "RB-14",
+      "title": "后台执行、阅读续接与局部失败恢复",
+      "owner": "L",
+      "depends_on": [
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-11",
+        "RB-13",
+        "RB-22"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "执行按一个有进展的步骤推进，外部等待不占角色和 worker。",
+      "reuse_paths": [
+        "src/tianshu/life/clock.py",
+        "src/tianshu/life/events.py",
+        "src/tianshu/life/worker.py",
+        "src/tianshu/life/generation_control.py",
+        "src/tianshu/life/continuation.py",
+        "tests/life"
+      ],
+      "deliverables": [
+        "每任务执行一个有界步骤并保存 cursor/checkpoint，结果通知续接，独立任务可并行",
+        "原活动身份与明确继续授权保留；已知阅读失败只跳过失败候选，未知结果先观察原 handle",
+        "按内容去重、cursor 前进及无进展签名防循环；真业务 deadline/取消仍生效",
+        "作息限制角色主动表现与打扰，后台整理/索引/学习按资源和意图运行，必要结果等可表达时再说",
+        "保留实际共读会话、共享授权、游标与暂停/续读入口；提醒、真实约定、主动联系和后台工作分别用各自到期/执行条件，时间推进不因后台活动暂停停止。"
+      ],
+      "remove_or_replace": [
+        "删除固定 12 步当整段活动终止条件，改为每次工作有界+真实进度判据",
+        "保留已有外部等待释放注意力行为，并推广到所有合适纯计算等待；不声称此前完全没有"
+      ],
+      "acceptance": [
+        "页发现→读取→下一页在同活动内正确推进；重复同页会停止，无漏读成功部分",
+        "休息期间学习可完成，QQ仍尊重不打扰；用户取消后结果只能按取消语义归档",
+        "重复唤醒不重复 Action；暂停恢复不刷新原期限、不抖动语义版本"
+      ],
+      "data_change": "步骤、游标、原动作引用和实际结果；不另开内容任务账本。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-06",
+        "PF-07",
+        "PF-08",
+        "PF-09",
+        "PF-17",
+        "PF-21",
+        "PF-23"
+      ],
+      "issue_ids": [
+        "UF-02"
+      ],
+      "planning_sources": [
+        "SD-14"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-01"
+      ],
+      "closure_point_ids": [],
+      "source_crosscheck_ids": [
+        "CW-03"
+      ],
+      "whole_review_ids": [
+        "RI-07"
+      ],
+      "feature_ids": [
+        "FI-08",
+        "FI-09"
+      ]
+    },
+    {
+      "id": "RB-15",
+      "title": "语义经历与独立日记闭环",
+      "owner": "L",
+      "depends_on": [
+        "RB-03",
+        "RB-04",
+        "RB-07",
+        "RB-10",
+        "RB-11",
+        "RB-14",
+        "RB-22"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "经历真实分型，日记按日独立生成并准确落状态。",
+      "reuse_paths": [
+        "src/tianshu/life/diaries.py",
+        "src/tianshu/life/diary_automation.py",
+        "src/tianshu/life/diary_materials.py",
+        "src/tianshu/life/diary_retry.py",
+        "src/tianshu/life/imagined.py",
+        "tests/life/test_diary_automation.py",
+        "tests/life/test_diary_materials.py"
+      ],
+      "deliverables": [
+        "实际 action result 与想象生活分型；discovery/read/失败/未知图片区分，技术补取不生生活经历",
+        "角色+当地日期+稳定作者场景标识 diary day，不随 scope 哈希变化复制日期对象",
+        "从当天有效语义经历构造独立 200000 输入请求，无前日、聊天、失败半截上下文串入",
+        "只要正文已可靠保存，用原回执对账派生状态；实际无材料可以合法不写",
+        "日记与创作作品/章节各保留手动请求、生成、取消、对账、修订、审阅、发布及已发布读者授权；共用可靠生成/回执能力，按对象/版本分开，不能为独立日记删除创作链路。"
+      ],
+      "remove_or_replace": [
+        "删除每个微小虚构休息事件都当独立高价值学习材料的全量重复处理",
+        "取消对旧数据库歧义日的永久兼容迁移；新数据的来源版本/正文与回执必须保真"
+      ],
+      "acceptance": [
+        "同日唯一已保存正文只更新正确派生状态；多候选场景不能猜作者或覆盖正文",
+        "旧日期失败不阻塞后一天；首次深夜启动不误闭日",
+        "日记/反思不递归喂给自身成长；25 条想象时段不会显示为读了 25 次内容"
+      ],
+      "data_change": "独立日级对象、语义经历引用、草稿/发布版本；正文和模型请求不多处复制。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-02",
+        "PF-03",
+        "PF-04",
+        "PF-05",
+        "PF-11",
+        "PF-14",
+        "PF-16",
+        "PF-21",
+        "PF-22"
+      ],
+      "issue_ids": [
+        "SF-06"
+      ],
+      "planning_sources": [
+        "SD-15",
+        "ML-04"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-06"
+      ],
+      "whole_review_ids": [
+        "RI-07"
+      ],
+      "feature_ids": [
+        "FI-10"
+      ]
+    },
+    {
+      "id": "RB-16",
+      "title": "对话、工具与发送结果收敛",
+      "owner": "D",
+      "depends_on": [
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-06",
+        "RB-12",
+        "RB-22"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "聊天过程可以并行取材，同一会话表达与外部动作保持准确身份。",
+      "reuse_paths": [
+        "src/tianshu/conversation/expression.py",
+        "src/tianshu/conversation/rendering.py",
+        "src/tianshu/conversation/results.py",
+        "src/tianshu/conversation/generation.py",
+        "src/tianshu/channels/delivery.py",
+        "tests/conversation",
+        "tests/channels"
+      ],
+      "deliverables": [
+        "会话内有关联的消息顺序短串行，模型/工具等待释放资源；新消息按现有合并/取消语义更新",
+        "工具机械字段与权限由程序提供；结果回流原 intent，表达只陈述实际已知结果",
+        "发送前在外部边界复核当前目标/来源与权限；成功、失败、部分和 unknown 分开",
+        "同内容 chunk 可合并存储，但保留 role/tool/thought 与实际 completion 顺序和原诊断",
+        "实际装入规则的语义依赖随expression/action传到模型结果、渲染release和最后未提交发送边界；support_only不取消，已确认撤回/实质变化只停止受影响未提交部分。已发送/部分送达/unknown保留原回执，不自动重发。",
+        "一般可选风格状态读取故障不伪称已撤回或持续取消；当前明确禁止要求无法复核时保留未决处理，不假装已经遵守。"
+      ],
+      "remove_or_replace": [
+        "删除内存长锁包住模型调用与全角色工作；不把 RPC 包装器成功当业务成功"
+      ],
+      "acceptance": [
+        "断线且提交不明不重复发送；新独立意图不因旧 unknown 永久停住",
+        "工具成功但表达取消保留实际产物，不能说已经发给用户",
+        "无法保证供应商端 exactly-once 时保留 unknown，不用清空账本推定未执行",
+        "等待语音、分段发送和排队期间撤回能影响尚未提交部分；仅新增支持不影响正常发送，多段已有一段提交不能改写为全未发生。"
+      ],
+      "data_change": "表达意图、尝试与投递回执一条链；无第二外部发送账本。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-13",
+        "PF-19",
+        "PF-20"
+      ],
+      "issue_ids": [
+        "UF-03",
+        "SF-03"
+      ],
+      "planning_sources": [
+        "SD-16",
+        "ML-05",
+        "ML-06",
+        "LE-01"
+      ],
+      "priority": "P1",
+      "requirement_ids": [],
+      "closure_point_ids": [
+        "CP-02"
+      ],
+      "source_crosscheck_ids": [
+        "CW-05",
+        "CW-06",
+        "CW-13"
+      ],
+      "whole_review_ids": [
+        "RI-02",
+        "RI-05"
+      ],
+      "feature_ids": [
+        "FI-02",
+        "FI-03",
+        "FI-10",
+        "FI-12"
+      ]
+    },
+    {
+      "id": "RB-17",
+      "title": "按需表达样例与群词义",
+      "owner": "C",
+      "depends_on": [
+        "RB-07",
+        "RB-08",
+        "RB-10",
+        "RB-12"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "增强理解与表达细节，避免自我模仿循环。",
+      "reuse_paths": [
+        "src/tianshu/companion",
+        "src/tianshu/memory/materials.py",
+        "src/tianshu/memory/revisions.py",
+        "src/tianshu/memory/service.py",
+        "tests/companion"
+      ],
+      "deliverables": [
+        "样例按真实 reply/turn 关联抽取，保留条件/否定/场景；只在用途匹配时少量选用",
+        "群词义复用 group:<conversation_id> 和当前 Memory 主体；非新建身份系统",
+        "使用记录只作曝光/采用统计，真实纠正、来源支持和任务反馈才改变规则可信度",
+        "样例区分生成、真实表达及送达；unknown/failed不冒称成功交流，送达也不等于用户认可。保留多消息回复关联、条件、否定与原件定位；不复制样例人名/地点/数字为当前事实，近期已充分表达的规则不重复补例。",
+        "群词义保留真实group主体、实际speaker、assertion、适用语境与不同解释；单人解释不得升格全群共识。人物别名归Identity、任务约定归Matter，词项未命中时不额外调用模型。"
+      ],
+      "remove_or_replace": [
+        "不以相邻时间冒充问答；不把模型自说自话、好感分、情绪分当事实证据或奖励"
+      ],
+      "acceptance": [
+        "撤回来源样例立即不可用；不同群同词不同义不串用",
+        "无相关样例时普通聊天继续，群词用于理解，不强迫模仿粗俗表达",
+        "自学习不是模型权重训练，固定人格不自动改写",
+        "A/B交错及合并回复不配错、私聊样例不越域、否定不丢；明确负反馈后停用；同群分歧和单人解释不变群体self_confirmed；样例事实不污染当前人物。"
+      ],
+      "data_change": "独立样例/词义类型及来源，当前规则只引用学习权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-11"
+      ],
+      "issue_ids": [
+        "SF-04"
+      ],
+      "planning_sources": [
+        "SD-17",
+        "ML-12",
+        "ML-13",
+        "LE-03",
+        "LE-04"
+      ],
+      "priority": "P2",
+      "requirement_ids": [],
+      "closure_point_ids": [],
+      "source_crosscheck_ids": [
+        "CW-15",
+        "CW-16",
+        "CW-17",
+        "CW-19",
+        "CW-20"
+      ],
+      "collaborators": [
+        "M",
+        "D",
+        "F",
+        "I"
+      ],
+      "whole_review_ids": [
+        "RI-10"
+      ],
+      "feature_ids": [
+        "FI-07"
+      ]
+    },
+    {
+      "id": "RB-18",
+      "title": "独立模块边界与 BOT 调用接线",
+      "owner": "X",
+      "depends_on": [
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-05"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "外围能力按自身任务和资源运行，BOT 使用它们但不成为全部任务前提。",
+      "scope_clarification": "视频下载、音乐下载、图书订阅属于独立媒体业务。本卡只核验边界、适配 BOT 调用及必要共享接口；不重写下载/订阅业务，不重建其数据库或队列。",
+      "reuse_paths": [
+        "src/tianshu/capabilities",
+        "src/tianshu/runtime/media.py",
+        "src/tianshu/runtime/comics.py",
+        "tests/capabilities"
+      ],
+      "deliverables": [
+        "书籍/漫画/音乐/视频订阅、导入、图像、语音和插件保持原入口与配置归属",
+        "全局作者的订阅独立于 Life/Memory 与角色是否在线；任务到期直接调用所属能力",
+        "ComfyUI/下载引擎未知任务以原 handle 观察；角色工作流固定部分与显式动态段分开",
+        "外围完成以实际产物和回执为准，再由主动表达决定是否展示",
+        "完整保留独立项目资料/经验、知识与资产连接、家庭设备/基础设施/游戏、天气/位置、插件/技能/MCP及原生模型代理既有入口和数据；仅改共享调用/任务适配。独立管理任务不依赖BOT角色、作息或学习就绪。",
+        "能力目录声明/后台可用性刷新与真实调用分开；避免每次聊天/规划遍历外部探针。保留当前权限与配置版本，更新仅唤醒相关工作。"
+      ],
+      "remove_or_replace": [
+        "删除无实际需求的 BOT 角色前置条件、同源无效阻塞所有源、旧场景隐式提示继承"
+      ],
+      "acceptance": [
+        "授权 epoch 变化不影响仍有效独立书源；真失权只停对应源",
+        "图像规划不把 Base64 算数百万 token；未知一致性仍是 unknown，保存成功不冒充发送成功",
+        "插件/媒体原配置契约保持；没有绑定语音不得冒称真实语音验证",
+        "不创建 BOT 角色也能使用管理员媒体入口及其定时任务；BOT 作息、学习失败不成为媒体任务前置条件。",
+        "BOT后台进程退出或未配置QQ时，媒体worker保持原订阅进度；公共设施升级保留媒体原回执和队列任务身份。",
+        "保留媒体的主体、密文凭据、来源和原队列任务在BOT重建后仍可解析，不靠重新订阅或重建任务恢复。",
+        "22类功能清单的独立入口在无BOT历史/未配置QQ时仍能按原条件工作；无法实调的设备、外部服务或声音保持未验证，不用空实现替代。"
+      ],
+      "data_change": "复用已有 action/receipt 与各能力原产物记录，保留外部账号/资源边界。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-09",
+        "PF-12",
+        "PF-16",
+        "PF-18",
+        "PF-19"
+      ],
+      "issue_ids": [
+        "UF-03",
+        "NF-07"
+      ],
+      "planning_sources": [
+        "SD-18"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-06"
+      ],
+      "closure_point_ids": [
+        "CP-01"
+      ],
+      "source_crosscheck_ids": [
+        "CW-10"
+      ],
+      "collaborators": [
+        "R",
+        "I"
+      ],
+      "whole_review_ids": [
+        "RI-04",
+        "RI-07"
+      ],
+      "feature_ids": [
+        "FI-09",
+        "FI-11",
+        "FI-12",
+        "FI-13",
+        "FI-14",
+        "FI-15",
+        "FI-16",
+        "FI-17",
+        "FI-18"
+      ]
+    },
+    {
+      "id": "RB-19",
+      "title": "现有页面装配、运维配置与业务解释",
+      "owner": "F",
+      "depends_on": [
+        "RB-07",
+        "RB-09",
+        "RB-10",
+        "RB-11",
+        "RB-12",
+        "RB-13",
+        "RB-14",
+        "RB-15",
+        "RB-16",
+        "RB-17",
+        "RB-18",
+        "RB-23",
+        "RB-24",
+        "RB-25",
+        "RB-26"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "让用户直接看懂正在做什么、为什么等待和是否真的完成。",
+      "reuse_paths": [
+        "web/src",
+        "web/tests",
+        "src/tianshu/life/module.py",
+        "src/tianshu/companion/module.py",
+        "src/tianshu/models/management.py",
+        "src/tianshu/runtime/diagnostics.py",
+        "deploy/core/observability/alerts.yaml"
+      ],
+      "deliverables": [
+        "保留 807 页面体验，分别显示角色状态、待做事情、后台进度、日历承诺和实际产物",
+        "Memory/Growth 显示具体来源、当前规则、撤回/修订与实际选中材料；复用既有操作入口",
+        "计量进入各域实现，本卡整合：accepted→parsed→applied→expression→delivered，不把模型/队列成功混用",
+        "日程查询加阶段计时，据实际瓶颈批量证明、投影和分页，不在读请求里运行模型",
+        "把独立日志页和统计页接入现有导航；显示运维事件、指定诊断模型/备用路由、管理员或邮箱配置、最近恢复结果。",
+        "首日空态、部分就绪与旧数据代际提示明确；旧浏览器保留的对象/命令不能被自动重发成新动作。",
+        "沿用成长/聊天/群组页面展示最终取材清单及省略原因、规则历史/修订/纠正/撤回/恢复；区分入上下文、可观察回复行为、明确用户反馈，历史未记录不等于零选择，不把无投诉当好评。",
+        "语音保持用户未绑定状态，不擅自选择模型/声线；NAS采集partial逐项显示缺失命令/权限/连接原因，受影响采集路径修复或明确外部前提，不以核心ready掩盖。",
+        "对feature_inventory全部现有入口完成新版字段装配，包含创作/共读、小屋服装、工作台、群画像、资料/项目/家庭等；旧书签、窄屏、空态和原编辑操作保留。列表读取使用薄投影/分页，详情按需读正文。",
+        "显示已接收未整理、必要上下文缺失、候选省略、已应用未索引、当前规则已遵守但持久修订未完成等不同状态，避免以一个complete覆盖所有含义。"
+      ],
+      "remove_or_replace": [
+        "删除只展示后台 running 不解释等待原因的状态；不建第二监控面板或强制逐轮提醒"
+      ],
+      "acceptance": [
+        "UF-06 能提供可解释前后对照，展示当前读取结果而非旧缓存掩盖问题",
+        "UF-07 两个 Growth 阻塞位置均可见；重试/未知/失败年龄和无样本明确",
+        "页面操作调用原领域命令；不存在 UI 看似撤回、运行仍注入的分裂",
+        "规则细节及来源按当前权限读取；历史无清单显示未记录，零个性化显示实际空选择；未绑定语音与NAS partial分别呈现，不强行配置。"
+      ],
+      "data_change": "轻量只读投影、计数和实际取材清单；JSON完整错误详情按需读。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-04"
+      ],
+      "issue_ids": [
+        "UF-01",
+        "UF-04",
+        "UF-06",
+        "UF-07",
+        "SF-05",
+        "SF-07"
+      ],
+      "planning_sources": [
+        "SD-19",
+        "SD-20",
+        "ML-04",
+        "ML-15",
+        "ML-16",
+        "LE-05",
+        "LE-06"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-03",
+        "FR-04",
+        "FR-05"
+      ],
+      "closure_point_ids": [
+        "CP-02",
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-04",
+        "CW-10",
+        "CW-14",
+        "CW-16",
+        "CW-18"
+      ],
+      "collaborators": [
+        "M",
+        "C",
+        "D",
+        "L",
+        "X",
+        "B",
+        "O"
+      ],
+      "whole_review_ids": [
+        "RI-01",
+        "RI-02",
+        "RI-07",
+        "RI-10"
+      ],
+      "feature_ids": [
+        "FI-01",
+        "FI-05",
+        "FI-06",
+        "FI-07",
+        "FI-08",
+        "FI-09",
+        "FI-10",
+        "FI-11",
+        "FI-12",
+        "FI-14",
+        "FI-15",
+        "FI-16",
+        "FI-17",
+        "FI-18",
+        "FI-19",
+        "FI-20",
+        "FI-21",
+        "FI-22"
+      ]
+    },
+    {
+      "id": "RB-20",
+      "title": "空库基线、交付包与切换步骤",
+      "owner": "I",
+      "depends_on": [
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-06",
+        "RB-07",
+        "RB-10",
+        "RB-11",
+        "RB-15",
+        "RB-16",
+        "RB-17",
+        "RB-18",
+        "RB-19",
+        "RB-22",
+        "RB-23",
+        "RB-24",
+        "RB-25",
+        "RB-26"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "利用可丢弃旧业务数据删除兼容负担，形成可执行的新安装路径。",
+      "reuse_paths": [
+        "deploy",
+        "src/tianshu/runtime/migrations.py",
+        "tests/deployment",
+        "docs/development",
+        "src/tianshu/runtime/credentials.py",
+        "src/tianshu/capabilities/schema.sql",
+        "src/tianshu/identity/schema.sql"
+      ],
+      "deliverables": [
+        "新空库压平 schema；替代路径随所属卡清理，最终删除不再有调用方的旧迁移/适配/一次性修补",
+        "配置种子按明确白名单保存作者人格、QQ绑定、供应商、工作流等；支持用户选择全部新建",
+        "切换步骤记录旧写者停用、外部消息 cutover cursor/epoch、防重放信息与未完成外部任务句柄处理",
+        "发布后新产生数据要有兼容回退；回退不直接用旧备份覆盖新版合法数据，不动其他 NAS 服务",
+        "BOT/媒体/运维/日志的持久目录与共享schema引用有明确保留表；六类角色的启动参数及宿主兜底按同一交付包装配。",
+        "基线重建限定BOT业务域；保留共享引用闭包、密文凭据及对应部署主密钥、作者配置、媒体文件。文件处置按实际归属和引用列明，不整目录删除。",
+        "新版以后使用正常增量迁移保留新业务数据；升级兼容任务payload和应用接口，发布代际、数据代际和业务revision分别处理。",
+        "BOT派生缓存和当前数据视图纳入数据代际；保留独立媒体缓存/订阅进度。旧上游会话、过时浏览器命令和自动历史回填不能重新污染新BOT。",
+        "配置种子具体列出人格/角色绑定、作息/联系偏好、冻结策略、小屋/服装作者选择及其仍被引用的文件、声音/图像工作流、权限与连接；自动习惯/旧日程/旧情绪和旧数值不冒充作者配置。",
+        "保留独立项目/知识/资产、家庭设备/基础设施/游戏、天气、插件技能、外部模型代理及其真实共享依赖；BOT数据按业务归属清理，不能只保护媒体几张表。"
+      ],
+      "remove_or_replace": [
+        "取消 ML-14 旧缺口补偿、旧库变形迁移和永久兼容层；没有删除其他服务/共享媒体的授权"
+      ],
+      "acceptance": [
+        "空库启动能走通有效新输入；导入配置不重放旧消息/发送/图像任务",
+        "空库仅覆盖 BOT 业务域；视频/音乐/图书模块的配置、订阅、任务、内容及其引用的共享身份/来源/回执/队列记录保留。共用物理库时不得整库清除。",
+        "旧程序不能与新程序共同写生产；无法取得可靠渠道切换游标时必须给出等价的最小已接收身份方案",
+        "回退和保留清单具体到该产品资源；这张卡本轮仍不执行删除或部署",
+        "混合BOT/媒体数据的切换样例中BOT业务域为空、媒体任务仍以原身份推进、保留凭据可解密；不得整体清理共享schema/Procrastinate队列。",
+        "首次重建后产生合法新数据，再做受影响域普通升级与兼容回退，数据不被清零或旧快照覆盖。",
+        "BOT新装未提供vector_sql_seconds及使用示例种子时均沿RB-09加载2.0秒；旧生产已调2秒不算新装默认已修。"
+      ],
+      "data_change": "新基线 schema 与安装纪元；最少防重放元数据属于外部效果边界，不恢复旧业务历史。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [
+        "PF-13"
+      ],
+      "issue_ids": [
+        "SF-08"
+      ],
+      "planning_sources": [
+        "SD-21",
+        "ML-16"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-06"
+      ],
+      "closure_point_ids": [
+        "CP-01",
+        "CP-02",
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-01",
+        "CW-09"
+      ],
+      "collaborators": [
+        "R",
+        "S",
+        "X",
+        "B"
+      ],
+      "whole_review_ids": [
+        "RI-06",
+        "RI-07"
+      ],
+      "feature_ids": [
+        "FI-01",
+        "FI-05",
+        "FI-06",
+        "FI-11",
+        "FI-13",
+        "FI-14",
+        "FI-15",
+        "FI-16",
+        "FI-17",
+        "FI-18",
+        "FI-19"
+      ]
+    },
+    {
+      "id": "RB-21",
+      "title": "完整装配、旧错验证与同质量对照",
+      "owner": "I",
+      "depends_on": [
+        "RB-01",
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-06",
+        "RB-07",
+        "RB-08",
+        "RB-09",
+        "RB-10",
+        "RB-11",
+        "RB-12",
+        "RB-13",
+        "RB-14",
+        "RB-15",
+        "RB-16",
+        "RB-17",
+        "RB-18",
+        "RB-19",
+        "RB-20",
+        "RB-22",
+        "RB-23",
+        "RB-24",
+        "RB-25",
+        "RB-26"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "证明新链路在保留功能和语义质量下收敛，按实际证据结束。",
+      "reuse_paths": [
+        "src/tianshu/runtime/product.py",
+        "tests/integration",
+        "tests/deployment",
+        "docs/development"
+      ],
+      "deliverables": [
+        "逐项接线并审核23条历史行为、22组问题及两窗口结论的卡级结果；已通过且输入未变的定向结果直接复用，不把计划映射当验证通过。",
+        "补装配才出现的代表性跨域场景：混合媒体入站、一次撤回、一次重启/迟到结果、同角色并行阅读与聊天",
+        "同材料规模测非模型耗时、SQL往返、候选质量、输入用量、重试开销和业务覆盖；不得只报变快",
+        "交付清楚区分本地、已集成、部署健康和真实自然使用；未配置、无样本、未知成本如实列出",
+        "集中验证材料隔离、依赖冷却、备用路由不兼容、单consumer退出、Loki不可达、Agent自身失败、通知去重、同时间戳分页与统计迟到修正；不用生产注入故障。",
+        "承接LE-06：用相同人格/输入/模型和相近预算，先比较原实现与核心选择修正，再在相关场景单独比较有无表达样例、有无群词义；不默认跑全组合或设样本量门槛。保留错误套用、口癖、指代和零个性化反例，分别报告贡献与未证明项。",
+        "记录取材耗时、查询数、最终材料估计token、实际usage、额外辅助调用及失败重试。机械边界用确定性用例，表达收益用对应代表样例；未经实际模型/自然样本验证只声明功能实现，不能宣称学习效果改善。",
+        "承接ML-16/SD-20：原24故事仅为已知回归；新增必要场景按故事及改写家族隔离，使用过的材料不再称盲保留集。按实际适用机会计必要证据遗漏、无关个性化与纠正生效，保留原文补答和未决，不以总消息数稀释失败。",
+        "性能对照固定实际版本/模型/数据规模/权限/质量，纳入失败、取消、重试、unknown与全量长尾；分别评估核心选择、样例/词义，以及实际启用的重排/缓存优化，不预设节省率、不重复全组合。"
+      ],
+      "remove_or_replace": [
+        "不按旧目录全部跑一遍；不新增 SQLite/PG 双矩阵、固定20次探针、长期观察天数门禁或新审批链"
+      ],
+      "acceptance": [
+        "所有必要行为有当前实现证据；旧用例不能因新结构不适配而删掉其语义断言",
+        "已确认模块缺陷关闭后停止该范围反复测试；无证据的供应商内部原因和长期质量不冒称解决",
+        "真实发送/媒体/学习效果仅凭对应实际样本验收，不用健康和空队列代替",
+        "六项CP衔接要求逐项有负责卡证据：保留引用闭包、一次性清空与未来升级、六角色资源、嵌入空间、恢复链预算、空库首日；只补装配新增差异。",
+        "两来源窗口的主张均有对应实现/必要检查或明确替代原因；旧BOT存量恢复因本次弃旧数据取消，但旧故障形状以脱敏合成夹具保留，不能把清库当成修复通过。",
+        "完整来源盘点的10组修订及22类功能均有当前实现证据或明确外部未验范围；作用于同代码状态的既有有效检查直接复用，仅补受影响跨域断点。"
+      ],
+      "data_change": "集中装配与交付记录；新生产操作须进入实际授权范围，本轮全部为计划。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "preserved_fix_ids": [],
+      "issue_ids": [
+        "UF-06",
+        "UF-07",
+        "NF-01",
+        "NF-02",
+        "NF-06"
+      ],
+      "planning_sources": [
+        "SD-20",
+        "SD-22",
+        "ML-04",
+        "ML-15",
+        "ML-16",
+        "LE-05",
+        "LE-06"
+      ],
+      "priority": "P1",
+      "requirement_ids": [
+        "FR-01",
+        "FR-06"
+      ],
+      "closure_point_ids": [
+        "CP-01",
+        "CP-02",
+        "CP-06"
+      ],
+      "source_crosscheck_ids": [
+        "CW-08",
+        "CW-09",
+        "CW-10",
+        "CW-13",
+        "CW-16",
+        "CW-19",
+        "CW-20"
+      ],
+      "whole_review_ids": [
+        "RI-09"
+      ]
+    },
+    {
+      "id": "RB-22",
+      "title": "失败材料隔离与统一恢复策略",
+      "owner": "R",
+      "priority": "P1",
+      "depends_on": [
+        "RB-01",
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-05"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "将普通失败变为局部、可解释且有限的恢复工作，让无关材料和模块继续。",
+      "reuse_paths": [
+        "src/tianshu/models/retry.py",
+        "src/tianshu/runtime/jobs.py",
+        "src/tianshu/memory/consolidation_retry.py",
+        "src/tianshu/companion/growth_retry.py",
+        "src/tianshu/life/computation_retry.py"
+      ],
+      "planned_paths": [
+        "src/tianshu/runtime/recovery_policy.py"
+      ],
+      "deliverables": [
+        "错误按缺失输入、传输暂时故障、确定性无效输出、状态变更、来源失效、未知外部效果和基础设施故障分型；拒绝一律重试。",
+        "每个逻辑任务只有一个恢复owner，传输/业务/运维共享物理attempt计数和当前版本，不创建叠乘重试。",
+        "同一材料失败释放工作资源；进度水位继续前进，未覆盖集合保存原身份；真正依赖坏材料的产物标明局部等待。",
+        "采用随机退避与Retry-After、故障依赖级冷却和单恢复探测；新材料/新配置可触发新诊断周期，不无限原样重试。",
+        "仅确定性材料/输出容量问题使用有界语义拆批；服务商不可用不拆批轰炸；备选路由从配置且兼容的集合选择。",
+        "自动恢复先检查原结果；成功后按当前版本重新验证并提交，旧失败历史保留。",
+        "故障链预算按原语义材料/依赖与恢复lineage继承，拆批/换路由/增加revision不能无限续命；持续高优先级任务下仍有域/主体公平推进。",
+        "故障隔离范围与事务边界分开：一个共享批失败可进入独立恢复集合，其他批继续；只有能证明输入依赖闭合才重组，跨人关系不能按subject_id拆断。"
+      ],
+      "remove_or_replace": [
+        "不新增全局熔断总开关、每日用户额度或统一队列长锁。",
+        "移除固定同步重试、仅封顶退避但无限重试、手工改DB状态假收口。"
+      ],
+      "acceptance": [
+        "1坏+99好材料按真实依赖可独立成批时，99份仍可推进；坏批明确未完成。同一已冻结共享批不能靠提交99个人的输出绕过整批原子性；必要重组须满足RB-08完整输入/替代/回执规则。",
+        "三个27/21/18尝试形状不再无限循环；429故障不会乘以批数和层数产生请求风暴。",
+        "隔离修复后补回原逻辑工作，当前新事实不被旧提案覆盖；取消/撤回/外部unknown保持原语义。"
+      ],
+      "data_change": "复用领域重试表及原生任务；仅增加必要错误类别、逻辑尝试/覆盖信息与恢复策略版本。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "planning_sources": [
+        "SD-20"
+      ],
+      "preserved_fix_ids": [
+        "PF-01",
+        "PF-03",
+        "PF-13",
+        "PF-15",
+        "PF-17"
+      ],
+      "issue_ids": [
+        "NF-02",
+        "NF-04"
+      ],
+      "requirement_ids": [
+        "FR-01",
+        "FR-02"
+      ],
+      "closure_point_ids": [
+        "CP-03",
+        "CP-05"
+      ],
+      "source_crosscheck_ids": [
+        "CW-08",
+        "CW-09"
+      ],
+      "feature_ids": [
+        "FI-22"
+      ]
+    },
+    {
+      "id": "RB-23",
+      "title": "指定模型的运维 Agent 与验证闭环",
+      "owner": "O",
+      "priority": "P1",
+      "depends_on": [
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-22",
+        "RB-08",
+        "RB-10",
+        "RB-15",
+        "RB-16",
+        "RB-18"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "由指定模型诊断聚合故障、选择登记恢复动作，执行后按真实结果确认。",
+      "reuse_paths": [
+        "src/tianshu/runtime/commands.py",
+        "src/tianshu/runtime/diagnostics.py",
+        "src/tianshu/models/types.py",
+        "src/tianshu/companion/growth.py",
+        "src/tianshu/life/diary_automation.py"
+      ],
+      "planned_paths": [
+        "src/tianshu/operations",
+        "tests/operations"
+      ],
+      "deliverables": [
+        "独立Operations进程消费事件与低频进展检查，按依赖/错误族/版本聚合incident；确定性常见修复先于模型。",
+        "ops.diagnose由用户指定主模型及可选备用；默认只提供去敏错误、版本、进度、栈帧和回执摘要，不发送整库/聊天正文。",
+        "只暴露inspect、invoke_registered_recovery、observe_result、escalate等窄工具；恢复注册映射到既有领域命令与当前版本检查。",
+        "允许自动执行安全重试、保存结果对账、派生索引重建、原授权刷新、兼容备用路由及局部进程恢复；每种动作定义前置事实、效果与验证。",
+        "Agent执行有独立尝试/时间/费用记录；默认一次诊断，必要时一次反馈修正；自身模型失败直接标明并走确定性通知，不递归唤醒自己。",
+        "代码/schema改写、凭据替换、业务数据删除、已提交效果不明的重放属于复杂处置，整理建议发送管理员，不靠模型自信分授予动作。",
+        "无进展诊断先确认存在已到期且具备执行条件的工作；正常休息、无材料、用户暂停、等待未来due或正在有效执行预算内不触发故障恢复。心跳、可用性和实际进展分别观察。"
+      ],
+      "remove_or_replace": [
+        "不让模型生成shell/SQL直接执行；不建立第二份任务成功状态；不为正常用户操作新增审批流程。",
+        "不每行错误调用一次模型，不把模型说已修好当恢复完成。"
+      ],
+      "acceptance": [
+        "简单错误用领域命令完成并读到预期业务状态；失败/过期命令不能覆盖新结果。",
+        "同一故障重复100条日志只形成聚合事件，模型调用次数受该事件预算约束。",
+        "错误正文中的指令只作为数据；越界动作被执行器拒绝并转人工，合法自动恢复无需逐次用户确认。",
+        "诊断模型不可用时业务继续，事件可见并升级；运维行为不进入BOT学习材料。",
+        "登记动作只有在对应领域端口已装配且验证成立时可用；缺入口不能返回占位成功，也不能调用全量恢复绕过范围。",
+        "修复产生子任务或改变行政revision仍继承故障链预算；用户暂停/取消/配置变更使旧决策失效，不覆盖人工结果。"
+      ],
+      "data_change": "最少incident与recovery_attempt元数据，引用既有业务回执；Ops不拥有事实或业务完成权威。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "planning_sources": [],
+      "preserved_fix_ids": [
+        "PF-02",
+        "PF-03",
+        "PF-04",
+        "PF-12",
+        "PF-13",
+        "PF-16"
+      ],
+      "issue_ids": [
+        "NF-04"
+      ],
+      "requirement_ids": [
+        "FR-02",
+        "FR-03"
+      ],
+      "closure_point_ids": [
+        "CP-04",
+        "CP-05"
+      ],
+      "feature_ids": [
+        "FI-22"
+      ]
+    },
+    {
+      "id": "RB-24",
+      "title": "独立日志页与不阻塞业务的日志链",
+      "owner": "R",
+      "priority": "P1",
+      "depends_on": [
+        "RB-03",
+        "RB-05"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "保留完整日志要求，消除日志对业务的硬依赖，提供截图所示可用体验。",
+      "reuse_paths": [
+        "src/tianshu/runtime/events.py",
+        "src/tianshu/runtime/logging.py",
+        "src/tianshu/runtime/supervisor.py",
+        "src/tianshu/runtime/diagnostics.py",
+        "web/src/features/flow-graph/RuntimeView.tsx",
+        "web/src/features/settings/TasksPanel.tsx",
+        "deploy/core/observability/vector.toml",
+        "tests/runtime/test_events.py"
+      ],
+      "planned_paths": [
+        "web/src/features/system-logs"
+      ],
+      "deliverables": [
+        "后端复用本地日志/Vector/Loki；业务事实与外部回执先在领域事务保存，日志收集批量异步，不由Loki/监控查询可达性决定业务准入。",
+        "完整日志不采样不静默丢弃；本地缓冲、补传、磁盘容量、覆盖缺口和采集状态明示；资源真正耗尽按受影响写域处理。",
+        "保留原始level、module、role、trace/job/attempt、error_family与依赖引用；敏感值在存储/导出/送Agent之前脱敏。",
+        "前端增加独立日志导航：时间/级别/模块/角色/关联ID检索、排除对话事件、自动跟随/暂停、关键词、详情与脱敏导出；虚拟列表保持大日志可用。",
+        "opaque分页游标处理同时间戳边界、去重和迟到事件；无新日志、断连、未配置、查询不完整分别显示。",
+        "错误详情可跳转原任务、模型尝试和运维事件；日志页不负责直接改数据库。",
+        "日志续页不能只包装opaque cursor：固定查询范围/过滤条件和原event_id、instance_id、sequence，验证上游同时间戳超过limit的可枚举性；必要时按来源有界分片或从现有完整持久日志补取，不能凭timestamp加减或无限扩大limit宣布完整。",
+        "复用原追加日志的sequence与采集checkpoint，区分已生成/已持久/已采集。正常退出排空；进程强退未落盘范围标为可能缺口，业务结果以事务回执为准。trace/job/attempt保留在日志字段或兼容的structured metadata，不作为无限增长的索引标签。"
+      ],
+      "remove_or_replace": [
+        "替换stdout所有级别均INFO、只按timestamp减1翻页、每次业务开始必须等待日志fsync的路径。",
+        "不新建第二套日志平台，不把聊天正文、完整提示词或密钥默认复制到平台日志。"
+      ],
+      "acceptance": [
+        "原WARN/ERROR在筛选和统计中正确；超页数量同时间戳日志不漏不重。",
+        "Loki断开、writer慢、可恢复日志写入故障不会导致无关业务入口全503；采集恢复能补传并声明缺口。",
+        "并发大量日志时页面不无限增长；暂停不丢查询位置；管理员看到明确数据覆盖和采样时点。",
+        "完整日志要求与容量边界一致，不能以偷偷采样/删除未采集片段获得测试通过。",
+        "同时间戳超过服务端页限、跨来源、迟到补传与断线续页在实际支持的查询后端不漏不重；不能只mock一个理想cursor。强退后不伪称完整日志已持久。"
+      ],
+      "data_change": "沿用原日志持久层，增加必要索引/游标元数据与公共查询字段；不复制整个日志数据库。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "planning_sources": [
+        "SD-19",
+        "SD-20"
+      ],
+      "preserved_fix_ids": [],
+      "issue_ids": [
+        "NF-03",
+        "NF-05",
+        "NF-06"
+      ],
+      "requirement_ids": [
+        "FR-04"
+      ],
+      "closure_point_ids": [
+        "CP-03"
+      ],
+      "collaborators": [
+        "F",
+        "I"
+      ],
+      "whole_review_ids": [
+        "RI-06",
+        "RI-08",
+        "RI-10"
+      ],
+      "feature_ids": [
+        "FI-20",
+        "FI-21"
+      ]
+    },
+    {
+      "id": "RB-25",
+      "title": "系统统计页与准确的增量计量",
+      "owner": "O",
+      "priority": "P1",
+      "depends_on": [
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-07",
+        "RB-10",
+        "RB-11",
+        "RB-22",
+        "RB-13",
+        "RB-23"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "统一展示系统资源、消息、模型用量、业务积压与恢复效果。",
+      "reuse_paths": [
+        "src/tianshu/runtime/diagnostics.py",
+        "src/tianshu/models/management.py",
+        "src/tianshu/models/ledger.py",
+        "web/src/features/settings/TasksPanel.tsx",
+        "deploy/core/observability/prometheus.yaml"
+      ],
+      "planned_paths": [
+        "src/tianshu/operations/statistics.py",
+        "web/src/features/system-statistics"
+      ],
+      "deliverables": [
+        "资源数据复用现有运行观测与Prometheus；业务统计从权威账本/领域变更增量汇总，页面不反复全表扫描。",
+        "截图式总览卡、1天/3天/7天趋势、模块/角色/路由切换；分开显示调用次数与Token、累计与所选时间范围。",
+        "消息按原事件去重，明确接收/已处理/需回复/已投递；模型按物理attempt记录输入输出、cache/reasoning子项、队列/执行/TTFT和实际/估算/未知费用。",
+        "业务统计覆盖Memory目标结果、Growth两处阻塞、Life有效/空白/拒绝、未覆盖材料年龄；独立媒体任务独立分组。",
+        "以需要统计的有效状态转换/版本去重更新minute/hour汇总；迟到usage和撤回可以纠正；不采用全局max-ID跳过晚提交事务。",
+        "显示freshness、样本数、未知用量覆盖和故障影响范围；实际修复率以验证后的eligible事件为分母。",
+        "时延读取RB-04的分段记录，分别显示连接池/DNS/建连/发送/等待响应/读取与有效输出；不重复累加嵌套阶段。Life统计消费RB-13逐项应用结果，明确区分主动留白、暂排不下和状态过期。",
+        "统计投影保持可重建、按受控有限维度汇总，trace/job/attempt ID仅作明细关联，不为每任务生成永久时序。复用现有保留/容量策略，不新增默认删除原回执或未完成工作证据。"
+      ],
+      "remove_or_replace": [
+        "不用任务完成数代替模型调用数，不把token叫调用次数，不把NULL费用当0。",
+        "不把reasoning/cache子项再次加到已包含它们的total；不对小样本伪报长期p95。"
+      ],
+      "acceptance": [
+        "同一任务重试三次：业务成功一次、物理调用三次；unknown usage仍显示缺口。",
+        "晚到usage只修正一次，汇总与明细对得上；时间范围与卡片/图表一致。",
+        "未调用模型的媒体下载仍有正常业务计数；BOT错误不把媒体判为停止。",
+        "统计服务暂时失败只让统计页显示不可用，不阻止业务。",
+        "相同总耗时但不同瓶颈的HTTP夹具显示不同阶段；供应商内部耗时未知时不标纯推理。日程全跳过不增加主动留白成功数，部分成功不掩盖剩余待办。"
+      ],
+      "data_change": "小型可重建时间桶与维度聚合，原Models/业务账本仍是权威；记录量限制来自必要粒度而非丢结果。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "planning_sources": [
+        "SD-19",
+        "SD-20"
+      ],
+      "preserved_fix_ids": [],
+      "issue_ids": [
+        "NF-05",
+        "SF-07"
+      ],
+      "requirement_ids": [
+        "FR-05"
+      ],
+      "closure_point_ids": [
+        "CP-03"
+      ],
+      "source_crosscheck_ids": [
+        "CW-02",
+        "CW-04",
+        "CW-10",
+        "CW-18"
+      ],
+      "collaborators": [
+        "F",
+        "R",
+        "B",
+        "M",
+        "C",
+        "L"
+      ],
+      "whole_review_ids": [
+        "RI-08",
+        "RI-09",
+        "RI-10"
+      ],
+      "feature_ids": [
+        "FI-20",
+        "FI-21"
+      ]
+    },
+    {
+      "id": "RB-26",
+      "title": "独立守护、升级通知与恢复验证",
+      "owner": "O",
+      "priority": "P1",
+      "depends_on": [
+        "RB-03",
+        "RB-05",
+        "RB-22",
+        "RB-23"
+      ],
+      "can_prepare_after": [
+        "RB-01"
+      ],
+      "goal": "业务进程、模型或数据库不可用时仍能给出确定性通知与有界恢复。",
+      "reuse_paths": [
+        "src/tianshu/runtime/supervisor.py",
+        "deploy/core/freeze_guard.py",
+        "deploy/core/observability/alerts.yaml",
+        "src/tianshu/channels/delivery.py"
+      ],
+      "planned_paths": [
+        "src/tianshu/operations/notifications.py",
+        "deploy/core/operations-watchdog"
+      ],
+      "deliverables": [
+        "复用宿主已有守护的边界，增加本产品角色心跳/实际进度/容器状态检查；不依赖出错的BOT队列或诊断模型才能告警。",
+        "管理员QQ或SMTP邮箱由用户配置；恢复通知走运维来源，不经角色人格/Life日程，QQ不可用可用邮件；不猜收件人。",
+        "按incident聚合、依赖根因抑制下游重复、严重升级、恢复通知；管理员可看完整受影响清单。",
+        "通知有outbox、稳定ID、重试与发送回执；返回未知保留可能重复/未达语义，SMTP接受不等于收件人阅读。",
+        "DB/模型服务故障走宿主最小持久spool和确定性通知，恢复后按同一incident身份导回；Agent本身不成为单点。",
+        "有限重启只作用于登记的本产品角色；共享host/NAS断电需外部探测才可即时通知，此能力不冒称已具备。"
+      ],
+      "remove_or_replace": [
+        "不向每条报错发一封邮件，不让通知失败再次触发无限Agent调用。",
+        "不以运维Agent身份授予任意主机shell、docker socket或跨产品重启权限。"
+      ],
+      "acceptance": [
+        "主业务容器停止时独立检测仍能形成告警；邮件/QQ一条通道失败不阻塞其他业务。",
+        "同故障重复事件不刷屏；复杂故障包含影响、已试动作、未完成项和建议，恢复由实际业务观察确认。",
+        "DB不可用时不丢通知身份；恢复后不重复创建incident；通知缺配置明确显示。",
+        "不触碰独立媒体数据和其他NAS服务；运维调用失败不会阻塞常规工作。",
+        "守护重启确认实际owner与部署代际，迟到旧owner不能提交；故障链聚合不因重复重启变成无限新事件。",
+        "聚合health降级不自动等同整容器需重启；守护依据具体角色/依赖和登记动作处理，后台或日志失败不使可用API/QQ/独立模块被连带重启。"
+      ],
+      "data_change": "incident引用+通知outbox；宿主兜底只存最少状态，恢复后并回，不另建完整业务数据库。",
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "validation_state": "not_run_in_planning",
+      "production_operations_performed": false,
+      "planning_sources": [],
+      "preserved_fix_ids": [
+        "PF-12",
+        "PF-13",
+        "PF-16",
+        "PF-17"
+      ],
+      "issue_ids": [
+        "NF-01",
+        "NF-03",
+        "NF-07"
+      ],
+      "requirement_ids": [
+        "FR-02",
+        "FR-03"
+      ],
+      "closure_point_ids": [
+        "CP-03",
+        "CP-05"
+      ],
+      "whole_review_ids": [
+        "RI-06"
+      ],
+      "feature_ids": [
+        "FI-22"
+      ]
+    }
+  ],
+  "outputs": {
+    "plan": "docs/development/tianshu-clean-rebuild-plan-2026-11-04.md",
+    "queue": "docs/development/tianshu-clean-rebuild-queue-2026-11-04.json",
+    "tasks": "docs/development/tianshu-clean-rebuild-tasks-2026-11-04.md",
+    "regressions": "docs/development/tianshu-clean-rebuild-regressions-2026-11-04.md",
+    "final_audit": "docs/development/tianshu-final-system-audit-2026-11-04.md"
+  },
+  "production_readonly_audit_performed": true,
+  "requirements": [
+    {
+      "id": "FR-01",
+      "text": "一个坏材料只阻塞真实依赖它的产物，其他材料、主体、模块和独立媒体继续推进；不能伪造完整覆盖。",
+      "tasks": [
+        "RB-03",
+        "RB-05",
+        "RB-08",
+        "RB-10",
+        "RB-14",
+        "RB-22",
+        "RB-21"
+      ]
+    },
+    {
+      "id": "FR-02",
+      "text": "确定性修复、有限模型纠正、依赖级恢复和已配置备用路由构成冗余；未知外部动作不盲重放。",
+      "tasks": [
+        "RB-04",
+        "RB-22",
+        "RB-23",
+        "RB-26"
+      ]
+    },
+    {
+      "id": "FR-03",
+      "text": "用户指定运维模型；简单登记动作自动执行并验证，复杂故障发送给配置的管理员或邮箱。",
+      "tasks": [
+        "RB-23",
+        "RB-26",
+        "RB-19"
+      ]
+    },
+    {
+      "id": "FR-04",
+      "text": "独立平台日志页，级别/域/时间/链路过滤、跟随/暂停、稳定分页、明示覆盖和脱敏导出。",
+      "tasks": [
+        "RB-24",
+        "RB-19"
+      ]
+    },
+    {
+      "id": "FR-05",
+      "text": "独立系统统计页，资源、消息、模型、业务积压、恢复效果和独立媒体分域展示，口径与数据新鲜度准确。",
+      "tasks": [
+        "RB-25",
+        "RB-19"
+      ]
+    },
+    {
+      "id": "FR-06",
+      "text": "保留全部已接受的Memory/学习/日程优化、历史修复和独立媒体边界；不新增常规用户审批门禁。",
+      "tasks": [
+        "RB-01",
+        "RB-18",
+        "RB-20",
+        "RB-21"
+      ]
+    }
+  ],
+  "audit_requirements_note": "本轮技术新增发现NF与用户新增需求FR分开。运维Agent/日志页/统计页是新增需求，不能因此称此前缺少它们就是已发生故障。",
+  "latest_plan_review": {
+    "reviewed_on": "2026-11-05",
+    "scope": "完整来源与功能盘点：原聊天17次请求、LE/ML/SD全部44项来源任务、RB26卡、现有模块/页面/API、跨域故障与数据切换边界。",
+    "source_head": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
+    "source_tracked_clean": true,
+    "production_refreshed": false,
+    "latest_runtime_evidence": "2026-11-04 22:13:39 Asia/Shanghai (prior snapshot)",
+    "implementation_started": false,
+    "note": "10组方案补全与交付组织修正，不新增生产故障结论；22组已有问题保持。仅规划与静态核对，未运行产品行为测试。"
+  },
+  "reset_contract": {
+    "meaning": "BOT业务域清空并以新结构初始化；保留独立模块及其真实共享依赖。不是整台NAS、整个物理数据库或整个/data清空。",
+    "reset_bot_owned": [
+      "旧聊天/消息业务历史及BOT原件（未被保留模块引用者）",
+      "旧Memory事实/事项/好感业务值/反思与向量",
+      "旧自动学习习惯/表达样例/群词义产物",
+      "旧Life目标/活动/日程/日记与BOT独占待处理任务"
+    ],
+    "retain_authored_configuration": [
+      "角色人格与作者明确配置",
+      "QQ绑定、模型/供应商绑定、工作流和存储目标",
+      "作者明确配置的策略，包括需要保留的冻结策略；不回灌自动学习结果",
+      "作者明确作息/联系偏好、冻结选择、小屋/服装选择及必要引用文件；与旧自动情绪、好感值和生成历史区分"
+    ],
+    "retain_independent_domains": [
+      "视频/音乐/图书/漫画订阅、下载任务、媒体库与文件",
+      "独立项目资料/任务/经验、知识与资产连接及其内容",
+      "家庭设备/基础设施/游戏节点、天气/位置、插件技能及外部模型代理的非BOT数据与配置",
+      "其他NAS服务；共享依赖按真实引用闭包保留，不按schema或actor_id猜归属"
+    ],
+    "retain_reference_closure": [
+      "独立模块实际引用的principal/scope/source版本/action/receipt/job身份",
+      "凭据引用、加密密文与对应部署主密钥",
+      "仍在运行或结果未知的外部动作最少对账信息",
+      "输入切换边界与必要防重放身份",
+      "BOT切换后的缓存/上游会话命名空间与自动归档回填下界"
+    ],
+    "physical_strategy": "沿用PostgreSQL，BOT新业务基线与保留的共享/媒体域分别处理。不能以schema名或actor_id=NULL代替真实数据归属，须覆盖外键与JSON引用；不整体DROP共享schema或Procrastinate表。",
+    "future_upgrade": "弃旧数据只发生在本次明确切换；新版产生的数据此后按正常迁移保留，普通更新不能再次reset。",
+    "rollback": "保留发布代际、schema/任务payload契约；共享变化优先向后兼容。允许回滚的代码须能读当前数据，不能回灌旧业务库覆盖新写入。",
+    "not_a_whole_code_rewrite": "整体改变BOT数据模型、逻辑链、调度、恢复、运维与页面；复用可靠协议适配、公共能力和独立模块，不要求逐行重写。"
+  },
+  "design_closure_points": [
+    {
+      "id": "CP-01",
+      "title": "空库按业务归属与引用闭包处理",
+      "tasks": [
+        "RB-01",
+        "RB-02",
+        "RB-18",
+        "RB-20",
+        "RB-21"
+      ],
+      "evidence": [
+        "src/tianshu/capabilities/schema.sql:1",
+        "src/tianshu/runtime/schema.sql:3",
+        "src/tianshu/runtime/credentials.py:17",
+        "src/tianshu/identity/schema.sql:12"
+      ],
+      "decision": "实施起点即生成reset/retain/seed清单，覆盖外键、JSON引用、文件归属、加密密文与主密钥。BOT独占数据可丢，独立媒体引用的最小身份与回执继续保留；不回灌旧记忆。",
+      "acceptance": "混合BOT/媒体隔离库执行切换后，BOT业务域为空、媒体订阅和原任务能续接、保留凭据能解密、共享文件仍可访问；不能靠重建媒体任务通过。"
+    },
+    {
+      "id": "CP-02",
+      "title": "一次清空、切换隔离与未来升级分别定义",
+      "tasks": [
+        "RB-01",
+        "RB-03",
+        "RB-06",
+        "RB-16",
+        "RB-19",
+        "RB-20",
+        "RB-21"
+      ],
+      "evidence": [
+        "src/tianshu/runtime/migrations.py:25",
+        "src/tianshu/runtime/migrations.py:59",
+        "src/tianshu/runtime/commands.py"
+      ],
+      "decision": "本次BOT基线重建与未来增量迁移分离。任务payload版本、部署代际、输入边界和已提交外部结果分开管理；旧worker/旧浏览器不能把过时BOT命令送入新数据代际；保留媒体任务仍按原身份接续。 BOT数据代际也隔离缓存、上游会话与自动归档回填，防止本地清空后旧上下文重新进入。",
+      "acceptance": "空库首装之后产生数据，再做一次受影响域升级，数据保留；旧代际命令明确过期而非新建重复动作；兼容回滚不覆盖新版合法写入。"
+    },
+    {
+      "id": "CP-03",
+      "title": "六类角色采用总资源核算与公平推进",
+      "tasks": [
+        "RB-03",
+        "RB-05",
+        "RB-22",
+        "RB-24",
+        "RB-25",
+        "RB-26"
+      ],
+      "evidence": [
+        "src/tianshu/runtime/config.py:67",
+        "src/tianshu/runtime/database.py:41",
+        "src/tianshu/runtime/execution.py"
+      ],
+      "decision": "按实际启用角色核算业务/控制/同步池、队列SQL池、LISTEN/owner连接总和；计入保留媒体、运维与统计。每角色只启动所属consumer，避免重复启动全部通道。持续流量按域/主体公平轮转与等待老化，不恢复任意低云并发锁。",
+      "acceptance": "六角色总资源在实际部署预算内；长时间前台/到期任务流量下后台与媒体有进展；日志/统计查询不能占尽控制连接。"
+    },
+    {
+      "id": "CP-04",
+      "title": "备用路由不能破坏向量空间与冻结请求",
+      "tasks": [
+        "RB-04",
+        "RB-07",
+        "RB-08",
+        "RB-09",
+        "RB-12",
+        "RB-23"
+      ],
+      "evidence": [
+        "src/tianshu/memory/embedding.py:18",
+        "src/tianshu/memory/embedding.py:42",
+        "src/tianshu/memory/candidates.py:277"
+      ],
+      "decision": "生成模型备选需满足用途、视觉/工具/schema及有效上下文；每attempt记录实际route/protocol与wire摘要，原逻辑输入不改。不同嵌入模型即使同维也不能默认共用索引：只允许可证明同空间的备选，否则创建新profile并异步重建，过渡用合法词法/旧profile检索。",
+      "acceptance": "主备嵌入同维不同空间时不能混写/混查；新profile未就绪时聊天不因建索引全停；备选窗口装不下必要内容时不截断强制材料或冒充完整。"
+    },
+    {
+      "id": "CP-05",
+      "title": "恢复预算贯穿整条故障链，人工操作优先",
+      "tasks": [
+        "RB-03",
+        "RB-22",
+        "RB-23",
+        "RB-26"
+      ],
+      "evidence": [
+        "src/tianshu/runtime/commands.py",
+        "src/tianshu/companion/growth_retry.py",
+        "src/tianshu/life/generation_control.py"
+      ],
+      "decision": "同一故障的拆批、换route、建子任务、修复后revision变化继承同一recovery lineage预算，行政更新不能每次重置预算。执行前重读当前语义版本与用户暂停/取消；旧Agent决定过期后退出，不覆盖人工结果。",
+      "acceptance": "A→B→A路由切换与子任务换ID不能绕过恢复上限；用户取消/改配置后旧诊断动作失效；真正的新材料仍能独立继续。"
+    },
+    {
+      "id": "CP-06",
+      "title": "空库第一天与必要材料缺失均有正常路径",
+      "tasks": [
+        "RB-06",
+        "RB-07",
+        "RB-10",
+        "RB-11",
+        "RB-12",
+        "RB-13",
+        "RB-15",
+        "RB-19",
+        "RB-20",
+        "RB-21"
+      ],
+      "evidence": [
+        "src/tianshu/conversation/context/assembly.py",
+        "src/tianshu/life/planning_engine.py",
+        "src/tianshu/memory/embedding.py"
+      ],
+      "decision": "没有历史聊天、记忆、向量、习惯、日记时，各页正常空态；普通对话只等待必需输入，不等待所有后台就绪。Life可依据有效作者配置形成安排或合法空白，不能为填满页面伪造经历。保留媒体模块照常运行。",
+      "acceptance": "真正的BOT空库从首次配置、首条输入、首次事实/学习/日程/日记到一次重启能够按需推进；无材料不误报故障，无向量不导致全部查询失败。"
+    }
+  ],
+  "source_crosscheck": [
+    {
+      "id": "CW-01",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "本地向量查询及来源窗口已在线从0.8调为2秒；云嵌入/重排各30秒",
+      "disposition": "已部署配置保留；新装默认补漏",
+      "tasks": [
+        "RB-09",
+        "RB-20"
+      ],
+      "decision": "原变更是已完成配置工作，不能重做或称程序已修。新装默认与示例仍0.8，补SF-08。",
+      "acceptance": "缺省/示例加载2.0，显式配置不被强制覆盖；阶段降级与30秒模型预算保持。",
+      "evidence": [
+        "src/tianshu/memory/retrieval_budget.py:16",
+        "deploy/core/settings.example.json:37",
+        "docs/development/CURRENT.md:17"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-02",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "18秒嵌入是总执行延迟，尚无法拆出网络与供应商计算",
+      "disposition": "补为具体交付与验收",
+      "tasks": [
+        "RB-04",
+        "RB-25"
+      ],
+      "decision": "补HTTP时间点、连接复用和可观测性；无供应商证据不推断纯推理时长。",
+      "acceptance": "不同网络阶段夹具可区分；非流式和不可分离阶段不填伪0，不重复加嵌套耗时。",
+      "evidence": [
+        "src/tianshu/models/broker.py:438",
+        "src/tianshu/models/transport.py"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-03",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "程序给合法option_id，模型只选择，提交和执行再验资格",
+      "disposition": "采纳并保留新活动能力",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-14"
+      ],
+      "decision": "统一eligibility；冻结候选及版本，续接参数从原回执解析。新活动仍允许。",
+      "acceptance": "失活目标不成为候选；下一页能力不与旧checkpoint能力混淆；生成期间状态改变刷新材料。",
+      "evidence": [
+        "src/tianshu/life/planner.py",
+        "src/tianshu/life/continuation.py",
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-04",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "应用结果必须区分安排、主动留白、排不下、状态变化、非法",
+      "disposition": "补录源码风险SF-07",
+      "tasks": [
+        "RB-13",
+        "RB-19",
+        "RB-25"
+      ],
+      "decision": "逐候选返回实际结果，不能按created==0归为留白。",
+      "acceptance": "全跳过、混合成功、主动留白和重复消费的状态/下一触发/统计一致。",
+      "evidence": [
+        "src/tianshu/life/day_plan.py:233",
+        "src/tianshu/life/planning_engine.py:329"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-05",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "消息已收到、附件取得和内容理解是三个事实",
+      "disposition": "采纳并补纯媒体反例",
+      "tasks": [
+        "RB-06",
+        "RB-16"
+      ],
+      "decision": "可用文字/引用正常入站；不可用图片/文件以结构化缺项贯穿Sources、Context和Memory。",
+      "acceptance": "混合输入、纯不可用图片、缺路径文件均不假称理解；必需媒体能力局部失败。",
+      "evidence": [
+        "src/tianshu/conversation/service.py:63",
+        "src/tianshu/channels/media.py"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-06",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "附件只补取原片段，不能改同一消息修订再入站",
+      "disposition": "修正模糊版本表述",
+      "tasks": [
+        "RB-01",
+        "RB-06",
+        "RB-16"
+      ],
+      "decision": "原消息revision/digest不变；附件补充及理解覆盖独立版本，稳定关联原turn/part。",
+      "acceptance": "重复/乱序补全不重复turn、回复或事实；来源撤回后晚到附件无效。",
+      "evidence": [
+        "src/tianshu/conversation/service.py:65",
+        "src/tianshu/channels/ingress.py:151"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-07",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "两遍别名编译，冻结规范提案/编号映射/编译版本",
+      "disposition": "补齐恢复的固定输入",
+      "tasks": [
+        "RB-01",
+        "RB-08"
+      ],
+      "decision": "主体内声明再解析跨主体引用；编译前后状态和原结果可追溯，机械问题本地处理。",
+      "acceptance": "跨人n1合法、同人冲突拒绝；相同输入与编译版本产生相同ID，重启不换映射。",
+      "evidence": [
+        "src/tianshu/memory/proposal.py",
+        "src/tianshu/memory/consolidation.py:793"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-08",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "保留当前整批事务，不引入跨人物部分提交",
+      "disposition": "纠正与第四版的真实冲突",
+      "tasks": [
+        "RB-08",
+        "RB-22",
+        "RB-21"
+      ],
+      "decision": "收回独立目标分别提交；任务隔离/闭合输入重组与批内原子提交分别定义。",
+      "acceptance": "批内中途失败零写入，已提交重放原回执；其他独立批可推进，被替代父批不能迟到应用。",
+      "evidence": [
+        "src/tianshu/memory/consolidation.py:795",
+        "src/tianshu/memory/consolidation.py:801",
+        "src/tianshu/memory/consolidation.py:823"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-09",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "错误分型恢复，并恢复当天日程/7条消息/2条材料",
+      "disposition": "机制保留；存量补偿由空库决定替代",
+      "tasks": [
+        "RB-06",
+        "RB-08",
+        "RB-13",
+        "RB-20",
+        "RB-21",
+        "RB-22"
+      ],
+      "decision": "本次BOT弃旧数据，不再实施旧坏批补偿；保留故障形状及新版正常恢复，独立媒体原任务不在取消范围。",
+      "acceptance": "脱敏合成夹具重演原失败；没有清库即通过、旧QQ重发或手工改库假收口。",
+      "evidence": [
+        "docs/development/CURRENT.md:7",
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-10",
+      "source_thread": "01a1a2cb-ef99-70f0-a986-453468b13224",
+      "source_conclusion": "语音未配置、NAS采集partial、无自然发送样本分别说明",
+      "disposition": "保留范围与证据限制",
+      "tasks": [
+        "RB-18",
+        "RB-19",
+        "RB-21",
+        "RB-25"
+      ],
+      "decision": "语音按用户选择保持未绑定；NAS按实际缺项修相关采集或说明外部条件；媒体读入口不算执行通过。",
+      "acceptance": "状态页区分未配置/partial/失败/无样本；无自然样本不称发送闭环已验。",
+      "evidence": [
+        "docs/development/runtime-chain-review-2026-11-04-evening.md"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-11",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "撤回习惯不能借Memory反思入口复活，历史仍可查询",
+      "disposition": "行为采纳；存储方案按空库重构调整",
+      "tasks": [
+        "RB-07",
+        "RB-10",
+        "RB-12"
+      ],
+      "decision": "LE增量方案保留两种表示；RB改为Companion唯一学习权威、Memory引用索引，语义不变，不保留双写同步。",
+      "acceptance": "旧索引命中也不能采用失效规则；历史追问有授权时可读取并标明历史/现行状态。",
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md:63",
+        "src/tianshu/companion/growth.py:640",
+        "src/tianshu/memory/service.py:495"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-12",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "先过滤再limit；聊天/规划分别取材，运行查询不读管理统计",
+      "disposition": "采纳并补双调用方验收",
+      "tasks": [
+        "RB-10",
+        "RB-12",
+        "RB-13"
+      ],
+      "decision": "active/scope/validity先筛；完整规则逐条选择与补位，未覆盖候选不能冒称全量。",
+      "acceptance": "前40失效/第41有效、聊天style与规划interest、单条来源失效不吞其余材料。",
+      "evidence": [
+        "src/tianshu/companion/growth.py:619",
+        "docs/development/learning-enhancement-queue-2026-11-04.md:67"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-13",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "当前指代/引用/工具依赖先于可选个性化，允许零样例",
+      "disposition": "采纳并补最终清单边界",
+      "tasks": [
+        "RB-12",
+        "RB-16",
+        "RB-21"
+      ],
+      "decision": "必要完整单元优先；近期同一依据不重复展开，冻结前复核版本，无前台辅助模型。",
+      "acceptance": "刚才第二种不丢上文；无个性化需求不强塞；撤回/预算舍弃项不显示已注入。",
+      "evidence": [
+        "src/tianshu/conversation/context/assembly.py",
+        "docs/development/learning-enhancement-queue-2026-11-04.md:78"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-14",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "临时要求、持续偏好、推断习惯和用户纠正有不同效力",
+      "disposition": "补齐规则生命周期",
+      "tasks": [
+        "RB-10",
+        "RB-12",
+        "RB-19"
+      ],
+      "decision": "稳定规则修订；撤回约束后续同规则提案，低频只降排序，冻结仍允许明确纠正。",
+      "acceptance": "临时到期、持续偏好换话题仍有效、同规则换ID不复活、不同情境共存、并发CAS可解释。",
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md:89"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-15",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "support子集不等于整批生成依赖，独立事件才增信",
+      "disposition": "补齐不能缩小来源闭包",
+      "tasks": [
+        "RB-02",
+        "RB-08",
+        "RB-10",
+        "RB-17"
+      ],
+      "decision": "两类依赖分别保留；同来源及其派生产物只算一次支持，模型自身复述不增信。",
+      "acceptance": "1支持+32上下文仍为1；非支持生成依赖撤回也按原完整依赖语义失效。",
+      "evidence": [
+        "src/tianshu/companion/reflection_output.py:286",
+        "src/tianshu/companion/growth.py:370"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-16",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "表达样例按真实回复关系，条件和否定完整，送达不等于认可",
+      "disposition": "补齐样例事实与反馈边界",
+      "tasks": [
+        "RB-17",
+        "RB-19",
+        "RB-21"
+      ],
+      "decision": "复用原对话/规则引用；不按相邻消息或固定字数配对，不每轮额外分析。",
+      "acceptance": "交错及合并回复、跨域、unknown发送、明确负反馈、样例事实误带入均有反例。",
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md:111"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-17",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "群词义复用已有group主体，保留speaker/assertion和分歧",
+      "disposition": "补齐群共识与身份边界",
+      "tasks": [
+        "RB-07",
+        "RB-12",
+        "RB-17"
+      ],
+      "decision": "词义用于当前命中理解；别名归Identity、任务约定归Matter，不另建词库权威。",
+      "acceptance": "两群同词不同义、单人解释不算全群确认、同群分歧及无命中零附加模型调用。",
+      "evidence": [
+        "src/tianshu/identity/service.py:440",
+        "docs/development/learning-enhancement-queue-2026-11-04.md:129"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-18",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "实际取材、回复行为和明确反馈三层证据分开",
+      "disposition": "采纳并补页面与无记录状态",
+      "tasks": [
+        "RB-04",
+        "RB-12",
+        "RB-19",
+        "RB-25"
+      ],
+      "decision": "沿用原request/turn与最终清单；材料token为估计，provider usage及费用未知分别展示。",
+      "acceptance": "预算舍弃不算注入，多同kind版本不覆盖，历史未记录不冒充空清单，无反馈不显示好评。",
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md:149"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-19",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "LE-06分别测核心选择、样例和词义的实际增益",
+      "disposition": "补回合并队列时丢失的对照",
+      "tasks": [
+        "RB-12",
+        "RB-17",
+        "RB-21"
+      ],
+      "decision": "同人格/输入/模型/相近预算；核心前后对照，再按场景单独比较有无样例/词义，不做全组合门禁。",
+      "acceptance": "确定性边界、代表性表达、时延/查询/usage分别报告；无真实结果就保持效果未证明。",
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md:169"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    },
+    {
+      "id": "CW-20",
+      "source_thread": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+      "source_conclusion": "不照搬自动改人格、好感判真伪、按天硬删除、每轮评价模型",
+      "disposition": "保留明确不采纳项",
+      "tasks": [
+        "RB-10",
+        "RB-12",
+        "RB-17",
+        "RB-21"
+      ],
+      "decision": "原人格、权限和事实权威保留；学习属于有来源上下文改进，不是权重训练或新审批系统。",
+      "acceptance": "前台新增辅助LLM调用为0；无反馈/自身重复不提升可信度；低频不等于无效或删除。",
+      "evidence": [
+        "docs/development/learning-enhancement-queue-2026-11-04.md:27",
+        "docs/development/learning-enhancement-queue-2026-11-04.md:170"
+      ],
+      "implementation_status": "planned_not_implemented_in_this_revision"
+    }
+  ],
+  "whole_review_corrections": [
+    {
+      "id": "RI-01",
+      "title": "恢复原始输入、候选与完整生成依赖的区别",
+      "kind": "旧要求合并时省略",
+      "tasks": [
+        "RB-02",
+        "RB-08",
+        "RB-12",
+        "RB-19"
+      ],
+      "basis": "ML-04/06、SD-06/11；conversation/service.py:285",
+      "decision": "新消息未整理仍能回答；先选消息单元再汇总直接来源；衍生完整依赖不缩减；Coverage区分必要缺项与可选省略。",
+      "acceptance": "未选且未参与计算的候选撤回不误取消；已用来源撤回仍生效。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-02",
+      "title": "学习变化贯穿工具、生成、渲染和发送",
+      "kind": "旧要求合并时省略",
+      "tasks": [
+        "RB-01",
+        "RB-10",
+        "RB-12",
+        "RB-16",
+        "RB-19"
+      ],
+      "basis": "ML-05/06/07、SD-10/16；memory/tools.py、conversation/rendering.py",
+      "decision": "六类消费者统一用途与当前资格；支持新增与语义失效分开；自然语言当次遵守与长期已保存分开。",
+      "acceptance": "支持更新不取消回复；已撤回规则不能经原生工具复活，等待语音/发送时也处理实质失效。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-03",
+      "title": "经历历史、时间查询和异步索引版本",
+      "kind": "旧要求合并时省略",
+      "tasks": [
+        "RB-02",
+        "RB-07",
+        "RB-09",
+        "RB-10"
+      ],
+      "basis": "ML-11、SD-07；memory/schema.sql、memory/query_plan.py",
+      "decision": "Episode语义历史及current/valid_at/known_at明确；进度不复制正文，旧索引晚到不盖新head。",
+      "acceptance": "经历编辑可追溯，历史受遗忘；新旧索引乱序仍读取正确版本。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-04",
+      "title": "检索、共享选材与轻量能力目录",
+      "kind": "旧优化细节合并时省略",
+      "tasks": [
+        "RB-08",
+        "RB-09",
+        "RB-13",
+        "RB-18"
+      ],
+      "basis": "ML-08/09/10、SD-09/13；capabilities/catalog.py:78",
+      "decision": "低频人物/短句保留；中文词法与支路并行复用原算法；目录与远端探测分开，跨请求缓存有收益才用。",
+      "acceptance": "未选服务探测失败不拖全部规划；召回质量、冷/热开销与实际省掉请求有对应证据。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-05",
+      "title": "异步模型交接与流式恢复",
+      "kind": "结构变化需补完整协议",
+      "tasks": [
+        "RB-03",
+        "RB-04",
+        "RB-16"
+      ],
+      "basis": "SD-03/04；runtime/jobs.py、models/client.py、models/ledger.py",
+      "decision": "稳定身份持久接受；ACK丢失先观察，结果先到不丢；通知仅唤醒；流式观察断开与取消分开。",
+      "acceptance": "提交/接受/结果/消费各断点可恢复，无盲重新提交或重复效果。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-06",
+      "title": "六角色唯一拥有者及健康/退出接线",
+      "kind": "结构变化需补完整装配",
+      "tasks": [
+        "RB-01",
+        "RB-05",
+        "RB-20",
+        "RB-24",
+        "RB-26"
+      ],
+      "basis": "SD-05；runtime/process.py、composition.py、listeners.py、deploy/core/health.py",
+      "decision": "唯一QQ/Broker/clock等拥有者；按需装配；角色清单同步探针、监听、日志与有界关闭。",
+      "acceptance": "六角色不重复建立连接或任务；局部失败不因旧整体health策略牵连可用功能。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-07",
+      "title": "功能与数据保留不能仅用兜底一句",
+      "kind": "现有功能未具体列入",
+      "tasks": [
+        "RB-01",
+        "RB-07",
+        "RB-14",
+        "RB-15",
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "basis": "web/src/app/modules.ts、life/module.py、capabilities/api.py",
+      "decision": "22类现有功能明确负责人和数据处置；补创作/共读、小屋服装、项目知识/经验、资源与设备等。",
+      "acceptance": "BOT空库不删独立模块与作者配置；现有编辑/发布/读取入口有真实接线，不以菜单占位通过。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-08",
+      "title": "日志源头续页、持久缺口与统计规模",
+      "kind": "已有要求可实施性补足",
+      "tasks": [
+        "RB-24",
+        "RB-25"
+      ],
+      "basis": "NF-06、FR-04/05；runtime/events.py、diagnostics.py；Loki官方API",
+      "decision": "opaque token本身不保证上游可续取；利用已有原始日志身份/顺序，限制高基数标签，完整与已落盘分别表述。",
+      "acceptance": "实际后端同时间戳超limit、迟到补传可枚举；无静默丢弃、无每任务永久时序。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-09",
+      "title": "对照样例独立性与完整成本分母",
+      "kind": "旧验收要求合并时省略",
+      "tasks": [
+        "RB-21",
+        "RB-25"
+      ],
+      "basis": "ML-16、SD-20；原24故事及原成本证据",
+      "decision": "按故事家族隔离；原文补答、适用机会、未决/失败/取消/unknown和冷/热长尾保留。",
+      "acceptance": "学习/检索/缓存收益分别证明；不能用已知故事、减少成功分母或裁必要材料制造进步。",
+      "status": "specified_not_implemented"
+    },
+    {
+      "id": "RI-10",
+      "title": "交付负责人、真实依赖和唯一队列",
+      "kind": "队列内部一致性修正",
+      "tasks": [
+        "RB-01",
+        "RB-17",
+        "RB-19",
+        "RB-24",
+        "RB-25"
+      ],
+      "basis": "RB25已消费RB13/RB23但完成依赖未列；RB24/25原owner均F；LE旧state",
+      "decision": "日志R牵头、统计O牵头，F写前端；词义M/样例C分工；RB25补13/23依赖；LE改为历史来源。",
+      "acceptance": "目录所有权、接口生产者与完成依赖一致；LE/ML/SD不可再次独立派发同一实现。",
+      "status": "specified_not_implemented"
+    }
+  ],
+  "feature_inventory": [
+    {
+      "id": "FI-01",
+      "capability": "登录、初始化、账号/人物/群映射、权限与访问设置",
+      "tasks": [
+        "RB-02",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "保留作者配置及独立模块引用；BOT历史按归属清理",
+      "evidence": "src/tianshu/identity/module.py",
+      "acceptance": "会话登录/原权限与账号关联仍有效",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-02",
+      "capability": "QQ/OneBot、Web对话、群参与、消息合并/引用/原话补取",
+      "tasks": [
+        "RB-05",
+        "RB-06",
+        "RB-12",
+        "RB-16"
+      ],
+      "data_policy": "绑定/策略保留；BOT历史归零，切换身份防重放",
+      "evidence": "src/tianshu/channels/module.py",
+      "acceptance": "一个连接owner；群/角色不串；旁听不冒充已回复",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-03",
+      "capability": "多模态接收、媒体原件与渐进理解",
+      "tasks": [
+        "RB-02",
+        "RB-06",
+        "RB-16"
+      ],
+      "data_policy": "独立媒体/配置引用保留；BOT专用原件按闭包清理",
+      "evidence": "src/tianshu/channels/media.py",
+      "acceptance": "坏附件局部缺项，迟到补全不重发",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-04",
+      "capability": "Memory事实/假设/事项/经历/历史/来源追查与遗忘",
+      "tasks": [
+        "RB-02",
+        "RB-07",
+        "RB-08",
+        "RB-09"
+      ],
+      "data_policy": "旧BOT业务归零；新版历史与当前权威完整",
+      "evidence": "src/tianshu/memory/module.py",
+      "acceptance": "时间语义、整批事务、来源撤回与完整list保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-05",
+      "capability": "用户档案、群画像、关系/好感与冻结",
+      "tasks": [
+        "RB-07",
+        "RB-10",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "作者冻结策略保留，旧自动数值归零",
+      "evidence": "src/tianshu/memory/service.py",
+      "acceptance": "关系不授予权限，冻结与情绪分开",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-06",
+      "capability": "角色管理、人格版本、世界设定与短期情绪",
+      "tasks": [
+        "RB-10",
+        "RB-12",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "作者人格/选择保留，旧自动情绪不回灌",
+      "evidence": "src/tianshu/companion/module.py",
+      "acceptance": "人格全文、历史编辑与角色启停保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-07",
+      "capability": "Growth习惯/兴趣/反馈、样例和群词义",
+      "tasks": [
+        "RB-10",
+        "RB-12",
+        "RB-17",
+        "RB-19"
+      ],
+      "data_policy": "旧自动学习归零，新记录归Companion/Memory各自类型",
+      "evidence": "src/tianshu/companion/growth.py",
+      "acceptance": "撤回不复活，反馈与自用计数分开",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-08",
+      "capability": "作息/目标/日程/活动、提醒约定及主动联系",
+      "tasks": [
+        "RB-11",
+        "RB-13",
+        "RB-14",
+        "RB-19"
+      ],
+      "data_policy": "作者作息/联系偏好保留，旧活动/日程归零",
+      "evidence": "src/tianshu/life/module.py",
+      "acceptance": "后台可进展，真实承诺/不打扰和发送所有权保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-09",
+      "capability": "阅读/共读、共享授权、进度与续读",
+      "tasks": [
+        "RB-14",
+        "RB-18",
+        "RB-19"
+      ],
+      "data_policy": "独立图书库/订阅保留；BOT旧阅读经历归零",
+      "evidence": "src/tianshu/life/reading.py",
+      "acceptance": "共享授权、原文件与新阅读会话正确关联",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-10",
+      "capability": "日记与作品/章节生成、审阅、修订、发布",
+      "tasks": [
+        "RB-15",
+        "RB-16",
+        "RB-19"
+      ],
+      "data_policy": "BOT旧日记/自动作品按归属清理，独立项目原文不连带删",
+      "evidence": "src/tianshu/life/writing.py",
+      "acceptance": "手动自动生成/取消/对账与公开读者边界保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-11",
+      "capability": "小屋、服装、角色视觉展示",
+      "tasks": [
+        "RB-11",
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "作者设置和必要引用文件保留，旧生活状态不回灌",
+      "evidence": "src/tianshu/life/presentation.py",
+      "acceptance": "作息推进、衣着选择和原图访问保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-12",
+      "capability": "图像/ComfyUI、语音/声音、表情",
+      "tasks": [
+        "RB-04",
+        "RB-16",
+        "RB-18",
+        "RB-19"
+      ],
+      "data_policy": "绑定/工作流/声线策略保留，未绑定声音仍未配置",
+      "evidence": "web/src/features/multimodal",
+      "acceptance": "原任务handle/结果与发送分开，固定工作流不被动态场景覆盖",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-13",
+      "capability": "视频、音乐、图书、漫画订阅/下载/库/文件",
+      "tasks": [
+        "RB-05",
+        "RB-18",
+        "RB-20"
+      ],
+      "data_policy": "独立数据、任务、文件和共享身份完整保留",
+      "evidence": "web/src/features/media",
+      "acceptance": "无角色/QQ也可管理及执行原任务",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-14",
+      "capability": "项目工作区、知识文档、经验与交接",
+      "tasks": [
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "独立资料/任务/文件保留",
+      "evidence": "src/tianshu/capabilities/projects",
+      "acceptance": "项目入口与原资料可读写，不借BOT空库删除",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-15",
+      "capability": "研究资料、知识与资产库连接",
+      "tasks": [
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "独立内容、连接与权限保留",
+      "evidence": "web/src/features/resources",
+      "acceptance": "搜索/原文与外部资产链接保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-16",
+      "capability": "家庭设备、基础设施、容器、节点和游戏服务",
+      "tasks": [
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "独立配置与服务不变，只适配共享接口",
+      "evidence": "web/src/features/infrastructure",
+      "acceptance": "原调用/实际权限保持，partial据实呈现",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-17",
+      "capability": "位置天气与身体/活动数据入口",
+      "tasks": [
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "独立连接/设置/数据保留",
+      "evidence": "src/tianshu/capabilities/weather",
+      "acceptance": "未配置与不可用明确，不补造业务数据",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-18",
+      "capability": "插件、角色技能、MCP与外部工具",
+      "tasks": [
+        "RB-05",
+        "RB-18",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "安装/作者配置和独立任务保留",
+      "evidence": "src/tianshu/capabilities/plugins",
+      "acceptance": "可选插件故障不拖全启动，真实handler和权限保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-19",
+      "capability": "模型供应商、用途路由、凭据与原生API代理",
+      "tasks": [
+        "RB-04",
+        "RB-05",
+        "RB-19",
+        "RB-20"
+      ],
+      "data_policy": "连接/绑定/凭据及外部客户端待办保留，BOT会话代际隔离",
+      "evidence": "src/tianshu/models/proxy.py",
+      "acceptance": "流式/非流式/取消/usage和后台独立上下文保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-20",
+      "capability": "工作台、链路图、任务记录、存储与原诊断入口",
+      "tasks": [
+        "RB-19",
+        "RB-24",
+        "RB-25"
+      ],
+      "data_policy": "既有导航/查询保留，投影按新版本重建",
+      "evidence": "web/src/features/workbench",
+      "acceptance": "原书签/编辑入口、分页与真实状态保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-21",
+      "capability": "新增平台日志页、系统统计页",
+      "tasks": [
+        "RB-24",
+        "RB-25",
+        "RB-19"
+      ],
+      "data_policy": "复用日志/账本，新增可重建投影",
+      "evidence": "src/tianshu/runtime/diagnostics.py",
+      "acceptance": "截图所需交互与准确口径、迟到补传及局部故障保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    },
+    {
+      "id": "FI-22",
+      "capability": "新增恢复策略、运维Agent、独立守护与通知",
+      "tasks": [
+        "RB-22",
+        "RB-23",
+        "RB-26",
+        "RB-19"
+      ],
+      "data_policy": "新增最小事件/恢复/通知引用；不复制业务真相",
+      "evidence": "src/tianshu/runtime/commands.py",
+      "acceptance": "故障局部化、实际恢复验证、配置内通知和未知结果保持",
+      "status": "preservation_or_delivery_planned_not_runtime_verified"
+    }
+  ],
+  "original_request_inventory": [
+    {
+      "number": 1,
+      "request": "客观多维记忆评价",
+      "disposition": "已回答，82分及成本/质量局限是历史截面",
+      "tasks": [
+        "RB-21",
+        "RB-25"
+      ]
+    },
+    {
+      "number": 2,
+      "request": "完整可行优化方案，先方案",
+      "disposition": "本轮继续规划，未实施",
+      "tasks": [
+        "RB-01",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 3,
+      "request": "合并自学习窗口，完整队列",
+      "disposition": "LE全部6项逐项承接",
+      "tasks": [
+        "RB-01",
+        "RB-10",
+        "RB-12",
+        "RB-17",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 4,
+      "request": "多维优化取舍",
+      "disposition": "采用/有条件采用/不采用分开",
+      "tasks": [
+        "RB-01",
+        "RB-09",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 5,
+      "request": "解耦并行、联动、数据/算法/后台/日程，可弃旧数据",
+      "disposition": "模块化单体核心重构，数据归属清单限制BOT重置",
+      "tasks": [
+        "RB-02",
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-07",
+        "RB-09",
+        "RB-11",
+        "RB-20"
+      ]
+    },
+    {
+      "number": 6,
+      "request": "不能重犯历史修复问题",
+      "disposition": "23项历史行为与41旧用例入口逐项归属",
+      "tasks": [
+        "RB-21"
+      ]
+    },
+    {
+      "number": 7,
+      "request": "当前程序全链路复盘",
+      "disposition": "保留22组问题与时间窗口，未伪造新生产快照",
+      "tasks": [
+        "RB-21",
+        "RB-25"
+      ]
+    },
+    {
+      "number": 8,
+      "request": "解释链路、队列与超时锁",
+      "disposition": "保留可理解状态与等待原因",
+      "tasks": [
+        "RB-19",
+        "RB-25"
+      ]
+    },
+    {
+      "number": 9,
+      "request": "精简API并发锁和安全门",
+      "disposition": "取消固定4/2/2及本地结束后未知占位，保留真实资源与不可重复动作条件",
+      "tasks": [
+        "RB-04",
+        "RB-05"
+      ]
+    },
+    {
+      "number": 10,
+      "request": "精简日程/学习链路并解释触发",
+      "disposition": "生活焦点/后台工作/联系分开，事件及真实due驱动",
+      "tasks": [
+        "RB-10",
+        "RB-11",
+        "RB-13",
+        "RB-14",
+        "RB-19"
+      ]
+    },
+    {
+      "number": 11,
+      "request": "比较DSH养鱼与我会永远陪着你",
+      "disposition": "保留参考启发与证据边界，不把比较变成全部照搬需求",
+      "tasks": [
+        "RB-01",
+        "RB-12",
+        "RB-13",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 12,
+      "request": "全新核心重构队列，仍只做方案",
+      "disposition": "采用空库方案，保留有效实现与旧错语义",
+      "tasks": [
+        "RB-01",
+        "RB-20",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 13,
+      "request": "视频/音乐/图书属于独立模块",
+      "disposition": "保留独立生命周期/数据/任务与共享引用",
+      "tasks": [
+        "RB-05",
+        "RB-18",
+        "RB-20"
+      ]
+    },
+    {
+      "number": 14,
+      "request": "单材料不全卡、自纠错冗余、指定运维模型、通知、日志统计页",
+      "disposition": "六项FR有明确实现和故障验收；两截图交互已复核",
+      "tasks": [
+        "RB-22",
+        "RB-23",
+        "RB-24",
+        "RB-25",
+        "RB-26",
+        "RB-19"
+      ]
+    },
+    {
+      "number": 15,
+      "request": "再核空库整体重构与缺陷升级",
+      "disposition": "六项CP及数据代际/后续升级/引用闭包继续保留",
+      "tasks": [
+        "RB-01",
+        "RB-20",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 16,
+      "request": "两个窗口的结论和开发不能遗漏",
+      "disposition": "第五版CW20项加本轮完整ML/SD来源逐项核对",
+      "tasks": [
+        "RB-01",
+        "RB-21"
+      ]
+    },
+    {
+      "number": 17,
+      "request": "继续中断工作",
+      "disposition": "已接续；本轮完成完整盘点，不自动开始产品实施",
+      "tasks": [
+        "RB-01",
+        "RB-21"
+      ]
+    }
+  ],
+  "source_task_inventory": [
+    {
+      "source_id": "LE-01",
+      "title": "行为消费一致性与上下文选择",
+      "source_queue": "learning-enhancement-queue-2026-11-04.json",
+      "tasks": [
+        "RB-10",
+        "RB-12",
+        "RB-16"
+      ],
+      "disposition": "CW11/12/13及RI01/02；原生工具与发送边界补齐。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "LE-02",
+      "title": "有范围的偏好与习惯增量修订",
+      "source_queue": "learning-enhancement-queue-2026-11-04.json",
+      "tasks": [
+        "RB-10"
+      ],
+      "disposition": "CW14/15及RI02；保留自然语言当次遵守与长期修订区别。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "LE-03",
+      "title": "按需使用的表达样例",
+      "source_queue": "learning-enhancement-queue-2026-11-04.json",
+      "tasks": [
+        "RB-17"
+      ],
+      "disposition": "CW16；真实回复配对、事实隔离和按需样例全部保持。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "LE-04",
+      "title": "复用群主体的词义理解",
+      "source_queue": "learning-enhancement-queue-2026-11-04.json",
+      "tasks": [
+        "RB-17"
+      ],
+      "disposition": "CW17；沿真实群主体、speaker/assertion和分歧。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "LE-05",
+      "title": "最小取材记录与效果展示",
+      "source_queue": "learning-enhancement-queue-2026-11-04.json",
+      "tasks": [
+        "RB-01",
+        "RB-04",
+        "RB-12",
+        "RB-19",
+        "RB-21"
+      ],
+      "disposition": "CW18及RI01/02；最终清单、无记录状态与反馈分层。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "LE-06",
+      "title": "集中验证与完整交付",
+      "source_queue": "learning-enhancement-queue-2026-11-04.json",
+      "tasks": [
+        "RB-04",
+        "RB-19",
+        "RB-21"
+      ],
+      "disposition": "CW19/20及RI09；独立对照与完整分母。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-01",
+      "title": "统一材料身份和领域接口",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-01",
+        "RB-02",
+        "RB-12"
+      ],
+      "disposition": "最小接口归RB01/02/12；RI02补消费者与语义兼容，不造万能对象。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-02",
+      "title": "不可用媒体的部分接收与原事件恢复",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-06"
+      ],
+      "disposition": "未来输入行为保留；旧失败消息补偿因BOT空库替代，原形状留夹具。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-03",
+      "title": "局部引用编译与创建冲突修复",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-08"
+      ],
+      "disposition": "CW07/08已补两遍编译、冻结输入与整批原子性；不保留旧BOT写入协议。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-04",
+      "title": "分项覆盖诊断与模型语义视图",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-04",
+        "RB-07",
+        "RB-08",
+        "RB-10",
+        "RB-15",
+        "RB-19",
+        "RB-21"
+      ],
+      "disposition": "RI01补分项coverage、模型语义视图与已接收未整理状态。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-05",
+      "title": "学习产物关联与当前行为状态一致性",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-03",
+        "RB-10",
+        "RB-16"
+      ],
+      "disposition": "唯一权威改为Companion；RI02补原生工具/历史用途及support_only。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-06",
+      "title": "按用途选择上下文与冻结最终取材清单",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-06",
+        "RB-12",
+        "RB-16"
+      ],
+      "disposition": "RI01/02补逐消息来源、未整理输入、渲染/发送边界；原预算保持。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-07",
+      "title": "有范围的偏好修订和明确反馈",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-10"
+      ],
+      "disposition": "RI02补显式命令与自然语言持久修订的完成口径。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-08",
+      "title": "共享整理的依赖选材和输出感知分段",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-08"
+      ],
+      "disposition": "RI04补人物公平/短句/输出容量，继续一次共享理解。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-09",
+      "title": "分用途检索和按需重排",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-09"
+      ],
+      "disposition": "RI04补中文词法、独立支路、补位及诊断；排序不冒充list。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-10",
+      "title": "向量重复计算消除与有界复用",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-07",
+        "RB-09"
+      ],
+      "disposition": "RI04按收益有条件采用跨请求成功数学缓存；失败/权限不缓存。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-11",
+      "title": "可变经历历史与查询适用性",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-07"
+      ],
+      "disposition": "RI03补Episode语义历史及时间查询；Companion学习历史单独承接。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-12",
+      "title": "有真实回复关联的按需表达样例",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-17"
+      ],
+      "disposition": "CW16与RB17保持真实配对、事实隔离、零样例。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-13",
+      "title": "真实群主体上的词义理解",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-17"
+      ],
+      "disposition": "CW17与RB17保持群主体、分歧、按命中理解。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-14",
+      "title": "存量缺口的定向补偿与原身份对账",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [],
+      "disposition": "仅旧BOT存量补偿退役；新版原身份恢复仍保留，独立模块原任务保留。",
+      "status": "retired_for_fresh_start"
+    },
+    {
+      "source_id": "ML-15",
+      "title": "现有页面中的取材解释与质量观测",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-04",
+        "RB-19",
+        "RB-21"
+      ],
+      "disposition": "RI01/02补分项覆盖与持久修订状态，沿807现有详情。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "ML-16",
+      "title": "集中行为验证与同质量收益对照",
+      "source_queue": "memory-learning-unified-queue-2026-11-04.json",
+      "tasks": [
+        "RB-04",
+        "RB-19",
+        "RB-20",
+        "RB-21"
+      ],
+      "disposition": "RI09补故事家族、原文补答、适用机会与取消/unknown完整分母。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-01",
+      "title": "公共合同、功能保留与数据归属",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-01"
+      ],
+      "disposition": "RI07/10补完整功能表、真实依赖与路径单写责任。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-02",
+      "title": "场景、原件和可复用证据集合",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-02"
+      ],
+      "disposition": "原上界/当前权限交集保留，RI01/03补新历史与投影失效覆盖。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-03",
+      "title": "事务通知与独立消费者",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-03"
+      ],
+      "disposition": "RI05补持久交接断点；NOTIFY仅唤醒，事件不是新总线。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-04",
+      "title": "Models异步提交和唯一冻结请求",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-04"
+      ],
+      "disposition": "RI05补ACK丢失、结果先到、流式重连及真实取消。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-05",
+      "title": "前后台进程与共享资源隔离",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-05"
+      ],
+      "disposition": "RI06以六角色替代四角色，唯一owner/健康/停止全链同步。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-06",
+      "title": "输入接收与消息单元",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-06"
+      ],
+      "disposition": "CW05/06与RI01保留消息身份、回复所有权和选材来源。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-07",
+      "title": "Memory当前状态、语义版本与检索投影",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-07"
+      ],
+      "disposition": "RI03补语义历史/投影晚到/freshness，不叠第二套常驻索引。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-08",
+      "title": "共享整理、局部引用和增量算法",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-08"
+      ],
+      "disposition": "CW07/08与RI04保留整批提交、低频主体与输出感知分段。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-09",
+      "title": "检索、重排与向量计算复用",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-09"
+      ],
+      "disposition": "RI04补具体检索优化，预算不靠缩窗/丢证据改善。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-10",
+      "title": "习惯规则、纠正与运行投影",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-10"
+      ],
+      "disposition": "RI02补语义兼容与即时/持久反馈状态。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-11",
+      "title": "按用途并行取材与上下文预算",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-12"
+      ],
+      "disposition": "RI01补直接/衍生来源，当前输入与单元计量；无前台评价模型。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-12",
+      "title": "Life对象模型与统一执行资格",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-11"
+      ],
+      "disposition": "Life对象/资格方案保留；RI07补实际入口与配置种子。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-13",
+      "title": "滚动规划与确定性时间安排",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-13"
+      ],
+      "disposition": "RI04补轻量能力目录，CW04补逐项应用结果；现有承诺保持。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-14",
+      "title": "到期唤醒、资源等待与活动推进",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-14"
+      ],
+      "disposition": "事件/真实due、跨日/暂停/原回执保持；RI06补角色owner装配。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-15",
+      "title": "独立反思、经历与日记闭环",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-10",
+        "RB-15"
+      ],
+      "disposition": "独立反思/日记保持；RI07将章节创作/发布链列出。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-16",
+      "title": "表达、发送与业务结果收敛",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-16"
+      ],
+      "disposition": "RI02补实际选中规则在渲染/发送前的语义失效，部分已发不回写未发生。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-17",
+      "title": "按需表达样例与群词义",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-17"
+      ],
+      "disposition": "CW16/17保持完整样例/词义；RI10明确C/M分工。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-18",
+      "title": "外围功能独立任务与能力接线",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-18"
+      ],
+      "disposition": "RI07把项目/资源/设备/游戏等独立入口列全，RI06保持非BOTworker。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-19",
+      "title": "页面读模型与状态解释",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-19",
+        "RB-24",
+        "RB-25"
+      ],
+      "disposition": "RI07补全部导航/旧书签/编辑与窄屏，RI01/02补状态解释。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-20",
+      "title": "全链路计量与代表性评估材料",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-04",
+        "RB-19",
+        "RB-21",
+        "RB-22",
+        "RB-24",
+        "RB-25"
+      ],
+      "disposition": "RI08/09补观测规模、源端续页和真实评估口径。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-21",
+      "title": "新空库安装与单写者切换材料",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-20"
+      ],
+      "disposition": "RI06/07补六角色交付与所有独立域/作者配置；BOT空库限定不变。",
+      "status": "specified_in_RB_not_implemented"
+    },
+    {
+      "source_id": "SD-22",
+      "title": "完整装配与必要集中验收",
+      "source_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+      "tasks": [
+        "RB-21"
+      ],
+      "disposition": "RB21收齐26卡；RI10以实际生产者/消费者依赖核对并复用有效检查。",
+      "status": "specified_in_RB_not_implemented"
+    }
+  ],
+  "process_role_matrix": [
+    {
+      "role": "API",
+      "owns": "HTTP/TLS/Web与当前OneBot入口/连接、授权读取、控制命令；一个连接一个owner",
+      "must_not": "启动全部worker或因可选后台未就绪拒绝所有管理入口",
+      "tasks": [
+        "RB-05",
+        "RB-06",
+        "RB-16"
+      ]
+    },
+    {
+      "role": "Models",
+      "owns": "唯一Broker、实际物理请求、流式/结果账本和原生接口",
+      "must_not": "以未知结果账本占住已结束的本地许可",
+      "tasks": [
+        "RB-04",
+        "RB-05"
+      ]
+    },
+    {
+      "role": "BOT前台worker",
+      "owns": "会话/必要感知/工具/表达的短阶段任务；通过已登记owner投递",
+      "must_not": "重复建立OneBot连接或长时间占DB等待模型",
+      "tasks": [
+        "RB-05",
+        "RB-06",
+        "RB-12",
+        "RB-16"
+      ]
+    },
+    {
+      "role": "BOT后台worker",
+      "owns": "Memory/Growth/Life/索引/日记及各自通知；时钟/源传播有明确唯一任务归属",
+      "must_not": "由于一个坏批次阻塞其他独立批或模块",
+      "tasks": [
+        "RB-03",
+        "RB-05",
+        "RB-07",
+        "RB-10",
+        "RB-14",
+        "RB-15"
+      ]
+    },
+    {
+      "role": "独立能力worker（含媒体）",
+      "owns": "媒体/订阅、项目及非BOT管理任务的原能力实现；必要资源共用真实容量",
+      "must_not": "先启动BOT日程、借用BOT角色或重建原任务身份",
+      "tasks": [
+        "RB-05",
+        "RB-18"
+      ]
+    },
+    {
+      "role": "Operations",
+      "owns": "故障聚合、窄恢复动作、实际结果观察、统计投影和通知",
+      "must_not": "控制正常业务准入或在自身失败时递归诊断",
+      "tasks": [
+        "RB-05",
+        "RB-23",
+        "RB-25",
+        "RB-26"
+      ]
+    }
+  ],
+  "optimization_decisions": [
+    {
+      "id": "OD-01",
+      "decision": "直接采用",
+      "proposal": "先消除不必要工作：运行查询不读管理聚合、本地能力目录替代每轮全探测、同事务批量来源证明、请求内准备/计量复用。",
+      "tasks": [
+        "RB-09",
+        "RB-10",
+        "RB-12",
+        "RB-13",
+        "RB-18"
+      ],
+      "evidence_needed": "受影响调用链及同质量开销对照，不预设速度倍数"
+    },
+    {
+      "id": "OD-02",
+      "decision": "直接采用",
+      "proposal": "可靠短任务与变更通知分离计算；只有语义变化触发学习/索引/规划，等待用due而非占用线程或连接。",
+      "tasks": [
+        "RB-03",
+        "RB-04",
+        "RB-05",
+        "RB-07",
+        "RB-13"
+      ],
+      "evidence_needed": "断点恢复、无变化不重算、持续负载公平推进"
+    },
+    {
+      "id": "OD-03",
+      "decision": "有条件采用",
+      "proposal": "跨请求向量/重排数学结果缓存、索引融合/重排阈值等按实际重复率与质量收益选择；无收益不新增缓存常驻系统。",
+      "tasks": [
+        "RB-09",
+        "RB-21"
+      ],
+      "evidence_needed": "冷/热/低命中、复检成本、正确性及实际物理调用变化"
+    },
+    {
+      "id": "OD-04",
+      "decision": "暂不引入",
+      "proposal": "微服务大拆分、新消息中间件、万能工作流/恢复引擎、新向量库、每轮评判模型和多模型竞速；现有证据不足以支付额外复杂度。",
+      "tasks": [
+        "RB-01",
+        "RB-21"
+      ],
+      "evidence_needed": "未来出现具体规模/隔离或算法瓶颈再单独比较"
+    }
+  ],
+  "whole_review_limits": [
+    "这是需求/方案/静态实现与交付边界的完整盘点，不是已实现新版的全功能运行验收。",
+    "源码固定c98e23c；生产仍引用此前22:13只读快照，当前上游/积压/实际发送未重新测量。",
+    "供应商不完整响应内部原因、日程读取8.7秒各阶段根因、长期质量与完整成本仍需对应实现或实测证据。",
+    "正式切换时的数据归属清单需按当时实际记录/共享引用生成；本版明确规则与验证场景，不提前编造真实对象清单。",
+    "共享物理DB/磁盘/NAS故障与外部exactly-once无法靠应用文档消除；已有隔离、真实unknown和告警边界保留。"
+  ],
+  "execution_authorization_2026_11_05": {
+    "user_authorized_implementation": true,
+    "parallel_new_threads": true,
+    "model": "gpt-6.1-terra",
+    "effort": "max",
+    "tier": "fast",
+    "configuration_only_retention": true,
+    "all_tianshu_owned_business_data_files_reset": true,
+    "other_services_excluded": true,
+    "centralized_validation_after_complete_implementation": true,
+    "production_deployment_authorized_after_development": true,
+    "post_success_30_min_monitor_requested": true,
+    "dispatch_record": "rb-dispatch-2026-11-05.json"
+  }
+}

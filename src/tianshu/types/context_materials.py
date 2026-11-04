@@ -20,6 +20,9 @@ class ContextContribution:
     priority: int = 50
     mandatory: bool = False
     content_revision: str | None = None
+    material_id: str | None = None
+    semantic_role: str | None = None
+    behavior_ref: Mapping[str, object] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,3 +47,4 @@ class ContextPack:
     token_usage: TokenUsage
     missing: tuple[str, ...] = ()
     materials: tuple[ContextContribution, ...] = ()
+    selection: tuple[Mapping[str, object], ...] = ()

@@ -1,0 +1,1606 @@
+{
+  "schema_version": 1,
+  "planning_revision": 2,
+  "title": "天枢记忆与自学习统一开发队列",
+  "prepared_at": "2026-11-04T15:26:32+08:00",
+  "state": "superseded_by_system_decoupling_plan",
+  "successor_queue": "system-decoupling-redesign-queue-2026-11-04.json",
+  "supersession_reason": "用户允许舍弃现有数据并扩展全链路解耦、后台和日程范围；旧任务仅作设计来源，不与 SD 队列重复派发。",
+  "product_implementation_started": false,
+  "production_operations_performed": false,
+  "real_model_calls_performed": false,
+  "dispatch_started": false,
+  "assignees": [],
+  "authority": {
+    "document": "memory-learning-unified-plan-2026-11-04.md",
+    "queue": "memory-learning-unified-queue-2026-11-04.json",
+    "cards": "memory-learning-unified-tasks-2026-11-04.md",
+    "scope": "本次合并方案的后续候选实施入口；未修改全局任务板或 CURRENT，未覆盖原 LE 文件。正式派发须从届时实际基线开始。"
+  },
+  "sources": {
+    "coordination_root": "C:/YOKI/Codex/tianshu-peiban-bot",
+    "checkout": "C:/Users/Administrator/.codex/worktrees/frontend-807/tianshu-peiban-bot",
+    "checkout_head": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
+    "checkout_tracked_clean_at_read": true,
+    "production_source_from_record": "03130711fd6961dde31335a300aae23bbf58d9b7",
+    "production_record_at": "2026-11-04T13:33:00+08:00",
+    "production_rechecked_in_this_task": false,
+    "threads": [
+      {
+        "id": "01a1a2e0-f8d6-7733-8b79-53f2f2fa2010",
+        "title": "给我一个对于当前天枢系统的记忆模块的客观评价与评分。从多维度评估。",
+        "use": "本窗口记忆优化九项方案"
+      },
+      {
+        "id": "01a1a2c0-e6b6-7c22-a1c9-0afa689b229e",
+        "title": "评估自学习插件对天枢的启发",
+        "use": "已读取最近四轮及最终答复，采用 LE 第二版"
+      }
+    ],
+    "learning_plan_revision": 2,
+    "learning_plan_sha256": "C6F459B1C12BE833C22D65FF53D1A7E216CFD241D320BCA5AC52AFA9030E1C98",
+    "learning_queue_sha256": "AE20923206BF7C64B31C1D480DF6EE58CA8EAFDF058275FFC0BCEBD721EC9309",
+    "reference_plugin_revision": "962276786a7fba8242fcdfaca1bcd9201c80cb01"
+  },
+  "owners": {
+    "I": "协调装配：公共类型、Conversation、Life 接线、迁移注册、验证与共享记录",
+    "M": "Memory：事实/经历/词义、整理/覆盖、检索/索引、历史与恢复",
+    "C": "Companion：习惯当前状态、明确反馈、规则修订与样例",
+    "F": "现有前端：成长/记忆/群组页面与相关页面用例"
+  },
+  "execution": {
+    "delivery": "一个完整功能包；确认的局部故障先处理，其余按真实依赖开发；收齐后集中必要装配验证，实际发布由唯一生产写者串行执行",
+    "default_order": [
+      "ML-02",
+      "ML-03",
+      "ML-01",
+      "ML-05",
+      "ML-06",
+      "ML-07",
+      "ML-04",
+      "ML-08",
+      "ML-11",
+      "ML-09",
+      "ML-10",
+      "ML-12",
+      "ML-13",
+      "ML-14",
+      "ML-15",
+      "ML-16"
+    ],
+    "current_action": "只编写方案和队列，无派发/实现/模型/生产操作",
+    "role_parallelism": "角色是未来文件责任归属，非当前子代理或窗口分派；同一文件始终由同一角色串行写入",
+    "preserve_original_task_ids": true,
+    "no_global_taskboard_update": true,
+    "dependency_semantics": "depends_on 是该功能完成所需的真实依赖；integration_with 是最终装配对照，不增加启动门禁。can_prepare_after 仅允许按已定合同准备页面/评估，不能标成实现完成。当前仍无派发。",
+    "early_preparation": "ML-15 与 ML-16 在 ML-01 的最小合同确定后即可准备界面状态和行为样例；完整联调/效果判断仍等各自 depends_on。复用已有有效验证，不新增每卡全量检查。"
+  },
+  "mapping": {
+    "LE": {
+      "LE-01": [
+        "ML-01",
+        "ML-05",
+        "ML-06",
+        "ML-09"
+      ],
+      "LE-02": [
+        "ML-07"
+      ],
+      "LE-03": [
+        "ML-12"
+      ],
+      "LE-04": [
+        "ML-13"
+      ],
+      "LE-05": [
+        "ML-01",
+        "ML-06",
+        "ML-15"
+      ],
+      "LE-06": [
+        "ML-16"
+      ]
+    },
+    "MEM": {
+      "MEM-01": [
+        "ML-02",
+        "ML-03",
+        "ML-05"
+      ],
+      "MEM-02": [
+        "ML-04",
+        "ML-14"
+      ],
+      "MEM-03": [
+        "ML-01",
+        "ML-04",
+        "ML-08"
+      ],
+      "MEM-04": [
+        "ML-06",
+        "ML-09"
+      ],
+      "MEM-05": [
+        "ML-09",
+        "ML-10"
+      ],
+      "MEM-06": [
+        "ML-05",
+        "ML-07",
+        "ML-11"
+      ],
+      "MEM-07": [
+        "ML-14"
+      ],
+      "MEM-08": [
+        "ML-01",
+        "ML-06",
+        "ML-15",
+        "ML-16"
+      ],
+      "MEM-09": [
+        "ML-16"
+      ]
+    },
+    "MEM_numbering_note": "MEM-01 至 MEM-09 仅映射本窗口上一答的九项方案，原先没有独立任务卡，不冒充已存在任务编号。",
+    "runtime_links": {
+      "RUNTIME-MEDIA": [
+        "ML-02"
+      ],
+      "RUNTIME-PROPOSAL": [
+        "ML-03"
+      ],
+      "RUNTIME-LIFE": {
+        "scope": "原澄汐 planner_activity_unavailable/dormant activity 问题继续归原 Life 故障范围，非本方案重建日程",
+        "blocks_local_development": false
+      }
+    }
+  },
+  "preserved_constraints": {
+    "background_input_tokens": 200000,
+    "vector_sql_seconds": 2,
+    "embedding_execution_seconds": 30,
+    "rerank_execution_seconds": 30,
+    "ordinary_foreground_budget": "保持当时有效配置",
+    "queue_wait_consumes_execution_time": false,
+    "fixed_persona_and_permissions": "不由动态记忆/样例修改",
+    "sources_identity_cas": "选材/提交/最终读取保留",
+    "unknown_receipts": "原请求不可改写；纯计算新尝试独立记录并按原恢复语义",
+    "no_new_frontend_auxiliary_llm": true,
+    "no_new_fact_or_request_authority": true
+  },
+  "design_decisions": [
+    "先修行为一致性与理解当前对话，再增加个性化材料；零样例/零个性化合法。",
+    "Memory 历史反思与 Companion 当前习惯职责分开，但用可证明的稳定身份关联；源可读与规则仍有效分开复检。",
+    "公共材料合同只表达引用和元数据，领域规则不塞入通用策略引擎。",
+    "Reflection 同 proposal_id 内容已不可变，取消前一方案的通用 Reflection 修订表；仅补可变 Episode 语义快照和 Companion 规则修订。",
+    "最终取材记录随 ML-06 先落请求，ML-15 只展示，不等前端完成后才补计量。",
+    "分项覆盖诊断不能把旧缺项重命名成完整；存量修复不能覆盖较新事实。",
+    "向量复用先请求内和同语义索引；跨请求缓存只有代表负载证明收益与边界后才纳入，不作为强制依赖。",
+    "不预设省钱百分比、固定保留样本数或秒数为发布门禁；以同质量实际用量和阶段/全量时延比较。",
+    "ML-01 只规定跨域引用与消费语义，不先创建所有可选字段/表。SelectionRecord 仅保存有界候选结果与最终材料引用，不复制整库候选或正文。",
+    "运行习惯取材不复用成长管理聚合；每条规则独立选择、独立版本、独立来源依赖，保持批量读取和复检。",
+    "上下文的直接消息引用按最终选择确定；任何模型实际读取过的完整材料、衍生生成依赖和来源失效约束均不因精简而缩小。",
+    "刚接收而尚未整理的消息通过现有会话/原件进入本轮理解；明确纠正、普通新信息和历史来源各保留身份与时态，不按消息时间全局覆盖。",
+    "规则修订区分状态/内容/适用范围变化和仅新增支持/统计；只处理确定失效且影响本请求的未提交表达，不因任意 revision 增加制造取消。",
+    "新提案继续采用分目标操作；每目标 nN 局部别名由现有编译器映射为全批唯一引用，跨目标引用显式限定，目标内重名不猜改。",
+    "补偿的稳定缺口身份与算法/物理尝试分离；先核对缺口仍存在，再在原队列新输入优先下有界推进，所有未知与费用照实保留。",
+    "开发功能完成不要求自然历史全部修复；补偿机制完成、已处理范围、待原件/unknown 范围及仍在推进的范围分别记录。"
+  ],
+  "evaluation": {
+    "baseline": "实施时冻结的当前有效版本/配置/路由，不能用低质量历史旧版替代",
+    "existing_24_stories": "已知回归样本，不再称盲保留集",
+    "new_holdout": "按未覆盖行为选择，冻结后再读取，不预设固定数量门槛",
+    "dimensions": [
+      "结构化归属与修订",
+      "当前行为状态与偏好适用性",
+      "最终上下文实际装入",
+      "原文补查及未决",
+      "回答质量与不过度个性化",
+      "语义/来源/撤回边界",
+      "物理尝试用量/未知费用",
+      "阶段及全量长尾",
+      "输入可见/规则修订/索引就绪各自延迟",
+      "必要个性化遗漏与无关个性化侵入",
+      "同一实际机会下的纠正与撤回行为"
+    ],
+    "ablation": "只对相关场景比较核心修正，再分别比较样例/词义/重排/缓存；不跑全组合矩阵",
+    "production_actions_authorized_by_this_document": false,
+    "holdout_split": "按故事及其改写/派生事件家族隔离，不能把同一故事近义改写分别放回归和保留集；一旦用于调参即转已知回归。仅填本次真实缺口，不扩为固定大样本门禁。",
+    "causal_limit": "SelectionRecord 证明装入，不能证明模型遵守或收益。仅在相应场景比较必要/无关/冲突个性化，以及有规则无样例/带样例；保留评分分歧和小样本局限。"
+  },
+  "evidence": [
+    {
+      "id": "E01",
+      "root": "coordination",
+      "path": "docs/development/CURRENT.md",
+      "line": 1,
+      "claim": "13:33 运行记录与向量 2 秒配置；本轮仅读取既有记录"
+    },
+    {
+      "id": "E02",
+      "root": "source",
+      "path": "src/tianshu/conversation/service.py",
+      "line": 57,
+      "claim": "输入准备与媒体检查；不可用媒体的缺陷来源"
+    },
+    {
+      "id": "E03",
+      "root": "source",
+      "path": "src/tianshu/memory/proposal.py",
+      "line": 67,
+      "claim": "模型提案编译；结合 extraction_contract.py:182、consolidation.py:793 与有限重试"
+    },
+    {
+      "id": "E04",
+      "root": "source",
+      "path": "src/tianshu/memory/materials.py",
+      "line": 271,
+      "claim": "关系端点去重、模型材料构造、旧记录选材与 coverage；结合 consolidation.py:439"
+    },
+    {
+      "id": "E05",
+      "root": "source",
+      "path": "src/tianshu/companion/growth_observations.py",
+      "line": 32,
+      "claim": "非工具经历仍 wire 整个 Episode；与 memory/indexing.py 的现有语义视图区别"
+    },
+    {
+      "id": "E06",
+      "root": "source",
+      "path": "src/tianshu/companion/growth.py",
+      "line": 350,
+      "claim": "反思/规则双表示、管理列表、material 与撤回命令"
+    },
+    {
+      "id": "E07",
+      "root": "source",
+      "path": "src/tianshu/memory/service.py",
+      "line": 482,
+      "claim": "Reflection/projection 读取；结合 tools.py 原生工具和 evidence.py 语义类型"
+    },
+    {
+      "id": "E08",
+      "root": "source",
+      "path": "src/tianshu/companion/reflection_output.py",
+      "line": 184,
+      "claim": "PreparedReflection.support_ids 与完整生成依赖的差异"
+    },
+    {
+      "id": "E09",
+      "root": "source",
+      "path": "src/tianshu/conversation/context/assembly.py",
+      "line": 138,
+      "claim": "上下文装配顺序、最终来源检查与 kind 版本键"
+    },
+    {
+      "id": "E10",
+      "root": "source",
+      "path": "src/tianshu/memory/retrieval.py",
+      "line": 245,
+      "claim": "混合召回、RRF、MMR、重排与最终复检；结合 candidates.py"
+    },
+    {
+      "id": "E11",
+      "root": "source",
+      "path": "src/tianshu/memory/embedding.py",
+      "line": 26,
+      "claim": "query embedding 路径与版本化索引复用；结合 index_jobs.py"
+    },
+    {
+      "id": "E12",
+      "root": "source",
+      "path": "src/tianshu/memory/service.py",
+      "line": 72,
+      "claim": "Episode 可变写入；311 行 Reflection 同 ID 不可变，结合 candidates.py:404"
+    },
+    {
+      "id": "E13",
+      "root": "source",
+      "path": "src/tianshu/identity/service.py",
+      "line": 377,
+      "claim": "真实群主体及授权解析；群词义不另造身份"
+    },
+    {
+      "id": "E14",
+      "root": "source",
+      "path": "web/src/features/life/GrowthPage.tsx",
+      "line": 1,
+      "claim": "已有成长管理与原文入口；保持现有 807 界面"
+    },
+    {
+      "id": "E15",
+      "root": "source",
+      "path": "scripts/evaluation/memory_closure/metering.py",
+      "line": 1,
+      "claim": "既有实际使用量、物理尝试与未知计量汇总"
+    },
+    {
+      "id": "E16",
+      "root": "coordination",
+      "path": "docs/development/learning-enhancement-queue-2026-11-04.md",
+      "line": 1,
+      "claim": "另窗口 LE 第二版规划，保留为输入来源"
+    },
+    {
+      "id": "E17",
+      "root": "source",
+      "path": "src/tianshu/companion/growth.py",
+      "line": 540,
+      "claim": "material 调用 view；view 包含 Memory projection/style_view 和成长审核/重试查询，运行取材可分离"
+    },
+    {
+      "id": "E18",
+      "root": "source",
+      "path": "src/tianshu/conversation/service.py",
+      "line": 270,
+      "claim": "近期消息在转为 ModelMessage 前聚合 conversation_provenance；完整候选来源先进入 mandatory，后续才裁剪历史"
+    },
+    {
+      "id": "E19",
+      "root": "source",
+      "path": "src/tianshu/conversation/service.py",
+      "line": 91,
+      "claim": "已通过原 turn 观察输入 Episode；近期原文已有会话读取入口，不需新增短期事实权威"
+    },
+    {
+      "id": "E20",
+      "root": "source",
+      "path": "src/tianshu/conversation/rendering.py",
+      "line": 189,
+      "claim": "表达渲染完成后可能等待顺序；release 是实际表达发送链的一处复核位置"
+    },
+    {
+      "id": "E21",
+      "root": "source",
+      "path": "src/tianshu/channels/delivery.py",
+      "line": 139,
+      "claim": "既有发送前检查只针对 Life candidate，begun 区分已提交/unknown；行为依赖需上层注入并保持已提交边界"
+    },
+    {
+      "id": "E22",
+      "root": "source",
+      "path": "src/tianshu/memory/proposal.py",
+      "line": 67,
+      "claim": "模型协议已按 subject 分组；现有编译器提供 op_id/CAS 等，创建 nN 仍落在全批共享别名表"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "ML-01",
+      "title": "统一材料身份和领域接口",
+      "priority": "P1",
+      "kind": "foundation",
+      "owner": "I",
+      "depends_on": [],
+      "sources": [
+        "LE-01",
+        "LE-05",
+        "MEM-03",
+        "MEM-08"
+      ],
+      "goal": "为事实、历史反思、有效习惯、表达样例和词义建立可区分且可关联的材料引用，避免另建统一记忆权威。",
+      "write_scope": {
+        "I": [
+          "src/tianshu/types/context_materials.py",
+          "src/tianshu/conversation/ports.py",
+          "src/tianshu/runtime/product.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "定义 MaterialRef、BehaviorBinding、SelectionRecord 和 CoverageAssessment 的版本化字段；实际名称可沿用项目类型",
+        "明确 query purpose、semantic_role、原件完整依赖与实际支持子集的不同含义",
+        "确定 Memory 返回历史证据、Companion 判断当前行为状态、Conversation/Life 冻结实际取材的接口",
+        "明确普通回复、原生 memory 工具、Life、Growth、日记及历史读取的消费者清单",
+        "以现有 ContextContribution/ContextPack 扩展最小跨域引用；Coverage/Support 字段保留所属领域，不强制所有材料携带同一大对象",
+        "定义有界候选记录、最终选择和完整生成依赖的区别；选材原因不是模型思维链，也不是回答效果归因",
+        "规则资格结果区分 semantic_change、support_only、unavailable，复用修订内容/原因或确定性指纹，不另建全局状态版本服务"
+      ],
+      "acceptance": [
+        "一个学习产物经反思和习惯两条路径可识别同源",
+        "历史可读不被解释成当前行为有效",
+        "接口不允许模型生成权限或实际执行回执",
+        "无新增前台辅助模型调用和跨模块私表查询",
+        "最小合同可以独立交付，不等待所有未来页面/补偿字段实现"
+      ],
+      "migration": "公共 DTO 与附属元数据优先兼容扩展；不建立通用策略引擎。",
+      "evidence": [
+        "E04",
+        "E05",
+        "E06",
+        "E07",
+        "E18",
+        "E20",
+        "E21"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_evidence_retrieval.py"
+      ],
+      "risks": [
+        "共享接口扩展影响多个消费者；先固定语义和样例，各领域继续拥有自己的规则。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-02",
+      "title": "不可用媒体的部分接收与原事件恢复",
+      "priority": "P1",
+      "kind": "confirmed_runtime_fix",
+      "owner": "I",
+      "depends_on": [],
+      "sources": [
+        "MEM-01",
+        "RUNTIME-MEDIA"
+      ],
+      "goal": "媒体不可用时接收原事件中的有效文字与引用，保存附件缺失，不让一项附件失败吞掉整条消息。",
+      "write_scope": {
+        "I": [
+          "src/tianshu/conversation/service.py",
+          "src/tianshu/conversation/codec.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "按原件可用部分构造输入和 Coverage，保留原作者、事件、修订与缺失附件身份",
+        "区分收到附件、取得附件、理解附件，不伪造视觉结论",
+        "复用原幂等接收入口恢复确证失败事件，禁止重新 ingest 新事件或改变回复策略",
+        "恢复工具提供只读清单和同 ID 对账；真实执行留在后续授权范围"
+      ],
+      "acceptance": [
+        "含有效文字和下载失败图片时文字可进入经历",
+        "纯不可用附件明确记录理解缺项",
+        "同事件重复执行不重复生成经历或发送消息",
+        "原 failed/accepted 审计与 unknown 不改写"
+      ],
+      "migration": "优先无 DDL；如已有输入结构无法表达不可用部分，只增量扩展该结构。",
+      "evidence": [
+        "E01",
+        "E02"
+      ],
+      "validation_paths": [
+        "tests/core/test_source_memory_stories.py"
+      ],
+      "risks": [
+        "恢复接收可能触发原业务后续；恢复身份、回复所有权与外部发送必须沿原策略，不能当批量重放。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-03",
+      "title": "局部引用编译与创建冲突修复",
+      "priority": "P1",
+      "kind": "confirmed_runtime_fix",
+      "owner": "M",
+      "depends_on": [],
+      "sources": [
+        "MEM-01",
+        "RUNTIME-PROPOSAL"
+      ],
+      "goal": "沿用现有按目标分组的提案协议，消除跨目标局部创建别名碰撞，并保留有歧义输出的严格拒绝。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/proposal.py",
+          "src/tianshu/memory/extraction_contract.py",
+          "src/tianshu/memory/generation.py",
+          "src/tianshu/memory/consolidation_retry.py",
+          "src/tianshu/memory/materials.py",
+          "src/tianshu/memory/consolidation.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "新协议保留每目标 nN 局部别名；按冻结 subject 顺序、目标内操作顺序和输出槽位编译为全批唯一别名，继续由原提交器生成正式对象身份",
+        "同目标 nN 只解析本目标声明；跨目标新对象引用采用显式 subject_id/local_ref；已冻结 rN 引用保持原语义",
+        "创建 Claim/Matter/link 和 transition successor 均进入同一局部映射；先收集声明，再解析引用，不因模型改变目标数组顺序改变绑定",
+        "目标内重复声明、未定义/越界引用和错误类型保持明确诊断与原有限纠正；不猜测对象身份、不按文本相似度合并操作",
+        "复用现有领域操作排序/依赖校验、正式事务合同、来源/read_set/CAS/逐目标覆盖；不另建通用图编译器",
+        "协议版本冻结于原请求；旧冻结请求/结果照原协议观察，新写入只走新默认路径，禁止重新解释旧结果"
+      ],
+      "acceptance": [
+        "两个 subject 都声明 n1 时正确映射为不同对象，顺序变化仍不串人",
+        "同目标重复 n1 或跨目标未限定引用不得被猜改为成功",
+        "transition 后继与其他 create/link 的局部引用一致，读旧 rN 仍校验来源和 CAS",
+        "逐目标 changed/no_change/unresolved 全覆盖；引用失败不部分提交",
+        "旧未知请求保持原身份/冻结内容，新协议不覆盖历史回执"
+      ],
+      "migration": "协议按冻结批次版本分派；不修改已登记 ModelSteps 请求。",
+      "evidence": [
+        "E03",
+        "E22"
+      ],
+      "validation_paths": [
+        "tests/core/test_consolidation_pipeline.py",
+        "tests/memory/test_consolidation_contract.py"
+      ],
+      "risks": [
+        "当前运行记录只证实 duplicate_create，未证明所有实例均为跨目标碰撞；局部命名空间消除合法重名，不能承诺消除模型的同目标歧义。",
+        "新旧协议分读者，回退包必须识别已登记的新协议；不保留两个当前写入器。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-04",
+      "title": "分项覆盖诊断与模型语义视图",
+      "priority": "P1",
+      "kind": "correctness_and_efficiency",
+      "owner": "M",
+      "depends_on": [
+        "ML-01"
+      ],
+      "sources": [
+        "MEM-02",
+        "MEM-03",
+        "LE-01"
+      ],
+      "goal": "把原件、必要上下文、候选范围、语义处理和提交索引分开描述，并减少向模型重复发送机械账本。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/evidence.py",
+          "src/tianshu/memory/types.py",
+          "src/tianshu/memory/materials.py",
+          "src/tianshu/memory/indexing.py",
+          "src/tianshu/memory/consolidation.py"
+        ],
+        "C": [
+          "src/tianshu/companion/growth_observations.py",
+          "src/tianshu/companion/growth_materials.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "扩展现有批次/经历回执的 coverage_assessment，保留旧 extraction_missing 原因及评估版本",
+        "提供完整证据对象到模型视图的确定性转换；主体、作者、否定、条件、时间、关系、完成依据保留",
+        "来源闭包、权限、CAS、游标和恢复状态留在正式对象与冻结请求映射中",
+        "保持完整证据 API；模型局部引用可由原文追查端口解析",
+        "明确 optional candidate omitted 与 required context missing，不能把未声明依赖当作已证明无关",
+        "为模型语义视图区分新原文待整理、领域已提交与索引待就绪；不以事实表暂未更新否认本轮已接收输入"
+      ],
+      "acceptance": [
+        "旧缺项不能因新分类直接变完整",
+        "移除机械字段不改变语义断言和来源依赖",
+        "冲突双方与否定条件不会被预算截去半边",
+        "图像与完整文字单元仍按真实计数装配",
+        "Growth 的非工具 Episode 不再整包携带整理状态",
+        "整理/索引延迟与事实不存在区分，保留已知和未知覆盖"
+      ],
+      "migration": "优先已有 JSONB 附属字段；显式标明旧记录没有分项诊断，禁止倒填推断事实。",
+      "evidence": [
+        "E04",
+        "E05",
+        "E19"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_evidence_retrieval.py",
+        "tests/core/test_consolidation_pipeline.py",
+        "tests/companion/test_growth_budget.py"
+      ],
+      "risks": [
+        "语义精简不能缩小生成来源闭包；完整依赖和实际支持在存储与模型视图中有不同职责。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "integration_with": [
+        "ML-02"
+      ]
+    },
+    {
+      "id": "ML-05",
+      "title": "学习产物关联与当前行为状态一致性",
+      "priority": "P1",
+      "kind": "existing_path_correction",
+      "owner": "C",
+      "depends_on": [
+        "ML-01"
+      ],
+      "sources": [
+        "LE-01",
+        "MEM-01",
+        "MEM-06"
+      ],
+      "goal": "使当前习惯撤回、失效和冻结在所有普通消费入口一致，同时保留可授权读取的历史反思。",
+      "write_scope": {
+        "C": [
+          "src/tianshu/companion/growth.py",
+          "src/tianshu/companion/dependencies.py",
+          "src/tianshu/companion/ports.py",
+          "src/tianshu/companion/habits.py"
+        ],
+        "M": [
+          "src/tianshu/memory/service.py",
+          "src/tianshu/memory/evidence.py",
+          "src/tianshu/memory/types.py",
+          "src/tianshu/memory/tools.py",
+          "src/tianshu/memory/candidates.py"
+        ],
+        "I": [
+          "src/tianshu/runtime/product.py"
+        ]
+      },
+      "proposed_files": [
+        "src/tianshu/companion/habits.py"
+      ],
+      "deliverables": [
+        "以稳定 rule_id/revision 和 origin proposal/reflection 建立关联；多次新提案可以指向同一规则",
+        "Companion 为当前行为状态唯一写者；Memory 只保留关联与可重建候选提示，不成为第二活动规则权威",
+        "管理列表与运行时取材分离，active/用途/对象/授权先过滤再有界补位",
+        "Memory 历史证据显式传递 style/interest 类型和行为引用；普通工具结果不能把旧反思包装成现行规则",
+        "源于 Companion 的状态变更通过领域端口/现有事件衔接；禁止 Memory 直接查 Companion 私表",
+        "运行时 material 改为薄领域读取，不调用管理 view、审核/重试统计或无关 Memory style_view/projection；页面继续使用管理聚合",
+        "每条规则形成独立引用/来源/版本单元，使用同一批读结果选材；只有明确互相依赖的规则组成不可拆完整单元",
+        "资格接口以当前语义与状态判断兼容性，仅新增支持或管理计数不标成行为失效；不缓存跨请求授权判定"
+      ],
+      "acceptance": [
+        "撤回习惯不能借普通 Memory 检索、memory 工具或 Life 读取重新生效",
+        "前 40 条撤回后第 41 条有效规则仍可取到",
+        "历史追问可读旧依据且明确当前状态",
+        "同一学习产物不以反思与习惯重复注入",
+        "状态查询失败时只舍弃对应可选行为材料，不声称已遵守该规则",
+        "聊天取材不执行成长管理审核/重试查询；统计查询减少以调用链和实际记录核对",
+        "单条可选规则失效不会使无依赖的其他规则一并丢弃"
+      ],
+      "migration": "只为无法从现有稳定 ID 证明的关联保留未知；不按文本相似度批量绑定旧记录。",
+      "evidence": [
+        "E06",
+        "E07",
+        "E08",
+        "E17"
+      ],
+      "validation_paths": [
+        "tests/core/test_incremental_consumers.py",
+        "tests/core/test_memory_evidence_retrieval.py"
+      ],
+      "risks": [
+        "历史可读和行为有效必须独立判断；仅过滤成长页或仅过滤聊天入口均不足。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "integration_with": [
+        "ML-04"
+      ]
+    },
+    {
+      "id": "ML-06",
+      "title": "按用途选择上下文与冻结最终取材清单",
+      "priority": "P1",
+      "kind": "cross_consumer_correction",
+      "owner": "I",
+      "depends_on": [
+        "ML-01",
+        "ML-05"
+      ],
+      "sources": [
+        "LE-01",
+        "LE-05",
+        "MEM-04",
+        "MEM-08"
+      ],
+      "goal": "先理解当前对话，再选择相关长期材料，并记录模型真正收到的内容及版本。",
+      "write_scope": {
+        "I": [
+          "src/tianshu/conversation/context/assembly.py",
+          "src/tianshu/conversation/service.py",
+          "src/tianshu/conversation/generation.py",
+          "src/tianshu/life/planning_engine.py",
+          "src/tianshu/types/context_materials.py",
+          "src/tianshu/conversation/results.py",
+          "src/tianshu/conversation/expression.py",
+          "src/tianshu/conversation/rendering.py",
+          "src/tianshu/channels/delivery.py",
+          "src/tianshu/channels/service.py",
+          "src/tianshu/runtime/product.py"
+        ],
+        "C": [
+          "src/tianshu/companion/habits.py"
+        ],
+        "M": [
+          "src/tianshu/memory/service.py",
+          "src/tianshu/memory/retrieval.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "聊天、Life、Growth 和日记显式传递用途，避免用管理分页代替运行取材",
+        "优先保留本轮输入及可确定的回复/引用/工具依赖，长期材料在剩余预算中选择",
+        "将检索相关性保持到装配，区分明确约束、问题证据、推断习惯、样例和词义，允许零个性化",
+        "冻结前批量复核来源及各领域当前状态/版本；同源相同用途去重，必要的历史与当前状态作为关联保留",
+        "最小 SelectionRecord 随请求落在已有 generation/turn 附属清单；记录最终装入、舍弃原因和估计量",
+        "content_revisions 按领域稳定身份建键，不以 kind 覆盖同类多个规则",
+        "消息在装配前保留 message/turn/event 身份、来源、修订和回复关系；预算选定完整消息单元后再汇总直接来源，替换先合并全部近期候选来源的做法",
+        "只排除从未参与任何模型调用或衍生计算、且最终未采用候选的直接依赖；已选材料完整依赖、原生成/重排回执的来源闭包和当前来源复检不缩减",
+        "本轮明确引用及有来源的新消息在长期整理未完成时仍可参与回答；现有会话与 Memory 证据按真实原件关系去重，不另建短期事实库",
+        "SelectionRecord 按 request_id/round/attempt_id 关联冻结清单，只记录有界候选和最终选择；表达/Action 沿原身份关联清单，正文仍由原冻结请求负责",
+        "以实际装入的 rule_id 和语义版本判断冻结后的实质失效；support_only、无关对象/用途变化不取消生成",
+        "将必要检查接到 Conversation 结果、ExpressionRenderer.release 和 channels.deliver 既有未提交检查位置；由上层端口注入，不在发送层查询 Companion 私表",
+        "已进入外部提交/unknown 的表达继续原对账；未提交且确定失效者使用原取消回执和可见原因，不新建副作用、不自动重发；单纯偏好读取故障不伪称已确认撤回"
+      ],
+      "acceptance": [
+        "刚才那个所需上文不被可选习惯/样例挤掉",
+        "两条同 kind 规则分别有版本",
+        "撤回发生在候选选择后、冻结前时不会继续带入",
+        "历史未记录、真实空选择和发生错误有区别",
+        "生成中变更沿既有取消/结果检查，不承诺收回已发送内容、不自动重发",
+        "被预算舍弃且未参与衍生计算的历史来源变化不无故阻断本轮；已采用消息或衍生材料的来源失效仍受原保护",
+        "新消息尚未整理时不被旧事实无条件覆盖；无法证明是纠正时并列保留冲突",
+        "只增加支持的 revision 变化不会取消回复；确定撤回且依赖该规则的等待渲染/发送表达会停止",
+        "当前明示的禁止性要求无法复核时保留未决处理；一般可选风格状态读取故障不引发持续取消风暴",
+        "送达未知、已经开始提交和多段已提交表达不被标成从未发生；现有发送顺序/回执语义不变"
+      ],
+      "migration": "优先扩展现有请求 JSON；如需字段，只增加请求附属清单，不复制请求账本。",
+      "evidence": [
+        "E07",
+        "E09",
+        "E18",
+        "E19",
+        "E20",
+        "E21"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_evidence_retrieval.py",
+        "tests/core/test_incremental_consumers.py",
+        "tests/conversation/test_expression_order.py",
+        "tests/conversation/test_render_contact_preflight.py"
+      ],
+      "risks": [
+        "发送前检查有明确线性边界；不能承诺外部系统已接收后撤回，也不能以修订号不同等同内容失效。",
+        "缩小直接候选来源不等于缩小衍生材料完整依赖；若已进模型/衍生计算则保留其原完整闭包。",
+        "每请求只在实际跨越的冻结/结果/发送边界批量复核相关身份，不引入轮询或额外判断模型。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "integration_with": [
+        "ML-04",
+        "ML-07",
+        "ML-11"
+      ]
+    },
+    {
+      "id": "ML-07",
+      "title": "有范围的偏好修订和明确反馈",
+      "priority": "P1",
+      "kind": "learning_quality",
+      "owner": "C",
+      "depends_on": [
+        "ML-05",
+        "ML-06"
+      ],
+      "sources": [
+        "LE-02",
+        "MEM-06"
+      ],
+      "goal": "让持续偏好、临时要求和推断习惯按范围演进，并防止撤回内容换 ID 复活。",
+      "write_scope": {
+        "C": [
+          "src/tianshu/companion/habits.py",
+          "src/tianshu/companion/growth.py",
+          "src/tianshu/companion/reflection_output.py",
+          "src/tianshu/companion/growth_materials.py",
+          "src/tianshu/companion/module.py",
+          "src/tianshu/companion/dependencies.py",
+          "src/tianshu/companion/habit_revisions.sql"
+        ],
+        "I": [
+          "src/tianshu/conversation/service.py",
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "proposed_files": [
+        "src/tianshu/companion/habit_revisions.sql"
+      ],
+      "deliverables": [
+        "记录 preference_kind、适用对象/用途/范围/有效期与有依据的修订关系",
+        "将 PreparedReflection.support_ids 的实际支持子集、完整生成依赖和独立事件身份分别保存",
+        "以稳定 rule_id 维护有限 create/support/revise/retract，保留原 Proposal ID/回执",
+        "复用现有命令身份和 CAS 接通纠正、撤回、恢复；明确纠正立即影响已确定范围",
+        "可从最终取材清单定位反馈对象；归属不明时先满足本轮要求、保留未决，不全局误删",
+        "复用撤回约束阻止已解析同一规则的重述自动恢复",
+        "显式界面/已解析原生命令在原命令事务中修订，不等待 Growth；自然语言纠正由当前对话先遵守，后台依原真实事件提取并修订，不用关键词或时间新旧直接宣布持久偏好已写入",
+        "修订记录区分语义/适用性变化与支持新增，向 ML-06 暴露足以判断当前消费兼容性的最小结果"
+      ],
+      "acceptance": [
+        "今天少开玩笑不永久化，以后别这么叫我在换话题后仍有效",
+        "当前明确要求覆盖旧推断但不能改他人偏好或工具权限",
+        "同批无关材料、自身复述和重复注入不增加独立支持",
+        "不同条件规则共存，语义近似不自动合并",
+        "冻结保持自动更新约束，明确用户纠正有效",
+        "旧记录支持子集无法可靠恢复时保持未知",
+        "当前已遵守、长期已提交、仍待整理三种状态可区分；未解析自然语言不冒称已完成永久修订"
+      ],
+      "migration": "如命令收据不足以保存修订内容，增加 Companion 自有规则修订表；不新增可编辑 Reflection 版本权威。",
+      "evidence": [
+        "E06",
+        "E08"
+      ],
+      "validation_paths": [
+        "tests/companion/test_growth_output.py",
+        "tests/core/test_incremental_consumers.py"
+      ],
+      "risks": [
+        "语义同一性并非仅靠相似度可证明；避免把未指明对象的负反馈扩散为全局禁用。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-08",
+      "title": "共享整理的依赖选材和输出感知分段",
+      "priority": "P2",
+      "kind": "pipeline_efficiency",
+      "owner": "M",
+      "depends_on": [
+        "ML-03",
+        "ML-04"
+      ],
+      "sources": [
+        "MEM-03",
+        "LE-04"
+      ],
+      "goal": "在保留多人共享理解的同时减少不相关旧记录、重复上下文及输出截断。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/materials.py",
+          "src/tianshu/memory/consolidation.py",
+          "src/tianshu/memory/preparation.py",
+          "src/tianshu/memory/material_media.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "复用回复/引用/事项链接形成材料连通范围，保留必要邻近消息，不额外调用主题分类模型",
+        "显式同事项/待修订记录优先，其次按人物公平选择相关旧记录；候选不足如实记录",
+        "输入和输出容量联合选取完整材料；输出不足按消息/依赖分段，不按人重复整段",
+        "依赖优先级有依据，不能把所有历史都强制装入；必要补查仍有界",
+        "复用现有 preparation metrics，记录原文、旧记录、协议、图像和纠正预留的估计量",
+        "跨目标引用仍沿 ML-03 局部引用编译，不为每人重跑或新增通用依赖图系统"
+      ],
+      "acceptance": [
+        "低频发言者和跨人物引用保留",
+        "一段共享材料常规一次模型理解，必要纠正/补查独立可审计",
+        "不为节省成本丢短句、表情或按每人固定条数截断",
+        "输出截断不会部分提交或伪造 no_change",
+        "200000 仍是上限，不能靠降低覆盖制造低成本"
+      ],
+      "migration": "不改变原 Episode ID 和分区身份，原冻结批次沿原协议处理。",
+      "evidence": [
+        "E03",
+        "E04"
+      ],
+      "validation_paths": [
+        "tests/core/test_consolidation_pipeline.py"
+      ],
+      "risks": [
+        "仅靠结构不能可靠识别所有话题，未知关联保留为范围限制，不声称话题划分完整。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-09",
+      "title": "分用途检索和按需重排",
+      "priority": "P2",
+      "kind": "retrieval_efficiency",
+      "owner": "M",
+      "depends_on": [
+        "ML-01",
+        "ML-06"
+      ],
+      "sources": [
+        "MEM-04",
+        "MEM-05",
+        "LE-01",
+        "LE-04"
+      ],
+      "goal": "提高候选质量并减少无必要云端重排，保持来源和时间语义。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/query_plan.py",
+          "src/tianshu/memory/candidates.py",
+          "src/tianshu/memory/retrieval.py",
+          "src/tianshu/memory/retrieval_budget.py",
+          "src/tianshu/memory/indexing.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "人物/事项/时间的可靠结构优先进入原查询计划，不可靠推断回到通用召回",
+        "中文整词/短语/姓名与受控回退减少单字广匹配，保持合法单字查询",
+        "连接池预算内并行独立支路并保留成功分支，继续有序批读和批量来源证明",
+        "精确单对象/list 等场景跳过无益重排，歧义/接近候选才按需提交",
+        "复用 RRF、MMR 缓存和紧凑重排文本；候选限量和排序参数以相关场景对照决定",
+        "最终记录/关系/来源与当前行为资格复检保持；精确历史/list 不能被排序查询冒充",
+        "检索观测区分候选未召回、已召回但被资格/预算丢弃及最终请求已装入，避免用召回数量替代答案所需证据"
+      ],
+      "acceptance": [
+        "中文名称、否定、日期和跨人事实召回不退化",
+        "前批无权后可继续补位",
+        "一条支路超时不抹掉另一支路结果",
+        "当前向量 2 秒、embedding/rerank 30 秒及排队计时语义保持",
+        "不靠放松来源谓词、强行截断或扩大预算提高通过率"
+      ],
+      "migration": "仅根据实际查询计划增加必要索引；不默认换向量库、模型或全局 PG 配置。",
+      "evidence": [
+        "E10"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_evidence_retrieval.py",
+        "tests/memory/test_retrieval_degradation.py"
+      ],
+      "risks": [
+        "跳过重排必须在对应场景验证质量；不以响应变快掩盖必要证据被省略。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "integration_with": [
+        "ML-04",
+        "ML-11"
+      ]
+    },
+    {
+      "id": "ML-10",
+      "title": "向量重复计算消除与有界复用",
+      "priority": "P2",
+      "kind": "index_and_query_efficiency",
+      "owner": "M",
+      "depends_on": [
+        "ML-09"
+      ],
+      "sources": [
+        "MEM-05"
+      ],
+      "goal": "复用已证明相同的数学结果，同时避免跨域缓存成为新的授权通路。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/embedding.py",
+          "src/tianshu/memory/index_jobs.py",
+          "src/tianshu/memory/indexing.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "先消除请求内重复查询与 profile 读取；索引语义文本和 profile 完全相同时复用已验证向量",
+        "若代表负载确有重复查询，增加小容量短 TTL 成功查询向量缓存，键包含模型 profile 和权限/来源上下文",
+        "仅缓存成功数学结果，不缓存最终答案或权限判定，不把 unknown 当命中",
+        "记录冷/热路径、命中率、复检开销与实际省掉的物理请求；收益不成立时保留请求内复用，不上线跨请求缓存",
+        "不改变 index_text 时不要求全库重建向量"
+      ],
+      "acceptance": [
+        "模型/profile/授权域变化不误复用",
+        "来源失效仍使派生内容不可读取",
+        "独立实际模型 attempt 不重复计费统计",
+        "缓存低命中场景没有明显新增开销或后台常驻扫描"
+      ],
+      "migration": "优先无 DDL；复用原 index_jobs 状态，不新建 embedding 权威。",
+      "evidence": [
+        "E11"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_index_retry.py",
+        "tests/core/test_memory_evidence_retrieval.py"
+      ],
+      "risks": [
+        "缓存只能优化计算；任何缓存命中都不证明本次来源可用或用户有权。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-11",
+      "title": "可变经历历史与查询适用性",
+      "priority": "P2",
+      "kind": "temporal_completeness",
+      "owner": "M",
+      "depends_on": [
+        "ML-01"
+      ],
+      "sources": [
+        "MEM-06"
+      ],
+      "goal": "补齐确实可变的 Episode 语义历史，保留 Reflection 不可变提案模型，避免过度建表。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/service.py",
+          "src/tianshu/memory/evidence.py",
+          "src/tianshu/memory/candidates.py",
+          "src/tianshu/memory/revisions.py",
+          "src/tianshu/memory/episode_revisions.sql"
+        ],
+        "I": [
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "proposed_files": [
+        "src/tianshu/memory/episode_revisions.sql"
+      ],
+      "deliverables": [
+        "仅在 Episode 语义修订时追加快照，提取游标/运行状态变化不复制历史正文",
+        "current/valid_at/known_at 读取明确区分；旧缺失版本不倒填",
+        "Reflection 继续同 proposal_id 内容不可变；行为变化由规则修订承担",
+        "当前事实、未结事项、完成事项与历史修订采用查询适用性排序，低频不触发固定天数删除",
+        "来源撤回/遗忘涵盖新增历史快照与派生索引"
+      ],
+      "acceptance": [
+        "编辑经历后能按真实记录时间读取已保留版本",
+        "迁移前未知历史显式缺项",
+        "旧事项或旧偏好不会无条件压过当前状态",
+        "历史查询也不能绕过当前遗忘和权限",
+        "不新增通用 Reflection 修订表"
+      ],
+      "migration": "增加 Memory Episode 语义快照；迁移只留当前可证明快照并标历史起点。",
+      "evidence": [
+        "E05",
+        "E12"
+      ],
+      "validation_paths": [
+        "tests/core/test_memory_evidence_retrieval.py",
+        "tests/core/test_memory_revision_domain.py"
+      ],
+      "risks": [
+        "recorded_at 与 occurred_at 不可互换；迁移时间不伪造最早已知时间。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "integration_with": [
+        "ML-04",
+        "ML-05",
+        "ML-09"
+      ]
+    },
+    {
+      "id": "ML-12",
+      "title": "有真实回复关联的按需表达样例",
+      "priority": "P2",
+      "kind": "experience_enhancement",
+      "owner": "C",
+      "depends_on": [
+        "ML-06",
+        "ML-07"
+      ],
+      "sources": [
+        "LE-03"
+      ],
+      "goal": "在明确规则不足以表达具体说法时补充少量样例，避免群聊错配、私域泄露和自我强化。",
+      "write_scope": {
+        "C": [
+          "src/tianshu/companion/habits.py",
+          "src/tianshu/companion/growth_materials.py",
+          "src/tianshu/companion/reflection_output.py",
+          "src/tianshu/companion/dependencies.py",
+          "src/tianshu/companion/expression_examples.py"
+        ],
+        "I": [
+          "src/tianshu/conversation/service.py"
+        ]
+      },
+      "proposed_files": [
+        "src/tianshu/companion/expression_examples.py"
+      ],
+      "deliverables": [
+        "通过 Conversation 端口按真实 turn/回复/合并关系读取样例，不用时间相邻配对",
+        "样例只存规则版本与原文定位引用，保留条件和否定",
+        "发生/发送/送达/用户反馈分别表达，unknown 不伪装成成功",
+        "利用既有后台批次形成候选；前台无新增样例评价模型",
+        "规则说明足够时不附样例，允许零样例；历史人名地点数字不得当作当前事实"
+      ],
+      "acceptance": [
+        "多人交叉发言与合并回复不错误归属",
+        "私聊样例不能越域进入群聊",
+        "规则/来源撤回与明确负反馈后停止当前取材",
+        "样例重复被机器人使用不增加支持",
+        "没有样例仍可正常回复，不强制个性化",
+        "只改变措辞表达时不擅自引入样例中的旧人物/数量；有规则无样例与带样例分别评估"
+      ],
+      "migration": "确需映射表时归 Companion，只保存引用，不复制聊天库。",
+      "evidence": [
+        "E08",
+        "E09"
+      ],
+      "validation_paths": [
+        "tests/core/test_incremental_consumers.py"
+      ],
+      "risks": [
+        "样例只能说明说法，不能提供新的事实、权限或真实效果证据。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-13",
+      "title": "真实群主体上的词义理解",
+      "priority": "P2",
+      "kind": "scenario_enhancement",
+      "owner": "M",
+      "depends_on": [
+        "ML-03",
+        "ML-06",
+        "ML-08"
+      ],
+      "sources": [
+        "LE-04"
+      ],
+      "goal": "理解群内简称和约定，保留不同说话者与歧义，不把单人用法升级成群体共识。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/materials.py",
+          "src/tianshu/memory/extraction_contract.py",
+          "src/tianshu/memory/revisions.py",
+          "src/tianshu/memory/service.py"
+        ],
+        "I": [
+          "src/tianshu/conversation/context/assembly.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "冻结 language.term_meaning 的值与条件样例，复用 Claim 修订与真实 group:<conversation_id> 主体",
+        "实际 speaker/assertion 独立保存；群主体不等于任何成员可 self_confirmed 全群事实",
+        "在原多人整理请求中生成词义，不按词新增模型调用",
+        "当前输入命中时提供有界解释，未知和多义保持不确定；人物别名继续归 Identity",
+        "理解语义与主动模仿分开，默认不复读黑话"
+      ],
+      "acceptance": [
+        "同词跨群隔离、单人解释不变成群共识",
+        "词义冲突并存且带范围，来源撤回后旧解释不再被当前采用",
+        "不用伪造 identity.people 或增设群身份系统",
+        "未命中时无额外远端调用",
+        "未命中、仅解释、确有需要时采用词义三类结果分别记录，匹配不自动代表有益"
+      ],
+      "migration": "复用 Claim JSON；派生词项索引确需时可重建，不建平行词库。",
+      "evidence": [
+        "E13"
+      ],
+      "validation_paths": [
+        "tests/core/test_consolidation_pipeline.py",
+        "tests/core/test_memory_evidence_retrieval.py"
+      ],
+      "risks": [
+        "无法证明群共识时只能表达有依据的用法或假设。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-14",
+      "title": "存量缺口的定向补偿与原身份对账",
+      "priority": "P2",
+      "kind": "recoverability",
+      "owner": "M",
+      "depends_on": [
+        "ML-02",
+        "ML-03",
+        "ML-08",
+        "ML-11"
+      ],
+      "sources": [
+        "MEM-02",
+        "MEM-07"
+      ],
+      "goal": "在当前正确写入和历史语义具备后修复可恢复缺项，不全库重跑，不让旧材料覆盖新事实。",
+      "write_scope": {
+        "M": [
+          "src/tianshu/memory/consolidation.py",
+          "src/tianshu/memory/consolidation_retry.py",
+          "src/tianshu/memory/recovery.py",
+          "src/tianshu/memory/workers.py",
+          "src/tianshu/memory/coverage_repair.py"
+        ],
+        "I": [
+          "src/tianshu/runtime/migrations.py"
+        ]
+      },
+      "proposed_files": [
+        "src/tianshu/memory/coverage_repair.py"
+      ],
+      "deliverables": [
+        "复用原批次/队列增加 repair purpose、parent batch 和稳定缺口身份；身份绑定原 Episode/源版本、缺项语义和修复目标，算法版本进入 attempt metadata",
+        "计算前重新核对原件、授权、当前版本和目标缺口是否仍存在；已修复、已被新事实替代或原件不可用者记录原因，不再发起相同计算",
+        "同一缺口已有运行/unknown 尝试时沿原观察语义处理；确认允许的新尝试使用独立 attempt_id，旧回执不可覆盖",
+        "通过原整理 writer 读取当前事实后补算并 CAS 提交；不制造新 Episode，不覆盖原回执，不因算法版本升级全库重跑",
+        "补偿 recorded_at 为本次处理时间，有效时间依原件；与当前事实冲突时保留未决",
+        "新输入优先，但在已有队列/资源准入允许时按等待年龄推进小批补偿；每批检查可继续范围，不独立改全局调度或无限让存量饥饿",
+        "补偿机制完成、已修复范围、待原件/unknown、待处理范围分别报告；自然存量未清零不阻止功能包完成"
+      ],
+      "acceptance": [
+        "同缺口不并发创建相同计算；已完成目标不会仅因算法版本变化再次付费补算",
+        "未知外部尝试不当作失败重放；允许的新尝试及可能重复费用照实计量，不承诺无法证明的零重复计费",
+        "遗忘来源不复活，旧材料不能恢复已由新事实替代的当前状态",
+        "正常新输入优先且补偿等待年龄/推进进度可解释，不要求零积压",
+        "原批次/材料/源版本/尝试和缺口结果可对账；失败或不可恢复保留解释"
+      ],
+      "migration": "优先扩展原批次 manifest/purpose/parent；稳定缺口标识必要唯一索引，算法版本为尝试属性。未知和历史回执不迁改。",
+      "evidence": [
+        "E03",
+        "E04",
+        "E12"
+      ],
+      "validation_paths": [
+        "tests/core/test_consolidation_pipeline.py",
+        "tests/core/test_memory_rpc_recovery.py"
+      ],
+      "risks": [
+        "新的修复尝试不是重放历史消息。外部 unknown 不能承诺恰好一次计费；有界补偿不得争抢现有前台资源或恢复遗忘内容。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false
+    },
+    {
+      "id": "ML-15",
+      "title": "现有页面中的取材解释与质量观测",
+      "priority": "P2",
+      "kind": "product_observability",
+      "owner": "F",
+      "depends_on": [
+        "ML-06",
+        "ML-07",
+        "ML-11",
+        "ML-12",
+        "ML-13",
+        "ML-14"
+      ],
+      "sources": [
+        "LE-05",
+        "MEM-08"
+      ],
+      "goal": "让用户看懂实际用了什么、当前是否生效、哪些仍缺证据，同时避免把统计量包装成学习质量分。",
+      "write_scope": {
+        "F": [
+          "web/src/features/life/GrowthPage.tsx",
+          "web/src/features/memory",
+          "web/src/features/companion"
+        ],
+        "I": [
+          "src/tianshu/conversation/module.py"
+        ],
+        "C": [
+          "src/tianshu/companion/module.py"
+        ],
+        "M": [
+          "src/tianshu/memory/module.py"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "沿用 807 现有页面展示规则版本、适用范围、当前状态及原生纠正/撤回/恢复",
+        "对照同一请求的最终 SelectionRecord 展示已装入与舍弃原因，历史未记录不补造",
+        "区分进入上下文、产生回复、发送/送达、明确反馈和语义效果",
+        "覆盖诊断、存量修复和历史版本就地展示，来源链接按当前权限读取",
+        "展示取材/SQL/模型排队与执行阶段、实际 usage 和未知计量；普通日志不复制私聊正文",
+        "页面按原接口先准备未知/空/待整理/有效/已撤回样例，依赖模块完成后接入真实数据，不等待全部存量处理完才开发",
+        "展示明确纠正的接收时间、当前消费状态、持久规则提交状态与可见缺项；最终装入仅标使用，不宣传为造成效果改善"
+      ],
+      "acceptance": [
+        "无反馈不显示好评或效果已提升",
+        "被预算/来源舍弃的候选不显示为已注入",
+        "同类多规则版本分别可见",
+        "窄屏可读且现有完整诊断/原文入口保留",
+        "操作不增加常规确认弹窗或新的学习总开关",
+        "补偿尚在运行或不可恢复不会把整个模块显示为开发未完成；没有新数据不伪造零成本/零延迟"
+      ],
+      "migration": "UI 只消费原领域和请求附属数据，不写第二份统计或规则权威。",
+      "evidence": [
+        "E14"
+      ],
+      "validation_paths": [
+        "web/tests/growth-coverage.spec.ts",
+        "web/tests/memory-closure.spec.ts"
+      ],
+      "risks": [
+        "取材计数、记忆条数和请求成功率均不能充当真实学习效果评分。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "can_prepare_after": [
+        "ML-01"
+      ]
+    },
+    {
+      "id": "ML-16",
+      "title": "集中行为验证与同质量收益对照",
+      "priority": "P1",
+      "kind": "scoped_delivery_verification",
+      "owner": "I",
+      "depends_on": [
+        "ML-01",
+        "ML-02",
+        "ML-03",
+        "ML-04",
+        "ML-05",
+        "ML-06",
+        "ML-07",
+        "ML-08",
+        "ML-09",
+        "ML-10",
+        "ML-11",
+        "ML-12",
+        "ML-13",
+        "ML-14",
+        "ML-15"
+      ],
+      "sources": [
+        "LE-06",
+        "MEM-08",
+        "MEM-09"
+      ],
+      "goal": "分别证明机制正确、代表场景收益与部署状态，完成整包交付方案，不用健康或平均分代替效果。",
+      "write_scope": {
+        "I": [
+          "scripts/evaluation/memory_closure",
+          "tests/core/test_memory_closure_acceptance.py",
+          "tests/core/test_incremental_consumers.py"
+        ],
+        "M": [
+          "tests/memory",
+          "tests/core/test_memory_evidence_retrieval.py",
+          "tests/core/test_consolidation_pipeline.py",
+          "tests/core/test_memory_index_retry.py",
+          "tests/core/test_memory_revision_domain.py"
+        ],
+        "C": [
+          "tests/companion"
+        ],
+        "F": [
+          "web/tests/growth-coverage.spec.ts",
+          "web/tests/memory-closure.spec.ts"
+        ]
+      },
+      "proposed_files": [],
+      "deliverables": [
+        "实现完成后一次运行受影响定向集合；失败修复只重验相关变化，复用未变成功结果",
+        "现有 24 故事作为已知回归；新增盲保留故事按缺口选取，冻结后评阅，不强制固定样本数或全组合矩阵",
+        "分别核对结构化写入、最终请求、回答和真实反馈；记录原文补答及未决状态",
+        "比较当前实现与核心改造，再按相关场景单独比较样例/词义/重排/缓存，避免收益相互掩盖",
+        "同模型/语料/授权/质量统计所有物理尝试及未知 usage，冷/热路径、队列/执行、全量长尾分别报告",
+        "形成受影响迁移/恢复与串行发布说明；实际模型、QQ发送、存量补算和生产动作按后续当时授权执行",
+        "评估样例随 ML-01 合同先准备，按最终实际实现选择必要验证；保留集按故事家族隔离，被用于调参后转回归",
+        "按实际适用机会分别记录必要材料遗漏、无关习惯/样例侵入、明确纠正生效与持久提交时间；不用总消息量稀释失败",
+        "将候选正确、最终装入、回答遵守和用户反馈分开；相关场景增加有规则无样例对照，结论说明小样本与主观评阅局限",
+        "读取记录区分 SQL/管理聚合、模型调用、排队、执行、整理/索引时效；不得把取消/unknown 多了解释成提速",
+        "功能包收口验证补偿的可续跑和原身份幂等，报告未处理范围；不把全部历史清零列为发布前提"
+      ],
+      "acceptance": [
+        "关键人物归属、当前偏好、撤回、时间与历史反例正确",
+        "没有新增前台辅助 LLM 调用和未解释的相关退化",
+        "查询提速不以减少必要证据或缩短执行窗口实现",
+        "同质量成本结论有完整分母；计量缺失保持未知",
+        "本地完成、上线健康、实际效果和长期观察分别陈述",
+        "后台普通支持更新不造成前台取消；未整理新消息、渲染等待期间撤回、同故事信息泄漏等新边界有定向证据"
+      ],
+      "migration": "仅核对 Memory、Companion、请求附属数据等实际变更域；保留原配置、有效挂载与模型回执。",
+      "evidence": [
+        "E01",
+        "E15"
+      ],
+      "validation_paths": [
+        "scripts/evaluation/memory_closure",
+        "tests/core/test_memory_closure_acceptance.py",
+        "web/tests/growth-coverage.spec.ts",
+        "web/tests/memory-closure.spec.ts"
+      ],
+      "risks": [
+        "公开论文成绩不代表天枢收益；不预设省钱百分比或秒数为发布门禁。"
+      ],
+      "status": "planned",
+      "assignee": null,
+      "implementation_started": false,
+      "production_operations_performed": false,
+      "can_prepare_after": [
+        "ML-01"
+      ]
+    }
+  ],
+  "future_contracts": [
+    {
+      "id": "material_ref_v1",
+      "owner": "I",
+      "fields": [
+        "domain",
+        "kind",
+        "stable_id",
+        "revision",
+        "semantic_role",
+        "origin_ref",
+        "source_refs"
+      ],
+      "rule": "共享 DTO 只保存引用/角色，不决定领域事实真伪或习惯资格"
+    },
+    {
+      "id": "behavior_binding_v1",
+      "owner": "C",
+      "fields": [
+        "rule_id",
+        "rule_revision",
+        "proposal_id",
+        "reflection_kind",
+        "preference_kind",
+        "state",
+        "scope",
+        "validity",
+        "semantic_fingerprint",
+        "change_kind"
+      ],
+      "rule": "Companion 唯一拥有当前语义；沿修订内容/原因或确定性指纹识别实质变化，不以任意 revision 变化取消消费，不强制新增单独 epoch 表"
+    },
+    {
+      "id": "selection_record_v1",
+      "owner": "I",
+      "fields": [
+        "request_id",
+        "purpose",
+        "material_ref",
+        "selected_revision",
+        "selected",
+        "reason",
+        "estimated_tokens",
+        "frozen_at",
+        "round",
+        "attempt_id"
+      ],
+      "rule": "仅记录有界候选与最终装入材料的身份、原因和版本；消息来源逐单元绑定，完整生成依赖仍保留。可证明取材，不证明效果因果"
+    },
+    {
+      "id": "coverage_assessment_v2",
+      "owner": "M",
+      "fields": [
+        "original_availability",
+        "required_context",
+        "candidate_scope",
+        "target_semantics",
+        "commit",
+        "index",
+        "basis",
+        "assessment_version"
+      ],
+      "rule": "评估版本与原缺项共存；未证明完整不能升格"
+    },
+    {
+      "id": "support_provenance_v1",
+      "owner": "C",
+      "fields": [
+        "support_refs",
+        "generation_dependencies",
+        "independent_event_keys",
+        "counterexample_refs",
+        "feedback_refs"
+      ],
+      "rule": "支持计数、生成依赖与用户评价是不同集合"
+    },
+    {
+      "id": "memory_proposal_v3_candidate",
+      "owner": "M",
+      "fields": [
+        "target_subject",
+        "local_alias",
+        "qualified_cross_target_ref",
+        "deterministic_alias_map",
+        "needs_context"
+      ],
+      "rule": "沿用按目标分组操作；本地别名由原编译器限定至目标再转全批唯一引用，旧正式合同/CAS/来源/覆盖不变，不猜改目标内歧义"
+    }
+  ],
+  "plan_outputs": [
+    "docs/development/memory-learning-unified-plan-2026-11-04.md",
+    "docs/development/memory-learning-unified-queue-2026-11-04.json",
+    "docs/development/memory-learning-unified-tasks-2026-11-04.md"
+  ],
+  "revised_at": "2026-11-04T16:39:28+08:00",
+  "revision_changes": [
+    {
+      "id": "R2-01",
+      "topic": "纠正不必要依赖",
+      "basis": "方案依赖审查",
+      "tasks": [
+        "ML-01",
+        "ML-02",
+        "ML-03",
+        "ML-04",
+        "ML-05",
+        "ML-06",
+        "ML-11",
+        "ML-15",
+        "ML-16"
+      ],
+      "decision": "局部输入/提案修复独立；行为一致性不等待覆盖诊断；页面和评估早准备、后收口。"
+    },
+    {
+      "id": "R2-02",
+      "topic": "运行取材独立于管理聚合",
+      "basis": "源码路径确认 E17",
+      "tasks": [
+        "ML-05",
+        "ML-06",
+        "ML-09"
+      ],
+      "decision": "一次取得适用规则候选，不调用 view/review/retry/style_view；一条规则一个可选择单元。实际 SQL/时延收益待实现测量。"
+    },
+    {
+      "id": "R2-03",
+      "topic": "按实际材料绑定来源与时效",
+      "basis": "源码路径确认 E18/E19",
+      "tasks": [
+        "ML-01",
+        "ML-04",
+        "ML-06",
+        "ML-07"
+      ],
+      "decision": "消息保留身份/来源直到预算选择；候选读取、模型看到、最终装入分别表达；已有近期消息承接未整理事实，不新增短期事实库。"
+    },
+    {
+      "id": "R2-04",
+      "topic": "只对实质行为失效拦截未提交表达",
+      "basis": "设计边界补全，发送入口 E20/E21",
+      "tasks": [
+        "ML-05",
+        "ML-06",
+        "ML-07"
+      ],
+      "decision": "普通支持/统计修订不取消回答；显式撤回/纠正及适用范围失效才作用于依赖该规则的尚未提交表达；外部已提交/unknown 保留原结果。"
+    },
+    {
+      "id": "R2-05",
+      "topic": "缩小提案协议改造",
+      "basis": "现有分目标模型协议与编译器 E22；重复创建运行错误 E01",
+      "tasks": [
+        "ML-03",
+        "ML-08",
+        "ML-13"
+      ],
+      "decision": "保留每目标局部引用，程序确定性映射至全批唯一别名；跨目标显式限定，目标内歧义拒绝。无需重做操作坐标语言或通用图编译器。"
+    },
+    {
+      "id": "R2-06",
+      "topic": "修复身份与尝试版本分离",
+      "basis": "原队列/unknown 约束及方案可执行性审查",
+      "tasks": [
+        "ML-14",
+        "ML-15",
+        "ML-16"
+      ],
+      "decision": "缺口身份绑定原材料/源版本/修复目标，算法版本属于尝试；计算前确认仍缺失，同一缺口不并发重算；新输入优先且补偿有界推进。"
+    },
+    {
+      "id": "R2-07",
+      "topic": "完整交付与收益归因分别判断",
+      "basis": "既有验收证据限制与方案审查",
+      "tasks": [
+        "ML-06",
+        "ML-12",
+        "ML-13",
+        "ML-15",
+        "ML-16"
+      ],
+      "decision": "最终装入不等于产生帮助；按需/无关/冲突场景分别比较，保留集按故事家族隔离；阶段完成不再等待无限存量清零。"
+    }
+  ]
+}
