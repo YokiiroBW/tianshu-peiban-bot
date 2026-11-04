@@ -29,7 +29,7 @@ class OperationsComponents:
 def build_operations(runtime, identity, *, actions=(), diagnostic_context=None,
                      qq_send=None, progress=None, policy=None, host_spool_directory=None,
                      prometheus_url=None, capability_actions=None, context_for_action=None,
-                     life_worker=None, index_jobs=None, channels=None, infrastructure=None):
+                     life_worker=None, index_jobs=None, growth=None, channels=None, infrastructure=None):
     if policy is None:
         from tianshu.runtime.recovery_policy import RecoveryPolicy
         policy = RecoveryPolicy()
@@ -54,6 +54,11 @@ def build_operations(runtime, identity, *, actions=(), diagnostic_context=None,
                     frozenset({"memory_index_failed", "memory_index_missing", "memory_vector_candidate_budget"}),
                     index_jobs.recovery_inspect, index_jobs.recovery_invoke, index_jobs.recovery_observe,
                     domain_managed=True), *actions)
+    if growth is not None:
+        growth.set_operations_guard(RecoveryExecutor.guard_on)
+        actions = (RecoveryAction("growth.retry.resume", frozenset({"growth_retry_stalled", "growth_retry_blocked"}),
+                    growth.operations.inspect, growth.operations.invoke, growth.operations.observe,
+                    observation_only=True, domain_managed=True), *actions)
     if (capability_actions is not None and context_for_action is None
             and hasattr(capability_actions, "context_for_action")
             and hasattr(identity, "refresh_scheduled_context")):

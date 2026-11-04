@@ -240,7 +240,8 @@ class RecoveryExecutor:
     async def _reserve_domain_control_on(self, conn, row, action, facts, generation):
         """Bound wake/observe controls without reserving a domain physical attempt."""
         lineage_id = facts.get("lineage_id") or ""
-        if facts["original_state"] == "failed" and not lineage_id and action.name != "capability_reroute_pending":
+        if (facts["original_state"] == "failed" and not lineage_id and not action.observation_only
+                and action.name != "capability_reroute_pending"):
             raise AppError("domain_recovery_lineage_required", status=409)
         if lineage_id:
             from tianshu.runtime.recovery_policy import lineage_id as canonical_lineage_id
@@ -273,7 +274,7 @@ class RecoveryExecutor:
                         raise AppError("domain_recovery_not_due", status=409, details={"due_at": lineage["due_at"]})
                 elif previous["status"] != "succeeded":
                     raise AppError("domain_recovery_not_eligible", status=409)
-        identity = json.dumps([generation, facts.get("policy_domain", "operations"), facts["material_id"]],
+        identity = json.dumps([generation, facts.get("policy_domain") or action.name, facts["material_id"]],
                               ensure_ascii=False, separators=(",", ":"))
         control_id = hashlib.sha256(identity.encode()).hexdigest()
         await conn.execute("INSERT INTO operations.control_lineages(control_id,data_generation,material_digest,max_attempts) "

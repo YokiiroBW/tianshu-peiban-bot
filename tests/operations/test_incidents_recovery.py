@@ -1,6 +1,8 @@
-from unittest.mock import AsyncMock
+from types import SimpleNamespace
+from unittest.mock import AsyncMock, MagicMock
 
 from tianshu.operations.incidents import IncidentStore, safe_summary
+from tianshu.operations.module import build_operations
 from tianshu.operations.recovery import RecoveryAction, RecoveryExecutor
 from tianshu.runtime.recovery_policy import FailureCategory, RecoveryPolicy
 
@@ -110,6 +112,34 @@ async def test_uncertain_control_effect_is_reconciled_from_original_receipt(oper
     assert result["state"] == "resolved"
     assert result["targets"][0]["state"] == "verified"
     invoke.assert_awaited_once()
+
+
+async def test_growth_owner_wake_is_registered_without_a_second_physical_attempt(operations_db):
+    target = {"actor_id": "actor", "scope_key": "scope", "retry_key": "material"}
+    async def inspect(_row, actual):
+        assert actual == target
+        return {"eligible": True, "version": "3", "material_id": "material", "material_digest": "digest",
+                "dependency": "quota", "original_state": "failed"}
+    async def invoke(row, _target, _facts, attempt):
+        async with operations_db.transaction() as conn:
+            await RecoveryExecutor.guard_on(conn, attempt, row["owner_token"])
+        return {"state": "accepted"}
+    growth = SimpleNamespace(set_operations_guard=MagicMock(), operations=SimpleNamespace(
+        inspect=inspect, invoke=invoke, observe=AsyncMock(return_value={"state": "verified"})))
+    runtime = SimpleNamespace(database=operations_db, commands=None, credentials=None,
+                              diagnostics=None, models=None, settings={})
+    components = build_operations(runtime, None, growth=growth)
+    incident = await components.incidents.ingest({"event_id": "growth-stalled", "dependency": "quota",
+        "error_family": "growth_retry_stalled", "version": "3", "recovery_target": target})
+    await components.executor.enqueue_automatic(incident, "growth.retry.resume", target)
+    await components.executor.process_requested()
+    await components.executor.observe_pending()
+    result = await components.incidents.get(incident["incident_id"])
+    assert result["state"] == "resolved"
+    growth.set_operations_guard.assert_called_once()
+    async with operations_db.transaction(read_only=True) as conn:
+        count = await (await conn.execute("SELECT count(*) AS count FROM runtime.recovery_attempts")).fetchone()
+    assert count["count"] == 0
 
 
 async def test_unknown_original_can_be_observed_without_replaying_it(operations_db):

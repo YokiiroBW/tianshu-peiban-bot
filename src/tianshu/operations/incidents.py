@@ -36,7 +36,8 @@ def fingerprint(dependency, family, version):
 
 
 def recovery_target(value):
-    if not isinstance(value, dict) or set(value) - {"material_id", "version", "actor_id", "activity_id", "kind", "id", "revision"}:
+    if not isinstance(value, dict) or set(value) - {"material_id", "version", "actor_id", "activity_id", "kind", "id",
+                                                    "revision", "scope_key", "retry_key"}:
         raise AppError("invalid_recovery_target")
     for key, item in value.items():
         if key == "revision":
