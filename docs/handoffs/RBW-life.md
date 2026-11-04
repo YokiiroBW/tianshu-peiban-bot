@@ -42,3 +42,13 @@ Life module 注册 `0040_life_execution`（`src/tianshu/life/rb_life_execution.s
 - Life module 在同一个 `GenerationControl` 实例注册 `life.diary_episode_changed=diaries.consume_episode_change` 与 `life.experience_statistics_backfill=generation_control.backfill_statistics`，均属 DIARY lane。时钟闭日去重键与经验包统一为 `identity.scene_id(context)`。
 - `contacts.received(context, occurred_at=None, *, input_id, connection=None)` 可复用 Conversation 入站原事务，回复记录、候选取消和后续 `on_received` 共用该连接；未提供连接时维持原独立事务。新增用例检查重复 input_id、事务回滚与不再嵌套取连接。
 - 本追补依赖 Runtime 的 `current_execution_generation`、`JobSpec.data_generation` 和 Models 的 `ModelRequest.data_generation`，以及经验包的两个任务方法和 Identity 的 `scene_id`；不改共享模块。按本批授权未运行测试、构建或烟测。
+
+## 日程只读查询阶段计时
+
+`POST /api/v1/life/day-plan` 原响应新增 `timings_ms`，以单调时钟测量，单位毫秒：
+
+- `view_total`：`DayPlans.view` 内从进入到构造响应前，不包含路由层鉴权、HTTP 编码或传输。
+- `identity_check`：view 内最初的身份检查；`state_lookup`：`life.state` 整体调用，内部也包含数据库、来源检查及角色状态投影，不能当成纯 SQL 时间。
+- `snapshot_database`：日程计划、时段、未完成活动、最近结果的读取事务，包含取得连接、SQL、获取结果及事务退出；`snapshot_source_check`：这些对象的既有批量来源/身份检查及过滤，不包含 state 内的来源检查。
+- `application_database`：存在已授权日程时读取最近应用结果的事务，未查询为 `null`；`planning_database`：规划水位读取事务；`projection`：应用结果与对外记录的内存投影，不含 JSON 编码。
+- `json_serialization` 和 `http_total` 在该领域方法中无法观察，均为 `null`；不以 view 耗时或投影耗时冒充。现有来源授权及查询逻辑保持；读取不请求模型。新增 `test_rb_plan_timing.py` 验证阶段范围、未执行项与撤回来源过滤，尚未运行，交主协调者统一验证。

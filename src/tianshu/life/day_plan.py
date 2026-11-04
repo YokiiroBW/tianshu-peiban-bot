@@ -1,5 +1,6 @@
 """Rolling executable appointments and free time, with per-activity fences."""
 from datetime import UTC, datetime, time, timedelta
+from time import perf_counter
 from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
 
@@ -15,6 +16,10 @@ from .types import PlanApplyResult, PlanCandidateResult
 
 
 COMMITMENT_MARGIN = timedelta(minutes=10)
+
+
+def elapsed_ms(start):
+    return round((perf_counter() - start) * 1000, 3)
 
 
 def awake_window(routine, now):
@@ -68,7 +73,8 @@ class DayPlans:
             return [row for row in rows if await self.life.sources.validate_persistence(connection, context, source_refs(row["source_refs"] or ()))]
         return {"day_plan": await authorized(slots), "unfinished": await authorized(unfinished)}
 
-    async def snapshot(self, context, day):
+    async def snapshot(self, context, day, *, timings=None):
+        started = perf_counter() if timings is not None else None
         async with self.life.database.transaction(read_only=True) as connection:
             plan = await (await connection.execute(
                 "SELECT * FROM life.day_plans WHERE actor_id=%s AND day=%s AND scope_ids<@%s::text[]",
@@ -79,18 +85,29 @@ class DayPlans:
                 "AND checkpoint_data->>'last_execution'='succeeded' AND checkpoint_data->>'capability_id'<>'images.generate' "
                 "AND updated_at>now()-interval '1 day' ORDER BY updated_at DESC,id LIMIT 8",
                 (context.actor_id,list(context.scope_ids)))).fetchall()
+        if timings is not None:
+            timings["snapshot_database"] = elapsed_ms(started)
+            started = perf_counter()
         allowed = await self.life.identity.check_many(context, tuple(source_refs(row["source_refs"] or ()) for row in slots))
         slots = [row for row, valid in zip(slots, allowed, strict=True) if valid]
         if plan and not (await self.life.identity.check_many(context,(source_refs(plan["source_refs"]),)))[0]:
             plan=None
         allowed = await self.life.identity.check_many(context, tuple(source_refs(row["source_refs"]) for row in unfinished))
         allowed_recent=await self.life.identity.check_many(context,tuple(source_refs(row["source_refs"]) for row in recent))
-        return {"plan": plan, "slots": slots,"recent_results":[row for row,valid in zip(recent,allowed_recent,strict=True) if valid],
+        result = {"plan": plan, "slots": slots,"recent_results":[row for row,valid in zip(recent,allowed_recent,strict=True) if valid],
             "unfinished": [row for row, valid in zip(unfinished, allowed, strict=True) if valid]}
+        if timings is not None:
+            timings["snapshot_source_check"] = elapsed_ms(started)
+        return result
 
     async def view(self, context, day=None):
+        view_started = perf_counter()
+        started = perf_counter()
         await self.life.identity.check(context)
+        identity_ms = elapsed_ms(started)
+        started = perf_counter()
         state = await self.life.state(context)
+        state_ms = elapsed_ms(started)
         local_day = datetime.now(ZoneInfo(state["timezone"])).date()
         if day:
             from datetime import date
@@ -98,9 +115,12 @@ class DayPlans:
                 local_day = date.fromisoformat(day)
             except (TypeError, ValueError):
                 raise AppError("invalid_day") from None
-        data = await self.snapshot(context, local_day)
+        timings = {"identity_check": identity_ms, "state_lookup": state_ms,
+            "application_database": None, "json_serialization": None, "http_total": None}
+        data = await self.snapshot(context, local_day, timings=timings)
         application = None
         if data["plan"]:
+            started = perf_counter()
             async with self.life.database.transaction(read_only=True) as connection:
                 application = await (await connection.execute(
                     "SELECT generation_key,application_results FROM life.plan_generations "
@@ -108,19 +128,25 @@ class DayPlans:
                     "AND context->'scope_ids'<@%s::jsonb AND context->'audience'<@%s::jsonb "
                     "ORDER BY reviewed_at DESC,generation_key DESC LIMIT 1",
                     (context.actor_id, local_day, document(sorted(context.scope_ids)), document(sorted(context.audience))))).fetchone()
-            if application:
-                application = {"generation_key": application["generation_key"], **application["application_results"]}
+            timings["application_database"] = elapsed_ms(started)
+        started = perf_counter()
+        if application:
+            application = {"generation_key": application["generation_key"], **application["application_results"]}
         from .service import public_record
         data={"plan":public_record(data["plan"]) if data["plan"] else None,
             "slots":[public_record(row) for row in data["slots"]],
             "unfinished":[public_record(row) for row in data["unfinished"]],
             "recent_results":[public_record(row) for row in data["recent_results"]]}
+        timings["projection"] = elapsed_ms(started)
+        started = perf_counter()
         async with self.life.database.transaction(read_only=True) as connection:
             planning=await (await connection.execute("SELECT revision,reason,next_due_at,last_planned_at,generation_consumed,"
                 "last_error,repair_count,repair_due_at,review_after,"
                 "(planned_watermark<>change_watermark OR (generation_key IS NOT NULL AND NOT generation_consumed)) AS pending "
                 "FROM life.plan_watermarks WHERE actor_id=%s",(context.actor_id,))).fetchone()
-        return {"day": local_day.isoformat(), **data, "planning":planning, "application": application}
+        timings["planning_database"] = elapsed_ms(started)
+        timings["view_total"] = elapsed_ms(view_started)
+        return {"day": local_day.isoformat(), **data, "planning":planning, "application": application, "timings_ms": timings}
 
     async def reconsider(self, context, body):
         from .validation import text, revision
