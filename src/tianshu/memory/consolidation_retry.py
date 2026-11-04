@@ -19,7 +19,6 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from . import codec
 from .generation import MODEL_REQUEST_SECONDS
-from .materials import batch_frozen
 from .model_outcome import observe_original
 
 OBSERVE_SECONDS = 30
@@ -40,8 +39,7 @@ def retryable_code(code, status):
 
 
 def semantic_output_failure(batch):
-    if (not batch or batch["status"] != "failed" or not batch["step_ids"]
-            or batch["schema_version"] == "memory.legacy-extraction.v0"):
+    if not batch or batch["status"] != "failed" or not batch["step_ids"]:
         return False
     code = batch.get("error_code") or ""
     if code in {"memory_consolidation_output_truncated", "memory_consolidation_output_incomplete"}:
@@ -59,16 +57,9 @@ def explicit_retry_available(batch):
                 and len(batch["manifest"].get("explicit_recoveries", ())) < EXPLICIT_RETRY_LIMIT)
 
 
-def protocol_refresh_available(batch):
-    # Known bad output frozen before the small model protocol must be rebuilt
-    # through MaterialBuilder. Replaying its old verbose prompt is ineffective.
-    return bool(explicit_retry_available(batch)
-                and batch_frozen(batch).get("model_protocol") != "memory.proposal.v2")
-
-
 def rpc_recovery_available(batch):
     return bool(batch and batch["status"]=="failed" and batch["step_ids"]
-        and batch["schema_version"]!="memory.legacy-extraction.v0" and batch.get("selected_step_id") is None
+        and batch.get("selected_step_id") is None
         and batch.get("proposal_digest") is None
         and batch.get("error_code") in RPC_WRAPPERS)
 
@@ -95,18 +86,6 @@ class ConsolidationRetries:
             (batch_id, step_id, step["request"]["attempt_id"], previous_step_id, kind,
              due or datetime.now(UTC), step["state"], step["error_code"], batch_id))
 
-    async def adopt_on(self, conn, batch):
-        """Old holds are adopted without rewriting their prompts or receipts."""
-        existing = {row["step_id"] for row in await (await conn.execute(
-            "SELECT step_id FROM memory.consolidation_attempts WHERE batch_id=%s", (batch["batch_id"],))).fetchall()}
-        previous = None
-        for step_id in batch["step_ids"]:
-            kind = "repair" if ":repair:" in step_id else "context" if previous else "original"
-            if step_id not in existing:
-                await self.track_on(conn, batch["batch_id"], step_id, kind=kind, previous_step_id=previous,
-                                    due=batch.get("retry_due_at") or batch["created_at"])
-            previous = step_id
-
     async def reject(self, batch_id, step_id, code):
         async with self.database.transaction() as conn:
             await conn.execute("UPDATE memory.consolidation_attempts SET rejected_error=COALESCE(rejected_error,%s),"
@@ -132,9 +111,10 @@ class ConsolidationRetries:
         async with self.database.transaction() as conn:
             await self.consolidation._assert_batch_generation_on(conn, batch)
             await self.consolidation._lock_owned_partition(conn, batch["partition_id"], owner)
-            await self.adopt_on(conn, batch)
             attempts = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s ORDER BY number",
                                                 (batch["batch_id"],))).fetchall()
+            if not attempts:
+                raise AppError("memory_consolidation_attempt_missing",status=409)
         if batch.get("selected_step_id"):
             return batch["selected_step_id"], True
         current = attempts[-1]
@@ -307,9 +287,10 @@ class ConsolidationRetries:
             fresh = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE", (batch_id,))).fetchone()
             if fresh["status"] not in {"prepared", "waiting_model", "ready", "quarantined"}:
                 return True
-            await self.adopt_on(conn, fresh)
             attempt = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s AND step_id=%s",
                                                (batch_id, original.intent_id))).fetchone()
+            if not attempt:
+                raise AppError("memory_consolidation_attempt_missing",status=409)
             delay = OBSERVE_SECONDS if control_unknown or status in {"queued", "running", "succeeded"} else retry_delay_seconds(attempt["number"])
             failure = outcome.record()
             if details.get("rpc_failure"):
@@ -346,7 +327,7 @@ class ConsolidationRetries:
         if values and state["active_batch_id"] is None:
             await self.consolidation._schedule_on(conn, partition_id, min(values), suffix="retry")
 
-    async def resume_rpc_on(self,conn,batch,context,request_id):
+    async def resume_rpc_on(self,conn,batch,context,request_id,*,targeted=False):
         """Reopen only a failed RPC wrapper for authoritative original observation."""
         if not rpc_recovery_available(batch):
             return False
@@ -358,7 +339,9 @@ class ConsolidationRetries:
         if not step or step["state"]=="source_revoked":
             raise AppError("source_unavailable",status=403)
         rejected=await (await conn.execute("SELECT rejected_error FROM memory.consolidation_attempts WHERE step_id=%s",(step_id,))).fetchone()
-        if rejected and rejected["rejected_error"]:
+        if not rejected:
+            raise AppError("memory_consolidation_attempt_missing",status=409)
+        if rejected["rejected_error"]:
             return False
         for episode in batch["manifest"]["episodes"]:
             row=await (await conn.execute("SELECT revision,sequence,extraction_cursor,active FROM memory.episodes "
@@ -366,7 +349,6 @@ class ConsolidationRetries:
             if (not row or not row["active"] or row["revision"]!=episode["revision"] or row["sequence"]!=episode["sequence"]
                     or row["extraction_cursor"]!=episode["before"]):
                 raise AppError("memory_consolidation_episode_changed",status=409)
-        await self.adopt_on(conn,batch)
         previous={"status":step["state"],"error_code":step["error_code"],"authority":"memory_step_snapshot",
                   "rpc_failure":{"error_code":batch["error_code"]}}
         await conn.execute("UPDATE memory.consolidation_attempts SET first_failure=COALESCE(first_failure,%s) WHERE step_id=%s",
@@ -382,14 +364,18 @@ class ConsolidationRetries:
             await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_unknown',extraction_started_at=NULL "
                 "WHERE episode_id=%s AND revision=%s AND sequence=%s AND active AND extraction_cursor IS NOT DISTINCT FROM %s",
                 (episode["episode_id"],episode["revision"],episode["sequence"],before))
-        await self.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),suffix="rpc-recovery:"+request_id)
+        await self.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),suffix="rpc-recovery:"+request_id,
+            target_batch_id=batch["batch_id"] if targeted else None)
         return True
 
-    async def resume_on(self, conn, batch, context, request_id):
+    async def resume_on(self, conn, batch, context, request_id, *, targeted=False):
         if not explicit_retry_available(batch):
             return False
         await self.consolidation.identity.check_context(context, connection=conn)
-        await self.adopt_on(conn, batch)
+        attempt = await (await conn.execute("SELECT 1 FROM memory.consolidation_attempts WHERE batch_id=%s AND step_id=%s",
+            (batch["batch_id"],batch["step_ids"][-1]))).fetchone()
+        if not attempt:
+            raise AppError("memory_consolidation_attempt_missing",status=409)
         for episode in batch["manifest"]["episodes"]:
             row = await (await conn.execute("SELECT revision,sequence,extraction_cursor,active FROM memory.episodes WHERE episode_id=%s FOR UPDATE",
                                            (episode["episode_id"],))).fetchone()
@@ -401,7 +387,21 @@ class ConsolidationRetries:
                                                               "error_code": batch["error_code"]})
         await conn.execute("UPDATE memory.consolidation_attempts SET rejected_error=COALESCE(rejected_error,%s) WHERE batch_id=%s",
                            (batch["error_code"], batch["batch_id"]))
+        # Keep the old compiler receipt, but never select its rejected proposal
+        # again when a bounded semantic continuation has been authorized.
+        await conn.execute("UPDATE memory.consolidation_compilations SET selected=false WHERE batch_id=%s AND selected",
+                           (batch["batch_id"],))
         await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined',retry_due_at=now(),retry_requested=true,"
-            "manifest=%s,proposal_digest=NULL,updated_at=now() WHERE batch_id=%s", (Jsonb(manifest), batch["batch_id"]))
-        await self.consolidation._schedule_on(conn, batch["partition_id"], datetime.now(UTC), suffix="explicit:" + request_id)
+            "manifest=%s,proposal_digest=NULL,selected_step_id=NULL,updated_at=now() WHERE batch_id=%s", (Jsonb(manifest), batch["batch_id"]))
+        await self.consolidation._schedule_on(conn, batch["partition_id"], datetime.now(UTC), suffix="explicit:" + request_id,
+            target_batch_id=batch["batch_id"] if targeted else None)
+        return True
+
+    async def wake_due_on(self, conn, batch, context, request_id):
+        """Wake exactly this already-eligible retry; do not allocate an attempt."""
+        if batch["status"] != "quarantined" or batch.get("retry_due_at") and batch["retry_due_at"] > datetime.now(UTC):
+            return False
+        await self.consolidation.identity.check_context(context,connection=conn)
+        await self.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
+            suffix="operations:"+request_id,target_batch_id=batch["batch_id"])
         return True

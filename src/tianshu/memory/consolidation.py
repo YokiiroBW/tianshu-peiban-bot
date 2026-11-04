@@ -21,7 +21,7 @@ from . import codec
 from .authority import context_record, request_identity
 from .extraction_contract import MODEL_PROTOCOL, SCHEMA_VERSION, consolidation_example, consolidation_instruction, parse_model_proposal
 from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request, repair_input_estimate, repair_diagnostic, decode_model_json
-from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, closed_episode_split, expand_record_endpoints, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, refresh_read_set
+from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, closed_episode_split, expand_record_endpoints, freeze_dependency_closure, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, refresh_read_set
 from .consolidation_retry import ConsolidationRetries, failure_code
 from .model_outcome import observe_original
 from .preparation import candidate_coverage_reserve
@@ -33,6 +33,8 @@ _OBSERVABLE = _ACTIVE | {"quarantined"}
 LEASE_SECONDS = MODEL_REQUEST_SECONDS + 60
 LEASE_RENEW_SECONDS = 60
 COMMIT_RESERVE_SECONDS = 5
+PREPARATION_DEPENDENCY_WAIT = {"recovery_dependency_cooling", "recovery_dependency_probe_in_progress",
+                               "recovery_claim_in_progress"}
 
 
 def context_from_bound(value):
@@ -97,11 +99,13 @@ class Consolidation:
                 owner=recovery["owner"],expected_version=recovery["version"],
                 current_version=recovery["version"],cancelled=True)
 
-    async def claim_due_recoveries(self):
+    async def claim_due_recoveries(self, *, generation=None):
         policy = self.memory.recovery_policy
         if policy is None:
             return
         async with self.database.transaction() as conn:
+            if generation is not None:
+                await self.jobs.assert_generation_on(conn,generation)
             claims = await policy.claim_due_on(conn,owner="memory",limit=64,lease_seconds=30)
             destinations = []
             for claim in claims:
@@ -164,15 +168,19 @@ class Consolidation:
             await conn.execute("UPDATE memory.consolidation_attempts SET recovery_policy_state=%s "
                 "WHERE batch_id=%s AND step_id=%s",(settled,batch_id,step_id))
 
-    async def _schedule_on(self, conn, partition_id, due, *, suffix=""):
+    async def _schedule_on(self, conn, partition_id, due, *, suffix="", target_batch_id=None):
         state = await (await conn.execute("SELECT partition_id FROM memory.consolidation_state "
             "WHERE partition_id=%s FOR UPDATE", (partition_id,))).fetchone()
         if state is None:
             return None
+        payload = {"partition_id":partition_id}
+        if target_batch_id is not None:
+            payload["batch_id"] = target_batch_id
+        lock = ("memory-consolidate:" + partition_id if target_batch_id is None else
+                "memory-consolidate-batch:" + partition_id + ":" + target_batch_id)
         return await self.jobs.enqueue(conn, JobSpec("memory.consolidate",
             f"memory-consolidate:{partition_id}:{due.isoformat()}:{suffix}:{uuid4()}",
-            {"partition_id": partition_id}, ServiceClass.ELASTIC, scheduled_at=due),
-            queueing_lock="memory-consolidate:" + partition_id)
+            payload, ServiceClass.ELASTIC, scheduled_at=due), queueing_lock=lock)
 
     async def lock_partition_on(self,conn,context,scope_ids):
         scene_id = self.identity.scene_id(context)
@@ -217,7 +225,7 @@ class Consolidation:
         await self._schedule_on(conn, partition_id, due)
         return partition_id
 
-    async def run(self, partition_id):
+    async def run(self, partition_id, *, target_batch_id=None):
         owner = str(uuid4())
         async with self.database.transaction() as conn:
             run_generation = await self.jobs.current_generation_on(conn)
@@ -231,8 +239,11 @@ class Consolidation:
                 return
             held = await (await conn.execute("SELECT batch_id FROM memory.consolidation_batches "
                 "WHERE partition_id=%s AND status='quarantined' AND manifest->>'data_generation'=%s "
+                "AND (%s::text IS NULL OR batch_id=%s) "
                 "ORDER BY COALESCE(retry_due_at,updated_at),batch_id LIMIT 1",
-                (partition_id,run_generation))).fetchone()
+                (partition_id,run_generation,target_batch_id,target_batch_id))).fetchone()
+            if target_batch_id is not None and (not held or state["active_batch_id"]):
+                return
             if not state["active_batch_id"] and state["wake_due_at"] is None and not held:
                 await self.retries.arm_on(conn, partition_id)
                 return
@@ -257,6 +268,8 @@ class Consolidation:
                         return result
                 except (AppError, TimeoutError, OSError, ClientError, ValueError, TypeError) as exc:
                     await self._failure(partition_id, held["batch_id"], exc, owner=owner)
+                if target_batch_id is not None:
+                    return
             if not batch_id and state["wake_due_at"] is None:
                 return
             if not batch_id and state["wake_due_at"] and state["wake_due_at"] > datetime.now(UTC):
@@ -472,15 +485,21 @@ class Consolidation:
             except AppError as exc:
                 if exc.code not in {"memory_consolidation_input_budget","memory_identity_candidates_too_large"}:
                     raise
-                if exc.code != "memory_consolidation_input_budget" or not frozen or part:
+                if exc.code != "memory_consolidation_input_budget" or not frozen:
                     raise
+                if part:
+                    await self._record_closed_component(state,context,owner,batch_id,frozen,exc,
+                        data_generation=data_generation,authority_bound=batch_bound,source_budget=text_ceiling,part=part)
+                    return None
                 if not prefetched:
                     await self.materials.attach_records(context,frozen,reads=reads,budget=budget)
                     prefetched = deepcopy(frozen)
                     closure_frozen = prefetched
                 split = closed_episode_split(closure_frozen)
                 if not split:
-                    raise
+                    await self._record_closed_component(state,context,owner,batch_id,closure_frozen,exc,
+                        data_generation=data_generation,authority_bound=batch_bound,source_budget=text_ceiling)
+                    return None
                 first_ids = {episode["episode_id"] for episode in split[0]}
                 rows = [row for row in rows if row["episode_id"] in first_ids]
         if request:
@@ -503,7 +522,14 @@ class Consolidation:
                         and all(episode["complete"] for episode in reduced["episodes"])):
                     reuse_candidates(reduced, frozen)
                     frozen = reduced
-            request=self._budgeted_request(context,frozen,step_id,metrics=reads.metrics,allow_required_context=False)
+            try:
+                request=self._budgeted_request(context,frozen,step_id,metrics=reads.metrics,allow_required_context=False)
+            except AppError as exc:
+                if exc.code != "memory_consolidation_input_budget" or closed_episode_split(frozen):
+                    raise
+                await self._record_closed_component(state,context,owner,batch_id,frozen,exc,
+                    data_generation=data_generation,authority_bound=batch_bound,source_budget=text_ceiling,part=part)
+                return None
             with reads.metrics.phase("route_ms"):
                 request=replace(request,data_generation=data_generation)
                 request=await native_request(self.steps.models,request)
@@ -577,6 +603,65 @@ class Consolidation:
                     "UPDATE memory.episodes SET extraction_state='running',extraction_started_at=now(),extraction_sources=%s "
                     "WHERE episode_id=%s AND sequence=%s", (Jsonb(episode["source_refs"]), episode["episode_id"],episode["sequence"]))
         return batch_id
+
+    async def _record_closed_component(self, state, context, owner, batch_id, frozen, error, *,
+                                       data_generation, authority_bound, source_budget, part=None):
+        """Retain a source-backed batch when its closed input cannot fit at all."""
+        fixed = frozen_mapping(frozen)
+        dependencies = self.materials.dependencies(frozen)
+        failure = {"reason":"closed_component_exceeds_budget", "stage":"preparation",
+            "original_error_code":error.code, "dependency_closure":fixed.get("dependency_closure"),
+            "configuration":self._input_budget_record(), "required_tokens":(error.details or {}).get("estimated")}
+        manifest = {"frozen":fixed,"episodes":fixed["episodes"],"source_budget":source_budget,
+            "budget":self._budget_record(),"authority_bound":authority_bound,"generation":state["dirty_generation"],
+            "data_generation":data_generation,"steps":{},"context_round":0,"closed_component_failure":failure}
+        if part:
+            manifest["reorganization"]={"root_batch_id":part["root_batch_id"],
+                "parent_batch_id":part["parent_batch_id"],"ordinal":part["ordinal"]}
+        async with self.database.transaction() as conn:
+            await self.jobs.assert_generation_on(conn,data_generation)
+            if not await self.sources.validate_persistence(conn,context,dependencies):
+                raise AppError("source_unavailable",status=403)
+            current = await self._lock_owned_partition(conn,state["partition_id"],owner)
+            if current["active_batch_id"]:
+                raise AppError("memory_consolidation_attempt_changed",status=409)
+            await self.identity.check_context(context,connection=conn)
+            for episode in fixed["episodes"]:
+                row = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",
+                    (episode["episode_id"],))).fetchone()
+                if (not row or not row["active"] or row["revision"] != episode["revision"]
+                        or row["sequence"] != episode["sequence"] or row["extraction_cursor"] != episode["before"]):
+                    raise AppError("memory_consolidation_episode_changed",status=409)
+            if part:
+                root = await (await conn.execute("SELECT manifest FROM memory.consolidation_batches WHERE batch_id=%s",
+                    (part["root_batch_id"],))).fetchone()
+                if not root or root["manifest"].get("data_generation") != data_generation:
+                    raise AppError("job_generation_expired",status=409)
+                if root["manifest"].get("recovery"):
+                    manifest["recovery"] = root["manifest"]["recovery"]
+            await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,"
+                "manifest,read_set,dependency_refs,context_fingerprint,step_ids,error_code) "
+                "VALUES(%s,%s,%s,'failed',%s,%s,%s,%s,ARRAY[]::text[],'closed_component_exceeds_budget')",
+                (batch_id,state["partition_id"],SCHEMA_VERSION,Jsonb(wire(manifest)),Jsonb(wire(fixed["read_set"])),
+                 Jsonb(wire(dependencies)),body_hash(context_record(context))))
+            if part:
+                changed = await (await conn.execute("UPDATE memory.consolidation_reorganization_parts "
+                    "SET state='failed',child_batch_id=%s WHERE parent_batch_id=%s AND ordinal=%s AND state='pending' "
+                    "RETURNING parent_batch_id",(batch_id,part["parent_batch_id"],part["ordinal"]))).fetchone()
+                if not changed:
+                    raise AppError("memory_reorganization_part_changed",status=409)
+            await self.memory.record_batch_statistics_on(conn,batch_id,"failed")
+            for episode in fixed["episodes"]:
+                await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_failed',"
+                    "extraction_started_at=NULL WHERE episode_id=%s",(episode["episode_id"],))
+            pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
+                "AND active AND extraction_state='pending' LIMIT 1",(state["partition_id"],))).fetchone()
+            due = datetime.now(UTC) if pending else None
+            await conn.execute("UPDATE memory.consolidation_state SET last_error='closed_component_exceeds_budget',"
+                "budget_failure=%s,wake_due_at=%s,first_pending_at=%s WHERE partition_id=%s",
+                (Jsonb(failure),due,due,state["partition_id"]))
+            if due:
+                await self._schedule_on(conn,state["partition_id"],due,suffix="closed-component")
 
     def _budget_record(self):
         return {"input_tokens":self.policy.max_input_tokens,"output_tokens":self.policy.max_output_tokens,
@@ -1082,6 +1167,7 @@ class Consolidation:
                 expanded["subjects"][subject_id]={"subject_id":subject_id,"name":subject["display_name"],
                     "kind":subject["kind"],"aliases":list(subject["aliases"]),"revision":subject["revision"]}
                 expanded["targets"].setdefault(subject_id,{"new_material_ids":[]})
+        freeze_dependency_closure(expanded)
         step_id = batch["batch_id"]+":step:1"
         try:
             request = self._request(context,expanded,step_id,context_round=1,requests=outcomes)
@@ -1240,7 +1326,7 @@ class Consolidation:
             "memory_record_unavailable","model_route_binding_changed","model_route_revision_conflict"}
         # All retryable physical outcomes were delegated above. Unclassified
         # errors stay terminal rather than creating another replay policy here.
-        terminal = batch_id is not None or not transient_model_failure(code)
+        terminal = batch_id is not None or not (transient_model_failure(code) or code in PREPARATION_DEPENDENCY_WAIT)
         shrink = False
         async with self.database.transaction() as conn:
             if batch_id:
@@ -1265,6 +1351,12 @@ class Consolidation:
                     split = closed_episode_split(batch_frozen(batch)) if code == "memory_consolidation_output_truncated" else None
                     status = "revoked" if revoked else "stale" if stale else "superseded" if split else "failed"
                     manifest=deepcopy(batch["manifest"])
+                    recorded_code = code
+                    if code == "memory_consolidation_output_truncated" and not split:
+                        recorded_code = "closed_component_exceeds_budget"
+                        manifest["closed_component_failure"] = {"original_error_code":code,
+                            "reason":recorded_code,"dependency_closure":batch_frozen(batch).get("dependency_closure"),
+                            "stage":"model_output"}
                     if split:
                         inherited = manifest.get("reorganization", {})
                         root = inherited.get("root_batch_id") or batch_id
@@ -1285,7 +1377,8 @@ class Consolidation:
                     else:
                         await conn.execute("UPDATE memory.consolidation_reorganization_parts SET state='failed' "
                             "WHERE child_batch_id=%s AND state='active'", (batch_id,))
-                    await conn.execute("UPDATE memory.consolidation_batches SET status=%s,error_code=%s,manifest=%s,retry_due_at=NULL,retry_requested=false,updated_at=now() WHERE batch_id=%s",(status,code,Jsonb(manifest),batch_id))
+                    await conn.execute("UPDATE memory.consolidation_batches SET status=%s,error_code=%s,manifest=%s,retry_due_at=NULL,retry_requested=false,updated_at=now() WHERE batch_id=%s",(status,recorded_code,Jsonb(manifest),batch_id))
+                    code = recorded_code
                     if status == "failed":
                         await self.memory.record_batch_statistics_on(conn,batch_id,"failed")
                     if terminal:
@@ -1341,7 +1434,7 @@ class Consolidation:
                         await self._schedule_on(conn,partition_id,due,suffix="input-failed")
                 else:
                     await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=NULL,first_pending_at=NULL WHERE partition_id=%s",(partition_id,))
-            elif not batch_id and transient_model_failure(code):
+            elif not batch_id and (transient_model_failure(code) or code in PREPARATION_DEPENDENCY_WAIT):
                 due=datetime.now(UTC)+timedelta(seconds=30)
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s WHERE partition_id=%s",(due,partition_id))
                 await self._schedule_on(conn,partition_id,due,suffix="prepare-retry")

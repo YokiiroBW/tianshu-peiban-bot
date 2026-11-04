@@ -41,6 +41,8 @@ class MemoryService:
         self.settings = settings or {}
         from .consolidation import Consolidation
         self.consolidation = Consolidation(self, self.settings.get("consolidation", {}))
+        from .operations_recovery import ConsolidationOperations
+        self.operations = ConsolidationOperations(self)
 
     def bind_conversation(self, conversation):
         self.consolidation.materials.bind_conversation(conversation)
@@ -54,6 +56,12 @@ class MemoryService:
             raise RuntimeError("memory_index_readiness_already_bound")
         self.index_readiness = callback
 
+    def set_operations_guard(self, guard_on):
+        self.operations.guard_on = guard_on
+
+    async def recovery_candidates(self, limit=32):
+        return await self.operations.candidates(limit=limit)
+
     def bind_observability(self, *, statistics, recovery_policy):
         self.statistics, self.recovery_policy = statistics, recovery_policy
 
@@ -66,7 +74,7 @@ class MemoryService:
         event = {"family":"memory", "event_id":"memory-batch:"+batch_id,
             "revision":row["observation_revision"], "occurred_at":wire(datetime.now(UTC)),
             "module":"memory", "actor_id":partition["actor_id"], "route_id":None,
-              "dimensions":{"state":"cancelled" if state == "revoked" else state},
+              "dimensions":{"state":"cancelled" if state in {"revoked","superseded"} else state},
             "metrics":{"memory_applied":int(state == "applied"),"memory_failed":int(state == "failed")}}
         await conn.execute("INSERT INTO memory.statistics_outbox(batch_id,revision,event) VALUES(%s,%s,%s) "
             "ON CONFLICT(batch_id) DO UPDATE SET revision=excluded.revision,event=excluded.event,updated_at=now()",
@@ -75,11 +83,13 @@ class MemoryService:
             await conn.execute("UPDATE memory.statistics_outbox SET published_revision=revision WHERE batch_id=%s",
                 (batch_id,))
 
-    async def backfill_statistics(self, *, limit=128):
+    async def backfill_statistics(self, *, limit=128, generation=None):
         """Reconstruct missing events from the batch ledger and retry its outbox."""
         if self.statistics is None:
             return {"complete":False,"reason":"statistics_not_bound"}
         async with self.database.transaction() as conn:
+            if generation is not None:
+                await self.jobs.assert_generation_on(conn,generation)
             missing = await (await conn.execute("SELECT b.batch_id,b.status FROM memory.consolidation_batches b "
                 "WHERE b.status IN ('applied','failed') AND NOT EXISTS(SELECT 1 FROM memory.statistics_outbox o "
                 "WHERE o.batch_id=b.batch_id) ORDER BY b.updated_at,b.batch_id LIMIT %s FOR UPDATE SKIP LOCKED",

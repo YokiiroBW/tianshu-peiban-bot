@@ -82,6 +82,20 @@ def batch_frozen(batch):
     return (manifest.get("steps", {}).get(steps[-1]) if steps else None) or manifest.get("frozen", {})
 
 
+def freeze_dependency_closure(frozen):
+    """Certify the whole selected input as one component when independence is unknown.
+
+    The component is closed by construction: no input in this batch is outside
+    it. Missing reply edges or different speakers do not prove independence.
+    If a future program-owned partition supplies stronger proof, the split
+    validator still checks all declared source/reply/matter/record edges.
+    """
+    episodes = [item["episode_id"] for item in frozen.get("episodes", ())]
+    frozen["dependency_closure"] = {"version":"memory.dependency-closure.v1", "complete":True,
+        "components":[episodes] if episodes else [], "basis":"unknown_semantics_joined"}
+    return frozen["dependency_closure"]
+
+
 def closed_episode_split(frozen):
     """Find a boundary that does not cut any known input dependency.
 
@@ -99,24 +113,39 @@ def closed_episode_split(frozen):
     proof = frozen.get("dependency_closure") or {}
     components = proof.get("components")
     if (proof.get("complete") is not True or not isinstance(components, list)
+            or len(components) < 2 or proof.get("basis") != "program_isolated"
             or any(not isinstance(component, list) or not component for component in components)):
         return None
     declared = [episode for component in components if isinstance(component, list) for episode in component]
-    if len(declared) != len(positions) or set(declared) != set(positions):
+    if (any(not isinstance(episode,str) for episode in declared) or len(positions) != len(episodes)
+            or len(declared) != len(positions) or set(declared) != set(positions)):
         return None
     materials = frozen.get("materials", {})
+    records = frozen.get("records", {})
+    material_episodes = proof.get("material_episodes")
+    record_episodes = proof.get("record_episodes")
+    if (not isinstance(material_episodes,dict) or set(material_episodes) != set(materials)
+            or not isinstance(record_episodes,dict) or set(record_episodes) != set(records)):
+        return None
+    for coverage in (*material_episodes.values(),*record_episodes.values()):
+        if (not isinstance(coverage,list) or not coverage or any(not isinstance(episode,str) for episode in coverage)
+                or len(set(coverage)) != len(coverage)
+                or any(episode not in positions for episode in coverage)):
+            return None
     edges, source_owners, matter_owners, subjects = [], {}, {}, {}
     for component in components:
         owners = [positions[episode] for episode in component]
         edges.extend((owners[0], other) for other in owners[1:])
     for alias, item in materials.items():
-        owner = positions.get(item.get("episode_id")) if item.get("role") == "new" else None
-        if owner is None:
-            continue
+        owners = [positions[value] for value in material_episodes[alias]]
+        owner = positions.get(item.get("episode_id")) if item.get("role") == "new" else owners[0]
+        if owner is None or item.get("role") == "new" and owner not in owners:
+            return None
+        edges.extend((owner, other) for other in owners if other != owner)
         for ref in item.get("reply_to", ()):
-            other = positions.get(materials.get(ref, {}).get("episode_id"))
-            if other is not None:
-                edges.append((owner, other))
+            if ref not in material_episodes:
+                return None
+            edges.extend((owner,positions[episode]) for episode in material_episodes[ref])
         for ref in item.get("source_refs", ()):
             key = (ref["source_id"], ref["revision"])
             if key in source_owners:
@@ -127,17 +156,38 @@ def closed_episode_split(frozen):
             if matter in matter_owners:
                 edges.append((owner, matter_owners[matter]))
             matter_owners[matter] = owner
-        subjects.setdefault(item.get("coverage_subject_id"), set()).add(owner)
+        if item.get("role") == "new":
+            subjects.setdefault(item.get("coverage_subject_id"), set()).add(owner)
         if _reply_event_ids(item.get("locator")) and not item.get("reply_to"):
             return None
     # An old group-wide record can relate any of the new inputs. A repeated
     # subject's old record also couples all material for that subject.
-    for record in frozen.get("records", {}).values():
+    for alias, record in records.items():
+        owners = [positions[value] for value in record_episodes[alias]]
+        edges.extend((owners[0], other) for other in owners[1:])
         subject = record.get("subject_id")
         if subject is None or str(subject).startswith("group:"):
             return None
-        owners = sorted(subjects.get(subject, ()))
-        edges.extend((owners[0], other) for other in owners[1:])
+        related = sorted(subjects.get(subject, ()))
+        edges.extend((owners[0], other) for other in related)
+        if record.get("kind") == "matter" and record.get("id") in matter_owners:
+            edges.append((owners[0],matter_owners[record["id"]]))
+        for ref in record.get("source_refs", ()):
+            key = (ref["source_id"],ref["revision"])
+            if key in source_owners:
+                edges.append((owners[0],source_owners[key]))
+            source_owners[key] = owners[0]
+        for relation in record.get("relations", ()):
+            for side in ("from_ref","to_ref"):
+                endpoint = relation.get(side)
+                if endpoint not in record_episodes:
+                    return None
+                edges.extend((owners[0],positions[episode]) for episode in record_episodes[endpoint])
+            for ref in relation.get("source_refs", ()):
+                key = (ref["source_id"],ref["revision"])
+                if key in source_owners:
+                    edges.append((owners[0],source_owners[key]))
+                source_owners[key] = owners[0]
     boundaries = [index for index in range(1, len(episodes))
                   if all((left < index) == (right < index) for left, right in edges)]
     if not boundaries:
@@ -712,6 +762,7 @@ class MaterialBuilder:
             "episodes": episodes}
         if include_records:
             await self.attach_records(context,frozen,reads=reads,budget=budget)
+        freeze_dependency_closure(frozen)
         return frozen
 
     async def attach_records(self,context,frozen,*,reads=None,budget=None):
@@ -744,6 +795,7 @@ class MaterialBuilder:
                 added.append(subject_id)
         frozen["candidate_subject_ids"]=added
         refresh_read_set(frozen)
+        freeze_dependency_closure(frozen)
         return frozen
 
     async def old_records(self, context, subjects, matter_ids, materials, *, budget=None,reads=None):

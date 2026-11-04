@@ -2,7 +2,8 @@
 
 from datetime import UTC, datetime
 
-from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.errors import AppError
+from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.types import ServiceClass
 
 
@@ -13,30 +14,13 @@ class MemoryWorkers:
         self.consolidation = memory.consolidation
         self.consolidation.bind_execution(steps, assembler.counter)
         from .recovery import ConsolidationRecovery
-        self.recovery = ConsolidationRecovery(memory, steps)
+        self.recovery = ConsolidationRecovery(memory)
         memory.pipeline_recovery=self.recovery
         from .index_jobs import IndexJobs
         self.index_jobs = IndexJobs(self)
 
-    async def consolidate(self, partition_id):
-        return await self.consolidation.run(partition_id)
-
-    async def extract(self, episode_id, sequence):
-        # Only a compatibility queue handler for already-enqueued keys. It never generates
-        # another single-Episode request or replays an original input.
-        return await self.recovery.convert_episode(episode_id, sequence)
-
-    async def observe_legacy(self, batch_id):
-        async with self.database.transaction(read_only=True) as conn:
-            batch = await (await conn.execute(
-                "SELECT * FROM memory.consolidation_batches WHERE batch_id=%s AND schema_version=%s AND status='waiting_model'",
-                (batch_id,"memory.legacy-extraction.v0"))).fetchone()
-        if batch:
-            return await self.recovery.observe_legacy(batch)
-
-    async def index(self, claim_id, revision, generation=None):
-        """Finite adapter for already-queued pre-cutover Claim jobs."""
-        return await self.index_object("claim", claim_id, revision, generation=generation)
+    async def consolidate(self, partition_id, batch_id=None):
+        return await self.consolidation.run(partition_id,target_batch_id=batch_id)
 
     async def index_object(self, kind, id, revision, generation=None):
         return await self.index_jobs.index_object(kind, id, revision, generation=generation)
@@ -44,13 +28,22 @@ class MemoryWorkers:
     async def index_retry(self, index_id, completed_attempt_id=None, generation=None):
         return await self.index_jobs.run(index_id, completed_attempt_id=completed_attempt_id, generation=generation)
 
-    async def recover(self):
-        await self.recovery.recover()
-        await self.index_jobs.recover()
-        await self.consolidation.claim_due_recoveries()
+    async def recover(self, generation=None):
+        executing = current_execution_generation()
+        if executing and generation is not None and generation != executing:
+            raise AppError("job_generation_expired",status=409)
+        generation = executing or generation
+        if generation is None:
+            # A directly invoked fresh maintenance scan starts in the current
+            # installation; a queued wake always carries its original one.
+            async with self.database.transaction(read_only=True) as conn:
+                generation = await self.memory.jobs.current_generation_on(conn)
+        await self.index_jobs.recover(generation)
+        await self.consolidation.claim_due_recoveries(generation=generation)
         if self.memory.statistics is not None:
-            await self.memory.backfill_statistics()
+            await self.memory.backfill_statistics(generation=generation)
         async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn,generation)
             rows = await (await conn.execute(
                 "SELECT partition_id FROM memory.consolidation_state WHERE "
                 "(active_batch_id IS NOT NULL OR wake_due_at<=now() OR EXISTS(SELECT 1 "
@@ -62,6 +55,7 @@ class MemoryWorkers:
             # Recovery and new input share the partition row lock, without one
             # recovery transaction retaining locks on every scanned partition.
             async with self.database.transaction() as conn:
+                await self.memory.jobs.assert_generation_on(conn,generation)
                 current = await (await conn.execute(
                     "SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s "
                     "AND (active_batch_id IS NOT NULL OR wake_due_at<=now() OR EXISTS(SELECT 1 "
@@ -76,7 +70,9 @@ class MemoryWorkers:
                     else:
                         await self.consolidation.retries.arm_on(conn,row["partition_id"])
         async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn,generation)
             now = datetime.now(UTC)
             bucket = int(now.timestamp())//30+1
-            await self.memory.jobs.enqueue(conn, JobSpec("memory.recover", "memory-recovery:"+str(bucket),
-                {}, ServiceClass.DUE, scheduled_at=datetime.fromtimestamp(bucket*30,UTC)))
+            await self.memory.jobs.enqueue(conn, JobSpec("memory.recover", f"memory-recovery:{generation}:{bucket}",
+                {"generation":generation}, ServiceClass.DUE, scheduled_at=datetime.fromtimestamp(bucket*30,UTC),
+                data_generation=generation))

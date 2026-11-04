@@ -5,7 +5,7 @@ from copy import deepcopy
 import pytest
 
 from tianshu.memory.extraction_contract import MODEL_PROTOCOL
-from tianshu.memory.materials import closed_episode_split, partition_identity
+from tianshu.memory.materials import closed_episode_split, freeze_dependency_closure, partition_identity
 from tianshu.memory.proposal import compile_proposal
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
@@ -114,9 +114,12 @@ def test_reorganization_does_not_cut_replies_sources_matters_or_shared_old_recor
                        "source_refs": [{"source_id": "s1", "revision": 1}]},
                 "m2": {"role": "new", "episode_id": "e2", "coverage_subject_id": "b", "reply_to": [],
                        "source_refs": [{"source_id": "s2", "revision": 1}]}}, "records": {},
-            "dependency_closure": {"complete": True, "components": [["e1"], ["e2"]]}}
+            "dependency_closure": {"complete": True, "basis":"program_isolated",
+                "components": [["e1"], ["e2"]],
+                "material_episodes":{"m1":["e1"],"m2":["e2"]}, "record_episodes":{}}}
     assert closed_episode_split(data) is not None
-    for mutation in ("reply", "source", "matter", "record", "incomplete", "unknown_closure"):
+    for mutation in ("reply", "source", "matter", "record", "record_source", "record_relation",
+                     "incomplete", "unknown_closure", "missing_coverage"):
         candidate = deepcopy(data)
         if mutation == "reply":
             candidate["materials"]["m2"]["reply_to"] = ["m1"]
@@ -126,11 +129,29 @@ def test_reorganization_does_not_cut_replies_sources_matters_or_shared_old_recor
             candidate["materials"]["m1"]["matter_id"] = candidate["materials"]["m2"]["matter_id"] = "same"
         elif mutation == "record":
             candidate["records"]["r1"] = {"subject_id": "group:g"}
+        elif mutation == "record_source":
+            candidate["records"]["r1"] = {"subject_id":"a","source_refs":[{"source_id":"s2","revision":1}]}
+            candidate["dependency_closure"]["record_episodes"]["r1"] = ["e1"]
+        elif mutation == "record_relation":
+            candidate["records"].update(r1={"subject_id":"a","relations":[{"from_ref":"r1","to_ref":"r2"}]},
+                                        r2={"subject_id":"b"})
+            candidate["dependency_closure"]["record_episodes"].update(r1=["e1"],r2=["e2"])
         elif mutation == "incomplete":
             candidate["episodes"][0]["complete"] = False
+        elif mutation == "missing_coverage":
+            del candidate["dependency_closure"]["material_episodes"]["m2"]
         else:
             del candidate["dependency_closure"]
         assert closed_episode_split(candidate) is None
+
+
+def test_unproven_semantic_independence_freezes_the_entire_input_as_one_component():
+    frozen_input = {"episodes":[{"episode_id":"e1","complete":True},{"episode_id":"e2","complete":True}],
+                    "materials":{},"records":{}}
+    proof = freeze_dependency_closure(frozen_input)
+    assert proof["complete"] and proof["components"] == [["e1","e2"]]
+    assert proof["basis"] == "unknown_semantics_joined"
+    assert closed_episode_split(frozen_input) is None
 
 
 def test_partition_is_the_stable_scene_and_keeps_authority_separate():

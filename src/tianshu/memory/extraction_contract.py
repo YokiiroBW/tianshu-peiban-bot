@@ -1,6 +1,5 @@
 """One bounded, source-backed consolidation protocol and its generated model schema."""
 
-from copy import deepcopy
 from datetime import datetime
 import json
 
@@ -368,34 +367,3 @@ def consolidation_instruction(frozen):
         "重复转述不算独立支持，不为配额造事实。\n"
         "输出Schema：" + json.dumps(schema, ensure_ascii=False, separators=(",", ":"))
     )
-
-
-def extraction_schema(allowed_subject_ids):
-    """Legacy schema is restricted to already recorded, pre-cutover ModelSteps."""
-    return legacy_extraction_schema(allowed_subject_ids)
-
-
-def legacy_extraction_schema(allowed_subject_ids):
-    source_indexes = {"type": "array", "minItems": 1, "maxItems": 8,
-                      "items": {"type": "integer", "minimum": 0}}
-    claim = {"subject_id": {"enum": sorted(allowed_subject_ids)},
-             "predicate": {"type": "string", "pattern": "^(?:" + CLAIM_PREDICATE_PATTERN + r")$(?![\s\S])"},
-             "value": {}, "assertion": {"enum": ["self_confirmed", "reported", "quoted", "inferred", "observed"]},
-             "polarity": {"type": "boolean"}, "conditions": {"type": "object"},
-             "valid_from": {"type": ["string", "null"]}, "valid_until": {"type": ["string", "null"]},
-             "source_indexes": source_indexes}
-    matter = {"matter_id": _text(512), "subject_id": {"enum": sorted(allowed_subject_ids)},
-              "title": _text(1000), "state": {"enum": ["planned", "active", "rescheduled", "cancelled", "uncertain"]},
-              "due_at": {"type": ["string", "null"]}, "summary": _text(8000, minimum=0),
-              "conditions": {"type": "object"}, "source_indexes": source_indexes}
-    return _object({"claims": {"type": "array", "maxItems": 64,
-        "items": _object(claim, ["subject_id", "predicate", "value", "source_indexes"])},
-        "matters": {"type": "array", "maxItems": 16,
-        "items": _object(matter, ["matter_id", "subject_id", "title", "state", "source_indexes"])}})
-
-
-def extraction_instruction(schema):
-    """Kept only to interpret finite legacy fixtures; new work uses consolidation_instruction."""
-    return ("已退役的单Episode抽取合同；不得用于新模型请求。禁止为了满足enum把事实改绑给用户、群或角色。"
-            "无对应主体时返回claims:[]、matters:[]，原始工具观测仍保留。\n"
-            + json.dumps(deepcopy(schema), ensure_ascii=False))

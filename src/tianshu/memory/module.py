@@ -188,11 +188,8 @@ def create_module(memory, retrieval, workers, identity):
         route("extraction/status",lambda ctx,body:memory.extraction_status(ctx,body["episode_id"]))
 
     def tasks(queue, _runtime):
-        queue.register("memory.extract", workers.extract, retryable=False)
         queue.register("memory.consolidate", workers.consolidate, retryable=False)
-        queue.register("memory.observe_legacy", workers.observe_legacy, retryable=False)
         queue.register("memory.index_object", workers.index_object, retryable=False)
-        queue.register("memory.index", workers.index, retryable=False)
         queue.register("memory.index_retry", workers.index_retry, retryable=False, execution_lane=ExecutionLane.MEMORY_INDEX)
         queue.register("memory.recover", workers.recover, retryable=True)
 
@@ -200,10 +197,12 @@ def create_module(memory, retrieval, workers, identity):
         if runtime.role == "bot-background":
             async with runtime.database.transaction() as conn:
                 bucket = int(datetime.now(UTC).timestamp()) // 30
+                generation = await runtime.jobs.current_generation_on(conn)
                 await runtime.jobs.enqueue(
                     conn,
                     JobSpec(
-                        "memory.recover", "memory-recovery:" + str(bucket), {}, ServiceClass.DUE
+                        "memory.recover", f"memory-recovery:{generation}:{bucket}",
+                        {"generation":generation}, ServiceClass.DUE, data_generation=generation
                     ),
                 )
 

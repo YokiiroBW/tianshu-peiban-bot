@@ -99,6 +99,19 @@ class InvalidOnceModel(RecordedModel):
         return receipt
 
 
+class InvalidUntilAllowedModel(RecordedModel):
+    def __init__(self):
+        super().__init__()
+        self.allow = False
+
+    async def submit(self, request, *, completion):
+        receipt = await super().submit(request,completion=completion)
+        if not self.allow:
+            result = self.results[request.attempt_id]
+            self.results[request.attempt_id] = replace(result,parts=(ModelPart("text",text="{}"),))
+        return receipt
+
+
 class StatisticsProbe:
     def __init__(self):
         self.allow = False
@@ -356,6 +369,10 @@ async def test_truncated_batch_without_proven_closure_is_not_split(core, ordinar
     await core.workers.consolidate(partition)
     _, parent = await batch_for(core, first.episode_id)
     assert parent["status"] == "failed"
+    assert parent["error_code"] == "closed_component_exceeds_budget"
+    assert parent["manifest"]["closed_component_failure"]["original_error_code"] == "memory_consolidation_output_truncated"
+    assert parent["manifest"]["frozen"]["dependency_closure"]["components"] == [[first.episode_id,second.episode_id]]
+    assert (await core.memory.extraction_status(alice,first.episode_id))["action"] == "configure_budget"
     with pytest.raises(AppError, match="memory_consolidation_batch_terminal"):
         await core.memory.consolidation._apply(parent, alice, batch_frozen(parent), consolidation_example(batch_frozen(parent)))
     async with core.database.transaction(read_only=True) as conn:
@@ -366,6 +383,113 @@ async def test_truncated_batch_without_proven_closure_is_not_split(core, ordinar
     assert not parts
     assert all(row["extraction_state"] == "consolidation_failed" for row in rows)
     assert len(model.submissions) == 1
+
+
+async def test_input_capacity_failure_keeps_the_whole_frozen_component_without_a_model_receipt(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = RecordedModel()
+    configure(core,model)
+    policy = replace(core.memory.consolidation.policy,max_input_tokens=32)
+    core.memory.consolidation.policy = policy
+    core.memory.consolidation.materials.policy = policy
+    item = await episode(core,alice,"rb-input-capacity")
+    partition, _ = await batch_for(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, failed = await batch_for(core,item.episode_id)
+    assert failed["status"] == "failed" and failed["error_code"] == "closed_component_exceeds_budget"
+    assert failed["manifest"]["closed_component_failure"]["stage"] == "preparation"
+    assert failed["manifest"]["frozen"]["dependency_closure"]["components"] == [[item.episode_id]]
+    assert failed["manifest"]["episodes"][0]["source_refs"] and not failed["step_ids"]
+    assert not model.submissions
+    assert (await core.memory.extraction_status(alice,item.episode_id))["action"] == "configure_budget"
+
+
+async def test_budget_change_retries_the_whole_component_on_its_original_lineage(core, ordinary_users):
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    alice, _ = ordinary_users
+    model = TruncatedOnceModel()
+    configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    first = await episode(core,alice,"rb-budget-retry-a")
+    second = await episode(core,alice,"rb-budget-retry-b")
+    partition, _ = await batch_for(core,first.episode_id)
+    await core.workers.consolidate(partition)
+    _, parent = await batch_for(core,first.episode_id)
+    assert parent["error_code"] == "closed_component_exceeds_budget" and len(model.submissions) == 1
+    lineage_id = parent["manifest"]["recovery"]["lineage_id"]
+    policy = replace(core.memory.consolidation.policy,
+        max_output_tokens=core.memory.consolidation.policy.max_output_tokens+4096)
+    core.memory.consolidation.policy = policy
+    core.memory.consolidation.materials.policy = policy
+    async with core.database.transaction() as conn:
+        result = await core.memory.pipeline_recovery.resume_on(conn,alice,{"episode_id":first.episode_id,
+            "expected_revision":first.revision,"client_request_id":"rb-budget-retry"})
+        root = await (await conn.execute("SELECT status FROM memory.consolidation_batches WHERE batch_id=%s",
+            (parent["batch_id"],))).fetchone()
+        parts = await (await conn.execute("SELECT episodes FROM memory.consolidation_reorganization_parts "
+            "WHERE parent_batch_id=%s",(parent["batch_id"],))).fetchall()
+        lineage = await (await conn.execute("SELECT attempts FROM runtime.recovery_lineages WHERE lineage_id=%s",
+            (lineage_id,))).fetchone()
+    assert result.data["queued"] and root["status"] == "superseded" and len(parts) == 1
+    assert {value["episode_id"] for value in parts[0]["episodes"]} == {first.episode_id,second.episode_id}
+    assert lineage["attempts"] == 1 and len(model.submissions) == 1
+    await core.workers.consolidate(partition)
+    _, child = await batch_for(core,first.episode_id)
+    async with core.database.transaction(read_only=True) as conn:
+        lineage = await (await conn.execute("SELECT attempts FROM runtime.recovery_lineages WHERE lineage_id=%s",
+            (lineage_id,))).fetchone()
+    assert child["status"] == "applied" and child["manifest"]["recovery"]["lineage_id"] == lineage_id
+    assert lineage["attempts"] == 2 and len(model.submissions) == 2
+
+
+async def test_operations_recovery_guards_the_original_batch_and_never_replays_unknown(core, ordinary_users):
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    alice, _ = ordinary_users
+    model = InvalidUntilAllowedModel()
+    configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    item = await episode(core,alice,"rb-operations-recovery")
+    partition, _ = await batch_for(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, failed = await batch_for(core,item.episode_id)
+    assert failed["status"] == "failed" and len(model.submissions) == 2
+    target = {"kind":"memory_batch","id":failed["batch_id"]}
+    facts = await core.memory.operations.inspect(None,target)
+    assert facts["eligible"] and facts["mode"] == "resume_semantic"
+    candidates = await core.memory.recovery_candidates()
+    assert any(value["target"] == target for value in candidates)
+    last_id = model.submissions[-1][0].attempt_id
+    original = model.results[last_id]
+    model.results[last_id] = replace(original,receipt=replace(original.receipt,status="unknown"))
+    unknown = await core.memory.operations.inspect(None,target)
+    assert not unknown["eligible"] and unknown["original_state"] == "unknown"
+    assert len(model.submissions) == 2
+    model.results[last_id] = original
+
+    async def lost_guard(_conn,_attempt_id,_owner_token):
+        raise AppError("recovery_owner_lost",status=409)
+
+    core.memory.set_operations_guard(lost_guard)
+    with pytest.raises(AppError,match="recovery_owner_lost"):
+        await core.memory.operations.invoke({"owner_token":"owner"},target,facts,"ops-one")
+    _, unchanged = await batch_for(core,item.episode_id)
+    assert unchanged["status"] == "failed" and len(model.submissions) == 2
+
+    async def guard(conn,attempt_id,owner_token):
+        assert attempt_id == "ops-one" and owner_token == "owner"
+        await conn.execute("SELECT 1")
+
+    core.memory.set_operations_guard(guard)
+    accepted = await core.memory.operations.invoke({"owner_token":"owner"},target,facts,"ops-one")
+    assert accepted["state"] == "accepted" and len(model.submissions) == 2
+    async with core.database.transaction(read_only=True) as conn:
+        lineage = await (await conn.execute("SELECT attempts FROM runtime.recovery_lineages WHERE lineage_id=%s",
+            (facts["lineage_id"],))).fetchone()
+    assert lineage["attempts"] == 2
+    model.allow = True
+    await core.workers.consolidate(partition,batch_id=failed["batch_id"])
+    observed = await core.memory.operations.observe(None,target,facts,"ops-one")
+    assert observed["state"] == "verified" and len(model.submissions) == 3
 
 
 async def test_withdrawing_non_support_input_invalidates_generated_claim(core, ordinary_users):
