@@ -280,3 +280,23 @@ async def test_diagnostics_exposes_filters_redacted_export_and_incremental_metad
     changes = await diagnostics.log_changes(limit=10)
     assert [row["level"] for row in changes["entries"]] == ["WARNING", "ERROR"]
     assert all("message" not in row and "body" not in row for row in changes["entries"])
+
+
+async def test_failure_identifiers_reach_incremental_reader_without_receipt_content(tmp_path):
+    log = EventLog(tmp_path, "independent")
+    await log.open()
+    await log.emit("capability.failed", "failed", module="capabilities",
+                   material_id="action-123", failure_id="attempt-456", attempt_id="attempt-456")
+    # Only opaque identity strings are accepted for the new references; a
+    # mistakenly supplied receipt object must never be serialized as an ID.
+    await log.emit("capability.failed", "failed", module="capabilities",
+                   material_id={"receipt": "private-result"}, failure_id="{private-result}")
+    await log.close()
+
+    changes = LogQuery(tmp_path).changes()
+    assert changes["entries"][0]["event"] == "capability.failed"
+    assert changes["entries"][0]["material_id"] == "action-123"
+    assert changes["entries"][0]["failure_id"] == "attempt-456"
+    assert changes["entries"][1]["material_id"] is None
+    assert changes["entries"][1]["failure_id"] is None
+    assert "private-result" not in log.path.read_text(encoding="utf-8")

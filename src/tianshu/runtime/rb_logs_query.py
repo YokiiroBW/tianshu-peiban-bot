@@ -452,7 +452,8 @@ class LogQuery:
                     fields = ("timestamp", "event_id", "instance_id", "sequence", "service", "role",
                               "event", "level", "module", "outcome", "trace_id", "correlation_id",
                               "job_id", "attempt_id", "task_name", "route", "method", "status",
-                              "duration_ms", "error_code", "error_family", "dependency_ref")
+                              "duration_ms", "error_code", "error_family", "dependency_ref",
+                              "material_id", "failure_id")
                     metadata = {}
                     for name in fields:
                         if name not in row:

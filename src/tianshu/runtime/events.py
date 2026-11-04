@@ -9,6 +9,7 @@ import math
 import os
 from pathlib import Path
 import queue
+import re
 import threading
 from uuid import uuid4
 
@@ -17,7 +18,8 @@ from .errors import AppError
 EVENTS = frozenset({"runtime.starting", "runtime.started", "runtime.stopping", "runtime.stopped",
     "runtime.failed", "http.started", "http.finished", "http.failed", "model.queued",
     "model.submitted", "model.finished", "model.cancelled", "resource.queued", "resource.submitted",
-    "resource.finished", "job.started", "job.finished", "job.failed", "job.routing_blocked", "config.changed"})
+    "resource.finished", "job.started", "job.finished", "job.failed", "job.routing_blocked", "config.changed",
+    "capability.failed"})
 OUTCOMES = frozenset({"started", "succeeded", "failed", "cancelled", "unknown", "rejected", "degraded"})
 
 
@@ -26,6 +28,13 @@ def _identity(value, limit=128):
         return None
     value = str(value)
     if len(value) > limit or any(ord(character) < 32 for character in value):
+        return None
+    return value
+
+
+def _reference_id(value):
+    # These fields identify a persisted action/failure, never a receipt body.
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_.:-]{1,128}", value):
         return None
     return value
 
@@ -126,7 +135,7 @@ class EventLog:
     async def emit(self, event, outcome, *, correlation_id=None, attempt_id=None,
                    duration_ms=None, error_code=None, route=None, method=None, status=None,
                    task_name=None, job_id=None, level=None, module=None, trace_id=None,
-                   error_family=None, dependency_ref=None):
+                   error_family=None, dependency_ref=None, material_id=None, failure_id=None):
         if event not in EVENTS or outcome not in OUTCOMES:
             raise ValueError("unregistered_runtime_event")
         if error_code is not None:
@@ -148,6 +157,7 @@ class EventLog:
             if type(duration_ms) in {int, float} and math.isfinite(duration_ms) else None,
             "error_code": error_code, "error_family": _identity(error_family or error_code, 96),
             "dependency_ref": _identity(dependency_ref),
+            "material_id": _reference_id(material_id), "failure_id": _reference_id(failure_id),
             "route": route[:256] if isinstance(route, str) else None,
             "method": method if method in {"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"} else None,
             "status": status if type(status) is int else None,
