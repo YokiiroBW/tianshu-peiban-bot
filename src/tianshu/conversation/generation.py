@@ -158,28 +158,6 @@ class GenerationRequests:
             raise AppError("source_unavailable", status=409)
         return request_from_wire(row["request"])
 
-    async def pending_materials(self, context, *, prefix, after=None, limit=128):
-        """Bounded original-intent inventory for a domain's one-time recovery.
-
-        A claimed intent does not imply any execution result. Consumers observe
-        Models with each original request's context and original attempt ID.
-        Actor, principal and the entire authorized scope set must still match;
-        person/conversation may differ from the latest domain checkpoint.
-        """
-        limit = min(128, max(1, int(limit)))
-        scopes = document(sorted(context.scope_ids))
-        async with self.database.transaction(read_only=True) as connection:
-            rows = await (await connection.execute(
-                "SELECT material_key,attempt_id,request,state,created_at FROM conversation.generation_requests "
-                "WHERE left(material_key,length(%s))=%s AND (%s::text IS NULL OR material_key>%s) "
-                "AND (((request->'context'->>'principal_id')=%s AND (request->'context'->>'actor_id')=%s "
-                "AND (request->'context'->'scope_ids') @> %s::jsonb "
-                "AND %s::jsonb @> (request->'context'->'scope_ids')) "
-                "OR (request IS NULL AND context_key=%s)) ORDER BY material_key LIMIT %s",
-                (prefix, prefix, after, after, context.principal_id, context.actor_id,
-                 scopes, scopes, self.context_key(context), limit))).fetchall()
-        return tuple({**row, "request": request_from_wire(row["request"]) if row["request"] is not None else None}
-                     for row in rows)
 
     @staticmethod
     def context_key(context):

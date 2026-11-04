@@ -1,8 +1,8 @@
 -- Incremental upgrade: existing object IDs and unknown recording times are retained.
 ALTER TABLE memory.claim_revisions
     ADD COLUMN recorded_at timestamptz,
-    ADD COLUMN change_kind text NOT NULL DEFAULT 'legacy'
-        CHECK (change_kind IN ('create','reinforce','correct','transition','retract','legacy')),
+    ADD COLUMN change_kind text NOT NULL DEFAULT 'create'
+        CHECK (change_kind IN ('create','reinforce','correct','transition','retract')),
     ADD COLUMN memory_kind text NOT NULL DEFAULT 'fact' CHECK (memory_kind IN ('fact','hypothesis')),
     ADD COLUMN current_status text NOT NULL DEFAULT 'current'
         CHECK (current_status IN ('current','history_only','retracted')),
@@ -24,7 +24,7 @@ ALTER TABLE memory.episodes
     ADD COLUMN semantic_fingerprint text;
 ALTER TABLE memory.matters
     ADD COLUMN recorded_at timestamptz,
-    ADD COLUMN change_kind text NOT NULL DEFAULT 'legacy',
+    ADD COLUMN change_kind text NOT NULL DEFAULT 'create',
     ADD COLUMN change_reason text NOT NULL DEFAULT '',
     ADD COLUMN completion_basis jsonb,
     ADD COLUMN support_groups jsonb NOT NULL DEFAULT '[]',

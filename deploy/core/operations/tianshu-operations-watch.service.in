@@ -1,0 +1,16 @@
+[Unit]
+Description=TianShu independent host observations
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=10001
+Group=10001
+ExecStart=/usr/bin/python3 @SCRIPT@ --config @CONFIG@
+Restart=on-failure
+RestartSec=5
+UMask=0077
+
+[Install]
+WantedBy=multi-user.target

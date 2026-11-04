@@ -201,7 +201,7 @@ async def run(settings, role, *, initialize=False):
         await database.open()
         stack.push_async_callback(database.close)
         if initialize:
-            await migrate(database, product_migrations(jobs))
+            await migrate(database, product_migrations())
             return
         access = None
         if role == "interactive":

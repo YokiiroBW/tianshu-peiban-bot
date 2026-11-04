@@ -7,6 +7,14 @@ generation, then starts `python3 host_watch.py --config /absolute/config.json`
 under the host's normal service manager. `host-watch.example.json` is an empty
 template; it deliberately contains no recipients, container names or secrets.
 
+For the shared-container deployment, the supplied service template uses UID/GID
+10001, matching the application. Create the shared spool with that owner and
+point both configurations to the same host/container directory. Its private
+0600 files must be readable and removable by both processes. With an empty
+`targets` list, heartbeat and database reachability checks need no Docker
+socket access. Substitute the absolute script and configuration paths before
+installing the service.
+
 Each optional `targets` entry has `role`, `container`, `generation`, and
 `restart_on_stopped`. The role must be one of interactive, model-broker,
 bot-foreground, bot-background, independent, operations. Automatic start is

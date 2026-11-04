@@ -29,7 +29,7 @@ async def test_actual_product_has_one_artifact_owner_and_complete_registrations(
         tmp_path,
     )
     jobs = JobQueue(database.config.dsn, database=database)
-    await migrate(database, product_migrations(jobs))
+    await migrate(database, product_migrations())
     runtime = RuntimeServices(
         database,
         jobs,

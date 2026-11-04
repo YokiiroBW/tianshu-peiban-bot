@@ -73,10 +73,6 @@ async def test_withdrawal_clears_frozen_generation_text_without_resubmission(dat
     assert row["request"] is None
     assert row["state"] == "invalidated"
     assert row["attempt_id"] == attempt_for("private-material")
-    (material,) = await generations.pending_materials(context, prefix="private-")
-    assert material["request"] is None
-    assert material["state"] == "invalidated"
-    assert await generations.pending_materials(replace(context, person_id="another"), prefix="private-") == ()
     with pytest.raises(AppError,match="source_unavailable"):
         await generations.run("private-material",request("private-material",context))
     assert len(models.calls) == 1
@@ -155,24 +151,6 @@ async def test_expired_business_request_observes_unknown_original_without_submis
     assert await generations.request(original.attempt_id, context) == original
 
 
-@pytest.mark.asyncio
-async def test_original_inventory_matches_scope_set_without_replacing_frozen_context(database):
-    context = replace(await prepare(database), scope_ids=("private", "shared"))
-    models = Models()
-    generations = GenerationRequests(database, Sources(), models)
-    original = request("organize:fixed", context)
-    with pytest.raises(TimeoutError):
-        await generations.run(original.intent_id, original)
-    latest = replace(context, scope_ids=("shared", "private"), person_id="later-person",
-                     conversation_id="later-conversation")
-    (material,) = await generations.pending_materials(latest, prefix="organize:")
-    assert material["attempt_id"] == original.attempt_id
-    assert material["request"].context == original.context
-    assert material["request"].budget.trace_id == original.budget.trace_id
-    for scopes in ((), ("private",), ("private", "shared", "other")):
-        assert await generations.pending_materials(replace(latest, scope_ids=scopes), prefix="organize:") == ()
-    assert len(models.calls) == 1
-    assert models.observations == []
 
 
 @pytest.mark.asyncio
