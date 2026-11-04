@@ -30,3 +30,10 @@
 - 映射配置修好后调用 Runtime 新的 `update_version_on(..., resume_due=True)`，在同一 lineage 和已用预算内重新安排 due，保留原错误分类和失败回执；需主协调纳入 Runtime 的 `rb_recovery_change.sql` 并做跨域集中验证。
 - 本卡未合入其他工作包，`Actions` 实际外发与 `Growth` 延迟统计等跨域写入的数据代际围栏需主协调与各拥有者联合核实。现有旧同步模型夹具及测试替身也需在集中验证时对齐新公共接口。
 - 本窗口只做静态 diff 与 Python AST 检查，按授权未运行测试、构建、烟测、真实模型或 QQ，未部署、清理或触碰生产。集成后必须验证真实消息、旧桥接 journal、晚到附件/撤回、原始回执、配置修复重试、实际模型/工具/部分发送，以及统计账本回填；不能把本地代码或健康探针当作真实业务通过。
+
+## RB-19 输入与学习状态补充
+
+- `DialogueResult.input_status` 按原输入 `input_id/event_id/event_revision` 列出 `context.selection` 与各次 `attempts`；某次输入实际提交须同时满足 `selected=true` 和 `dispatch=submitted`。没有选材或派发证据时为 `not_recorded`；`reply_compliance` 为 `not_recorded`，不推断模型遵守或用户认可。
+- `learning` 通过 Growth 公开的 `input_learning_status(context, *, inputs=...)` 按原身份批量读取。`state=reviewed` 只表示输入已整理；`revision_state=applied` 需要 Growth 返回精确的 `revision_evidence`。未返回记录为 `not_recorded`，读取失败或合同不符为 `unavailable`；不直接访问 Growth 私表。
+- 自然语言输入没有可信的逐条纠正分类，界面应按“输入进入请求”和“输入的学习/规则修订状态”呈现，不把所有输入标成纠正。对话已结束但学习状态仍待处理时，页面需继续刷新；具体结果以 Growth 已授权的实际证据为准。
+- 本增量随本文件同提交；新增针对多轮/合并输入和学习证据的回归用例，但本窗口不执行测试或构建，由主协调集中验证并装配 Growth 正式接口。

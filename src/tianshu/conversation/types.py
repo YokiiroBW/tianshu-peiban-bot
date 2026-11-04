@@ -76,6 +76,7 @@ class DialogueResult:
     token_usage: Mapping[str, Any] | None = None
     provider_usage: Mapping[str, Any] | None = None
     flow: Mapping[str, Any] | None = None
+    input_status: tuple[Mapping[str, Any], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

@@ -454,20 +454,33 @@ class ConversationService:
             selections = await (await connection.execute(
                 "SELECT attempt_id,round,selection,token_usage,model_receipt,model_result FROM conversation.context_selections "
                 "WHERE turn_id=%s ORDER BY round,created_at", (turn_id,))).fetchall()
+            inputs = await (await connection.execute(
+                "SELECT turn_id AS input_id,event_id,event_revision FROM conversation.turns "
+                "WHERE actor_id=%s AND conversation_id=%s AND (turn_id=%s OR merged_into=%s) ORDER BY sequence",
+                (context.actor_id, context.conversation_id, turn_id, turn_id))).fetchall() if row else []
         if not row:
             raise AppError("turn_not_found", status=404)
         await self.identity.check(context, source_refs(row["source_refs"]))
         expression = await self.expression.get(context, row["expression_id"]) if row["expression_id"] else None
         selection = selections[-1] if selections else None
         from .flow import dialogue_flow
+        from .input_status import attach_learning_status, input_context_status
         flow = dialogue_flow(row, selections, links, expression, expression)
+        input_status = input_context_status(inputs, selections)
+        try:
+            async with asyncio.timeout(2.0):
+                learning = await self.growth.input_learning_status(context, inputs=tuple(inputs))
+            attach_learning_status(input_status, learning)
+        except Exception:
+            for item in input_status:
+                item["learning"] = {"state": "unavailable", "revision_state": "not_recorded"}
         manifest = (tuple(item if item.get("selected") else {**item, "source_refs": []}
                           for item in selection["selection"]) if selection else None)
         provider_usage = (selection["model_receipt"] or {}).get("usage") if selection else None
         return DialogueResult(turn_id, row["state"], row["expression_id"], receipt(expression["receipt"]) if expression else None,
             tuple(expression["public_parts"]) if expression else (), tuple(item["action_id"] for item in links),
             (row["model_attempt_id"],) if row["model_attempt_id"] else (), tuple(row["missing"]), row["revision"], row["error_code"],
-            manifest, selection["token_usage"] if selection else None, provider_usage, flow)
+            manifest, selection["token_usage"] if selection else None, provider_usage, flow, tuple(input_status))
 
     async def run(self, turn_id):
         from tianshu.runtime.jobs import current_execution_generation
