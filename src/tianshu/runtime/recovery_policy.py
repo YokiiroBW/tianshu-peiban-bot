@@ -17,6 +17,8 @@ import random
 import re
 from uuid import uuid4
 
+from tianshu.models.types import ModelReceipt
+
 from .errors import AppError
 
 CONTINUATION_REASONS = frozenset({"need_context", "schema_correction", "capacity_repartition"})
@@ -127,6 +129,15 @@ def compatible_routes(routes, *, purpose, protocol=None, embedding_space=None):
         and (embedding_space is None or route.get("embedding_space") == embedding_space))
 
 
+def _require_model_unknown(receipt, *, attempt_id, generation):
+    """Accept only the original, locally finished receipt fetched from Models."""
+    if (not isinstance(receipt, ModelReceipt) or receipt.attempt_id != attempt_id
+            or receipt.data_generation != generation or receipt.status != "unknown"
+            or not isinstance(receipt.finished_at, datetime) or receipt.finished_at.tzinfo is None
+            or receipt.cancellation_reason == "explicit_cancel"):
+        raise AppError("recovery_model_unknown_unconfirmed", status=409)
+
+
 @dataclass(frozen=True, slots=True)
 class AttemptReservation:
     attempt_id: str
@@ -141,12 +152,15 @@ class RecoveryPolicy:
     """Transactional shared accounting, with a single owner per logical work."""
 
     async def register_on(self, connection, *, domain, subject_id, owner, material_id,
-                          material_digest, dependency, current_version, max_attempts, data_generation=None):
+                          material_digest, dependency, current_version, max_attempts, data_generation=None,
+                          recovery_kind="external_effect"):
         if not all(isinstance(value, str) and value for value in
                    (domain, subject_id, owner, material_id, material_digest, dependency, current_version)):
             raise ValueError("invalid_recovery_lineage")
         if type(max_attempts) is not int or max_attempts < 1:
             raise ValueError("positive_recovery_budget_required")
+        if recovery_kind not in {"external_effect", "pure_computation"}:
+            raise ValueError("invalid_recovery_kind")
         generation = await (await connection.execute(
             "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
         if not generation:
@@ -156,16 +170,102 @@ class RecoveryPolicy:
         identity = lineage_id(domain, material_id, generation=generation["id"])
         await connection.execute(
             "INSERT INTO runtime.recovery_lineages(lineage_id,data_generation,domain,subject_id,owner,material_digest,"
-            "dependency,current_version,max_attempts) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-            (identity, generation["id"], domain, subject_id, owner, material_digest, dependency, current_version, max_attempts))
+            "dependency,current_version,max_attempts,recovery_kind) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+            (identity, generation["id"], domain, subject_id, owner, material_digest, dependency, current_version,
+             max_attempts, recovery_kind))
         row = await (await connection.execute(
             "SELECT * FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE", (identity,))).fetchone()
         if (row["owner"] != owner or row["subject_id"] != subject_id
-                or row["material_digest"] != material_digest or row["max_attempts"] != max_attempts):
+                or row["material_digest"] != material_digest or row["max_attempts"] != max_attempts
+                or row["recovery_kind"] != recovery_kind):
             raise AppError("recovery_lineage_conflict", status=409)
         if row["dependency"] != dependency:
             raise AppError("recovery_dependency_changed", status=409)
         return row
+
+    async def record_computation_unknown_on(self, connection, attempt_id, *, owner, expected_version,
+                                            model_receipt, retry_after=None, random_value=None):
+        """Schedule a pure computation only from a fresh Models unknown receipt.
+
+        The owner fetches that receipt outside this transaction. The first
+        observation fixes the due time; polling never postpones or revives it.
+        """
+        retry_after_seconds(retry_after)
+        original = await (await connection.execute(
+            "SELECT lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not original:
+            raise AppError("recovery_attempt_not_active", status=409)
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        row = await (await connection.execute(
+            "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
+            (original["lineage_id"],))).fetchone()
+        if not row or row["owner"] != owner:
+            raise AppError("recovery_owner_mismatch", status=409)
+        if not generation or generation["id"] != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
+            raise AppError("recovery_version_changed", status=409)
+        if row["recovery_kind"] != "pure_computation":
+            raise AppError("recovery_not_pure_computation", status=409)
+        _require_model_unknown(model_receipt, attempt_id=attempt_id, generation=row["data_generation"])
+        attempt = await (await connection.execute(
+            "SELECT * FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if (attempt["attempt_number"] != row["attempts"] or attempt["version"] != expected_version
+                or attempt["status"] not in {"reserved", "unknown"}):
+            raise AppError("recovery_attempt_not_current_unknown", status=409)
+        if attempt["status"] == "reserved":
+            await self.fail_attempt_on(connection, attempt_id, code=model_receipt.error_code or "model_outcome_unknown",
+                                       category=FailureCategory.UNKNOWN_EFFECT)
+        if row["attempts"] >= row["max_attempts"]:
+            return None
+        recorded = await (await connection.execute(
+            "SELECT due_at FROM runtime.recovery_computation_unknowns WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if recorded:
+            return row["due_at"]
+        due = max(row["now"] + timedelta(seconds=30), retry_due(
+            row["attempts"], retry_after=retry_after, now=row["now"], random_value=random_value))
+        await connection.execute(
+            "INSERT INTO runtime.recovery_computation_unknowns(attempt_id,models_finished_at,due_at) VALUES(%s,%s,%s)",
+            (attempt_id, model_receipt.finished_at, due))
+        await connection.execute("UPDATE runtime.recovery_lineages SET due_at=%s WHERE lineage_id=%s",
+                                 (due, row["lineage_id"]))
+        return due
+
+    async def assert_attempt_applicable_on(self, connection, attempt_id, *, owner, expected_version):
+        """Fence a superseded computation in the domain's apply transaction.
+
+        The domain must still validate current sources, permissions and its own
+        per-object CAS and receipts; separate successful continuations can apply
+        independently when the owning domain's business rules permit them.
+        """
+        attempt = await (await connection.execute(
+            "SELECT lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not attempt:
+            raise AppError("recovery_attempt_not_active", status=409)
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        row = await (await connection.execute(
+            "SELECT * FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE", (attempt["lineage_id"],))).fetchone()
+        if not row or row["owner"] != owner:
+            raise AppError("recovery_owner_mismatch", status=409)
+        if not generation or generation["id"] != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
+            raise AppError("recovery_version_changed", status=409)
+        if row["recovery_kind"] != "pure_computation":
+            raise AppError("recovery_not_pure_computation", status=409)
+        attempt = await (await connection.execute(
+            "SELECT status,version,EXISTS (SELECT 1 FROM runtime.recovery_attempts newer "
+            "WHERE newer.supersedes_attempt_id=a.attempt_id) AS superseded "
+            "FROM runtime.recovery_attempts a WHERE attempt_id=%s",
+            (attempt_id,))).fetchone()
+        if (attempt["status"] != "succeeded" or attempt["version"] != expected_version
+                or attempt["superseded"]):
+            raise AppError("recovery_attempt_not_applicable", status=409)
+        return {"attempt_id": attempt_id}
 
     async def update_dependency_on(self, connection, identity, *, owner, expected_version,
                                    expected_dependency, new_dependency):
@@ -188,8 +288,11 @@ class RecoveryPolicy:
         if row["dependency"] == new_dependency:
             return row
         active = await (await connection.execute(
-            "SELECT 1 FROM runtime.recovery_attempts WHERE lineage_id=%s AND status IN ('reserved','unknown') LIMIT 1",
-            (identity,))).fetchone()
+            "SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=%s AND a.status IN ('reserved','unknown') "
+            "AND NOT EXISTS (SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id) "
+            "AND NOT (a.status='unknown' AND a.attempt_number=%s AND a.version=%s AND %s='pure_computation' "
+            "AND EXISTS (SELECT 1 FROM runtime.recovery_computation_unknowns u WHERE u.attempt_id=a.attempt_id)) LIMIT 1",
+            (identity, row["attempts"], expected_version, row["recovery_kind"]))).fetchone()
         if active:
             raise AppError("recovery_original_not_settled", status=409)
         await connection.execute(
@@ -229,8 +332,10 @@ class RecoveryPolicy:
                 "SELECT status FROM runtime.recovery_attempts WHERE lineage_id=%s "
                 "ORDER BY attempt_number DESC LIMIT 1", (identity,))).fetchone()
             active = await (await connection.execute(
-                "SELECT 1 FROM runtime.recovery_attempts WHERE lineage_id=%s "
-                "AND status IN ('reserved','unknown') LIMIT 1", (identity,))).fetchone()
+                "SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=%s "
+                "AND a.status IN ('reserved','unknown') AND NOT EXISTS "
+                "(SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id) LIMIT 1",
+                (identity,))).fetchone()
             if (row["paused"] or row["cancelled"] or row["source_withdrawn"]
                     or paused is True or cancelled is True or source_withdrawn is True
                     or row["attempts"] >= row["max_attempts"] or not latest
@@ -272,7 +377,8 @@ class RecoveryPolicy:
         if not previous or previous["attempt_id"] != prior_attempt_id or previous["status"] != "succeeded":
             raise AppError("recovery_continuation_original_not_succeeded", status=409)
         active = await (await connection.execute(
-            "SELECT 1 FROM runtime.recovery_attempts WHERE lineage_id=%s AND status IN ('reserved','unknown') LIMIT 1",
+            "SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=%s AND a.status IN ('reserved','unknown') "
+            "AND NOT EXISTS (SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id) LIMIT 1",
             (identity,))).fetchone()
         if active:
             raise AppError("recovery_original_not_failed", status=409)
@@ -289,7 +395,8 @@ class RecoveryPolicy:
         return {"lineage_id": identity, "claim_token": token, "prior_attempt_id": prior_attempt_id, "reason": reason}
 
     async def reserve_attempt_on(self, connection, identity, *, owner, expected_version,
-                                 attempt_id, request_digest, route, original_state, claim_token=None):
+                                 attempt_id, request_digest, route, original_state, claim_token=None,
+                                 model_receipt=None):
         if not all(isinstance(value, str) and value for value in (attempt_id, request_digest, route)):
             raise ValueError("invalid_recovery_attempt")
         row = await (await connection.execute(
@@ -306,21 +413,30 @@ class RecoveryPolicy:
             if (existing["lineage_id"] != identity or existing["request_digest"] != request_digest
                     or existing["route"] != route):
                 raise AppError("recovery_attempt_conflict", status=409)
+            if original_state == "unknown" and existing["supersedes_attempt_id"]:
+                if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                        or row["source_withdrawn"] or existing["version"] != expected_version):
+                    raise AppError("recovery_version_changed", status=409)
+                _require_model_unknown(model_receipt, attempt_id=existing["supersedes_attempt_id"],
+                                       generation=row["data_generation"])
             return AttemptReservation(attempt_id, identity, existing["attempt_number"], existing["status"],
                                       attempt_id if existing["dependency_probe"] else None, existing["dependency"])
         if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
                 or row["source_withdrawn"]):
             raise AppError("recovery_version_changed", status=409)
-        if original_state not in ({"none"} if row["attempts"] == 0 else {"failed", "succeeded"}):
+        if original_state not in ({"none"} if row["attempts"] == 0 else {"failed", "succeeded", "unknown"}):
+            raise AppError("recovery_original_not_failed", status=409)
+        if original_state == "unknown" and row["recovery_kind"] != "pure_computation":
             raise AppError("recovery_original_not_failed", status=409)
         if row["attempts"] and (not claim_token or row["claim_token"] != claim_token
                                 or row["claim_expires_at"] <= row["now"]):
             raise AppError("recovery_claim_lost", status=409)
         if row["attempts"] >= row["max_attempts"]:
             raise AppError("recovery_budget_exhausted", status=409)
+        previous = None
         if row["attempts"]:
             previous = await (await connection.execute(
-                "SELECT attempt_id,status FROM runtime.recovery_attempts WHERE lineage_id=%s "
+                "SELECT attempt_id,status,version FROM runtime.recovery_attempts WHERE lineage_id=%s "
                 "ORDER BY attempt_number DESC LIMIT 1", (identity,))).fetchone()
             if not previous or previous["status"] != original_state:
                 raise AppError("recovery_original_not_failed", status=409)
@@ -329,9 +445,24 @@ class RecoveryPolicy:
                 or row["continuation_reason"] not in CONTINUATION_REASONS
             ):
                 raise AppError("recovery_continuation_claim_required", status=409)
+            if original_state == "unknown":
+                if previous["version"] != expected_version:
+                    raise AppError("recovery_version_changed", status=409)
+                if row["due_at"] is None or row["due_at"] > row["now"]:
+                    raise AppError("recovery_not_due", status=409)
+                recorded = await (await connection.execute(
+                    "SELECT 1 FROM runtime.recovery_computation_unknowns WHERE attempt_id=%s",
+                    (previous["attempt_id"],))).fetchone()
+                if not recorded:
+                    raise AppError("recovery_model_unknown_unconfirmed", status=409)
+                _require_model_unknown(model_receipt, attempt_id=previous["attempt_id"],
+                                       generation=row["data_generation"])
         active = await (await connection.execute(
-            "SELECT 1 FROM runtime.recovery_attempts WHERE lineage_id=%s AND status IN ('reserved','unknown') LIMIT 1",
-            (identity,))).fetchone()
+            "SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=%s AND a.status IN ('reserved','unknown') "
+            "AND (%s::text IS NULL OR a.attempt_id<>%s) AND NOT EXISTS "
+            "(SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id) LIMIT 1",
+            (identity, previous["attempt_id"] if original_state == "unknown" else None,
+             previous["attempt_id"] if original_state == "unknown" else None))).fetchone()
         if active:
             raise AppError("recovery_original_not_failed", status=409)
         await connection.execute("INSERT INTO runtime.recovery_dependencies(data_generation,dependency) VALUES(%s,%s) ON CONFLICT DO NOTHING",
@@ -345,17 +476,20 @@ class RecoveryPolicy:
                 raise AppError("recovery_dependency_cooling", status=409)
             if dependency["probe_token"]:
                 outstanding = await (await connection.execute(
-                    "SELECT 1 FROM runtime.recovery_attempts WHERE attempt_id=%s AND status IN ('reserved','unknown')",
+                    "SELECT 1 FROM runtime.recovery_attempts a WHERE a.attempt_id=%s "
+                    "AND a.status IN ('reserved','unknown') AND NOT EXISTS "
+                    "(SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id)",
                     (dependency["probe_token"],))).fetchone()
-                if outstanding:
+                if outstanding and not (original_state == "unknown" and dependency["probe_token"] == previous["attempt_id"]):
                     raise AppError("recovery_dependency_probe_in_progress", status=409)
             probe = attempt_id
         inserted = await (await connection.execute(
-            "INSERT INTO runtime.recovery_attempts(attempt_id,lineage_id,request_digest,route,dependency,version,attempt_number,dependency_probe,continuation_of,continuation_reason) "
-            "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING attempt_id",
+            "INSERT INTO runtime.recovery_attempts(attempt_id,lineage_id,request_digest,route,dependency,version,attempt_number,dependency_probe,continuation_of,continuation_reason,supersedes_attempt_id) "
+            "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING attempt_id",
             (attempt_id, identity, request_digest, route, row["dependency"], expected_version, row["attempts"] + 1, bool(probe),
              row["continuation_attempt_id"] if original_state == "succeeded" else None,
-             row["continuation_reason"] if original_state == "succeeded" else None))).fetchone()
+             row["continuation_reason"] if original_state == "succeeded" else None,
+             previous["attempt_id"] if original_state == "unknown" else None))).fetchone()
         if not inserted:
             raise AppError("recovery_attempt_conflict", status=409)
         if probe:
@@ -374,6 +508,13 @@ class RecoveryPolicy:
         retry_after_seconds(retry_after)
         if random_value is not None and not 0 <= random_value <= 1:
             raise ValueError("invalid_jitter")
+        original = await (await connection.execute(
+            "SELECT lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not original:
+            raise AppError("recovery_attempt_not_active", status=409)
+        row = await (await connection.execute(
+            "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
+            (original["lineage_id"],))).fetchone()
         attempt = await (await connection.execute(
             "UPDATE runtime.recovery_attempts SET status=%s,error_code=%s,finished_at=now() "
             "WHERE attempt_id=%s AND status='reserved' RETURNING *",
@@ -384,9 +525,6 @@ class RecoveryPolicy:
         await connection.execute(
             "INSERT INTO runtime.recovery_attempt_observations(attempt_id,status,error_code,observation_ref) "
             "VALUES(%s,%s,%s,%s)", (attempt_id, attempt["status"], code, attempt["observation_ref"]))
-        row = await (await connection.execute(
-            "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
-            (attempt["lineage_id"],))).fetchone()
         can_retry = (category in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}
                      and row["attempts"] < row["max_attempts"] and not row["paused"]
                      and not row["cancelled"] and not row["source_withdrawn"]
@@ -411,6 +549,12 @@ class RecoveryPolicy:
         return due
 
     async def succeed_attempt_on(self, connection, attempt_id, *, probe_token=None):
+        original = await (await connection.execute(
+            "SELECT lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not original:
+            raise AppError("recovery_attempt_not_active", status=409)
+        await connection.execute("SELECT 1 FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
+                                 (original["lineage_id"],))
         attempt = await (await connection.execute(
             "UPDATE runtime.recovery_attempts SET status='succeeded',finished_at=now() "
             "WHERE attempt_id=%s AND status='reserved' RETURNING lineage_id,dependency_probe,observation_ref,dependency", (attempt_id,))).fetchone()
@@ -436,12 +580,30 @@ class RecoveryPolicy:
             raise ValueError("definitive_recovery_observation_required")
         if state == "failed" and (category is None or FailureCategory(category) == FailureCategory.UNKNOWN_EFFECT):
             raise ValueError("definitive_failure_category_required")
+        if code is not None and not isinstance(code, str):
+            raise ValueError("invalid_recovery_error_code")
         retry_after_seconds(retry_after)
-        row = await (await connection.execute(
-            "UPDATE runtime.recovery_attempts SET status='reserved',observation_ref=%s "
-            "WHERE attempt_id=%s AND status='unknown' RETURNING attempt_id", (observation_ref, attempt_id))).fetchone()
-        if not row:
+        original = await (await connection.execute(
+            "SELECT lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not original:
             raise AppError("recovery_attempt_not_unknown", status=409)
+        lineage = await (await connection.execute(
+            "SELECT * FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE", (original["lineage_id"],))).fetchone()
+        attempt = await (await connection.execute(
+            "UPDATE runtime.recovery_attempts SET status='reserved',observation_ref=%s "
+            "WHERE attempt_id=%s AND status='unknown' RETURNING *", (observation_ref, attempt_id))).fetchone()
+        if not attempt:
+            raise AppError("recovery_attempt_not_unknown", status=409)
+        if attempt["attempt_number"] < lineage["attempts"]:
+            # A later attempt owns the lineage, schedule and dependency probe.
+            # Settle this original receipt only; it cannot change the successor.
+            await connection.execute(
+                "UPDATE runtime.recovery_attempts SET status=%s,error_code=%s,finished_at=now() WHERE attempt_id=%s",
+                (state, code if state == "failed" else attempt["error_code"], attempt_id))
+            await connection.execute(
+                "INSERT INTO runtime.recovery_attempt_observations(attempt_id,status,error_code,observation_ref) "
+                "VALUES(%s,%s,%s,%s)", (attempt_id, state, code if state == "failed" else None, observation_ref))
+            return None
         if state == "succeeded":
             await self.succeed_attempt_on(connection, attempt_id, probe_token=probe_token)
             return None
@@ -453,9 +615,11 @@ class RecoveryPolicy:
         if type(limit) is not int or not 1 <= limit <= 512 or not 1 <= lease_seconds <= 3600:
             raise ValueError("invalid_recovery_claim")
         rows = await (await connection.execute(
-            "WITH eligible AS (SELECT lineage_id,domain,subject_id,due_at FROM runtime.recovery_lineages "
+            "WITH eligible AS (SELECT lineage_id,domain,subject_id,due_at FROM runtime.recovery_lineages l "
             "WHERE owner=%s AND data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
             "AND due_at<=now() AND NOT paused AND NOT cancelled AND NOT source_withdrawn AND attempts<max_attempts "
+            "AND NOT EXISTS (SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=l.lineage_id "
+            "AND a.attempt_number=l.attempts AND a.status='unknown' AND a.version<>l.current_version) "
             "AND (claim_token IS NULL OR claim_expires_at<=now())), "
             "subjects AS (SELECT domain,subject_id,min(due_at) AS oldest FROM eligible GROUP BY domain,subject_id), "
             "subject_rank AS (SELECT *,row_number() OVER (PARTITION BY domain ORDER BY oldest,subject_id) AS position FROM subjects), "
@@ -491,6 +655,11 @@ class RecoveryPolicy:
                 or row["attempts"] >= row["max_attempts"]
                 or row["due_at"] is None or row["due_at"] > row["now"]
                 or (row["claim_token"] and row["claim_expires_at"] > row["now"])):
+            return None
+        latest = await (await connection.execute(
+            "SELECT status,version FROM runtime.recovery_attempts WHERE lineage_id=%s "
+            "ORDER BY attempt_number DESC LIMIT 1", (lineage_id,))).fetchone()
+        if latest and latest["status"] == "unknown" and latest["version"] != row["current_version"]:
             return None
         token = str(uuid4())
         updated = await (await connection.execute(
