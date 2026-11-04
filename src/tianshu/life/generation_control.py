@@ -285,6 +285,8 @@ async def submit_frozen(life, models, generations, material_key, request, *, gua
     """Admit the saved intent and release the domain worker after acceptance."""
     if recovery is None:
         raise AppError("recovery_policy_unavailable", status=503)
+    if not request.data_generation or request.data_generation != completion.data_generation:
+        raise AppError("job_generation_expired", status=409)
     profile = await models.generation_profile(replace(request,budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=30))))
     quota_group = profile.get("quota_group")
     if not isinstance(quota_group,str) or not quota_group:

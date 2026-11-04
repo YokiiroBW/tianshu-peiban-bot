@@ -30,6 +30,7 @@ async def test_chapter_result_from_old_installation_cannot_be_saved(database):
     original = await value.jobs.current_generation()
     await writing.generate("chapter",command.attempt_id,original)
     assert value.models.completions[command.attempt_id].data_generation == original
+    assert value.models.requests[command.attempt_id].data_generation == original
     value.models.complete(command.attempt_id,"旧代次正文")
     async with database.transaction() as connection:
         await connection.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton=true",(str(uuid4()),))
@@ -140,6 +141,7 @@ async def test_chapter_retry_keeps_budget_and_switches_actual_quota_after_known_
         row = await (await connection.execute("SELECT * FROM life.chapters WHERE id='chapter'")).fetchone()
     assert row["generation_id"] != attempt
     await writing.generate("chapter",row["generation_id"])
+    assert value.models.requests[row["generation_id"]].data_generation == value.models.requests[attempt].data_generation
     async with database.transaction(read_only=True) as connection:
         lineage = await (await connection.execute("SELECT attempts,dependency FROM runtime.recovery_lineages WHERE lineage_id=%s",(original["lineage_id"],))).fetchone()
     assert lineage == {"attempts":2,"dependency":"models:quota:backup-quota"}

@@ -141,7 +141,7 @@ async def test_episode_notification_cannot_rebind_to_new_installation(database):
         await connection.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton=true",(str(uuid4()),))
     with pytest.raises(AppError,match="job_generation_expired"):
         await value.diaries.consume_episode_change(wire(value.context),value.episode.episode_id,
-            value.episode.revision,data_generation=original)
+            value.episode.revision,generation=original)
     async with database.transaction(read_only=True) as connection:
         after = await (await connection.execute("SELECT revision FROM life.diary_days")).fetchone()
     assert after == before
@@ -154,6 +154,7 @@ async def test_scope_change_preserves_one_day_and_reconciles_original_body(datab
     await value.diaries.generate(diary["id"], diary["generation_id"])
     assert len(value.models.requests) == 1
     assert value.models.completions[diary["generation_id"]].task == "life.diary_generate"
+    assert value.models.requests[diary["generation_id"]].data_generation == await value.jobs.current_generation()
     assert (await diary_state(database))["current_revision"] == 0
     await value.diaries.generate(diary["id"], diary["generation_id"])
     assert len(value.models.requests) == 1
@@ -265,13 +266,14 @@ async def test_persisted_notification_checks_the_original_episode_and_is_idempot
     value = await rb_fixture(database)
     await value.diaries.day_closed(value.context, "2026-11-02")
     payload = wire(value.context)
-    first = await value.diaries.consume_episode_change(payload, value.episode.episode_id, 1, "e:1")
-    await value.diaries.consume_episode_change(payload, value.episode.episode_id, 1, "e:1")
+    generation = await value.jobs.current_generation()
+    first = await value.diaries.consume_episode_change(payload, value.episode.episode_id, 1, "e:1",generation=generation)
+    await value.diaries.consume_episode_change(payload, value.episode.episode_id, 1, "e:1",generation=generation)
     async with database.transaction(read_only=True) as connection:
         day = await (await connection.execute("SELECT * FROM life.diary_days")).fetchone()
     assert first["state"] == "observed" and day["material_revisions"] == {value.episode.episode_id: 1}
     assert day["revision"] == 2
-    stale = await value.diaries.consume_episode_change(payload, value.episode.episode_id, 2, "e:2")
+    stale = await value.diaries.consume_episode_change(payload, value.episode.episode_id, 2, "e:2",generation=generation)
     assert stale["state"] == "unavailable_or_revised"
 
 
@@ -350,6 +352,7 @@ async def test_unknown_attempt_is_observed_then_definitive_failure_retries_same_
     second = await diary_state(database)
     assert second["generation_id"] != attempt
     await value.diaries.generate(diary["id"], second["generation_id"])
+    assert value.models.requests[second["generation_id"]].data_generation == value.models.requests[attempt].data_generation
     async with database.transaction(read_only=True) as connection:
         attempts = await (await connection.execute("SELECT lineage_id,status,dependency FROM runtime.recovery_attempts ORDER BY started_at")).fetchall()
         current = await (await connection.execute("SELECT attempts,dependency FROM runtime.recovery_lineages WHERE lineage_id=%s",(lineage["lineage_id"],))).fetchone()

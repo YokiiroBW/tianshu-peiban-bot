@@ -258,7 +258,8 @@ class WritingService:
                 request=ModelRequest("chapter:"+generation_id, generation_id, "writing", ServiceClass.ELASTIC,
                     context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=6000,
                     execution_timeout_seconds=600,
-                    estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs))
+                    estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
+                    data_generation=data_generation)
                 profile=await self.models.generation_profile(replace(request,budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=30))))
                 request=replace(request,route_id=profile["route_id"],route_revision=profile["route_revision"],
                     protocol=profile["protocol"])
@@ -382,7 +383,8 @@ class WritingService:
                 RequestBudget(datetime.now(UTC)+timedelta(seconds=600)),frozen.messages,system=frozen.system,
                 max_output_tokens=frozen.max_output_tokens,estimated_input_tokens=frozen.estimated_input_tokens,
                 source_refs=frozen.source_refs,execution_timeout_seconds=600,parameters=frozen.parameters,
-                required_capabilities=frozen.required_capabilities,provider_session_scope=frozen.provider_session_scope)
+                required_capabilities=frozen.required_capabilities,provider_session_scope=frozen.provider_session_scope,
+                data_generation=data_generation)
             profile=await self.models.generation_profile(draft)
             request=replace(draft,route_id=profile["route_id"],route_revision=profile["route_revision"],
                 protocol=profile["protocol"])

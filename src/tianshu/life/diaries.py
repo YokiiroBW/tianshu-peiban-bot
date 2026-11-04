@@ -47,19 +47,19 @@ class DiaryService:
     async def changed(self, context, watermark, *, episode=None, connection=None, data_generation=None):
         return await self.automation.changed(context, watermark, episode=episode, connection=connection,data_generation=data_generation)
 
-    async def consume_episode_change(self, context, episode_id, revision, watermark=None, data_generation=None):
+    async def consume_episode_change(self, context, episode_id, revision, watermark=None, generation=None):
         """Consume a durable notification under its original authorized scene."""
         if not isinstance(episode_id, str) or not episode_id or type(revision) is not int or revision < 1:
             raise AppError("invalid_episode_refs")
-        if not isinstance(data_generation,str) or not data_generation:
+        if not isinstance(generation,str) or not generation:
             raise AppError("job_generation_missing",status=409)
         reader = await self._reader(context_from_record(context))
         async with self.life.database.transaction() as connection:
-            await self.life.jobs.assert_generation_on(connection,data_generation)
+            await self.life.jobs.assert_generation_on(connection,generation)
             page = await self.life.memory.episodes_by_refs(reader, ((episode_id, revision),), connection=connection)
             if not page.items:
                 return {"state": "unavailable_or_revised", "episode_id": episode_id, "revision": revision}
-            await self.changed(reader, watermark, episode=page.items[0],connection=connection,data_generation=data_generation)
+            await self.changed(reader, watermark, episode=page.items[0],connection=connection,data_generation=generation)
         return {"state": "observed", "episode_id": episode_id, "revision": revision}
 
     async def day_closed(self, context, day, *, connection=None):
@@ -322,7 +322,7 @@ class DiaryService:
                     output_tokens=selected.max_output_tokens)
                 request = replace(selected, messages=tuple(pack.messages), system=pack.system,
                     estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
-                    provider_session_scope="intent")
+                    provider_session_scope="intent",data_generation=data_generation)
                 async with self.life.database.transaction() as connection:
                     frozen = await self.generations.prepare("diary:"+generation_id,request,connection=connection,guard=current_generation)
                     recipe = self._frozen_recipe(frozen, recipe)

@@ -83,7 +83,8 @@ class DiaryRetry:
         if frozen is not None:
             selected=await generation_request(self.diaries.models,context,key="diary:"+generation_id,attempt_id=generation_id,function="reflect")
             selected=replace(selected,messages=frozen.messages,system=frozen.system,
-                estimated_input_tokens=frozen.estimated_input_tokens,source_refs=frozen.source_refs,provider_session_scope="intent")
+                estimated_input_tokens=frozen.estimated_input_tokens,source_refs=frozen.source_refs,
+                provider_session_scope="intent",data_generation=data_generation)
         async with self.life.database.transaction() as connection:
             await self.life.jobs.assert_generation_on(connection,data_generation)
             await self.life.validate_persistence(connection,context,refs)
