@@ -180,7 +180,8 @@ class RecoveryPolicy:
             raise AppError("recovery_owner_mismatch", status=409)
         if not generation or generation["id"] != row["data_generation"]:
             raise AppError("job_generation_expired", status=409)
-        if row["current_version"] != expected_version or row["paused"] or row["cancelled"]:
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
             raise AppError("recovery_version_changed", status=409)
         if row["dependency"] != expected_dependency:
             raise AppError("recovery_dependency_changed", status=409)
@@ -200,16 +201,48 @@ class RecoveryPolicy:
             (new_dependency, identity))).fetchone()
 
     async def update_version_on(self, connection, identity, *, owner, expected_version,
-                                current_version, paused=False, cancelled=False):
+                                current_version, paused=None, cancelled=None,
+                                source_withdrawn=None, resume_due=False):
+        """CAS a domain/config version; optionally schedule one repaired failure.
+
+        The owner supplies actual version identities and records source withdrawal
+        when authoritative source state changes. A caller must also revalidate
+        current sources before applying any eventual result.
+        """
+        if (not isinstance(expected_version, str) or not expected_version
+                or not isinstance(current_version, str) or not current_version
+                or any(value is not None and type(value) is not bool
+                       for value in (paused, cancelled, source_withdrawn))
+                or type(resume_due) is not bool):
+            raise ValueError("invalid_recovery_version_update")
+        if resume_due and expected_version == current_version:
+            raise AppError("recovery_version_unchanged", status=409)
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
         row = await (await connection.execute(
-            "UPDATE runtime.recovery_lineages SET current_version=%s,paused=%s,cancelled=%s,"
-            "claim_token=NULL,claim_expires_at=NULL,continuation_attempt_id=NULL,continuation_reason=NULL "
-            "WHERE lineage_id=%s AND owner=%s AND current_version=%s "
-            "AND data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
-            "RETURNING *", (current_version, paused, cancelled, identity, owner, expected_version))).fetchone()
-        if not row:
+            "SELECT * FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE", (identity,))).fetchone()
+        if (not row or not generation or row["owner"] != owner or row["current_version"] != expected_version
+                or row["data_generation"] != generation["id"]):
             raise AppError("recovery_version_changed", status=409)
-        return row
+        if resume_due:
+            latest = await (await connection.execute(
+                "SELECT status FROM runtime.recovery_attempts WHERE lineage_id=%s "
+                "ORDER BY attempt_number DESC LIMIT 1", (identity,))).fetchone()
+            active = await (await connection.execute(
+                "SELECT 1 FROM runtime.recovery_attempts WHERE lineage_id=%s "
+                "AND status IN ('reserved','unknown') LIMIT 1", (identity,))).fetchone()
+            if (row["paused"] or row["cancelled"] or row["source_withdrawn"]
+                    or paused is True or cancelled is True or source_withdrawn is True
+                    or row["attempts"] >= row["max_attempts"] or not latest
+                    or latest["status"] != "failed" or active):
+                raise AppError("recovery_resume_not_eligible", status=409)
+        return await (await connection.execute(
+            "UPDATE runtime.recovery_lineages SET current_version=%s,paused=COALESCE(%s,paused),"
+            "cancelled=COALESCE(%s,cancelled),source_withdrawn=COALESCE(%s,source_withdrawn),"
+            "due_at=CASE WHEN %s THEN now() ELSE due_at END,"
+            "claim_token=NULL,claim_expires_at=NULL,continuation_attempt_id=NULL,continuation_reason=NULL "
+            "WHERE lineage_id=%s RETURNING *",
+            (current_version, paused, cancelled, source_withdrawn, resume_due, identity))).fetchone()
 
     async def claim_continuation_on(self, connection, identity, *, owner, expected_version,
                                     prior_attempt_id, reason, lease_seconds=30):
@@ -228,7 +261,8 @@ class RecoveryPolicy:
             raise AppError("recovery_owner_mismatch", status=409)
         if not generation or generation["id"] != row["data_generation"]:
             raise AppError("job_generation_expired", status=409)
-        if row["current_version"] != expected_version or row["paused"] or row["cancelled"]:
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
             raise AppError("recovery_version_changed", status=409)
         if row["attempts"] >= row["max_attempts"]:
             raise AppError("recovery_budget_exhausted", status=409)
@@ -274,7 +308,8 @@ class RecoveryPolicy:
                 raise AppError("recovery_attempt_conflict", status=409)
             return AttemptReservation(attempt_id, identity, existing["attempt_number"], existing["status"],
                                       attempt_id if existing["dependency_probe"] else None, existing["dependency"])
-        if row["current_version"] != expected_version or row["paused"] or row["cancelled"]:
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
             raise AppError("recovery_version_changed", status=409)
         if original_state not in ({"none"} if row["attempts"] == 0 else {"failed", "succeeded"}):
             raise AppError("recovery_original_not_failed", status=409)
@@ -334,6 +369,8 @@ class RecoveryPolicy:
     async def fail_attempt_on(self, connection, attempt_id, *, code, category, retry_after=None,
                               probe_token=None, random_value=None):
         category = FailureCategory(category)
+        if code is not None and not isinstance(code, str):
+            raise ValueError("invalid_recovery_error_code")
         retry_after_seconds(retry_after)
         if random_value is not None and not 0 <= random_value <= 1:
             raise ValueError("invalid_jitter")
@@ -352,11 +389,15 @@ class RecoveryPolicy:
             (attempt["lineage_id"],))).fetchone()
         can_retry = (category in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}
                      and row["attempts"] < row["max_attempts"] and not row["paused"]
-                     and not row["cancelled"] and row["current_version"] == attempt["version"])
+                     and not row["cancelled"] and not row["source_withdrawn"]
+                     and row["current_version"] == attempt["version"])
         due = retry_due(row["attempts"], retry_after=retry_after, now=row["now"], random_value=random_value) if can_retry else None
+        withdrawn = category == FailureCategory.SOURCE_INVALID and any(
+            marker in (code or "").lower() for marker in ("withdraw", "retract", "revoked", "forgotten"))
         await connection.execute(
-            "UPDATE runtime.recovery_lineages SET due_at=%s,failure_category=%s WHERE lineage_id=%s",
-            (due, category.value, row["lineage_id"]))
+            "UPDATE runtime.recovery_lineages SET due_at=%s,failure_category=%s,"
+            "source_withdrawn=source_withdrawn OR %s WHERE lineage_id=%s",
+            (due, category.value, withdrawn, row["lineage_id"]))
         if category in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}:
             # Even an exhausted lineage cools the dependency; other lineages
             # must not multiply a provider outage into a request storm.
@@ -414,7 +455,7 @@ class RecoveryPolicy:
         rows = await (await connection.execute(
             "WITH eligible AS (SELECT lineage_id,domain,subject_id,due_at FROM runtime.recovery_lineages "
             "WHERE owner=%s AND data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
-            "AND due_at<=now() AND NOT paused AND NOT cancelled AND attempts<max_attempts "
+            "AND due_at<=now() AND NOT paused AND NOT cancelled AND NOT source_withdrawn AND attempts<max_attempts "
             "AND (claim_token IS NULL OR claim_expires_at<=now())), "
             "subjects AS (SELECT domain,subject_id,min(due_at) AS oldest FROM eligible GROUP BY domain,subject_id), "
             "subject_rank AS (SELECT *,row_number() OVER (PARTITION BY domain ORDER BY oldest,subject_id) AS position FROM subjects), "
@@ -446,7 +487,8 @@ class RecoveryPolicy:
             raise AppError("recovery_owner_mismatch", status=409)
         if not generation or generation["id"] != row["data_generation"]:
             raise AppError("job_generation_expired", status=409)
-        if (row["paused"] or row["cancelled"] or row["attempts"] >= row["max_attempts"]
+        if (row["paused"] or row["cancelled"] or row["source_withdrawn"]
+                or row["attempts"] >= row["max_attempts"]
                 or row["due_at"] is None or row["due_at"] > row["now"]
                 or (row["claim_token"] and row["claim_expires_at"] > row["now"])):
             return None

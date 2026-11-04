@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+from contextvars import ContextVar
 from dataclasses import dataclass, field, replace
 from datetime import datetime
 import hashlib
@@ -21,6 +22,12 @@ from .errors import AppError
 from .execution import ExecutionLane, TASK_LANES, job_observation, role_for_lane
 
 DYNAMIC_TASK_LANES = frozenset({"conversation.run", "capabilities.execute", "capabilities.media_job"})
+_execution_generation: ContextVar[str | None] = ContextVar("tianshu_execution_generation", default=None)
+
+
+def current_execution_generation() -> str | None:
+    """The current native job's original envelope generation, never a DB lookup."""
+    return _execution_generation.get()
 
 
 @dataclass(frozen=True, slots=True)
@@ -250,13 +257,16 @@ class JobQueue:
         self.task_lanes[name] = lane
 
         async def execute(job_context, **kwargs):
+            generation_token = None
             try:
                 row = await self.app.connector.execute_query_one_async(
-                    query="SELECT EXISTS(SELECT 1 FROM runtime.job_keys k "
+                    query="SELECT (SELECT k.data_generation FROM runtime.job_keys k "
                     "JOIN runtime.installation_generation g ON g.singleton=true AND k.data_generation=g.id "
-                    "WHERE k.job_id=%(job_id)s AND k.cancelled_at IS NULL) AS valid", job_id=job_context.job.id)
-                if not row["valid"]:
+                    "WHERE k.job_id=%(job_id)s AND k.cancelled_at IS NULL LIMIT 1) AS data_generation",
+                    job_id=job_context.job.id)
+                if row["data_generation"] is None:
                     raise AppError("job_generation_expired", status=409)
+                generation_token = _execution_generation.set(row["data_generation"])
                 if self.events:
                     try:
                         await self.events.emit("job.started", "started", task_name=name, job_id=job_context.job.id)
@@ -281,6 +291,8 @@ class JobQueue:
                         pass
                 return result
             finally:
+                if generation_token is not None:
+                    _execution_generation.reset(generation_token)
                 try:
                     await asyncio.shield(self.app.connector.execute_query_async(
                         query="SELECT runtime.finish_fair_job(%(job_id)s)", job_id=job_context.job.id))

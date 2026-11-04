@@ -4,7 +4,7 @@ import asyncio
 
 from tianshu.runtime.database import resource_budget
 from tianshu.runtime.execution import (
-    ExecutionLane, PROCESS_ROLES, ROLE_GROUPS, role_for_lane, role_worker_groups,
+    ExecutionLane, PROCESS_ROLES, ROLE_GROUPS, TASK_LANES, role_for_lane, role_worker_groups,
 )
 from tianshu.runtime.process import supervise_consumer
 from tianshu.runtime.jobs import FairJobManager
@@ -34,6 +34,24 @@ def test_every_execution_lane_has_one_owner_and_budget_includes_real_listeners()
     tailored = resource_budget({"broker": {"transport": {"roles": {
         "bot-background": {"background_connections": 3}}}}})
     assert tailored["model_client_http_connections_by_role"]["bot-background"] == 8 + 4 + 3 + 4
+
+
+def test_new_notification_routes_reach_the_owning_workers():
+    expected = {
+        "channels.statistics_reconcile": ExecutionLane.CONTROL,
+        "conversation.supplement_notify": ExecutionLane.CONTROL,
+        "conversation.example_usage": ExecutionLane.CONTROL,
+        "conversation.statistics_reconcile": ExecutionLane.CONTROL,
+        "conversation.model_complete": ExecutionLane.CONVERSATION,
+        "channels.media_supplement": ExecutionLane.CONVERSATION,
+        "channels.media_supplement_expire": ExecutionLane.CONVERSATION,
+        "channels.resume_delivery": ExecutionLane.CONVERSATION,
+        "companion.growth.input_retry": ExecutionLane.GROWTH,
+        "life.experience_statistics_backfill": ExecutionLane.DIARY,
+    }
+    assert {task: TASK_LANES[task] for task in expected} == expected
+    assert role_for_lane(TASK_LANES["channels.media_supplement"]) == "bot-foreground"
+    assert role_for_lane(TASK_LANES["life.experience_statistics_backfill"]) == "bot-background"
 
 
 async def test_one_exited_consumer_does_not_cancel_another(monkeypatch):

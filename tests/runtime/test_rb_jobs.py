@@ -1,13 +1,15 @@
 """Durable handoff and recomputation regressions, using the isolated PG fixture."""
 
 from importlib.resources import files
+import asyncio
+from types import SimpleNamespace
 
 import pytest
 import pytest_asyncio
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.execution import ExecutionLane
-from tianshu.runtime.jobs import JobQueue, JobSpec, RecomputeCoverage
+from tianshu.runtime.jobs import JobQueue, JobSpec, RecomputeCoverage, current_execution_generation
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.types import ServiceClass
 
@@ -71,6 +73,55 @@ async def test_generation_is_bound_and_old_claim_cannot_apply(database, queue):
             task="fixture.recompute", payload={"partition": "p"}) == 1
         rows = await (await connection.execute("SELECT data_generation FROM runtime.recompute_work")).fetchall()
         assert {row["data_generation"] for row in rows} == {generation, "new-generation"}
+
+
+async def test_execution_context_keeps_original_generation_across_concurrent_tasks(database, queue):
+    old_started = asyncio.Event()
+    release_old = asyncio.Event()
+    observed = {}
+
+    async def handler(label):
+        before = current_execution_generation()
+        if label == "error":
+            assert before == "new-generation"
+            raise RuntimeError("handler_failed")
+        if label == "old":
+            old_started.set()
+            await release_old.wait()
+        observed[label] = (before, current_execution_generation())
+
+    queue.register("fixture.context", handler, execution_lane=ExecutionLane.CONVERSATION)
+    async with database.transaction() as connection:
+        original_generation = await queue.current_generation_on(connection)
+        old_id = await queue.enqueue(connection, JobSpec("fixture.context", "old-context", {"label": "old"}))
+    await queue.open()
+    old_task = None
+    try:
+        execute = queue.tasks["fixture.context"].func
+        old_context = SimpleNamespace(job=SimpleNamespace(id=old_id))
+        old_task = asyncio.create_task(execute(old_context, label="old"))
+        await asyncio.wait_for(old_started.wait(), timeout=5)
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE runtime.installation_generation SET id='new-generation' WHERE singleton=true")
+            new_id = await queue.enqueue(connection, JobSpec("fixture.context", "new-context", {"label": "new"}))
+            error_id = await queue.enqueue(connection, JobSpec("fixture.context", "error-context", {"label": "error"}))
+        await execute(SimpleNamespace(job=SimpleNamespace(id=new_id)), label="new")
+        assert current_execution_generation() is None
+        with pytest.raises(RuntimeError, match="handler_failed"):
+            await execute(SimpleNamespace(job=SimpleNamespace(id=error_id)), label="error")
+        assert current_execution_generation() is None
+        release_old.set()
+        await old_task
+        assert observed == {"old": (original_generation, original_generation),
+                            "new": ("new-generation", "new-generation")}
+        with pytest.raises(AppError, match="job_generation_expired"):
+            await execute(old_context, label="old")
+        assert current_execution_generation() is None
+    finally:
+        release_old.set()
+        if old_task:
+            await asyncio.gather(old_task, return_exceptions=True)
+        await queue.close()
 
 
 async def test_route_only_producer_enqueues_without_executable_handler(database, queue):

@@ -17,7 +17,9 @@ from tianshu.runtime.recovery_policy import (
 @pytest_asyncio.fixture
 async def policy(database):
     await migrate(database, (Migration("0007_rb_runtime",
-        files("tianshu.runtime").joinpath("rb_runtime.sql").read_text()),))
+        files("tianshu.runtime").joinpath("rb_runtime.sql").read_text()),
+        Migration("0008_rb_recovery_change",
+        files("tianshu.runtime").joinpath("rb_recovery_change.sql").read_text())))
     return RecoveryPolicy()
 
 
@@ -138,6 +140,71 @@ async def test_dependency_switch_keeps_budget_and_exact_claim_does_not_take_othe
         with pytest.raises(AppError, match="recovery_original_not_settled"):
             await policy.update_dependency_on(connection, first["lineage_id"], owner="memory", expected_version="v1",
                 expected_dependency="quota-b", new_dependency="quota-a")
+
+
+async def test_configuration_change_resumes_original_failure_without_reclassifying(database, policy):
+    async with database.transaction() as connection:
+        row = await policy.register_on(connection, domain="memory", subject_id="actor", owner="memory",
+            material_id="batch-config", material_digest="frozen", dependency="provider", current_version="v1", max_attempts=3)
+        identity = row["lineage_id"]
+        await policy.reserve_attempt_on(connection, identity, owner="memory", expected_version="v1",
+            attempt_id="config-1", request_digest="original", route="A", original_state="none")
+        assert await policy.fail_attempt_on(connection, "config-1", code="mapping_not_configured",
+            category=FailureCategory.OTHER) is None
+        with pytest.raises(AppError, match="recovery_version_unchanged"):
+            await policy.update_version_on(connection, identity, owner="memory", expected_version="v1",
+                current_version="v1", resume_due=True)
+        with pytest.raises(AppError, match="recovery_version_changed"):
+            await policy.update_version_on(connection, identity, owner="memory", expected_version="stale",
+                current_version="v2", resume_due=True)
+        resumed = await policy.update_version_on(connection, identity, owner="memory", expected_version="v1",
+            current_version="v2", resume_due=True)
+        assert resumed["lineage_id"] == identity and resumed["attempts"] == 1
+        assert resumed["failure_category"] == FailureCategory.OTHER.value and resumed["due_at"] is not None
+        old = await (await connection.execute(
+            "SELECT status,error_code FROM runtime.recovery_attempts WHERE attempt_id='config-1'")).fetchone()
+        assert old == {"status": "failed", "error_code": "mapping_not_configured"}
+        claim = await policy.claim_lineage_due_on(connection, identity, owner="memory")
+        attempt = await policy.reserve_attempt_on(connection, identity, owner="memory", expected_version="v2",
+            attempt_id="config-2", request_digest="corrected", route="A", original_state="failed",
+            claim_token=claim["claim_token"])
+        assert attempt.number == 2
+
+
+async def test_configuration_change_cannot_resume_cancelled_withdrawn_active_or_exhausted_work(database, policy):
+    async with database.transaction() as connection:
+        for state in ("paused", "cancelled", "withdrawn", "withdrawn_after_failure", "reserved", "unknown", "succeeded", "exhausted"):
+            row = await policy.register_on(connection, domain="growth", subject_id=state, owner="growth",
+                material_id="material-" + state, material_digest="frozen", dependency="provider",
+                current_version="v1", max_attempts=1 if state == "exhausted" else 3)
+            identity = row["lineage_id"]
+            attempt_id = "attempt-" + state
+            await policy.reserve_attempt_on(connection, identity, owner="growth", expected_version="v1",
+                attempt_id=attempt_id, request_digest="request", route="A", original_state="none")
+            if state == "unknown":
+                await policy.fail_attempt_on(connection, attempt_id, code="transport_unknown",
+                    category=FailureCategory.UNKNOWN_EFFECT)
+            elif state == "succeeded":
+                await policy.succeed_attempt_on(connection, attempt_id)
+            elif state != "reserved":
+                code = "source_retracted" if state == "withdrawn" else "mapping_not_configured"
+                category = FailureCategory.SOURCE_INVALID if state == "withdrawn" else FailureCategory.OTHER
+                await policy.fail_attempt_on(connection, attempt_id, code=code, category=category)
+            if state in {"paused", "cancelled"}:
+                await policy.update_version_on(connection, identity, owner="growth", expected_version="v1",
+                    current_version="v1", **{state: True})
+            if state == "withdrawn_after_failure":
+                await policy.update_version_on(connection, identity, owner="growth", expected_version="v1",
+                    current_version="v1", source_withdrawn=True)
+            with pytest.raises(AppError, match="recovery_resume_not_eligible"):
+                await policy.update_version_on(connection, identity, owner="growth", expected_version="v1",
+                    current_version="v2", paused=False, cancelled=False, source_withdrawn=False, resume_due=True)
+            current = await (await connection.execute(
+                "SELECT current_version,attempts,source_withdrawn FROM runtime.recovery_lineages WHERE lineage_id=%s",
+                (identity,))).fetchone()
+            assert current["current_version"] == "v1" and current["attempts"] == 1
+            if state in {"withdrawn", "withdrawn_after_failure"}:
+                assert current["source_withdrawn"] is True
 
 
 def test_failure_split_and_retry_after_use_explicit_evidence():
