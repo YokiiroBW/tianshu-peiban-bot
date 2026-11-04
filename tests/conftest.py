@@ -9,7 +9,7 @@ import pytest_asyncio
 
 from tianshu.runtime.database import Database, DatabaseConfig
 from tianshu.runtime.jobs import JobQueue
-from tianshu.runtime.migrations import Migration, foundation_migrations, migrate
+from tianshu.runtime.migrations import execution_migrations, foundation_migrations, migrate
 
 
 @pytest_asyncio.fixture
@@ -23,10 +23,9 @@ async def database():
     await admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
     db = Database(DatabaseConfig(make_conninfo(admin_dsn, dbname=name)))
     await db.open()
-    queue = JobQueue(db.config.dsn)
+    queue = JobQueue(db.config.dsn, database=db)
     try:
-        await migrate(db, foundation_migrations()+(Migration("0003_procrastinate",
-                       queue.app.schema_manager.get_schema()),))
+        await migrate(db, foundation_migrations() + execution_migrations(queue))
         yield db
     finally:
         await db.close()

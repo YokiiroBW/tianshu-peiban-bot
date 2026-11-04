@@ -89,7 +89,7 @@ async def build_operations_product(runtime):
     life.bind_recovery_policy(policy)
     channels.bind_recovery_policy(policy)
     channels.bind_statistics(operations.statistics)
-    actions.bind_statistics(operations.statistics)
+    actions.statistics = operations.statistics
     workers.index_jobs.bind_observability(
         statistics=operations.statistics, recovery_policy=policy, guard_on=RecoveryExecutor.guard_on
     )

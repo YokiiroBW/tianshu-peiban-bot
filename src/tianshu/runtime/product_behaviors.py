@@ -8,7 +8,9 @@ async def validate_action_behaviors(growth, context, refs, *, purpose):
         return True
     try:
         current = await growth.resolve_behaviors(context, refs, purpose=purpose)
-    except AppError:
+    except AppError as exc:
+        if exc.status not in {502, 503, 504}:
+            raise
         if any(ref.get("semantic_role") == "constraint" for ref in refs):
             raise AppError("behavior_constraint_pending", status=409) from None
         return True

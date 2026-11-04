@@ -173,15 +173,17 @@ async def build_product(runtime):
         # Only durable notifications join the source transaction. Consumers read
         # the original revision and commit or fail independently afterwards.
         scene = identity.scene_id(context)
+        generation = await jobs.current_generation_on(connection)
         identity_key = f"{scene}:{context.principal_id}:{episode.episode_id}:{episode.revision}"
         payload = {
             "context": wire(context), "episode_id": episode.episode_id,
             "revision": episode.revision, "watermark": wire(watermark),
+            "generation": generation,
         }
         for task in ("companion.episode_changed", "life.diary_episode_changed"):
             await jobs.enqueue(connection, JobSpec(
                 task, f"{task}:{identity_key}", payload,
-                ServiceClass.ELASTIC, subject_id=context.actor_id,
+                ServiceClass.ELASTIC, subject_id=context.actor_id, data_generation=generation,
             ))
 
     memory.bind_episode_observer(episode_changed)
@@ -241,6 +243,7 @@ async def build_product(runtime):
 
     caps.actions.bind_behavior_validator(behavior_validator)
     caps.bind_statistics(statistics)
+    caps.bind_recovery_policy(policy)
 
     async def capabilities_changed(context, capability_ids):
         if context.actor_id:

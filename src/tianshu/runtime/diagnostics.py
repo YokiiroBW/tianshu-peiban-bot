@@ -18,15 +18,20 @@ class RuntimeDiagnostics:
         self.database, self.models, self.settings = database, models, settings
         self.events = events
 
-    async def tasks(self, *, limit=50):
+    async def tasks(self, *, limit=50, job_id=None):
         limit = max(1, min(int(limit), 100))
+        if job_id is not None:
+            if isinstance(job_id, bool) or not str(job_id).isdecimal() or int(job_id) < 1:
+                raise AppError("invalid_job_id")
+            job_id = int(job_id)
         async with self.database.transaction(control=True, read_only=True) as conn:
             jobs = await (
                 await conn.execute(
                     "SELECT id,task_name,queue_name,status,scheduled_at,attempts,abort_requested,"
                     "coalesce(scheduled_at>now(),false) AS scheduled "
-                    "FROM procrastinate_jobs ORDER BY id DESC LIMIT %s",
-                    (limit,),
+                    "FROM procrastinate_jobs WHERE (%s::bigint IS NULL OR id=%s) "
+                    "ORDER BY id DESC LIMIT %s",
+                    (job_id, job_id, limit),
                 )
             ).fetchall()
             counts = await (
@@ -36,7 +41,7 @@ class RuntimeDiagnostics:
                 )
             ).fetchall()
         return {"jobs": [job_observation(row) for row in jobs], "counts": counts,
-                "limit": limit, "complete": len(jobs) < limit}
+                "limit": limit, "complete": job_id is not None or len(jobs) < limit}
 
     async def resources(self):
         async with self.database.transaction(control=True, read_only=True) as conn:

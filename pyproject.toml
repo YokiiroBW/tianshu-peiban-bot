@@ -64,12 +64,13 @@ tianshu-plugin = { path = "packages/tianshu-plugin" }
 "tianshu.life" = ["*.sql"]
 "tianshu.conversation" = ["*.sql"]
 "tianshu.channels" = ["*.sql"]
+"tianshu.operations" = ["*.sql"]
 
 [tool.pytest.ini_options]
 testpaths = [
   "tests/runtime", "tests/models", "tests/capabilities", "tests/identity", "tests/sources",
   "tests/memory", "tests/context", "tests/companion", "tests/life", "tests/conversation",
-  "tests/channels",
+  "tests/channels", "tests/operations",
   "tests/core", "tests/deployment",
 ]
 asyncio_mode = "auto"

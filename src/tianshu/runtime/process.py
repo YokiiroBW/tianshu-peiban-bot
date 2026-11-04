@@ -216,6 +216,9 @@ async def run(settings, role, *, initialize=False):
         services.events = events
         jobs.events = events
         services.diagnostics = RuntimeDiagnostics(database, client, settings, events=events)
+        from tianshu.operations.statistics import StatisticsProjection
+
+        services.statistics = StatisticsProjection(database, services.diagnostics)
         try:
             await events.emit("runtime.starting", "started")
         except Exception:
