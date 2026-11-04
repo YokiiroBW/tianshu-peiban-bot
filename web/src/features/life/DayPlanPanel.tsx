@@ -33,6 +33,34 @@ const applicationLabels = {
   invalid_proposal: "提议无效，未排入日程",
 } as const;
 
+const timingLabels: [keyof NonNullable<DayPlanView["timings_ms"]>, string][] = [
+  ["view_total", "服务内部读取视图"],
+  ["identity_check", "身份校验"],
+  ["state_lookup", "生活状态读取"],
+  ["snapshot_database", "日程快照数据库读取"],
+  ["snapshot_source_check", "日程来源校验"],
+  ["application_database", "日程应用结果读取"],
+  ["planning_database", "规划状态读取"],
+  ["projection", "页面视图整理"],
+  ["json_serialization", "JSON 序列化"],
+  ["http_total", "HTTP 总耗时"],
+];
+
+function DayPlanTimings({ timings }: { timings: NonNullable<DayPlanView["timings_ms"]> }) {
+  return <details aria-label="日程读取耗时">
+    <summary>查看日程读取耗时</summary>
+    <p className="muted">服务内部读取视图不包含路由鉴权、JSON 序列化或网络。阶段可能重叠，不能相加作为整个请求耗时。</p>
+    <dl>
+      {timingLabels.map(([key, label]) => {
+        const value = timings[key];
+        const missing = key === "application_database" ? "未执行" :
+          key === "json_serialization" || key === "http_total" ? "未测量" : "未记录";
+        return <div key={key}><dt>{label}</dt><dd>{typeof value === "number" && Number.isFinite(value) ? `${value.toLocaleString("zh-CN", { maximumFractionDigits: 6 })} 毫秒` : missing}</dd></div>;
+      })}
+    </dl>
+  </details>;
+}
+
 export function DayPlanPanel({
   canManage,
   timezone,
@@ -190,6 +218,7 @@ export function DayPlanPanel({
             </p>
           )}
           <LifePlanningStatus planning={view.data.planning} timezone={zone} />
+          {view.data.timings_ms && <DayPlanTimings timings={view.data.timings_ms} />}
           {view.data.application && (
             <section aria-label="本次日程选择结果">
               <h4>本次日程选择结果</h4>

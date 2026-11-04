@@ -1,9 +1,10 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useAuth } from "../../app/Auth";
 import type { ConversationSelection } from "../../app/RoleWorkspace";
 import {
   useDomainCommand,
   useDomainResource,
+  type DomainTarget,
 } from "../../api/useDomainResource";
 import { uploadMedia, type UploadedMedia } from "../../api/uploads";
 import type { ArtifactRef, Page, Receipt } from "../../api/contracts";
@@ -12,6 +13,7 @@ import { CommandFeedback } from "../../components/CommandFeedback";
 import { ContextSelection } from "../../components/ContextSelection";
 import { TurnEvidence } from "./TurnEvidence";
 import { DialogueFlowEvidence, type DialogueFlow } from "./DialogueFlow";
+import { InputStatusEvidence, needsLearningRefresh, type InputStatus } from "./InputStatusEvidence";
 
 type Part = {
   kind: string;
@@ -45,6 +47,7 @@ type Turn = {
   token_usage?: unknown;
   provider_usage?: unknown;
   flow?: DialogueFlow | null;
+  input_status?: InputStatus[] | null;
 };
 const active = new Set([
   "collecting",
@@ -274,7 +277,7 @@ function TurnStatus({
   refresh,
 }: {
   turnId: string;
-  selector: object;
+  selector: DomainTarget;
   refresh: () => Promise<void>;
 }) {
   const view = useDomainResource<Turn>(
@@ -284,6 +287,14 @@ function TurnStatus({
     1500,
     (turn) => active.has(turn.state),
   );
+  const observeLearning = !!view.data && !active.has(view.data.state) && needsLearningRefresh(view.data.input_status);
+  useEffect(() => {
+    if (!observeLearning) return;
+    const timer = window.setInterval(() => {
+      if (!document.hidden) void view.refresh();
+    }, 15000);
+    return () => clearInterval(timer);
+  }, [observeLearning, view.refresh]);
   const action = useDomainCommand(turnId);
   const reason = view.data?.error_code ?? view.data?.receipt?.error_code;
   return (
@@ -301,6 +312,7 @@ function TurnStatus({
         <ContextSelection selection={view.data.context_selection} tokenUsage={view.data.token_usage} providerUsage={view.data.provider_usage} />
       </details>}
       {view.data && <DialogueFlowEvidence flow={view.data.flow} />}
+      {view.data && <InputStatusEvidence items={view.data.input_status} scope={selector} />}
       {reason && <p role="alert">{turnErrors[reason] ?? reason}</p>}
       {view.data && active.has(view.data.state) && (
         <button

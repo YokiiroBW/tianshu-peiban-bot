@@ -189,6 +189,18 @@ export type DayPlanView = {
   slots: DaySlot[];
   unfinished: Activity[];
   planning?: Routine["planning"];
+  timings_ms?: {
+    view_total: number | null;
+    identity_check: number | null;
+    state_lookup: number | null;
+    snapshot_database: number | null;
+    snapshot_source_check: number | null;
+    application_database: number | null;
+    planning_database: number | null;
+    projection: number | null;
+    json_serialization: number | null;
+    http_total: number | null;
+  } | null;
   application?: {
     generation_key: string;
     items: {
@@ -249,11 +261,9 @@ export type GrowthView = {
       can_request_review: boolean;
     }[];
     partial_inputs?: number;
+    unavailable_inputs?: number;
     material_missing?: string[];
-    legacy_state?: "requests" | "episodes" | "complete";
-    legacy_request_cursor?: string | null;
-    legacy_episode_cursor?: string | null;
-    legacy_missing?: string[];
+    input_missing?: string[];
     blocked_material?: {
       episode_id?: string;
       revision?: number;
@@ -275,7 +285,6 @@ export type GrowthView = {
           missing: string[];
         }
       >;
-      legacy_material?: boolean;
     } | null;
   } | null;
   can_review: boolean;

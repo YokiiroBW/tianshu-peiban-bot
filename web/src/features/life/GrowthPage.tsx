@@ -201,22 +201,9 @@ export default function GrowthPage() {
                   )}
                 </div>
               )}
-              {review.legacy_state && review.legacy_state !== "complete" && (
-                <p role="status">
-                  正在
-                  {review.legacy_state === "requests"
-                    ? "登记原请求引用清单"
-                    : "接续旧处理位置后的经历版本"}
-                  ，完成后继续原执行；当前进度不表示执行失败。
-                </p>
-              )}
               {review.batch ? (
                 <details open>
-                  <summary>
-                    {review.batch.legacy_material
-                      ? "已固定的原请求材料"
-                      : "本次固定经历批次"}
-                  </summary>
+                  <summary>本次固定经历批次</summary>
                   <p>
                     材料标识：{sanitizeInternalText(review.batch.material_key)}
                   </p>
@@ -278,11 +265,14 @@ export default function GrowthPage() {
                   <pre>{showValue(review.blocked_material)}</pre>
                 </details>
               )}
-              {!!review.legacy_missing?.length && (
-                <p>
-                  原执行恢复仍有 {review.legacy_missing.length}{" "}
-                  项材料或请求信息缺失。
-                </p>
+              {(!!review.unavailable_inputs || !!review.input_missing?.length) && (
+                <details open>
+                  <summary>当前不可用材料</summary>
+                  {!!review.unavailable_inputs && <p>{review.unavailable_inputs} 条材料当前不可用。</p>}
+                  {!!review.input_missing?.length && <ul>{review.input_missing.map((reason, index) => (
+                    <li key={`${reason}:${index}`}>{sanitizeInternalText(reason) || "原因未记录"}</li>
+                  ))}</ul>}
+                </details>
               )}
               {view.data.can_review && review.can_request_review && (
                 <button
@@ -307,7 +297,7 @@ export default function GrowthPage() {
                   最近整理记录：{time(review.last_reviewed_at)}
                 </p>
               )}
-              {(review.last_error || review.legacy_missing?.length) && (
+              {(review.last_error || review.input_missing?.length) && (
                 <details>
                   <summary>整理诊断</summary>
                   <pre>{showValue(review)}</pre>

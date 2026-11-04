@@ -23,7 +23,7 @@ for (const partial of [true, false]) {
           material_missing: partial
             ? ["discovery_metadata_only_body_not_read", "action_content_not_assessed"]
             : [],
-          legacy_missing: [],
+          input_missing: [],
           batch: null,
         },
       }),
@@ -35,7 +35,7 @@ for (const partial of [true, false]) {
       await expect(range.getByText(/有 2 条经历按有限材料整理/)).toBeVisible();
       await expect(range.getByText(/不包含正文阅读/)).toBeVisible();
       await expect(range.getByText(/完整内容尚未纳入反思/)).toBeVisible();
-      await expect(page.getByText(/原执行恢复仍有/)).toHaveCount(0);
+      await expect(page.getByText("当前不可用材料")).toHaveCount(0);
     } else {
       await expect(range).toHaveCount(0);
     }

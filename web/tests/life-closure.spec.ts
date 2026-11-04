@@ -669,6 +669,9 @@ test("day plan distinguishes intentional idle from deferred and stale proposals"
   await setup(page);
   await page.route(apiPath("life/day-plan"), (route) => answer(route, {
     day: "2026-11-02", plan: null, slots: [], unfinished: [],
+    timings_ms: { view_total: 24.5, identity_check: 1, state_lookup: 2, snapshot_database: 3,
+      snapshot_source_check: 4, application_database: null, planning_database: 5, projection: 1.5,
+      json_serialization: null, http_total: null },
     application: { generation_key: "plan-1", next_due_at: "2026-11-02T06:00:00Z", items: [
       { candidate_key: "idle", status: "intentional_idle", reason: null, activity_id: null, slot_id: null, revision: null, next_due_at: null },
       { candidate_key: "later", status: "deferred_no_slot", reason: "时间冲突", activity_id: null, slot_id: null, revision: null, next_due_at: null },
@@ -681,6 +684,12 @@ test("day plan distinguishes intentional idle from deferred and stale proposals"
   await expect(result).toContainText("主动留白");
   await expect(result).toContainText("暂时没有合适时间");
   await expect(result).toContainText("依据已变化");
+  const timings = page.getByLabel("日程读取耗时");
+  await timings.getByText("查看日程读取耗时").click();
+  await expect(timings).toContainText("24.5 毫秒");
+  await expect(timings).toContainText("日程应用结果读取未执行");
+  await expect(timings).toContainText("HTTP 总耗时未测量");
+  await expect(timings).toContainText("不能相加作为整个请求耗时");
 });
 
 test("thin activity lists fetch the full checkpoint only when requested", async ({ page }) => {

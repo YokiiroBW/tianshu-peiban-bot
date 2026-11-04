@@ -74,6 +74,8 @@ const indexStates: Record<string, string> = {
   not_required: "无需索引",
   pending: "等待索引",
   ready: "已索引",
+  failed: "索引失败",
+  unavailable: "索引状态暂不可用",
 };
 
 export function ConsolidationStatus({
@@ -101,7 +103,25 @@ export function ConsolidationStatus({
       )}
       {value.commit_state && <p>提交状态：{value.commit_state === "applied" ? "记忆已应用" : "尚未提交记忆"}。</p>}
       {value.required_context_missing?.length ? <details open><summary>必要上下文仍有 {value.required_context_missing.length} 项缺失</summary><pre>{showValue(value.required_context_missing)}</pre></details> : null}
-      {value.indexing && <details><summary>索引状态：{indexStates[value.indexing.state] ?? value.indexing.state}</summary><pre>{showValue(value.indexing.objects)}</pre></details>}
+      {value.indexing && (
+        <details>
+          <summary>索引状态：{indexStates[value.indexing.state] ?? value.indexing.state}</summary>
+          {value.commit_state === "applied" && value.indexing.state === "pending" && (
+            <p>记忆已应用，部分对象仍在等待索引。</p>
+          )}
+          {value.indexing.objects.length ? (
+            <ul>
+              {value.indexing.objects.map((item) => (
+                <li key={`${item.kind}:${item.id}:${item.revision}`}>
+                  {item.kind} · {item.id} · 版本 {item.revision} · {item.state ? (indexStates[item.state] ?? item.state) : "状态未记录"}
+                  {item.profile_key && <> · 索引档案 {item.profile_key}</>}
+                  {item.generation != null && <> · 数据代际 {item.generation}</>}
+                </li>
+              ))}
+            </ul>
+          ) : <p>没有需要展示的索引对象。</p>}
+        </details>
+      )}
       {recovery && (
         <p className="muted curio-consolidation-hint">
           {recovery.label}：{recovery.description}

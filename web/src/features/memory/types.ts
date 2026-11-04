@@ -87,7 +87,17 @@ export type Consolidation = {
   context_unfulfilled?: unknown[];
   commit_state?: "applied" | "not_committed";
   required_context_missing?: unknown[];
-  indexing?: { state: string; objects: { kind: string; id: string; revision: number }[] } | null;
+  indexing?: {
+    state: string;
+    objects: {
+      kind: string;
+      id: string;
+      revision: number;
+      state?: string;
+      profile_key?: string | null;
+      generation?: string | number | null;
+    }[];
+  } | null;
   coverage?: { state?: string; missing?: string[]; [key: string]: unknown };
 };
 export type Episode = {

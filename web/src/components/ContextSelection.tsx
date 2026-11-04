@@ -18,6 +18,6 @@ export function ContextSelection({ selection, tokenUsage, providerUsage }: Props
     <p className="muted">清单中的选择、舍弃和原因以原记录为准；进入上下文不代表回复已送达或用户认可。</p>
     <details><summary>上下文预算记录</summary>{tokenUsage == null ? <p>本轮未记录上下文预算。</p> : <pre>{show(tokenUsage)}</pre>}</details>
     <details><summary>供应商实际用量</summary>{providerUsage == null ? <p>供应商用量未记录，不能按零计算。</p> : <pre>{show(providerUsage)}</pre>}</details>
-    <p className="muted">本记录未提供明确用户反馈，不能根据没有投诉推断认可。</p>
+    <p className="muted">未记录明确反馈时，不能根据没有投诉推断认可。</p>
   </section>;
 }

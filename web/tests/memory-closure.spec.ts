@@ -64,6 +64,8 @@ test.beforeEach(async ({ page }) => nativeSession(page));
 
 test("memory status separates committed material from missing context and unknown indexing", async ({ page }) => {
   const pending = { batch_id: "batch", status: "pending", target_results: [], unresolved: [] };
+  let indexing: { state: string; objects: { kind: string; id: string; revision: number; state?: string; profile_key?: string | null; generation?: string | null }[] } =
+    { state: "unknown", objects: [{ kind: "claim", id: "claim-1", revision: 1 }] };
   await page.route(apiPath("memory/episodes"), (route) => answer(route, {
     ...emptyPage, watermark: "1", items: [{ episode_id: "episode", revision: 1, event_id: "event", origin_kind: "actor",
       occurred_at: "2026-11-04T00:00:00Z", summary: "一条经历", source_refs: [], actual_result: null,
@@ -71,7 +73,7 @@ test("memory status separates committed material from missing context and unknow
   }));
   await page.route(apiPath("memory/extraction/status"), (route) => answer(route, {
     ...pending, status: "applied", revision: 1, commit_state: "applied", required_context_missing: ["原图缺失"],
-    indexing: { state: "unknown", objects: [{ kind: "claim", id: "claim-1", revision: 1 }] },
+    indexing,
   }));
   await page.goto("/#/memory");
   await page.getByLabel("读取范围").selectOption("actor");
@@ -80,6 +82,11 @@ test("memory status separates committed material from missing context and unknow
   await expect(page.getByText("提交状态：记忆已应用。", { exact: true })).toBeVisible();
   await expect(page.getByText("必要上下文仍有 1 项缺失")).toBeVisible();
   await expect(page.getByText("索引状态：尚未确认")).toBeVisible();
+  indexing = { ...indexing, state: "pending", objects: [{ ...indexing.objects[0], state: "pending", profile_key: "profile-1", generation: "generation-1" }] };
+  await page.getByRole("button", { name: "读取最新处理状态" }).click();
+  await page.getByText("索引状态：等待索引").click();
+  await expect(page.getByText("记忆已应用，部分对象仍在等待索引。")).toBeVisible();
+  await expect(page.getByText(/索引档案 profile-1 · 数据代际 generation-1/)).toBeVisible();
 });
 
 test("reflections use the companion authority with scoped time and cursor", async ({ page }) => {
@@ -729,7 +736,8 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
         can_request_review: false,
         pending_inputs: 32,
         pending_original_requests: 1,
-        legacy_state: "requests",
+        unavailable_inputs: 1,
+        input_missing: ["source_unavailable"],
         recovery: "observe_original_attempt",
         attempt_id: "original-growth-attempt",
         blocked_material: {
@@ -741,7 +749,6 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
           material_key: "fixed-material",
           inputs: [["episode-a", 2]],
           has_more: true,
-          legacy_material: true,
         },
       },
     }),
@@ -752,6 +759,8 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
   });
   await page.goto("/#/roles/growth");
   await expect(page.getByText(/待处理经历版本：32/)).toBeVisible();
+  await expect(page.getByText(/待观察原请求：1/)).toBeVisible();
+  await expect(page.getByText("1 条材料当前不可用。", { exact: true })).toBeVisible();
   await expect(page.getByText("episode-a · v2", { exact: true })).toBeVisible();
   await expect(
     page.getByText(/原 attempt：original-growth-attempt/),
