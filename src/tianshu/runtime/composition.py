@@ -46,7 +46,7 @@ class DomainModule:
 
 MODULE_START_ROLES = {
     "channels": ("interactive",),
-    "capabilities": ("interactive", "independent"),
+    "capabilities": ("interactive", "bot-foreground", "bot-background", "independent"),
     "conversation": ("bot-foreground",),
     "memory": ("bot-background",),
     "companion": ("bot-background",),

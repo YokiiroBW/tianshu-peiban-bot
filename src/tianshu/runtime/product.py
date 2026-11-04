@@ -86,6 +86,7 @@ async def build_product(runtime):
     from tianshu.capabilities.weather import WeatherService
     from tianshu.channels.module import build_module as channel_module
     from tianshu.runtime.recovery_policy import RecoveryPolicy
+    from tianshu.operations.recovery import RecoveryExecutor
     from tianshu.operations.statistics import StatisticsProjection
     from tianshu.runtime.jobs import JobSpec
     from tianshu.runtime.serialization import wire
@@ -111,6 +112,7 @@ async def build_product(runtime):
         memory, embeddings, runtime.settings.get("memory", {}).get("retrieval", {})
     )
     memory.bind_record_candidates(retrieval.candidates)
+    memory.bind_index_readiness(retrieval.index_readiness)
     assembler = ContextAssembler(
         identity, memory, retrieval, settings=runtime.settings.get("context", {})
     )
@@ -159,8 +161,10 @@ async def build_product(runtime):
     growth = GrowthService(companion, jobs, models, assembler, on_projection_changed=life.signal)
     growth.set_life(life)
     growth.set_observability(statistics=statistics, recovery_policy=policy)
+    growth.set_operations_guard(RecoveryExecutor.guard_on)
     assembler.bind_behavior_resolver(growth)
     retrieval.bind_behavior_resolver(growth.resolve_behaviors)
+    retrieval.bind_learning_resolver(growth.learning_records)
 
     async def episode_changed(context, watermark, *, episode=None, connection=None):
         if episode is None:
@@ -259,6 +263,7 @@ async def build_product(runtime):
         )
         renderer.bind_behavior_resolver(growth)
         life_worker = LifeWorker(life, models, assembler, caps.catalog, caps.actions, renderer, growth)
+        life_worker.recovery_guard_on = RecoveryExecutor.guard_on
         life_worker.bind_writing(writing)
         renderer.bind_contact_preflight(life_worker.contact_preflight)
         channels.bind_contact_preflight(life_worker.contact_preflight)
@@ -284,8 +289,8 @@ async def build_product(runtime):
         artifacts=artifacts,
     )
     if background:
-        conversation_dependencies = ConversationDependencies()
-        conversation_dependencies.bind_statistics(statistics, jobs)
+        conversation_dependencies = ConversationDependencies(jobs=jobs)
+        conversation_dependencies.bind_statistics(statistics)
         for name, consumer in (
             ("memory", memory), ("companion", CompanionDependencies()),
             ("life", LifeDependencies(life)), ("conversation", conversation_dependencies),
