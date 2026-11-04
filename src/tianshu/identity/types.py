@@ -38,3 +38,19 @@ class AdmissionDecision:
     mentioned_person_ids: tuple[str, ...] = ()
     original_author_person_id: str | None = None
     reply_to_event_id: str | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class SceneAuthority:
+    """Stable scene identity and the separately versioned current authority."""
+
+    scene_id: str
+    principal_id: str
+    actor_id: str | None
+    person_id: str | None
+    conversation_id: str | None
+    scope_ids: tuple[str, ...]
+    permissions: tuple[str, ...]
+    principal_epoch: int
+    scope_access_epochs: tuple[tuple[str, int], ...]
+    scope_intake_epochs: tuple[tuple[str, int], ...]

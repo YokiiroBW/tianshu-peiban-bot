@@ -4,10 +4,27 @@ from typing import Any, Protocol
 
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.types import TrustedContext
-from .types import AdmissionDecision, IncomingEvent
+from .types import AdmissionDecision, IncomingEvent, SceneAuthority
 
 
 class IdentityPort(Protocol):
+    def scene_id(self, context: TrustedContext) -> str: ...
+    async def scene_authority_on(
+        self, connection, context: TrustedContext
+    ) -> SceneAuthority: ...
+    async def lock_context_on(self, connection, context: TrustedContext) -> TrustedContext: ...
+    async def system_context(
+        self, principal_id: str, *, permission: str, actor_id: str | None = None,
+        connection=None
+    ) -> TrustedContext: ...
+    async def publication_scope(
+        self, context: TrustedContext, stable_id: str, reader_ids: tuple[str, ...],
+        conversation_ids: tuple[str, ...], *, connection
+    ) -> tuple[tuple[str, ...], dict[str, int]]: ...
+    async def refresh_scheduled_context(
+        self, previous: TrustedContext, *, permission: str, connection=None,
+        require_actor: bool = True
+    ) -> TrustedContext: ...
     async def for_participation(
         self, context: TrustedContext, *, source_refs=()
     ) -> TrustedContext | None: ...

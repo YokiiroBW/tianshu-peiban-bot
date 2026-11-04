@@ -8,7 +8,6 @@ import json
 
 from psycopg.types.json import Jsonb
 
-from tianshu.models.ledger import purge_source_results_many
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
@@ -22,13 +21,14 @@ class SourceService:
     def __init__(self, database, identity, files, commands, jobs):
         self.database, self.identity, self.files = database, identity, files
         self.commands, self.jobs = commands, jobs
-        self.dependants = []
+        self.dependants = {}
 
-    def register_dependant(self, callback):
-        """An owner's callback invalidates only its own selected dependent state."""
-        if callback in self.dependants:
+    def register_dependant(self, callback, *, name=None, partitions=None):
+        """Register a stable consumer name; delivery runs after the source commits."""
+        name = name or f"{callback.__module__}.{callback.__qualname__}"
+        if name in self.dependants:
             raise ValueError("duplicate_source_dependant")
-        self.dependants.append(callback)
+        self.dependants[name] = (callback, partitions)
 
     async def check(self, context, source_refs=()):
         results = await self.check_many(context, (tuple(source_refs),))
@@ -39,10 +39,59 @@ class SourceService:
         async with self.database.transaction(control=True, read_only=True) as conn:
             return await self.check_many_on(conn, context, refs_groups)
 
+    async def register_evidence_on(self, connection, context, spec):
+        from .evidence import register_on
+        return await register_on(self, connection, context, spec)
+
+    async def prove_many_on(self, connection, context, references, *, lock=False):
+        from .evidence import prove_many_on
+        return await prove_many_on(self, connection, context, references, lock=lock)
+
+    async def prove_many(self, context, references):
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            return await self.prove_many_on(conn, context, references)
+
+    async def source_status_many(self, context, references):
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            return await self.source_status_many_on(conn, context, references)
+
+    async def source_status_many_on(self, connection, context, references):
+        """Current state without disclosing metadata outside the caller's scopes."""
+        from .types import SourceStatus
+        refs = tuple(references)
+        allowed = await self.check_many_on(connection, context, tuple((ref,) for ref in refs))
+        rows = await (await connection.execute(
+            "SELECT o.source_id,o.owner_id,o.person_id,o.actor_id,o.state,o.head_revision,"
+            "v.revision,v.state AS version_state,v.scope_ids FROM sources.originals o "
+            "JOIN sources.versions v USING(source_id) WHERE (v.source_id,v.revision) IN "
+            "(SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+            ([ref.source_id for ref in refs], [ref.revision for ref in refs]),
+        )).fetchall()
+        indexed = {(row["source_id"], row["revision"]): row for row in rows}
+        owned = await self.identity.can_revoke_sources_on(
+            connection, context,
+            tuple((row["owner_id"], row["person_id"], row["actor_id"]) for row in rows),
+        )
+        revocable = {(row["source_id"], row["revision"]): value for row, value in zip(rows, owned)}
+        result = []
+        for ref, usable in zip(refs, allowed):
+            key = (ref.source_id, ref.revision)
+            row = indexed.get(key)
+            visible = bool(row and (revocable[key] or set(row["scope_ids"]) <= set(context.scope_ids)))
+            state = "active" if usable else (
+                (row["state"] if row["state"] != "active" else
+                 "superseded" if row["head_revision"] != ref.revision else
+                 row["version_state"] if row["version_state"] != "active" else "unavailable")
+                if visible else "unavailable"
+            )
+            result.append(SourceStatus(ref, state, row["head_revision"] if visible else None, usable))
+        return tuple(result)
+
     async def validate_persistence(self, conn, context, source_refs):
         """Lock only selected roots/supports until result commit; forgetting locks these first too."""
-        await self._lock_selected(conn, source_refs)
         try:
+            await self.identity.lock_context_on(conn, context)
+            await self._lock_selected(conn, source_refs)
             return (await self.check_many_on(conn, context, (tuple(source_refs),)))[0]
         except AppError as exc:
             if exc.status in {401, 403, 409}:
@@ -140,22 +189,6 @@ class SourceService:
                     )
                 ).fetchone():
                     raise AppError("source_suppressed", status=409)
-            previous_roots = await (
-                await conn.execute(
-                    "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN "
-                    "sources.versions v ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.owner_id=%s "
-                    "AND o.actor_id IS NOT DISTINCT FROM %s AND v.evidence_unit=%s ORDER BY o.source_id FOR UPDATE OF o",
-                    (context.principal_id, context.actor_id, f"{producer}:{event_id}"),
-                )
-            ).fetchall()
-            await purge_source_results_many(
-                conn,
-                tuple(
-                    SourceRef(row["source_id"], row["head_revision"], {})
-                    for row in previous_roots
-                    if row["head_revision"] < revision
-                ),
-            )
             for position, part in enumerate(parts):
                 if not isinstance(part, dict):
                     raise AppError("invalid_source_part")
@@ -303,20 +336,42 @@ class SourceService:
             raise AppError("source_suppressed", status=409)
         old = await (
             await conn.execute(
-                "SELECT content,media,scope_ids,origin_kind,speaker_id FROM sources.versions WHERE "
+                "SELECT content,media,scope_ids,origin_kind,speaker_id,locator,coverage,disclosure,state "
+                "FROM sources.versions WHERE "
                 "source_id=%s AND revision=%s",
                 (source_id, revision),
             )
         ).fetchone()
         if old:
+            rows = await (await conn.execute(
+                "SELECT group_id,support_source_id,support_revision,support_locator FROM sources.supports "
+                "WHERE source_id=%s AND revision=%s ORDER BY group_id,support_key",
+                (source_id, revision),
+            )).fetchall()
+            stored_groups = {}
+            for row in rows:
+                stored_groups.setdefault(row["group_id"], []).append(SourceRef(
+                    row["support_source_id"], row["support_revision"], row["support_locator"]
+                ))
+            def group_keys(groups):
+                return sorted({body_hash(sorted({
+                    body_hash(SourceRef(**ref) if isinstance(ref, dict) else ref) for ref in group
+                })) for group in groups})
             if (
                 old["content"] != content
                 or old["speaker_id"] != speaker_id
                 or old["media"] != wire(media)
                 or old["origin_kind"] != str(origin_kind)
                 or set(old["scope_ids"]) != set(context.scope_ids)
+                or old["locator"] != wire(locator)
+                or old["coverage"] != wire(coverage)
+                or old["disclosure"] != disclosure
+                or group_keys(stored_groups.values()) != group_keys(support_groups)
             ):
                 raise AppError("source_revision_conflict", status=409)
+            if (original["state"] != "active" or old["state"] != "active"
+                or original["head_revision"] != revision):
+                raise AppError("source_unavailable", status=403)
             return SourceRef(source_id, revision, {})
         if revision < original["head_revision"]:
             raise AppError("source_revision_obsolete", status=409)
@@ -431,7 +486,7 @@ class SourceService:
                 revision,
                 locator,
                 datetime.now(UTC),
-                OriginKind.ACTOR,
+                OriginKind.ACTOR if context.actor_id else OriginKind.TOOL_RESULT,
                 parts[0]["text"],
                 None,
                 "publication:" + stable_id,
@@ -579,6 +634,129 @@ class SourceService:
 
     async def register_media(self, context, media, *, locator, origin_kind=OriginKind.HUMAN):
         return await self._register_media(context, media, locator, origin_kind, None)
+
+    async def register_media_supplement(
+        self, context, media, *, original_ref, producer, event_id, event_revision,
+        part_index, supplement_revision,
+    ):
+        """Attach a separately versioned original file to one immutable event part."""
+        if (
+            not isinstance(original_ref, SourceRef) or original_ref.locator
+            or type(event_revision) is not int or event_revision < 1
+            or original_ref.revision != event_revision
+            or type(part_index) is not int or part_index < 0
+            or type(supplement_revision) is not int or supplement_revision < 1
+            or not isinstance(producer, str) or not producer
+            or not isinstance(event_id, str) or not event_id
+        ):
+            raise AppError("invalid_media_supplement")
+        if not self.files.was_written(media):
+            raise AppError("media_intake_not_owned", status=403)
+
+        def verify():
+            with self.files.open_reader(media):
+                pass
+
+        await asyncio.to_thread(verify)
+        locator = {
+            "kind": "media_supplement", "producer": producer, "event_id": event_id,
+            "event_revision": event_revision, "part": part_index,
+            "original_ref": wire(original_ref),
+        }
+        # The original reference already fixes the event owner and scene. A
+        # different authorized reader must not create a second attachment identity.
+        key = body_hash(locator)
+        digest = body_hash({"locator": locator, "revision": supplement_revision, "media": media})
+        async with self.database.transaction() as conn:
+            await self._lock_selected(
+                conn, (original_ref,), extra=("source_" + key[:48],), exclusive=True,
+            )
+            if not await self.validate_persistence(conn, context, (original_ref,)):
+                raise AppError("source_unavailable", status=403)
+            original = await (await conn.execute(
+                "SELECT o.owner_id,o.person_id,o.actor_id,v.scope_ids,v.locator,"
+                "v.occurred_at,v.origin_kind,v.speaker_id "
+                "FROM sources.originals o JOIN sources.versions v USING(source_id) "
+                "WHERE v.source_id=%s AND v.revision=%s",
+                (original_ref.source_id, original_ref.revision),
+            )).fetchone()
+            if (not original or original["actor_id"] != context.actor_id
+                or original["locator"].get("producer") != producer
+                or original["locator"].get("event_id") != event_id
+                or original["locator"].get("part") != part_index):
+                raise AppError("media_supplement_original_mismatch", status=409)
+            if original["owner_id"] != context.principal_id:
+                raise AppError("media_supplement_owner_required", status=403)
+            intake = tuple(original["scope_ids"])
+            epochs = await self.identity.support_epochs(intake, connection=conn)
+            target = replace(context, principal_id=original["owner_id"], person_id=original["person_id"],
+                             scope_ids=intake, audience=intake)
+            ref = await self._register(
+                conn, target, epochs, key, supplement_revision, locator,
+                original["occurred_at"], OriginKind(original["origin_kind"]), None,
+                wire(media), f"supplement:{producer}:{event_id}:{event_revision}:{part_index}",
+                Coverage(True), ((original_ref,),), support_context=context,
+                speaker_id=original["speaker_id"],
+            )
+            await conn.execute(
+                "INSERT INTO sources.media_supplements(source_id,revision,request_digest) "
+                "VALUES(%s,%s,%s) ON CONFLICT DO NOTHING",
+                (ref.source_id, ref.revision, digest),
+            )
+            row = await (await conn.execute(
+                "SELECT request_digest FROM sources.media_supplements WHERE source_id=%s AND revision=%s",
+                (ref.source_id, ref.revision),
+            )).fetchone()
+            if row["request_digest"] != digest:
+                raise AppError("source_revision_conflict", status=409)
+            if not await self.validate_persistence(conn, context, (ref,)):
+                raise AppError("source_unavailable", status=403)
+            return ref
+
+    async def validate_media_supplement_on(
+        self, connection, context, supplement_ref, *, original_ref, producer,
+        event_id, event_revision, part_index,
+    ):
+        """Prove binding and hold both references until the caller's write commits."""
+        if (not isinstance(supplement_ref, SourceRef) or supplement_ref.locator
+            or not isinstance(original_ref, SourceRef) or original_ref.locator
+            or original_ref.revision != event_revision):
+            return False
+        await self.identity.lock_context_on(connection, context)
+        await self._lock_selected(connection, (supplement_ref, original_ref))
+        if not (await self.check_many_on(connection, context, ((supplement_ref, original_ref),)))[0]:
+            return False
+        row = await (await connection.execute(
+            "SELECT v.locator,v.media,o.actor_id,original.locator AS original_locator "
+            "FROM sources.versions v JOIN sources.originals o USING(source_id) "
+            "JOIN sources.media_supplements s ON s.source_id=v.source_id AND s.revision=v.revision "
+            "JOIN sources.versions original ON original.source_id=%s AND original.revision=%s "
+            "WHERE v.source_id=%s AND v.revision=%s",
+            (original_ref.source_id, original_ref.revision,
+             supplement_ref.source_id, supplement_ref.revision),
+        )).fetchone()
+        expected = {
+            "kind": "media_supplement", "producer": producer, "event_id": event_id,
+            "event_revision": event_revision, "part": part_index,
+            "original_ref": wire(original_ref),
+        }
+        if (not row or not row["media"] or row["actor_id"] != context.actor_id
+            or row["locator"] != expected
+            or row["original_locator"].get("producer") != producer
+            or row["original_locator"].get("event_id") != event_id
+            or row["original_locator"].get("part") != part_index):
+            return False
+        supports = await (await connection.execute(
+            "SELECT group_id,support_source_id,support_revision,support_locator "
+            "FROM sources.supports WHERE source_id=%s AND revision=%s",
+            (supplement_ref.source_id, supplement_ref.revision),
+        )).fetchall()
+        return bool(supports) and all(
+            item["support_source_id"] == original_ref.source_id
+            and item["support_revision"] == original_ref.revision
+            and item["support_locator"] == wire(original_ref.locator)
+            for item in supports
+        )
 
     async def publish_media(self, context, media, *, locator, source_refs=(), target="actor"):
         """Explicitly copy original bytes to an existing actor or intake scope.
@@ -785,9 +963,6 @@ class SourceService:
 
         related = await invalidate_related(conn, source, kind)
         affected = (source, *related)
-        await purge_source_results_many(conn, affected)
-        for callback in self.dependants:
-            await callback(conn, affected, kind)
         for ref in affected:
             change = await (
                 await conn.execute(
@@ -800,10 +975,58 @@ class SourceService:
                 JobSpec(
                     "sources.propagate",
                     f"source-change:{change['sequence']}",
-                    {"source": wire(ref), "kind": kind},
+                    {"source": wire(ref), "kind": kind, "change_id": change["sequence"]},
                     ServiceClass.DUE,
                 ),
             )
+
+    async def _notify_dependants(self, conn, refs, kind, event_key):
+        for name in self.dependants:
+            await self.jobs.enqueue(
+                conn,
+                JobSpec(
+                    "sources.dispatch", f"source-dispatch:{event_key}:{body_hash(name)}",
+                    {"consumer": name, "sources": wire(refs), "kind": kind,
+                     "event_key": event_key}, ServiceClass.DUE,
+                ),
+            )
+
+    async def dispatch_dependant(self, consumer, sources, kind, event_key):
+        registration = self.dependants.get(consumer)
+        if registration is None:
+            raise AppError("source_consumer_unavailable", status=503)
+        refs = tuple(SourceRef(**item) for item in sources)
+        async with self.database.transaction() as conn:
+            _, partitioner = registration
+            actors = await partitioner(conn, refs, kind) if partitioner else (None,)
+            actors = tuple(dict.fromkeys(actors))
+            if any(actor is not None and (not isinstance(actor, str) or not actor) for actor in actors):
+                raise AppError("invalid_source_consumer_partition")
+            for actor_id in actors:
+                await self.jobs.enqueue(
+                    conn,
+                    JobSpec(
+                        "sources.notify",
+                        f"source-notify:{event_key}:{body_hash({'consumer': consumer, 'actor': actor_id})}",
+                        {"consumer": consumer, "sources": sources, "kind": kind,
+                         "actor_id": actor_id, "partitioned": partitioner is not None},
+                        ServiceClass.DUE, subject_id=actor_id,
+                    ),
+                )
+
+    async def notify_dependant(self, consumer, sources, kind, actor_id=None, partitioned=False):
+        registration = self.dependants.get(consumer)
+        if registration is None:
+            raise AppError("source_consumer_unavailable", status=503)
+        callback, partitioner = registration
+        if bool(partitioner) != partitioned:
+            raise AppError("source_consumer_contract_changed", status=409)
+        refs = tuple(SourceRef(**item) for item in sources)
+        async with self.database.transaction() as conn:
+            if partitioned:
+                await callback(conn, refs, kind, actor_id=actor_id)
+            else:
+                await callback(conn, refs, kind)
 
     async def recall_event(
         self, context, producer, event_id, *, revision=None, reason="channel_recall"
@@ -835,9 +1058,6 @@ class SourceService:
                 conn,
                 tuple(SourceRef(row["source_id"], row["head_revision"], {}) for row in rows),
                 exclusive=True,
-            )
-            await purge_source_results_many(
-                conn, tuple(SourceRef(row["source_id"], row["head_revision"], {}) for row in rows)
             )
             for row in rows:
                 changed = await (
@@ -972,9 +1192,14 @@ class SourceService:
             on_replay=lambda conn, original: self._replay_invalidation(conn, context, original),
         )
 
-    async def propagate(self, source, kind, cursor=None):
+    async def propagate(self, source, kind, cursor=None, change_id=None):
         source = SourceRef(**source)
         async with self.database.transaction() as conn:
+            event_key = str(change_id) if change_id is not None else body_hash({"source": source, "kind": kind})
+            if cursor is None:
+                # Consumer registration belongs to the background process, not to
+                # whichever process happened to withdraw the source.
+                await self._notify_dependants(conn, (source,), kind, f"change:{event_key}")
             last_id, last_revision = (
                 (cursor["source_id"], cursor["revision"]) if cursor else (None, None)
             )
@@ -1003,7 +1228,6 @@ class SourceService:
                 )
             ).fetchall()
             dependents = tuple(SourceRef(row["source_id"], row["revision"], {}) for row in invalid)
-            await purge_source_results_many(conn, dependents)
             if dependents:
                 await conn.execute(
                     "UPDATE sources.versions v SET state='unsupported',content=NULL,media=NULL,locator='{}' "
@@ -1012,16 +1236,19 @@ class SourceService:
                     "'source_id',v.source_id,'revision',v.revision,'locator','{}'::jsonb))),v.scope_ids)",
                     ([ref.source_id for ref in dependents], [ref.revision for ref in dependents]),
                 )
-                for callback in self.dependants:
-                    await callback(conn, dependents, kind)
+                await self._notify_dependants(
+                    conn, dependents, kind,
+                    f"propagation:{event_key}:{body_hash(cursor)}",
+                )
             if len(rows) > 512:
                 last = {"source_id": rows[511]["source_id"], "revision": rows[511]["revision"]}
                 await self.jobs.enqueue(
                     conn,
                     JobSpec(
                         "sources.propagate",
-                        f"source-propagation:{source.source_id}:{source.revision}:{kind}:{last_id}:{last['source_id']}:{last['revision']}",
-                        {"source": wire(source), "kind": kind, "cursor": last},
+                        f"source-propagation:{event_key}:{last['source_id']}:{last['revision']}",
+                        {"source": wire(source), "kind": kind, "cursor": last,
+                         "change_id": change_id},
                         ServiceClass.DUE,
                     ),
                 )

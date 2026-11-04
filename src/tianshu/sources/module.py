@@ -5,6 +5,7 @@ from importlib.resources import files
 from tianshu.runtime.api import command_body, json_response
 from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.migrations import Migration
+from tianshu.runtime.execution import ExecutionLane
 from tianshu.types import SourceRef
 
 
@@ -47,6 +48,10 @@ def create_module(service, identity):
 
     def tasks(queue, _runtime):
         queue.register("sources.propagate", service.propagate, retryable=True)
+        queue.register("sources.dispatch", service.dispatch_dependant, retryable=True,
+                       execution_lane=ExecutionLane.SOURCE_LIFECYCLE)
+        queue.register("sources.notify", service.notify_dependant, retryable=True,
+                       execution_lane=ExecutionLane.SOURCE_LIFECYCLE)
 
     return DomainModule(
         "sources",
@@ -59,5 +64,6 @@ def create_module(service, identity):
                 + "\n"
                 + files("tianshu.sources").joinpath("functions.sql").read_text(),
             ),
+            Migration("0012_sources_rb", files("tianshu.sources").joinpath("0012_sources_rb.sql").read_text()),
         ),
     )

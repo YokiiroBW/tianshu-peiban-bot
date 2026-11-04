@@ -192,6 +192,11 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
     async with service.database.transaction() as conn:
         scene = await service.identity.archive_scene_on(conn, context)
         intake, epochs = await service.identity.intake_scope(context, connection=conn)
+        generation = await (await conn.execute(
+            "SELECT id,created_at FROM runtime.installation_generation WHERE singleton"
+        )).fetchone()
+        if not generation:
+            raise AppError("archive_generation_unavailable", status=503)
         write_context = replace(context, scope_ids=intake, audience=intake)
         prepared = []
         for record in records:
@@ -289,9 +294,19 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                     (key,),
                 )
             ).fetchone()
+            if (not explicit_request and occurred_at < generation["created_at"]
+                and not (existing and existing["explicit_authorized"]
+                         and existing["content_hash"] == record["stored_content_sha256"])):
+                results.append({**result, "reason": "archive_before_installation"})
+                continue
             if existing and existing["content_hash"] == record["stored_content_sha256"]:
                 ref = SourceRef(existing["source_id"], existing["head_revision"], {})
                 allowed = (await service.check_many_on(conn, context, ((ref,),)))[0]
+                if allowed and explicit_request and not existing["explicit_authorized"]:
+                    await conn.execute(
+                        "UPDATE sources.archive_records SET explicit_authorized=true WHERE archive_key=%s",
+                        (key,),
+                    )
                 results.append(
                     {
                         **result,
@@ -300,9 +315,6 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                         "reason": None if allowed else "source_unavailable",
                     }
                 )
-                continue
-            if not explicit_request:
-                results.append({**result, "reason": "explicit_history_request_required"})
                 continue
             from .dependencies import unique_refs
 
@@ -354,9 +366,11 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 (supports,) if supports else (),
             )
             await conn.execute(
-                "INSERT INTO sources.archive_records VALUES(%s,%s,%s,%s) "
-                "ON CONFLICT(archive_key) DO UPDATE SET content_hash=excluded.content_hash,alias_keys=excluded.alias_keys",
-                (key, ref.source_id, record["stored_content_sha256"], list(keys)),
+                "INSERT INTO sources.archive_records(archive_key,source_id,content_hash,alias_keys,explicit_authorized) "
+                "VALUES(%s,%s,%s,%s,%s) ON CONFLICT(archive_key) DO UPDATE SET "
+                "content_hash=excluded.content_hash,alias_keys=excluded.alias_keys,"
+                "explicit_authorized=sources.archive_records.explicit_authorized OR excluded.explicit_authorized",
+                (key, ref.source_id, record["stored_content_sha256"], list(keys), explicit_request),
             )
             for alias in keys:
                 await conn.execute(

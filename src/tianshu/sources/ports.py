@@ -7,12 +7,29 @@ from datetime import datetime
 from typing import TYPE_CHECKING, Awaitable, BinaryIO, Callable, Protocol
 
 from tianshu.types import MediaRef, OriginKind, SourceRef, TrustedContext
+from .types import EvidenceSetRef, EvidenceSpec, SourceStatus
 
 if TYPE_CHECKING:
     from tianshu.conversation.types import InputPart
 
 
 class SourcePort(Protocol):
+    async def register_evidence_on(
+        self, connection, context: TrustedContext, spec: EvidenceSpec
+    ) -> SourceRef | EvidenceSetRef: ...
+    async def prove_many_on(
+        self, connection, context: TrustedContext,
+        references: tuple[SourceRef | EvidenceSetRef, ...], *, lock: bool = False
+    ) -> tuple[bool, ...]: ...
+    async def prove_many(
+        self, context: TrustedContext, references: tuple[SourceRef | EvidenceSetRef, ...]
+    ) -> tuple[bool, ...]: ...
+    async def source_status_many_on(
+        self, connection, context: TrustedContext, references: tuple[SourceRef, ...]
+    ) -> tuple[SourceStatus, ...]: ...
+    async def source_status_many(
+        self, context: TrustedContext, references: tuple[SourceRef, ...]
+    ) -> tuple[SourceStatus, ...]: ...
     async def retract_publication(
         self, context: TrustedContext, source_ref: SourceRef, *, connection
     ) -> SourceRef: ...
@@ -32,7 +49,9 @@ class SourcePort(Protocol):
         self, connection, context: TrustedContext, source_refs: tuple[SourceRef, ...]
     ) -> tuple[dict, ...]: ...
     def register_dependant(
-        self, callback: Callable[[object, tuple[SourceRef, ...], str], Awaitable[None]]
+        self, callback: Callable[[object, tuple[SourceRef, ...], str], Awaitable[None]],
+        *, name: str | None = None,
+        partitions: Callable[[object, tuple[SourceRef, ...], str], Awaitable[tuple[str | None, ...]]] | None = None
     ) -> None: ...
     async def check(
         self, context: TrustedContext, source_refs: tuple[SourceRef, ...] = ()
@@ -64,6 +83,16 @@ class SourcePort(Protocol):
         locator: dict,
         origin_kind: OriginKind = OriginKind.HUMAN,
     ) -> SourceRef: ...
+    async def register_media_supplement(
+        self, context: TrustedContext, media: MediaRef, *, original_ref: SourceRef,
+        producer: str, event_id: str, event_revision: int, part_index: int,
+        supplement_revision: int
+    ) -> SourceRef: ...
+    async def validate_media_supplement_on(
+        self, connection, context: TrustedContext, supplement_ref: SourceRef, *,
+        original_ref: SourceRef, producer: str, event_id: str, event_revision: int,
+        part_index: int
+    ) -> bool: ...
     async def publish_media(
         self,
         context: TrustedContext,

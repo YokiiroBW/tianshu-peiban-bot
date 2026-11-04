@@ -9,7 +9,7 @@ from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, OriginKind, TrustedContext
-from .types import AdmissionDecision
+from .types import AdmissionDecision, SceneAuthority
 
 
 def identifier(prefix):
@@ -30,6 +30,56 @@ class IdentityService:
         if self.sources is not None:
             raise RuntimeError("source_authority_already_bound")
         self.sources = sources
+
+    @staticmethod
+    def scene_id(context):
+        """Identify the scene independently of its viewers and their authority."""
+        if context.conversation_id:
+            identity = {"kind": "conversation", "actor_id": context.actor_id,
+                        "conversation_id": context.conversation_id}
+        elif context.actor_id:
+            identity = {"kind": "actor", "actor_id": context.actor_id,
+                        "person_id": context.person_id}
+        else:
+            identity = {"kind": "system", "principal_id": context.principal_id}
+        return "scene_" + body_hash(identity)[:48]
+
+    async def scene_authority_on(self, connection, context):
+        """Read a scene's existing authority in the caller's transaction."""
+        await self.check_context(context, connection=connection)
+        rows = await (await connection.execute(
+            "SELECT scope_id,access_epoch,intake_epoch FROM identity.scopes "
+            "WHERE scope_id=ANY(%s) ORDER BY scope_id", (list(context.scope_ids),)
+        )).fetchall()
+        if len(rows) != len(set(context.scope_ids)):
+            raise AppError("access_changed", status=409)
+        return SceneAuthority(
+            scene_id=self.scene_id(context), principal_id=context.principal_id,
+            actor_id=context.actor_id, person_id=context.person_id,
+            conversation_id=context.conversation_id, scope_ids=tuple(context.scope_ids),
+            permissions=tuple(sorted(context.permissions)), principal_epoch=context.access_epoch,
+            scope_access_epochs=tuple((row["scope_id"], row["access_epoch"]) for row in rows),
+            scope_intake_epochs=tuple((row["scope_id"], row["intake_epoch"]) for row in rows),
+        )
+
+    async def system_context(self, principal_id, *, permission, actor_id=None, connection=None):
+        """Internal automation identity resolved from an already configured principal."""
+        if not isinstance(principal_id, str) or not principal_id or not permission:
+            raise AppError("system_principal_required", status=403)
+
+        async def resolve(conn):
+            context = await self.context_on(
+                conn, principal_id, actor_id=actor_id, permission=permission,
+                origin_kind=OriginKind.SYSTEM,
+            )
+            if actor_id:
+                await self.check_active_actor(context, connection=conn)
+            return context
+
+        if connection is not None:
+            return await resolve(connection)
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            return await resolve(conn)
 
     async def for_request(
         self, request, *, actor_id=None, person_id=None, conversation_id=None, permission=None
@@ -257,6 +307,31 @@ class IdentityService:
         async with self.database.transaction(control=True, read_only=True) as conn:
             return await check(conn)
 
+    async def lock_context_on(self, connection, context):
+        """Hold the current grant authorities while a dependent write commits."""
+        if context.actor_id:
+            await connection.execute(
+                "SELECT actor_id FROM identity.actors WHERE actor_id=%s FOR SHARE",
+                (context.actor_id,),
+            )
+        if context.scope_ids:
+            await connection.execute(
+                "SELECT scope_id FROM identity.scopes WHERE scope_id=ANY(%s) "
+                "ORDER BY scope_id FOR SHARE", (list(context.scope_ids),),
+            )
+        if context.conversation_id:
+            await connection.execute(
+                "SELECT c.connection_id FROM identity.connections c "
+                "JOIN identity.conversation_links l USING(connection_id) "
+                "WHERE l.conversation_id=%s ORDER BY c.connection_id FOR SHARE OF c,l",
+                (context.conversation_id,),
+            )
+        await connection.execute(
+            "SELECT principal_id FROM identity.principals WHERE principal_id=%s FOR SHARE",
+            (context.principal_id,),
+        )
+        return await self.check_context(context, connection=connection)
+
     async def check(self, context, source_refs=()):
         if self.sources is None:
             await self.check_context(context)
@@ -275,10 +350,26 @@ class IdentityService:
     async def publication_scope(
         self, context, stable_id, reader_ids, conversation_ids, *, connection
     ):
-        await self.check_context(context, connection=connection)
-        require_permission(context.permissions, "life.manage")
-        if not context.actor_id or len(reader_ids) > 256 or len(conversation_ids) > 256:
+        await self.lock_context_on(connection, context)
+        if len(reader_ids) > 256 or len(conversation_ids) > 256:
             raise AppError("invalid_publication_audience")
+        if not context.actor_id:
+            # Independent projects disclose only into an already authorized system
+            # scope.  This path never creates grants or widens the saved audience.
+            require_permission(context.permissions, "memory.share")
+            if conversation_ids:
+                raise AppError("invalid_publication_audience")
+            scopes, epochs = await self.intake_scope(context, connection=connection)
+            readers = set(reader_ids) | {context.principal_id}
+            rows = await (await connection.execute(
+                "SELECT principal_id FROM identity.scope_grants WHERE scope_id=%s "
+                "AND principal_id=ANY(%s) AND ('read'=ANY(permissions) OR '*'=ANY(permissions))",
+                (scopes[0], sorted(readers)),
+            )).fetchall()
+            if {row["principal_id"] for row in rows} != readers:
+                raise AppError("publication_reader_forbidden", status=403)
+            return scopes, epochs
+        require_permission(context.permissions, "life.manage")
         scope_id = (
             "publication_"
             + sha256(
@@ -335,6 +426,9 @@ class IdentityService:
                 "FROM identity.scope_grants WHERE scope_id=%s ON CONFLICT DO NOTHING",
                 (scope_id, target_scope),
             )
+        await connection.execute(
+            "UPDATE identity.scopes SET access_epoch=access_epoch+1 WHERE scope_id=%s", (scope_id,)
+        )
         row = await (
             await connection.execute(
                 "SELECT intake_epoch FROM identity.scopes WHERE scope_id=%s", (scope_id,)
@@ -491,8 +585,9 @@ class IdentityService:
         """Reauthorize a timer's author configuration, never an in-flight execution.
 
         The saved scene and grants are an upper bound. An epoch change alone may
-        be a password/other-role edit; lost scopes, permission or an inactive
-        principal/actor cannot restart a timer. Role timers require an actor by
+        be a password/other-role edit; scopes are intersected with current grants.
+        A lost required permission or inactive principal/actor stops the timer.
+        Role timers require an actor by
         default; independent administrator subscriptions may retain actor=None.
         """
         async def refresh(conn):
@@ -507,8 +602,6 @@ class IdentityService:
                 raise AppError("scheduled_scene_changed", status=403)
             if current.actor_id:
                 await self.check_active_actor(current, connection=conn)
-            if not set(previous.scope_ids) <= set(current.scope_ids):
-                raise AppError("scheduled_scope_unavailable", status=403)
             limited = self._limit_context(current, previous)
             require_permission(limited.permissions, permission)
             return limited
@@ -856,6 +949,7 @@ class IdentityService:
         return row["scope_id"]
 
     async def intake_scope(self, context, *, connection):
+        await self.lock_context_on(connection, context)
         epochs = await self.scope_epochs(context, connection=connection)
         if context.conversation_id:
             row = await (
