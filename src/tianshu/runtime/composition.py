@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Awaitable, Callable, TYPE_CHECKING
 
 from aiohttp import web
 
 from .api import error_middleware, json_response
 from .database import Database
+from .execution import PROCESS_ROLES
 
 if TYPE_CHECKING:
     from .jobs import JobQueue
@@ -27,6 +28,9 @@ class RuntimeServices:
     diagnostics: Any = None
     commands: Any = None
     credentials: Any = None
+    statistics: Any = None
+    role_ready: Callable[[], Any] | None = None
+    module_status: dict = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -37,6 +41,38 @@ class DomainModule:
     stop: Callable[[RuntimeServices], Awaitable[None]] | None = None
     register_tasks: Callable[[Any, RuntimeServices], None] | None = None
     migrations: tuple[Any, ...] = ()
+    start_roles: tuple[str, ...] | None = None
+
+
+MODULE_START_ROLES = {
+    "channels": ("interactive",),
+    "capabilities": ("interactive", "independent"),
+    "conversation": ("bot-foreground",),
+    "memory": ("bot-background",),
+    "companion": ("bot-background",),
+    "life": ("bot-background",),
+}
+
+
+async def start_module(module, services):
+    """Start only the owning role; a local optional failure stays local."""
+    if services.module_status.get(module.name, {}).get("state") == "unavailable":
+        return False
+    roles = module.start_roles if module.start_roles is not None else MODULE_START_ROLES.get(module.name, ())
+    if module.start is None or services.role not in roles:
+        return False
+    try:
+        await module.start(services)
+    except Exception as exc:
+        services.module_status[module.name] = {"state": "unavailable", "error": type(exc).__name__}
+        if module.stop:
+            try:
+                await module.stop(services)
+            except Exception:
+                pass
+        return False
+    services.module_status[module.name] = {"state": "ready"}
+    return True
 
 
 SERVICES = web.AppKey("tianshu.services", RuntimeServices)
@@ -65,9 +101,11 @@ def create_app(services: RuntimeServices, modules: tuple[DomainModule, ...] = ()
             )
             processes = await cursor.fetchall()
         roles = {row["role"] for row in processes if row["ready"]}
-        missing = sorted({"interactive", "model-broker", "worker"} - roles)
+        missing = sorted(set(PROCESS_ROLES) - roles)
         configured = bool(names)
-        healthy = configured and not missing
+        # This endpoint answers whether the API itself can serve requests. Other
+        # role and module health is reported separately, not an API restart cause.
+        healthy = configured and "interactive" in roles
         return json_response(
             {
                 "status": "ready" if healthy else "degraded",
@@ -75,6 +113,8 @@ def create_app(services: RuntimeServices, modules: tuple[DomainModule, ...] = ()
                 "missing_roles": missing,
                 "processes": processes,
                 "configured": configured,
+                "module_status": services.module_status,
+                "business_progress": "unknown",
             },
             status=200 if healthy else 503,
         )
@@ -85,15 +125,18 @@ def create_app(services: RuntimeServices, modules: tuple[DomainModule, ...] = ()
     async def lifespan(_app):
         started = []
         try:
+            _app["data_generation"] = await services.jobs.current_generation()
             for module in modules:
-                started.append(module)
-                if module.start:
-                    await module.start(services)
+                if await start_module(module, services):
+                    started.append(module)
             yield
         finally:
             for module in reversed(started):
                 if module.stop:
-                    await module.stop(services)
+                    try:
+                        await module.stop(services)
+                    except Exception:
+                        pass
 
     app.cleanup_ctx.append(lifespan)
     return app

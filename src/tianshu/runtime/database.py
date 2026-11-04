@@ -18,6 +18,68 @@ from psycopg_pool import AsyncConnectionPool, ConnectionPool
 from tianshu.types import RequestBudget
 
 
+def resource_budget(document, enabled_roles=None):
+    """Calculate configured upper bounds for the actual per-role pools.
+
+    Provider and browser connections are reported separately because their
+    limits belong to those adapters, not to PostgreSQL or the model client.
+    """
+    from .execution import PROCESS_ROLES, role_worker_groups
+
+    roles = tuple(enabled_roles or PROCESS_ROLES)
+    if len(set(roles)) != len(roles) or set(roles) - set(PROCESS_ROLES):
+        raise ValueError("invalid_process_roles")
+    database = document.get("database", {})
+    configured_roles = database.get("roles", {})
+    worker = document.get("worker", {})
+    per_role = {}
+    for role in roles:
+        value = configured_roles.get(role, {})
+        groups = role_worker_groups(worker, role)
+        per_role[role] = {
+            "business_connections": value.get("max_connections", 4),
+            "control_connections": value.get("control_connections", 2),
+            "sync_connections": value.get("sync_connections", 2),
+            "sync_threads": value.get("sync_connections", 2),
+            "queue_connections": worker.get("queue_connections", 8) if groups else 0,
+            "queue_listeners": len(groups),
+            "broker_owner_connections": 1 if role == "model-broker" else 0,
+            "groups": groups,
+        }
+    pg_fields = ("business_connections", "control_connections", "sync_connections",
+                 "queue_connections", "queue_listeners", "broker_owner_connections")
+    total = sum(sum(row[field] for field in pg_fields) for row in per_role.values())
+    broker = document.get("broker", {})
+    transport = broker.get("transport", {})
+    http_by_role = {}
+    for role in roles:
+        if role == "model-broker":
+            continue
+        configured = {**transport, **transport.get("roles", {}).get(role, {})}
+        http_by_role[role] = sum(configured.get(name, default) for name, default in (
+            ("foreground_connections", 8), ("due_connections", 4),
+            ("background_connections", 24), ("control_connections", 4)))
+    upstream = broker.get("upstream_connections", 64) if "model-broker" in roles else 0
+    diagnostic = broker.get("diagnostic_connections", 4) if "model-broker" in roles else 0
+    return {
+        "roles": per_role,
+        "postgres_connections": total,
+        "postgres_limit": database.get("connection_budget", 72),
+        "database_threads": sum(row["sync_threads"] for row in per_role.values()),
+        "worker_concurrency": sum(group["concurrency"] for row in per_role.values()
+                                  for group in row["groups"].values()),
+        "runtime_log_writers": len(roles),
+        "supervisor_output_writers": (len(roles) + len(document.get("observability", {}).get("processes", []))
+                                      + (2 if document.get("supervisor", {}).get("comics") else 0)),
+        "capability_file_threads_per_instance": document.get("capabilities", {}).get("file_workers", 2),
+        "model_client_http_connections_by_role": http_by_role,
+        "model_client_http_connections": sum(http_by_role.values()),
+        "provider_http_connections": upstream,
+        "diagnostic_http_connections": diagnostic,
+        "model_http_connections": sum(http_by_role.values()) + upstream + diagnostic,
+    }
+
+
 @dataclass(frozen=True, slots=True)
 class DatabaseConfig:
     dsn: str = field(repr=False)

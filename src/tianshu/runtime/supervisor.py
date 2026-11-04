@@ -1,18 +1,18 @@
-"""One container owns three core roles and its explicit observation/helper processes."""
+"""One container independently supervises product and observation roles."""
 
 import asyncio
 import ctypes
 import codecs
-from datetime import UTC, datetime
-import json
 import os
 from pathlib import Path
 import re
 import signal
 import sys
-from uuid import uuid4
+import time
 
 from psycopg.conninfo import conninfo_to_dict
+from .execution import PROCESS_ROLES
+from .events import EventLog
 
 
 def secret_values(environ):
@@ -30,14 +30,6 @@ def secret_values(environ):
     return sorted(values, key=len, reverse=True)
 
 
-def redact(text, values):
-    for value in values:
-        text = text.replace(value, "[redacted]")
-    text = re.sub(r"(?i)(Bearer\s+)[^\s\"']+", r"\1[redacted]", text)
-    text = re.sub(r"(?i)(https?://)[^/@\s]+:[^/@\s]+@", r"\1[redacted]@", text)
-    return text
-
-
 def _initialize_directory(path, uid, gid):
     if path.is_symlink():
         raise ValueError("unsafe_product_data_directory")
@@ -52,6 +44,8 @@ class Supervisor:
     def __init__(self, settings, config_path):
         self.settings, self.config_path = settings, str(Path(config_path).resolve())
         self.children, self.readers, self.waiters, self.critical_readers = {}, [], [], []
+        self.managers = []
+        self.role_status = {}
         self.stop = asyncio.Event()
         self.values = secret_values(os.environ)
         self.logs = settings.artifact_directory.parent / "logs"
@@ -62,41 +56,13 @@ class Supervisor:
         self.gid = int(settings.get("supervisor", {}).get("gid", 10001))
 
     async def output(self, role, process):
-        instance, sequence = str(uuid4()), 0
-        path = self.logs / ("stdout-" + role + "-" + instance + ".jsonl")
-        with path.open("xb") as stream:
-            os.fchmod(stream.fileno(), 0o600)
-            os.fchown(stream.fileno(), self.uid, self.gid)
-
-            async def record(message):
-                nonlocal sequence
-                sequence += 1
-                value = {
-                    "schema_version": "2.0.0",
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "service": "tianshu",
-                    "role": role,
-                    "instance_id": instance,
-                    "sequence": sequence,
-                    "event_id": str(uuid4()),
-                    "event": "process.output",
-                    "outcome": "unknown",
-                    "level": "INFO",
-                    "message": redact(message, self.values),
-                }
-                encoded = (
-                    json.dumps(value, ensure_ascii=False, separators=(",", ":")).encode() + b"\n"
-                )
-
-                def write():
-                    stream.write(encoded)
-                    stream.flush()
-                    os.fsync(stream.fileno())
-
-                await asyncio.to_thread(write)
-                sys.stdout.buffer.write(encoded)
-                sys.stdout.buffer.flush()
-
+        writer = EventLog(self.logs, role, prefix="stdout-", uid=self.uid, gid=self.gid,
+                          max_pending=4096, hard_max_pending=262144, drain_timeout=30)
+        try:
+            await writer.open()
+        except Exception as exc:
+            self.role_status["log:" + role] = {"state": "failed", "error": type(exc).__name__}
+        try:
             decoder = codecs.getincrementaldecoder("utf-8")(errors="replace")
             pending, oversized = "", False
             while chunk := await process.stdout.read(16384):
@@ -104,10 +70,12 @@ class Supervisor:
                 while "\n" in pending:
                     line, pending = pending.split("\n", 1)
                     if oversized:
-                        await record("[oversize output line redacted]")
+                        line = "[oversize output line redacted]"
                         oversized = False
-                    else:
-                        await record(line)
+                    try:
+                        await writer.emit_output(line, self.values)
+                    except Exception as exc:
+                        self.role_status["log:" + role] = {"state": "failed", "error": type(exc).__name__}
                 if len(pending) > 1024 * 1024:
                     # A request/body dump is not an ordinary diagnostic. Never buffer it
                     # without bound or leak a secret split across transport chunks.
@@ -115,7 +83,16 @@ class Supervisor:
                     pending = ""
             pending += decoder.decode(b"", final=True)
             if pending or oversized:
-                await record("[oversize output line redacted]" if oversized else pending)
+                try:
+                    await writer.emit_output("[oversize output line redacted]" if oversized else pending,
+                                             self.values)
+                except Exception as exc:
+                    self.role_status["log:" + role] = {"state": "failed", "error": type(exc).__name__}
+        finally:
+            try:
+                await writer.close()
+            except Exception as exc:
+                self.role_status["log:" + role] = {"state": "failed", "error": type(exc).__name__}
 
     async def spawn(
         self, name, command, *, uid=None, gid=None, core=False, critical=True, env_refs=None
@@ -179,11 +156,48 @@ class Supervisor:
             except ProcessLookupError:
                 pass
 
+    async def supervise(self, name, command, *, core=False, env_refs=None, restart_limit=5):
+        """Keep failure and bounded restarts local to this one child."""
+        failures = 0
+        state = self.role_status.setdefault(name, {})
+        while not self.stop.is_set():
+            started = time.monotonic()
+            try:
+                child = await self.spawn(name, command, core=core, critical=False, env_refs=env_refs)
+                state.update(state="running", pid=child.pid)
+                wait = asyncio.create_task(child.wait())
+                stopping = asyncio.create_task(self.stop.wait())
+                done, _ = await asyncio.wait([wait, stopping], return_when=asyncio.FIRST_COMPLETED)
+                if stopping in done:
+                    wait.cancel()
+                    await asyncio.gather(wait, return_exceptions=True)
+                    return
+                stopping.cancel()
+                await asyncio.gather(stopping, return_exceptions=True)
+                error = "process_exit_" + str(wait.result())
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                error = type(exc).__name__
+            if time.monotonic() - started >= 300:
+                failures = 0
+            failures += 1
+            state.update(state="failed" if failures > restart_limit else "restarting",
+                         error=error, failures=failures)
+            if failures > restart_limit:
+                return
+            try:
+                await asyncio.wait_for(self.stop.wait(), timeout=min(30, 2 ** (failures - 1)))
+            except TimeoutError:
+                pass
+
     async def shutdown(self):
         # First close ingress. Workers then stop fetching and drain through Procrastinate.
         self.terminate("interactive", signal.SIGTERM)
-        self.terminate("worker", signal.SIGTERM)
-        core = [self.children[name] for name in ("interactive", "worker") if name in self.children]
+        workers = ("bot-foreground", "bot-background", "independent", "operations", "worker")
+        for name in workers:
+            self.terminate(name, signal.SIGTERM)
+        core = [self.children[name] for name in ("interactive", *workers) if name in self.children]
         try:
             async with asyncio.timeout(max(self.timeout - 15, 1)):
                 await asyncio.gather(*(child.wait() for child in core))
@@ -191,7 +205,7 @@ class Supervisor:
             pass
         self.terminate("model-broker", signal.SIGTERM)
         for name in self.children:
-            if name not in {"interactive", "worker", "model-broker"}:
+            if name not in {"interactive", *workers, "model-broker"}:
                 self.terminate(name, signal.SIGTERM)
         try:
             async with asyncio.timeout(10):
@@ -208,7 +222,7 @@ class Supervisor:
                 os.kill(-1, signal.SIGKILL)
             except ProcessLookupError:
                 pass
-        await asyncio.gather(*self.readers, return_exceptions=False)
+        await asyncio.gather(*self.managers, *self.readers, return_exceptions=True)
         if sys.platform == "linux" and os.getpid() == 1:
             for _ in range(40):
                 try:
@@ -243,7 +257,14 @@ class Supervisor:
             ),
         ]
         for path in directories:
-            _initialize_directory(path, self.uid, self.gid)
+            try:
+                _initialize_directory(path, self.uid, self.gid)
+            except OSError as exc:
+                if path == self.logs or path == data / "observability" or path.parent == data / "observability":
+                    self.role_status["logging" if path == self.logs else "observability"] = {
+                        "state": "failed", "error": type(exc).__name__}
+                    continue
+                raise
         loop = asyncio.get_running_loop()
         for sig in (signal.SIGTERM, signal.SIGINT):
             loop.add_signal_handler(sig, self.stop.set)
@@ -253,12 +274,23 @@ class Supervisor:
             if comics:
                 from .comics import ComicsController
 
-                controller = ComicsController(self, comics)
-                await controller.open()
+                try:
+                    controller = ComicsController(self, comics)
+                    await controller.open()
+                except Exception as exc:
+                    self.role_status["comics"] = {"state": "failed", "error": type(exc).__name__}
+                    if controller:
+                        try:
+                            await controller.close()
+                        except Exception:
+                            pass
+                    controller = None
             for entry in self.settings.get("observability", {}).get("processes", []):
                 if entry["name"] not in {"vector", "loki", "prometheus", "grafana"}:
-                    raise ValueError("unknown_observation_process")
-                await self.spawn(entry["name"], entry["command"], env_refs=entry.get("env_refs"))
+                    self.role_status["observability"] = {"state": "failed", "error": "unknown_observation_process"}
+                    continue
+                self.managers.append(asyncio.create_task(
+                    self.supervise(entry["name"], entry["command"], env_refs=entry.get("env_refs"))))
             migration = await self.spawn(
                 "migrate",
                 [sys.executable, "-m", "tianshu", "migrate", "--config", self.config_path],
@@ -271,7 +303,7 @@ class Supervisor:
             )
             try:
                 done, _ = await asyncio.wait(
-                    [migration_wait, migration_stop, *self.waiters, *self.critical_readers],
+                    [migration_wait, migration_stop],
                     return_when=asyncio.FIRST_COMPLETED,
                 )
                 if self.stop.is_set():
@@ -282,24 +314,13 @@ class Supervisor:
                 migration_stop.cancel()
                 migration_wait.cancel()
                 await asyncio.gather(migration_stop, migration_wait, return_exceptions=True)
-            for role in ("model-broker", "worker", "interactive"):
-                await self.spawn(
-                    role,
-                    [sys.executable, "-m", "tianshu", role, "--config", self.config_path],
-                    core=True,
-                )
-            stopped = asyncio.create_task(self.stop.wait())
-            done, _ = await asyncio.wait(
-                [stopped, *self.waiters, *self.critical_readers],
-                return_when=asyncio.FIRST_COMPLETED,
-            )
-            stopped.cancel()
-            await asyncio.gather(stopped, return_exceptions=True)
-            if not self.stop.is_set():
-                for task in done:
-                    task.result()
-                raise RuntimeError("supervised_process_exited")
+            for role in PROCESS_ROLES:
+                self.managers.append(asyncio.create_task(self.supervise(
+                    role, [sys.executable, "-m", "tianshu", role, "--config", self.config_path],
+                    core=True)))
+            await self.stop.wait()
         finally:
+            self.stop.set()
             if controller:
                 await controller.close()
             await self.shutdown()

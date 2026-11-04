@@ -5,6 +5,9 @@ from enum import StrEnum
 
 class ExecutionLane(StrEnum):
     CONTROL = "control"
+    LIFE_CONTROL = "life_control"
+    CAPABILITY_CONTROL = "capability_control"
+    OPERATIONS = "operations"
     INBOUND = "inbound"
     DELIVERY = "delivery"
     CONVERSATION = "conversation"
@@ -56,6 +59,8 @@ TASK_LANES = {
     "channels.ingest": ExecutionLane.INBOUND,
     "channels.cancel": ExecutionLane.CONTROL,
     "conversation.run": ExecutionLane.CONVERSATION,
+    "conversation.model_complete": ExecutionLane.CONVERSATION,
+    "conversation.statistics_reconcile": ExecutionLane.CONTROL,
     "conversation.participation": ExecutionLane.PROACTIVE,
     "conversation.seal": ExecutionLane.INBOUND,
     "conversation.cancel": ExecutionLane.CONTROL,
@@ -68,20 +73,24 @@ TASK_LANES = {
     "conversation.render_expire": ExecutionLane.CONTROL,
     "conversation.expression_result": ExecutionLane.DELIVERY,
     "conversation.expression_reconcile": ExecutionLane.CONTROL,
-    "life.generation_control": ExecutionLane.CONTROL,
-    "life.activate": ExecutionLane.CONTROL,
-    "life.clock": ExecutionLane.CONTROL,
+    "life.generation_control": ExecutionLane.LIFE_CONTROL,
+    "life.recovery_observe_activity": ExecutionLane.LIFE_CONTROL,
+    "life.statistics_replay": ExecutionLane.LIFE_CONTROL,
+    "life.statistics_backfill": ExecutionLane.LIFE_CONTROL,
+    "life.activate": ExecutionLane.LIFE_CONTROL,
+    "life.clock": ExecutionLane.LIFE_CONTROL,
     "life.commitment_due": ExecutionLane.SCHEDULE,
-    "life.commitment_reconcile": ExecutionLane.CONTROL,
+    "life.commitment_reconcile": ExecutionLane.LIFE_CONTROL,
     "life.contact_due": ExecutionLane.PROACTIVE,
-    "life.contact_reconcile": ExecutionLane.CONTROL,
+    "life.contact_reconcile": ExecutionLane.LIFE_CONTROL,
     "life.plan": ExecutionLane.PLANNING,
     "life.activity_step": ExecutionLane.LIFE,
-    "life.activity_cancel": ExecutionLane.CONTROL,
-    "life.activity_reconcile": ExecutionLane.CONTROL,
+    "life.activity_cancel": ExecutionLane.LIFE_CONTROL,
+    "life.activity_reconcile": ExecutionLane.LIFE_CONTROL,
     "life.diary_collect": ExecutionLane.DIARY,
     "life.diary_review": ExecutionLane.DIARY,
     "life.diary_generate": ExecutionLane.DIARY,
+    "life.diary_episode_changed": ExecutionLane.DIARY,
     "life.chapter_generate": ExecutionLane.WRITING,
     "memory.extract": ExecutionLane.MEMORY_CONSOLIDATION,
     "memory.consolidate": ExecutionLane.MEMORY_CONSOLIDATION,
@@ -92,10 +101,14 @@ TASK_LANES = {
     "memory.recover": ExecutionLane.MEMORY_RECOVERY,
     "memory.purge_source": ExecutionLane.SOURCE_LIFECYCLE,
     "companion.organize": ExecutionLane.GROWTH,
+    "companion.episode_changed": ExecutionLane.GROWTH,
+    "companion.growth.statistics": ExecutionLane.GROWTH,
     "companion.growth.retry": ExecutionLane.GROWTH,
     "sources.propagate": ExecutionLane.SOURCE_LIFECYCLE,
+    "sources.notify": ExecutionLane.SOURCE_LIFECYCLE,
+    "sources.dispatch": ExecutionLane.SOURCE_LIFECYCLE,
     "capabilities.execute": ExecutionLane.MAINTENANCE,
-    "capabilities.control": ExecutionLane.CONTROL,
+    "capabilities.control": ExecutionLane.CAPABILITY_CONTROL,
     "capabilities.media_job": ExecutionLane.DOWNLOADS,
     "capabilities.plugin_event": ExecutionLane.PLUGINS,
     "capabilities.plugin_schedule": ExecutionLane.PLUGINS,
@@ -130,6 +143,60 @@ TASK_LANES = {
     "capabilities.media.work.music_lyrics": ExecutionLane.MUSIC_LYRICS,
     "capabilities.media.work.infrastructure_observe": ExecutionLane.MAINTENANCE,
 }
+
+
+# Each logical queue has one process owner, but multiple related queues share a
+# native worker/SQL pool rather than creating 35 independent listeners.
+PROCESS_ROLES = ("interactive", "model-broker", "bot-foreground", "bot-background",
+                 "independent", "operations")
+ROLE_GROUPS = {
+    "bot-foreground": {
+        "control": (ExecutionLane.CONTROL,),
+        "ingress": (ExecutionLane.INBOUND, ExecutionLane.DELIVERY),
+        "conversation": (ExecutionLane.CONVERSATION,),
+    },
+    "bot-background": {
+        "due": (ExecutionLane.LIFE_CONTROL, ExecutionLane.SCHEDULE, ExecutionLane.PROACTIVE),
+        "life": (ExecutionLane.LIFE, ExecutionLane.PLANNING, ExecutionLane.DIARY, ExecutionLane.WRITING),
+        "memory": (ExecutionLane.MEMORY_CONSOLIDATION, ExecutionLane.MEMORY_INDEX,
+                   ExecutionLane.MEMORY_RECOVERY, ExecutionLane.GROWTH),
+        "sources": (ExecutionLane.SOURCE_LIFECYCLE,),
+    },
+    "independent": {
+        "downloads": (ExecutionLane.DOWNLOADS,),
+        "media": (ExecutionLane.MEDIA, ExecutionLane.BOOK_SOURCES, ExecutionLane.COMIC_SOURCES,
+                  ExecutionLane.VIDEO_SUBSCRIPTIONS, ExecutionLane.MUSIC_PLAYLISTS,
+                  ExecutionLane.MUSIC_NAVIDROME, ExecutionLane.MUSIC_LYRICS,
+                  ExecutionLane.COMIC_EXTENSIONS, ExecutionLane.COMIC_CLEANUP,
+                  ExecutionLane.MEDIA_RETENTION, ExecutionLane.MUSIC_LIBRARY, ExecutionLane.BOOK_AUDIO),
+        "tools": (ExecutionLane.IMAGES, ExecutionLane.REACTIONS, ExecutionLane.SPEECH,
+                  ExecutionLane.PERCEPTION),
+        "services": (ExecutionLane.CAPABILITY_CONTROL, ExecutionLane.PLUGINS,
+                     ExecutionLane.INFRASTRUCTURE, ExecutionLane.MAINTENANCE),
+    },
+    # Operations runs its own agent, without inventing a queue consumer.
+    "operations": {},
+}
+
+
+def role_worker_groups(worker_settings, role):
+    """Return the actual queues and concurrency started by this process role."""
+    counts = lane_concurrency(worker_settings)
+    return {
+        name: {"queues": [lane.value for lane in lanes],
+               "concurrency": sum(counts[lane.value] for lane in lanes)}
+        for name, lanes in ROLE_GROUPS.get(role, {}).items()
+    }
+
+
+def role_for_lane(lane):
+    value = ExecutionLane(lane)
+    if value == ExecutionLane.OPERATIONS:
+        return "operations"
+    for role, groups in ROLE_GROUPS.items():
+        if any(value in lanes for lanes in groups.values()):
+            return role
+    raise ValueError("execution_lane_without_owner")
 
 
 def lane_concurrency(worker_settings):

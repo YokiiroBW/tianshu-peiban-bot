@@ -1,4 +1,4 @@
-"""Three bounded process roles and honest readiness backed by actual registrations."""
+"""Role-local processes, native queues and independently supervised consumers."""
 
 from __future__ import annotations
 
@@ -6,16 +6,18 @@ import asyncio
 from contextlib import AsyncExitStack
 import inspect
 import signal
+import time
 from uuid import uuid4
 
 from aiohttp import web
+from procrastinate.worker import Worker
 from psycopg.types.json import Jsonb
 
 from tianshu.models.broker import ModelBroker
 from tianshu.models.client import ModelClient
 from tianshu.models.http import create_broker_app
 from tianshu.models.catalog import NATIVE_PROTOCOLS
-from .composition import DomainModule, RuntimeServices, create_app
+from .composition import DomainModule, RuntimeServices, create_app, start_module
 from .database import Database
 from .files import FileStore
 from .events import EventLog
@@ -28,6 +30,7 @@ from .product import build_authority, build_product
 from .listeners import start_sites
 from .static import register_static
 from .serialization import wire
+from .execution import PROCESS_ROLES, TASK_LANES, role_worker_groups
 
 
 class ProcessHeartbeat:
@@ -60,7 +63,13 @@ class ProcessHeartbeat:
 
     async def run(self):
         while True:
-            await self.update()
+            try:
+                await self.update()
+                self.registration.pop("heartbeat_error", None)
+            except Exception as exc:
+                # A shared database outage makes the heartbeat stale; it must not
+                # silently cancel unrelated work or pretend this role is ready.
+                self.registration["heartbeat_error"] = type(exc).__name__
             await asyncio.sleep(5)
 
     async def start(self):
@@ -88,14 +97,99 @@ def stop_event():
     return event
 
 
+async def supervise_consumer(jobs, name, group, registration, stop, *, abort_poll_seconds=2,
+                             restart_limit=5):
+    """A failed native consumer is restarted without cancelling its siblings."""
+    failures = 0
+    state = registration["consumers"][name]
+    while not stop.is_set():
+        state.update(state="starting", queues=group["queues"], concurrency=group["concurrency"])
+        started = time.monotonic()
+        runner = None
+        try:
+            jobs.app.perform_import_paths()
+            worker = Worker(app=jobs.app,
+                queues=group["queues"], concurrency=group["concurrency"],
+                name="tianshu-" + name, install_signal_handlers=False,
+                shutdown_graceful_timeout=30, fetch_job_polling_interval=30,
+                abort_job_polling_interval=abort_poll_seconds)
+            runner = asyncio.create_task(worker.run())
+            while worker.worker_id is None and not runner.done():
+                await asyncio.wait([runner], timeout=0.1)
+            if worker.worker_id is not None and not runner.done():
+                state.update(state="running", worker_id=worker.worker_id)
+            await runner
+            if stop.is_set():
+                break
+            error = "consumer_exited"
+        except asyncio.CancelledError:
+            if runner is not None and not runner.done():
+                runner.cancel()
+                await asyncio.gather(runner, return_exceptions=True)
+            raise
+        except Exception as exc:
+            error = type(exc).__name__
+        if time.monotonic() - started >= 300:
+            failures = 0
+        failures += 1
+        state.update(state="failed" if failures > restart_limit else "restarting",
+                     error=error, failures=failures)
+        if failures > restart_limit:
+            return
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=min(30, 2 ** (failures - 1)))
+        except TimeoutError:
+            pass
+    state["state"] = "stopped"
+
+
+async def recover_notifications(jobs, stop, role, *, reroute_more=False):
+    """Only due or abandoned coordination rows are scanned, in bounded pages."""
+    while not stop.is_set():
+        try:
+            if jobs.recompute_tasks:
+                await jobs.recover_recompute_due(limit=128)
+            if reroute_more:
+                reroute_more = await jobs.route_reassigned_pending(jobs.database, role, limit=128) == 128
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            pass  # The next bounded pass retries after a dependency outage.
+        if not jobs.recompute_tasks and not reroute_more:
+            return
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=30)
+        except TimeoutError:
+            pass
+
+
+def register_domain_tasks(modules, services):
+    """A broken optional domain cannot prevent other domains registering."""
+    services.jobs.register_static_routes()
+    failed = set()
+    for module in modules:
+        if not module.register_tasks:
+            continue
+        try:
+            module.register_tasks(services.jobs, services)
+        except Exception as exc:
+            failed.add(module.name)
+            services.module_status[module.name] = {
+                "state": "unavailable", "error": type(exc).__name__, "stage": "task_registration"}
+    return failed
+
+
 async def run(settings, role, *, initialize=False):
+    if role not in PROCESS_ROLES:
+        raise ValueError("invalid_process_role")
     database = Database(settings.database(role))
     worker_settings = settings.document.get("worker", {})
     jobs = JobQueue(
-        database.config.dsn, max_connections=worker_settings.get("queue_connections", 8)
+        database.config.dsn, max_connections=worker_settings.get("queue_connections", 8), database=database
     )
     files = FileStore(settings.artifact_directory)
-    client = ModelClient(settings.broker_url, settings.broker_token, **settings.model_transport)
+    client = None if role == "model-broker" else ModelClient(
+        settings.broker_url, settings.broker_token, **settings.model_transport_for(role))
     services = RuntimeServices(database, jobs, client, files, settings, role)
     services.commands = CommandStore(database)
     services.credentials = CredentialStore(
@@ -121,18 +215,27 @@ async def run(settings, role, *, initialize=False):
         stack.push_async_callback(events.close)
         services.events = events
         jobs.events = events
-        services.diagnostics = RuntimeDiagnostics(database, client, settings)
-        await events.emit("runtime.starting", "started")
-        await client.open()
-        stack.push_async_callback(client.close)
+        services.diagnostics = RuntimeDiagnostics(database, client, settings, events=events)
+        try:
+            await events.emit("runtime.starting", "started")
+        except Exception:
+            pass
+        if client is not None:
+            await client.open()
+            stack.push_async_callback(client.close)
         stop = stop_event()
         if role == "model-broker":
+            jobs.register_static_routes()
             authority = build_authority(services)
             broker = ModelBroker(
                 database,
                 files,
                 settings.secrets,
+                jobs=jobs,
                 events=events,
+                statistics=services.statistics,
+                upstream_connections=settings.get("broker", {}).get("upstream_connections", 64),
+                diagnostic_connections=settings.get("broker", {}).get("diagnostic_connections", 4),
                 validate_submission=authority.identity.check,
                 validate_persistence=authority.sources.validate_persistence,
                 media_resolver=authority.media.reference,
@@ -156,13 +259,11 @@ async def run(settings, role, *, initialize=False):
                 "protocols": sorted(NATIVE_PROTOCOLS),
                 "quota_groups": list(broker.scheduler.policies),
             }
-            ready = lambda: broker.ready and events.ready
+            ready = lambda: broker.ready
         elif role == "interactive":
             product = await build_product(services)
             modules = product.modules
-            for module in modules:
-                if module.register_tasks:
-                    module.register_tasks(jobs, services)
+            register_domain_tasks(modules, services)
             from tianshu.models.management import register_routes
 
             model_module = DomainModule("models", register_routes)
@@ -187,85 +288,93 @@ async def run(settings, role, *, initialize=False):
             registration = {"domains": [module.name for module in modules]}
 
             async def ready():
-                status = await product.channels.status()
-                registration["channels"] = status
-                actions = product.capabilities.actions.status()
-                registration["actions"] = actions
-                return (
-                    product.capabilities.initialized
-                    and events.ready
-                    and status["ready"]
-                    and actions["ready"]
-                )
+                registration["modules"] = services.module_status
+                if getattr(product, "channels", None):
+                    try:
+                        registration["channels"] = await product.channels.status()
+                    except Exception as exc:
+                        registration["channels"] = {"ready": False, "error": type(exc).__name__}
+                if getattr(product, "capabilities", None):
+                    try:
+                        registration["actions"] = product.capabilities.actions.status()
+                    except Exception as exc:
+                        registration["actions"] = {"ready": False, "error": type(exc).__name__}
+                return True
         else:
             product = await build_product(services)
             modules = product.modules
+            failed = register_domain_tasks(modules, services)
+            groups = role_worker_groups(worker_settings, role)
+            if groups:
+                await jobs.open()
+                stack.push_async_callback(jobs.close)
             for module in modules:
-                if module.register_tasks:
-                    module.register_tasks(jobs, services)
-            await jobs.open()
-            stack.push_async_callback(jobs.close)
-            shares = settings.worker_lanes
-            for module in modules:
-                if module.stop:
+                if module.name in failed:
+                    continue
+                if await start_module(module, services) and module.stop:
                     stack.push_async_callback(module.stop, services)
-                if module.start:
-                    await module.start(services)
+                if services.module_status.get(module.name, {}).get("state") == "unavailable":
+                    failed.add(module.name)
+            # Never claim a queue whose required domain failed to initialize.
+            disabled = {lane.value for task, lane in TASK_LANES.items()
+                        if task.split(".", 1)[0] in failed}
+            groups = {name: {**group, "queues": [queue for queue in group["queues"] if queue not in disabled]}
+                      for name, group in groups.items()}
+            groups = {name: group for name, group in groups.items() if group["queues"]}
             # Domain starts may register prepared owners and their work tasks.
             # Resolve old metadata only after that graph is complete, while no
             # lane consumer can claim a partially classified job yet.
-            routed = await jobs.route_legacy_pending(database)
+            routed = await jobs.route_legacy_pending(database, role=role)
+            reassigned = await jobs.route_reassigned_pending(database, role)
             registration = {
-                "tasks": sorted(jobs.tasks), "queues": shares,
-                "queue_listeners": len(shares), "legacy_job_routing": routed,
+                "tasks": sorted(jobs.tasks), "groups": groups,
+                "queue_listeners": len(groups), "legacy_job_routing": routed,
+                "reassigned_control_jobs": reassigned,
+                "modules": services.module_status, "disabled_queues": sorted(disabled),
+                "consumers": {name: {} for name in groups},
             }
             workers = []
-            for queue, count in shares.items():
+            for group_name, group in groups.items():
                 workers.append(
                     asyncio.create_task(
-                        jobs.app.run_worker_async(
-                            queues=[queue],
-                            concurrency=count,
-                            name="tianshu-" + queue,
-                            install_signal_handlers=False,
-                            shutdown_graceful_timeout=30,
-                            fetch_job_polling_interval=30,
-                            abort_job_polling_interval=worker_settings.get("abort_poll_seconds", 2),
-                        )
+                        supervise_consumer(jobs, group_name, group, registration, stop,
+                            abort_poll_seconds=worker_settings.get("abort_poll_seconds", 2))
                     )
                 )
 
             async def worker_ready():
-                status = await product.channels.status()
-                registration["channels"] = status
-                actions = product.capabilities.actions.status()
-                registration["actions"] = actions
-                return (
-                    bool(jobs.tasks)
-                    and product.capabilities.initialized
-                    and events.ready
-                    and status["ready"]
-                    and actions["ready"]
-                    and all(not task.done() for task in workers)
-                )
+                if role == "operations":
+                    if services.role_ready is None:
+                        registration["agent"] = {"ready": False, "reason": "agent_status_not_registered"}
+                        return False
+                    status = services.role_ready()
+                    if inspect.isawaitable(status):
+                        status = await status
+                    registration["agent"] = status if isinstance(status, dict) else {"ready": bool(status)}
+                    return bool(registration["agent"].get("ready"))
+                return bool(groups) and all(not task.done() for task in workers) and all(
+                    item.get("state") == "running" for item in registration["consumers"].values())
 
             heartbeat = ProcessHeartbeat(database, role, registration, worker_ready)
             await heartbeat.start()
-            await events.emit("runtime.started", "succeeded")
+            try:
+                await events.emit("runtime.started", "succeeded")
+            except Exception:
+                pass
             stack.push_async_callback(heartbeat.close)
             stop_wait = asyncio.create_task(stop.wait())
+            recovery = (asyncio.create_task(
+                recover_notifications(jobs, stop, role, reroute_more=reassigned == 128),
+                name="recompute-recovery") if jobs.recompute_tasks or reassigned == 128 else None)
             try:
-                done, _ = await asyncio.wait(
-                    [stop_wait, heartbeat.task, *workers], return_when=asyncio.FIRST_COMPLETED
-                )
-                for task in done:
-                    if task is not stop_wait:
-                        task.result()
+                await stop_wait
             finally:
                 stop_wait.cancel()
+                if recovery:
+                    recovery.cancel()
                 for task in workers:
                     task.cancel()
-                await asyncio.gather(stop_wait, *workers, return_exceptions=True)
+                await asyncio.gather(stop_wait, *([recovery] if recovery else []), *workers, return_exceptions=True)
             return
         app["event_log"] = events
         runner = web.AppRunner(
@@ -279,7 +388,10 @@ async def run(settings, role, *, initialize=False):
         await start_sites(runner, settings, role)
         heartbeat = ProcessHeartbeat(database, role, registration, ready)
         await heartbeat.start()
-        await events.emit("runtime.started", "succeeded")
+        try:
+            await events.emit("runtime.started", "succeeded")
+        except Exception:
+            pass
         stack.push_async_callback(heartbeat.close)
         if role == "model-broker":
             stop_wait = asyncio.create_task(stop.wait())
