@@ -4,6 +4,7 @@
 
 - 分支 `codex/rbw-operations-20261105`，基线 `e2529c95a92857f368111d9ae5b23ee66800b636`。
 - 主体实现 `72d305316e85054f77dc8eeb0e71667611218b9a`；跟进 Models 原配置回执 `5b69206101570a1683f5ae6890e8ea8677bad94f`；接入 Growth 恢复窄口 `3123d3b40f800d11d63b45052ab3856161a32e90`。主集成需要按顺序取三者；本文是其后的独立交接提交。
+- 追接 Models 最终分页合同的代码增量为 `f265c20e0c8315fa12a3ff88167b0fe564be4455`，依赖 Models 的 `7944756689108edfeeeb061a21a63933facdfcc9`。此代码提交之后为本次交接更新。
 - 本卡只改 `src/tianshu/operations/`、`deploy/core/operations/`、`tests/operations/` 和本文。工作树 `.codex/config.toml` 的正常速度配置由协调者设置，保留为未提交修改，不属于本卡提交。
 
 ## 已实现
@@ -21,7 +22,7 @@
 
 - `life_worker` 为可执行该窄恢复口的 `LifeWorker`；`index_jobs` 为 `MemoryWorkers.index_jobs`，本函数调用其 `bind_observability` 并注册 `recovery_inspect/invoke/observe`；`growth` 为暴露 `set_operations_guard` 和 `operations.inspect/invoke/observe` 的 GrowthService，注册观察/领域托管唤醒，由 Growth 原 owner 和 RecoveryPolicy 核对物理尝试预算；`capability_actions` 是拥有 `inspect_recovery`、`invoke_registered_recovery`、`observe_recovery`、`context_for_action` 的原 Actions；`channels` 是现有 Channels，绑定后使用 `notify_operations` 和 `operations_notification_status`。必要时可显式注入经重新授权的 `context_for_action`。不要用主聊天/模型上下文取代原授权。
 - `progress` 是无参 async callable，返回事实迭代项：`eligible=True`、带时区的 `due_at`、`dependency`、`material_id`、`version`，可给 `error_family`、`role`、`paused/cancelled/executing/waiting_dependency`、`root_incident_id` 和精确 `target`。Life 的 target 需 `actor_id/activity_id`，Memory 索引需 `kind/id/revision`，Growth 需 `actor_id/scope_key/retry_key`；每个接口应从领域权威事实给出机械身份，不传正文或猜 ID。主协调者已将这些窄口分配给 Life/Index/Growth owner；本提交不冒称它们已装配。
-- Models 新合同须具备 `pending_configuration_reloads(limit=...)`、`configuration_reload_status(event_id)` 和 `reload(configuration_event_id=..., expected_revision=...)`。轮询会为每个 pending 原事件建立可恢复目标。当前 Models 列表只有前 100 条的调用口，没有稳定分页；大量最早 pending 长期不能完成会饿住后续事件。已请协调者为 Models 窄口增加公平分页并相应接入 Ops；本卡当前代码存在此限制。
+- Models 最终合同须具备 `pending_configuration_reloads(limit=100, cursor=None)`，返回 `{items,next_cursor}`，以及 `configuration_reload_status(event_id)` 和 `reload(configuration_event_id=..., expected_revision=...)`。Ops 按原样保存 `next_cursor` 到 `operations.consumer_checkpoints`，后续调度和进程重启继续当前轮次，游标为 null 后下一轮从头回扫；单条事件入库或通知失败不会阻止后续条目，原记录仍 pending 时下轮重试。覆盖信息限定为这一有限轮次，含处理/失败/无效计数。
 - `incident.ingest(event)` 可接收明确且已存在的未解决 `root_incident_id`。目前 Logs `log_changes` 白名单未提供该字段，只有 `dependency_ref` 不能证明上下游因果，需由可靠的领域/日志事件或 progress 事实接入；无证据时通知各自独立。`material_id`/`failure_id` 是源事实，不应把任意 failure ID 当成领域对象 ID。
 - 统计生产者复用 `statistics.record_safely_on(conn, event)`，失败返回 False 且由原 owner 标记不完整并按权威账本补扫；`mark_producer_on(conn, producer, watermark=..., complete=..., detail=...)` 保存覆盖。需要各 owner 注入同一个投影接口并完成自己的回填/水位：channels、conversation.messages/delivery、models、memory、growth、life.plan 或 life.planning、life.experience、capabilities.media.jobs 或 media；Operations 对自己的恢复尝试可重放投影。`recovery_evaluated` 是已验证/失败的可评估事件分母；缺该指标的域，修复率显示未知而非猜分母。
 - 模块自带 `Migration('operations-0001', .../schema.sql)`，主迁移注册时要先完成 Runtime 的 `rb_runtime.sql`、installation generation 和恢复策略表，再注册本域 DDL；共享 `pyproject.toml` 增加 `tianshu.operations` 的 `*.sql` package data，测试发现包含 `tests/operations`。不在本卡修改共享入口、迁移主线或部署根。
