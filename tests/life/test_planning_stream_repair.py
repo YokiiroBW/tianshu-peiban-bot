@@ -13,7 +13,8 @@ from tianshu.life.module import create_module
 from tianshu.models.types import ModelCompletion
 from tianshu.runtime.api import error_middleware
 from tianshu.runtime.serialization import wire
-from test_planner_execution import setup, mark, chosen_activity
+from test_planner_execution import mark, chosen_activity
+from historical_support import planner_setup as setup
 
 
 def rest():
@@ -42,7 +43,7 @@ async def test_known_invalid_results_have_two_bounded_repairs_and_never_become_v
     value.models.generate = generate
     keys = []
     for index in range(3):
-        await value.worker.plan("actor", 1, wire(value.context))
+        await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
         current = await mark(database)
         keys.append(current["generation_key"])
         assert current["decision_fingerprint"] is None and current["generation_consumed"]
@@ -50,13 +51,13 @@ async def test_known_invalid_results_have_two_bounded_repairs_and_never_become_v
         assert current["last_error"] == ("planner_output_incomplete" if truncated else "planner_output_invalid")
         if index < 2:
             assert current["repair_due_at"] is not None
-            await value.worker.plan("actor", 1, wire(value.context))
+            await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
             assert len(value.models.calls) == index + 1
             await make_due(database, "repair_due_at")
     assert len(set(keys)) == 3 and len(value.models.calls) == 3
     assert (await mark(database))["repair_due_at"] is None
     await value.worker.life.signal(value.context, "rhythm:ordinary-after-final-failure")
-    await value.worker.plan("actor", 2, wire(value.context))
+    await value.worker.plan("actor", 2, wire(value.context), value.data_generation)
     assert len(value.models.calls) == 3
     assert (await mark(database))["reason"] == current["last_error"]
     async with database.transaction(read_only=True) as connection:
@@ -68,11 +69,11 @@ async def test_known_invalid_results_have_two_bounded_repairs_and_never_become_v
 @pytest.mark.asyncio
 async def test_repair_applies_one_complete_result_and_keeps_the_original_rejected_record(database):
     value = await setup(database, "not JSON")
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     original = (await mark(database))["generation_key"]
     await make_due(database, "repair_due_at")
     value.models.output = chosen_activity()
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     current = await mark(database)
     assert current["generation_key"] != original and current["decision_fingerprint"]
     assert current["last_error"] is None and current["repair_count"] == 0
@@ -80,7 +81,7 @@ async def test_repair_applies_one_complete_result_and_keeps_the_original_rejecte
         old = await (await connection.execute("SELECT * FROM life.plan_generations WHERE generation_key=%s", (original,))).fetchone()
         activities = await (await connection.execute("SELECT id FROM life.activities")).fetchall()
     assert old["state"] == "rejected" and old["reason"] == "planner_output_invalid" and len(activities) == 1
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     assert len(value.models.calls) == 2
 
 

@@ -42,8 +42,14 @@ def fixed_time(monkeypatch):
 async def fixture(database, *, state="planned", old=False):
     value = await setup(database, REST)
     discover = ReadPage()
-    discover.definition = replace(discover.definition, id="content.discover")
+    discover.definition = replace(discover.definition, id="content.discover", input_schema={
+        "type": "object", "properties": {"query": {"type": "string"}, "mode": {"type": "string"}},
+        "required": ["query"], "additionalProperties": False})
     value.worker.catalog.register(discover)
+    reader = value.worker.catalog.handler("content.read")
+    reader.definition = replace(reader.definition, input_schema={
+        "type": "object", "properties": {"url": {"type": "string"}, "content_key": {"type": "string"},
+        "mode": {"type": "string"}}, "required": ["url"], "additionalProperties": False})
     value.worker.life.sources.record_event = AsyncMock(return_value=(SourceRef("receipt-original", 1),))
     value.worker.life.memory = SimpleNamespace(observe_episode=AsyncMock())
     data = {"capability_id": "content.discover", "arguments": {"query": "actual topic", "mode": "research"},
@@ -351,6 +357,10 @@ async def test_manual_pause_keeps_an_event_wait_from_automatically_resuming(data
 async def test_due_continuation_respects_existing_time_and_current_activity_protection(database, boundary):
     value = await fixture(database, state="dormant")
     async with database.transaction() as connection:
+        # These are role-focus boundaries. Background reading has separate,
+        # explicitly tested scheduling semantics.
+        await connection.execute("UPDATE life.activities SET checkpoint_data=jsonb_set(checkpoint_data,'{execution_mode}',%s) WHERE id='research'",
+            (document("focus"),))
         if boundary == "sleep":
             await connection.execute("UPDATE life.routines SET wake_at='13:00',sleep_at='23:00'")
         elif boundary == "disabled":
@@ -360,6 +370,7 @@ async def test_due_continuation_respects_existing_time_and_current_activity_prot
         elif boundary == "running":
             await connection.execute("INSERT INTO life.activities(id,actor_id,title,kind,state,next_due_at,scope_ids) "
                 "VALUES ('current','actor','当前活动','room','running',%s,ARRAY['actor-scope'])", (NOW+timedelta(minutes=5),))
+            await connection.execute("UPDATE life.actor_state SET activity_id='current' WHERE actor_id='actor'")
     if boundary == "appointment":
         await future_slot(database, value, starts=NOW)
     await value.worker.activity_step("research", 1, wire(value.context))

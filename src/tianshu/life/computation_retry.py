@@ -1,21 +1,33 @@
 """Life's pure-generation observations and source-bound recipe audit, without scheduling."""
 
+from datetime import datetime
+
 from tianshu.conversation.codec import document
+from tianshu.models.types import ModelReceipt
 from tianshu.models.retry import transient_model_failure
 from tianshu.runtime.errors import AppError
 
 
-async def outcome(models, attempt_id, *, result=None, error=None):
+def finished_unknown(receipt, attempt_id, data_generation=None):
+    """An actual Models receipt proves that this local pure attempt ended."""
+    return bool(isinstance(receipt, ModelReceipt) and receipt.attempt_id == attempt_id and receipt.status == "unknown"
+        and isinstance(receipt.finished_at, datetime) and receipt.finished_at.tzinfo is not None
+        and (data_generation is None or receipt.data_generation == data_generation)
+        and receipt.cancellation_reason != "explicit_cancel")
+
+
+async def outcome(models, attempt_id, *, error=None):
     # Always refresh cancellation before selecting a successor. An immutable
     # unknown result can predate a later explicit author cancellation.
+    # A missing control-plane observation does not prove that Models finished
+    # the physical attempt, even if a caller has an older partial result.
     receipt = await models.status(attempt_id)
-    receipt = receipt or (result.receipt if result is not None else None)
     status = receipt.status if receipt else "absent"
     code = (receipt.error_code if receipt else None) or getattr(error, "code", None) or (
         error if isinstance(error, str) else type(error).__name__ if error is not None else "model_outcome_unknown")
     if receipt and getattr(receipt, "cancellation_reason", None) == "explicit_cancel":
-        return status, "explicit_cancel", False
-    return status, code, transient_model_failure(code)
+        return status, "explicit_cancel", False, receipt
+    return status, code, transient_model_failure(code), receipt
 
 
 async def freeze_recipe(life, connection, kind, item_id, generation_id, context, recipe, refs, *, previous=None):

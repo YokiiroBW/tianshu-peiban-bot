@@ -11,7 +11,8 @@ from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.life import clock, day_plan, planning_engine, recovery, service, worker
 from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
-from test_planner_execution import mark, setup
+from test_planner_execution import mark
+from historical_support import planner_setup as setup
 
 
 NOW = datetime(2026, 11, 3, 10, tzinfo=UTC)
@@ -70,7 +71,7 @@ async def test_completed_history_does_not_limit_the_fifth_or_sixth_activity_and_
     for index in range(2):
         value.models.output = json.dumps(decision(f"独立的后续活动 {index}"))
         current = await mark(database)
-        await value.worker.plan("actor", current["revision"], wire(value.context))
+        await value.worker.plan("actor", current["revision"], wire(value.context), value.data_generation)
         async with database.transaction(read_only=True) as connection:
             activity = await (await connection.execute("SELECT * FROM life.activities WHERE state='planned'")).fetchone()
         assert activity and activity["id"] not in {f"history-{item}" for item in range(4)}
@@ -114,33 +115,34 @@ async def test_long_activities_have_no_fixed_occupancy_ratio_but_obey_real_windo
             await connection.execute("INSERT INTO life.day_slots(id,actor_id,day,kind,state,starts_at,ends_at,activity_id,reason,scope_ids) "
                 "VALUES ('current-slot','actor',%s,'activity','running',%s,%s,'current','current',ARRAY['actor-scope'])",
                 (NOW.date(), NOW, NOW+timedelta(minutes=60)))
-        count = await value.worker.life.days.apply(connection, value.context, decision("持续三小时的独立活动", minutes=180), data,
+        application = await value.worker.life.days.apply(connection, value.context, decision("持续三小时的独立活动", minutes=180), data,
             "long-activity", {}, (), routine, now, "material")
         slots = await (await connection.execute("SELECT * FROM life.day_slots WHERE kind='activity' AND activity_id<>'current'")).fetchall()
-    if obstacle in {"none", "ends_at_sleep"}:
-        assert count == len(slots) == 1  # No fixed 65% ratio or mandatory free tail before sleep.
-        assert slots[0]["starts_at"] == NOW and slots[0]["ends_at"] == NOW+timedelta(hours=3)
+    if obstacle in {"none", "ends_at_sleep", "running"}:
+        assert len(slots) == 1 and [item.status for item in application.items] == ["scheduled"]
+        starts = NOW+timedelta(hours=1) if obstacle == "running" else NOW
+        assert slots[0]["starts_at"] == starts and slots[0]["ends_at"] == starts+timedelta(hours=3)
     else:
-        assert count == 0 and not slots  # Moving past a real obstacle no longer fits before sleep.
+        assert not slots and [item.status for item in application.items] == ["deferred_no_slot"]
 
 
 @pytest.mark.asyncio
 async def test_idle_review_keeps_its_absolute_deadline_across_harmless_ticks_and_reconsiders_once(database, time_now):
     value = await rolling_fixture(database, json.dumps(decision()))
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     first = await mark(database)
     for index, notification in enumerate(("rhythm:ordinary", "growth:style-only"), start=1):
         time_now.now = NOW+timedelta(minutes=10*index)
         await value.worker.life.signal(value.context, notification)
-        await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context))
+        await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context), value.data_generation)
         current = await mark(database)
         assert current["review_after"] == current["next_due_at"] == first["review_after"]
     assert len(value.models.calls) == 1
     time_now.now = first["review_after"]
     current = await mark(database)
-    await value.worker.plan("actor", current["revision"], wire(value.context))
+    await value.worker.plan("actor", current["revision"], wire(value.context), value.data_generation)
     after = await mark(database)
-    await value.worker.plan("actor", after["revision"], wire(value.context))
+    await value.worker.plan("actor", after["revision"], wire(value.context), value.data_generation)
     assert len(value.models.calls) == 2 and after["generation_key"] != first["generation_key"]
     assert after["review_after"] > time_now.now and not value.actions.calls
 

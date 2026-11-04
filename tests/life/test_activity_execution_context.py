@@ -33,14 +33,14 @@ async def prepare_resume(value, *, reading):
     refs = await value.sources.record_event(original, producer="test.life-context", event_id="original-checkpoint",
         revision=1, occurred_at=NOW, origin_kind=OriginKind.TOOL_RESULT,
         parts=(InputPart("text", "An original checkpoint with one unread selected candidate."),))
-    async with value.database.transaction(read_only=True) as connection:
+    async with value.database.transaction() as connection:
         original_intake = await value.identity.intake_scope(original, connection=connection)
     # Expanding read authorization must not also redirect source intake into a
     # second private domain for the same person. The original support stays private.
     await grant_extra_scope(value, "accepted-extra-scope")
     current = await value.identity.context("owner", actor_id=original.actor_id)
     assert set(original.scope_ids) < set(current.scope_ids)
-    async with value.database.transaction(read_only=True) as connection:
+    async with value.database.transaction() as connection:
         assert await value.identity.intake_scope(current, connection=connection) == original_intake
     assert (await value.identity.check_many(current, (refs,)))[0]
     extra_only = replace(current, scope_ids=("accepted-extra-scope",), audience=("accepted-extra-scope",))
@@ -111,6 +111,11 @@ async def test_explicit_resume_freezes_its_authorized_context_for_restart_reconc
             "resume_condition='review_failure',last_result_revision=1,last_receipt_id=%s WHERE id='resumed-context'",
             (failure.receipt_id,))
     await grant_extra_scope(value, "later-unaccepted-scope")
+    observed = []
+    async def observe(current_context, episode, *, connection):
+        assert await value.sources.validate_persistence(connection, current_context, episode["source_refs"])
+        observed.append(episode)
+    value.life.memory.observe_episode = observe
     restarted = LifeWorker(value.life, None, None, catalog, actions, None)
     await restarted.recover()
     recovered = await recovery_job(value)
@@ -122,6 +127,7 @@ async def test_explicit_resume_freezes_its_authorized_context_for_restart_reconc
     assert settled["checkpoint_data"]["resolved_action_id"] == started["action_id"]
     assert settled["checkpoint_data"]["completed_action_id"] == "original-discovery"
     assert settled["last_result_revision"] == 1 and settled["last_receipt_id"] == failure.receipt_id
+    assert len(observed) == 1 and observed[0]["actual_result"]["derived_kind"] == "activity_read_skip"
     assert (await actions.get(started["action_id"], current))["attempt"] == saved["attempt"]
     async with value.database.transaction(read_only=True) as connection:
         count = await (await connection.execute("SELECT count(*) AS actions FROM capabilities.actions")).fetchone()

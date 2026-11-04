@@ -30,7 +30,9 @@ class GenerationRecovery:
         if not row:
             raise AppError("recovery_original_lineage_missing", status=409)
 
-    async def reserve_on(self, connection, kind, item_id, request, *, quota_group):
+    async def reserve_on(self, connection, kind, item_id, request, *, quota_group, model_receipt=None):
+        if not isinstance(quota_group, str) or not quota_group:
+            raise AppError("model_quota_group_unavailable", status=503)
         row = await (await connection.execute(
             "SELECT * FROM life.generation_recipes WHERE generation_id=%s FOR UPDATE", (request.attempt_id,))).fetchone()
         if not row or row["kind"] != kind or row["item_id"] != item_id:
@@ -83,7 +85,8 @@ class GenerationRecovery:
             lineage = await self.policy.register_on(connection, domain="life",
                 subject_id=request.context.actor_id, owner=owner,
                 material_id=material_id, material_digest=material_digest, dependency=dependency,
-                current_version=version, max_attempts=3,data_generation=data_generation)
+                current_version=version, max_attempts=3,data_generation=data_generation,
+                recovery_kind="pure_computation")
             identity = lineage["lineage_id"]
             if previous and previous["recovery_lineage_id"] != identity:
                 raise AppError("recovery_lineage_conflict", status=409)
@@ -101,10 +104,12 @@ class GenerationRecovery:
         else:
             lineage = await self.policy.register_on(connection, domain="life", subject_id=request.context.actor_id,
                 owner=owner, material_id=material_id, material_digest=material_digest, dependency=dependency,
-                current_version=version, max_attempts=3,data_generation=data_generation)
+                current_version=version, max_attempts=3,data_generation=data_generation,
+                recovery_kind="pure_computation")
             if lineage["lineage_id"] != identity or row["recovery_material_id"] != material_id:
                 raise AppError("recovery_lineage_conflict", status=409)
         claim = None
+        original_state = "none"
         if lineage["attempts"] and not row["recovery_request_digest"]:
             if lineage["attempts"] >= lineage["max_attempts"]:
                 raise AppError("recovery_budget_exhausted", status=409)
@@ -114,16 +119,24 @@ class GenerationRecovery:
             if not claimed:
                 raise AppError("recovery_not_due", status=409)
             claim = claimed["claim_token"]
+            original_state = "failed"
+            if model_receipt is not None:
+                from .computation_retry import finished_unknown
+                if not row["previous_generation_id"] or not finished_unknown(model_receipt, row["previous_generation_id"], data_generation):
+                    raise AppError("recovery_original_observation_unavailable", status=409)
+                original_state = "unknown"
+        extra = {"model_receipt": model_receipt} if original_state == "unknown" else {}
         reservation = await self.policy.reserve_attempt_on(connection, identity, owner=owner,
             expected_version=version, attempt_id=request.attempt_id, request_digest=digest, route=route,
-            original_state="failed" if lineage["attempts"] else "none", claim_token=claim)
+            original_state=original_state, claim_token=claim, **extra)
         if reservation.status != "reserved":
             raise AppError("recovery_attempt_not_dispatchable", status=409)
         await connection.execute("UPDATE life.generation_recipes SET recovery_request_digest=%s,"
             "recovery_route=%s,recovery_probe_token=coalesce(recovery_probe_token,%s) WHERE generation_id=%s",
             (digest, route, reservation.probe_token, request.attempt_id))
 
-    async def observe_on(self, connection, attempt_id, status, code=None, *, retry_after=None):
+    async def observe_on(self, connection, attempt_id, status, code=None, *, retry_after=None,
+                         model_receipt=None, allow_unknown_retry=True):
         """Record Models' physical receipt, never infer business completion."""
         from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
         from tianshu.models.retry import transient_model_failure
@@ -132,18 +145,20 @@ class GenerationRecovery:
             "SELECT * FROM life.generation_recipes WHERE generation_id=%s FOR UPDATE", (attempt_id,))).fetchone()
         if not row or not row["recovery_request_digest"]:
             return "unregistered", None
+        if status in {"queued", "running", "absent", "unavailable"}:
+            return "observing", None
+        if status == "unknown":
+            from .computation_retry import finished_unknown
+            if allow_unknown_retry and finished_unknown(model_receipt, attempt_id, frozen_data_generation(row["recipe"])):
+                due = await self.policy.record_computation_unknown_on(connection, attempt_id,
+                    owner=row["recovery_owner"], expected_version=row["recovery_version"],
+                    model_receipt=model_receipt, retry_after=retry_after)
+                return "unknown", due
+            return "observing", None
         reservation = await self.policy.reserve_attempt_on(connection, row["recovery_lineage_id"],
             owner=row["recovery_owner"], expected_version=row["recovery_version"], attempt_id=attempt_id,
             request_digest=row["recovery_request_digest"], route=row["recovery_route"], original_state="none")
         state, probe = reservation.status, row["recovery_probe_token"]
-        if status in {"queued", "running"}:
-            return state, None
-        if status in {"unknown", "absent"}:
-            if state == "reserved":
-                await self.policy.fail_attempt_on(connection, attempt_id, code=code or "model_outcome_unknown",
-                    category=classify_failure(code, external_outcome_unknown=True), probe_token=probe)
-                return "unknown", None
-            return state, None
         if status == "succeeded":
             if state == "failed":
                 raise AppError("recovery_attempt_outcome_conflict", status=409)
@@ -174,6 +189,15 @@ class GenerationRecovery:
                 return state, None
             return "failed", due
         return state, None
+
+    async def assert_applicable_on(self, connection, attempt_id):
+        row = await (await connection.execute(
+            "SELECT recovery_lineage_id,recovery_owner,recovery_version FROM life.generation_recipes "
+            "WHERE generation_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+        if not row or not row["recovery_lineage_id"]:
+            raise AppError("recovery_original_lineage_missing", status=409)
+        await self.policy.assert_attempt_applicable_on(connection, attempt_id,
+            owner=row["recovery_owner"], expected_version=row["recovery_version"])
 
     async def cancel_on(self, connection, attempt_id):
         row = await (await connection.execute(

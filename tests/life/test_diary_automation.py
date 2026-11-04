@@ -16,6 +16,7 @@ from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
 from tianshu.types import Coverage, OriginKind, SourceRef, RequestBudget, ServiceClass
 from test_planner_execution import setup
+from historical_support import diary_fixture as historical_fixture
 
 
 class Authority:
@@ -96,9 +97,9 @@ async def diary_state(database):
 
 
 async def start_day(value):
-    day, scope = "2026-11-02", signature(sorted(value.context.scope_ids))
+    day, scope = "2026-11-02", value.identity.scene_id(value.context)
     await value.diaries.day_closed(value.context,day)
-    await value.diaries.review_day("actor",scope,day,1)
+    await value.diaries.review_day("actor",scope,day,1,await value.jobs.current_generation())
     return day,scope
 
 
@@ -109,7 +110,7 @@ async def collect_current(database, value):
 
 
 async def unbound_saved_day(database):
-    value = await fixture(database)
+    value = await historical_fixture(database)
     value.context = replace(value.context,scope_ids=("author-scope","other-scope","actor-scope"),
         audience=("author-scope","other-scope","actor-scope"),origin_kind=OriginKind.HUMAN)
     scheduled = replace(value.context,scope_ids=("author-scope","actor-scope"),
@@ -548,26 +549,23 @@ async def test_saved_reconcile_does_not_clear_an_unproven_or_other_closed_day(da
 
 @pytest.mark.asyncio
 async def test_multiple_narrower_days_are_ambiguous_but_an_exact_original_scene_keeps_priority(database):
+    # RB identifies a day by actor/scene/day, not by the reader's scope set.
+    # Multiple narrower scope keys within one scene can no longer be created.
+    # A narrower day in a different scene must never be selected instead.
     value,saved,scheduled = await unbound_saved_day(database)
-    other = replace(scheduled,scope_ids=("actor-scope",),audience=("actor-scope",))
+    other = replace(scheduled,conversation_id="another-group",conversation_kind="group",
+        scope_ids=("actor-scope",),audience=("actor-scope",))
     await value.diaries.day_closed(other,"2026-11-02")
     async with database.transaction(read_only=True) as connection:
         before = await (await connection.execute("SELECT * FROM life.diary_days ORDER BY scope_key")).fetchall()
     controls = GenerationControl(value.life,None,value.diaries)
-    body = {"id":saved["id"],"expected_revision":saved["revision"],"client_request_id":"ambiguous-saved"}
-    with pytest.raises(AppError,match="diary_day_scope_ambiguous"):
-        await controls.request(value.context,body,kind="diary",operation="reconcile")
-    with pytest.raises(AppError,match="diary_day_scope_ambiguous"):
-        await value.diaries.request(value.context,{"day":"2026-11-02","expected_revision":saved["revision"],
-            "client_request_id":"ambiguous-manual"})
-    async with database.transaction(read_only=True) as connection:
-        assert await (await connection.execute("SELECT * FROM life.diary_days ORDER BY scope_key")).fetchall() == before
-    assert (await diary_state(database)) == saved
-    await value.diaries.day_closed(value.context,"2026-11-02")
-    await controls.request(value.context,{**body,"client_request_id":"exact-scene-priority"},kind="diary",operation="reconcile")
+    body = {"id":saved["id"],"expected_revision":saved["revision"],"client_request_id":"exact-scene-priority"}
+    await controls.request(value.context,body,kind="diary",operation="reconcile")
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute("SELECT * FROM life.diary_days ORDER BY scope_key")).fetchall()
-    exact = next(row for row in rows if row["scope_key"] == signature(sorted(value.context.scope_ids)))
+    exact = next(row for row in rows if row["scope_key"] == value.identity.scene_id(value.context))
     assert exact["reviewed_revision"] == exact["revision"] and exact["last_error"] is None
-    assert [row for row in rows if row["scope_key"] != exact["scope_key"]] == before
+    assert [row for row in rows if row["scope_key"] != exact["scope_key"]] == [
+        row for row in before if row["scope_key"] != exact["scope_key"]]
+    assert exact["context"]["scope_ids"] == list(scheduled.scope_ids)
     assert (await diary_state(database)) == saved and len(value.models.calls) == 1

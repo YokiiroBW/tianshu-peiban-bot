@@ -38,7 +38,7 @@ async def test_planning_submits_once_yields_worker_and_consumes_original_complet
     value.models.generation_profile = profile
     policy = SimpleNamespace(register_on=AsyncMock(return_value={"lineage_id": "lineage"}),
         reserve_attempt_on=AsyncMock(return_value=SimpleNamespace(number=1, probe_token=None)),
-        succeed_attempt_on=AsyncMock())
+        succeed_attempt_on=AsyncMock(), assert_attempt_applicable_on=AsyncMock())
     value.worker.life.bind_recovery_policy(policy)
     async def planning(context):
         return await value.worker.catalog.discover(context)
@@ -84,6 +84,7 @@ async def test_planning_submits_once_yields_worker_and_consumes_original_complet
     policy.register_on.assert_awaited_once()
     policy.reserve_attempt_on.assert_awaited_once()
     policy.succeed_attempt_on.assert_awaited_once()
+    policy.assert_attempt_applicable_on.assert_awaited_once()
 
 
 @pytest.mark.asyncio
@@ -93,12 +94,11 @@ async def test_unknown_original_attempt_remains_observation_only():
     worker = SimpleNamespace(life=None, models=SimpleNamespace(status=AsyncMock(return_value=receipt)))
     engine = planning_engine.PlanningEngine(worker)
     engine.waiting = AsyncMock()
-    engine.mark_unknown = AsyncMock()
     engine.failure = AsyncMock()
     await engine.computation_failure(SimpleNamespace(), {"generation_key": "original"}, "material", NOW,
         error=AppError("model_outcome_unknown"))
     assert engine.waiting.await_args.args[2] == "planner_unknown"
-    engine.mark_unknown.assert_awaited_once()
+    # Without a locally finished receipt the outcome remains observation-only.
     engine.failure.assert_not_awaited()
 
 

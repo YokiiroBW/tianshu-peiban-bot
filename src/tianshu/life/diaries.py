@@ -339,7 +339,11 @@ class DiaryService:
                     await self.life.jobs.assert_generation_on(connection,data_generation)
                     await freeze_recipe(self.life,connection,"diary",diary_id,generation_id,context,recipe,refs)
             result = await self.generations.read(generation_id,frozen.context,observer=context)
-            receipt = await self.models.status(generation_id)
+            try:
+                receipt = await self.models.status(generation_id)
+            except Exception:
+                await self._observe_later(diary_id,generation_id,context.actor_id,data_generation=data_generation)
+                return {"state":row["state"],"attempt_id":generation_id,"reason":"model_observation_unavailable"}
             if result is None and receipt is None and row["state"] == "generating" and not row["generation_cancel_requested"]:
                 if frozen.context.access_epoch != context.access_epoch:
                     await self._generation_state(diary_id,generation_id,"failed","diary_original_authorization_changed",settle=True,data_generation=data_generation)
@@ -557,6 +561,9 @@ class DiaryService:
                 return False
             if current["state"] not in {"generating", "unknown"}:
                 return False
+            if self.recovery is None:
+                raise AppError("recovery_policy_unavailable", status=503)
+            await self.recovery.assert_applicable_on(connection, generation_id)
             if not await self.life.sources.validate_persistence(connection,context,refs):
                 await connection.execute("UPDATE life.diaries SET state='failed',generation_recipe=NULL,reason='result_source_unavailable',revision=revision+1 WHERE id=%s",(diary_id,))
                 await self.automation.settle(connection,generation_id,error="result_source_unavailable",data_generation=data_generation)

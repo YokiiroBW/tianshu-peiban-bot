@@ -1,10 +1,12 @@
 from dataclasses import dataclass
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from tianshu.life import plan_recovery
+from tianshu.models.types import ModelReceipt
 from tianshu.runtime.errors import AppError
 
 
@@ -32,11 +34,11 @@ def previous(state, *, attempts=1, dependency="models:quota:quota"):
         "reason": "planner_output_invalid"}
 
 
-async def reserve(p, old=None, *, quota="quota", continuation=True):
+async def reserve(p, old=None, *, quota="quota", continuation=True, model_receipt=None):
     return await plan_recovery.reserve_on(SimpleNamespace(recovery_policy=p), SimpleNamespace(execute=AsyncMock()),
         context=SimpleNamespace(actor_id="actor"), scene={"actor_id": "actor"}, material="material", key="next",
         frozen=Request("second-attempt", "route"), profile={"quota_group": quota}, previous=old,
-        continuation=continuation)
+        continuation=continuation, model_receipt=model_receipt)
 
 
 @pytest.mark.asyncio
@@ -56,7 +58,7 @@ async def test_failed_physical_attempt_and_correction_share_original_lineage():
 
 
 @pytest.mark.asyncio
-async def test_changed_quota_keeps_budget_but_unknown_never_reserves_a_successor():
+async def test_changed_quota_keeps_budget_but_unknown_requires_a_finished_receipt():
     p = policy()
     await reserve(p, previous("failed"), quota="new-quota")
     assert p.update_dependency_on.await_args.kwargs["new_dependency"] == "models:quota:new-quota"
@@ -64,8 +66,14 @@ async def test_changed_quota_keeps_budget_but_unknown_never_reserves_a_successor
 
     p.reserve_attempt_on.reset_mock()
     assert (await reserve(p, previous("reserved")))["state"] == "waiting"
+    assert (await reserve(p, previous("unknown")))["state"] == "waiting"
     assert (await reserve(p, previous("failed", attempts=3)))["state"] == "exhausted"
     p.reserve_attempt_on.assert_not_awaited()
+    original = ModelReceipt(plan_recovery.attempt_for("first"),"intent","unknown","unknown","route",1,
+        "provider","model","native","quota",finished_at=datetime.now(UTC),data_generation="installation-generation")
+    await reserve(p, previous("unknown"), model_receipt=original)
+    assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "unknown"
+    assert p.reserve_attempt_on.await_args.kwargs["model_receipt"] is original
 
 
 @pytest.mark.asyncio
@@ -114,12 +122,14 @@ class Connection:
 @pytest.mark.asyncio
 async def test_unknown_receipt_is_recorded_then_resolved_only_from_original_result():
     p = policy()
-    p.fail_attempt_on, p.resolve_unknown_on = AsyncMock(), AsyncMock()
+    p.record_computation_unknown_on, p.resolve_unknown_on = AsyncMock(), AsyncMock()
     p.succeed_attempt_on = AsyncMock()
     life, connection = SimpleNamespace(recovery_policy=p), Connection()
-    await plan_recovery.unknown_on(life, connection, "first", "model_outcome_unknown")
+    receipt = ModelReceipt(plan_recovery.attempt_for("first"),"intent","unknown","unknown","route",1,
+        "provider","model","native","quota",finished_at=datetime.now(UTC))
+    await plan_recovery.unknown_on(life, connection, "first", receipt)
     assert connection.row["recovery_state"] == "unknown"
-    assert p.fail_attempt_on.await_args.kwargs["category"] == "unknown_effect"
+    assert p.record_computation_unknown_on.await_args.kwargs["model_receipt"] is receipt
     await plan_recovery.succeed_on(life, connection, "first")
     assert connection.row["recovery_state"] == "succeeded"
     assert p.resolve_unknown_on.await_args.kwargs["state"] == "succeeded"

@@ -17,7 +17,8 @@ from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, OriginKind, RequestBudget, SourceRef
-from test_diary_automation import Authority, collect_current, diary_state, fixture, start_day
+from test_diary_automation import Authority, collect_current, diary_state, start_day
+from historical_support import diary_fixture as fixture
 
 
 def material(request):
@@ -135,6 +136,8 @@ async def test_each_day_has_no_chat_previous_day_memory_or_failed_partial_contex
     shared = ContextAssembler(value.identity, SimpleNamespace(projection=AsyncMock()),
         SimpleNamespace(search=AsyncMock()), settings={"tokenizer": "o200k_base"})
     value.diaries = DiaryService(value.life, value.models, shared)
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    value.diaries.bind_observability(recovery_policy=RecoveryPolicy(), statistics=None)
     assert value.diaries.assembler.retrieval is None
     value.models.output = "PREVIOUS_FAILED_PARTIAL"
     await start_day(value)

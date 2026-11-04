@@ -23,7 +23,8 @@ def policy_for(life):
     return policy
 
 
-async def reserve_on(life, connection, *, context, scene, material, key, frozen, profile, previous, continuation):
+async def reserve_on(life, connection, *, context, scene, material, key, frozen, profile, previous,
+                     continuation, model_receipt=None):
     policy = policy_for(life)
     if not getattr(frozen, "data_generation", None):
         raise AppError("job_generation_missing", status=409)
@@ -41,8 +42,12 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
             return {"state": "exhausted"}
         lineage_id = previous["recovery_lineage_id"]
         state = previous.get("recovery_state")
-        if state not in {"failed", "succeeded"}:
+        if state not in {"failed", "succeeded", "unknown"}:
             return {"state": "waiting"}
+        if state == "unknown":
+            from .computation_retry import finished_unknown
+            if not finished_unknown(model_receipt, attempt_for(previous["generation_key"]), frozen.data_generation):
+                return {"state": "waiting"}
         current_dependency = previous.get("recovery_current_dependency") or previous.get("recovery_dependency")
         if current_dependency != dependency:
             await policy.update_dependency_on(connection, lineage_id, owner=owner,
@@ -50,11 +55,11 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
                 expected_dependency=current_dependency, new_dependency=dependency)
             await connection.execute("UPDATE life.plan_generations SET recovery_current_dependency=%s WHERE generation_key=%s",
                 (dependency, previous["generation_key"]))
-        if state == "failed":
+        if state in {"failed", "unknown"}:
             claim = await policy.claim_lineage_due_on(connection, lineage_id, owner=owner, lease_seconds=30)
             if not claim or claim["current_version"] != previous["recovery_version"]:
                 return {"state": "waiting"}
-            original_state = "failed"
+            original_state = state
         else:
             reason = "need_context" if previous.get("reason") == "planner_output_incomplete" else "schema_correction"
             claim = await policy.claim_continuation_on(connection, lineage_id, owner=owner,
@@ -67,13 +72,23 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
             await cancel_on(life, connection, previous, material)
         lineage = await policy.register_on(connection, domain="life", subject_id=context.actor_id,
             owner=owner, material_id=key, material_digest=material, dependency=dependency,
-            current_version=material, max_attempts=MAX_ATTEMPTS, data_generation=frozen.data_generation)
+            current_version=material, max_attempts=MAX_ATTEMPTS, data_generation=frozen.data_generation,
+            recovery_kind="pure_computation")
         lineage_id = lineage["lineage_id"]
+    extra = {"model_receipt": model_receipt} if original_state == "unknown" else {}
     attempt = await policy.reserve_attempt_on(connection, lineage_id, owner=owner, expected_version=material,
         attempt_id=frozen.attempt_id, request_digest=signature(frozen), route=frozen.route_id,
-        original_state=original_state, claim_token=claim_token)
+        original_state=original_state, claim_token=claim_token, **extra)
     return {"state": "reserved", "lineage_id": lineage_id, "owner": owner, "number": attempt.number,
         "probe_token": attempt.probe_token, "dependency": dependency}
+
+
+async def assert_applicable_on(life, connection, key):
+    row = await generation_on(connection, key, lock=True)
+    if not row or not row.get("recovery_lineage_id"):
+        raise AppError("planner_recovery_lineage_missing", status=409)
+    await policy_for(life).assert_attempt_applicable_on(connection, attempt_for(key),
+        owner=row["recovery_owner"], expected_version=row["recovery_version"])
 
 
 async def cancel_on(life, connection, row, current_version):
@@ -99,14 +114,15 @@ async def succeed_on(life, connection, key):
     await connection.execute("UPDATE life.plan_generations SET recovery_state='succeeded' WHERE generation_key=%s", (key,))
 
 
-async def unknown_on(life, connection, key, code):
+async def unknown_on(life, connection, key, receipt):
     row = await generation_on(connection, key, lock=True)
-    if not row or not row.get("recovery_lineage_id") or row.get("recovery_state") != "reserved":
+    if not row or not row.get("recovery_lineage_id") or row.get("recovery_state") not in {"reserved", "unknown"}:
         return
-    from tianshu.runtime.recovery_policy import classify_failure
-    await policy_for(life).fail_attempt_on(connection, attempt_for(key), code=code,
-        category=classify_failure(code, external_outcome_unknown=True), probe_token=row["recovery_probe_token"])
+    due = await policy_for(life).record_computation_unknown_on(connection, attempt_for(key),
+        owner=row["recovery_owner"], expected_version=row["recovery_version"], model_receipt=receipt,
+        retry_after=getattr(receipt, "hold_until", None))
     await connection.execute("UPDATE life.plan_generations SET recovery_state='unknown' WHERE generation_key=%s", (key,))
+    return due
 
 
 async def fail_on(life, connection, key, code, *, retry_after=None):

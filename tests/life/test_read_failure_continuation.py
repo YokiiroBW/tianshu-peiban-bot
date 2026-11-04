@@ -11,7 +11,7 @@ from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.types import InputPart
 from tianshu.life.continuation import action_resolved, execution_window, options, resume_step
-from tianshu.life.day_plan import resumable
+from tianshu.life.eligibility import evaluate
 from tianshu.life.planner import INPUT_BODY_TOKENS
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -19,6 +19,7 @@ from tianshu.types import Coverage, OriginKind, Receipt, SourceRef
 from test_activity_continuation import NOW, READ, activity, fixture as make_life, fixed_time, future_slot
 from test_goal_source_transaction import source_life
 from test_planner_execution import mark
+from historical_support import adapt_planner
 
 
 FAILED = {"capability_id": "content.read", "arguments": {
@@ -69,7 +70,7 @@ async def test_confirmed_timeout_skips_only_the_unread_candidate_and_retains_suc
     data = waiting["checkpoint_data"]
     assert waiting["state"] == "dormant" and waiting["waiting_reason"] == "continuation_available"
     assert data["completed_action_id"] == successful.action_id and data["resolved_action_id"] == failed.action_id
-    assert data["last_execution"] == "cancelled" and action_resolved(waiting) and resumable(waiting, NOW)
+    assert data["last_execution"] == "cancelled" and action_resolved(waiting) and evaluate(activity=waiting, now=NOW, resume=True).eligible
     assert data["continuation"] == NEXT and data["execution_window"]["steps"] == 3
     assert data["coverage"]["complete"] is False and data["exploration"]["missing"] == ["candidate_body_unread:url:failed"]
     assert [item["content_key"] for item in data["exploration"]["next_actions"]] == ["url:remaining"]
@@ -176,6 +177,7 @@ async def test_old_failure_control_observation_has_real_sources_visible_on_its_o
 @pytest.mark.asyncio
 async def test_expired_failure_replans_the_same_activity_at_full_quota_with_original_remaining_arguments(database):
     value, successful, failed, failure = await successful_prefix(database)
+    await adapt_planner(value, database)
     # Match runtime.product's configured assembler for a full frozen checkpoint
     # and four retained arrangements; the shared minimal fixture counts bytes.
     value.worker.assembler = ContextAssembler(value.worker.life.identity, None, None,
@@ -193,6 +195,8 @@ async def test_expired_failure_replans_the_same_activity_at_full_quota_with_orig
                 (identifier+'-slot', NOW.date(), starts, starts+timedelta(minutes=20), identifier))
         await connection.execute("UPDATE life.activities SET checkpoint_data=jsonb_set(checkpoint_data,'{execution_window,ends_at}',%s) WHERE id='research'",
             (document((NOW-timedelta(seconds=1)).isoformat()),))
+        await connection.execute("UPDATE life.activities SET checkpoint_data=jsonb_set(checkpoint_data,'{execution_mode}',%s) WHERE id='research'",
+            (document("focus"),))
         await connection.execute("UPDATE life.day_slots SET starts_at=%s,ends_at=%s WHERE id='research-slot'",
             (NOW-timedelta(hours=1), NOW-timedelta(seconds=1)))
     await value.worker._activity_result(value.context, failure, 1, NOW, "content.read")
@@ -203,7 +207,7 @@ async def test_expired_failure_replans_the_same_activity_at_full_quota_with_orig
         "free_time_reason": "继续保留其他休息安排。", "reason": "原失败候选未读，换读原列表里另一篇。",
         "activity": {"existing_activity_id": "research", "title": "读剩余的资料", "kind": "research", "goal_id": None,
             "capability_id": "content.read", "arguments": {}, "duration_minutes": 20}})
-    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context))
+    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context), value.data_generation)
     replanned = await activity(database)
     planning = await mark(database)
     diagnostic = {"planning": {key: planning[key] for key in ("reason", "last_error", "generation_consumed", "repair_count")},
@@ -211,7 +215,10 @@ async def test_expired_failure_replans_the_same_activity_at_full_quota_with_orig
         "model_calls": len(value.models.calls), "model_observations": len(value.models.observations)}
     assert replanned["state"] == "planned" and replanned["checkpoint_data"]["arguments"] == NEXT["arguments"], diagnostic
     assert replanned["checkpoint_data"]["completed_action_id"] == successful.action_id
-    assert replanned["checkpoint_data"]["execution_window"]["steps"] == 0
+    # The current scheduler has no fixed step quota. Retain the recorded
+    # completed and failed steps so a new slot cannot replay either one.
+    assert replanned["checkpoint_data"]["execution_window"]["steps"] == stopped["checkpoint_data"]["execution_window"]["steps"] == 3
+    assert replanned["checkpoint_data"]["execution_window"]["seen_steps"] == stopped["checkpoint_data"]["execution_window"]["seen_steps"]
     await value.worker.activity_step("research", replanned["revision"], wire(value.context))
     assert len(value.models.calls) == 1 and dict(value.actions.calls[-1][0].arguments) == NEXT["arguments"]
     assert value.models.calls[0].estimated_input_tokens <= INPUT_BODY_TOKENS

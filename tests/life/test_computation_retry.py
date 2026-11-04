@@ -15,6 +15,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
 from test_planner_execution import Models, setup, mark, chosen_activity
 from test_diary_automation import fixture, start_day, collect_current, diary_state, day_state
+from historical_support import adapt_models, diary_fixture as historical_diary_fixture
 
 
 pytestmark=pytest.mark.asyncio
@@ -57,8 +58,8 @@ async def plan_fixture(database):
 
 
 async def diary_fixture(database):
-    value=await fixture(database)
-    models=Computations("这一天只写下实际观察。",error="consumer_interrupted")
+    value=await historical_diary_fixture(database)
+    models=adapt_models(Computations("这一天只写下实际观察。",error="consumer_interrupted"))
     value.models=value.diaries.models=value.diaries.generations.models=models
     return value
 
@@ -189,7 +190,7 @@ async def test_an_unknown_diary_does_not_block_a_later_registered_day(database):
     value.memory.episodes+=(later,)
     day="2026-11-03"
     await value.diaries.day_closed(value.context,day)
-    await value.diaries.review_day("actor",signature(sorted(value.context.scope_ids)),day,1)
+    await value.diaries.review_day("actor",value.identity.scene_id(value.context),day,1,await value.jobs.current_generation())
     async with database.transaction(read_only=True) as connection:
         fresh=await (await connection.execute("SELECT * FROM life.diaries WHERE day=%s",(day,))).fetchone()
     await value.diaries.collect(fresh["id"],fresh["generation_id"],None)

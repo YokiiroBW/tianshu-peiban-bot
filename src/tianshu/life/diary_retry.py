@@ -7,7 +7,7 @@ from uuid import uuid4
 from tianshu.conversation.codec import document, source_refs
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
-from .computation_retry import freeze_recipe, outcome
+from .computation_retry import finished_unknown, freeze_recipe, outcome
 from .model_budget import generation_request
 from .writing import generation_error
 from .diary_materials import episode_versions
@@ -22,34 +22,34 @@ class DiaryRetry:
         generation_id=row["generation_id"]
         data_generation=frozen_data_generation(row["generation_recipe"])
         try:
-            status,code,_retry=await outcome(self.diaries.models,generation_id,result=result,error=error)
+            status,code,_retry,receipt=await outcome(self.diaries.models,generation_id,error=error)
         except Exception:
-            status,code="unknown",getattr(error,"code","model_observation_unavailable")
-        receipt = result.receipt if result is not None else None
-        if receipt is None and status == "failed":
-            try:
-                receipt = await self.diaries.models.status(generation_id)
-            except Exception:
-                pass
+            status,code,receipt="unavailable","model_observation_unavailable",None
         next_attempt = False
+        exhausted = False
         async with self.life.database.transaction() as connection:
             await self.life.jobs.assert_generation_on(connection,data_generation)
             current=await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(row["id"],))).fetchone()
             if not current or current["generation_id"]!=generation_id:
                 return {"state":"changed_since_generation","attempt_id":generation_id}
             recovery = self.diaries.recovery
-            ledger,due = (await recovery.observe_on(connection,generation_id,status,code,
-                retry_after=getattr(receipt,"hold_until",None))
-                if recovery is not None else ("unregistered",None))
             cancelling = current["generation_cancel_requested"] or code=="explicit_cancel"
+            ledger,due = (await recovery.observe_on(connection,generation_id,status,code,
+                retry_after=getattr(receipt,"hold_until",None),model_receipt=receipt,
+                allow_unknown_retry=not cancelling)
+                if recovery is not None else ("unregistered",None))
             if status in {"queued","running"} or (status=="succeeded" and result is None):
                 state = "cancelling" if cancelling else "generating"
                 when = None
-            elif status in {"unknown","absent"}:
-                # Only the original attempt may be observed until Models proves
-                # a terminal outcome. No successor is allowed for unknown.
-                state = "cancelling" if cancelling else "generating" if ledger=="unregistered" else "unknown"
-                when = None
+            elif status in {"unknown","absent","unavailable"}:
+                state = ("cancelling" if cancelling else "unknown" if current["state"] == "unknown"
+                    or (status == "unknown" and ledger == "unknown") else "generating")
+                when = due if not cancelling and status == "unknown" else None
+                next_attempt = when is not None and when<=datetime.now(UTC)
+                exhausted = (not cancelling and ledger == "unknown" and due is None
+                    and finished_unknown(receipt,generation_id,data_generation))
+                if exhausted:
+                    code = "computation_attempts_exhausted"
             elif result is not None and result.receipt.status=="succeeded":
                 state,when="failed",None
                 code=getattr(error,"code",None) or generation_error(result,"diary_generation_failed")
@@ -67,12 +67,13 @@ class DiaryRetry:
             if state in {"failed","cancelled"}:
                 await self.diaries.automation.settle(connection,generation_id,error=code,recipe=current["generation_recipe"])
         if next_attempt:
-            return await self.next({**current,"state":state,"generation_retry_due_at":when},context,frozen)
-        if state in {"generating","unknown","cancelling"}:
+            return await self.next({**current,"state":state,"generation_retry_due_at":when},context,frozen,
+                original_status=status)
+        if state in {"generating","unknown","cancelling"} and not exhausted:
             await self.diaries._observe_later(row["id"],generation_id,context.actor_id,when=when,data_generation=data_generation)
         return {"state":state,"attempt_id":generation_id,"retry_due_at":when}
 
-    async def next(self,row,context,frozen):
+    async def next(self,row,context,frozen, *, original_status):
         recipe=row["generation_recipe"]
         data_generation=frozen_data_generation(recipe)
         refs=source_refs(row["source_refs"])
@@ -85,6 +86,23 @@ class DiaryRetry:
             selected=replace(selected,messages=frozen.messages,system=frozen.system,
                 estimated_input_tokens=frozen.estimated_input_tokens,source_refs=frozen.source_refs,
                 provider_session_scope="intent",data_generation=data_generation)
+        original_receipt = None
+        profile = None
+        if original_status == "unknown":
+            if selected is None:
+                return {"state":"unknown","attempt_id":row["generation_id"]}
+            profile = await self.diaries.models.generation_profile(selected)
+            if (profile.get("route_id") != selected.route_id
+                    or profile.get("route_revision") != selected.route_revision):
+                await self.diaries._observe_later(row["id"],row["generation_id"],context.actor_id,data_generation=data_generation)
+                return {"state":"unknown","attempt_id":row["generation_id"]}
+            try:
+                original_receipt = await self.diaries.models.status(row["generation_id"])
+            except Exception:
+                pass
+            if not finished_unknown(original_receipt,row["generation_id"],data_generation):
+                await self.diaries._observe_later(row["id"],row["generation_id"],context.actor_id,data_generation=data_generation)
+                return {"state":"unknown","attempt_id":row["generation_id"]}
         async with self.life.database.transaction() as connection:
             await self.life.jobs.assert_generation_on(connection,data_generation)
             await self.life.validate_persistence(connection,context,refs)
@@ -120,6 +138,9 @@ class DiaryRetry:
             if self.diaries.recovery is None:
                 raise AppError("recovery_policy_unavailable",status=503)
             await self.diaries.recovery.inherit_on(connection,generation_id,row["generation_id"])
+            if original_status == "unknown":
+                await self.diaries.recovery.reserve_on(connection,"diary",row["id"],selected,
+                    quota_group=profile.get("quota_group"),model_receipt=original_receipt)
             await self.life.jobs.enqueue(connection,JobSpec("life.diary_generate","diary:"+generation_id,
                 {"diary_id":row["id"],"generation_id":generation_id,"data_generation":data_generation},subject_id=context.actor_id,data_generation=data_generation))
         return {"state":"generating","attempt_id":generation_id}
