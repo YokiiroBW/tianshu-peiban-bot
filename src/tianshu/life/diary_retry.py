@@ -10,6 +10,7 @@ from tianshu.runtime.jobs import JobSpec
 from .computation_retry import freeze_recipe, outcome
 from .model_budget import generation_request
 from .writing import generation_error
+from .diary_materials import episode_versions
 
 
 class DiaryRetry:
@@ -84,8 +85,8 @@ class DiaryRetry:
         async with self.life.database.transaction() as connection:
             await self.life.validate_persistence(connection,context,refs)
             versions=tuple((item["episode_id"],item["revision"]) for item in recipe["episodes"])
-            actual=await self.life.memory.episodes_by_refs(context,versions,connection=connection)
-            if set(versions)!={(item.episode_id,item.revision) for item in actual.items}:
+            actual=await episode_versions(self.life.memory,context,versions,connection=connection)
+            if set(versions)!=actual:
                 changed=await (await connection.execute("UPDATE life.diaries SET state='failed',reason='diary_episode_revised',"
                     "generation_retry_due_at=NULL,revision=revision+1 WHERE id=%s AND generation_id=%s "
                     "AND state IN ('generating','unknown') RETURNING id",

@@ -18,6 +18,7 @@ from .computation_retry import freeze_recipe, outcome
 from tianshu.models.retry import retry_delay_seconds, transient_model_failure
 from tianshu.conversation.types import InputPart
 from tianshu.conversation.generation import GenerationRequests
+from .generation_control import submit_frozen
 
 
 def can_edit(context):
@@ -212,39 +213,43 @@ class WritingService:
             self.generations.observer_context(context_from_record(chapter["generation_context"]),context)
             await self.life.identity.check(context, refs)
             frozen=await self.generations.observe_request(generation_id,observer=context)
-            if frozen is not None:
-                async with self.life.database.transaction() as connection:
-                    await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs)
-                result=await self.generations.read(generation_id,frozen.context,observer=context)
-                receipt=await self.models.status(generation_id)
-                if result is not None or receipt is not None or chapter["state"]!="generating":
-                    if result is not None and result.receipt.status=="succeeded":
-                        if receipt and getattr(receipt,"cancellation_reason",None)=="explicit_cancel":
-                            return await self._failed_generation(chapter,context,result=result,error="explicit_cancel",frozen=frozen)
-                        return await self.save_generated(context,chapter_id,generation_id,recipe,result,frozen.source_refs)
-                    return await self._failed_generation(chapter,context,result=result,frozen=frozen)
-            if chapter["generation_cancel_requested"]:
-                return await self._failed_generation(chapter,context,error="explicit_cancel",frozen=frozen)
-            actor = await self.life.companion.actor(context)
-            persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
-            budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=10))
-            pack = await self.assembler.assemble(context, "writing", recipe["instruction"] or recipe["chapter_title"], budget,
-                persona_text=persona.prompt_text if persona else "", max_input_tokens=BACKGROUND_INPUT_TOKENS + 6000, reserved_output_tokens=6000,
-                contributions=(ContextContribution("writing_recipe", json.dumps(recipe, ensure_ascii=False, default=str), refs, context.scope_ids, 90, True, str(recipe["work_revision"])),))
             async def current_generation(connection):
                 current = await (await connection.execute("SELECT generation_id,state,generation_cancel_requested FROM life.chapters WHERE id=%s FOR UPDATE", (chapter_id,))).fetchone()
                 return current and current["generation_id"] == generation_id and current["state"] == "generating" and not current["generation_cancel_requested"]
-            request=ModelRequest("chapter:"+generation_id, generation_id, "writing", ServiceClass.ELASTIC,
-                context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=6000,
-                execution_timeout_seconds=600,
-                estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs))
-            async with self.life.database.transaction() as connection:
-                frozen=await self.generations.prepare("chapter:"+generation_id,request,connection=connection,guard=current_generation)
-                await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs)
-            result = await self.generations.run("chapter:"+generation_id,frozen,guard=current_generation)
+            if frozen is None:
+                if chapter["generation_cancel_requested"]:
+                    return await self._failed_generation(chapter,context,error="explicit_cancel")
+                if chapter["state"] != "generating":
+                    raise AppError("generation_request_not_found",status=409)
+                actor = await self.life.companion.actor(context)
+                persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
+                budget = RequestBudget(datetime.now(UTC)+timedelta(minutes=10))
+                pack = await self.assembler.assemble(context, "writing", recipe["instruction"] or recipe["chapter_title"], budget,
+                    persona_text=persona.prompt_text if persona else "", max_input_tokens=BACKGROUND_INPUT_TOKENS + 6000, reserved_output_tokens=6000,
+                    contributions=(ContextContribution("writing_recipe", json.dumps(recipe, ensure_ascii=False, default=str), refs, context.scope_ids, 90, True, str(recipe["work_revision"])),))
+                request=ModelRequest("chapter:"+generation_id, generation_id, "writing", ServiceClass.ELASTIC,
+                    context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=6000,
+                    execution_timeout_seconds=600,
+                    estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs))
+                async with self.life.database.transaction() as connection:
+                    frozen=await self.generations.prepare("chapter:"+generation_id,request,connection=connection,guard=current_generation)
+                    await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs)
+            else:
+                async with self.life.database.transaction() as connection:
+                    await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs)
+            result=await self.generations.read(generation_id,frozen.context,observer=context)
+            receipt=await self.models.status(generation_id)
+            if result is None and receipt is None and chapter["state"] == "generating" and not chapter["generation_cancel_requested"]:
+                if frozen.context.access_epoch != context.access_epoch:
+                    raise AppError("writing_original_authorization_changed",status=409)
+                completion = JobSpec("life.chapter_generate", "chapter-complete:"+generation_id,
+                    {"chapter_id":chapter_id,"generation_id":generation_id}, subject_id=context.actor_id)
+                receipt = await submit_frozen(self.life,self.models,self.generations,"chapter:"+generation_id,
+                    frozen,guard=current_generation,completion=completion,kind="chapter",item_id=chapter_id)
+                if receipt.status == "succeeded":
+                    result = await self.generations.read(generation_id,frozen.context,observer=context)
             if result is None:
                 return await self._failed_generation(chapter,context,frozen=frozen)
-            frozen = await self.generations.request(generation_id, context)
             refs = frozen.source_refs
             await self.life.identity.check(context, refs)
             content = generated_text(result)

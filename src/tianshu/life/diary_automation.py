@@ -12,10 +12,17 @@ from tianshu.types import OriginKind
 UNRESOLVED = frozenset({"collecting", "generating", "unknown", "cancelling"})
 
 
+def author_scene_key(context):
+    """Identify the authoring scene; access scopes and epochs are not identity."""
+    return signature({key: getattr(context, key) for key in (
+        "principal_id", "actor_id", "person_id", "conversation_id", "conversation_kind")})
+
+
 def diary_experience(episode):
     actual = episode.actual_result or {}
     return (episode.origin_kind in {OriginKind.HUMAN, OriginKind.OBSERVATION, OriginKind.TOOL_RESULT, OriginKind.ACTOR}
-            and not actual.get("internal") and actual.get("derived_kind") not in {"reflection", "diary"})
+            and not actual.get("internal") and not actual.get("technical_backfill")
+            and actual.get("derived_kind") not in {"reflection", "diary", "technical_backfill"})
 
 
 def automatic_view(row, diary):
@@ -70,10 +77,14 @@ class DiaryAutomation:
             "SELECT timezone FROM life.routines WHERE actor_id=%s", (context.actor_id,))).fetchone()
         if state is None:
             state = await self.life._state(context, connection)
-        scope = signature(sorted(context.scope_ids))
+        scope = author_scene_key(context)
         row = await (await connection.execute(
             "INSERT INTO life.diary_days(actor_id,scope_key,day,timezone,context,scope_ids) VALUES(%s,%s,%s,%s,%s,%s) "
-            "ON CONFLICT(actor_id,scope_key,day) DO UPDATE SET updated_at=now() RETURNING *",
+            "ON CONFLICT(actor_id,scope_key,day) DO UPDATE SET "
+            "revision=life.diary_days.revision+CASE WHEN NOT (life.diary_days.scope_ids @> excluded.scope_ids "
+            "AND life.diary_days.scope_ids <@ excluded.scope_ids AND life.diary_days.context->'audience' @> excluded.context->'audience' "
+            "AND life.diary_days.context->'audience' <@ excluded.context->'audience') THEN 1 ELSE 0 END,"
+            "scope_ids=excluded.scope_ids,context=excluded.context,updated_at=now() RETURNING *",
             (context.actor_id, scope, day, state["timezone"], document(context), list(context.scope_ids)))).fetchone()
         if row["reviewed_revision"] < row["revision"] or row["generation_id"]:
             await self.enqueue(connection, row)
@@ -91,10 +102,8 @@ class DiaryAutomation:
             row = await (await connection.execute(
                 "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s",
                 (actor_id, scope_key, date.fromisoformat(day)))).fetchone()
-        if not row or (not row["generation_id"] and row["reviewed_revision"] >= row["revision"]):
+        if not row or (not row["generation_id"] and row["reviewed_revision"] >= row["revision"] and not row["last_error"]):
             return {"state": "reviewed"}
-        if not row["generation_id"] and row["blocked_revision"]>=row["revision"]:
-            return {"state":"blocked","reason":row["last_error"]}
         previous = context_from_record(row["context"])
         try:
             context = await self.life.identity.refresh_scheduled_context(previous, permission="life.manage")
@@ -102,9 +111,13 @@ class DiaryAutomation:
             self.diaries.generations.observer_context(previous, context)
             async with self.life.database.transaction(read_only=True) as connection:
                 diary = await (await connection.execute(
-                    "SELECT * FROM life.diaries WHERE actor_id=%s AND day=%s", (actor_id, row["day"]))).fetchone()
+                    "SELECT * FROM life.diaries WHERE actor_id=%s AND scene_key=%s AND day=%s",
+                    (actor_id, scope_key, row["day"]))).fetchone()
             if diary and not set(diary["scope_ids"]).issubset(context.scope_ids):
                 raise AppError("diary_scope_unavailable", status=403)
+            if (not row["generation_id"] and row["blocked_revision"]>=row["revision"]
+                    and not (diary and diary["current_revision"])):
+                return {"state":"blocked","reason":row["last_error"]}
             if diary and diary["state"] in UNRESOLVED:
                 if diary["state"] == "collecting":
                     return {"state": "collecting", "attempt_id": diary["generation_id"]}
@@ -121,12 +134,29 @@ class DiaryAutomation:
                         await self.diaries._generation_state(diary["id"],diary["generation_id"],"failed","diary_material_changed",settle=True)
                         return {"state":"changed_since_review"}
                 return await self.diaries.generate(diary["id"], diary["generation_id"])
-            if row["generation_id"]:
+            if diary and diary["current_revision"] and diary["state"] in {"draft", "published"}:
+                # A saved body is authoritative. Repair its closed-day projection
+                # from that original success rather than creating another draft.
                 async with self.life.database.transaction() as connection:
-                    await self.settle(connection, row["generation_id"],
-                        error=diary.get("reason") if diary and diary["state"] in {"failed", "cancelled"} else None)
+                    await self.diaries.reconcile_saved(context, diary, connection)
+                    fresh = await (await connection.execute(
+                        "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
+                        (actor_id, scope_key, row["day"]))).fetchone()
+                    if fresh["reviewed_revision"] < fresh["revision"] or fresh["last_error"]:
+                        await connection.execute(
+                            "UPDATE life.diary_days SET blocked_revision=greatest(blocked_revision,revision),"
+                            "last_error='diary_saved_material_unreconciled',updated_at=now() "
+                            "WHERE actor_id=%s AND scope_key=%s AND day=%s",
+                            (actor_id, scope_key, row["day"]))
+                        return {"state": "blocked", "reason": "diary_saved_material_unreconciled"}
+                return {"state": "reviewed"}
+            if row["generation_id"]:
+                reason = (diary.get("reason") if diary and diary["state"] in {"failed", "cancelled"} else None)
+                reason = reason or "diary_saved_body_missing"
+                async with self.life.database.transaction() as connection:
+                    await self.settle(connection, row["generation_id"], error=reason)
                 # A later event has its own queued review. This job only settles its original.
-                return {"state": "blocked" if diary and diary["state"] in {"failed","cancelled"} else "reviewed"}
+                return {"state": "blocked", "reason": reason}
             result = await self.diaries.request(context,
                 {"client_request_id": "auto-diary:"+signature((actor_id,scope_key,day,row["revision"])),
                  "day": day, "expected_revision": diary["revision"] if diary else 0},
@@ -144,24 +174,22 @@ class DiaryAutomation:
 
     async def matching_day(self, connection, context, day, *, scope_ids=(), timezone=None):
         """Resolve an existing author's day without widening its original scene."""
-        scope_key = signature(sorted(context.scope_ids))
+        scope_key = author_scene_key(context)
         scene = {key:getattr(context,key) for key in (
-            "principal_id","actor_id","person_id","conversation_id","conversation_kind","delivery_allowed")}
+            "principal_id","actor_id","person_id","conversation_id","conversation_kind")}
         rows = await (await connection.execute(
             "SELECT * FROM life.diary_days WHERE actor_id=%s AND day=%s AND scope_ids<@%s::text[] "
             "AND scope_ids @> %s::text[] AND context @> %s::jsonb AND context->'audience'<@%s::jsonb "
-            "AND (%s::text IS NULL OR timezone=%s) ORDER BY (scope_key=%s) DESC,scope_key LIMIT 2 FOR UPDATE",
+            "AND (%s::text IS NULL OR timezone=%s) AND scope_key=%s LIMIT 2 FOR UPDATE",
             (context.actor_id,day,list(context.scope_ids),list(scope_ids),document(scene),document(context.audience),
              timezone,timezone,scope_key))).fetchall()
         if not rows:
             return None
-        # The original exact scene remains authoritative. A wider author view
-        # may identify one narrower scene, never choose among several of them.
-        if len(rows)>1 and rows[0]["scope_key"] != scope_key:
+        if len(rows)>1:
             raise AppError("diary_day_scope_ambiguous",status=409)
         row = rows[0]
         original = context_from_record(row["context"])
-        if set(original.scope_ids) != set(row["scope_ids"]) or signature(sorted(original.scope_ids)) != row["scope_key"]:
+        if set(original.scope_ids) != set(row["scope_ids"]) or author_scene_key(original) != row["scope_key"]:
             return None
         reader = await self.diaries._reader(original)
         await self.life.validate_persistence(connection,reader)

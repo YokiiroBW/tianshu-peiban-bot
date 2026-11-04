@@ -29,6 +29,15 @@ def original_recipe(recipe):
     return {key: value for key, value in recipe.items() if key != SELECTION_KEY}
 
 
+async def episode_versions(memory, context, versions, *, connection):
+    """Recheck the full collected day using Memory's bounded public port."""
+    found = set()
+    for offset in range(0, len(versions), 128):
+        page = await memory.episodes_by_refs(context, versions[offset:offset+128], connection=connection)
+        found.update((item.episode_id, item.revision) for item in page.items)
+    return found
+
+
 def episode_observation(episode):
     """Select recorded semantics without interpreting a body or provider payload."""
     actual = episode.get("actual_result") or {}
@@ -39,6 +48,25 @@ def episode_observation(episode):
     row.update(summary=episode.get("summary", ""), actual_result=observed,
         coverage={key: coverage[key] for key in ("complete", "total", "missing", "representation") if key in coverage})
     discovery = actual.get("read_basis") == "discovery_metadata" or actual.get("capability_id") == "content.discover"
+    imagined = (actual.get("imagined") is True or actual.get("experience_kind") == "imagined"
+                or actual.get("representation") == "fictional_world")
+    execution = actual.get("execution")
+    if execution in {"failed", "cancelled", "rejected"}:
+        row["semantic_kind"] = "action_failed"
+        row["summary"] = "An action did not complete; consult its recorded outcome."
+    elif execution in {"unknown", "pending", "running"}:
+        row["semantic_kind"] = "action_outcome_unknown"
+        row["summary"] = "The action outcome was not confirmed."
+    elif imagined:
+        row["semantic_kind"] = "imagined_activity"
+    elif discovery:
+        row["semantic_kind"] = "discovery"
+    elif actual.get("read_basis") == "actual_source_body" and execution == "succeeded" and actual.get("experience_eligible") is not False:
+        row["semantic_kind"] = "source_read"
+    elif str(actual.get("capability_id", "")).startswith("images."):
+        row["semantic_kind"] = "image_action"
+    else:
+        row["semantic_kind"] = "observed_experience"
     if discovery:
         observed.update(read_basis="discovery_metadata", experience_eligible=False,
             discovery={"candidate_count": len(actual.get("candidates") or ()),
@@ -48,7 +76,9 @@ def episode_observation(episode):
         exploration = actual.get("exploration") or {}
         observed["discovery"].update({key: exploration[key] for key in ("intention", "query", "stop_reason") if key in exploration})
     else:
-        observed.update({key: actual[key] for key in DESCRIPTIVE_FIELDS if key in actual})
+        uncertain = execution in {"failed", "cancelled", "rejected", "unknown", "pending", "running"}
+        if not uncertain:
+            observed.update({key: actual[key] for key in DESCRIPTIVE_FIELDS if key in actual})
         content = actual.get("content")
         if isinstance(content, dict):
             if content.get("title"):
@@ -60,12 +90,12 @@ def episode_observation(episode):
         if actual.get("read_basis") == "actual_source_body":
             observed["body_read"] = actual.get("execution") == "succeeded" and actual.get("experience_eligible") is not False
         consumption = actual.get("consumption")
-        if isinstance(consumption, dict):
+        if isinstance(consumption, dict) and not uncertain:
             observed["consumption"] = {key: consumption[key] for key in (
                 "analysis_completed", "content_completed", "observed", "start_position", "end_position", "next_position"
             ) if key in consumption}
-        if str(actual.get("capability_id", "")).startswith("images.") and not any(
-                actual.get(key) for key in ("description", "observation", "analysis")):
+        if str(actual.get("capability_id", "")).startswith("images.") and (uncertain or not any(
+                actual.get(key) for key in ("description", "observation", "analysis"))):
             missing.add("image_contents_not_described")
     # These omissions describe this diary view, never change the original receipt
     # coverage or claim that an omitted source was semantically reviewed.

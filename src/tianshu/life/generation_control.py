@@ -6,7 +6,31 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 from tianshu.conversation.codec import context_from_record, signature
+from tianshu.models.timing import waiting_budget
 from .validation import revision
+
+
+async def submit_frozen(life, models, generations, material_key, request, *, guard, completion, kind, item_id):
+    """Admit the saved intent and release the domain worker after acceptance."""
+    async with life.database.transaction() as connection:
+        request = await generations.prepare(material_key, request, connection=connection, guard=guard)
+        admission = waiting_budget(request)
+        if admission is not None and admission.deadline_at <= datetime.now(UTC):
+            raise AppError("generation_request_expired", status=409)
+        await connection.execute(
+            "UPDATE conversation.generation_requests SET state='claimed',claimed_at=coalesce(claimed_at,now()) "
+            "WHERE material_key=%s AND state='prepared'", (material_key,))
+    receipt = await models.submit(request, completion=completion)
+    if receipt is None or receipt.attempt_id != request.attempt_id:
+        raise AppError("generation_receipt_identity_mismatch", status=502)
+    table = "life.diaries" if kind == "diary" else "life.chapters"
+    async with life.database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            f"SELECT generation_id,generation_cancel_requested FROM {table} WHERE id=%s", (item_id,))).fetchone()
+    # Cancellation can race the gap between the domain guard and admission.
+    if row and row["generation_id"] == request.attempt_id and row["generation_cancel_requested"]:
+        await models.cancel(request.attempt_id, reason="explicit_cancel")
+    return receipt
 
 
 class GenerationControl:
