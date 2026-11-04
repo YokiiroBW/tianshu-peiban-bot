@@ -5,12 +5,16 @@ from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 from uuid import uuid4
 
+from aiohttp import web
 import pytest
 import pytest_asyncio
 
 from tianshu.models.async_jobs import completion_record, enqueue_completion, pending_completions
+from tianshu.models.broker import ModelBroker
 from tianshu.models.catalog import RoutePlan
+from tianshu.models.client import ModelClient
 from tianshu.models.configuration_reload import event_id, mark_applied, pending, record_pending_on, status
+from tianshu.models.http import create_broker_app
 from tianshu.models.ledger import AttemptLedger, receipt
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest, ModelUsage
 from tianshu.runtime.errors import AppError
@@ -183,11 +187,60 @@ async def test_configuration_reload_fact_shares_command_transaction_and_revision
     async with rb_database.transaction() as conn:
         await record_pending_on(conn, context, "models.routes", "request-1", 4)
     assert (await status(rb_database, identity))["error_code"] == "broker_reload_pending"
-    assert [item["event_id"] for item in await pending(rb_database)] == [identity]
+    page = await pending(rb_database)
+    assert [item["event_id"] for item in page["items"]] == [identity]
+    assert page["next_cursor"] is None
     with pytest.raises(AppError, match="model_configuration_reload_revision_conflict"):
         await mark_applied(rb_database, identity, 3)
     assert (await mark_applied(rb_database, identity, 4))["state"] == "applied"
-    assert await pending(rb_database) == []
+    assert (await pending(rb_database))["items"] == []
+
+
+async def test_reload_pages_are_fair_and_rescan_concurrent_changes_over_http(rb_database):
+    created = datetime(2026, 1, 1, tzinfo=UTC)
+    async with rb_database.transaction() as conn:
+        await conn.execute("INSERT INTO models.configuration_reloads "
+            "(event_id,operation,revision,state,error_code,created_at) "
+            "SELECT 'reload:'||lpad(n::text,3,'0'),'routes',n,'pending','broker_reload_pending',%s "
+            "FROM generate_series(1,105) AS g(n)", (created,))
+
+    broker = ModelBroker(rb_database, None, None)
+    runner = web.AppRunner(create_broker_app(broker, "fixture"))
+    await runner.setup()
+    site = web.TCPSite(runner, "127.0.0.1", 0)
+    await site.start()
+    port = site._server.sockets[0].getsockname()[1]
+    client = ModelClient(f"http://127.0.0.1:{port}", "fixture")
+    await client.open()
+    try:
+        first = await client.pending_configuration_reloads(limit=100)
+        assert [row["event_id"] for row in first["items"]] == [f"reload:{n:03d}" for n in range(1, 101)]
+        assert first["next_cursor"] is not None
+        # Earlier transactions can become visible behind the cursor; newer work
+        # may also arrive after this sweep's upper bound was fixed.
+        async with rb_database.transaction() as conn:
+            await conn.execute("INSERT INTO models.configuration_reloads "
+                "(event_id,operation,revision,state,error_code,created_at) VALUES "
+                "('reload:000','routes',0,'pending','broker_reload_pending',%s),"
+                "('reload:999','routes',999,'pending','broker_reload_pending',%s)",
+                (created, created + timedelta(days=1)))
+
+        second = await client.pending_configuration_reloads(limit=100, cursor=first["next_cursor"])
+        assert [(row["event_id"], row["revision"]) for row in second["items"]] == [
+            (f"reload:{n:03d}", n) for n in range(101, 106)]
+        assert second["next_cursor"] is None
+
+        rescan = await client.pending_configuration_reloads(limit=100)
+        assert [row["event_id"] for row in rescan["items"][:3]] == [
+            "reload:000", "reload:001", "reload:002"]
+        tail = await client.pending_configuration_reloads(limit=100, cursor=rescan["next_cursor"])
+        assert tail["items"][-1]["event_id"] == "reload:999"
+        assert tail["next_cursor"] is None
+        with pytest.raises(AppError, match="invalid_reload_cursor"):
+            await client.pending_configuration_reloads(cursor={"after": "invalid"})
+    finally:
+        await client.close()
+        await runner.cleanup()
 
 
 async def test_completion_and_explicit_request_generation_are_checked_on_acceptance(rb_database):

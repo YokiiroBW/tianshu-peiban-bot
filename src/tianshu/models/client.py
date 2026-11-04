@@ -6,6 +6,7 @@ import asyncio
 from contextlib import asynccontextmanager
 from dataclasses import replace
 import json
+from urllib.parse import urlencode
 
 import aiohttp
 
@@ -194,9 +195,12 @@ class ModelClient:
         return (await self._json("/internal/v1/models/configuration-reloads/"+event_id,
                                  control=True, method="GET"))["reload"]
 
-    async def pending_configuration_reloads(self, *, limit=100):
-        return (await self._json("/internal/v1/models/configuration-reloads?limit="+str(limit),
-                                 control=True, method="GET"))["items"]
+    async def pending_configuration_reloads(self, *, limit=100, cursor=None):
+        query = {"limit": limit}
+        if cursor is not None:
+            query["cursor"] = json.dumps(cursor, separators=(",", ":"))
+        return await self._json("/internal/v1/models/configuration-reloads?" + urlencode(query),
+                                control=True, method="GET")
 
     async def snapshot(self):
         return await self._json("/health/ready", control=True, method="GET")

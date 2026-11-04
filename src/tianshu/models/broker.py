@@ -415,9 +415,9 @@ class ModelBroker:
         from .configuration_reload import status
         return await status(self.database, identity)
 
-    async def pending_configuration_reloads(self, *, limit=100):
+    async def pending_configuration_reloads(self, *, limit=100, cursor=None):
         from .configuration_reload import pending
-        return await pending(self.database, limit=limit)
+        return await pending(self.database, limit=limit, cursor=cursor)
 
     async def cancel(self, attempt_id, *, reason="explicit_cancel"):
         if reason == "consumer_interrupted":

@@ -144,7 +144,12 @@ def create_broker_app(broker, token, external_keys=()):
             limit = int(request.query.get("limit", "100"))
         except ValueError:
             raise AppError("invalid_reload_limit") from None
-        return json_response({"items": await broker.pending_configuration_reloads(limit=limit)})
+        try:
+            raw_cursor = request.query.get("cursor")
+            cursor = json.loads(raw_cursor) if raw_cursor is not None else None
+        except (TypeError, ValueError):
+            raise AppError("invalid_reload_cursor") from None
+        return json_response(await broker.pending_configuration_reloads(limit=limit, cursor=cursor))
 
     async def embedding_profile(request):
         return json_response(await broker.embedding_profile())
