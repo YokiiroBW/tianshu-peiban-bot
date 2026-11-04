@@ -1,6 +1,7 @@
 import type { SourceRef } from "../../api/contracts";
 import type { DomainTarget } from "../../api/useDomainResource";
 import { SourceEvidence } from "../../components/SourceEvidence";
+import { sanitizeInternalText } from "../../design/humanize";
 
 type ContextAttempt = {
   attempt_id: string | null;
@@ -30,6 +31,8 @@ export type InputStatus = {
     episode_revision?: number | null;
     source_refs?: SourceRef[];
     revision_evidence?: RevisionEvidence[];
+    coverage_missing?: string[] | null;
+    revision_evidence_complete?: boolean | null;
     reason?: string | null;
   };
   reply_compliance: string | null;
@@ -103,6 +106,22 @@ function InputStatusRecord({ item, scope }: { item: InputStatus; scope: DomainTa
         学习处理：{learningStates[learning?.state] ?? learning?.state ?? "未记录"} ·{" "}
         {revisionStates[learning?.revision_state] ?? learning?.revision_state ?? "持久修订结果未记录"}
       </p>
+      {!!learning?.coverage_missing?.length && (
+        <details open>
+          <summary>本条输入材料仍有未覆盖部分</summary>
+          <ul>
+            {learning.coverage_missing.map((reason, index) => (
+              <li key={`${reason}:${index}`}>{sanitizeInternalText(reason) || "原因未记录"}</li>
+            ))}
+          </ul>
+        </details>
+      )}
+      {learning?.revision_evidence_complete === false && (
+        <p>规则修订证据未全覆盖；未返回的证据不能视为不存在。</p>
+      )}
+      {learning?.revision_evidence_complete === null && (
+        <p>规则修订证据覆盖范围未记录。</p>
+      )}
       {!!learning?.revision_evidence?.length && (
         <details open>
           <summary>规则修订依据</summary>

@@ -26,6 +26,7 @@
 - Operations 的 `settings/save`、`recover` 必须返回完整标准 `CommandResult`，包括无回执时的 `receipt: null`；恢复受理不等于业务已恢复。设置使用 `smtp_password`/`clear_smtp_password` 与 `sealed:operations:smtp`，读取不回显密码。
 - Models 的 `bindings` 接受有序 `fallback_routes`，目录返回绑定与容量组实际值；备用候选还依赖服务端能力、容量、协议和配额判定。`conversation/turn` 返回 `context_selection`、`token_usage`、`provider_usage`、`flow` 及逐条 `input_status`；其中只有原 attempt 的 `selected` 与 `dispatch` 分别证明冻结选材和提交，学习 `reviewed` 不等于修订已应用。`revision_evidence` 返回规则、版本、语义版本、`revise`/`retract`、提案与原 attempt，来源须按原会话授权读取。
 - `memory/extraction/status` 使用 `commit_state`、`required_context_missing`、`indexing`；索引逐对象返回 `state/profile_key/generation`，不能从应用成功推断索引成功。`companion/growth/reflections` 是反思列表权威；Growth 进度使用 `input_missing` 和同代际 `pending_original_requests`。Life 的 `day-plan` 返回 `timings_ms`，服务内部 `view_total` 不包含路由鉴权、JSON 序列化和网络；未执行/未测量不显示为零，也不把各阶段相加当作整请求时长。
+- 逐输入学习状态中的 `coverage_missing` 单独展示材料缺口；`revision_evidence_complete=false` 明示修订证据未全覆盖，`null` 表示覆盖范围未记录，不据缺失证据推断不存在。
 
 ## 尚待集中完成和验证
 

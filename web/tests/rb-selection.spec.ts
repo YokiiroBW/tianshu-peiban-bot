@@ -19,8 +19,8 @@ test("conversation loads a turn's recorded selection on demand and keeps unrecor
       context_selection: body.turn_id === "old-turn" ? null : [], token_usage: null, provider_usage: null,
       flow: body.turn_id === "old-turn" ? null : { input: { state: "accepted" }, coverage: "recorded", rounds: [{ round: 0, attempt_id: "attempt-1", accepted: { state: "accepted" }, parsed: { state: "parsed" }, applied: { state: "not_applicable" }, expression: { state: "pending" }, delivered: { state: "unknown" } }] },
       input_status: body.turn_id === "old-turn" ? null : [
-        { input_id: "input-1", event_id: "event-1", event_revision: 1, context: { selection: "selected", attempts: [{ attempt_id: "attempt-1", round: 0, dispatch: "submitted", selected: true }] }, learning: { state: "reviewed", revision_state: "unresolved" }, reply_compliance: "not_recorded" },
-        { input_id: "input-2", event_id: "event-2", event_revision: 2, context: { selection: "not_recorded", attempts: [] }, learning: { state: "reviewed", revision_state: "applied", episode_id: "episode-2", episode_revision: 3, source_refs: [{ source_id: "source-2", revision: 2 }], revision_evidence: [{ rule_id: "rule-1", revision: 3, semantic_revision: 2, action: "revise", proposal_id: "proposal-1", attempt_id: "attempt-2" }] }, reply_compliance: "not_recorded" },
+        { input_id: "input-1", event_id: "event-1", event_revision: 1, context: { selection: "selected", attempts: [{ attempt_id: "attempt-1", round: 0, dispatch: "submitted", selected: true }] }, learning: { state: "reviewed", revision_state: "unresolved", coverage_missing: ["media_unavailable"], revision_evidence_complete: false }, reply_compliance: "not_recorded" },
+        { input_id: "input-2", event_id: "event-2", event_revision: 2, context: { selection: "not_recorded", attempts: [] }, learning: { state: "reviewed", revision_state: "applied", coverage_missing: [], revision_evidence_complete: true, episode_id: "episode-2", episode_revision: 3, source_refs: [{ source_id: "source-2", revision: 2 }], revision_evidence: [{ rule_id: "rule-1", revision: 3, semantic_revision: 2, action: "revise", proposal_id: "proposal-1", attempt_id: "attempt-2" }] }, reply_compliance: "not_recorded" },
       ] });
   });
   await page.goto("/#/roles/chat");
@@ -41,6 +41,9 @@ test("conversation loads a turn's recorded selection on demand and keeps unrecor
   await expect(status).toContainText("这条输入已进入该轮冻结请求");
   await expect(status).toContainText("原请求已提交模型");
   await expect(status).toContainText("已审阅 · 修订结果未决");
+  await expect(status).toContainText("本条输入材料仍有未覆盖部分");
+  await expect(status).toContainText("media_unavailable");
+  await expect(status).toContainText("规则修订证据未全覆盖");
   await expect(status).toContainText("持久修订已应用");
   await expect(status).toContainText("规则修订依据");
   await expect(status).toContainText("proposal-1");
@@ -65,12 +68,14 @@ test("a completed turn refreshes pending learning and stops when the result is k
       input_status: [{ input_id: "input-1", event_id: "event-1", event_revision: 1,
         context: { selection: "selected", attempts: [{ attempt_id: "attempt-1", round: 0, dispatch: "submitted", selected: true }] },
         learning: { state: reads === 1 ? "waiting" : "reviewed", revision_state: reads === 1 ? "not_recorded" : "applied",
+          revision_evidence_complete: reads === 1 ? null : true,
           revision_evidence: reads === 1 ? [] : [{ rule_id: "rule-1", revision: 2, semantic_revision: 2, action: "revise", proposal_id: "proposal-1", attempt_id: "attempt-1" }] }, reply_compliance: "not_recorded" }] });
   });
   await page.goto("/#/roles/chat");
   await page.getByText("查看本轮材料与状态").click();
   const status = page.getByLabel("本轮输入与学习状态");
   await expect(status).toContainText("学习处理：等待处理");
+  await expect(status).toContainText("规则修订证据覆盖范围未记录");
   await page.clock.fastForward(15000);
   await expect(status).toContainText("持久修订已应用");
   expect(reads).toBe(2);
