@@ -86,22 +86,61 @@ class OperationsAgent:
     async def poll_model_reloads(self):
         # Configuration changes are durably recorded by Models even if the
         # original broker reload could not be completed.
-        for pending in await self.diagnosis.models.pending_configuration_reloads(limit=100):
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            row = await (await conn.execute("SELECT checkpoint,coverage FROM operations.consumer_checkpoints "
+                                           "WHERE consumer='models_configuration_reloads'")).fetchone()
+        checkpoint = row["checkpoint"] if row else None
+        try:
+            cursor = json.loads(checkpoint) if checkpoint else None
+        except (TypeError, ValueError):
+            cursor = None
+        page = await self.diagnosis.models.pending_configuration_reloads(limit=100, cursor=cursor)
+        if (not isinstance(page, dict) or not isinstance(page.get("items"), list)
+                or "next_cursor" not in page
+                or page["next_cursor"] is not None and not isinstance(page["next_cursor"], dict)):
+            raise AppError("invalid_model_reload_page")
+        previous = row["coverage"] if row and cursor is not None else {}
+        processed = previous.get("processed", 0)
+        failed = previous.get("failed", 0)
+        invalid = previous.get("invalid", 0)
+        for pending in page["items"]:
+            if not isinstance(pending, dict):
+                invalid += 1
+                continue
             event_id, revision = pending.get("event_id"), pending.get("revision")
             if (not isinstance(event_id, str) or len(event_id) > 170
                     or type(revision) is not int or revision < 1):
+                invalid += 1
                 continue
             try:
                 identifier(event_id)
             except AppError:
+                invalid += 1
                 continue
-            incident = await self.incidents.ingest({
-                "event_id": "ops-model-reload:" + event_id,
-                "dependency": "model-broker", "error_family": "broker_reload_pending",
-                "version": str(revision), "material_id": event_id,
-                "recovery_target": {"material_id": event_id, "version": str(revision)},
-                "affected": ["model-broker"], "severity": "error"})
-            await self.outbox.enqueue(incident, "opened")
+            try:
+                incident = await self.incidents.ingest({
+                    "event_id": "ops-model-reload:" + event_id,
+                    "dependency": "model-broker", "error_family": "broker_reload_pending",
+                    "version": str(revision), "material_id": event_id,
+                    "recovery_target": {"material_id": event_id, "version": str(revision)},
+                    "affected": ["model-broker"], "severity": "error"})
+                await self.outbox.enqueue(incident, "opened")
+            except Exception:
+                # The original record remains pending in Models. Continue this
+                # sweep; the next sweep will revisit it without losing identity.
+                failed += 1
+                continue
+            processed += 1
+        next_cursor = page["next_cursor"]
+        serialized = json.dumps(next_cursor, ensure_ascii=False, separators=(",", ":")) if next_cursor is not None else None
+        coverage = {"scope": "finite_sweep", "processed": processed, "failed": failed, "invalid": invalid,
+                    "complete": next_cursor is None and failed == 0 and invalid == 0}
+        async with self.database.transaction(control=True) as conn:
+            await conn.execute("INSERT INTO operations.consumer_checkpoints(consumer,checkpoint,coverage,freshness) "
+                "VALUES('models_configuration_reloads',%s,%s,%s) ON CONFLICT(consumer) DO UPDATE SET "
+                "checkpoint=excluded.checkpoint,coverage=excluded.coverage,freshness=excluded.freshness,updated_at=now() "
+                "WHERE operations.consumer_checkpoints.checkpoint IS NOT DISTINCT FROM %s",
+                (serialized, Jsonb(coverage), Jsonb({"as_of": datetime.now(UTC).isoformat()}), checkpoint))
 
     async def process_open(self):
         async with self.database.transaction(control=True, read_only=True) as conn:
