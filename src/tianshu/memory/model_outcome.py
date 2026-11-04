@@ -104,7 +104,7 @@ async def original_status(models, request):
 def confirmed_computation_unknown(receipt):
     return (isinstance(receipt, ModelReceipt) and receipt.status == "unknown" and
             isinstance(receipt.finished_at, datetime) and receipt.finished_at.tzinfo is not None and
-            receipt.cancellation_reason is None)
+            receipt.cancellation_reason != "explicit_cancel")
 
 
 async def observe_original(models, request):

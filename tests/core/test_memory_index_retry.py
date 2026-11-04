@@ -183,8 +183,62 @@ async def test_transient_index_yields_to_later_objects_then_retries_once_after_r
     assert models.reads == reads and models.status_reads == status_reads and len(models.requests) == 3
 
 
+async def test_interrupted_unknown_retries_with_policy_but_explicit_cancel_is_rejected(core, ordinary_users):
+    from tianshu.memory.model_outcome import confirmed_computation_unknown
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+
+    context, _ = ordinary_users
+    value = await fact(core, context, "interrupted-pure-index")
+    models = configured(core, "unknown", "timeout_unknown")
+    models.profile["quota_group"] = "quota"
+    policy = RecoveryPolicy()
+    core.workers.index_jobs.bind_observability(recovery_policy=policy)
+    result_for = models.result_for
+
+    def interrupted_result(request, status, error=None):
+        result = result_for(request, status, error)
+        if status == "unknown":
+            result = replace(result, receipt=replace(result.receipt, cancellation_reason="consumer_interrupted"))
+        return result
+
+    models.result_for = interrupted_result
+    async with core.database.transaction(read_only=True) as conn:
+        generation = await core.memory.jobs.current_generation_on(conn)
+    await core.workers.index_object("claim", value.claim_id, value.revision, generation=generation)
+    job, original = await job_for(core, value), models.requests[0]
+    receipt = models.receipts[original.attempt_id]
+    assert job["state"] == "observing" and job["attempt_count"] == 1
+    assert receipt.cancellation_reason == "consumer_interrupted" and confirmed_computation_unknown(receipt)
+
+    explicit = replace(receipt, cancellation_reason="explicit_cancel")
+    assert not confirmed_computation_unknown(explicit)
+    with pytest.raises(AppError) as rejected:
+        async with core.database.transaction() as conn:
+            await policy.record_computation_unknown_on(conn, original.attempt_id,
+                owner=core.workers.index_jobs.recovery.owner(job), expected_version=str(value.revision),
+                model_receipt=explicit)
+    assert rejected.value.code == "recovery_model_unknown_unconfirmed"
+
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
+                           (job["recovery_lineage_id"],))
+    models.outcome, models.error = "succeeded", None
+    await deliver(core, job["index_id"])
+    done = await job_for(core, value)
+    assert done["state"] == "succeeded" and done["attempt_count"] == 2
+    assert len(models.requests) == 2 and models.requests[1].attempt_id != original.attempt_id
+    async with core.database.transaction(read_only=True) as conn:
+        chain = await (await conn.execute("SELECT attempt_id,status,supersedes_attempt_id FROM runtime.recovery_attempts "
+            "WHERE lineage_id=%s ORDER BY attempt_number", (job["recovery_lineage_id"],))).fetchall()
+        vector = await (await conn.execute("SELECT 1 FROM memory.search_vectors WHERE object_id=%s AND revision=%s "
+            "AND generation=%s", (value.claim_id, value.revision, generation))).fetchone()
+    assert [item["status"] for item in chain] == ["unknown", "succeeded"]
+    assert chain[1]["supersedes_attempt_id"] == original.attempt_id
+    assert models.receipts[original.attempt_id] == receipt and vector is not None
+
+
 @pytest.mark.parametrize("later_status", ["succeeded", "missing", "unavailable", "queued", "running",
-                                          "unfinished", "naive_time", "cancel_reason", "cancelled",
+                                          "unfinished", "naive_time", "cancelled",
                                           "mismatched", "old_generation", "forbidden"])
 @pytest.mark.parametrize("with_policy", [False, True])
 async def test_unknown_index_rechecks_original_before_selecting_successor(core, ordinary_users, later_status, with_policy):
@@ -219,8 +273,6 @@ async def test_unknown_index_rechecks_original_before_selecting_successor(core, 
                     return replace(models.receipts[attempt_id], finished_at=None)
                 if later_status == "naive_time":
                     return replace(models.receipts[attempt_id], finished_at=datetime(2026, 11, 5))
-                if later_status == "cancel_reason":
-                    return replace(models.receipts[attempt_id], cancellation_reason="consumer_interrupted")
                 if later_status == "cancelled":
                     return replace(models.receipts[attempt_id], status="cancelled", error_code="cancelled",
                                    cancellation_reason="explicit_cancel")
