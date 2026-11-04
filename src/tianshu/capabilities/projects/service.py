@@ -54,6 +54,12 @@ class Projects:
 
     async def scene(self, context, project_id, *, include_disabled=False):
         project = await self.store.project(context, project_id, include_disabled=include_disabled)
+        if project["actor_id"] is None:
+            # The owner's system scope is the independent project's scene.
+            # Never substitute a BOT role or broaden the caller's grants.
+            scopes = tuple(project["scope_ids"])
+            audience = tuple(scope for scope in context.audience if scope in scopes)
+            return replace(context, scope_ids=scopes, audience=audience)
         require(self.authorize_conversation is not None, "project_scene_authority_unavailable", 503)
         return await self.authorize_conversation(context, project["conversation_id"])
 
@@ -197,7 +203,7 @@ class Projects:
             await self.store.readable(action.context, value.get("source_refs", ()))
         return value
 
-    async def withdraw(self, connection, source_refs, reason):
+    async def withdraw(self, connection, source_refs, reason, *, selected=None):
         from .withdrawal import withdraw
 
-        await withdraw(self, connection, source_refs, reason)
+        await withdraw(self, connection, source_refs, reason, selected=selected)

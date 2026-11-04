@@ -4,6 +4,7 @@ import math
 import uuid
 
 from ...contracts import Fault, canonical, require
+from ...execution_context import current_generation
 
 
 class Reading:
@@ -284,6 +285,7 @@ class ReadingAccess:
                 },
                 raw=response["active"]["excerpt"].encode(),
                 mime_type="text/plain",
+                generation=current_generation(),
             )
             response["source_refs"] = [wire(source)]
         await self.authority.check(context)

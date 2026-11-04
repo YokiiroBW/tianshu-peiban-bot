@@ -83,7 +83,8 @@ class Downloads:
                         continue
                     try:
                         await self.books.preview(
-                            book["book_id"], chapter["chapter_id"], pinned=pinned, observe=False
+                            book["book_id"], chapter["chapter_id"], pinned=pinned, observe=False,
+                            recovery={"job": job, "owner": owner, "material": chapter["chapter_id"]},
                         )
                         cached = await self.media.local(
                             self.books.catalog.chapter, book["book_id"], chapter["chapter_id"]
@@ -223,21 +224,25 @@ class Downloads:
                 )
             raise
         except Fault as error:
-            attempts = job.get("attempts", 0) + 1
-            retry = error.code in RETRYABLE_ERRORS and attempts < 4
+            from ..recovery import DownloadDeferred
+            deferred = isinstance(error, DownloadDeferred)
+            attempts = job.get("attempts", 0) + (0 if deferred else 1)
+            retry = deferred or error.code in RETRYABLE_ERRORS and attempts < 4
             await self.media.local(
                 self.repo.update_job,
                 identity,
                 {
                     "state": "cancelled"
                     if error.code == "job_cancelled"
+                    else "unknown"
+                    if error.code == "media_download_original_unresolved"
                     else "retry_wait"
                     if retry
                     else "failed",
                     "stage": "book_attention",
                     "code": error.code,
                     "attempts": attempts,
-                    "retry_delay": 2 if error.code == "busy" else min(3600, 60 * 2**attempts),
+                    "retry_delay": error.retry_after if deferred else 2 if error.code == "busy" else min(3600, 60 * 2**attempts),
                 },
                 generation=generation,
             )

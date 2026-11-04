@@ -17,7 +17,7 @@ def main():
         required=True,
         help="显式提供当前Identity会话的Cookie header与csrf JSON，不存项目令牌",
     )
-    parser.add_argument("--actor", required=True)
+    parser.add_argument("--actor", help="角色项目的角色；独立项目省略")
     parser.add_argument("--person")
     parser.add_argument("--conversation")
     parser.add_argument(

@@ -155,6 +155,7 @@ class PluginManager:
                 try:
                     async with self.locks[instance["id"]]:
                         await self.worker(instance)
+                        await self.scheduler.instance_changed(instance["id"])
                 except (Fault, RemoteError, TimeoutError, OSError):
                     pass
             elif await self.comic_instance(instance):
@@ -537,6 +538,7 @@ class PluginManager:
                 await self.stop_worker(identifier, "instance_state_changed")
                 if enabled:
                     await self.worker(instance)
+                    await self.scheduler.instance_changed(identifier)
             except Fault as error:
                 if enabled and error.code == "comic_file_owner_conflict":
                     # A rejected second instance must not become a future owner
@@ -581,6 +583,7 @@ class PluginManager:
             await self.stop_worker(identifier, "bindings_changed")
             if instance["desired_state"] == "enabled":
                 await self.worker(instance)
+                await self.scheduler.instance_changed(identifier)
             return await self.projection(instance)
 
     async def worker(self, instance):

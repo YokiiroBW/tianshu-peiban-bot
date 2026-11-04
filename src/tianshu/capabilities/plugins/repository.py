@@ -11,6 +11,7 @@ from ..contracts import canonical, digest, require
 class Repository:
     def __init__(self, path, *, runtime=None):
         from ..storage import DomainStore
+        self.runtime = runtime
         self.storage = DomainStore(runtime.database, "capability_plugins")
 
     @contextmanager
@@ -34,8 +35,10 @@ class Repository:
         if db is None:
             with self.transaction() as connection:
                 return self.put(kind, document, connection, expected=expected)
-        old = self.get(kind, document["id"], db)
         if expected is not None:
+            row = db.execute(f"SELECT document FROM plugin_{kind} WHERE id=%s FOR UPDATE",
+                             (document["id"],)).fetchone()
+            old = json.loads(row[0]) if row else None
             require(old is not None and old.get("revision") == expected, "revision_conflict", 409)
         db.execute(
             f"INSERT INTO plugin_{kind}(id,document) VALUES(%s,%s) ON CONFLICT(id) DO UPDATE SET document=excluded.document",
@@ -77,7 +80,7 @@ class Repository:
                 "AND i.document::jsonb->>'desired_state'='enabled' "
                 "AND (%s::boolean OR (i.document::jsonb #>> '{plugin_runtime,owner_id}'=o.id "
                 "AND i.document::jsonb #>> '{plugin_runtime,generation}'=s.generation)) "
-                "AND o.id=%s AND o.role='worker' AND o.expires_at>now() AND o.stopped_at IS NULL",
+                "AND o.id=%s AND o.role='independent' AND o.expires_at>now() AND o.stopped_at IS NULL",
                 (canonical(samples), starting, owner_id),
             )
 
@@ -92,7 +95,7 @@ class Repository:
                 "AND i.document::jsonb->>'desired_state'='enabled' "
                 "AND (i.document::jsonb #>> '{plugin_runtime,instance_revision}')::bigint=%s "
                 "AND (i.document::jsonb #>> '{plugin_runtime,expires_at}')::timestamptz>now() "
-                "AND o.role='worker' AND o.expires_at>now() AND o.stopped_at IS NULL",
+                "AND o.role='independent' AND o.expires_at>now() AND o.stopped_at IS NULL",
                 (identifier, revision, revision),
             ).fetchone()
             if not row:
@@ -110,11 +113,19 @@ class Repository:
 
     def save_schedule(self, document, expected, enqueue):
         with self.transaction() as connection:
+            self.runtime.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
             self.put("schedules",document,connection,expected=expected)
             enqueue(connection,document)
 
+    def wait_schedule(self, document, expected):
+        with self.transaction() as connection:
+            self.runtime.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
+            self.put("schedules", document, connection, expected=expected)
+
     def defer_schedule(self, document, enqueue):
-        with self.transaction() as connection:enqueue(connection,document)
+        with self.transaction() as connection:
+            self.runtime.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
+            enqueue(connection,document)
 
     def accept(self, instance, action, value, intent, principal, *, binding=None):
         key = digest([principal, instance["id"], action["id"], intent])

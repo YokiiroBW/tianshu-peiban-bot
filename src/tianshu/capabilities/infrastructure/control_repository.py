@@ -51,7 +51,7 @@ class ControlRepository:
             )
 
     def accept(self, document, payload, lock_key, now, *, deduplicate=False):
-        from ..execution_context import CURRENT_ACTION,CURRENT_CONTEXT
+        from ..execution_context import CURRENT_ACTION,CURRENT_CONTEXT,current_generation
         from tianshu.runtime.serialization import wire
         from tianshu.runtime.jobs import JobSpec
         action=CURRENT_ACTION.get();context=action.context if action else CURRENT_CONTEXT.get()
@@ -59,6 +59,14 @@ class ControlRepository:
         document={**document,"context":wire(context),"parent_action_id":action.action_id if action else None,"origin_kind":(action.origin_kind if action else context.origin_kind).value}
         semantic = digest({"kind": document["kind"], "payload": payload})
         with self._db() as db:
+            generation = current_generation()
+            if generation is not None:
+                self.runtime.jobs.assert_generation_sync_on(db, generation)
+            elif action is not None:
+                raise Fault("action_generation_unavailable", 503)
+            else:
+                generation = self.runtime.jobs.current_generation_sync_on(db)
+            document["data_generation"] = generation
             old = db.execute(
                 'SELECT * FROM control_operations WHERE client_id=%s', (document["client_id"],)
             ).fetchone()
@@ -113,7 +121,7 @@ class ControlRepository:
                     now,
                 ),
             )
-            self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.infrastructure_job","infrastructure:"+document["operation_id"],{"operation_id":document["operation_id"]}))
+            self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.infrastructure_job","infrastructure:"+document["operation_id"],{"operation_id":document["operation_id"]},data_generation=generation))
             return self._row(
                 db.execute(
                     'SELECT * FROM control_operations WHERE operation_id=%s',
@@ -123,15 +131,17 @@ class ControlRepository:
 
     def claim(self, owner, now, lease,operation_id=None):
         with self._db() as db:
+            generation = self.runtime.jobs.current_generation_sync_on(db)
             rows = db.execute(
-                'SELECT * FROM control_operations WHERE settled=0 AND next_attempt<=%s\n                   AND (owner IS NULL OR lease_until<%s) AND (%s::text IS NULL OR operation_id=%s) ORDER BY created_at,operation_id LIMIT 256',
-                (now, now,operation_id,operation_id),
+                "SELECT * FROM control_operations WHERE document::jsonb->>'data_generation'=%s AND settled=0 AND next_attempt<=%s\n                   AND (owner IS NULL OR lease_until<%s) AND (%s::text IS NULL OR operation_id=%s) ORDER BY created_at,operation_id LIMIT 256",
+                (generation,now,now,operation_id,operation_id),
             ).fetchall()
             for row in rows:
                 if row["kind"] in MUTATIONS:
                     blocked = db.execute(
-                        "SELECT 1 FROM control_operations WHERE node_id=%s\n                           AND (lock_key=%s OR lock_key='node:'||node_id OR %s='node:'||node_id)\n                           AND kind IN ('action','execute') AND settled=0 AND operation_id!=%s\n                           AND (sent=1 OR owner IS NOT NULL OR (created_at,operation_id)<(%s,%s))\n                           LIMIT 1",
+                        "SELECT 1 FROM control_operations WHERE document::jsonb->>'data_generation'=%s AND node_id=%s\n                           AND (lock_key=%s OR lock_key='node:'||node_id OR %s='node:'||node_id)\n                           AND kind IN ('action','execute') AND settled=0 AND operation_id!=%s\n                           AND (sent=1 OR owner IS NOT NULL OR (created_at,operation_id)<(%s,%s))\n                           LIMIT 1",
                         (
+                            generation,
                             row["node_id"],
                             row["lock_key"],
                             row["lock_key"],
@@ -143,6 +153,7 @@ class ControlRepository:
                     if blocked:
                         continue
                 document = json.loads(row["document"])
+                self.runtime.jobs.assert_generation_sync_on(db, document.get("data_generation"))
                 document.update(
                     state="running",
                     stage="reconciling" if row["sent"] else "reading",
@@ -169,6 +180,7 @@ class ControlRepository:
             if not row:
                 return False
             document = json.loads(row["document"])
+            self.runtime.jobs.assert_generation_sync_on(db, document.get("data_generation"))
             document.update(stage="submitting", acceptance="unknown", updated_at=utc(now))
             db.execute(
                 'UPDATE control_operations SET sent=1,document=%s,updated_at=%s WHERE operation_id=%s',
@@ -187,6 +199,7 @@ class ControlRepository:
 
     def finish(self, operation_id, owner, document, now, *, retry_after=0):
         with self._db() as db:
+            self.runtime.jobs.assert_generation_sync_on(db, document.get("data_generation"))
             changed = bool(
                 db.execute(
                     'UPDATE control_operations SET document=%s,state=%s,settled=%s,updated_at=%s,\n                   owner=NULL,lease_until=0,next_attempt=%s WHERE operation_id=%s AND owner=%s',
@@ -221,6 +234,7 @@ class ControlRepository:
             ).fetchone()
             require(row is not None, "infrastructure_operation_not_found", 404)
             document = json.loads(row["document"])
+            self.runtime.jobs.assert_generation_sync_on(db, document.get("data_generation"))
             require(document["can_refresh"], "invalid_input", 400)
             document.update(settled=False, finished_at=None)
             db.execute(
@@ -228,7 +242,7 @@ class ControlRepository:
                 (canonical(document), operation_id),
             )
             from tianshu.runtime.jobs import JobSpec
-            self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.infrastructure_job","infrastructure:"+operation_id+":refresh:"+str(now),{"operation_id":operation_id}))
+            self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.infrastructure_job","infrastructure:"+operation_id+":refresh:"+str(now),{"operation_id":operation_id},data_generation=document["data_generation"]))
             return document
 
     def plan(self, node_id, plan_id):

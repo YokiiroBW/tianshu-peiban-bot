@@ -40,7 +40,7 @@ def contains_secret(value):
     return False
 
 
-async def invoke(service, domain, operation, body, context, *, capability_id=None):
+async def invoke(service, domain, operation, body, context, *, capability_id=None, generation=None):
     client_id = body.get("client_request_id")
     if not isinstance(client_id, str) or not 1 <= len(client_id) <= 128:
         raise Fault("client_request_id_required", 400)
@@ -130,7 +130,8 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
         else ServiceClass.INTERACTIVE
     )
     receipt = await service.actions.invoke(
-        action, background=background, service_class=service_class
+        action, background=background, service_class=service_class,
+        **({"generation": generation} if generation is not None else {})
     )
     return CommandResult(
         client_id,
@@ -168,15 +169,19 @@ def register_routes(app, service):
             if diagnostics is None:
                 raise Fault("runtime_diagnostics_unavailable", 503)
             if op == "tasks":
-                value = await diagnostics.tasks(limit=body.get("limit", 50))
+                filters = {"job_id": body["job_id"]} if "job_id" in body else {}
+                value = await diagnostics.tasks(limit=body.get("limit", 50), **filters)
             elif op == "resources":
                 value = await diagnostics.resources()
             elif op == "logs":
                 value = await diagnostics.logs(
                     start_ns=body["start_ns"],
                     end_ns=body["end_ns"],
-                    role=body.get("role"),
                     limit=body.get("limit", 100),
+                    **{key: body[key] for key in (
+                        "role", "level", "module", "correlation_id", "trace_id",
+                        "job_id", "attempt_id", "keyword", "exclude_conversation", "cursor",
+                    ) if key in body},
                 )
             elif op == "view":
                 value = {
@@ -354,6 +359,8 @@ def register_routes(app, service):
         service.ready()
         context = require_context(request)
         await service.authority.check(context)
+        async with service.runtime.database.transaction(read_only=True) as connection:
+            generation = await service.runtime.jobs.current_generation_on(connection)
         multipart = await request.multipart()
         field = await multipart.next()
         if field is None or field.name != "client_request_id":
@@ -399,6 +406,7 @@ def register_routes(app, service):
                 "media_inspection": inspection,
             },
             origin_kind=OriginKind.HUMAN,
+            generation=generation,
         )
         return json_response(
             await invoke(
@@ -407,11 +415,14 @@ def register_routes(app, service):
                 "upload",
                 {"client_request_id": client_id, "filename": filename, "source": wire(source)},
                 context,
+                generation=generation,
             )
         )
 
     async def plugin_page(request):
         context = require_context(request)
+        if service.web_plugins is None:
+            raise Fault(service.plugin_error or "plugin_unavailable", 503)
         raw = await service.web_plugins.page(request.match_info["ticket"], context)
         return web.Response(
             body=raw.encode() if isinstance(raw, str) else raw,

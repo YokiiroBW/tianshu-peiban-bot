@@ -151,7 +151,12 @@ def validate_media(settings):
 
 class Media:
     def __init__(self, settings, *, runtime=None, clock, local):
-        self.config = validate_media(settings)
+        self.config_error = None
+        try:
+            self.config = validate_media(settings)
+        except (Fault, ValueError, KeyError, TypeError, OSError) as error:
+            self.config = None
+            self.config_error = getattr(error, "code", "media_configuration_invalid")
         self.local = local
         self.started = False
         self.background = Background(runtime, next_due=self._maintenance_due,
@@ -168,7 +173,12 @@ class Media:
         self.books = Books(self)
         from .comics.plugin import configuration as comic_file_configuration
 
-        comic_files = comic_file_configuration(settings)
+        self.comic_files_error = None
+        try:
+            comic_files = comic_file_configuration(settings)
+        except (Fault, ValueError, KeyError, TypeError, AttributeError) as error:
+            comic_files = None
+            self.comic_files_error = getattr(error, "code", "comic_files_configuration_invalid")
         self.comics = Comics(
             self, file_defaults=comic_files.get("defaults") if comic_files else None
         )
@@ -287,9 +297,9 @@ class Media:
                     "destination_modes": list(DESTINATION_MODES),
                 },
                 "engine": {
-                    "state": "not_configured",
+                    "state": "failed" if self.config_error else "not_configured",
                     "version": None,
-                    "code": "media_not_configured",
+                    "code": self.config_error or "media_not_configured",
                 },
                 "accounts": [],
                 "targets": [],

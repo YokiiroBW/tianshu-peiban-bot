@@ -65,7 +65,8 @@ class Transfer:
 
     @asynccontextmanager
     async def response(
-        self, url, *, provider=None, account_id=None, artwork=False, headers=None, timeout=1800
+        self, url, *, provider=None, account_id=None, artwork=False, headers=None, timeout=1800,
+        before_request=None,
     ):
         # Account cookies never enter either quality probes or full transfers.
         async with aiohttp.ClientSession(
@@ -80,6 +81,8 @@ class Transfer:
                         else self.validate_url(url)
                     )
                     async with request_slot(self.control, provider or "netease", account_id):
+                        if before_request is not None:
+                            await before_request()
                         async with session.get(
                             url, headers=headers, allow_redirects=False
                         ) as response:
@@ -135,9 +138,11 @@ class Transfer:
         provider=None,
         account_id=None,
         artwork=False,
+        before_request=None,
     ):
         async with self.response(
-            url, provider=provider, account_id=account_id, artwork=artwork
+            url, provider=provider, account_id=account_id, artwork=artwork,
+            before_request=before_request,
         ) as response:
             require(response.status == 200, "music_download_unavailable", 502)
             length = response.content_length

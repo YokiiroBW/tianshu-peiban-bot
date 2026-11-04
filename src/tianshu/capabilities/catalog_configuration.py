@@ -11,6 +11,7 @@ from tianshu.types import SourceRef
 from tianshu.runtime.serialization import wire
 from .catalog import Availability, CapabilityDefinition
 from .contracts import Fault, canonical, digest, loads, require
+from .execution_context import current_generation
 from .external import request as resource_request, ProviderError
 
 
@@ -363,6 +364,7 @@ class CatalogConfiguration:
             },
             raw=bytes(raw),
             mime_type="application/json",
+            generation=current_generation(),
         )
         async with self.configuration.database.transaction() as conn:
             from .withdrawal import depend

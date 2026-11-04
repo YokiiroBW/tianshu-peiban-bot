@@ -188,32 +188,37 @@ class DownloadCache:
                         "allow_fallback": False,
                     },
                 }
-                download = await media.engine.download(
-                    exact_job, mapping[cid], cookie, directory / str(generation)
-                )
-                require(download["actual_quality"] == quality, "quality_mismatch", 503)
-                after = await media.connector.resolve(bvid, cookie, with_formats=False)
-                require(
-                    [(p["cid"], p["index"]) for p in before["snapshot"]["parts"]]
-                    == [(p["cid"], p["index"]) for p in after["snapshot"]["parts"]],
-                    "source_identity_changed",
-                    409,
-                )
-                record = await locked_file_work(
-                    file_record, Path(download["file"]), "cache", "video", cid
-                )
-                download.update(
-                    sha256=record["sha256"],
-                    size_bytes=record["size_bytes"],
-                    source_index=mapping[cid]["index"],
-                    source_captured_at=before["snapshot"]["captured_at"],
-                )
-                download = await locked_file_work(
-                    validate_download, download, cid, quality, job["quality"]
-                )
-                await media.local(repo.heartbeat, job["job_id"], owner, job["generation"])
-                await media.local(repo.download_finish, *key, owner, generation, download)
-                finished = True
+                from .recovery import physical_download
+                async with physical_download(
+                    media, job, owner, family="video", material=cid, route="bilibili",
+                    request={"bvid": bvid, "cid": cid, "quality": quality},
+                ):
+                    download = await media.engine.download(
+                        exact_job, mapping[cid], cookie, directory / str(generation)
+                    )
+                    require(download["actual_quality"] == quality, "quality_mismatch", 503)
+                    after = await media.connector.resolve(bvid, cookie, with_formats=False)
+                    require(
+                        [(p["cid"], p["index"]) for p in before["snapshot"]["parts"]]
+                        == [(p["cid"], p["index"]) for p in after["snapshot"]["parts"]],
+                        "source_identity_changed",
+                        409,
+                    )
+                    record = await locked_file_work(
+                        file_record, Path(download["file"]), "cache", "video", cid
+                    )
+                    download.update(
+                        sha256=record["sha256"],
+                        size_bytes=record["size_bytes"],
+                        source_index=mapping[cid]["index"],
+                        source_captured_at=before["snapshot"]["captured_at"],
+                    )
+                    download = await locked_file_work(
+                        validate_download, download, cid, quality, job["quality"]
+                    )
+                    await media.local(repo.heartbeat, job["job_id"], owner, job["generation"])
+                    await media.local(repo.download_finish, *key, owner, generation, download)
+                    finished = True
                 return await locked_file_work(media.retention.pin, job, cid, download), False
             finally:
                 try:

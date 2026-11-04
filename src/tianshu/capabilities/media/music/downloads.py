@@ -33,7 +33,7 @@ class Downloads:
         async with self.publication_lock:
             return await settled(self.media.local, operation, *args)
 
-    async def acquire(self, job, candidate, update):
+    async def acquire(self, job, candidate, update, *, before_request=None):
         provider, cookie = candidate["provider"], candidate["cookie"]
         connector, local = self.music.client(provider), self.media.local
         track = {
@@ -59,6 +59,7 @@ class Downloads:
             progress=lambda value: update(progress=value),
             provider=provider,
             account_id=candidate["account"]["account_id"],
+            before_request=before_request,
         )
         await update(state="validating", stage="validating", code="validating")
         raw, _, unlock, artwork, warnings = await self.decoder.prepare(
@@ -275,13 +276,15 @@ class Downloads:
                 and satisfies(job["quality"], intent)
                 and await local(self.storage.matches, intent)
             ):
+                from ...tracking import mark_submitted
+                await mark_submitted(identity)
                 job = await self.exclusive(self.storage.publish, job, owner)
             else:
                 existing = await local(self.storage.available, job)
                 prepared = job.get("audio_package")
                 if not await local(self.package_present, prepared):
                     prepared = None
-                package, reused = await self.selection.choose(job, update, existing, prepared)
+                package, reused = await self.selection.choose(job, update, existing, prepared, owner=owner)
                 if reused:
                     completed = await self.exclusive(self.storage.reuse, job, owner, reused)
                     require(completed is not None, "music_staging_changed", 409)
@@ -306,6 +309,8 @@ class Downloads:
                         stage="publishing",
                         code="publishing",
                     )
+                    from ...tracking import mark_submitted
+                    await mark_submitted(identity)
                     job = await self.exclusive(self.storage.publish, job, owner)
             try:
                 await self.exclusive(self.storage.cleanup, job)
@@ -341,6 +346,8 @@ class Downloads:
             state = (
                 "cancelled"
                 if code == "job_cancelled"
+                else "unknown"
+                if code == "media_download_original_unresolved"
                 else "auth_required"
                 if code in {"music_auth_required", "music_account_unavailable", "account_changed"}
                 else "retry_wait"

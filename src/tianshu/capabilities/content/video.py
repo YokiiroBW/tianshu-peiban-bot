@@ -3,6 +3,7 @@ from pathlib import Path
 import sys
 from tianshu.types import OriginKind
 from ..contracts import Fault,digest
+from ..execution_context import current_generation
 from ..media.bilibili import Bilibili
 from ..media.engine import Engine
 
@@ -24,7 +25,7 @@ class VideoOriginals:
             def store():
                 with path.open("rb") as source:return service.runtime.files.put_stream(source,media_type="video/mp4" if path.suffix==".mp4" else "video/x-matroska",max_bytes=engine.config["max_bytes"])
             media=await service.local(store)
-            source=await service.sources.register_media(action.context,media,locator={"kind":"bilibili_video","url":args["url"],"bvid":resolved["video"]["bvid"],"cid":part["cid"],"part_index":part["index"],"title":resolved["video"].get("title"),"actual_quality":result["actual_quality"],"action_id":action.action_id,"evidence_unit":f"bilibili:{resolved['video']['bvid']}:{part['cid']}:{media.sha256}"},origin_kind=OriginKind.TOOL_RESULT)
+            source=await service.sources.register_media(action.context,media,locator={"kind":"bilibili_video","url":args["url"],"bvid":resolved["video"]["bvid"],"cid":part["cid"],"part_index":part["index"],"title":resolved["video"].get("title"),"actual_quality":result["actual_quality"],"action_id":action.action_id,"evidence_unit":f"bilibili:{resolved['video']['bvid']}:{part['cid']}:{media.sha256}"},origin_kind=OriginKind.TOOL_RESULT,generation=current_generation())
             artifact=await service.artifacts.record(action.context,media,source_refs=(source,),metadata={"kind":"video_original","action_id":action.action_id,"duration_seconds":part.get("duration_seconds"),"bvid":resolved["video"]["bvid"],"cid":part["cid"],"parts":parts,"part_index":part["index"],"url":args["url"]})
             await service.local(path.unlink,missing_ok=True)
             return artifact,source

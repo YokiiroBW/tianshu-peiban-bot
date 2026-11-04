@@ -25,11 +25,21 @@ def local_schema(value):
     return True
 
 
+def binding_visible(context, binding):
+    """Character tools use their role; independent tools use a granted workspace scope."""
+    scope = binding.get("scope", {})
+    if scope.get("kind") == "character":
+        return context.actor_id is not None and scope.get("character_id") == context.actor_id
+    if scope.get("kind") == "workspace":
+        return context.actor_id is None and scope.get("workspace_id") in context.scope_ids
+    return False
+
+
 class PluginActorBridge:
     def __init__(self, host):
         self.host, self.repo = host, host.repository
 
-    def resolve(self, actor, reference, *, exact=True):
+    def resolve(self, context, reference, *, exact=True):
         instance = self.repo.get("instances", reference["instance_id"])
         require(instance is not None, "not_found", 404)
         binding = next(
@@ -39,7 +49,7 @@ class PluginActorBridge:
         require(
             binding
             and binding["enabled"]
-            and binding["scope"] == {"kind": "character", "character_id": actor}
+            and binding_visible(context, binding)
             and {"kind": "action", "id": reference["action_id"]} in binding.get("entries", []),
             "forbidden",
             403,
@@ -95,43 +105,45 @@ class PluginActorBridge:
             "action_id": action["id"],
         }
 
-    async def discover(self, actor):
+    async def discover(self, context):
         capabilities = []
         for instance in await self.host.local(self.repo.list, "instances"):
-            selected = [
-                row
-                for row in instance["bindings"]
-                if row["enabled"] and row["scope"] == {"kind": "character", "character_id": actor}
-            ]
-            if not selected:
+            # The richer UI projection may probe external comic file workers.
+            # Declarations only need locally installed package metadata.
+            try:
+                selected = [row for row in instance["bindings"]
+                            if row["enabled"] and binding_visible(context, row)]
+                if not selected:
+                    continue
+                package = await self.host.package(instance["package_id"], instance["version"])
+                description = package["description"]
+                actions = description["actions"]
+                if not isinstance(actions, list):
+                    continue
+            except (Fault, KeyError, TypeError):
                 continue
-            projection = await self.host.projection(instance)
             for binding in selected:
-                for action in projection["contributions"]["actions"]:
-                    if {"kind": "action", "id": action["id"]} not in binding.get("entries", []):
-                        continue
-                    reference = self.reference(instance, binding, action)
-                    reason = None
+                for action in actions:
                     try:
-                        resolved = await self.host.local(self.resolve, actor, reference)
-                        await self.host.local(self.ready, *resolved)
-                        require(instance["desired_state"]=="enabled","capability_unavailable",409)
-                    except Fault as error:
-                        reason = error.code
-                    capabilities.append(
-                        {
+                        if {"kind": "action", "id": action["id"]} not in binding.get("entries", []):
+                            continue
+                        reference = self.reference(instance, binding, action)
+                        entry = {
                             "binding": reference,
-                            "model_tool":next((tool for tool in projection["contributions"].get("tools",[]) if tool["action"]==action["id"]),None),
-                            "public_command":next(({"name":command["names"][0],"aliases":command["names"][1:]} for command in projection["contributions"].get("commands",[]) if command["action"]==action["id"]),None),
+                            "scope": binding["scope"],
+                            "model_tool":next((tool for tool in description.get("tools",[]) if tool["action"]==action["id"]),None),
+                            "public_command":next(({"name":command["names"][0],"aliases":command["names"][1:]} for command in description.get("commands",[]) if command["action"]==action["id"]),None),
                             "title": action["title"],
                             "description": action.get("description", ""),
                             "effect": action["effect"],
                             "long_running":action["timeout_seconds"]>30,
                             "input_schema": copy.deepcopy(action["input_schema"]),
                             "output_schema": copy.deepcopy(action["output_schema"]),
-                            "availability": "unavailable" if reason else "ready",
-                            "reason": reason,
+                            "availability": "not_verified",
+                            "reason": None,
                         }
-                    )
+                    except (KeyError, TypeError, IndexError):
+                        continue
+                    capabilities.append(entry)
                     require(len(capabilities) <= 128, "capacity_exceeded", 413)
         return capabilities

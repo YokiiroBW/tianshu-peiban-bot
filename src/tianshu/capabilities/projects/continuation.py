@@ -268,7 +268,7 @@ class Continuation:
         async with self.store.database.transaction(read_only=True) as conn:
             pack = await (
                 await conn.execute(
-                    "SELECT * FROM capability_projects.continuations WHERE pack_id=%s AND project_id=%s AND principal_id=%s AND actor_id=%s AND scope_ids<@%s",
+                    "SELECT * FROM capability_projects.continuations WHERE pack_id=%s AND project_id=%s AND principal_id=%s AND actor_id IS NOT DISTINCT FROM %s AND scope_ids<@%s",
                     (
                         body["pack_id"],
                         project["project_id"],

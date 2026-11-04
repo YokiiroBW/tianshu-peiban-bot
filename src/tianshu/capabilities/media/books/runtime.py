@@ -107,9 +107,9 @@ class Books:
             book, directory = await self.media.local(self.catalog.save_directory, book, entries)
         return book, directory
 
-    async def preview(self, identity, chapter_id, *, pinned=None, refresh=False, observe=True):
+    async def preview(self, identity, chapter_id, *, pinned=None, refresh=False, observe=True, recovery=None):
         try:
-            result = await self._preview(identity, chapter_id, pinned=pinned, refresh=refresh)
+            result = await self._preview(identity, chapter_id, pinned=pinned, refresh=refresh, recovery=recovery)
             if observe:
                 result["readability"] = await self.media.local(
                     self.readability.record, identity, "previewed", chapter=result["chapter"]
@@ -124,7 +124,7 @@ class Books:
                 )
             raise
 
-    async def _preview(self, identity, chapter_id, *, pinned=None, refresh=False):
+    async def _preview(self, identity, chapter_id, *, pinned=None, refresh=False, recovery=None):
         book = await self.media.local(self.catalog.book, identity)
         directory = await self.media.local(self.catalog.directory, identity)
         chapter = next((item for item in directory if item["chapter_id"] == chapter_id), None)
@@ -138,8 +138,8 @@ class Books:
         if cached and not refresh:
             return self.preview_result(cached, cached=True)
         if "origins" in chapter:
-            return await self.selection.content(book, chapter, pinned=pinned, refresh=refresh)
-        return await self.source_preview(identity, chapter_id, pinned=pinned, refresh=refresh)
+            return await self.selection.content(book, chapter, pinned=pinned, refresh=refresh, recovery=recovery)
+        return await self.source_preview(identity, chapter_id, pinned=pinned, refresh=refresh, recovery=recovery)
 
     @staticmethod
     def preview_result(chapter, *, cached):
@@ -158,7 +158,7 @@ class Books:
             "cached": cached,
         }
 
-    async def source_preview(self, identity, chapter_id, *, pinned=None, refresh=False):
+    async def source_preview(self, identity, chapter_id, *, pinned=None, refresh=False, recovery=None):
         book = await self.media.local(self.catalog.book, identity)
         directory = await self.media.local(self.catalog.source_directory, identity)
         chapter = next((row for row in directory if row["chapter_id"] == chapter_id), None)
@@ -183,20 +183,33 @@ class Books:
         next_url = (
             directory[chapter["order"] + 1]["url"] if chapter["order"] + 1 < len(directory) else ""
         )
-        result = await self.sources.call(
-            book["source_id"],
-            "content",
-            pinned=pinned,
-            url=chapter["url"],
-            variables=chapter.get("variables", {}),
-            next_url=next_url,
-            book={"name": book["metadata"]["title"], "author": book["metadata"].get("author", "")},
-        )
-        check_content(result.get("content", ""))
-        saved = await self.media.local(
-            self.catalog.save_chapter, identity, chapter, result.get("content", "")
-        )
-        return self.preview_result(saved, cached=False)
+        async def download():
+            result = await self.sources.call(
+                book["source_id"],
+                "content",
+                pinned=pinned,
+                url=chapter["url"],
+                variables=chapter.get("variables", {}),
+                next_url=next_url,
+                book={"name": book["metadata"]["title"], "author": book["metadata"].get("author", "")},
+            )
+            check_content(result.get("content", ""))
+            saved = await self.media.local(
+                self.catalog.save_chapter, identity, chapter, result.get("content", "")
+            )
+            return self.preview_result(saved, cached=False)
+
+        if recovery is None:
+            return await download()
+        from ..recovery import physical_download
+        async with physical_download(
+            self.media, recovery["job"], recovery["owner"], family="book",
+            material=[recovery["material"], recovery.get("part_index", 0)],
+            route="book:" + digest(book["source_id"]),
+            request={"book_id": identity, "chapter_id": chapter_id, "url": chapter["url"]},
+            partition_size=recovery.get("partition_size", 1),
+        ):
+            return await download()
 
     async def scan(self, identity):
         subscription = await self.media.local(self.repo.get, "book_subscription", identity)

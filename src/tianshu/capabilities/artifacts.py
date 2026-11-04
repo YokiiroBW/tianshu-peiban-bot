@@ -8,6 +8,7 @@ from tianshu.types import ArtifactRef, MediaRef, SourceRef, Coverage
 from tianshu.runtime.files import FileStore
 from tianshu.runtime.serialization import wire
 from .contracts import canonical, Fault, digest
+from .execution_context import current_generation
 
 
 class StorageError(ValueError):
@@ -46,7 +47,10 @@ class Artifacts:
         artifact = ArtifactRef(identity, media, tuple(source_refs), coverage, metadata or {})
         async with self.database.transaction() as conn:
             from .withdrawal import validate_sources, depend
+            from tianshu.runtime.jobs import JobQueue
 
+            if current_generation() is not None:
+                await JobQueue.assert_generation_on(conn, current_generation())
             if not await validate_sources(conn, context, source_refs, self.sources):
                 raise Fault("source_revoked", 410)
             await depend(conn, "artifact", artifact.artifact_id, source_refs)
@@ -148,6 +152,7 @@ class Artifacts:
             source = await self.sources.publish_media(
                 context, media, locator=locator, source_refs=tuple(source_refs),
                 target="actor" if publish_to_actor else "current",
+                generation=current_generation(),
             )
             # describe_for_write_on locks selected roots/supports for persistence.
             async with self.database.transaction() as conn:
@@ -156,7 +161,7 @@ class Artifacts:
             context = replace(context, scope_ids=scopes, audience=scopes)
         else:
             source = await self.sources.register_media(
-                context, media, locator=locator, origin_kind=OriginKind.HUMAN
+                context, media, locator=locator, origin_kind=OriginKind.HUMAN, generation=current_generation()
             )
         return await self.record(
             context, media, source_refs=(source,), metadata={"kind": "uploaded_original", **locator}

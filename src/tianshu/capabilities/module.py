@@ -69,6 +69,10 @@ def build_module(
                 .joinpath("schema.sql")
                 .read_text(encoding="utf-8"),
             ),
+            Migration(
+                "capabilities-projects-0002-independent",
+                Path(__file__).with_name("projects").joinpath("independent.sql").read_text(encoding="utf-8"),
+            ),
         ),
     )
     return module, service

@@ -2,13 +2,15 @@
 
 import asyncio
 import json
+import logging
+from collections.abc import Mapping
 from dataclasses import replace
 from datetime import UTC, datetime
 from uuid import uuid4
 from jsonschema import Draft202012Validator, ValidationError
 from tianshu.types import Action, Attempt, Receipt, ServiceClass
 from tianshu.sources.dependencies import unique_refs
-from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.serialization import wire
 from .contracts import Fault, digest, canonical
@@ -16,6 +18,8 @@ from .serialization import action_from, attempt_from, receipt_from
 from .execution_context import CURRENT_ACTION, CURRENT_EXECUTION
 from .external import execution_service_class
 from .routing import execution_lane
+
+logger = logging.getLogger(__name__)
 
 
 class Actions:
@@ -31,7 +35,10 @@ class Actions:
         self.prepare_handler = None
         self.argument_resolver = None
         self.worker = False
+        self.process_role = None
         self.sources = None
+        self.behavior_validator = None
+        self.statistics = None
         from .execution_owners import ExecutionOwners
 
         self.owners = ExecutionOwners(self)
@@ -45,12 +52,85 @@ class Actions:
     def status(self):
         return self.owners.status()
 
+    def bind_behavior_validator(self, validator):
+        """Bind Growth's trusted validation port, not a model-supplied argument."""
+        self.behavior_validator = validator
+
+    async def check_behaviors(self, context, refs, *, purpose):
+        if not refs:
+            return
+        if self.behavior_validator is None:
+            raise Fault("behavior_validation_unavailable", 503)
+        outcome = await self.behavior_validator(context, tuple(refs), purpose=purpose)
+        # The port either accepts with None/True or raises for an incompatible
+        # rule; returning an unexamined resolution is not a successful check.
+        if outcome is not None and outcome is not True:
+            raise Fault("behavior_validation_invalid", 503)
+
+    async def saved_behaviors(self, action, attempt):
+        """Rehydrate trusted dependencies for domain-owned continuations."""
+        async with self.database.transaction(read_only=True) as conn:
+            row = await (await conn.execute(
+                "SELECT document,attempt FROM capabilities.actions WHERE id=%s", (action.action_id,)
+            )).fetchone()
+        if row is None or row["attempt"]["attempt_id"] != attempt.attempt_id:
+            raise Fault("attempt_changed", 409)
+        document = json.loads(row["document"])
+        return tuple(document.get("behavior_refs", ())), document.get("behavior_purpose", "conversation")
+
+    async def check_saved_behaviors(self, action, attempt):
+        """Domain-owned continuation checks the same frozen dependencies."""
+        refs, purpose = await self.saved_behaviors(action, attempt)
+        await self.check_behaviors(action.context, refs, purpose=purpose)
+
+    async def saved_generation(self, action, attempt=None):
+        """Return the original installation generation for trusted continuations."""
+        async with self.database.transaction(read_only=True) as conn:
+            row = await (await conn.execute(
+                "SELECT document,attempt FROM capabilities.actions WHERE id=%s", (action.action_id,)
+            )).fetchone()
+        if row is None or (attempt is not None and row["attempt"]["attempt_id"] != attempt.attempt_id):
+            raise Fault("attempt_changed", 409)
+        generation = json.loads(row["document"]).get("data_generation")
+        if not isinstance(generation, str) or not generation:
+            raise Fault("action_generation_unavailable", 503)
+        return generation
+
     async def handler(self, action):
         if action.capability_id not in self.catalog.handlers and self.prepare_handler:
             await self.prepare_handler(action)
         return self.catalog.handler(action.capability_id)
 
-    async def invoke(self, action: Action, *, background=False, service_class=None):
+    async def invoke(self, action: Action, *, background=False, service_class=None,
+                     behavior_refs=(), behavior_purpose="conversation", generation=None):
+        if not isinstance(behavior_refs, (tuple, list)) or any(not isinstance(ref, Mapping) for ref in behavior_refs):
+            raise Fault("behavior_reference_invalid", 400)
+        if not isinstance(behavior_purpose, str) or not behavior_purpose:
+            raise Fault("behavior_purpose_invalid", 400)
+        job_generation = current_execution_generation()
+        if job_generation is not None:
+            if generation is not None and generation != job_generation:
+                raise Fault("job_generation_expired", 409)
+            generation = job_generation
+        parent = CURRENT_EXECUTION.get()
+        if parent is not None:
+            inherited = parent.get("data_generation")
+            if not inherited:
+                raise Fault("action_generation_unavailable", 503)
+            if generation is not None and generation != inherited:
+                raise Fault("job_generation_expired", 409)
+            generation = inherited
+            parent_refs = tuple(parent.get("behavior_refs", ()))
+            parent_purpose = parent.get("behavior_purpose", "conversation")
+            if parent_refs:
+                if behavior_refs and behavior_purpose != parent_purpose:
+                    raise Fault("behavior_purpose_mismatch", 409)
+                behavior_refs = (*parent_refs, *behavior_refs)
+                behavior_purpose = parent_purpose
+        # Canonicalize equivalent dependency sets without changing Action or
+        # exposing these trusted references to the capability's input schema.
+        refs_by_digest = {canonical(wire(ref)): wire(ref) for ref in behavior_refs}
+        behavior_refs = tuple(refs_by_digest[key] for key in sorted(refs_by_digest))
         handler = await self.handler(action)
         service_class = service_class or execution_service_class(action)
         lane = execution_lane(action.capability_id)
@@ -67,6 +147,7 @@ class Actions:
         if any(canonical(wire(ref)) not in authorized_refs for ref in action.current_input_refs):
             raise Fault("current_input_source_not_authorized", 403)
         await self.authority.check(action.context, action.source_refs)
+        await self.check_behaviors(action.context, behavior_refs, purpose=behavior_purpose)
         availability = await self.catalog.availability(action.context, handler)
         if not availability.can_execute:
             raise Fault(availability.reason or "not_configured", 503)
@@ -80,7 +161,9 @@ class Actions:
         except ValidationError:
             raise Fault("invalid_input", 400) from None
         key = digest([action.context.principal_id, action.capability_id, action.intent_key])
-        semantics = digest(wire(replace(action, action_id="", revision=1)))
+        action_semantics = wire(replace(action, action_id="", revision=1))
+        semantics = (digest([action_semantics, behavior_purpose, behavior_refs]) if behavior_refs
+                     else digest(action_semantics))
         attempt = Attempt(str(uuid4()), action.action_id)
         receipt = Receipt(
             str(uuid4()), action.action_id, attempt.attempt_id, "pending", "none", "not_requested"
@@ -88,16 +171,21 @@ class Actions:
         async with self.database.transaction() as conn:
             from .withdrawal import validate_sources, depend
 
+            if generation is None:
+                generation = await self.jobs.current_generation_on(conn)
+            await self.jobs.assert_generation_on(conn, generation)
             if not await validate_sources(conn, action.context, action.source_refs, self.sources):
                 raise Fault("source_revoked", 410)
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
             old = await (
                 await conn.execute(
-                    "SELECT action,receipt,semantics FROM capabilities.actions WHERE intent=%s FOR UPDATE",
+                    "SELECT action,receipt,semantics,document FROM capabilities.actions WHERE intent=%s FOR UPDATE",
                     (key,),
                 )
             ).fetchone()
             if old:
+                if json.loads(old["document"]).get("data_generation") != generation:
+                    raise Fault("job_generation_expired", 409)
                 if old["semantics"] != semantics:
                     raise Fault("idempotency_conflict", 409)
                 receipt = receipt_from(old["receipt"])
@@ -116,7 +204,9 @@ class Actions:
                         encoded(attempt),
                         encoded(receipt),
                         canonical({"service_class": service_class.value, "execution_lane": lane.value,
-                                   "job_key": action.action_id if background else None}),
+                                   "job_key": action.action_id if background else None,
+                                   "data_generation": generation,
+                                   "behavior_refs": behavior_refs, "behavior_purpose": behavior_purpose}),
                     ),
                 )
                 if background:
@@ -130,6 +220,7 @@ class Actions:
                             subject_id=action.actor_id,
                             matter_id=action.matter_id,
                             execution_lane=lane,
+                            data_generation=generation,
                         ),
                     )
         if old:
@@ -163,6 +254,10 @@ class Actions:
                     (action_id, context.principal_id),
                 )
             ).fetchone()
+            if row is not None:
+                generation = json.loads(row["document"]).get("data_generation")
+                if generation != await self.jobs.current_generation_on(conn):
+                    raise Fault("job_generation_expired", 409)
         if row is None:
             raise Fault("not_found", 404)
         action = action_from(row["action"])
@@ -179,6 +274,44 @@ class Actions:
             for k in ("action", "attempt", "receipt", "result_revision", "result_observed_at")
         }
         return {**result, "execution": execution}
+
+    async def inspect_recovery(self, action_id, context):
+        """Inspect only the canonical Action, attempt, receipt and queue identity."""
+        return await self.get(action_id, context)
+
+    async def context_for_action(self, action_id):
+        """Trusted recovery code can refresh only the Action's original grant.
+
+        This is an internal port, not an authorization decision: the caller must
+        refresh and check the returned context before using it.
+        """
+        action, _, _ = await self._load(action_id)
+        return action.context
+
+    async def observe_recovery(self, action_id, context, *, expected_attempt_id):
+        """Read the original receipt, including unknown, without dispatching work."""
+        value = await self.get(action_id, context)
+        if value["attempt"]["attempt_id"] != expected_attempt_id:
+            raise Fault("attempt_changed", 409)
+        return value
+
+    async def invoke_registered_recovery(self, action_id, context, *, operation,
+                                         client_request_id, expected_revision,
+                                         expected_attempt_id, expected_job_id,
+                                         guard_on, guard_attempt_id, guard_owner_token):
+        """Only reroute a proven never-started original; no generic effect replay."""
+        if operation != "reroute_pending":
+            raise Fault("recovery_operation_unavailable", 409)
+        if type(expected_revision) is not int:
+            raise Fault("recovery_revision_required", 400)
+        if not callable(guard_on) or not guard_attempt_id or not guard_owner_token:
+            raise Fault("recovery_guard_required", 400)
+        return await self.reroute_pending(
+            action_id, context, client_request_id=client_request_id,
+            expected_attempt_id=expected_attempt_id, expected_job_id=expected_job_id,
+            expected_revision=expected_revision,
+            recovery_guard=(guard_on, guard_attempt_id, guard_owner_token),
+        )
 
     async def _execution_on(self, connection, row):
         document = json.loads(row["document"])
@@ -227,6 +360,12 @@ class Actions:
 
     async def submitted(self, attempt, handle=None, dispatch="submitted"):
         async with self.database.transaction() as conn:
+            row = await (await conn.execute(
+                "SELECT document,attempt FROM capabilities.actions WHERE id=%s FOR UPDATE", (attempt.action_id,)
+            )).fetchone()
+            if row is None or row["attempt"]["attempt_id"] != attempt.attempt_id:
+                raise Fault("attempt_changed", 409)
+            await self.jobs.assert_generation_on(conn, json.loads(row["document"]).get("data_generation"))
             await conn.execute(
                 "UPDATE capabilities.actions SET attempt=attempt||%s::jsonb WHERE id=%s AND attempt->>'attempt_id'=%s",
                 (
@@ -254,14 +393,20 @@ class Actions:
                     (encoded(running), encoded(attempt), self.owners.id, action_id, self.owners.id),
                 )
             ).fetchone()
+            if claim is not None:
+                document = json.loads(claim["document"])
+                await self.jobs.assert_generation_on(conn, document.get("data_generation"))
         if claim is None:
             return (await self._load(action_id))[2]
         state = {
             "owner": self,
             "attempt": attempt,
             "submitted": False,
+            "behavior_refs": document.get("behavior_refs", ()),
+            "behavior_purpose": document.get("behavior_purpose", "conversation"),
+            "data_generation": document["data_generation"],
             "service_class": ServiceClass(
-                json.loads(claim["document"]).get("service_class", "elastic")
+                document.get("service_class", "elastic")
             ),
         }
         action_token = CURRENT_ACTION.set(action)
@@ -283,6 +428,8 @@ class Actions:
                 method = getattr(handler, mode, None)
                 if mode not in {"execute", "resume"} or method is None:
                     raise Fault("operation_unavailable", 409)
+                await self.check_behaviors(action.context, document.get("behavior_refs", ()),
+                                           purpose=document.get("behavior_purpose", "conversation"))
                 receipt = await method(action, attempt)
                 if not isinstance(receipt, Receipt):
                     raise TypeError("capability_receipt_required")
@@ -359,9 +506,11 @@ class Actions:
         action, attempt, current = await self._load(action_id)
         if attempt.attempt_id != attempt_id or current.execution != "running":
             return current
+        generation = await self.saved_generation(action, attempt)
         async with self.database.transaction() as conn:
             from .withdrawal import validate_sources
 
+            await self.jobs.assert_generation_on(conn, generation)
             # Keep the same source→domain lock order as all terminal writes.
             valid = await validate_sources(conn, action.context, action.source_refs, self.sources)
             claimed = await (
@@ -398,6 +547,7 @@ class Actions:
                         {"action_id": action_id, "mode": "reconcile"},
                         service_class=ServiceClass.INTERACTIVE,
                         subject_id=action.actor_id,
+                        data_generation=generation,
                     ),
                 )
         return receipt
@@ -452,6 +602,7 @@ class Actions:
             ).fetchone()
             if not old or old["attempt"]["attempt_id"] != attempt.attempt_id:
                 raise Fault("attempt_changed", 409)
+            await self.jobs.assert_generation_on(conn, json.loads(old["document"]).get("data_generation"))
             previous_receipt = receipt_from(old["receipt"])
             source_invalid = not valid
             if not valid or json.loads(old["document"]).get("source_revoked"):
@@ -503,6 +654,9 @@ class Actions:
                 "INSERT INTO capabilities.attempts(id,action_id,attempt,receipt) VALUES(%s,%s,%s::jsonb,%s::jsonb) ON CONFLICT(id) DO UPDATE SET attempt=excluded.attempt,receipt=excluded.receipt",
                 (attempt.attempt_id, receipt.action_id, encoded(attempt), encoded(receipt)),
             )
+            if changed and original.capability_id == "media.acquire" and self.statistics is not None:
+                from .media.statistics import record_action_job_on
+                await record_action_job_on(self.statistics, conn, original)
             if (
                 self.events
                 and receipt.execution in {"succeeded", "failed", "cancelled", "unknown"}
@@ -522,6 +676,18 @@ class Actions:
                         "receipt": wire(receipt),
                     },
                 )
+        if changed and receipt.execution in {"failed", "unknown"}:
+            log = getattr(self.jobs, "events", None)
+            if log is not None:
+                try:
+                    # The original ledger remains authoritative. The safe event
+                    # carries only stable lookup identities and a failure code.
+                    await log.emit("capability.failed", receipt.execution,
+                                   material_id=receipt.action_id, failure_id=receipt.attempt_id,
+                                   attempt_id=receipt.attempt_id, error_code=receipt.error_code,
+                                   dependency_ref=original.capability_id)
+                except Exception as error:
+                    logger.warning("capability failure event unavailable: %s", type(error).__name__)
         return receipt
 
     async def reconcile(self, action_id, context):
@@ -545,7 +711,9 @@ class Actions:
             and current.effect != "unknown"
         ):
             return current
+        generation = await self.saved_generation(action, attempt)
         async with self.database.transaction() as conn:
+            await self.jobs.assert_generation_on(conn, generation)
             await conn.execute(
                 "UPDATE capabilities.actions SET document=(document::jsonb||%s::jsonb)::text WHERE id=%s",
                 (canonical({"cancel_requested": True}), action_id),
@@ -579,7 +747,8 @@ class Actions:
         return await self.save(receipt, attempt)
 
     async def reroute_pending(self, action_id, context, *, client_request_id,
-                              expected_attempt_id, expected_job_id):
+                              expected_attempt_id, expected_job_id, expected_revision=None,
+                              recovery_guard=None):
         """Move an accepted, never-started job without issuing another attempt."""
         if not client_request_id:
             raise Fault("client_request_id_required", 400)
@@ -601,23 +770,32 @@ class Actions:
             )).fetchone()
             if row is None:
                 raise Fault("not_found", 404)
+            document = json.loads(row["document"])
+            await self.jobs.assert_generation_on(conn, document.get("data_generation"))
+            control_digest = digest([expected_attempt_id, expected_job_id, expected_revision])
             prior = await (await conn.execute(
                 "SELECT attempt_id FROM capabilities.action_controls WHERE id=%s", (key,)
             )).fetchone()
             if prior:
                 if expected_attempt_id is not None and prior["attempt_id"] != expected_attempt_id:
                     raise Fault("idempotency_conflict", 409)
+                saved_digest = document.get("recovery_controls", {}).get(key)
+                if saved_digest is not None and saved_digest != control_digest:
+                    raise Fault("idempotency_conflict", 409)
+                if saved_digest is None and expected_revision is not None:
+                    raise Fault("idempotency_conflict", 409)
                 saved = await (await conn.execute(
                     "SELECT receipt FROM capabilities.attempts WHERE id=%s", (prior["attempt_id"],)
                 )).fetchone()
                 return receipt_from(saved["receipt"] if saved else row["receipt"])
+            if expected_revision is not None and row["result_revision"] != expected_revision:
+                raise Fault("revision_conflict", 409)
             if not expected_attempt_id or type(expected_job_id) is not int:
                 raise Fault("pending_reroute_identity_required", 400)
             if row["attempt"]["attempt_id"] != expected_attempt_id:
                 raise Fault("attempt_changed", 409)
             attempt = attempt_from(row["attempt"])
             receipt = receipt_from(row["receipt"])
-            document = json.loads(row["document"])
             if (receipt.execution != "pending" or attempt.dispatch != "not_started"
                     or attempt.provider_handle is not None or attempt.started_at is not None
                     or attempt.finished_at is not None or row.get("execution_owner") is not None):
@@ -627,6 +805,10 @@ class Actions:
             observation = await self._execution_on(conn, row)
             if observation.get("job_id") != expected_job_id:
                 raise Fault("job_changed", 409)
+            if recovery_guard is not None:
+                guard_on, recovery_attempt_id, owner_token = recovery_guard
+                if await guard_on(conn, recovery_attempt_id, owner_token) is False:
+                    raise Fault("recovery_guard_rejected", 409)
             moved = await self.jobs.reroute_pending(
                 conn, expected_job_id, execution_lane=lane,
                 task="capabilities.execute", service_class=service_class,
@@ -634,6 +816,7 @@ class Actions:
             if not moved:
                 raise Fault("action_already_started", 409)
             document.update(service_class=service_class.value, execution_lane=lane.value)
+            document.setdefault("recovery_controls", {})[key] = control_digest
             await conn.execute(
                 "UPDATE capabilities.actions SET document=%s WHERE id=%s",
                 (canonical(document), action_id),
@@ -650,6 +833,7 @@ class Actions:
             raise Fault("client_request_id_required", 400)
         await self.get(action_id, context)
         action, old, current = await self._load(action_id)
+        generation = await self.saved_generation(action, old)
         if current.execution == "pending" or expected_job_id is not None or expected_attempt_id is not None:
             return await self.reroute_pending(
                 action_id, context, client_request_id=client_request_id,
@@ -679,6 +863,7 @@ class Actions:
             # Models/provider observation must not hold a domain write lock.
             proof = await preflight(action, old, current)
         async with self.database.transaction() as conn:
+            await self.jobs.assert_generation_on(conn, generation)
             await conn.execute("SELECT pg_advisory_xact_lock(hashtext(%s))", (key,))
             prior = await (
                 await conn.execute(
@@ -739,11 +924,13 @@ class Actions:
                     subject_id=action.actor_id,
                     matter_id=action.matter_id,
                     execution_lane=lane,
+                    data_generation=generation,
                 ),
             )
         return receipt
 
     async def enqueue_control(self, action, attempt, current, mode):
+        generation = await self.saved_generation(action, attempt)
         async with self.database.transaction() as conn:
             await self.jobs.enqueue(
                 conn,
@@ -753,6 +940,7 @@ class Actions:
                     {"action_id": action.action_id, "mode": mode},
                     service_class=ServiceClass.INTERACTIVE,
                     subject_id=action.actor_id,
+                    data_generation=generation,
                 ),
             )
         return replace(current, result={**current.result, mode + "_requested": True})
@@ -769,7 +957,7 @@ class Actions:
     def register_tasks(self):
         self.jobs.register("capabilities.execute", self.run,
                            lane_resolver=self.execution_lane_on)
-        self.jobs.register("capabilities.control", self.control, execution_lane=ExecutionLane.CONTROL)
+        self.jobs.register("capabilities.control", self.control)
 
 
 def encoded(value):

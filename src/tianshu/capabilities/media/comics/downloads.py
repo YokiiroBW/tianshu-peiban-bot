@@ -113,7 +113,7 @@ class Downloads:
             comic = await self.media.local(self.comics.catalog.comic, job["comic_id"])
             if not job.get("comic_artifact"):
                 health_stage = "download"
-                pages = await self.pages(comic, job, update, checkpoint)
+                pages = await self.pages(comic, job, update, checkpoint, owner)
                 health_stage = "package"
                 await update(state="validating", stage="comic_package", code="comic_packaging")
                 package_relative = identity + f"/{generation}/chapter.cbz"
@@ -174,6 +174,8 @@ class Downloads:
                 )
                 await update(state="publishing", stage="comic_archive", code="comic_archiving")
                 if not job["comic_artifact"].get("published_at"):
+                    from ...tracking import mark_submitted
+                    await mark_submitted(identity)
                     if job["comic_target"].get("publisher_socket"):
                         publication = await self.publisher.publish(job, path, checkpoint)
                     else:
@@ -283,6 +285,7 @@ class Downloads:
                 )
             raise
         except Fault as error:
+            from ..recovery import DownloadDeferred
             if error.code == "lease_conflict":
                 return
             if comic and health_stage and error.code != "job_cancelled":
@@ -293,21 +296,24 @@ class Downloads:
                     error.code,
                     facts={"job_id": identity, "library_kind": job["comic_library_kind"]},
                 )
-            attempts = job.get("attempts", 0) + 1
-            retry = error.code in RETRYABLE and (attempts < 6 or error.code in PENDING)
+            deferred = isinstance(error, DownloadDeferred)
+            attempts = job.get("attempts", 0) + (0 if deferred else 1)
+            retry = deferred or error.code in RETRYABLE and (attempts < 6 or error.code in PENDING)
             await self.media.local(
                 self.repo.update_job,
                 identity,
                 {
                     "state": "cancelled"
                     if error.code == "job_cancelled"
+                    else "unknown"
+                    if error.code == "media_download_original_unresolved"
                     else "retry_wait"
                     if retry
                     else "failed",
                     "stage": "comic_attention",
                     "code": error.code,
                     "attempts": attempts,
-                    "retry_delay": min(1800, 30 * 2 ** min(attempts, 6)),
+                    "retry_delay": error.retry_after if deferred else min(1800, 30 * 2 ** min(attempts, 6)),
                 },
                 owner=owner,
                 generation=generation,
@@ -336,12 +342,12 @@ class Downloads:
             pulse.cancel()
             await asyncio.gather(pulse, return_exceptions=True)
 
-    async def pages(self, comic, job, update, checkpoint):
+    async def pages(self, comic, job, update, checkpoint, owner):
         if comic["source_type"] != "remote":
-            return await self._pages(comic, job, update, checkpoint)
+            return await self._pages(comic, job, update, checkpoint, owner)
         lock = self.comics.engine.source_locks.setdefault(comic["source_id"], asyncio.Lock())
         async with lock:
-            result = await self._pages(comic, job, update, checkpoint)
+            result = await self._pages(comic, job, update, checkpoint, owner)
             await self.media.local(
                 self.comics.health.record,
                 comic,
@@ -355,7 +361,7 @@ class Downloads:
             )
             return result
 
-    async def _pages(self, comic, job, update, checkpoint):
+    async def _pages(self, comic, job, update, checkpoint, owner):
         chapter = job["comic_chapter"]
         cache = job.get("comic_cache") or []
         directory = safe_path(self.comics.data_root, job["job_id"] + "/" + str(job["generation"]))
@@ -419,20 +425,38 @@ class Downloads:
             if record is None:
                 path = directory / f"{index:06d}.page"
                 if comic["source_type"] == "remote":
-                    await self.comics.engine.download_page(source, path)
-                    record = await self.media.local(image_record, path)
+                    from ..recovery import physical_download
+                    async with physical_download(
+                        self.media, job, owner, family="comic", material=[job["comic_chapter_id"], index],
+                        route="comic:" + digest(comic["source_id"]),
+                        request={"fingerprint": fingerprint, "index": index, "source": source},
+                    ):
+                        await self.comics.engine.download_page(source, path)
+                        record = await self.media.local(image_record, path)
+                        entry = {
+                            "relative": path.relative_to(self.comics.data_root).as_posix(),
+                            "record": record,
+                        }
+                        if index < len(cache):
+                            cache[index] = entry
+                        else:
+                            cache.append(entry)
+                        # Persist the actual page evidence before settling the
+                        # physical attempt, so a restart can reuse those bytes.
+                        await update(comic_cache=cache, comic_pages_done=len(pages) + 1,
+                                     progress=0.8 * (len(pages) + 1) / len(inputs))
                 else:
                     record = await self.media.local(
                         self.comics.imports.copy_image, comic, chapter, index, path
                     )
-                entry = {
-                    "relative": path.relative_to(self.comics.data_root).as_posix(),
-                    "record": record,
-                }
-                if index < len(cache):
-                    cache[index] = entry
-                else:
-                    cache.append(entry)
+                    entry = {
+                        "relative": path.relative_to(self.comics.data_root).as_posix(),
+                        "record": record,
+                    }
+                    if index < len(cache):
+                        cache[index] = entry
+                    else:
+                        cache.append(entry)
             total += record["size_bytes"]
             require(total <= MAX_CHAPTER_BYTES, "comic_chapter_too_large", 409)
             pages.append((path, record))

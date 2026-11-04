@@ -20,8 +20,8 @@ class Registry:
         async with self.store.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
-                    "SELECT project_id,conversation_id,label,revision,content_revision,enabled FROM capability_projects.projects WHERE actor_id=%s AND scope_ids<@%s AND (%s::text IS NULL OR project_id>%s) ORDER BY project_id LIMIT %s",
-                    (context.actor_id, list(context.scope_ids), cursor, cursor, limit + 1),
+                    "SELECT project_id,conversation_id,label,revision,content_revision,enabled FROM capability_projects.projects WHERE actor_id IS NOT DISTINCT FROM %s AND (actor_id IS NOT NULL OR owner_id=%s) AND scope_ids<@%s AND (%s::text IS NULL OR project_id>%s) ORDER BY project_id LIMIT %s",
+                    (context.actor_id, context.principal_id, list(context.scope_ids), cursor, cursor, limit + 1),
                 )
             ).fetchall()
         result = wire(
@@ -90,37 +90,46 @@ class Registry:
 
     async def save(self, action):
         context, body = action.context, deepcopy(dict(action.arguments))
-        require(context.actor_id is not None, "project_actor_required", 400)
-        require(context.conversation_id is not None, "project_scene_required", 400)
+        if context.actor_id is not None:
+            require(context.conversation_id is not None, "project_scene_required", 400)
+        else:
+            require(context.conversation_id is None, "project_scene_required", 400)
         root, directories, urls, worktrees = await self.local(self.configuration, body)
         identifier = text(body.get("project_id"), 128)
         expected = integer(body.get("expected_revision"), 0)
         label = text(body.get("label"), 256)
         async with self.store.database.transaction() as conn:
             await self.store.writable(conn, context, action.source_refs)
+            # A global project is owned by the author in the existing system
+            # intake scope. Unrelated grants are not frozen into the project.
+            scopes = list(context.scope_ids)
+            if context.actor_id is None:
+                intake, _ = await self.store.authority.intake_scope(context, connection=conn)
+                scopes = list(intake)
             old = await (
                 await conn.execute(
                     "SELECT * FROM capability_projects.projects WHERE project_id=%s FOR UPDATE",
                     (identifier,),
                 )
             ).fetchone()
-            if old and old["last_action_id"] == action.action_id:
-                return old
-            require((old["revision"] if old else 0) == expected, "revision_conflict", 409)
             if old:
                 require(
                     old["actor_id"] == context.actor_id
+                    and (context.actor_id is not None or old["owner_id"] == context.principal_id)
                     and set(old["scope_ids"]) <= set(context.scope_ids),
                     "project_unavailable",
                     404,
                 )
+                if old["last_action_id"] == action.action_id:
+                    return old
+            require((old["revision"] if old else 0) == expected, "revision_conflict", 409)
             row = await (
                 await conn.execute(
                     "INSERT INTO capability_projects.projects(project_id,actor_id,scope_ids,owner_id,conversation_id,label,root,directories,allowed_urls,worktrees,enabled,revision,last_action_id) VALUES(%s,%s,%s,%s,%s,%s,%s,%s::jsonb,%s::jsonb,%s::jsonb,%s,%s,%s) ON CONFLICT(project_id) DO UPDATE SET label=excluded.label,root=excluded.root,directories=excluded.directories,allowed_urls=excluded.allowed_urls,worktrees=excluded.worktrees,enabled=excluded.enabled,revision=excluded.revision,last_action_id=excluded.last_action_id,updated_at=now() RETURNING *",
                     (
                         identifier,
                         context.actor_id,
-                        list(context.scope_ids),
+                        scopes,
                         context.principal_id,
                         context.conversation_id,
                         label,

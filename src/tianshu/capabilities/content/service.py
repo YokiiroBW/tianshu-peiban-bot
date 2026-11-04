@@ -10,6 +10,7 @@ from tianshu.types import SourceRef, Receipt, Coverage
 from tianshu.runtime.serialization import wire
 from ..catalog import CapabilityDefinition, Availability
 from ..contracts import Fault, canonical, digest
+from ..execution_context import current_generation
 from ..content_discovery.service import Discovery
 from ..content_discovery.media import MediaCatalog
 from ..content_discovery.candidates import public_url, candidate
@@ -215,7 +216,7 @@ class Content:
             locator={"kind": "content_discovery", "query": body.get("query"),
                      "mode": body.get("mode", "research"), "read_basis": "discovery_metadata",
                      "action_id": action.action_id},
-            raw=canonical(result).encode(), mime_type="application/json")
+            raw=canonical(result).encode(), mime_type="application/json", generation=current_generation())
         result["source_refs"] = wire((source,))
         await self.authority.check(context, (source,))
         return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "succeeded", "none",
@@ -311,7 +312,7 @@ class Content:
             "forum_cursor": content.get("forum_cursor"),
         }
         original = await self.sources.capture(
-            action.context, locator=locator, raw=raw, mime_type=mime
+            action.context, locator=locator, raw=raw, mime_type=mime, generation=current_generation()
         )
         source = await self.sources.capture(
             action.context,
@@ -324,6 +325,7 @@ class Content:
             },
             raw=content["text"].encode("utf-8"),
             mime_type="text/plain",
+            generation=current_generation(),
         )
         await self.authority.check(action.context, (original, source))
         return Receipt(

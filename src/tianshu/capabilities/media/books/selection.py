@@ -52,10 +52,10 @@ class SourceSelection:
         ][:8]
 
     async def unit_content(
-        self, book, unit, *, pinned=None, cached_only=False, reference=False, refresh=False
+        self, book, unit, *, pinned=None, cached_only=False, reference=False, refresh=False, recovery=None
     ):
         texts = []
-        for part in unit.parts:
+        for index, part in enumerate(unit.parts):
             if cached_only:
                 cached = await self.media.local(
                     self.books.catalog.chapter, book["book_id"], part["chapter_id"]
@@ -72,7 +72,9 @@ class SourceSelection:
                 texts.append(cached["content"])
             else:
                 result = await self.books.source_preview(
-                    book["book_id"], part["chapter_id"], pinned=pinned, refresh=refresh
+                    book["book_id"], part["chapter_id"], pinned=pinned, refresh=refresh,
+                    recovery={**recovery, "part_index": index, "partition_size": len(unit.parts)}
+                    if recovery is not None else None,
                 )
                 texts.append(result["chapter"]["content"])
         # Repeated halves are a broken rule, not a complete split chapter.
@@ -468,11 +470,12 @@ class SourceSelection:
                 continue
         return result
 
-    async def content(self, book, chapter, *, pinned=None, refresh=False):
+    async def content(self, book, chapter, *, pinned=None, refresh=False, recovery=None):
         origins = chapter.get("origins", [])
         require(origins, "book_chapter_mapping_ambiguous", 409)
         last = Fault("book_content_unavailable", 502)
         failure = None
+        deferred = None
         for cached_only in (False,) if refresh else (True, False):
             for origin in origins:
                 if (
@@ -517,7 +520,8 @@ class SourceSelection:
                             409,
                         )
                     text = await self.unit_content(
-                        donor, unit, pinned=snapshot, cached_only=cached_only, refresh=refresh
+                        donor, unit, pinned=snapshot, cached_only=cached_only, refresh=refresh,
+                        recovery=recovery,
                     )
                     provenance = {
                         k: origin[k] for k in ("book_id", "source_id", "source_name", "chapter_ids")
@@ -538,6 +542,11 @@ class SourceSelection:
                         )
                     return self.books.preview_result(saved, cached=cached_only)
                 except Fault as error:
+                    from ..recovery import DownloadDeferred
+                    if error.code == "media_download_original_unresolved":
+                        raise
+                    if isinstance(error, DownloadDeferred):
+                        deferred = error
                     last = error
                     if not cached_only:
                         failure = {**origin, "code": error.code}
@@ -550,7 +559,7 @@ class SourceSelection:
                         self.cooldowns[(book["book_id"], origin["source_id"])] = (
                             self.repo.clock() + 120
                         )
-        raise last
+        raise deferred or last
 
     @staticmethod
     def provenance(book, chapters):

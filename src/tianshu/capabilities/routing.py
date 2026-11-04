@@ -33,7 +33,7 @@ def execution_lane(capability_id: str) -> ExecutionLane:
         return ExecutionLane.VIDEO_SUBSCRIPTIONS
     if capability_id == "music.playlists.scan":
         return ExecutionLane.MUSIC_PLAYLISTS
-    if capability_id.startswith(("media.", "books.", "music.", "comics.", "content.")):
+    if capability_id.startswith(("media.", "books.", "music.", "comics.", "content.", "projects.")):
         return ExecutionLane.MEDIA
     if capability_id.startswith("infrastructure."):
         return ExecutionLane.INFRASTRUCTURE

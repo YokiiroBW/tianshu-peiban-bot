@@ -139,6 +139,8 @@ class Worker:
             await update(state="publishing", stage="publishing", code="publishing")
             operation = job.get("asset_operation")
             if operation is None:
+                from ..tracking import mark_submitted
+                await mark_submitted(identity)
                 operation = await self.media.publisher.prepare(
                     target, job["package"], identity + ":" + str(job.get("edition", 0))
                 )
@@ -149,6 +151,8 @@ class Worker:
                 target.get("kind") == "media_server" and operation["status"] == "publishing"
             ):
                 try:
+                    from ..tracking import mark_submitted
+                    await mark_submitted(identity)
                     operation = await self.media.publisher.publish(target, operation)
                 except Fault as error:
                     if error.code != "publication_unverified":
@@ -271,6 +275,7 @@ class Worker:
                     )
             raise
         except Fault as error:
+            from .recovery import DownloadDeferred
             current = await self.media.local(repo.job, identity)
             if current and current["generation"] == generation and not current["cancel_requested"]:
                 auth = error.code in {"auth_required", "account_unavailable", "account_changed"}
@@ -286,19 +291,22 @@ class Worker:
                     "download_timeout",
                     "download_failed",
                 }
-                attempts = job.get("attempts", 0) + 1
+                deferred = isinstance(error, DownloadDeferred)
+                attempts = job.get("attempts", 0) + (0 if deferred else 1)
                 state = (
-                    "auth_required"
+                    "unknown"
+                    if error.code == "media_download_original_unresolved"
+                    else "auth_required"
                     if auth
                     else "retry_wait"
-                    if retry and attempts <= 5
+                    if deferred or retry and attempts <= 5
                     else "failed"
                 )
                 await update(
                     state=state,
                     code=error.code,
                     attempts=attempts,
-                    retry_delay=min(1800, 30 * 2 ** min(attempts - 1, 6)),
+                    retry_delay=error.retry_after if deferred else min(1800, 30 * 2 ** min(attempts - 1, 6)),
                 )
                 if auth and current["account_id"]:
                     await self.media.local(

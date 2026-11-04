@@ -244,8 +244,6 @@ class ProjectCapability:
         )
 
     async def availability(self, context):
-        if context.actor_id is None:
-            return Availability(True, False, reason="project_actor_required")
         if self.operation == "registry/save" and not self.owner.settings.allowed_roots:
             return Availability(True, False, reason="project_managed_roots_not_configured")
         return Availability(True, True)

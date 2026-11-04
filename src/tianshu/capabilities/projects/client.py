@@ -9,7 +9,7 @@ from ..contracts import Fault, require
 
 
 class ProjectClient:
-    def __init__(self, base_url, session_file, *, actor_id, person_id=None, conversation_id=None):
+    def __init__(self, base_url, session_file, *, actor_id=None, person_id=None, conversation_id=None):
         parsed = urlsplit(base_url)
         require(
             parsed.scheme in {"http", "https"}

@@ -366,7 +366,8 @@ class Repository:
         key="media-acquire:"+job["job_id"]+":"+str(job.get("generation",0))+":"+str(job.get("revision",1))
         self.runtime.jobs.enqueue_sync(db,JobSpec("capabilities.media_job",key,
             {"job_id":job["job_id"],"generation":job.get("generation",0),"revision":job.get("revision",1)},
-            scheduled_at=due, execution_lane=self._job_execution_lane(job)))
+            scheduled_at=due, execution_lane=self._job_execution_lane(job),
+            data_generation=job["data_generation"]))
 
     def insert_job(self, payload, dedupe, db):
         row = db.execute('SELECT body FROM jobs WHERE dedupe=%s', (dedupe,)).fetchone()
@@ -379,8 +380,12 @@ class Repository:
             require(action is not None,"media_context_required",403)
             payload={**payload,"context":wire(action.context),"source_refs":wire(action.source_refs),"parent_action_id":action.action_id}
         now = self.clock()
+        from ..execution_context import current_generation
+        data_generation = current_generation() or self.runtime.jobs.current_generation_sync_on(db)
+        self.runtime.jobs.assert_generation_sync_on(db, data_generation)
         body = {
             **payload,
+            "data_generation": data_generation,
             "job_id": str(uuid.uuid4()),
             "state": "queued",
             "stage": "queued",
@@ -528,6 +533,7 @@ class Repository:
     def claim(self, owner, lease_seconds=30, *, kinds=None,job_id=None):
         now = self.clock()
         with self.transaction() as db:
+            data_generation = self.runtime.jobs.current_generation_sync_on(db)
             kind_clause = ""
             kind_values = ()
             if kinds is not None:
@@ -546,15 +552,16 @@ class Repository:
                 kind_clause+=" AND id=%s"
                 kind_values=(*kind_values,job_id)
             rows = db.execute(
-                "SELECT id,state,generation,body FROM jobs WHERE (state='queued' OR (state='retry_wait' AND lease<%s) OR (owner IS NOT NULL AND lease<%s)) AND state NOT IN ('completed','published','cancelled','failed','unknown','auth_required','waiting_metadata')"
+                "SELECT id,state,generation,body FROM jobs WHERE (body::jsonb->>'data_generation')=%s AND (state='queued' OR (state='retry_wait' AND lease<%s) OR (owner IS NOT NULL AND lease<%s)) AND state NOT IN ('completed','published','cancelled','failed','unknown','auth_required','waiting_metadata')"
                 + kind_clause
                 + " ORDER BY (owner IS NOT NULL AND lease<%s) DESC, CASE WHEN (body::jsonb #>> '{quality_review}')::boolean IS TRUE AND NOT coalesce((body::jsonb #>> '{quality_catchup}')::boolean,false) THEN 1 ELSE 0 END,created LIMIT 500",
-                (now, now, *kind_values, now),
+                (data_generation, now, now, *kind_values, now),
             ).fetchall()
             occupied = [
                 json.loads(value[0])
                 for value in db.execute(
-                    'SELECT body FROM jobs WHERE owner IS NOT NULL AND lease>=%s', (now,)
+                    "SELECT body FROM jobs WHERE (body::jsonb->>'data_generation')=%s AND owner IS NOT NULL AND lease>=%s",
+                    (data_generation, now)
                 )
             ]
             row = next(
@@ -572,6 +579,7 @@ class Repository:
             if row is None:
                 return None
             body = json.loads(row["body"])
+            self.runtime.jobs.assert_generation_sync_on(db, body["data_generation"])
             body["generation"] = row["generation"] + 1
             # A lost publication response is reconciled through its stable publisher key.
             body["state"] = "publishing" if body.get("package") else "downloading"
@@ -637,6 +645,7 @@ class Repository:
         elif generation is not None:
             require(row["generation"] == generation, "lease_conflict", 409)
         previous = json.loads(row["body"])
+        self.runtime.jobs.assert_generation_sync_on(db, previous.get("data_generation"))
         if owner is not None and changes.get("state") not in {"cancelled", "unknown"}:
             require(not previous["cancel_requested"], "job_cancelled", 409)
         body = {

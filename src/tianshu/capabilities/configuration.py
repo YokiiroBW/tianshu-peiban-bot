@@ -60,6 +60,20 @@ class Configuration:
             row = await cursor.fetchone()
         return row["body"] if row else None
 
+    async def availability_revisions(self):
+        """Local change tokens; no provider, credential or network access."""
+        kinds = ("speech_connection", "voice_profile", "dictionary", "image_engine",
+                 "image_profile", "image_workflow", "content_provider", "device_connection",
+                 "game_connection", "weather_connection", "asset_connection", "archive_connection")
+        async with self.database.transaction(read_only=True) as conn:
+            rows = await (await conn.execute(
+                "SELECT kind,id,revision FROM capabilities.configuration WHERE kind=ANY(%s) "
+                "ORDER BY kind,id", (list(kinds),))).fetchall()
+        revisions = {kind: [] for kind in kinds}
+        for row in rows:
+            revisions[row["kind"]].append((row["id"], row["revision"]))
+        return {kind: tuple(values) for kind, values in revisions.items()}
+
     async def save(
         self, kind, identifier, value, expected_revision, *, secret=None, connection=None
     ):

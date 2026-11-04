@@ -125,13 +125,18 @@ class WebPlugins:
                 body["instance_id"], operation == "enable", body["expected_revision"]
             )
         elif operation == "bindings":
-            require(self.authorize_actor is not None, "actor_authority_unavailable", 503)
             for binding in body["bindings"]:
                 scope = binding.get("scope", {})
-                require(scope.get("kind") == "character", "plugin_binding_scope_invalid", 400)
-                await self.authorize_actor(
-                    session, scope.get("character_id"), permission="config.publish"
-                )
+                if scope.get("kind") == "character":
+                    require(self.authorize_actor is not None, "actor_authority_unavailable", 503)
+                    await self.authorize_actor(
+                        session, scope.get("character_id"), permission="config.publish"
+                    )
+                elif scope.get("kind") == "workspace":
+                    require(session.actor_id is None and scope.get("workspace_id") in session.scope_ids,
+                            "plugin_binding_scope_invalid", 403)
+                else:
+                    raise Fault("plugin_binding_scope_invalid", 400)
             result = await host.bindings(
                 body["instance_id"], body["bindings"], body["expected_revision"]
             )
@@ -139,6 +144,7 @@ class WebPlugins:
             from tianshu.types import Action, OriginKind, ServiceClass
             from tianshu.runtime.serialization import wire
             from ..contracts import digest
+            from .actor_bridge import binding_visible
 
             await self.service.discover(session)
             instance = await host.instance(body["instance_id"])
@@ -147,7 +153,7 @@ class WebPlugins:
                     x
                     for x in instance["bindings"]
                     if x["enabled"]
-                    and x["scope"] == {"kind": "character", "character_id": session.actor_id}
+                    and binding_visible(session, x)
                     and (not body.get("binding_id") or x["binding_id"] == body["binding_id"])
                     and {"kind": "action", "id": body["action"]} in x.get("entries", [])
                 ),

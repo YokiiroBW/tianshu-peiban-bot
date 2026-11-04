@@ -15,7 +15,7 @@ from ..contracts import Fault, digest, canonical, require
 from ..external import request as resource_request, ProviderError, execution_service_class
 from ..tracking import TrackedBroker
 from ..serialization import context_from
-from ..execution_context import current_business_deadline
+from ..execution_context import current_business_deadline, current_generation
 from .protocol import host_url, location_view, current_view
 
 
@@ -374,6 +374,7 @@ class WeatherService:
             },
             raw=canonical(raw).encode(),
             mime_type="application/json",
+            generation=current_generation(),
         )
         result["source_refs"] = wire((source,))
         return Receipt(

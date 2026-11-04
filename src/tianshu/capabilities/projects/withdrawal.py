@@ -1,36 +1,27 @@
 """Same-source-transaction clearing of project derivatives at exact versions/ranges."""
 
-from tianshu.sources.dependencies import changes_for, intersects
-from ..contracts import canonical
-
-
-async def withdraw(owner, conn, source_refs, reason):
-    changes, _ = changes_for(source_refs)
-    versions = sorted(changes)
-    if not versions:
-        return
-    rows = await (
-        await conn.execute(
-            "SELECT owner_kind,owner_id,refs FROM capabilities.source_dependencies WHERE owner_kind=ANY(%s) AND (source_id,source_revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
-            (
-                [
-                    "project_document",
-                    "project_note",
-                    "project_lesson",
-                    "project_experience",
-                    "project_state",
-                    "project_continuation",
-                    "project_import",
-                ],
-                [value[0] for value in versions],
-                [value[1] for value in versions],
-            ),
-        )
-    ).fetchall()
-    selected = {}
-    for row in rows:
-        if intersects(row["refs"], changes, reason):
-            selected.setdefault(row["owner_kind"], set()).add(row["owner_id"])
+async def withdraw(owner, conn, source_refs, reason, *, selected=None):
+    if selected is None:
+        from ..withdrawal import selected_dependencies
+        selected = await selected_dependencies(conn, source_refs, reason)
+    selected = {kind: set(values) for kind, values in selected.items() if kind.startswith("project_")}
+    # Replaying one invalidation does not manufacture another project revision.
+    for kind, table, key, version_key in (
+        ("project_document", "document_versions", "document_id", "version"),
+        ("project_note", "note_versions", "note_id", "version"),
+        ("project_lesson", "lesson_versions", "lesson_id", "version"),
+        ("project_experience", "experience_versions", "experience_id", "revision"),
+        ("project_state", "declared_states", "project_id", "revision"),
+    ):
+        pairs = [item.rsplit(":", 1) for item in sorted(selected.get(kind, ()))]
+        if not pairs:
+            continue
+        rows = await (await conn.execute(
+            f"SELECT {key} AS identity,{version_key} AS version FROM capability_projects.{table} "
+            f"WHERE ({key},{version_key}) IN (SELECT * FROM unnest(%s::text[],%s::bigint[])) "
+            "AND state IS DISTINCT FROM 'source_revoked'",
+            ([item[0] for item in pairs], [int(item[1]) for item in pairs]))).fetchall()
+        selected[kind] = {str(row["identity"]) + ":" + str(row["version"]) for row in rows}
     project_ids = set()
     for kind, table, key in (
         ("document", "documents", "document_id"),

@@ -6,6 +6,18 @@ CURRENT_EXECUTION=ContextVar("capability_execution",default=None)
 CURRENT_CONTEXT=ContextVar("capability_trusted_context",default=None)
 
 
+def current_generation():
+    execution = CURRENT_EXECUTION.get()
+    if execution is not None:
+        generation = execution.get("data_generation")
+        if not generation:
+            from .contracts import Fault
+            raise Fault("action_generation_unavailable", 503)
+        return generation
+    from tianshu.runtime.jobs import current_execution_generation
+    return current_execution_generation()
+
+
 def current_business_deadline(context):
     """A nested read inherits only the current action's exact trusted scene."""
     action = CURRENT_ACTION.get()

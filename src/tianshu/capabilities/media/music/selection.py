@@ -1,8 +1,9 @@
 """Compare every entitled source and the existing file before choosing an archive."""
 
 from math import inf
+from contextlib import AsyncExitStack
 
-from ...contracts import Fault
+from ...contracts import Fault, digest
 from .audio import inspect_audio
 from .decoding import encrypted_format
 from .quality import LEVELS, LOSSLESS_CODECS, minimum_level, quality_rank, verify_quality
@@ -15,7 +16,7 @@ class Selection:
         self.downloads = downloads
         self.media = downloads.media
 
-    async def choose(self, job, update, existing=None, prepared=None):
+    async def choose(self, job, update, existing=None, prepared=None, *, owner=None):
         downloads, local = self.downloads, self.media.local
         report = {"policy": "highest_available", "providers": [], "candidates": []}
         failure, attempts = None, []
@@ -111,6 +112,20 @@ class Selection:
             ranked.append((priority, index, candidate, evidence))
             report["candidates"].append(evidence)
         ranked.sort(key=lambda row: row[0], reverse=True)
+        def material(candidate):
+            return digest([candidate["provider"], candidate["track"]["source_id"],
+                           candidate["offered"]["level"]])
+
+        # Freeze the original set of actual comparison candidates. A newly
+        # available source after failure continues the failed material's budget.
+        plan = job.get("audio_candidate_plan")
+        if plan is None and offers:
+            plan = sorted({material(candidate) for candidate in offers})
+            await update(audio_candidate_plan=plan)
+        planned = set(plan or ())
+        lineage_map = dict(job.get("audio_candidate_lineages") or {})
+        retry_material = job.get("audio_retry_material")
+        cached_candidates = dict(job.get("audio_candidate_packages") or {})
         await update(audio_routing=report)
         for priority, index, candidate, evidence in ranked:
             if best and priority <= quality_rank(best["quality"]):
@@ -118,6 +133,15 @@ class Selection:
                 continue
             try:
                 account = candidate["account"]
+                candidate_material = material(candidate)
+                if candidate_material not in planned and candidate_material not in lineage_map:
+                    if retry_material:
+                        lineage_map[candidate_material] = retry_material
+                        await update(audio_candidate_lineages=lineage_map)
+                    else:
+                        planned.add(candidate_material)
+                        await update(audio_candidate_plan=sorted(planned))
+                lineage_material = lineage_map.get(candidate_material, candidate_material)
                 await update(
                     acquisition_account_id=account["account_id"],
                     acquisition_account_revision=account["revision"],
@@ -126,9 +150,30 @@ class Selection:
                     stage="downloading",
                     code="downloading",
                 )
-                acquired = await downloads.acquire(
-                    {**job, "candidate_index": index}, candidate, update
-                )
+                acquired = cached_candidates.get(candidate_material)
+                if not await local(downloads.package_present, acquired):
+                    from ..recovery import physical_download
+                    async with AsyncExitStack() as stack:
+                        reserved = False
+
+                        async def before_request():
+                            nonlocal reserved
+                            if not reserved:
+                                await stack.enter_async_context(physical_download(
+                                    self.media, job, owner, family="music", material=lineage_material,
+                                    route="music:" + digest([candidate["provider"], account["account_id"]]),
+                                    request={"candidate": candidate_material, "quality": candidate["offered"]["level"]},
+                                ))
+                                reserved = True
+
+                        acquired = await downloads.acquire(
+                            {**job, "candidate_index": index}, candidate, update,
+                            before_request=before_request,
+                        )
+                        cached_candidates[candidate_material] = acquired
+                        # Preserve all proven candidates before settling their
+                        # physical success, including non-winning comparisons.
+                        await update(audio_candidate_packages=cached_candidates)
                 evidence["validated_quality"] = acquired["quality"]
                 if best is None or quality_rank(acquired["quality"]) > quality_rank(
                     best["quality"]
@@ -139,6 +184,12 @@ class Selection:
                 else:
                     evidence["decision"] = "existing_candidate_better"
             except Fault as error:
+                from ..recovery import DownloadDeferred
+                if isinstance(error, DownloadDeferred):
+                    deferred = Deferred(self.media.repo.clock() + error.retry_after, error.code)
+                    defer_channel(report, candidate["account"], deferred, "download")
+                    evidence.update(decision="deferred", code=error.code)
+                    continue
                 if isinstance(error, Deferred):
                     defer_channel(report, candidate["account"], error, "download")
                     evidence.update(decision="deferred", code=error.code)
@@ -146,6 +197,9 @@ class Selection:
                 if error.code in {"job_cancelled", "lease_conflict", "scope_changed"}:
                     raise
                 failure = error
+                if retry_material is None:
+                    retry_material = lineage_map.get(candidate_material, candidate_material)
+                    await update(audio_retry_material=retry_material)
                 current = await local(self.media.repo.job, job["job_id"])
                 attempts.append(
                     {

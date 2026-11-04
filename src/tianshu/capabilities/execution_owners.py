@@ -38,7 +38,7 @@ class ExecutionOwners:
                     "AND capabilities.execution_owners.stopped_at IS NULL RETURNING id",
                     (
                         self.id,
-                        "worker" if self.actions.worker else "interactive",
+                        self.actions.process_role or ("independent" if self.actions.worker else "interactive"),
                         self.LEASE_SECONDS,
                     ),
                 )
@@ -60,7 +60,8 @@ class ExecutionOwners:
                 await conn.execute(
                     "SELECT a.id FROM capabilities.actions a JOIN capabilities.execution_owners o ON o.id=a.execution_owner "
                     "WHERE a.id=%s AND a.attempt->>'attempt_id'=%s AND a.execution_owner=%s "
-                    "AND a.receipt->>'execution'='running' AND o.expires_at>now() AND o.stopped_at IS NULL",
+                    "AND a.receipt->>'execution'='running' AND o.expires_at>now() AND o.stopped_at IS NULL "
+                    "AND a.document::jsonb->>'data_generation'=(SELECT id FROM runtime.installation_generation WHERE singleton=true)",
                     (attempt.action_id, attempt.attempt_id, self.id),
                 )
             ).fetchone()

@@ -10,7 +10,7 @@ from tianshu.runtime.serialization import wire
 from ..catalog import Availability, CapabilityDefinition
 from ..contracts import Fault, require, canonical, loads, digest
 from ..external import request as resource_request, ProviderError, execution_service_class
-from ..execution_context import current_business_deadline
+from ..execution_context import current_business_deadline, current_generation
 from . import asset_queries as query
 
 
@@ -368,6 +368,7 @@ class Resources:
             },
             raw=canonical(result["body"]).encode(),
             mime_type="application/json",
+            generation=current_generation(),
         )
         found.update(
             source_refs=wire((source,)),

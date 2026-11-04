@@ -7,6 +7,7 @@ from uuid import uuid4
 from tianshu.runtime.jobs import JobSpec
 from tianshu.types import ServiceClass
 from ..contracts import canonical
+from ..execution_context import current_generation
 
 
 SCHEDULE = (
@@ -33,7 +34,8 @@ def maintenance_job(name, row, *, scheduled_at=None):
     generation = row["wake_generation"]
     return JobSpec("capabilities.media." + name, f"media-maintenance:{name}:{generation}",
         {"wake_generation": generation}, ServiceClass.ELASTIC,
-        scheduled_at=scheduled_at if scheduled_at is not None else row["next_due_at"])
+        scheduled_at=scheduled_at if scheduled_at is not None else row["next_due_at"],
+        data_generation=current_generation())
 
 
 def wake_sync(runtime, connection, name, due=None):
@@ -112,14 +114,18 @@ class Background:
                 await self.runtime.jobs.enqueue(connection, JobSpec(
                     "capabilities.media.work." + name, key,
                     {"wake_generation": row["wake_generation"]},
-                    ServiceClass.ELASTIC, scheduled_at=row["scheduled_at"]))
+                    ServiceClass.ELASTIC, scheduled_at=row["scheduled_at"],
+                    data_generation=current_generation()))
 
     async def run(self, name, wake_generation=None):
         if self.closed:
             return
         owner = str(uuid4())
         worker_owner = self.owner() if self.owner else None
+        generation = current_generation()
         async with self.runtime.database.transaction() as connection:
+            if generation is not None:
+                await self.runtime.jobs.assert_generation_on(connection, generation)
             row = await (await connection.execute(
                 "UPDATE capabilities.maintenance SET owner=%s,lease_until=now()+interval '60 seconds',"
                 "next_due_at=NULL,body=body||%s::jsonb WHERE name=%s AND lease_until<=now() "
@@ -138,13 +144,16 @@ class Background:
                 if busy:
                     await self.runtime.jobs.enqueue(connection, JobSpec("capabilities.media." + name,
                         f"media-maintenance-busy:{name}:{busy['wake_generation']}:{busy['lease_until'].isoformat()}",
-                        {"wake_generation": busy["wake_generation"]}, scheduled_at=busy["lease_until"] + timedelta(seconds=1)))
+                        {"wake_generation": busy["wake_generation"]}, scheduled_at=busy["lease_until"] + timedelta(seconds=1),
+                        data_generation=generation))
             return
 
         async def renew():
             while True:
                 await asyncio.sleep(15)
                 async with self.runtime.database.transaction() as connection:
+                    if generation is not None:
+                        await self.runtime.jobs.assert_generation_on(connection, generation)
                     await connection.execute("UPDATE capabilities.maintenance SET lease_until=now()+interval '60 seconds' "
                         "WHERE name=%s AND owner=%s", (name, owner))
 
@@ -182,6 +191,8 @@ class Background:
             # if close arrives while the following transaction is awaiting IO.
             reschedule = not self.closed
             async with self.runtime.database.transaction() as connection:
+                if generation is not None:
+                    await self.runtime.jobs.assert_generation_on(connection, generation)
                 # Finish and the next wake commit together while we still own
                 # this lease. A business change during the operation keeps its
                 # earlier due, and an expired owner cannot replace a newer one.

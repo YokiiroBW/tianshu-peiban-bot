@@ -44,4 +44,4 @@ async def process_job(service,job_id,generation,revision):
     if not row or row.get("generation",0)!=generation or row.get("revision",1)!=revision or row["state"] not in {"queued","retry_wait"}:return
     if not row.get("context"):raise Fault("media_context_required",503)
     context=context_from(row["context"]);key="media-acquire:"+digest([job_id,generation,revision])
-    await service.actions.invoke(Action(key,key,"media.acquire",context.actor_id,context,{"job_id":job_id},OriginKind.TIMER,source_refs=tuple(SourceRef(**x) for x in row.get("source_refs",[]))))
+    await service.actions.invoke(Action(key,key,"media.acquire",context.actor_id,context,{"job_id":job_id},OriginKind.TIMER,source_refs=tuple(SourceRef(**x) for x in row.get("source_refs",[]))),generation=row["data_generation"])

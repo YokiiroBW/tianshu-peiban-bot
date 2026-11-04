@@ -65,6 +65,9 @@ class Catalog:
         self.handlers = {}
         self.refresher = None
         self.configuration = None
+        self.on_change = None
+        from .catalog_observations import CatalogObservations
+        self.observations = CatalogObservations(self)
 
     def register(self, handler):
         definition = handler.definition
@@ -74,11 +77,11 @@ class Catalog:
         Draft202012Validator.check_schema(definition.output_schema)
         self.handlers[definition.id] = handler
 
-    async def discover(self, context):
-        if self.refresher is not None:
-            await self.refresher(context)
+    def visible_handlers(self, context):
         result = []
         for handler in tuple(self.handlers.values()):
+            if hasattr(handler, "visible") and not handler.visible(context):
+                continue
             if (
                 hasattr(handler, "visible_actor_id")
                 and handler.visible_actor_id != context.actor_id
@@ -87,6 +90,15 @@ class Catalog:
             definition = handler.definition
             if "*" not in context.permissions and not definition.permissions <= context.permissions:
                 continue
+            result.append(handler)
+        return result
+
+    async def discover(self, context):
+        if self.refresher is not None:
+            await self.refresher(context)
+        result = []
+        for handler in self.visible_handlers(context):
+            definition = handler.definition
             availability = await handler.availability(context)
             result.append(
                 {
@@ -100,6 +112,28 @@ class Catalog:
             if self.configuration is not None
             else result
         )
+
+    async def planning(self, context):
+        """Read declarations and fresh observations; refresh missing ones in the background."""
+        if self.refresher is not None:
+            await self.refresher(context)
+        revisions = {}
+        configuration = getattr(self.configuration, "configuration", None)
+        if configuration is not None:
+            revisions = await configuration.availability_revisions()
+        rows = self.observations.rows(context, self.visible_handlers(context), revisions)
+        if self.configuration is not None:
+            rows = await self.configuration.project(context, rows)
+        # Data-only manifests may declare an uninstalled adapter; that is known
+        # to be non-executable, not a successful availability observation.
+        for row in rows:
+            row.setdefault("freshness", "declaration")
+            row.setdefault("observed_at", None)
+            row.setdefault("expires_at", None)
+        return rows
+
+    async def close(self):
+        await self.observations.close()
 
     async def availability(self, context, handler):
         availability = await handler.availability(context)

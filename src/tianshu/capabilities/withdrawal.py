@@ -32,12 +32,38 @@ async def depend(connection, kind, identifier, refs):
     )
 
 
+_PROGRESS_FIELDS = frozenset({
+    "action_id", "attempt_id", "expression_id", "call_id", "message_id", "message_ids",
+    "api_name", "state", "status", "execution", "effect", "delivery", "dispatch",
+    "submitted", "provider_handle", "retcode", "error_code", "index", "part_index",
+    "segment_index", "started_at", "finished_at", "submitted_at", "sent_at", "updated_at",
+    "observed_at", "accepted_at", "confirmed_at", "delivered_at", "attempted_at",
+    "timestamp", "count", "total", "sent_count", "confirmed_count", "failed_count",
+    "unknown_count", "pending_count", "parts", "segments", "calls", "delivery_progress",
+})
+
+
+def _progress(value):
+    """Keep receipt identities and progress, never message bodies or attachments."""
+    if isinstance(value, dict):
+        return {key: _progress(item) for key, item in value.items() if key in _PROGRESS_FIELDS}
+    if isinstance(value, (tuple, list)):
+        return [_progress(item) for item in value]
+    if value is None or isinstance(value, (str, int, float, bool)):
+        return value
+    return None
+
+
 def redacted(receipt):
     retained = {
         key: receipt.result[key]
         for key in ("usage", "billing_source", "model", "provider_handle", "generated_at")
         if key in receipt.result
     }
+    for key in ("expression_id", "message_id", "message_ids", "calls", "parts", "segments",
+                "delivery_progress", "submitted", "dispatch"):
+        if key in receipt.result:
+            retained[key] = _progress(receipt.result[key])
     retained.update(
         source_revoked=True,
         source_refs=[],
@@ -48,13 +74,13 @@ def redacted(receipt):
     )
 
 
-async def withdraw(owner, connection, refs, reason="source_revoked"):
+async def selected_dependencies(connection, refs, reason):
     refs = tuple(refs)
     unique = sorted({(ref.source_id, ref.revision) for ref in refs})
     identifiers = [key[0] for key in unique]
     revisions = [key[1] for key in unique]
     if not identifiers:
-        return {"actions": 0, "artifacts": 0}
+        return {}
     from tianshu.sources.dependencies import changes_for, intersects
 
     changes, _ = changes_for(refs)
@@ -68,6 +94,72 @@ async def withdraw(owner, connection, refs, reason="source_revoked"):
     for dependency in dependencies:
         if intersects(dependency["refs"], changes, reason):
             selected.setdefault(dependency["owner_kind"], set()).add(dependency["owner_id"])
+    return selected
+
+
+async def dependency_actors(connection, selected):
+    """Resolve each derivative to its owner; orphan/shared caches use None."""
+    result = {(kind, identifier): None for kind, ids in selected.items() for identifier in ids}
+    direct = {
+        "action": "SELECT id AS identity,action->>'actor_id' AS actor_id FROM capabilities.actions WHERE id=ANY(%s)",
+        "artifact": "SELECT id AS identity,actor_id FROM capabilities.artifacts WHERE id=ANY(%s)",
+        "catalog_source": "SELECT id AS identity,body->>'actor_id' AS actor_id FROM capabilities.configuration WHERE kind='catalog_source' AND id=ANY(%s)",
+        "plugin_consumption": "SELECT id AS identity,context->>'actor_id' AS actor_id FROM capabilities.plugin_consumptions WHERE id=ANY(%s)",
+        "project_continuation": "SELECT pack_id AS identity,actor_id FROM capability_projects.continuations WHERE pack_id=ANY(%s)",
+        "project_import": "SELECT i.action_id AS identity,p.actor_id FROM capability_projects.imports i JOIN capability_projects.projects p USING(project_id) WHERE i.action_id=ANY(%s)",
+    }
+    for kind, query in direct.items():
+        identifiers = sorted(selected.get(kind, ()))
+        if not identifiers:
+            continue
+        rows = await (await connection.execute(query, (identifiers,))).fetchall()
+        for row in rows:
+            result[(kind, row["identity"])] = row["actor_id"]
+
+    versioned = {
+        "project_document": ("documents", "document_id"),
+        "project_note": ("notes", "note_id"),
+        "project_lesson": ("lessons", "lesson_id"),
+    }
+    for kind, (table, column) in versioned.items():
+        owners = selected.get(kind, ())
+        identifiers = sorted({item.rsplit(":", 1)[0] for item in owners})
+        if not identifiers:
+            continue
+        rows = await (await connection.execute(
+            f"SELECT e.{column} AS identity,p.actor_id FROM capability_projects.{table} e "
+            f"JOIN capability_projects.projects p USING(project_id) WHERE e.{column}=ANY(%s)",
+            (identifiers,))).fetchall()
+        by_id = {row["identity"]: row["actor_id"] for row in rows}
+        for item in owners:
+            result[(kind, item)] = by_id.get(item.rsplit(":", 1)[0])
+
+    for kind, table, column in (("project_state", "projects", "project_id"),
+                                ("project_experience", "experiences", "experience_id")):
+        owners = selected.get(kind, ())
+        identifiers = sorted({item.rsplit(":", 1)[0] for item in owners})
+        if not identifiers:
+            continue
+        rows = await (await connection.execute(
+            f"SELECT {column} AS identity,actor_id FROM capability_projects.{table} WHERE {column}=ANY(%s)",
+            (identifiers,))).fetchall()
+        by_id = {row["identity"]: row["actor_id"] for row in rows}
+        for item in owners:
+            result[(kind, item)] = by_id.get(item.rsplit(":", 1)[0])
+    return result
+
+
+async def actors_for_source(connection, refs, reason):
+    selected = await selected_dependencies(connection, refs, reason)
+    owners = await dependency_actors(connection, selected)
+    return tuple(sorted(set(owners.values()), key=lambda actor: (actor is not None, actor or "")))
+
+
+async def withdraw(owner, connection, refs, reason="source_revoked", *, selected=None):
+    if selected is None:
+        selected = await selected_dependencies(connection, refs, reason)
+    if not selected:
+        return {"actions": 0, "artifacts": 0}
     rows = await (
         await connection.execute(
             "SELECT id,media_id FROM capabilities.artifacts WHERE id=ANY(%s) ORDER BY id FOR UPDATE",
@@ -82,7 +174,7 @@ async def withdraw(owner, connection, refs, reason="source_revoked"):
     )
     await connection.execute(
         "UPDATE capabilities.configuration SET body=(body-'entries'-'source_refs')||jsonb_build_object('state','source_revoked','error_code',%s::text,'revision',revision+1),revision=revision+1 "
-        "WHERE kind='catalog_source' AND id=ANY(%s)",
+        "WHERE kind='catalog_source' AND id=ANY(%s) AND body->>'state' IS DISTINCT FROM 'source_revoked'",
         (reason, sorted(selected.get("catalog_source", ()))),
     )
     await connection.execute(
@@ -96,7 +188,11 @@ async def withdraw(owner, connection, refs, reason="source_revoked"):
             (sorted(selected.get("action", ())),),
         )
     ).fetchall()
+    processed = 0
     for row in actions:
+        if json.loads(row["document"]).get("source_revoked"):
+            continue
+        processed += 1
         receipt = redacted(receipt_from(row["receipt"]))
         if receipt.execution == "pending":
             receipt = replace(receipt, execution="cancelled", effect="none")
@@ -142,4 +238,4 @@ async def withdraw(owner, connection, refs, reason="source_revoked"):
         "DELETE FROM capabilities.plugin_consumptions WHERE id=ANY(%s)",
         (sorted(selected.get("plugin_consumption", ())),),
     )
-    return {"actions": len(actions), "artifacts": len(rows)}
+    return {"actions": processed, "artifacts": len(rows)}

@@ -1,8 +1,9 @@
 """One capabilities composition: model tools, schedules and explicit commands share Actions."""
 
 import asyncio
+import logging
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
 import time
 from uuid import uuid4
@@ -24,6 +25,7 @@ from .devices.service import Devices
 from .games.service import Games
 from .operations import MATURE_OPERATIONS, READ_OPERATIONS, CLIENT_ID_OPERATIONS
 
+logger = logging.getLogger(__name__)
 
 class Operation:
     """An explicit command binding to a real domain use case, never a CRUD success stub."""
@@ -89,6 +91,8 @@ class Operation:
         # Configuration operations are executable even while a provider lacks an account.
         if not self.owner.prepared:
             return Availability(True, False, reason="capabilities_starting")
+        if self.domain == "plugins" and self.owner.plugins is None:
+            return Availability(True, False, reason=getattr(self.owner, "plugin_error", None) or "plugin_unavailable")
         if self.domain == "content" and self.operation == "discover":
             return await self.owner.content.discovery_availability(context)
         if (
@@ -96,11 +100,11 @@ class Operation:
             and self.owner.media.config is None
             and not (self.domain == "media" and self.operation.startswith("jobs/"))
         ):
-            return Availability(True, False, reason="media_not_configured")
+            return Availability(True, False, reason=getattr(self.owner.media, "config_error", None) or "media_not_configured")
         if self.domain == "infrastructure" and self.operation not in {"save", "catalog/refresh"}:
-            ready = self.owner.infrastructure.config is not None
+            ready = self.owner.infrastructure is not None and self.owner.infrastructure.config is not None
             return Availability(
-                True, ready, reason=None if ready else "infrastructure_not_configured"
+                True, ready, reason=None if ready else getattr(self.owner, "infrastructure_error", None) or "infrastructure_not_configured"
             )
         return Availability(True, True)
 
@@ -126,7 +130,7 @@ class Operation:
     async def reconcile(self, action, attempt):
         # A completed configuration command replays from Actions. Lost external operations
         # require their actual provider/business handle, never a repeated command.
-        if self.domain == "infrastructure" and self.operation.startswith("control/"):
+        if self.domain == "infrastructure" and self.owner.infrastructure is not None and self.operation.startswith("control/"):
             value = await self.owner.infrastructure.control.local(
                 self.owner.infrastructure.control.lookup, client_id=action.intent_key
             )
@@ -179,9 +183,8 @@ class Capabilities:
             life,
             expression,
         )
-        self.worker = runtime.role == "worker"
-        if worker is True and not self.worker:
-            raise Fault("plugin_worker_role_required", 503)
+        # Only the independent process owns media, plugins and infrastructure.
+        self.worker = runtime.role == "independent" and worker is not False
         self.authorize_actor, self.actor_directory = authorize_actor, actor_directory
         state = Path(settings.get("state_directory", runtime.files.root.parent / "capabilities"))
         if not state.is_absolute():
@@ -198,6 +201,7 @@ class Capabilities:
         )
         self.actions.argument_resolver = self.configuration.command
         self.actions.worker = self.worker
+        self.actions.process_role = runtime.role
         self.actions.sources = sources
         self.models = TrackedBroker(runtime.models)
         self.artifacts = artifacts or Artifacts(runtime.database, runtime.files, authority, sources)
@@ -257,7 +261,11 @@ class Capabilities:
         )
         self.prepared = False
         self.initialized = False
+        self.lifecycle = {}
         self.media = self.plugins = self.content = self.infrastructure = None
+        self.plugin_host = self.web_plugins = self.web_infrastructure = None
+        self.plugin_error = self.infrastructure_error = None
+        self.recovery_policy = None
         for handler in (self.speech, self.images, self.perception, self.devices, self.games):
             identifier = handler.definition.id
             handler.definition = replace(
@@ -285,11 +293,38 @@ class Capabilities:
         await self.actions.start()
         self.initialized = True
         if self.worker:
-            await self.media.start()
-            await self.media.background.activate()
-            self.plugin_host.worker_enabled = True
-            await self.plugin_host.start()
-            await self.infrastructure.start()
+            # A failed optional engine or plugin cannot prevent unrelated
+            # subscriptions from reaching their own durable queues.
+            await self._start_component("media", self.media.start)
+            if self.lifecycle["media"]["state"] == "ready" and self.media.config is None:
+                self.lifecycle["media"] = {"state": "failed" if self.media.config_error else "unconfigured",
+                                           "code": self.media.config_error or "media_not_configured"}
+            await self._start_component("media_schedules", self.media.background.activate)
+            if getattr(self.actions, "statistics", None) is not None:
+                await self._start_component("media_statistics", self._start_media_statistics)
+            if self.plugin_host is None:
+                self.lifecycle["plugins"] = {"state": "failed", "code": self.plugin_error}
+            else:
+                self.plugin_host.worker_enabled = True
+                await self._start_component("plugins", self.plugin_host.start)
+                if self.lifecycle["plugins"]["state"] == "ready" and self.plugin_host.owner_busy:
+                    self.lifecycle["plugins"] = {"state": "degraded", "code": "plugin_host_busy"}
+            if self.infrastructure is None:
+                self.lifecycle["infrastructure"] = {"state": "failed", "code": self.infrastructure_error}
+            else:
+                await self._start_component("infrastructure", self.infrastructure.start)
+                if self.lifecycle["infrastructure"]["state"] == "ready" and self.infrastructure.config is None:
+                    self.lifecycle["infrastructure"] = {"state": "unconfigured", "code": "infrastructure_not_configured"}
+
+    async def _start_component(self, name, start):
+        try:
+            await start()
+        except Exception as error:
+            code = getattr(error, "code", type(error).__name__)
+            self.lifecycle[name] = {"state": "failed", "code": code}
+            logger.warning("capability component %s failed to start: %s", name, code)
+        else:
+            self.lifecycle[name] = {"state": "ready", "code": None}
 
     def _owners(self):
         from .media.runtime import Media
@@ -321,33 +356,56 @@ class Capabilities:
                 self.settings.get("content", {}).get("browser", {}),
             ),
         )
-        self.plugin_host = PluginManager(
-            settings,
-            runtime=self.runtime,
-            local=self.local,
-            content_discovery=self.content.discovery,
-            comic_files=ComicFileWorkers.from_settings(settings),
-        )
         self.projects.bind_content(self.content)
-        self.plugins = Plugins(
-            self.plugin_host,
-            self.catalog,
-            self.authority,
-            self.models,
-            self.artifacts,
-            self.sources,
-            self.expression,
-            self.runtime.jobs,
-            self.runtime.database,
-        )
-        self.plugins.actions = self.actions
-        self.plugins.configuration = self.configuration
-        self.web_plugins = WebPlugins(self.plugins, self.authorize_actor, self.actor_directory)
+        plugin_settings = settings
+        try:
+            comic_workers = ComicFileWorkers.from_settings(settings)
+        except (Fault, ValueError, KeyError, TypeError, AttributeError) as error:
+            # A broken optional comic-file adapter does not disable unrelated
+            # plugins. Keep the authored configuration intact for repair.
+            self.media.comic_files_error = getattr(error, "code", "comic_files_configuration_invalid")
+            comic_workers = None
+            plugin_config = settings.get("plugins", {})
+            if isinstance(plugin_config, dict):
+                plugin_settings = {**settings, "plugins": {
+                    key: value for key, value in plugin_config.items() if key != "comic_files"
+                }}
+            logger.warning("comic file adapter unavailable: %s", self.media.comic_files_error)
+        try:
+            self.plugin_host = PluginManager(
+                plugin_settings,
+                runtime=self.runtime,
+                local=self.local,
+                content_discovery=self.content.discovery,
+                comic_files=comic_workers,
+            )
+        except (Fault, ValueError, KeyError, TypeError, AttributeError, OSError) as error:
+            self.plugin_error = "plugin_configuration_invalid"
+            logger.warning("plugin owner unavailable: %s", type(error).__name__)
+        if self.plugin_host is not None:
+            self.plugins = Plugins(
+                self.plugin_host,
+                self.catalog,
+                self.authority,
+                self.models,
+                self.artifacts,
+                self.sources,
+                self.expression,
+                self.runtime.jobs,
+                self.runtime.database,
+            )
+            self.plugins.actions = self.actions
+            self.plugins.configuration = self.configuration
+            self.web_plugins = WebPlugins(self.plugins, self.authorize_actor, self.actor_directory)
+            self.catalog.refresher = self.plugins.refresh
         self.web_media = WebMedia(self.media, self.authority, CommandStore(self.runtime.database))
         self.reading.bind(self.media.books.reading)
-        self.catalog.refresher = self.plugins.refresh
-        self.infrastructure = Infrastructure(settings, local=self.local, runtime=self.runtime)
-        self.web_infrastructure = WebInfrastructure(self.infrastructure, self.authority, self.local)
+        try:
+            self.infrastructure = Infrastructure(settings, local=self.local, runtime=self.runtime)
+            self.web_infrastructure = WebInfrastructure(self.infrastructure, self.authority, self.local)
+        except (Fault, ValueError, KeyError, TypeError, AttributeError, OSError) as error:
+            self.infrastructure_error = "infrastructure_configuration_invalid"
+            logger.warning("infrastructure owner unavailable: %s", type(error).__name__)
 
     async def local(self, operation, *args, **kwargs):
         from .storage import DomainStore, run_repository
@@ -384,20 +442,42 @@ class Capabilities:
             return await self.media.repo.job_execution_lane_on(connection, payload["job_id"])
 
         async def plugin_event(**payload):
+            if self.plugins is None:
+                raise Fault(self.plugin_error or "plugin_unavailable", 503)
             await process_event(self.plugins, **payload)
 
         self.runtime.jobs.register("capabilities.media_job", media_job, lane_resolver=media_job_lane)
         self.runtime.jobs.register("capabilities.plugin_event", plugin_event)
 
         async def plugin_schedule(**payload):
+            if self.plugin_host is None:
+                raise Fault(self.plugin_error or "plugin_unavailable", 503)
             await self.plugin_host.scheduler.execute(**payload)
 
-        self.runtime.jobs.register("capabilities.plugin_schedule", plugin_schedule)
+        self.runtime.jobs.register("capabilities.plugin_schedule", plugin_schedule, retryable=True)
 
         async def infrastructure(**payload):
+            if self.infrastructure is None:
+                raise Fault(self.infrastructure_error or "infrastructure_unavailable", 503)
             await infrastructure_job(self, **payload)
 
         self.runtime.jobs.register("capabilities.infrastructure_job", infrastructure)
+
+        async def statistics_backfill(cursor=None):
+            from tianshu.runtime.jobs import JobSpec
+            from .execution_context import current_generation
+            result = await self.backfill_statistics(cursor=cursor)
+            if result["next_cursor"] is not None or result["complete"] is False:
+                due = None if result["next_cursor"] is not None else datetime.now(UTC) + timedelta(minutes=5)
+                async with self.runtime.database.transaction() as connection:
+                    await self.runtime.jobs.enqueue(connection, JobSpec(
+                        "capabilities.media.statistics_backfill", "media-statistics:" + str(uuid4()),
+                        {"cursor": result["next_cursor"]}, scheduled_at=due,
+                        data_generation=current_generation()))
+
+        from tianshu.runtime.execution import ExecutionLane
+        self.runtime.jobs.register("capabilities.media.statistics_backfill", statistics_backfill,
+                                   retryable=True, execution_lane=ExecutionLane.MAINTENANCE)
         # Register the full durable task set before process readiness/opening queues.
         for name in (
             "book_audio",
@@ -422,6 +502,8 @@ class Capabilities:
                     if _name == "infrastructure_observe"
                     else self.media.background
                 )
+                if owner is None and _name == "infrastructure_observe" and self.infrastructure is None:
+                    raise Fault(self.infrastructure_error or "infrastructure_unavailable", 503)
                 if owner is not None and _name in owner.operations:
                     await owner.dispatch(_name, wake_generation=wake_generation)
 
@@ -431,6 +513,8 @@ class Capabilities:
                     if _name == "infrastructure_observe"
                     else self.media.background
                 )
+                if owner is None and _name == "infrastructure_observe" and self.infrastructure is None:
+                    raise Fault(self.infrastructure_error or "infrastructure_unavailable", 503)
                 if owner is not None and _name in owner.operations:
                     await owner.run(_name, wake_generation=wake_generation)
 
@@ -485,6 +569,7 @@ class Capabilities:
             for op in operations:
                 if (
                     op in READ_OPERATIONS.get(domain, set())
+                    and not (domain == "plugins" and op == "schedules")
                     or domain == "plugins"
                     and op in {"invoke", "cancel", "reconcile", "resume"}
                 ):
@@ -542,6 +627,8 @@ class Capabilities:
 
     async def prepare_handler(self, action):
         if action.capability_id.startswith("plugin:"):
+            if self.plugins is None:
+                raise Fault(self.plugin_error or "plugin_unavailable", 503)
             await self.plugins.refresh(action.context)
 
     async def discover(self, context):
@@ -601,6 +688,8 @@ class Capabilities:
             if operation == "connections.save":
                 return await self.weather.save(context, clean)
         if domain == "plugins":
+            if self.web_plugins is None:
+                raise Fault(self.plugin_error or "plugin_unavailable", 503)
             if operation not in {"configure", "enable", "disable", "bindings", "upgrade"}:
                 clean.pop("expected_revision", None)
             if operation in {"install", "create", "invoke", "resume"}:
@@ -612,6 +701,8 @@ class Capabilities:
                 "/api/v1/media/" + operation if domain == "media" else operation, clean, context
             )
         if domain == "infrastructure":
+            if self.web_infrastructure is None:
+                raise Fault(self.infrastructure_error or "infrastructure_unavailable", 503)
             if operation in {"save", "control/plan", "control/action", "control/execute"}:
                 clean["client_id"] = client_id
             return await self.web_infrastructure.route(
@@ -825,6 +916,23 @@ class Capabilities:
     def bind_result_events(self, events):
         self.actions.events = events
 
+    def bind_statistics(self, statistics):
+        self.actions.statistics = statistics
+
+    def bind_recovery_policy(self, policy):
+        self.recovery_policy = policy
+
+    async def _start_media_statistics(self):
+        from tianshu.runtime.jobs import JobSpec
+        async with self.runtime.database.transaction() as connection:
+            await self.runtime.jobs.enqueue(connection, JobSpec(
+                "capabilities.media.statistics_backfill", "media-statistics:" + str(uuid4()),
+                {"cursor": None}))
+
+    async def backfill_statistics(self, *, cursor=None, limit=256):
+        from .media.statistics import backfill
+        return await backfill(self.runtime.database, self.actions.statistics, cursor=cursor, limit=limit)
+
     async def withdraw_sources(self, connection, source_refs, reason="source_revoked"):
         from .withdrawal import withdraw
 
@@ -832,9 +940,28 @@ class Capabilities:
         await self.projects.withdraw(connection, source_refs, reason)
         return value
 
+    async def actors_for_source(self, connection, source_refs, kind):
+        from .withdrawal import actors_for_source
+        return await actors_for_source(connection, source_refs, kind)
+
+    async def invalidate_actor(self, connection, source_refs, kind, *, actor_id):
+        from .withdrawal import selected_dependencies, dependency_actors, withdraw
+
+        selected = await selected_dependencies(connection, source_refs, kind)
+        owners = await dependency_actors(connection, selected)
+        scoped = {name: {identifier for identifier in identifiers
+                         if owners[(name, identifier)] == actor_id}
+                  for name, identifiers in selected.items()}
+        scoped = {name: identifiers for name, identifiers in scoped.items() if identifiers}
+        value = await withdraw(self, connection, source_refs, kind, selected=scoped)
+        await self.projects.withdraw(connection, source_refs, kind, selected=scoped)
+        return value
+
     async def close(self):
         # Cleanup also covers a prepared composition or partially failed initialize.
         try:
+            if getattr(self, "catalog", None) is not None:
+                await self.catalog.close()
             await self.actions.close()
             if getattr(self, "plugin_host", None) is not None:
                 await self.plugin_host.close()

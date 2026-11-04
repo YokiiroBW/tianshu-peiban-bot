@@ -6,6 +6,7 @@ from tianshu.sources.dependencies import unique_refs
 from tianshu.types import SourceRef
 from tianshu.conversation.types import InputPart
 from ..contracts import canonical, require
+from ..execution_context import current_generation
 from .primitives import text, integer, strings, refs
 
 
@@ -64,6 +65,9 @@ class Experiences:
         expected = integer(body.get("expected_revision", 0), 0)
         payload = {key: value for key, value in entry.items() if key != "evidence"}
         async with self.store.database.transaction() as conn:
+            if current_generation() is not None:
+                from tianshu.runtime.jobs import JobQueue
+                await JobQueue.assert_generation_on(conn, current_generation())
             # Sources takes its full support locks and registers disclosure first.
             disclosure = await self.store.sources.disclose(
                 action.context,
@@ -97,7 +101,8 @@ class Experiences:
                 }
             require((old["revision"] if old else 0) == expected, "revision_conflict", 409)
             require(
-                not old or old["owner_id"] == action.context.principal_id,
+                not old or (old["owner_id"] == action.context.principal_id
+                            and old["actor_id"] == action.context.actor_id),
                 "experience_owner_required",
                 403,
             )
@@ -146,8 +151,8 @@ class Experiences:
         async with self.store.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
-                    "SELECT * FROM capability_projects.experiences WHERE actor_id=%s AND state='active' AND (%s::text IS NULL OR experience_id>%s) ORDER BY experience_id LIMIT %s",
-                    (context.actor_id, after, after, limit + 1),
+                    "SELECT * FROM capability_projects.experiences WHERE actor_id IS NOT DISTINCT FROM %s AND (actor_id IS NOT NULL OR owner_id=%s) AND state='active' AND (%s::text IS NULL OR experience_id>%s) ORDER BY experience_id LIMIT %s",
+                    (context.actor_id, context.principal_id, after, after, limit + 1),
                 )
             ).fetchall()
         items = []
@@ -184,7 +189,7 @@ class Experiences:
         async with self.store.database.transaction(read_only=True) as conn:
             old = await (
                 await conn.execute(
-                    "SELECT * FROM capability_projects.experiences WHERE experience_id=%s AND owner_id=%s AND actor_id=%s",
+                    "SELECT * FROM capability_projects.experiences WHERE experience_id=%s AND owner_id=%s AND actor_id IS NOT DISTINCT FROM %s",
                     (body["experience_id"], action.context.principal_id, action.context.actor_id),
                 )
             ).fetchone()

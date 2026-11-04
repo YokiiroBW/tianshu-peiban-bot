@@ -10,6 +10,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import Coverage, MediaRef, SourceRef
 from ..contracts import Fault, canonical, digest, require
+from ..execution_context import current_generation
 from .file_sources import read_file
 from .primitives import text, integer, refs
 from .semantic_units import blocks
@@ -110,6 +111,7 @@ class Documents:
                 },
                 raw=raw,
                 mime_type=mime,
+                generation=current_generation(),
             )
         elif kind == "url":
             require(locator in project["allowed_urls"], "project_url_not_registered", 403)
@@ -127,6 +129,7 @@ class Documents:
                 },
                 raw=raw,
                 mime_type=mime,
+                generation=current_generation(),
             )
         else:
             require(kind == "source", "invalid_document_kind", 400)
@@ -152,6 +155,7 @@ class Documents:
                     },
                     raw=prepared["text"].encode(),
                     mime_type="text/plain",
+                    generation=current_generation(),
                 )
         else:
             text_ref = None

@@ -7,6 +7,7 @@ from tianshu.runtime.api import Page
 from tianshu.types import Coverage
 from ..contracts import Fault, canonical, require
 from ..withdrawal import depend
+from ..execution_context import current_generation
 from .primitives import refs
 
 
@@ -19,12 +20,11 @@ class ProjectStore:
 
     async def project(self, context, project_id, *, include_disabled=False):
         await self.authority.check(context)
-        require(context.actor_id is not None, "project_actor_required", 400)
         async with self.database.transaction(read_only=True) as conn:
             row = await (
                 await conn.execute(
-                    "SELECT * FROM capability_projects.projects WHERE project_id=%s AND actor_id=%s AND scope_ids<@%s AND (enabled OR %s)",
-                    (project_id, context.actor_id, list(context.scope_ids), include_disabled),
+                    "SELECT * FROM capability_projects.projects WHERE project_id=%s AND actor_id IS NOT DISTINCT FROM %s AND (actor_id IS NOT NULL OR owner_id=%s) AND scope_ids<@%s AND (enabled OR %s)",
+                    (project_id, context.actor_id, context.principal_id, list(context.scope_ids), include_disabled),
                 )
             ).fetchone()
         require(row is not None, "project_unavailable", 404)
@@ -34,6 +34,9 @@ class ProjectStore:
         await self.authority.check(context, refs(source_refs))
 
     async def writable(self, conn, context, source_refs):
+        if current_generation() is not None:
+            from tianshu.runtime.jobs import JobQueue
+            await JobQueue.assert_generation_on(conn, current_generation())
         selected = refs(source_refs)
         if not await self.sources.validate_persistence(conn, context, selected):
             raise Fault("source_unavailable", 410)
@@ -42,8 +45,8 @@ class ProjectStore:
     async def lock_project(self, conn, context, project):
         row = await (
             await conn.execute(
-                "SELECT * FROM capability_projects.projects WHERE project_id=%s AND actor_id=%s AND scope_ids<@%s AND enabled FOR UPDATE",
-                (project["project_id"], context.actor_id, list(context.scope_ids)),
+                "SELECT * FROM capability_projects.projects WHERE project_id=%s AND actor_id IS NOT DISTINCT FROM %s AND (actor_id IS NOT NULL OR owner_id=%s) AND scope_ids<@%s AND enabled FOR UPDATE",
+                (project["project_id"], context.actor_id, context.principal_id, list(context.scope_ids)),
             )
         ).fetchone()
         require(row is not None, "project_unavailable", 404)

@@ -1,6 +1,7 @@
 """Native plugins use the same executable definitions, action IDs and authority as builtins."""
 
 import asyncio
+import json
 from dataclasses import replace
 from uuid import uuid4
 from tianshu.types import Receipt
@@ -9,7 +10,7 @@ from ..catalog import CapabilityDefinition, Availability
 from ..contracts import Fault, canonical, digest
 from ..execution_context import CURRENT_ACTION
 from ..external import execution_service_class
-from .actor_bridge import PluginActorBridge
+from .actor_bridge import PluginActorBridge, binding_visible
 
 
 class Authorization:
@@ -25,7 +26,7 @@ class Authorization:
     async def __call__(self):
         await self.authority.check(self.context, self.sources)
         resolved = await self.bridge.host.local(
-            self.bridge.resolve, self.context.actor_id, self.binding
+            self.bridge.resolve, self.context, self.binding
         )
         await self.bridge.host.local(self.bridge.ready, *resolved)
         return True
@@ -34,7 +35,7 @@ class Authorization:
         if instance != self.binding["instance_id"] or binding != self.binding["binding_id"]:
             raise Fault("forbidden", 403)
         resolved = await self.bridge.host.local(
-            self.bridge.resolve, self.context.actor_id, {**self.binding, "action_id": action}
+            self.bridge.resolve, self.context, {**self.binding, "action_id": action}
         )
         await self.bridge.host.local(self.bridge.ready, *resolved)
         return True
@@ -43,13 +44,16 @@ class Authorization:
 class PluginHandler:
     requires_worker = True
 
-    def __init__(self, service, definition, binding):
-        self.service, self.definition, self.binding = service, definition, binding
+    def __init__(self, service, definition, binding, scope):
+        self.service, self.definition, self.binding, self.scope = service, definition, binding, scope
+
+    def visible(self, context):
+        return binding_visible(context, {"scope": self.scope})
 
     async def availability(self, context):
         try:
             resolved = await self.service.host.local(
-                self.service.bridge.resolve, context.actor_id, self.binding
+                self.service.bridge.resolve, context, self.binding
             )
             await self.service.host.local(self.service.bridge.ready, *resolved)
             if "http.client" in {
@@ -192,7 +196,7 @@ class Plugins:
 
     async def refresh(self, context):
         await self.authority.check(context)
-        rows = await self.bridge.discover(context.actor_id)
+        rows = await self.bridge.discover(context)
         visible = set()
         for row in rows:
             binding = row["binding"]
@@ -218,14 +222,16 @@ class Plugins:
                 long_running=row["long_running"],
             )
             # Instance revisions replace the same definition; no duplicate parallel handler is installed.
-            handler = PluginHandler(self, definition, binding)
-            handler.visible_actor_id = context.actor_id
-            self.catalog.handlers[identifier] = handler
+            handler = self.catalog.handlers.get(identifier)
+            if not (isinstance(handler, PluginHandler) and handler.definition == definition
+                    and handler.binding == binding and handler.scope == row["scope"]):
+                handler = PluginHandler(self, definition, binding, row["scope"])
+                self.catalog.handlers[identifier] = handler
             visible.add(identifier)
         for identifier, handler in tuple(self.catalog.handlers.items()):
             if (
                 isinstance(handler, PluginHandler)
-                and getattr(handler, "visible_actor_id", None) == context.actor_id
+                and handler.visible(context)
                 and identifier not in visible
             ):
                 del self.catalog.handlers[identifier]
@@ -244,10 +250,7 @@ class Plugins:
         for instance in await self.host.local(self.host.repository.list, "instances"):
             package = await self.host.package(instance["package_id"], instance["version"])
             for binding in instance["bindings"]:
-                if not binding["enabled"] or binding["scope"] != {
-                    "kind": "character",
-                    "character_id": context.actor_id,
-                }:
+                if not binding["enabled"] or not binding_visible(context, binding):
                     continue
                 allowed = {
                     item["id"] for item in binding.get("entries", []) if item["kind"] == "action"
@@ -286,14 +289,20 @@ class Plugins:
         call = port_context.get("call")
         if not call:
             raise Fault("invocation_context_required", 403)
-        action, attempt, _ = await self.actions._load(call)
+        action, attempt, _ = await self.actions.load_for_execution(call)
         await self.authority.check(action.context, action.source_refs)
+        generation = await self.actions.saved_generation(action, attempt)
+        behavior_refs, behavior_purpose = await self.actions.saved_behaviors(action, attempt)
+        await self.actions.check_behaviors(action.context, behavior_refs, purpose=behavior_purpose)
         action_token = CURRENT_ACTION.set(action)
         tracker = CURRENT_EXECUTION.set(
             {
                 "owner": self.actions,
                 "attempt": attempt,
                 "submitted": False,
+                "data_generation": generation,
+                "behavior_refs": behavior_refs,
+                "behavior_purpose": behavior_purpose,
                 "service_class": await self.actions.execution_class(call),
             }
         )
@@ -377,6 +386,13 @@ class Plugins:
                     action.origin_kind,
                     artifacts=artifacts,
                 )
+                await self.actions.check_behaviors(action.context, behavior_refs, purpose=behavior_purpose)
+                if behavior_refs:
+                    # The delivery owner must persist/recheck dependencies at
+                    # the eventual send, even if the plugin callback has ended.
+                    if "behavior_refs" not in ExpressionPlan.__dataclass_fields__:
+                        raise Fault("behavior_expression_port_unavailable", 503)
+                    plan = replace(plan, behavior_refs=behavior_refs)
                 response = await self.expression.send(action.context, plan)
                 document = await self.host.local(self.host.repository.call, call)
                 await self.host.local(
@@ -415,6 +431,8 @@ class Plugins:
                         matter_id=action.matter_id,
                     ),
                     background=True,
+                    behavior_refs=behavior_refs,
+                    behavior_purpose=behavior_purpose,
                 )
                 return {"invocation_id": receipt.action_id}
             raise Fault("capability_unavailable", 409)
@@ -436,9 +454,13 @@ class PluginEventHandler:
 
     async def availability(self, context):
         current = await self.service.host.instance(self.instance["id"])
+        binding = next((item for item in current["bindings"]
+                        if item["binding_id"] == self.binding["binding_id"]), None)
         enabled = (
             current["desired_state"] == "enabled"
             and current["revision"] == self.instance["revision"]
+            and binding is not None and binding["enabled"] and binding_visible(context, binding)
+            and {"kind": "event", "id": self.event["id"]} in binding.get("entries", [])
         )
         return Availability(True, enabled, reason=None if enabled else "plugin_binding_changed")
 
@@ -449,6 +471,7 @@ class PluginEventHandler:
         if (
             current["revision"] != self.instance["revision"]
             or current["desired_state"] != "enabled"
+            or not (await self.availability(action.context)).can_execute
         ):
             raise Fault("plugin_binding_changed", 409)
         token = CURRENT_ACTION.set(action)
@@ -469,12 +492,23 @@ class PluginEventHandler:
                 "snapshot": current,
             }
             async with self.service.database.transaction() as connection:
+                row = await (await connection.execute(
+                    "SELECT document,attempt FROM capabilities.actions WHERE id=%s FOR UPDATE",
+                    (action.action_id,))).fetchone()
+                if row is None or row["attempt"]["attempt_id"] != attempt.attempt_id:
+                    raise Fault("attempt_changed", 409)
+                previous = json.loads(row["document"])
+                if previous.get("source_revoked") or previous.get("cancel_requested"):
+                    raise Fault("source_revoked", 410)
                 await connection.execute(
                     "UPDATE capabilities.actions SET document=%s,instance_id=%s WHERE id=%s",
-                    (canonical(document), current["id"], action.action_id),
+                    (canonical({**previous, **document}), current["id"], action.action_id),
                 )
             process = await host.worker(current)
             envelope = await host.executions.context(current, action.action_id)
+            await self.service.authority.check(action.context, action.source_refs)
+            from ..tracking import mark_submitted
+            await mark_submitted(action.action_id)
             result = await process.call(
                 "plugin.event",
                 {
@@ -519,17 +553,17 @@ async def consume_event(service, connection, event, context):
     from tianshu.types import Action, OriginKind
     from tianshu.runtime.jobs import JobSpec
     from ..contracts import digest
+    from ..execution_context import current_generation
 
     await service.authority.check(context)
+    generation = current_generation() or await service.jobs.current_generation_on(connection)
+    await service.jobs.assert_generation_on(connection, generation)
     for instance in await service.host.local(service.host.repository.list, "instances"):
         if instance["desired_state"] != "enabled":
             continue
         package = await service.host.package(instance["package_id"], instance["version"])
         for binding in instance["bindings"]:
-            if not binding["enabled"] or binding["scope"] != {
-                "kind": "character",
-                "character_id": context.actor_id,
-            }:
+            if not binding["enabled"] or not binding_visible(context, binding):
                 continue
             allowed = {
                 entry["id"] for entry in binding.get("entries", []) if entry["kind"] == "event"
@@ -568,7 +602,8 @@ async def consume_event(service, connection, event, context):
                 if await cursor.fetchone():
                     await service.jobs.enqueue(
                         connection,
-                        JobSpec("capabilities.plugin_event", key, {"consumption_id": key}),
+                        JobSpec("capabilities.plugin_event", key, {"consumption_id": key},
+                                data_generation=generation),
                     )
 
 

@@ -2,6 +2,7 @@
 
 import asyncio
 from contextlib import asynccontextmanager
+from dataclasses import replace
 from .execution_context import CURRENT_EXECUTION
 from .external import ProviderError
 
@@ -35,6 +36,24 @@ class TrackedBroker:
         current = CURRENT_EXECUTION.get()
         if current:
             await current["owner"].owners.check_attempt(current["attempt"])
+            await check_behavior_before_submission(current)
+            generation = current.get("data_generation")
+            if generation:
+                fields = getattr(type(request), "__dataclass_fields__", {})
+                if "data_generation" not in fields:
+                    from .contracts import Fault
+                    raise Fault("action_generation_broker_contract_unavailable", 503)
+                request = replace(request, data_generation=generation)
+            refs = tuple(current.get("behavior_refs", ()))
+            if refs:
+                fields = getattr(type(request), "__dataclass_fields__", {})
+                if not {"behavior_refs", "behavior_purpose"} <= fields.keys():
+                    from .contracts import Fault
+                    raise Fault("behavior_broker_contract_unavailable", 503)
+                # The Broker checks these trusted Action dependencies again at
+                # its actual provider dispatch, after any queue wait.
+                request = replace(request, behavior_refs=refs,
+                                  behavior_purpose=current.get("behavior_purpose", "conversation"))
         try:
             result = await self.broker.generate(request)
         except BaseException:
@@ -67,13 +86,14 @@ class TrackedPermit:
             from .contracts import Fault
 
             action = CURRENT_ACTION.get()
+            owner = self.current["owner"]
+            await owner.owners.check_attempt(self.current["attempt"])
             if action is not None:
-                owner = self.current["owner"]
-                await owner.owners.check_attempt(self.current["attempt"])
                 handler = await owner.handler(action)
                 available = await owner.catalog.availability(action.context, handler)
                 if not available.can_execute:
                     raise Fault(available.reason or "capability_unavailable", 503)
+            await check_behavior_before_submission(self.current)
         await self.permit.submitted(provider_handle=provider_handle)
         if self.current:
             try:
@@ -105,6 +125,24 @@ class TrackedPermit:
 async def mark_submitted(provider_handle=None):
     current = CURRENT_EXECUTION.get()
     if current:
+        from .execution_context import CURRENT_ACTION
+        action = CURRENT_ACTION.get()
+        if action is not None:
+            await current["owner"].authority.check(action.context, action.source_refs)
         await current["owner"].owners.check_attempt(current["attempt"])
+        await check_behavior_before_submission(current)
         await current["owner"].submitted(current["attempt"], provider_handle)
         current["submitted"] = True
+
+
+async def check_behavior_before_submission(current):
+    from .execution_context import CURRENT_ACTION
+
+    action = CURRENT_ACTION.get()
+    refs = current.get("behavior_refs", ())
+    if refs:
+        if action is None:
+            from .contracts import Fault
+            raise Fault("behavior_context_unavailable", 503)
+        await current["owner"].check_behaviors(
+            action.context, refs, purpose=current.get("behavior_purpose", "conversation"))
