@@ -84,6 +84,10 @@ class Models:
     async def result(self, attempt_id, *, context):
         return self.results.get(attempt_id)
 
+    async def status(self, attempt_id):
+        result = self.results.get(attempt_id)
+        return result.receipt if result else None
+
 
 class RecoveryPolicy:
     def __init__(self):
@@ -100,6 +104,9 @@ class RecoveryPolicy:
 
     async def succeed_attempt_on(self, _connection, _attempt_id, **_kwargs):
         self.successes.append(_attempt_id)
+
+    async def assert_attempt_applicable_on(self, _connection, _attempt_id, **_kwargs):
+        return None
 
     async def claim_continuation_on(self, _connection, lineage_id, **kwargs):
         self.continuations.append((lineage_id, kwargs))

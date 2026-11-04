@@ -29,7 +29,7 @@ from .expression_examples import ExpressionExamples
 from .growth_statistics import GrowthStatistics
 from .growth_operations import GrowthOperations
 from .growth_input_status import GrowthInputStatus
-from .growth_policy import MAX_ATTEMPTS, reserve_initial, succeed as succeed_recovery
+from .growth_policy import OWNER, MAX_ATTEMPTS, reserve_initial, succeed as succeed_recovery
 from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, OUTPUT_TOKEN_BUDGET,
                                 REVIEW_ERRORS, frozen_episodes, prepare_reflections, validate_batch_request)
 
@@ -422,6 +422,7 @@ class GrowthService:
                 "SELECT active_batch->>'material_key' AS material_key FROM companion.organize_state "
                 "WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
         if not current_owner or current_owner["material_key"] != material_key:
+            await self.retries.settle_superseded(state, batch, request.attempt_id, generation)
             return {"state": "superseded_attempt", "attempt_id": request.attempt_id}
         try:
             frozen = await self.generations.request(request.attempt_id, original_context)
@@ -472,6 +473,9 @@ class GrowthService:
                     "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE", (actor_id, scope_key))).fetchone()
                 if not current or not current["active_batch"] or current["active_batch"]["material_key"] != material_key:
                     raise AppError("generation_no_longer_current", status=409)
+                await succeed_recovery(self.recovery_policy, connection, batch, request.attempt_id)
+                await self.recovery_policy.assert_attempt_applicable_on(connection, request.attempt_id,
+                    owner=OWNER, expected_version=batch['recovery_version'])
                 for item in prepared:
                     proposal = item.proposal
                     if item.action == 'example':
@@ -501,13 +505,13 @@ class GrowthService:
                             (episodes[identifier].actual_result or {}).get('derived_kind')
                             not in {'expression', 'reflection', 'diary'} for identifier in item.support_ids):
                         await self.companion.apply_affect(context, item.affect, connection=connection)
-                await succeed_recovery(self.recovery_policy, connection, batch, request.attempt_id)
                 await self._finish(connection, current, batch, changed)
                 if changed:
                     await self.on_projection_changed(context, f"growth:{scope_key}:{batch['end_cursor']}", connection=connection)
         except AppError as error:
             if error.code == "generation_no_longer_current":
-                return
+                await self.retries.settle_superseded(state, batch, request.attempt_id, generation)
+                return {"state": "superseded_attempt", "attempt_id": request.attempt_id}
             if authorization_error(error):
                 return await self.retries.defer(state, batch, error.code, result)
             if error.code in {'growth_timezone_unavailable', 'growth_conversation_port_unavailable'}:

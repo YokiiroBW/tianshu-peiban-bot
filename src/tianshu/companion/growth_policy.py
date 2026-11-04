@@ -20,7 +20,7 @@ async def reserve_initial(policy, connection, context, batch, request):
                         'source_refs': request.source_refs, 'inputs': batch['inputs']})
     lineage = await policy.register_on(connection, domain='growth', subject_id=context.actor_id, owner=OWNER,
         material_id=batch['material_key'], material_digest=digest, dependency=batch['recovery_dependency'],
-        current_version=version, max_attempts=MAX_ATTEMPTS)
+        current_version=version, max_attempts=MAX_ATTEMPTS, recovery_kind='pure_computation')
     lineage_id = field(lineage, 'lineage_id')
     if not lineage_id:
         raise AppError('growth_recovery_lineage_invalid', status=503)
