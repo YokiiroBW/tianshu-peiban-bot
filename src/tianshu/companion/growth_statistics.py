@@ -53,7 +53,8 @@ class GrowthStatistics:
         await self.jobs.assert_generation_on(connection, generation)
         await self.jobs.enqueue(connection, JobSpec('companion.growth.statistics',
             'growth-statistics:'+signature({'generation': generation, 'cursor': cursor, 'scheduled': datetime.now(UTC).isoformat()}),
-            {'cursor': cursor, 'generation': generation}, scheduled_at=datetime.now(UTC)+timedelta(seconds=delay)))
+            {'cursor': cursor, 'generation': generation}, scheduled_at=datetime.now(UTC)+timedelta(seconds=delay),
+            data_generation=generation))
 
     async def emit_on(self, connection, event, *, generation, schedule=True):
         await self.jobs.assert_generation_on(connection, generation)

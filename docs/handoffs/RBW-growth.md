@@ -22,9 +22,9 @@
 4. 检索的 owner 回读绑定 `await growth.learning_records(context, refs, *, purpose='history')`。输入引用为 `{'kind': 'reflection'|'style'|'interest'|'habit', 'id': ..., 'revision': ...}`；反思记录包含 `kind/id/revision/semantic_revision/requested_revision/compatible/state/content/conditions/counterexamples/episode_ids/support_ids/attempt_id/source_refs/scope_ids/occurred_at/recorded_at`。规则正文从 Companion 回读，不能把索引当权威。
 5. Memory 需实现 `lock_episodes(context, refs, *, connection)`（返回带 `items`、`coverage` 的页面，原事务锁定版本）和 `index_learning(context, *, rule_id, revision, semantic_revision, kind, source_refs, scope_ids, search_text, connection)`；`search_text` 仅是本次索引输入，不成为新的正文副本。Memory 在原始 episode 事务中投递 `companion.episode_changed`，payload 为 `context, episode_id, revision, generation`，可带 `watermark`；`generation` 必须是该原事务冻结的代次。
 6. Conversation 需提供 `learning_reply(context, *, turn_id=None, expression_id, message_ids=())`，返回原始 `turn_id/expression_id/conversation_id/person_id/scope_ids/source_refs/generated/delivery_state/input_messages/output_messages`；每条消息须有 `message_id`。按真实 turn 和多消息关联提供原件，不能按时间相邻拼接。消费端使用 `growth.record_example_usage(context, example_ids, *, usage_id, outcome, turn_id=None, expression_id=None)`，outcome 为 `selected`、`expressed`、`delivered`；送达会再次核对 Conversation 回执。
-7. Models `generation_profile(request)` 需给出实际 `route_id`、`route_revision`、`quota_group`；`submit(request, completion=JobSpec(...))` 支持按原 attempt 幂等提交及完成通知。**Models 接纳事务必须对 completion payload 中冻结的 `generation` 进行原子校验**，否则 Growth 冻结意图后与业务清空之间仍有跨服务接纳竞态；同 attempt 已有记录必须读取账本、不得另开物理请求。此跨域保证待协调者集成确认。
+7. Models `generation_profile(request)` 需给出实际 `route_id`、`route_revision`、`quota_group`；`submit(request, completion=JobSpec(...))` 支持按原 attempt 幂等提交及完成通知。Growth 的 `ModelRequest.data_generation` 和 `JobSpec.data_generation` 均携带同一个原始代次，payload 的 `generation` 仅供领域 handler 使用。Models 接纳事务需对请求及完成通知的代次原子校验；同 attempt 已有记录必须读取账本、不得另开物理请求。此跨域保证待协调者集成确认。
 8. 来源服务可用 `CompanionDependencies.actors_for_source(connection, refs, kind)` 枚举分片，再对每个 actor 调 `invalidate_actor(connection, refs, kind, actor_id=...)`；旧 `invalidate` 仍委托相同实现。变更未传播前，材料读取仍独立核验来源。
-9. Operations 如注册 `growth.operations.inspect/invoke/observe`，目标为 `{'actor_id', 'scope_key', 'retry_key'}`，使用 `observation_only/domain_managed`，并向 `set_operations_guard` 注入原事务 guard；窄口唤醒已有领域恢复，不由 Operations 额外预留物理 attempt。
+9. Operations 如注册 `growth.operations.inspect/invoke/observe`，目标为 `{'actor_id', 'scope_key', 'retry_key'}`，使用 `observation_only/domain_managed`，并向 `set_operations_guard` 注入原事务 guard；窄口唤醒已有领域恢复，不由 Operations 额外预留物理 attempt。`growth.operations.progress(limit=64)` 返回无正文的真实待重试批进度，字段有 `role/material_id/target/dependency/due_at/eligible/version/error_family/paused/cancelled/executing/waiting_dependency`；该窄口的 error family 是 `growth_retry_stalled`。未知原结果、未到期、暂停、取消、忙碌、依赖冷却和预算耗尽不标为 eligible；标为 eligible 前读取权威回执并复核授权和来源，最终唤醒仍在原事务核对版本。
 10. 统计注入后 `growth.observations.replay(generation, cursor=None)` 按材料和重试账本逐页补投再清空 outbox，只有补投完成才标 producer complete。恢复服务接口、续接原因和额度依赖按协调者发布的 `rb-observation-contract-2026-11-05.md` 装配。
 
 ## DDL 与任务注册
@@ -35,6 +35,6 @@
 
 ## 未验证和集成限制
 
-- 按本批授权，未运行测试、构建、烟测、真实模型或生产操作。已静态审阅差异并运行 `git diff --cached --check`，无空白错误；四个 `test_rb_growth_*` 文件为待协调者统一执行的用例，并非通过记录。
+- 按本批授权，未运行测试、构建、烟测、真实模型或生产操作。已静态审阅差异并运行 `git diff --cached --check`，无空白错误；`test_rb_growth_*` 文件为待协调者统一执行的用例，并非通过记录。本工作树的共享 `ModelRequest` 和 `JobSpec` 尚无新增 `data_generation` 字段，需先合入 Models/Runtime 实现再运行。
 - Memory、Conversation、Models、RecoveryPolicy、Statistics、Operations、Runtime 的跨域接口和注册须协调者合入后集中核对；尤其是上述 Models 接纳代次原子性，以及原回执 unknown、quota 变更、输出纠正、来源撤回、并发纠正、索引回读与真实群/回复场景。此提交本身不能证明全链路业务收敛。
 - 当前授权为清空全部天枢业务数据后保留配置；旧业务反思双账本和旧在途材料不提供迁移保证。既有非 `test_rb_*` 测试夹具可能仍调用旧的同步 Models/Memory 接口或缺少 generation，应由协调者在集成验证时按最终合同调整，不得用夹具通过替代真实接入。

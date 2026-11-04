@@ -140,7 +140,8 @@ async def test_submit_wakes_same_frozen_batch_and_commits_once(database):
     assert waiting['state'] == 'waiting' and len(models.submitted) == 1
     request, completion = models.submitted[0]
     assert completion.task == 'companion.organize' and completion.payload['actor_id'] == 'actor'
-    assert completion.payload['generation'] == GENERATION
+    assert request.data_generation == completion.data_generation == completion.payload['generation'] == GENERATION
+    assert all(spec.data_generation == GENERATION for spec in growth.jobs.items)
 
     note = {'kind': 'style', 'title': '称呼', 'content': '以后不要使用这个称呼',
         'episode_ids': ['e1'], 'conditions': {'when': ['称呼'], 'unless': []}, 'counterexamples': [],
@@ -176,6 +177,7 @@ async def test_bad_json_keeps_success_receipt_and_uses_one_bounded_continuation(
     assert policy.reservations[-1]['original_state'] == 'succeeded'
     assert policy.reservations[-1]['claim_token'] == 'continuation-token'
     assert models.submitted[1][0].attempt_id != original.attempt_id
+    assert models.submitted[1][0].data_generation == models.submitted[1][1].data_generation == GENERATION
 
 
 @pytest.mark.asyncio

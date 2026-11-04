@@ -66,7 +66,7 @@ class GrowthRetries:
         await self.growth.jobs.enqueue(connection, JobSpec("companion.growth.retry",
             f"growth-retry:{generation}:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
             {"actor_id": row["actor_id"], "scope_key": row["scope_key"], "retry_key": row["retry_key"], 'generation':generation},
-            scheduled_at=row["due_at"] or datetime.now(UTC), subject_id=row["actor_id"]),
+            scheduled_at=row["due_at"] or datetime.now(UTC), subject_id=row["actor_id"], data_generation=generation),
             queueing_lock=f"growth-retry:{generation}:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}")
 
     async def select_route(self, row, request, generation):
@@ -243,6 +243,8 @@ class GrowthRetries:
             request = await self.growth.generations.request(attempt_for(row["current_material_key"]), original)
             if request is None:
                 return await self.postpone(row, code="reflection_material_contract_invalid", blocked=True)
+            if request.data_generation != generation:
+                return await self.postpone(row, code="growth_generation_changed", blocked=True)
             result = await self.growth.generations.read(request.attempt_id, context)
             if row['waiting_on_original']:
                 if result is None or result.receipt.status in {'queued', 'running', 'unknown'}:

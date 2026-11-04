@@ -116,7 +116,8 @@ class GrowthService:
         if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}:
             await self.jobs.enqueue(connection, JobSpec("companion.organize", f"organize:{generation}:{context.actor_id}:{scope_key}:{row['revision']}",
                 {"actor_id": context.actor_id, "scope_key": scope_key, "expected_revision": row["revision"], 'generation': generation},
-                scheduled_at=datetime.now(UTC)+timedelta(seconds=30), subject_id=context.actor_id))
+                scheduled_at=datetime.now(UTC)+timedelta(seconds=30), subject_id=context.actor_id,
+                data_generation=generation))
 
     async def _register_input(self, connection, context, scope_key, episode, generation):
         registered = await (await connection.execute(
@@ -291,7 +292,7 @@ class GrowthService:
             request = ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
-                execution_timeout_seconds=180.0)
+                execution_timeout_seconds=180.0, data_generation=generation)
             try:
                 profile = await self.models.generation_profile(request)
                 if not profile.get('quota_group') or not profile.get('route_id') or not profile.get('route_revision'):
@@ -330,6 +331,8 @@ class GrowthService:
                 result = await self.generations.read(request.attempt_id, context)
             else:
                 request = await self.generations.prepare(material_key, request, guard=current_material)
+                if request.data_generation != generation:
+                    raise AppError('growth_generation_changed', status=409)
                 result = await self.generations.read(request.attempt_id, context)
                 if batch.get('recovery_observe_only') and result is None:
                     async with self.companion.database.transaction() as connection:
@@ -344,7 +347,7 @@ class GrowthService:
                     completion = JobSpec('companion.organize',
                         f'growth-completion:{generation}:{actor_id}:{scope_key}:{material_key}',
                         {'actor_id': actor_id, 'scope_key': scope_key, 'expected_revision': expected_revision, 'generation': generation},
-                        subject_id=actor_id)
+                        subject_id=actor_id, data_generation=generation)
                     receipt = await self.models.submit(request, completion=completion)
                     if receipt.status in {'queued', 'running', 'succeeded'}:
                         result = await self.generations.read(request.attempt_id, context)
@@ -607,7 +610,7 @@ class GrowthService:
                     (row["last_error"], context.actor_id, scope_key, row["active_batch"]["material_key"]))
             current=row["revision"]+1
             await connection.execute("UPDATE companion.organize_state SET generation_revision=generation_revision+1,revision=%s,watermark=%s,last_error=NULL,active_batch=NULL,blocked_material=NULL,context=%s WHERE actor_id=%s AND scope_key=%s",(current,"manual:"+body["client_request_id"],document(context),context.actor_id,scope_key))
-            await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-explicit:{row['runtime_generation']}:{body['client_request_id']}",{"actor_id":context.actor_id,"scope_key":scope_key,"expected_revision":current,'generation':row['runtime_generation']},subject_id=context.actor_id))
+            await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-explicit:{row['runtime_generation']}:{body['client_request_id']}",{"actor_id":context.actor_id,"scope_key":scope_key,"expected_revision":current,'generation':row['runtime_generation']},subject_id=context.actor_id,data_generation=row['runtime_generation']))
             return CommandResult(body["client_request_id"],{"state":"queued"},current)
         return await self.companion.commands.execute(context,"companion.growth.review",body["client_request_id"],signature(body),apply)
 
@@ -650,7 +653,8 @@ class GrowthService:
                 await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
                     f"growth-input-retry:{state['runtime_generation']}:{key}:{failure['observation_revision']}",
                     {'actor_id': context.actor_id, 'scope_key': scope_key, 'failure_key': key,
-                     'expected_revision': failure['observation_revision'], 'generation': state['runtime_generation']}, scheduled_at=due, subject_id=context.actor_id))
+                     'expected_revision': failure['observation_revision'], 'generation': state['runtime_generation']}, scheduled_at=due,
+                    subject_id=context.actor_id, data_generation=state['runtime_generation']))
             await self.observations.emit_on(connection, self.observations.material_event(failure), generation=state['runtime_generation'])
             next_revision = current['revision'] + 1
             await connection.execute('UPDATE companion.organize_state SET revision=%s,updated_at=now() '
@@ -672,7 +676,8 @@ class GrowthService:
                 await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
                     f"growth-input-retry:{generation}:{failure_key}:{expected_revision}:due",
                     {'actor_id': actor_id, 'scope_key': scope_key, 'failure_key': failure_key,
-                     'expected_revision': expected_revision, 'generation': generation}, scheduled_at=failure['due_at'], subject_id=actor_id))
+                     'expected_revision': expected_revision, 'generation': generation}, scheduled_at=failure['due_at'],
+                    subject_id=actor_id, data_generation=generation))
             return {'state': 'waiting'}
         original = context_from_record(failure['context'])
         try:
@@ -869,7 +874,7 @@ class GrowthService:
                     {'actor_id': failure['actor_id'], 'scope_key': failure['scope_key'],
                      'failure_key': failure['failure_key'], 'expected_revision': failure['observation_revision'],
                      'generation': failure['runtime_generation']},
-                    scheduled_at=failure['due_at'], subject_id=failure['actor_id']))
+                    scheduled_at=failure['due_at'], subject_id=failure['actor_id'], data_generation=generation))
         if self.observations.statistics is not None:
             async with self.companion.database.transaction() as connection:
                 generation = await self.jobs.current_generation_on(connection)
@@ -888,7 +893,7 @@ class GrowthService:
             async with self.companion.database.transaction() as connection:
                 row = await self.recovery.register_active_on(connection, row)
                 await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['runtime_generation']}:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
-                    {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"], 'generation':row['runtime_generation']},subject_id=row["actor_id"]))
+                    {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"], 'generation':row['runtime_generation']},subject_id=row["actor_id"],data_generation=row['runtime_generation']))
 
     async def _rejected(self, actor_id, scope_key, material_key, code, *, result=None):
         async with self.companion.database.transaction(read_only=True) as connection:
@@ -907,7 +912,8 @@ class GrowthService:
         await self.jobs.enqueue(connection, JobSpec("companion.organize",
             f"organize:{generation}:{actor_id}:{scope_key}:{revision}:{reason}:{datetime.now(UTC).isoformat()}",
             {"actor_id": actor_id, "scope_key": scope_key, "expected_revision": revision, 'generation':generation},
-            scheduled_at=datetime.now(UTC) + timedelta(seconds=delay), subject_id=actor_id))
+            scheduled_at=datetime.now(UTC) + timedelta(seconds=delay), subject_id=actor_id,
+            data_generation=generation))
 
     async def _finish(self, connection, current, batch, changed):
         await self.jobs.assert_generation_on(connection, current['runtime_generation'])
