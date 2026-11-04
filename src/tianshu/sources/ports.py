@@ -74,6 +74,7 @@ class SourcePort(Protocol):
         origin_kind: OriginKind,
         connection=None,
         support_refs: tuple[SourceRef, ...] = (),
+        generation: str | None = None,
     ) -> tuple[SourceRef, ...]: ...
     async def register_media(
         self,
@@ -86,7 +87,7 @@ class SourcePort(Protocol):
     async def register_media_supplement(
         self, context: TrustedContext, media: MediaRef, *, original_ref: SourceRef,
         producer: str, event_id: str, event_revision: int, part_index: int,
-        supplement_revision: int
+        supplement_revision: int, connection=None, generation: str | None = None
     ) -> SourceRef: ...
     async def validate_media_supplement_on(
         self, connection, context: TrustedContext, supplement_ref: SourceRef, *,

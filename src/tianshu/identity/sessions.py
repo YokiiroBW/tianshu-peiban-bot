@@ -39,11 +39,22 @@ class SessionService:
             raise AppError("installation_state_missing", status=503)
         return initialized
 
-    async def session(self, request):
+    @staticmethod
+    async def generation_on(conn):
+        """Use the Runtime-owned installation generation in this transaction."""
+        row = await (await conn.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton FOR SHARE"
+        )).fetchone()
+        if not row or row["id"] is None:
+            raise AppError("installation_generation_unavailable", status=503)
+        return str(row["id"])
+
+    async def session(self, request, *, connection=None):
         token = request.cookies.get(self.cookie, "")
         if len(token) > 256:
             return None
-        async with self.database.transaction(read_only=True) as conn:
+
+        async def lookup(conn):
             return await (
                 await conn.execute(
                     "SELECT s.*,p.username,p.display_name,p.permissions,p.enabled,"
@@ -53,6 +64,11 @@ class SessionService:
                     (token_hash(token),),
                 )
             ).fetchone()
+
+        if connection is not None:
+            return await lookup(connection)
+        async with self.database.transaction(read_only=True) as conn:
+            return await lookup(conn)
 
     async def authenticate(self, request):
         row = await self.session(request)
@@ -79,7 +95,7 @@ class SessionService:
         ):
             raise AppError("csrf_invalid", status=403)
 
-    def view(self, principal, initialized=True):
+    def view(self, principal, initialized=True, *, data_generation):
         return SessionView(
             principal is not None,
             initialized,
@@ -92,14 +108,16 @@ class SessionService:
             else None,
             principal["csrf_token"] if principal else None,
             bool(self.config.get("setup_token_ref", "TIANSHU_SETUP_TOKEN")),
+            data_generation=data_generation,
         )
 
     async def inspect(self, request):
-        principal = await self.session(request)
         async with self.database.transaction() as conn:
+            data_generation = await self.generation_on(conn)
+            principal = await self.session(request, connection=conn)
             initialized = await self.initialized(conn)
             if principal:
-                return self.view(principal, initialized), None
+                return self.view(principal, initialized, data_generation=data_generation), None
             token = request.cookies.get(self.cookie, "")
             row = await (
                 await conn.execute(
@@ -124,9 +142,11 @@ class SessionService:
                 None,
                 row["csrf_token"],
                 bool(self.config.get("setup_token_ref", "TIANSHU_SETUP_TOKEN")),
+                data_generation=data_generation,
             ), token
 
     async def _new_session(self, conn, principal):
+        data_generation = await self.generation_on(conn)
         token, csrf = "session." + secrets.token_urlsafe(32), secrets.token_urlsafe(32)
         await conn.execute("DELETE FROM identity.sessions WHERE expires_at<=now()")
         await conn.execute(
@@ -140,7 +160,7 @@ class SessionService:
                 datetime.now(UTC) + timedelta(days=self.config.get("session_days", 14)),
             ),
         )
-        return token, self.view({**principal, "csrf_token": csrf})
+        return token, self.view({**principal, "csrf_token": csrf}, data_generation=data_generation)
 
     async def setup(self, body):
         reference = self.config.get("setup_token_ref", "TIANSHU_SETUP_TOKEN")
@@ -265,11 +285,14 @@ class SessionService:
     async def logout(self, request, body):
         await self.authenticate(request)
         async with self.database.transaction() as conn:
+            data_generation = await self.generation_on(conn)
             await conn.execute(
                 "DELETE FROM identity.sessions WHERE token_hash=%s",
                 (token_hash(request.cookies.get(self.cookie, "")),),
             )
-        return CommandResult(body["client_request_id"], data=self.view(None))
+        return CommandResult(
+            body["client_request_id"], data=self.view(None, data_generation=data_generation)
+        )
 
     def set_cookie(self, response, token):
         response.set_cookie(

@@ -1,0 +1,131 @@
+"""Source writes obey the generation and transaction of their original work."""
+
+import asyncio
+from contextlib import contextmanager
+from datetime import UTC, datetime
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+from threading import Event
+from uuid import UUID, uuid4
+
+import pytest
+
+from tianshu.conversation.types import InputPart
+from tianshu.runtime.errors import AppError
+from tianshu.types import OriginKind
+
+
+_spec = spec_from_file_location(
+    "rb_generation_core_fixtures", Path(__file__).parents[1] / "core" / "conftest.py"
+)
+_fixtures = module_from_spec(_spec)
+_spec.loader.exec_module(_fixtures)
+core = _fixtures.core
+ordinary_users = _fixtures.ordinary_users
+
+
+async def _generation(core):
+    async with core.database.transaction(read_only=True) as conn:
+        return (await (await conn.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton"
+        )).fetchone())["id"]
+
+
+async def _record(core, context, event_id, *, connection=None, generation=None):
+    return (await core.sources.record_event(
+        context, producer="web", event_id=event_id, revision=1,
+        occurred_at=datetime.now(UTC), parts=(InputPart("text", text="original"),),
+        origin_kind=OriginKind.HUMAN, connection=connection, generation=generation,
+    ))[0]
+
+
+class RollbackMarker(Exception):
+    pass
+
+
+async def test_event_rejects_stale_generation_and_joins_caller_transaction(core, ordinary_users):
+    alice, _ = ordinary_users
+    current = str(await _generation(core))
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await _record(core, alice, "stale-event", generation=str(uuid4()))
+    async with core.database.transaction(read_only=True) as conn:
+        stale = await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE locator->>'event_id'='stale-event'"
+        )).fetchone()
+    assert stale is None
+
+    with pytest.raises(RollbackMarker):
+        async with core.database.transaction() as conn:
+            reference = await _record(core, alice, "rolled-back-event", connection=conn,
+                                      generation=current)
+            assert await core.sources.validate_persistence(conn, alice, (reference,))
+            raise RollbackMarker()
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE locator->>'event_id'='rolled-back-event'"
+        )).fetchone()
+    assert row is None
+
+
+async def test_supplement_rejects_stale_generation_and_joins_caller_transaction(core, ordinary_users):
+    alice, _ = ordinary_users
+    current = str(await _generation(core))
+    original = await _record(core, alice, "supplemented-event", generation=current)
+    media = core.files.put_bytes(b"attachment", media_type="image/png")
+    args = dict(original_ref=original, producer="web", event_id="supplemented-event",
+                event_revision=1, part_index=0, supplement_revision=1)
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await core.sources.register_media_supplement(alice, media, **args, generation=str(uuid4()))
+    with pytest.raises(RollbackMarker):
+        async with core.database.transaction() as conn:
+            supplement = await core.sources.register_media_supplement(
+                alice, media, **args, connection=conn, generation=current,
+            )
+            assert await core.sources.validate_media_supplement_on(
+                conn, alice, supplement, original_ref=original, producer="web",
+                event_id="supplemented-event", event_revision=1, part_index=0,
+            )
+            raise RollbackMarker()
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute("SELECT 1 FROM sources.media_supplements")).fetchone()
+    assert row is None
+    assert (await core.sources.check_many(alice, ((original,),))) == (True,)
+
+
+async def test_new_supplement_snapshots_generation_before_file_verification(
+    core, ordinary_users, monkeypatch
+):
+    alice, _ = ordinary_users
+    original = await _record(core, alice, "generation-race")
+    media = core.files.put_bytes(b"attachment", media_type="image/png")
+    before = await _generation(core)
+    entered, release = Event(), Event()
+    actual_reader = core.files.open_reader
+
+    @contextmanager
+    def delayed_reader(reference):
+        entered.set()
+        if not release.wait(5):
+            raise RuntimeError("file verification was not released")
+        with actual_reader(reference) as stream:
+            yield stream
+
+    monkeypatch.setattr(core.files, "open_reader", delayed_reader)
+    operation = asyncio.create_task(core.sources.register_media_supplement(
+        alice, media, original_ref=original, producer="web", event_id="generation-race",
+        event_revision=1, part_index=0, supplement_revision=1,
+    ))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        replacement = uuid4() if isinstance(before, UUID) else str(uuid4())
+        async with core.database.transaction() as conn:
+            await conn.execute(
+                "UPDATE runtime.installation_generation SET id=%s WHERE singleton", (replacement,)
+            )
+    finally:
+        release.set()
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await operation
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute("SELECT 1 FROM sources.media_supplements")).fetchone()
+    assert row is None

@@ -160,7 +160,7 @@ class SourceService:
 
     async def record_event(
         self, context, *, producer, event_id, revision, occurred_at, parts, origin_kind,
-        connection=None, support_refs=(),
+        connection=None, support_refs=(), generation=None,
     ):
         if occurred_at.tzinfo is None or type(revision) is not int or revision < 1:
             raise AppError("invalid_source_event")
@@ -170,6 +170,10 @@ class SourceService:
             raise AppError("source_parts_too_many")
         refs = []
         async with self._event_connection(connection) as conn:
+            expected_generation = (
+                generation if generation is not None else await self.jobs.current_generation_on(conn)
+            )
+            await self.jobs.assert_generation_on(conn, expected_generation)
             intake, epochs = await self.identity.intake_scope(context, connection=conn)
             write_context = replace(context, scope_ids=intake, audience=intake)
             author = (
@@ -637,7 +641,7 @@ class SourceService:
 
     async def register_media_supplement(
         self, context, media, *, original_ref, producer, event_id, event_revision,
-        part_index, supplement_revision,
+        part_index, supplement_revision, connection=None, generation=None,
     ):
         """Attach a separately versioned original file to one immutable event part."""
         if (
@@ -653,6 +657,15 @@ class SourceService:
         if not self.files.was_written(media):
             raise AppError("media_intake_not_owned", status=403)
 
+        # Freeze the current generation before file verification yields. A
+        # resumed job supplies its original generation instead of acquiring one.
+        if generation is None:
+            if connection is not None:
+                generation = await self.jobs.current_generation_on(connection)
+            else:
+                async with self.database.transaction(control=True) as snapshot:
+                    generation = await self.jobs.current_generation_on(snapshot)
+
         def verify():
             with self.files.open_reader(media):
                 pass
@@ -667,7 +680,8 @@ class SourceService:
         # different authorized reader must not create a second attachment identity.
         key = body_hash(locator)
         digest = body_hash({"locator": locator, "revision": supplement_revision, "media": media})
-        async with self.database.transaction() as conn:
+        async with self._event_connection(connection) as conn:
+            await self.jobs.assert_generation_on(conn, generation)
             await self._lock_selected(
                 conn, (original_ref,), extra=("source_" + key[:48],), exclusive=True,
             )
