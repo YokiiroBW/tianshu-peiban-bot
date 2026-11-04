@@ -585,8 +585,8 @@ class IdentityService:
         """Reauthorize a timer's author configuration, never an in-flight execution.
 
         The saved scene and grants are an upper bound. An epoch change alone may
-        be a password/other-role edit; scopes are intersected with current grants.
-        A lost required permission or inactive principal/actor stops the timer.
+        be a password/other-role edit. Newly granted scopes are not adopted, and
+        losing an original scope or required permission stops the saved timer.
         Role timers require an actor by
         default; independent administrator subscriptions may retain actor=None.
         """
@@ -602,6 +602,8 @@ class IdentityService:
                 raise AppError("scheduled_scene_changed", status=403)
             if current.actor_id:
                 await self.check_active_actor(current, connection=conn)
+            if not set(previous.scope_ids).issubset(current.scope_ids):
+                raise AppError("scheduled_scope_unavailable", status=403)
             limited = self._limit_context(current, previous)
             require_permission(limited.permissions, permission)
             return limited

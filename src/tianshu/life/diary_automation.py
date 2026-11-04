@@ -78,8 +78,8 @@ class DiaryAutomation:
             "INSERT INTO life.diary_days(actor_id,scope_key,day,timezone,context,scope_ids) VALUES(%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT(actor_id,scope_key,day) DO UPDATE SET "
             "revision=life.diary_days.revision+CASE WHEN NOT (life.diary_days.scope_ids @> excluded.scope_ids "
-            "AND life.diary_days.scope_ids <@ excluded.scope_ids AND life.diary_days.context->'audience' @> excluded.context->'audience' "
-            "AND life.diary_days.context->'audience' <@ excluded.context->'audience') THEN 1 ELSE 0 END,"
+            "AND life.diary_days.scope_ids <@ excluded.scope_ids AND (life.diary_days.context->'audience') @> (excluded.context->'audience') "
+            "AND (life.diary_days.context->'audience') <@ (excluded.context->'audience')) THEN 1 ELSE 0 END,"
             "scope_ids=excluded.scope_ids,context=excluded.context,updated_at=now() RETURNING *",
             (context.actor_id, scope, day, state["timezone"], document(context), list(context.scope_ids)))).fetchone()
         if row["reviewed_revision"] < row["revision"] or row["generation_id"]:

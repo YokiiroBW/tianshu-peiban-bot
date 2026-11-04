@@ -52,4 +52,3 @@ def assembled_domain_migrations(jobs):
             for name, package, parts in resources
         ),
     )
-

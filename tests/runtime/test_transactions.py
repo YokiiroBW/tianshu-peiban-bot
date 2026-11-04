@@ -44,11 +44,11 @@ async def test_duplicate_change_enqueues_once_and_cancellation_is_transactional(
 
 
 async def test_coalesced_signal_keeps_original_job_moves_earlier_and_retains_cancelled_audit(database, monkeypatch):
-    jobs = JobQueue(database.config.dsn)
+    jobs = JobQueue(database.config.dsn, database=database)
     jobs.register("fixture.wake", noop, execution_lane=ExecutionLane.MAINTENANCE)
     later = datetime.now(UTC) + timedelta(hours=1)
     earlier = later - timedelta(minutes=10)
-    base = JobSpec("fixture.wake", "legacy-one", {"partition_id": "one"}, scheduled_at=later)
+    base = JobSpec("fixture.wake", "signal-one", {"partition_id": "one"}, scheduled_at=later)
     notifications = []
     notify = jobs._notify_pending
 
@@ -58,30 +58,27 @@ async def test_coalesced_signal_keeps_original_job_moves_earlier_and_retains_can
 
     monkeypatch.setattr(jobs, "_notify_pending", notified)
     async with database.transaction() as conn:
-        first = await jobs.enqueue(conn, base)
-        duplicate = await jobs.enqueue(conn, replace(base, key="legacy-two", scheduled_at=earlier))
+        generation = await jobs.current_generation_on(conn)
+        first = await jobs.enqueue(conn, base, queueing_lock="wake:one")
+        await conn.execute("UPDATE procrastinate_jobs SET attempts=2 WHERE id=%s", (first,))
+        duplicate = await jobs.enqueue(conn, replace(base, key="signal-two", scheduled_at=earlier), queueing_lock="wake:one")
+        assert duplicate == first
         other = await jobs.enqueue(conn, replace(base, key="other-partition", payload={"partition_id": "other"}))
-        await conn.execute("UPDATE procrastinate_jobs SET attempts=2 WHERE id=%s", (duplicate,))
-        keys = await (await conn.execute("SELECT * FROM runtime.job_keys ORDER BY key")).fetchall()
-        retained = await jobs.enqueue(conn, replace(base, key="new-unused-signal"), queueing_lock="wake:one")
+        retained = await jobs.enqueue(conn, replace(base, key="new-signal"), queueing_lock="wake:one")
         assert retained == first
         rows = {row["id"]: row for row in await (await conn.execute("SELECT * FROM procrastinate_jobs")).fetchall()}
         assert rows[first]["status"] == "todo" and rows[first]["scheduled_at"] == earlier
-        assert rows[first]["queueing_lock"] == "wake:one"
-        assert rows[duplicate]["status"] == "cancelled" and rows[duplicate]["attempts"] == 2
-        assert rows[duplicate]["abort_requested"] is False and rows[other]["status"] == "todo"
-        assert await (await conn.execute("SELECT * FROM runtime.job_keys ORDER BY key")).fetchall() == keys
-        events = await (await conn.execute("SELECT type FROM procrastinate_events WHERE job_id=%s ORDER BY id",
-            (duplicate,))).fetchall()
-        assert events[0]["type"] == "scheduled" and events[-1]["type"] == "cancelled"
+        assert rows[first]["attempts"] == 2 and rows[first]["queueing_lock"] == "wake:one:generation:" + generation
+        assert rows[other]["status"] == "todo"
         assert notifications == [(first, "maintenance")]
-        # A later request cannot postpone the earliest promised wake or emit noise.
-        assert await jobs.enqueue(conn, replace(base, key="later-unused"), queueing_lock="wake:one") == first
-        assert notifications == [(first, "maintenance")]
+        keys = await (await conn.execute("SELECT key,job_id,cancelled_at FROM runtime.job_keys WHERE job_id=%s", (first,))).fetchall()
+        assert {row["key"] for row in keys} == {"signal-one", "signal-two", "new-signal"}
+        await jobs.cancel(conn, "signal-one")
+        assert (await (await conn.execute("SELECT status FROM procrastinate_jobs WHERE id=%s", (first,))).fetchone())["status"] == "todo"
+        assert (await (await conn.execute("SELECT cancelled_at FROM runtime.job_keys WHERE key='signal-one'")).fetchone())["cancelled_at"]
         with pytest.raises(AppError, match="job_identity_conflict"):
-            await jobs.enqueue(conn, replace(base, key="wrong-payload", payload={"partition_id": "wrong"}),
-                queueing_lock="wake:one")
-        await conn.execute("INSERT INTO runtime.projection_cursors(consumer,subject_id) VALUES('still-valid','one')")
+            await jobs.enqueue(conn, replace(base, key="wrong-payload", payload={"partition_id": "wrong"}), queueing_lock="wake:one")
+        assert notifications == [(first, "maintenance")]
 
 
 async def test_coalesced_signal_keeps_doing_work_and_cancelled_keys_do_not_block_a_fresh_successor(database):
@@ -98,6 +95,7 @@ async def test_coalesced_signal_keeps_doing_work_and_cancelled_keys_do_not_block
         assert await (await conn.execute("SELECT * FROM procrastinate_jobs WHERE id=%s", (doing,))).fetchone() == before
         await jobs.cancel(conn, "next")
         assert (await (await conn.execute("SELECT cancelled_at FROM runtime.job_keys WHERE key='next'")).fetchone())["cancelled_at"]
+        await jobs.cancel(conn, "merged")
         fresh = await jobs.enqueue(conn, replace(base, key="after-cancellation"), queueing_lock="wake:one")
         assert fresh not in {doing, pending}
         await conn.execute("SELECT procrastinate_finish_job_v1(%s,'succeeded',false)", (doing,))

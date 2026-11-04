@@ -203,7 +203,7 @@ class EventLog:
     def _append_batch(self, payload, start):
         """Resume a partial write by comparing the existing suffix, never replay it."""
         self.directory.mkdir(parents=True, exist_ok=True)
-        fd = os.open(self.path, os.O_RDWR | os.O_CREAT, 0o600)
+        fd = os.open(self.path, os.O_RDWR | os.O_CREAT | getattr(os, "O_BINARY", 0), 0o600)
         try:
             if self.uid is not None and hasattr(os, "fchown"):
                 os.fchown(fd, self.uid, self.gid)

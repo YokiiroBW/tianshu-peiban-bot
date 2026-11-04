@@ -1,6 +1,8 @@
 import importlib.util
 import json
 from pathlib import Path
+import sys
+from types import SimpleNamespace
 
 
 def host_module():
@@ -29,6 +31,10 @@ def test_unknown_smtp_receipt_is_not_sent_again(tmp_path, monkeypatch):
 
 
 def test_restart_requires_matching_owner_generation_and_is_bounded(tmp_path, monkeypatch):
+    if sys.platform == "win32":
+        # This case tests bounded restarts; production uses Linux flock.
+        monkeypatch.setitem(sys.modules, "fcntl", SimpleNamespace(
+            LOCK_EX=2, LOCK_NB=4, LOCK_UN=8, flock=lambda *_args: None))
     host = host_module()
     target = {"role": "operations", "container": "tianshu-ops", "generation": "v1", "restart_on_stopped": True}
     actual = {"state": "exited", "id": "container-id", "labels": {"com.tianshu.product": "tianshu",

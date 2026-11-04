@@ -33,7 +33,7 @@ def test_scene_identity_excludes_grants_epochs_and_group_speaker():
     )
 
 
-async def test_scheduled_global_scope_is_intersection_and_scene_is_stable(core):
+async def test_scheduled_global_scope_keeps_its_bound_and_rejects_lost_scope(core):
     principal = core.owner.principal_id
     async with core.database.transaction() as conn:
         row = await (await conn.execute(
@@ -54,7 +54,6 @@ async def test_scheduled_global_scope_is_intersection_and_scene_is_stable(core):
     saved = await core.identity.context(principal)
     async with core.database.transaction() as conn:
         before = await core.identity.scene_authority_on(conn, saved)
-        await conn.execute("DELETE FROM identity.scope_grants WHERE scope_id='rb-lost' AND principal_id=%s", (principal,))
         await conn.execute(
             "INSERT INTO identity.scopes(scope_id,person_id,kind,label) VALUES('rb-new',%s,'system','new')",
             (row["person_id"],),
@@ -69,9 +68,13 @@ async def test_scheduled_global_scope_is_intersection_and_scene_is_stable(core):
     )
     assert refreshed.actor_id is None
     assert "rb-kept" in refreshed.scope_ids
-    assert "rb-lost" not in refreshed.scope_ids and "rb-new" not in refreshed.scope_ids
+    assert "rb-lost" in refreshed.scope_ids and "rb-new" not in refreshed.scope_ids
     assert core.identity.scene_id(refreshed) == before.scene_id
     assert refreshed.access_epoch > before.principal_epoch
+    async with core.database.transaction() as conn:
+        await conn.execute("DELETE FROM identity.scope_grants WHERE scope_id='rb-lost' AND principal_id=%s", (principal,))
+    with pytest.raises(AppError, match="scheduled_scope_unavailable"):
+        await core.identity.refresh_scheduled_context(saved, permission="projects.read", require_actor=False)
 
 
 async def test_system_context_requires_real_principal_and_current_permission(core):

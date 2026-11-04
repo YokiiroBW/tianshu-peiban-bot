@@ -114,7 +114,8 @@ async def test_pending_reroute_preserves_job_and_refuses_started_or_retried_work
         assert row["queue_name"] == "images" and row["priority"] == 100
         assert row["attempts"] == 0 and row["scheduled_at"] == due
         assert row["args"] == {"attempt_id": "original-attempt"}
-        assert await jobs.enqueue(conn, JobSpec("fixture.pending", "original-key", {})) == job_id
+        assert await jobs.enqueue(conn, JobSpec("fixture.pending", "original-key",
+            {"attempt_id": "original-attempt"}, scheduled_at=due)) == job_id
         await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
         assert not await jobs.reroute_pending(conn, job_id, execution_lane=ExecutionLane.SPEECH)
         await conn.execute("UPDATE procrastinate_jobs SET status='todo',attempts=1 WHERE id=%s", (job_id,))
@@ -154,17 +155,17 @@ def test_connection_budget_counts_listeners_once_per_lane_and_keeps_schema_align
     settings = replace(loaded, secrets=Secrets({"TIANSHU_DATABASE_URL":
         "postgresql://fixture:fixture@127.0.0.1:1/not-opened"}))
     document = settings.document
-    assert len(settings.worker_lanes) == 35 and sum(settings.worker_lanes.values()) == 40
-    assert settings.database("worker").max_connections == 4
-    # The example has 23 role-pool connections: 23+8+35+1 = 67, not 40 listeners.
-    document["database"]["connection_budget"] = 66
+    assert len(settings.worker_lanes) == 38 and sum(settings.worker_lanes.values()) == 43
+    assert settings.database("bot-background").max_connections == 4
+    # Six role budgets, three shared queue pools, eleven listeners and one Broker owner.
+    document["database"]["connection_budget"] = 62
     with pytest.raises(ValueError, match="database_connection_budget_exceeded"):
-        settings.database("worker")
-    document["database"]["connection_budget"] = 67
-    assert settings.database("worker").max_connections == 4
+        settings.database("bot-background")
+    document["database"]["connection_budget"] = 63
+    assert settings.database("bot-background").max_connections == 4
     document["worker"]["lanes"] = {"images": 8}
     assert settings.worker_lanes["diary"] == 1
-    assert settings.database("worker").max_connections == 4
+    assert settings.database("bot-background").max_connections == 4
     settings_file.write_text(json.dumps({**document, "worker": {"elastic_concurrency": 2}}), encoding="utf-8")
     with pytest.raises(ValueError, match="invalid_configuration:worker:additionalProperties"):
         Settings.load(settings_file)

@@ -184,10 +184,14 @@ async def test_independent_consumers_do_not_rollback_source(core, ordinary_users
         await core.sources.dispatch_dependant(name, (wire(original),), "retracted", event_key)
     async with core.database.transaction(read_only=True) as conn:
         rows = await (await conn.execute(
-            "SELECT key FROM runtime.job_keys WHERE task='sources.notify' AND key LIKE %s",
+            "SELECT j.args FROM runtime.job_keys k JOIN procrastinate_jobs j ON j.id=k.job_id "
+            "WHERE k.task='sources.notify' AND k.key LIKE %s",
             (f"source-notify:{event_key}:%",),
         )).fetchall()
-    assert len(rows) == len(core.sources.dependants) + 1
+    # The source has no Memory dependants; only the two global consumers and
+    # the two explicit actor shards need notifications.
+    assert {(row['args']['consumer'],row['args'].get('actor_id')) for row in rows} == {
+        ('rb.failed',None),('rb.working',None),('rb.actors','actor-a'),('rb.actors','actor-b')}
     with pytest.raises(RuntimeError, match="downstream failed"):
         await core.sources.notify_dependant("rb.failed", (wire(original),), "retracted")
     await core.sources.notify_dependant("rb.working", (wire(original),), "retracted")

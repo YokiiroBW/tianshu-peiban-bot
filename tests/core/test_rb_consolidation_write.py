@@ -311,7 +311,7 @@ async def test_extraction_status_reads_current_index_outside_transaction_and_rec
                 forgotten=True)
         return [{**record,"profile_key":"profile-a","generation":7,"state":state} for record in records]
 
-    core.memory.bind_index_readiness(readiness)
+    monkeypatch.setattr(core.memory, "index_readiness", readiness)
     pending = await core.memory.extraction_status(alice,item.episode_id)
     assert pending["commit_state"] == "applied" and pending["indexing"]["state"] == "pending"
     state = "ready"
@@ -335,10 +335,14 @@ async def test_same_scene_different_principals_keep_separate_batch_authority(cor
                            (scope,core.actor))
         await conn.execute("INSERT INTO identity.conversations(conversation_id,actor_id,scope_id,kind,label) "
                            "VALUES(%s,%s,%s,'group','group')",(group,core.actor,scope))
+        await conn.execute("INSERT INTO identity.connections(connection_id,principal_id,actor_id,namespace,self_external_id) "
+                           "VALUES('rb-shared-connection',%s,%s,'fixture','self')", (core.owner.principal_id,core.actor))
         for context in (alice,bob):
             await conn.execute("INSERT INTO identity.scope_grants(scope_id,principal_id,permissions) "
                 "VALUES(%s,%s,ARRAY['*'])",(scope,context.principal_id))
-    contexts = [await core.identity.context(value.principal_id,actor_id=core.actor,conversation_id=group)
+            await conn.execute("INSERT INTO identity.conversation_members(conversation_id,connection_id,external_id,person_id) "
+                               "VALUES(%s,'rb-shared-connection',%s,%s)", (group, context.person_id,context.person_id))
+    contexts = [await core.identity.context(value.principal_id,actor_id=core.actor,conversation_id=group,person_id=value.person_id)
                 for value in (alice,bob)]
     model = RecordedModel()
     configure(core, model)
