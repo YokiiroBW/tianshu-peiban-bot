@@ -1,5 +1,5 @@
-# RB execution: user-requested Fast tier for this project.
-service_tier = "fast"
+# RB execution: user-requested standard tier; Fast disabled 2026-11-05.
+service_tier = "default"
 
 [features]
-fast_mode = true
+fast_mode = false

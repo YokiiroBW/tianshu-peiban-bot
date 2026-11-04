@@ -44,3 +44,18 @@ event: `family`, `event_id`, `revision`, `occurred_at`, `module`, `actor_id`, `r
 - invoke 的实际领域提交事务必须调用注入的 `await guard_on(conn, attempt_id, recovery['owner_token'])` 并做原版本/CAS、身份/来源验证。未知外部效果不得重新派发。
 
 优先绑定明确单对象的索引重建、已失败计算恢复、原 Action 状态核对；不能用全量 recover 冒充精确动作。返回 verified 必须有真实业务结果证据。各域给出可装配窄口与可用错误类别，缺能力如实 unavailable。
+
+## 最终补充：返回类型、续接与依赖变更
+
+- import 路径统一 `tianshu.runtime.recovery_policy`，包含 RecoveryPolicy、FailureCategory、classify_failure。
+- register_on 返回行 dict：至少 lineage_id、attempts、max_attempts、current_version、dependency；claim_due_on 返回行 tuple，每行含原字段及 claim_token。
+- classify_failure 返回 FailureCategory(StrEnum)，值为 missing_input/transport/invalid_output/capacity/state_changed/source_invalid/unknown_effect/infrastructure/other。
+- retry_after 接受非负秒数、带时区 datetime 或 HTTP Retry-After 日期；推荐透传真实秒数，不把绝对时间猜成持续时间。
+- unknown 原回执先 fail_attempt_on(category=UNKNOWN_EFFECT)；之后只有原权威回执确定时 resolve_unknown_on(observation_ref=原回执ID或稳定证明引用,state='succeeded'|'failed',...)。确定取消用 failed + STATE_CHANGED，保留 code='cancelled'，不再自动重试，不伪装业务失败。
+- `claim_lineage_due_on(conn, lineage_id, *, owner, lease_seconds=30)` 精确领取，未到期/已占用/暂停/取消/耗尽返回 None；成功返回原行及 claim_token/claim_expires_at。
+- lineage 唯一身份为 generation + domain + 原 material_id，不含 dependency；换 route/quota 不重置预算。
+- `update_dependency_on(conn,lineage_id,*,owner,expected_version,expected_dependency,new_dependency)` 在原 attempt 不再 reserved/unknown 时变更依赖，保留预算及逐 attempt 实际依赖，旧 claim 失效。
+- `claim_continuation_on(conn,lineage_id,*,owner,expected_version,prior_attempt_id,reason)`，reason 只允许 need_context/schema_correction/capacity_repartition。前 attempt 必须真实 succeeded，且无 active/unknown；返回 lineage_id/claim_token/prior_attempt_id/reason。随后 reserve_attempt_on(original_state='succeeded',claim_token=...) 共享原预算，前成功记录保持。耗尽抛 recovery_budget_exhausted；没有资格不能伪造失败取得续接。
+- Ops 只观察/唤醒领域已有工作时，RecoveryAction 使用 observation_only/domain_managed。Ops 短租约控制记录不充当 Models attempt，不先预留再由领域重复扣物理预算；真实物理 reserve/结算只在领域 owner。
+- Models generation_profile/embedding_profile 公开实际 quota_group。route_id+route_revision 同时固定时不改选；确需备选先在新尝试选择实际路由再冻结，沿原 lineage 换 dependency。
+- JobQueue.current_generation_on/current_generation 返回 text UUID；assert_generation_on(conn,generation)接受同一字符串。原异步任务必须传冻结值，不能省略后绑定新代际。

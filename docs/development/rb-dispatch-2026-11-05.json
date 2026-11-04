@@ -5,8 +5,8 @@
   "date": "2026-11-05",
   "model": "gpt-6.1-terra",
   "reasoning_effort": "max",
-  "requested_tier": "fast",
-  "global_tier_observed": "priority",
+  "requested_tier": "default",
+  "global_tier_observed": "default",
   "baseline_source": "c98e23c763cab6eded5cbd702773d9b3c7e8ca70",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
   "production_writer": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
@@ -297,5 +297,6 @@
     }
   ],
   "seed_commit": "e2529c95a92857f368111d9ae5b23ee66800b636",
-  "effective_model_evidence": "Actual turn_context records confirm gpt-6.1-terra/max; project config fast_mode=true and service_tier=fast, global priority. Tier not exposed in turn_context."
+  "effective_model_evidence": "Actual turn_context records confirm gpt-6.1-terra/max; project config fast_mode=true and service_tier=fast, global priority. Tier not exposed in turn_context.",
+  "speed_override_2026_11_05": "User explicitly disabled Fast due to cost. All 13 workers and integration use standard tier, retaining gpt-6.1-terra/max. Existing completed work is reused."
 }

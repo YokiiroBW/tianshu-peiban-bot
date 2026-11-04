@@ -18,6 +18,7 @@ from .serialization import wire
 
 LOG = logging.getLogger(__name__)
 CSRF_HEADER = "X-CSRF-Token"
+GENERATION_HEADER = "X-Tianshu-Data-Generation"
 API_PREFIX = "/api/v1"
 TRUSTED_CONTEXT = "trusted_context"
 
@@ -45,6 +46,7 @@ class SessionView:
     principal: PrincipalView | None
     csrf_token: str | None
     setup_token_required: bool
+    data_generation: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -100,6 +102,13 @@ async def error_middleware(request, handler):
     resource = request.match_info.route.resource
     route_name = getattr(resource, "canonical", None)
     try:
+        generation = request.app.get("data_generation")
+        supplied_generation = request.headers.get(GENERATION_HEADER) or request.query.get("data_generation")
+        if generation and supplied_generation and supplied_generation != generation:
+            raise AppError(
+                "data_generation_changed", status=409,
+                details={"data_generation": generation},
+            )
         if event_log and not request.path.startswith("/health/"):
             await event_log.emit("http.started", "started", correlation_id=request_id,
                                  route=route_name, method=request.method)
@@ -121,6 +130,8 @@ async def error_middleware(request, handler):
         response = json_response({"error": {"code": "internal_error",
             "message": "请求未完成", "details": None, "request_id": request_id}}, status=500)
     response.headers["X-Request-Id"] = request_id
+    if request.app.get("data_generation"):
+        response.headers[GENERATION_HEADER] = request.app["data_generation"]
     if event_log and not request.path.startswith("/health/"):
         try:
             await event_log.emit("http.finished", "succeeded" if response.status < 400 else "failed",

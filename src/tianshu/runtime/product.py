@@ -1,6 +1,7 @@
 """The single product object graph. Domains receive only the ports they consume."""
 
 from dataclasses import dataclass
+from uuid import uuid4
 
 from tianshu.identity.service import IdentityService
 from tianshu.identity.sessions import SessionService
@@ -37,9 +38,15 @@ class Product:
     authority: AuthorityServices
     capabilities: object
     channels: object
+    operations: object | None = None
 
 
 async def build_product(runtime):
+    if runtime.role == "operations":
+        from .product_operations import build_operations_product
+
+        return await build_operations_product(runtime)
+
     from tianshu.identity.module import create_module as identity_module
     from tianshu.sources.module import create_module as source_module
     from tianshu.memory.service import MemoryService
@@ -78,13 +85,26 @@ async def build_product(runtime):
     from tianshu.capabilities.module import build_module as capability_module
     from tianshu.capabilities.weather import WeatherService
     from tianshu.channels.module import build_module as channel_module
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    from tianshu.operations.statistics import StatisticsProjection
+    from tianshu.runtime.jobs import JobSpec
+    from tianshu.runtime.serialization import wire
+    from tianshu.types import ServiceClass
 
     db, jobs, commands, models = runtime.database, runtime.jobs, runtime.commands, runtime.models
+    api = runtime.role == "interactive"
+    background = runtime.role == "bot-background"
+    dialogue = runtime.role in {"interactive", "bot-foreground", "bot-background"}
+    policy = RecoveryPolicy()
+    if runtime.statistics is None:
+        runtime.statistics = StatisticsProjection(db, runtime.diagnostics)
+    statistics = runtime.statistics
     authority = build_authority(runtime)
     identity, sources, artifacts = authority.identity, authority.sources, authority.artifacts
     memory = MemoryService(db, identity, sources, commands, jobs, models, settings=runtime.settings.get("memory", {}))
     claims = ClaimService(memory)
     memory.bind_claims(claims)
+    memory.bind_observability(statistics=statistics, recovery_policy=policy)
     steps = ModelSteps(db, models, sources)
     embeddings = Embeddings(db, models, steps)
     retrieval = MemoryRetrieval(
@@ -94,7 +114,13 @@ async def build_product(runtime):
     assembler = ContextAssembler(
         identity, memory, retrieval, settings=runtime.settings.get("context", {})
     )
-    memory_workers = MemoryWorkers(memory, assembler, embeddings, steps)
+    memory_workers = MemoryWorkers(memory, assembler, embeddings, steps) if api or background else None
+    if memory_workers is not None:
+        from tianshu.operations.recovery import RecoveryExecutor
+
+        memory_workers.index_jobs.bind_observability(
+            statistics=statistics, recovery_policy=policy, guard_on=RecoveryExecutor.guard_on
+        )
 
     clock = LifeClock(db, commands, jobs, identity, sources)
     companion = CompanionService(
@@ -121,19 +147,42 @@ async def build_product(runtime):
         weather=weather,
     )
     presentation = LifePresentation(life, media=artifacts)
+    life.bind_statistics(statistics)
+    life.bind_recovery_policy(policy)
     contacts.on_received = life.received
-    writing, diaries = (
-        WritingService(life, models, assembler),
-        DiaryService(life, models, assembler),
-    )
-    clock.bind_lifecycle(day_plans=life.days, on_day_closed=diaries.day_closed)
+    writing = WritingService(life, models, assembler)
+    diaries = DiaryService(life, models, assembler) if api or background else None
+    writing.bind_observability(recovery_policy=policy, statistics=statistics)
+    if diaries is not None:
+        diaries.bind_observability(recovery_policy=policy, statistics=statistics)
+        clock.bind_lifecycle(day_plans=life.days, on_day_closed=diaries.day_closed)
     growth = GrowthService(companion, jobs, models, assembler, on_projection_changed=life.signal)
+    growth.set_life(life)
+    growth.set_observability(statistics=statistics, recovery_policy=policy)
+    assembler.bind_behavior_resolver(growth)
+    retrieval.bind_behavior_resolver(growth.resolve_behaviors)
 
     async def episode_changed(context, watermark, *, episode=None, connection=None):
-        # Both consumers register in the original Episode transaction. Neither
-        # assembles, generates or waits for a background model on this path.
-        await growth.changed(context,watermark,episode=episode,connection=connection)
-        await diaries.changed(context,watermark,episode=episode,connection=connection)
+        if episode is None:
+            return
+        if connection is None:
+            async with db.transaction() as transaction:
+                return await episode_changed(
+                    context, watermark, episode=episode, connection=transaction
+                )
+        # Only durable notifications join the source transaction. Consumers read
+        # the original revision and commit or fail independently afterwards.
+        scene = identity.scene_id(context)
+        identity_key = f"{scene}:{context.principal_id}:{episode.episode_id}:{episode.revision}"
+        payload = {
+            "context": wire(context), "episode_id": episode.episode_id,
+            "revision": episode.revision, "watermark": wire(watermark),
+        }
+        for task in ("companion.episode_changed", "life.diary_episode_changed"):
+            await jobs.enqueue(connection, JobSpec(
+                task, f"{task}:{identity_key}", payload,
+                ServiceClass.ELASTIC, subject_id=context.actor_id,
+            ))
 
     memory.bind_episode_observer(episode_changed)
     result_events = ActionResultEvents(jobs)
@@ -181,40 +230,47 @@ async def build_product(runtime):
     )
     expression = ExpressionService(db, jobs, identity, channels.delivery, contacts, sources=sources)
     channels.bind_expression(expression)
+    channels.bind_behavior_resolver(growth)
+    channels.bind_recovery_policy(policy)
+    channels.bind_statistics(statistics)
     caps.bind_expression(expression)
+    from .product_behaviors import validate_action_behaviors
+
+    async def behavior_validator(context, refs, *, purpose):
+        return await validate_action_behaviors(growth, context, refs, purpose=purpose)
+
+    caps.actions.bind_behavior_validator(behavior_validator)
+    caps.bind_statistics(statistics)
+
+    async def capabilities_changed(context, capability_ids):
+        if context.actor_id:
+            await life.signal(context, "capability-observation:" + str(uuid4()))
+
+    caps.catalog.on_change = capabilities_changed
     await caps.prepare()
-    renderer = ExpressionRenderer(
-        db, jobs, identity, sources, caps.actions, caps.speech, delivery=expression
-    )
-    life_worker = LifeWorker(life, models, assembler, caps.catalog, caps.actions, renderer, growth)
     reading = ReadingService(life, caps.reading)
-    life_worker.bind_writing(writing)
     writing.bind_completion(life.writing_completed)
-    renderer.bind_contact_preflight(life_worker.contact_preflight)
-    channels.bind_contact_preflight(life_worker.contact_preflight)
-    conversation = ConversationService(
-        db,
-        commands,
-        jobs,
-        identity,
-        sources,
-        memory,
-        companion,
-        life,
-        growth,
-        assembler,
-        models,
-        caps.catalog,
-        caps.actions,
-        renderer,
-        contacts,
-        policy=CollectorPolicy(**runtime.settings.get("conversation", {}).get("collector", {})),
-    )
-    results = ResultConsumer(
-        db, identity, caps.actions, memory, growth, conversation, life_worker, renderer
-    )
-    memory.bind_conversation(conversation.memory_neighborhood)
-    channels.bind_conversation(conversation)
+    if dialogue:
+        renderer = ExpressionRenderer(
+            db, jobs, identity, sources, caps.actions, caps.speech, delivery=expression
+        )
+        renderer.bind_behavior_resolver(growth)
+        life_worker = LifeWorker(life, models, assembler, caps.catalog, caps.actions, renderer, growth)
+        life_worker.bind_writing(writing)
+        renderer.bind_contact_preflight(life_worker.contact_preflight)
+        channels.bind_contact_preflight(life_worker.contact_preflight)
+        conversation = ConversationService(
+            db, commands, jobs, identity, sources, memory, companion, life, growth,
+            assembler, models, caps.catalog, caps.actions, renderer, contacts,
+            policy=CollectorPolicy(**runtime.settings.get("conversation", {}).get("collector", {})),
+        )
+        conversation.bind_statistics(statistics)
+        growth.set_conversation(conversation)
+        results = ResultConsumer(
+            db, identity, caps.actions, memory, growth, conversation, life_worker, renderer
+        )
+        memory.bind_conversation(conversation.memory_neighborhood)
+        channels.bind_conversation(conversation)
     register_tools(caps.catalog, memory, retrieval)
     register_handlers(
         caps.catalog,
@@ -224,23 +280,43 @@ async def build_product(runtime):
         reactions=caps.reactions,
         artifacts=artifacts,
     )
-    for callback in (
-        memory.source_changed,
-        CompanionDependencies().invalidate,
-        LifeDependencies(life).invalidate,
-        ConversationDependencies().invalidate,
-        caps.withdraw_sources,
-        channels.withdraw_sources,
-    ):
-        sources.register_dependant(callback)
-    modules = (
-        identity_module(identity),
-        source_module(sources, identity),
-        memory_module(memory, retrieval, memory_workers, identity),
-        companion_module(companion, growth, identity),
-        capabilities_module,
-        channels_module,
-        life_module(life, presentation, writing, diaries, reading, life_worker, identity, clock),
-        conversation_module(conversation, expression, identity, results, renderer),
-    )
-    return Product(modules, authority, caps, channels)
+    if background:
+        conversation_dependencies = ConversationDependencies()
+        conversation_dependencies.bind_statistics(statistics, jobs)
+        for name, consumer in (
+            ("memory", memory), ("companion", CompanionDependencies()),
+            ("life", LifeDependencies(life)), ("conversation", conversation_dependencies),
+            ("capabilities", caps), ("channels", channels),
+        ):
+            sources.register_dependant(
+                consumer.invalidate_actor, name=name, partitions=consumer.actors_for_source
+            )
+        from tianshu.models.ledger import purge_source_results_many
+
+        async def models_source_changed(connection, refs, kind):
+            await purge_source_results_many(connection, refs)
+
+        sources.register_dependant(models_source_changed, name="models")
+
+    modules = [capabilities_module, channels_module]
+    if api:
+        modules.insert(0, identity_module(identity))
+    if api or background:
+        modules.extend((
+            source_module(sources, identity),
+            memory_module(memory, retrieval, memory_workers, identity),
+            companion_module(companion, growth, identity),
+            life_module(life, presentation, writing, diaries, reading, life_worker, identity, clock),
+        ))
+    if dialogue:
+        modules.append(conversation_module(conversation, expression, identity, results, renderer))
+    operations = None
+    if api:
+        from .product_operations import attach_operations
+
+        operations = attach_operations(
+            runtime, authority, caps.actions, channels,
+            life_worker=life_worker, index_jobs=memory_workers.index_jobs,
+        )
+        modules.append(operations.module)
+    return Product(tuple(modules), authority, caps, channels, operations)
