@@ -101,4 +101,12 @@ sources.register_dependant(owner.invalidate_actor, name="stable-owner-name",
 - 新同步调用省略 generation 时，在身份检查和文件校验前捕获当前代际；跨下载或其他异步等待的调用必须传入等待前已冻结的原代际。否则，方法无法识别在调用之前已经发生的代际切换。`register_media_supplement` 继续复用同一代际捕获逻辑。
 - 新增回归用例覆盖旧代际拒绝、新代际成功及文件校验期间代际切换；未运行测试或构建，静态 diff 和 `git diff --cached --check` 已检查。共用测试数据库 fixture 仍需先装配 Runtime RB 迁移。
 - 本增量保证过期任务不登记新的来源记录。调用方在进入 `register_media` 前可能已将文件放入内容寻址存储；本包未删除已写文件，也未验证其清理。
-- 同属 Sources 的 `capture` 和 `publish_media` 另有异步准备路径，当前 API 不接收调用方代际，本次没有覆盖；已向协调者回报，需结合对应 Channels/Capabilities 调用方处理。
+- 当时未覆盖的 `capture` 和 `publish_media` 已在下述后续增量补齐；各域异步调用方仍需传入其冻结代际。
+
+## 媒体代际与完整来源证明增量
+
+- 代码及用例提交：`238edbd5a79082530a09f6877770c15162a96f98`。`capture(..., generation=None)`、`publish_media(..., generation=None)` 与 `register_media` 复用来源代际捕获和实际写入事务校验。跨下载、任务排队或其他异步等待的调用方必须传等待前保存的 generation；省略值只适用于新同步调用。入口之前已经写入内容寻址存储的字节不会自动删除。
+- `check_many` 在单个事务中先锁授权，再由现有 `_lock_selected` 对完整来源及支持/别名闭包一次按 source ID 全局排序加锁；`validate_persistence` 沿用相同的全量加锁顺序。新 `check_many_on` 将原逻辑组拆成有界片段，在一条 SQL 语句中分别调用既有来源谓词，再按原组逐项合取；不同组、重复来源的不同 locator 及空组均保留。
+- 若一批来源的依赖图合并后超出 PostgreSQL 8192 节点限制，先回滚该次语句的保存点，再缩小证明片段；一条真实来源自身仍超限时明确返回 `source_dependency_budget_exceeded`，不将结果截断或视为通过。`check_many_on` 自身也可用于已有只读事务：所有成功片段使用同一语句快照；调用方若需要写入证明，应使用持锁的 `validate_persistence`。
+- 已编写隔离回归用例，覆盖 2101 个来源、多于 1024 个组、授权锁和并发撤回、同源不同片段、合并依赖图超限后细分、单来源真实超限，以及 `capture`/`publish_media` 在文件处理期间换代。仅静态审阅完整 diff 和 `git diff --cached --check`，**尚未运行测试、构建或烟测**；依赖 Runtime RB 迁移及主聊天集中装配。
+- 本次没有修改类型化证据集合 API：`EvidenceSpec.normalize` 仍有 2048 成员上限，`prove_many_on` 仍有 1024 引用/选择组上限；本次修复范围是 Conversation 使用的 `check_many` / `validate_persistence` / `check_many_on`。大闭包实际延迟和锁竞争尚未验证。
