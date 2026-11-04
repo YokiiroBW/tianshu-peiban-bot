@@ -167,13 +167,24 @@ class ModelSteps:
             try:
                 receipt = await self.models.submit(original, completion=completion)
             except BaseException as exc:
-                if needs_rpc_observation(exc):
-                    # No new physical attempt is authorized by a transport
-                    # error. Persist uncertainty and observe the original.
-                    raise AppError("model_outcome_unknown",status=503,details={
-                        "status":"unknown","attempt_id":original.attempt_id,
-                        "action":"observe_original_attempt"}) from exc
-                raise
+                if not needs_rpc_observation(exc):
+                    raise
+                # A lost submit acknowledgement is not the Models outcome.
+                # Preserve both the wrapper and the authoritative original
+                # receipt before choosing recovery or consuming a result.
+                outcome = await observe_original(self.models, original)
+                async with self.database.transaction() as conn:
+                    await conn.execute("UPDATE memory.consolidation_attempts SET first_failure=COALESCE(first_failure,%s),"
+                        "updated_at=now() WHERE step_id=%s", (Jsonb(outcome.record(rpc_error=exc)), step_id))
+                if outcome.result is not None and outcome.status == "succeeded":
+                    await self._outcome(step_id, "succeeded", None)
+                    return outcome.result, original
+                if outcome.receipt is not None and outcome.status not in {"queued", "running"}:
+                    await self._outcome(step_id, outcome.status, outcome.receipt.error_code)
+                # Keep dispatching for missing or in-flight control. An
+                # idempotent resubmission can then restore the completion wake
+                # for the same attempt without creating a new physical call.
+                raise outcome.exception(original.attempt_id, rpc_error=exc) from exc
             if receipt.attempt_id != original.attempt_id or receipt.intent_id != original.intent_id:
                 raise AppError("memory_model_result_identity_conflict", status=409)
             await self._outcome(step_id, receipt.status, receipt.error_code)

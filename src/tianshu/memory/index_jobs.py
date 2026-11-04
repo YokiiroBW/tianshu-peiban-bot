@@ -26,6 +26,7 @@ from .episode_original import needs_original_text, read_original_text
 from .evidence import build_evidence_unit
 from .indexing import index_text
 from .index_recovery import IndexRecovery, MAX_ATTEMPTS
+from .model_outcome import confirmed_computation_unknown, original_status
 
 
 TABLES = {"claim": ("claim_revisions", "claim_id"), "hypothesis": ("claim_revisions", "claim_id"),
@@ -249,7 +250,12 @@ class IndexJobs:
         lost = asyncio.Event()
         heartbeat = asyncio.create_task(self._keep_lease(index_id, owner, asyncio.current_task(), lost, generation))
         try:
-            await self._execute(job, attempt, owner, allow_retry=job["state"] == "retry_wait")
+            # A confirmed unknown pure computation may get a separate attempt
+            # only after its persisted observation delay, never on an early
+            # completion notification or for queued/running work.
+            unknown_due = (job["state"] == "observing" and attempt is not None and
+                           attempt["status"] == "unknown" and not job["deferred"])
+            await self._execute(job, attempt, owner, allow_retry=job["state"] == "retry_wait" or unknown_due)
         except asyncio.CancelledError:
             if not lost.is_set():
                 await self._finish(index_id, owner, "observing", "index_worker_interrupted", delay=OBSERVE_SECONDS)
@@ -298,11 +304,13 @@ class IndexJobs:
                 "WHERE index_id=%s AND lease_owner=%s AND lease_until>now()", (state, error, delay, index_id, owner))
 
     async def _execute(self, job, attempt, owner, *, allow_retry):
+        material = None
         try:
             loaded = await self._material(job["kind"], job["object_id"], job["revision"], job["generation"])
             if loaded is None:
                 return await self._finish(job["index_id"], owner, "obsolete", "memory_index_revision_obsolete")
             row, context, refs, content = loaded
+            material = (context, refs, content)
             if body_hash(normalized_input(content)) != job["content_hash"]:
                 # The same episode revision can lose a supplement in place.
                 # Its original successful attempt remains immutable; the
@@ -361,7 +369,7 @@ class IndexJobs:
             except AppError as error:
                 return await self._finish(job["index_id"], owner, "failed", error.code)
         except Exception as error:
-            return await self._failure(job, attempt, owner, error, allow_retry=allow_retry)
+            return await self._failure(job, attempt, owner, error, allow_retry=allow_retry, material=material)
         # Control reads precede the write transaction. The fingerprint checked
         # here is the same configured profile used to select this logical job.
         try:
@@ -369,6 +377,9 @@ class IndexJobs:
                 return await self._finish(job["index_id"], owner, "obsolete", "memory_index_profile_changed")
             async with self.database.transaction() as conn:
                 await self.memory.jobs.assert_generation_on(conn, job["generation"])
+                if self.recovery.policy is not None and attempt.get("recovery_reserved"):
+                    await self.recovery.policy.assert_attempt_applicable_on(conn, attempt["model_attempt_id"],
+                        owner=self.recovery.owner(job), expected_version=str(job["revision"]))
                 if not await self.memory.sources.validate_persistence(conn, context, refs):
                     return await self._finish_on(conn, job, owner, "revoked", "source_unavailable")
                 fresh = await self._load_on(conn, job["kind"], job["object_id"], job["revision"], lock=True)
@@ -518,7 +529,7 @@ class IndexJobs:
         await conn.execute("UPDATE memory.index_jobs SET state=%s,last_error=%s,next_due=NULL,updated_at=now() "
             "WHERE index_id=%s AND lease_owner=%s AND lease_until>now()", (state, error, job["index_id"], owner))
 
-    async def _failure(self, job, attempt, owner, error, *, allow_retry):
+    async def _failure(self, job, attempt, owner, error, *, allow_retry, material=None):
         code = getattr(error, "code", type(error).__name__)
         if getattr(error, "status", None) in {403, 404} or code in {"context_changed", "access_changed"}:
             return await self._finish(job["index_id"], owner, "revoked", code)
@@ -528,6 +539,7 @@ class IndexJobs:
                                       delay=retry_delay_seconds(1) if retry else None)
         details = getattr(error, "details", None) or {}
         status = details.get("status")
+        receipt = None
         if attempt.get("status") == "prepared" and status is None:
             try:
                 observed = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
@@ -543,16 +555,38 @@ class IndexJobs:
                        "cancellation_reason": getattr(observed, "cancellation_reason", None)}
         explicit_cancel = code == "explicit_cancel" or details.get("cancellation_reason") == "explicit_cancel"
         receipt_code = details.get("receipt_error_code", code)
-        if transient_model_failure(code) and not explicit_cancel:
+        if (transient_model_failure(code) or status == "unknown") and not explicit_cancel:
             try:
-                receipt = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
+                if status == "unknown":
+                    _, request = await self.workers.embeddings.steps.recorded(attempt["step_id"])
+                    receipt = await original_status(self.workers.embeddings.models, request)
+                else:
+                    receipt = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
+            except AppError as control_error:
+                if control_error.status in {401, 403}:
+                    return await self._finish(job["index_id"], owner, "revoked", control_error.code)
+                if (control_error.code == "memory_model_result_identity_conflict" or
+                        "not_configured" in control_error.code or "configuration" in control_error.code):
+                    return await self._finish(job["index_id"], owner, "failed", control_error.code)
+                return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
             except Exception:
                 # A control read failure is not proof the original stopped.
                 return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
-            status = receipt.status if receipt else status or "unknown"
-            code = (receipt.error_code if receipt else None) or code
-            explicit_cancel = bool(receipt and getattr(receipt, "cancellation_reason", None) == "explicit_cancel")
-            receipt_code = receipt.error_code if receipt else code
+            if receipt is None:
+                # Missing control is not an authoritative unknown outcome.
+                return await self._finish(job["index_id"], owner, "observing", "model_status_unavailable",
+                                          delay=OBSERVE_SECONDS)
+            status = receipt.status
+            if status == "succeeded":
+                # The original settled between reads. Consume its result on a
+                # fresh wake instead of turning the old error into a retry.
+                return await self._finish(job["index_id"], owner, "observing", None, delay=0)
+            if status == "unknown" and not confirmed_computation_unknown(receipt):
+                return await self._finish(job["index_id"], owner, "observing", "model_outcome_unconfirmed",
+                                          delay=OBSERVE_SECONDS)
+            code = receipt.error_code or "model_outcome_" + status
+            explicit_cancel = getattr(receipt, "cancellation_reason", None) == "explicit_cancel"
+            receipt_code = receipt.error_code
         status = status or "failed"
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn, job["generation"])
@@ -564,7 +598,8 @@ class IndexJobs:
             prior_status = attempt.get("status")
             if prior_status != status or attempt.get("error_code") != (receipt_code if explicit_cancel else code):
                 if status in {"failed", "cancelled", "unknown"}:
-                    await self.recovery.fail_on(conn, attempt, code, unknown=status == "unknown", state=status,
+                    await self.recovery.fail_on(conn, attempt, code, job=job, model_receipt=receipt,
+                                                unknown=status == "unknown", state=status,
                                                 retry_after=retry_delay_seconds(attempt["number"]) if status == "failed" else None)
                 updated = await (await conn.execute("UPDATE memory.index_attempts SET status=%s,error_code=%s,"
                     "event_revision=event_revision+1,updated_at=now() WHERE index_id=%s AND number=%s RETURNING *",
@@ -572,10 +607,31 @@ class IndexJobs:
                 attempt.update(updated)
                 await self.recovery.record_attempt_on(conn, job, attempt, actor_id=job.get("actor_id"))
             successor = None
+            preserve_due = False
             if explicit_cancel:
                 state, delay = "cancelled", None
-            elif status in {"queued", "running", "unknown"}:
+            elif status in {"queued", "running"}:
                 state, delay = "observing", OBSERVE_SECONDS
+            elif status == "unknown":
+                if allow_retry and transient_model_failure(code) and attempt["number"] < MAX_ATTEMPTS:
+                    claim = (await self.recovery.policy.claim_lineage_due_on(conn, job["recovery_lineage_id"],
+                        owner=self.recovery.owner(job), lease_seconds=30)) if self.recovery.policy is not None else True
+                    if claim and material is not None:
+                        successor = await self._attempt_on(conn, job, attempt["number"] + 1)
+                        context, refs, content = material
+                        request = self.workers.embeddings.request(context, content,
+                            RequestBudget(datetime.now(UTC) + timedelta(seconds=120)), intent=successor["intent_id"],
+                            profile=job["profile"], fingerprint=job["profile_key"], source_refs=refs,
+                            data_generation=job["generation"])
+                        await self.workers.embeddings.steps.prepare_on(conn, successor["step_id"], request)
+                        await self.recovery.reserve_on(conn, job, successor, request, content,
+                            original_receipt=receipt, claim=claim if claim is not True else None)
+                        state, delay = "retry_wait", retry_delay_seconds(attempt["number"])
+                    else:
+                        state, delay = "observing", OBSERVE_SECONDS
+                else:
+                    state, delay = "observing", OBSERVE_SECONDS
+                    preserve_due = prior_status == "unknown" and bool(job["deferred"])
             elif transient_model_failure(code, cancelled=status == "cancelled" and code in {None, "cancelled", "model_cancelled"}):
                 if attempt["number"] >= MAX_ATTEMPTS:
                     state, delay = "failed", None
@@ -588,9 +644,10 @@ class IndexJobs:
                 state, delay = "cancelled" if status == "cancelled" else "failed", None
                 successor = None
             if successor is None:
-                await conn.execute("UPDATE memory.index_jobs SET state=%s,next_due=now()+%s::double precision*interval '1 second',"
+                await conn.execute("UPDATE memory.index_jobs SET state=%s,next_due=CASE WHEN %s THEN next_due ELSE "
+                    "now()+%s::double precision*interval '1 second' END,"
                     "last_error=%s,updated_at=now() WHERE index_id=%s AND lease_owner=%s",
-                    (state, delay, "explicit_cancel" if explicit_cancel else code, job["index_id"], owner))
+                    (state, preserve_due, delay, "explicit_cancel" if explicit_cancel else code, job["index_id"], owner))
                 return
         # Selection is committed before dispatch; a late original cannot win a
         # write after this new attempt has been selected.

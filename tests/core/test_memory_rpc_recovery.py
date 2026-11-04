@@ -21,6 +21,7 @@ class RpcModels:
         self.requests,self.reads,self.status_reads=[],[],[]
         self.results,self.receipts={},{}
         self.after_generate=None
+        self.next_status="succeeded"
 
     async def generation_profile(self,request):
         return {"route_id":"fixture","route_revision":1,"protocol":"openai.chat","model":"fixture",
@@ -32,7 +33,9 @@ class RpcModels:
     def answer(self,request,status="succeeded",error=None):
         receipt=ModelReceipt(request.attempt_id,request.intent_id,status,"submitted","fixture",1,
             "fixture","fixture","openai.chat","fixture",error_code=error,
-            cancellation_reason="explicit_cancel" if status=="cancelled" else None)
+            cancellation_reason="explicit_cancel" if status=="cancelled" else None,
+            finished_at=datetime.now(UTC) if status not in {"queued","running"} else None,
+            data_generation=request.data_generation)
         if status!="succeeded":
             return ModelResult((),receipt)
         if request.function=="embed":
@@ -59,7 +62,8 @@ class RpcModels:
     async def generate(self,request):
         self.requests.append(request)
         first=len(self.requests)==1
-        result=self.answer(request,self.first_status if first else "succeeded",self.error if first else None)
+        status=self.first_status if first else self.next_status
+        result=self.answer(request,status,self.error if first else "timeout_unknown" if status=="unknown" else None)
         self.results[request.attempt_id]=result
         self.receipts[request.attempt_id]=result.receipt
         if self.after_generate:
@@ -67,6 +71,13 @@ class RpcModels:
         if first and self.wrapper:
             raise AppError("internal_error",status=500)
         return result
+
+    async def submit(self,request,*,completion=None):
+        # Models persists an attempt before acknowledging it; replaying the
+        # same submission only reattaches its completion wake.
+        if request.attempt_id in self.receipts:
+            return self.receipts[request.attempt_id]
+        return (await self.generate(request)).receipt
 
     async def result(self,attempt_id,*,context):
         self.reads.append(attempt_id)
@@ -121,11 +132,15 @@ async def due_now(core,batch):
 
 
 @pytest.mark.parametrize("status",["succeeded","unknown","queued","running","failed","cancelled"])
-async def test_rpc_wrapper_uses_original_receipt_instead_of_internal_error(core,ordinary_users,status):
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_rpc_wrapper_uses_original_receipt_instead_of_internal_error(core,ordinary_users,status,with_policy):
     alice,_=ordinary_users
     error=None if status in {"succeeded","queued","running"} else "model_function_not_configured" if status=="failed" else "cancelled" if status=="cancelled" else "transport_unknown"
     model=RpcModels(status,error=error)
     configure(core,model)
+    if with_policy:
+        from tianshu.runtime.recovery_policy import RecoveryPolicy
+        core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
     episode=await observe(core,alice,"wrapper-"+status)
     partition=(await episode_row(core,episode))["consolidation_partition_id"]
     await core.workers.consolidate(partition)
@@ -151,16 +166,28 @@ async def test_rpc_wrapper_uses_original_receipt_instead_of_internal_error(core,
         assert len(model.requests)==1
 
 
-async def test_confirmed_unknown_after_rpc_error_retries_independently_and_late_result_applies_once(core,ordinary_users):
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_confirmed_unknown_after_rpc_error_retries_independently_and_late_result_applies_once(core,ordinary_users,with_policy):
     alice,_=ordinary_users
     model=RpcModels()
     configure(core,model)
+    policy = None
+    if with_policy:
+        from tianshu.runtime.recovery_policy import RecoveryPolicy
+        policy = RecoveryPolicy()
+        core.memory.bind_observability(statistics=None,recovery_policy=policy)
     episode=await observe(core,alice,"confirmed-rpc-unknown")
     partition=(await episode_row(core,episode))["consolidation_partition_id"]
     await core.workers.consolidate(partition)
     batch=await latest(core,partition)
     original=model.requests[0]
     await due_now(core,batch)
+    if policy:
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
+                               (batch["manifest"]["recovery"]["lineage_id"],))
+            generation=await core.memory.jobs.current_generation_on(conn)
+        await core.memory.consolidation.claim_due_recoveries(generation=generation)
     await core.workers.consolidate(partition)
     final=await latest(core,partition)
     chain=await attempts(core,final)
@@ -168,16 +195,67 @@ async def test_confirmed_unknown_after_rpc_error_retries_independently_and_late_
     assert model.requests[1].attempt_id!=original.attempt_id and model.requests[1].messages==original.messages
     assert chain[1]["previous_step_id"]==chain[0]["step_id"]
     assert model.results[original.attempt_id].receipt.status=="unknown"
+    if policy:
+        async with core.database.transaction(read_only=True) as conn:
+            policy_chain=await (await conn.execute("SELECT status FROM runtime.recovery_attempts WHERE lineage_id=%s "
+                "ORDER BY attempt_number",(batch["manifest"]["recovery"]["lineage_id"],))).fetchall()
+        assert [item["status"] for item in policy_chain]==["unknown","succeeded"]
     model.release()
     await core.workers.consolidate(partition)
     assert len((await core.claims.list(alice)).items)==1 and final["selected_step_id"]==model.requests[1].intent_id
 
 
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_superseded_consolidation_result_cannot_win_while_successor_waits(core,ordinary_users,with_policy):
+    alice,_=ordinary_users
+    model=RpcModels()
+    model.next_status="unknown"
+    configure(core,model)
+    policy=None
+    if with_policy:
+        from tianshu.runtime.recovery_policy import RecoveryPolicy
+        policy=RecoveryPolicy()
+        core.memory.bind_observability(statistics=None,recovery_policy=policy)
+    episode=await observe(core,alice,"superseded-rpc-result")
+    partition=(await episode_row(core,episode))["consolidation_partition_id"]
+    await core.workers.consolidate(partition)
+    batch=await latest(core,partition)
+    await due_now(core,batch)
+    if policy:
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
+                               (batch["manifest"]["recovery"]["lineage_id"],))
+            generation=await core.memory.jobs.current_generation_on(conn)
+        await core.memory.consolidation.claim_due_recoveries(generation=generation)
+    await core.workers.consolidate(partition)
+    assert len(model.requests)==2 and (await latest(core,partition))["status"]=="quarantined"
+    model.release()
+    await core.workers.consolidate(partition)
+    assert not (await core.claims.list(alice)).items and len(model.requests)==2
+    successor=model.requests[1]
+    result=model.answer(successor)
+    model.results[successor.attempt_id]=result
+    model.receipts[successor.attempt_id]=result.receipt
+    await core.workers.consolidate(partition)
+    final=await latest(core,partition)
+    assert final["status"]=="applied" and final["selected_step_id"]==successor.intent_id
+    assert len((await core.claims.list(alice)).items)==1
+    if policy:
+        async with core.database.transaction(read_only=True) as conn:
+            chain=await (await conn.execute("SELECT status FROM runtime.recovery_attempts WHERE lineage_id=%s "
+                "ORDER BY attempt_number",(batch["manifest"]["recovery"]["lineage_id"],))).fetchall()
+        assert [item["status"] for item in chain]==["unknown","succeeded"]
+
+
 @pytest.mark.parametrize("control",["missing","unavailable"])
-async def test_missing_control_never_becomes_permission_to_retry_on_later_wakes(core,ordinary_users,control):
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_missing_control_never_becomes_permission_to_retry_on_later_wakes(core,ordinary_users,control,with_policy):
     alice,_=ordinary_users
     model=RpcModels(control=control)
     configure(core,model)
+    if with_policy:
+        from tianshu.runtime.recovery_policy import RecoveryPolicy
+        core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
     episode=await observe(core,alice,"control-"+control)
     partition=(await episode_row(core,episode))["consolidation_partition_id"]
     await core.workers.consolidate(partition)

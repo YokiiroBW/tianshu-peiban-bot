@@ -41,7 +41,7 @@ class IndexRecovery:
         return "memory-index:" + body_hash((job["kind"], job["object_id"], job["revision"],
                                              job["profile_key"], job["content_hash"]))
 
-    async def reserve_on(self, conn, job, attempt, request, content):
+    async def reserve_on(self, conn, job, attempt, request, content, *, original_receipt=None, claim=None):
         if self.policy is None or attempt.get("recovery_reserved"):
             return True
         from .authority import request_identity
@@ -56,21 +56,24 @@ class IndexRecovery:
         lineage = await self.policy.register_on(conn, domain="memory.index", subject_id=job["object_id"],
             owner=owner, material_id=self.material_id(job),
             material_digest=body_hash(normalized_input(content)), dependency=quota_group,
-            current_version=str(job["revision"]), max_attempts=MAX_ATTEMPTS, data_generation=job["generation"])
+            current_version=str(job["revision"]), max_attempts=MAX_ATTEMPTS, data_generation=job["generation"],
+            recovery_kind="pure_computation")
         lineage_id = _field(lineage, "lineage_id")
         if not lineage_id:
             raise AppError("memory_index_recovery_lineage_unavailable", status=503)
         claim_token = None
         if attempt["number"] > 1:
-            matching = await self.policy.claim_lineage_due_on(conn, lineage_id, owner=owner, lease_seconds=30)
+            matching = claim or await self.policy.claim_lineage_due_on(conn, lineage_id, owner=owner, lease_seconds=30)
             if matching is None:
                 return False
             claim_token = _field(matching, "claim_token")
+        options = {"model_receipt": original_receipt} if original_receipt is not None else {}
         reservation = await self.policy.reserve_attempt_on(conn, lineage_id, owner=owner,
             expected_version=str(job["revision"]), attempt_id=attempt["model_attempt_id"],
             request_digest=body_hash(request_identity(request)),
             route=(job.get("profile") or {}).get("route_id") or "embedding:" + job["profile_key"],
-            original_state="none" if attempt["number"] == 1 else "failed", claim_token=claim_token)
+            original_state="none" if attempt["number"] == 1 else "unknown" if original_receipt is not None else "failed",
+            claim_token=claim_token, **options)
         probe_token = _field(reservation, "probe_token")
         await conn.execute("UPDATE memory.index_jobs SET recovery_lineage_id=%s,recovery_dependency=%s WHERE index_id=%s",
                            (lineage_id, quota_group, job["index_id"]))
@@ -80,10 +83,15 @@ class IndexRecovery:
         attempt["recovery_reserved"], attempt["recovery_probe_token"] = True, probe_token
         return True
 
-    async def fail_on(self, conn, attempt, code, *, unknown=False, retry_after=None, state="failed"):
+    async def fail_on(self, conn, attempt, code, *, job=None, model_receipt=None, unknown=False, retry_after=None, state="failed"):
         if self.policy is None or not attempt.get("recovery_reserved"):
             return
         from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
+        if unknown:
+            await self.policy.record_computation_unknown_on(conn, attempt["model_attempt_id"],
+                owner=self.owner(job), expected_version=str(job["revision"]),
+                model_receipt=model_receipt, retry_after=retry_after)
+            return
         cancelled = state == "cancelled" or code in {"explicit_cancel", "cancelled", "model_cancelled"}
         if cancelled:
             code, category, state = "cancelled", FailureCategory.STATE_CHANGED, "failed"

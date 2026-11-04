@@ -86,6 +86,27 @@ class OriginalOutcome:
         return AppError(self.code,status=503,details=details)
 
 
+async def original_status(models, request):
+    """Read fresh Models control evidence without treating an RPC failure as a receipt."""
+    try:
+        receipt = await models.status(request.attempt_id)
+    except CONTROL_ERRORS as error:
+        _control_failure(error)
+        return None
+    if receipt is None:
+        return None
+    if (not isinstance(receipt, ModelReceipt) or receipt.attempt_id != request.attempt_id
+            or receipt.intent_id != request.intent_id or receipt.data_generation != request.data_generation):
+        raise AppError("memory_model_result_identity_conflict", status=409)
+    return receipt
+
+
+def confirmed_computation_unknown(receipt):
+    return (isinstance(receipt, ModelReceipt) and receipt.status == "unknown" and
+            isinstance(receipt.finished_at, datetime) and receipt.finished_at.tzinfo is not None and
+            receipt.cancellation_reason is None)
+
+
 async def observe_original(models, request):
     """A returned original receipt is evidence; missing/unavailable control is not."""
     control_error=None

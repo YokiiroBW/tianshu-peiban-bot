@@ -32,7 +32,8 @@ class SubmittedModels:
         self.requests.append(request)
         self.completions.append(completion)
         receipt = ModelReceipt(request.attempt_id, request.intent_id, "queued", "not_started",
-                               "route", 1, "provider", "model", "openai.embedding", "quota")
+                               "route", 1, "provider", "model", "openai.embedding", "quota",
+                               data_generation=request.data_generation)
         self.receipts[request.attempt_id] = receipt
         return receipt
 
@@ -41,14 +42,16 @@ class SubmittedModels:
 
     def succeed(self, request):
         receipt = ModelReceipt(request.attempt_id, request.intent_id, "succeeded", "submitted",
-                               "route", 1, "provider", "model", "openai.embedding", "quota")
+                               "route", 1, "provider", "model", "openai.embedding", "quota",
+                               finished_at=datetime.now(UTC), data_generation=request.data_generation)
         self.receipts[request.attempt_id] = receipt
         self.results[request.attempt_id] = ModelResult((), receipt,
             native_response={"data": [{"embedding": [1.0] + [0.0] * 1023}]})
 
     def fail(self, request, *, status="failed", code="upstream_http_500"):
         receipt = ModelReceipt(request.attempt_id, request.intent_id, status, "submitted",
-                               "route", 1, "provider", "model", "openai.embedding", "quota", error_code=code)
+                               "route", 1, "provider", "model", "openai.embedding", "quota", error_code=code,
+                               finished_at=datetime.now(UTC), data_generation=request.data_generation)
         self.receipts[request.attempt_id] = receipt
 
 

@@ -19,7 +19,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from . import codec
 from .generation import MODEL_REQUEST_SECONDS
-from .model_outcome import observe_original
+from .model_outcome import confirmed_computation_unknown, observe_original, original_status
 
 OBSERVE_SECONDS = 30
 EXPLICIT_RETRY_LIMIT = 1
@@ -123,16 +123,19 @@ class ConsolidationRetries:
             current_step,request=await self.steps.recorded(current["step_id"])
             outcome=await observe_original(self.steps.models,request)
             await self._recovery_observation(batch,current["step_id"],outcome,owner=owner)
-            if outcome.receipt and outcome.status in {"failed","cancelled","succeeded"}:
+            if outcome.receipt and outcome.status in {"failed","cancelled","succeeded","unknown"}:
                 await self.consolidation._policy_outcome(batch["batch_id"],current["step_id"],
                     status=outcome.status,code=outcome.receipt.error_code,
                     observation_ref="models:"+request.attempt_id)
             if outcome.explicit_cancel:
                 raise AppError("explicit_cancel", status=409, details={"status": "cancelled"})
-        # A late original is only a candidate; application below selects the
-        # actual winner under the batch lock. Rejected semantic outputs cannot
-        # be selected again merely because their physical receipt succeeded.
+        # Rejected semantic outputs and attempts superseded by a successor
+        # cannot be selected again merely because their receipt succeeded.
         for candidate in attempts:
+            # Once a successor is selected, an older physical result may be
+            # observed for audit but cannot become this batch's application.
+            if candidate["step_id"] != current["step_id"]:
+                continue
             if candidate["rejected_error"]:
                 continue
             if candidate["status"] == "prepared" and not (candidate["step_id"]==current["step_id"] and outcome and outcome.result):
@@ -190,6 +193,20 @@ class ConsolidationRetries:
 
     async def _successor(self, batch, context, previous, *, owner):
         _, original = await self.steps.recorded(previous["step_id"])
+        receipt = None
+        later_failed = False
+        if previous["status"] == "unknown":
+            fresh = await original_status(self.steps.models, original)
+            if confirmed_computation_unknown(fresh):
+                receipt = fresh
+            elif fresh is not None and fresh.status == "failed" and transient_model_failure(fresh.error_code):
+                later_failed = True
+            else:
+                # A newly terminal original needs another ordinary observation;
+                # absent, pending, or unavailable control never authorizes retry.
+                delay = 0 if fresh is not None and fresh.status in {"succeeded", "failed", "cancelled"} else OBSERVE_SECONDS
+                await self._postpone(batch, code="model_outcome_unconfirmed", delay=delay, owner=owner)
+                return None
         step_id = batch["batch_id"] + ":retry:" + str(previous["number"] + 1)
         # Copy the original native request, including old protocol, media,
         # parameters and route. Only this independent execution identity/time
@@ -219,6 +236,12 @@ class ConsolidationRetries:
             policy = self.consolidation.memory.recovery_policy
             prior = await (await conn.execute("SELECT recovery_policy_state FROM memory.consolidation_attempts "
                 "WHERE batch_id=%s AND step_id=%s FOR UPDATE", (batch["batch_id"],previous["step_id"]))).fetchone()
+            if later_failed and recovery and policy and prior["recovery_policy_state"] != "failed":
+                due = datetime.now(UTC)
+                await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=%s WHERE batch_id=%s",
+                                   (due, batch["batch_id"]))
+                await self.consolidation._schedule_on(conn, batch["partition_id"], due, suffix="original-settled")
+                return None
             continuation = bool(prior and prior["recovery_policy_state"] == "succeeded")
             if recovery and policy and not continuation:
                 claim = await (await conn.execute("SELECT * FROM memory.recovery_due_claims WHERE lineage_id=%s "
@@ -236,10 +259,12 @@ class ConsolidationRetries:
                     prior_attempt_id=previous["model_attempt_id"],reason="schema_correction")
             elif recovery and policy:
                 from .authority import request_identity
+                options = {"model_receipt": receipt} if receipt is not None else {}
                 await policy.reserve_attempt_on(conn,recovery["lineage_id"],owner=recovery["owner"],
                     expected_version=recovery["version"],attempt_id=request.attempt_id,
                     request_digest=body_hash(request_identity(wire(request))),route=request.route_id or request.function,
-                    original_state="failed",claim_token=claim["claim_token"])
+                    original_state="unknown" if receipt is not None else "failed",claim_token=claim["claim_token"],
+                    **options)
                 await conn.execute("DELETE FROM memory.recovery_due_claims WHERE lineage_id=%s",(recovery["lineage_id"],))
             await self.steps.prepare_on(conn, step_id, request)
             await self.track_on(conn, batch["batch_id"], step_id, kind="retry", previous_step_id=previous["step_id"],

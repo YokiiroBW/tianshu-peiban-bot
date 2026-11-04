@@ -24,7 +24,7 @@ class IndexModels:
     def __init__(self, outcome="succeeded", error=None):
         self.profile = {"dimensions": 1024, "normalization": "none", "model_version": "synthetic-v1"}
         self.outcome, self.error = outcome, error
-        self.requests, self.reads = [], []
+        self.requests, self.reads, self.status_reads = [], [], []
         self.results, self.receipts = {}, {}
         self.after_generate = None
         self.after_read = None
@@ -34,7 +34,9 @@ class IndexModels:
 
     def result_for(self, request, status, error=None):
         receipt = ModelReceipt(request.attempt_id, request.intent_id, status, "submitted", "route", 1,
-            "provider", "model", "openai.embedding", "quota", error_code=error)
+            "provider", "model", "openai.embedding", "quota", error_code=error,
+            finished_at=datetime.now(UTC) if status not in {"queued", "running"} else None,
+            data_generation=request.data_generation)
         return ModelResult((), receipt, native_response={"data": [{"embedding": [1.0] + [0.0] * 1023}]}
                            if status == "succeeded" else None)
 
@@ -46,6 +48,11 @@ class IndexModels:
             await self.after_generate(request)
         return result
 
+    async def submit(self, request, *, completion=None):
+        if request.attempt_id in self.receipts:
+            return self.receipts[request.attempt_id]
+        return (await self.generate(request)).receipt
+
     async def result(self, attempt_id, **_kwargs):
         self.reads.append(attempt_id)
         if self.after_read:
@@ -54,6 +61,7 @@ class IndexModels:
         return None if result and result.receipt.status in {"queued", "running"} else result
 
     async def status(self, attempt_id):
+        self.status_reads.append(attempt_id)
         return self.receipts.get(attempt_id)
 
 
@@ -85,45 +93,66 @@ async def deliver(core, index_id, *, due=True):
     # Simulate claiming the existing native delivery, without running a worker
     # or sleeping through the persistent backoff in a disposable PG test.
     async with core.database.transaction() as conn:
+        job = await (await conn.execute("SELECT generation FROM memory.index_jobs WHERE index_id=%s", (index_id,))).fetchone()
         if due:
             await conn.execute("UPDATE memory.index_jobs SET next_due=now()-interval '1 second' WHERE index_id=%s", (index_id,))
         rows = await (await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE task_name='memory.index_retry' "
             "AND args->>'index_id'=%s AND status='todo' RETURNING id", (index_id,))).fetchall()
-    await core.workers.index_retry(index_id)
+    await core.workers.index_retry(index_id, generation=job["generation"])
     async with core.database.transaction() as conn:
         if rows:
             await conn.execute("UPDATE procrastinate_jobs SET status='succeeded' WHERE id=ANY(%s) AND status='doing'",
                                ([row["id"] for row in rows],))
 
 
-async def test_transient_index_yields_to_later_objects_then_retries_once_after_restart(core, ordinary_users):
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_transient_index_yields_to_later_objects_then_retries_once_after_restart(core, ordinary_users, with_policy):
     current, _ = ordinary_users
     first, later = await fact(core, current, "first-timeout"), await fact(core, current, "later-success")
     models = configured(core, "unknown", "timeout_unknown")
-    await core.workers.index_object("claim", first.claim_id, first.revision)
+    policy = None
+    if with_policy:
+        from tianshu.runtime.recovery_policy import RecoveryPolicy
+        models.profile["quota_group"] = "quota"
+        policy = RecoveryPolicy()
+        core.workers.index_jobs.bind_observability(recovery_policy=policy)
+    async with core.database.transaction(read_only=True) as conn:
+        generation = await core.memory.jobs.current_generation_on(conn)
+    await core.workers.index_object("claim", first.claim_id, first.revision, generation=generation)
     held = await job_for(core, first)
-    assert held["state"] == "retry_wait" and held["attempt_count"] == 1
-    assert (held["next_due"] - held["updated_at"]).total_seconds() == 30
+    assert held["state"] in {"observing", "retry_wait"} and held["attempt_count"] == 1
+    assert 24 <= (held["next_due"] - held["updated_at"]).total_seconds() <= 36
     assert held["lease_owner"] is held["lease_until"] is None
     original = models.requests[0]
     async with core.database.transaction(read_only=True) as conn:
         before = await (await conn.execute("SELECT request,request_timeout_seconds,state,error_code FROM memory.model_steps "
             "WHERE step_id=%s", (original.intent_id + ":" + held["profile_key"],))).fetchone()
-        row = await (await conn.execute("SELECT lexical,embedding IS NULL AS missing FROM memory.claim_revisions "
+        row = await (await conn.execute("SELECT lexical FROM memory.claim_revisions "
             "WHERE claim_id=%s AND revision=%s", (first.claim_id, first.revision))).fetchone()
-    assert row["lexical"] and row["missing"]
+        vector_before = await (await conn.execute("SELECT 1 FROM memory.search_vectors WHERE object_id=%s "
+            "AND revision=%s AND generation=%s", (first.claim_id, first.revision, generation))).fetchone()
+    assert row["lexical"] and vector_before is None
+    assert before is not None and before["state"] == "unknown"
     models.outcome, models.error = "succeeded", None
-    await core.workers.index_object("claim", later.claim_id, later.revision)
-    assert (await job_for(core, later))["state"] == "succeeded"
+    await core.workers.index_object("claim", later.claim_id, later.revision, generation=generation)
+    later_job = await job_for(core, later)
+    assert later_job["state"] == "succeeded", later_job["last_error"]
     # An early signal must not consume another model attempt or erase the due.
-    await core.workers.index_retry(held["index_id"])
+    await core.workers.index_retry(held["index_id"], generation=generation)
+    await core.workers.index_retry(held["index_id"], completed_attempt_id=original.attempt_id, generation=generation)
     assert len(models.requests) == 2 and (await job_for(core, first))["next_due"] == held["next_due"]
     core.workers.index_jobs = IndexJobs(core.workers)
+    if policy:
+        core.workers.index_jobs.bind_observability(recovery_policy=policy)
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
+                               (held["recovery_lineage_id"],))
     core.workers.embeddings.steps = ModelSteps(core.database, models, core.sources)
+    previous_reads = models.status_reads.count(original.attempt_id)
     await deliver(core, held["index_id"])
     done = await job_for(core, first)
     assert done["state"] == "succeeded" and done["attempt_count"] == 2 and done["next_due"] is None
-    assert models.reads == [original.attempt_id]
+    assert models.status_reads.count(original.attempt_id) > previous_reads
     assert len(models.requests) == 3 and len({request.attempt_id for request in models.requests}) == 3
     assert all(request.execution_timeout_seconds == 30.0 and request.business_deadline_at is None
                and request.max_queue_wait is None for request in models.requests)
@@ -132,17 +161,94 @@ async def test_transient_index_yields_to_later_objects_then_retries_once_after_r
         after = await (await conn.execute("SELECT request,request_timeout_seconds,state,error_code FROM memory.model_steps "
             "WHERE step_id=%s", (original.intent_id + ":" + held["profile_key"],))).fetchone()
         chain = await (await conn.execute("SELECT * FROM memory.index_attempts WHERE index_id=%s ORDER BY number", (held["index_id"],))).fetchall()
-        vector = await (await conn.execute("SELECT embedding::text AS value FROM memory.claim_revisions WHERE claim_id=%s AND revision=%s",
-            (first.claim_id, first.revision))).fetchone()
-    assert after == before and [attempt["status"] for attempt in chain] == ["unknown", "succeeded"]
+        policy_chain = (await (await conn.execute("SELECT status FROM runtime.recovery_attempts WHERE lineage_id=%s "
+            "ORDER BY attempt_number", (held["recovery_lineage_id"],))).fetchall()) if policy else []
+        vector = await (await conn.execute("SELECT embedding::text AS value FROM memory.search_vectors "
+            "WHERE object_id=%s AND revision=%s AND generation=%s AND profile_key=%s",
+            (first.claim_id, first.revision, generation, held["profile_key"]))).fetchone()
+    assert vector is not None and after == before
+    assert [attempt["status"] for attempt in chain] == ["unknown", "succeeded"]
+    if policy:
+        assert [attempt["status"] for attempt in policy_chain] == ["unknown", "succeeded"]
     # A late original success cannot replace the already selected successor.
-    models.results[original.attempt_id] = models.result_for(original, "succeeded")
-    reads = list(models.reads)
-    await core.workers.index_retry(held["index_id"])
+    late = models.result_for(original, "succeeded")
+    models.results[original.attempt_id] = late
+    models.receipts[original.attempt_id] = late.receipt
+    reads, status_reads = list(models.reads), list(models.status_reads)
+    await core.workers.index_retry(held["index_id"], generation=generation)
     async with core.database.transaction(read_only=True) as conn:
-        assert await (await conn.execute("SELECT embedding::text AS value FROM memory.claim_revisions WHERE claim_id=%s AND revision=%s",
-            (first.claim_id, first.revision))).fetchone() == vector
-    assert models.reads == reads and len(models.requests) == 3
+        assert await (await conn.execute("SELECT embedding::text AS value FROM memory.search_vectors "
+            "WHERE object_id=%s AND revision=%s AND generation=%s AND profile_key=%s",
+            (first.claim_id, first.revision, generation, held["profile_key"]))).fetchone() == vector
+    assert models.reads == reads and models.status_reads == status_reads and len(models.requests) == 3
+
+
+@pytest.mark.parametrize("later_status", ["succeeded", "missing", "unavailable", "queued", "running",
+                                          "unfinished", "naive_time", "cancel_reason", "cancelled",
+                                          "mismatched", "old_generation", "forbidden"])
+@pytest.mark.parametrize("with_policy", [False, True])
+async def test_unknown_index_rechecks_original_before_selecting_successor(core, ordinary_users, later_status, with_policy):
+    context, _ = ordinary_users
+    value = await fact(core, context, "original-status-changes-" + later_status)
+    models = configured(core, "unknown", "timeout_unknown")
+    if with_policy:
+        from tianshu.runtime.recovery_policy import RecoveryPolicy
+        models.profile["quota_group"] = "quota"
+        core.workers.index_jobs.bind_observability(recovery_policy=RecoveryPolicy())
+    async with core.database.transaction(read_only=True) as conn:
+        generation = await core.memory.jobs.current_generation_on(conn)
+    await core.workers.index_object("claim", value.claim_id, value.revision, generation=generation)
+    job, original = await job_for(core, value), models.requests[0]
+    read_status = models.status
+    reads = 0
+
+    async def changing_status(attempt_id):
+        nonlocal reads
+        if attempt_id == original.attempt_id:
+            reads += 1
+            if reads == 2:
+                if later_status == "missing":
+                    return None
+                if later_status == "unavailable":
+                    raise AppError("internal_error", status=503)
+                if later_status == "forbidden":
+                    raise AppError("actor_forbidden", status=403)
+                if later_status in {"queued", "running"}:
+                    return replace(models.receipts[attempt_id], status=later_status, finished_at=None)
+                if later_status == "unfinished":
+                    return replace(models.receipts[attempt_id], finished_at=None)
+                if later_status == "naive_time":
+                    return replace(models.receipts[attempt_id], finished_at=datetime(2026, 11, 5))
+                if later_status == "cancel_reason":
+                    return replace(models.receipts[attempt_id], cancellation_reason="consumer_interrupted")
+                if later_status == "cancelled":
+                    return replace(models.receipts[attempt_id], status="cancelled", error_code="cancelled",
+                                   cancellation_reason="explicit_cancel")
+                if later_status == "mismatched":
+                    return replace(models.receipts[attempt_id], attempt_id="different-attempt")
+                if later_status == "old_generation":
+                    return replace(models.receipts[attempt_id], data_generation="old-generation")
+                result = models.result_for(original, "succeeded")
+                models.results[attempt_id], models.receipts[attempt_id] = result, result.receipt
+        return await read_status(attempt_id)
+
+    models.status = changing_status
+    await deliver(core, job["index_id"])
+    observed = await job_for(core, value)
+    assert observed["state"] == ("cancelled" if later_status == "cancelled" else
+                                  "failed" if later_status in {"mismatched", "old_generation"} else
+                                  "revoked" if later_status == "forbidden" else "observing")
+    assert observed["attempt_count"] == 1
+    assert len(models.requests) == 1
+    if with_policy:
+        async with core.database.transaction(read_only=True) as conn:
+            chain = await (await conn.execute("SELECT status FROM runtime.recovery_attempts WHERE lineage_id=%s",
+                                               (job["recovery_lineage_id"],))).fetchall()
+        assert len(chain) == 1
+    if later_status == "succeeded":
+        await core.workers.index_retry(job["index_id"], generation=generation)
+        assert (await job_for(core, value))["state"] == "succeeded"
+        assert len(models.requests) == 1
 
 
 async def test_repeated_429_retains_a_capped_durable_backoff_without_immediate_replay(core, ordinary_users):

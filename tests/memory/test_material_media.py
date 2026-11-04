@@ -41,7 +41,7 @@ def original(source, *, text=None, mime=None, speaker="alice", event=None, part_
 
 
 def episode(index, reads, *, person="alice"):
-    return {"episode_id": "episode_"+str(index), "revision": 1, "sequence": index,
+    return {"episode_id": "episode_"+str(index), "revision": 1, "event_revision": 1, "sequence": index,
         "person_id": person, "origin_kind": "human", "occurred_at": TIME,
         "source_refs": wire(tuple(item["source_ref"] for item in reads)),
         "extraction_sources": [], "extraction_missing": [], "extraction_cursor": None,
@@ -70,7 +70,14 @@ class Sources:
 class Database:
     @asynccontextmanager
     async def transaction(self, **kwargs):
-        yield object()
+        yield self
+
+    async def execute(self, statement, parameters):
+        assert "FROM memory.episode_supplements" in statement
+        return self
+
+    async def fetchall(self):
+        return []
 
 
 class Identity:

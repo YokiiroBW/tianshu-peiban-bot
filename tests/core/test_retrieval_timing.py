@@ -2,6 +2,7 @@
 
 from datetime import UTC, datetime, timedelta
 import json
+from itertools import islice
 from types import SimpleNamespace
 from uuid import NAMESPACE_URL, uuid5
 
@@ -14,7 +15,7 @@ from tianshu.memory.candidates import CandidateSelection
 from tianshu.memory.embedding import Embeddings
 from tianshu.memory.module import create_module
 from tianshu.memory.retrieval import MemoryRetrieval
-from tianshu.memory.retrieval_budget import foreground_seconds
+from tianshu.memory.retrieval_budget import VECTOR_SQL_SECONDS, foreground_seconds
 from tianshu.memory.tools import register_tools
 from tianshu.memory.types import MemoryEvidenceUnit
 from tianshu.models.types import ModelReceipt, ModelRequest, ModelResult
@@ -43,7 +44,10 @@ class Authority:
 
 
 def pipeline(*, settings=None):
-    units = {value.id: value for value in (unit("first"), unit("second"))}
+    # The current pipeline reranks only when candidates compete at the cut.
+    # Supply more than the largest default entrypoint limit (32), with adjacent
+    # lexical scores close enough to exercise both remote phases.
+    units = {value.id: value for value in (unit(f"item-{index:02}") for index in range(33))}
     rows = [{"_kind": "claim", "_id": value.id, "revision": 1, "_content": value.content}
             for value in units.values()]
     local = []
@@ -101,14 +105,21 @@ def pipeline(*, settings=None):
         {"vector": True, "rerank": True, **(settings or {})})
     retrieval.store = store
 
-    async def checked(_context, _plan, candidates, budget, **_kwargs):
+    async def checked(_context, _plan, candidates, budget, *, limit=None, **_kwargs):
         store.note("source_check", budget)
-        return tuple((row, units[row["_id"]]) for row in candidates), ()
+        selected = islice(candidates, limit) if limit is not None else candidates
+        return tuple((row, units[row["_id"]]) for row in selected), ()
+
+    async def derivation_valid(_context, refs, budget):
+        store.note("source_check", budget)
+        available = {(ref.source_id, ref.revision) for value in units.values() for ref in value.source_refs}
+        return all((ref.source_id, ref.revision) in available for ref in refs)
 
     async def revalidate(_context, records, _budget):
         return tuple(units[record.id] for record in records), ()
 
     retrieval._checked, retrieval.revalidate = checked, revalidate
+    retrieval._derivation_valid = derivation_valid
     return memory, models, retrieval, local
 
 
@@ -126,7 +137,7 @@ async def test_default_foreground_entrypoints_execute_both_thirty_second_phases(
         register_tools(catalog, memory, retrieval)
         action = Action("query", "query", "memory.search", "actor", current, {"query": "synthetic"}, OriginKind.HUMAN)
         result = await catalog.handler("memory.search").execute(action, Attempt("attempt", action.action_id))
-        assert len(result.result["items"]) == 2
+        assert {"item-00", "item-01"} <= {item["id"] for item in result.result["items"]}
     else:
         app = web.Application()
 
@@ -146,13 +157,14 @@ async def test_default_foreground_entrypoints_execute_both_thirty_second_phases(
             return {"actor_id": "actor", "query": "synthetic"}
 
         response = await handler(SimpleNamespace(json=body, **{"principal_id": "owner"}))
-        assert len(json.loads(response.text)["items"]) == 2
+        assert len(json.loads(response.text)["items"]) == 32
     assert [request.function for request in models.requests] == ["embed", "rerank"]
     for request in models.requests:
         assert request.execution_timeout_seconds == 30.0
         assert request.business_deadline_at == request.budget.deadline_at
     assert all(seconds >= 30.0 for seconds in models.after_queue_allowances)
-    assert local and all(seconds <= (0.8 if name.startswith("vector_") else 2.0) for name, seconds in local)
+    assert local and all(seconds <= (VECTOR_SQL_SECONDS if name.startswith("vector_") else 2.0)
+                         for name, seconds in local)
 
 
 @pytest.mark.parametrize("entry", ["chat", "tool"])
@@ -163,7 +175,8 @@ async def test_short_upstream_deadline_keeps_lexical_evidence_without_starting_r
     if entry == "chat":
         pack = await ContextAssembler(memory.identity, memory, retrieval).assemble(current, "chat", "synthetic", parent)
         missing = pack.missing
-        assert len([item for item in pack.materials if item.kind == "memory_evidence"]) == 2
+        assert {"item-00", "item-01"} <= {json.loads(item.text)["id"] for item in pack.materials
+                                          if item.kind == "memory_evidence"}
     else:
         catalog = Catalog()
         register_tools(catalog, memory, retrieval)
@@ -171,7 +184,7 @@ async def test_short_upstream_deadline_keeps_lexical_evidence_without_starting_r
             OriginKind.HUMAN, deadline_at=parent.deadline_at)
         result = await catalog.handler("memory.search").execute(action, Attempt("attempt", action.action_id))
         missing = result.coverage.missing
-        assert len(result.result["items"]) == 2
+        assert {"item-00", "item-01"} <= {item["id"] for item in result.result["items"]}
     assert {"embedding_budget_insufficient", "rerank_budget_insufficient"} <= set(missing)
     assert models.requests == []
 

@@ -69,7 +69,8 @@ class Consolidation:
         version = body_hash({"frozen":frozen_mapping(frozen),"authority":context_record(context)})
         lineage = await policy.register_on(conn, domain="memory",subject_id=context.actor_id,
             owner="memory",material_id=batch_id,material_digest=body_hash(frozen_mapping(frozen)),
-            dependency="models:"+(request.route_id or request.function),current_version=version,max_attempts=8)
+            dependency="models:"+(request.route_id or request.function),current_version=version,max_attempts=8,
+            recovery_kind="pure_computation")
         await policy.reserve_attempt_on(conn,lineage["lineage_id"],owner="memory",expected_version=version,
             attempt_id=request.attempt_id,request_digest=body_hash(request_identity(wire(request))),
             route=request.route_id or request.function,original_state="none")
@@ -127,6 +128,13 @@ class Consolidation:
         if policy is None:
             return
         from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
+        receipt = None
+        if status == "unknown":
+            from .model_outcome import confirmed_computation_unknown, original_status
+            _, original = await self.steps.recorded(step_id)
+            receipt = await original_status(self.steps.models, original)
+            if not confirmed_computation_unknown(receipt):
+                return
         async with self.database.transaction() as conn:
             batch = await (await conn.execute("SELECT manifest FROM memory.consolidation_batches WHERE batch_id=%s",
                 (batch_id,))).fetchone()
@@ -160,13 +168,26 @@ class Consolidation:
                         category=category,retry_after=retry_after)
                 settled = status
             elif status == "unknown" and previous != "unknown":
-                await policy.fail_attempt_on(conn,attempt_id,code=code or "model_transport_unknown",
-                    category=classify_failure(code or "model_transport_unknown",external_outcome_unknown=True))
+                recovery = batch["manifest"]["recovery"]
+                await policy.record_computation_unknown_on(conn,attempt_id,owner=recovery["owner"],
+                    expected_version=recovery["version"],model_receipt=receipt,retry_after=retry_after)
                 settled = "unknown"
             else:
                 return
             await conn.execute("UPDATE memory.consolidation_attempts SET recovery_policy_state=%s "
                 "WHERE batch_id=%s AND step_id=%s",(settled,batch_id,step_id))
+
+    async def _assert_attempt_applicable_on(self, conn, batch, step_id):
+        recovery = batch["manifest"].get("recovery")
+        policy = self.memory.recovery_policy
+        if not recovery or policy is None or step_id is None:
+            return
+        attempt = await (await conn.execute("SELECT model_attempt_id FROM memory.consolidation_attempts "
+            "WHERE batch_id=%s AND step_id=%s", (batch["batch_id"], step_id))).fetchone()
+        if attempt is None:
+            raise AppError("memory_consolidation_attempt_missing", status=409)
+        await policy.assert_attempt_applicable_on(conn, attempt["model_attempt_id"],
+            owner=recovery["owner"], expected_version=recovery["version"])
 
     async def _schedule_on(self, conn, partition_id, due, *, suffix="", target_batch_id=None):
         state = await (await conn.execute("SELECT partition_id FROM memory.consolidation_state "
@@ -971,6 +992,7 @@ class Consolidation:
         frozen_digest = body_hash(frozen)
         async with self.database.transaction() as conn:
             await self._assert_batch_generation_on(conn, batch)
+            await self._assert_attempt_applicable_on(conn, batch, step_id)
             if not await self.sources.validate_persistence(conn, context, codec.refs(batch["dependency_refs"])):
                 raise AppError("source_unavailable", status=403)
             await self._lock_owned_partition(conn, batch["partition_id"], owner)
@@ -1221,6 +1243,7 @@ class Consolidation:
         digest = body_hash(proposal)
         async with self.database.transaction() as conn:
             await self._assert_batch_generation_on(conn, batch)
+            await self._assert_attempt_applicable_on(conn, batch, step_id)
             # This order matches Sources withdrawal: sources -> partition -> batch -> stable domain objects.
             if not await self.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
                 raise AppError("source_unavailable",status=403)
