@@ -5,7 +5,7 @@ from datetime import UTC, datetime, timedelta
 
 import aiohttp
 
-from tianshu.conversation.codec import context_from_record, document
+from tianshu.conversation.codec import context_from_record, document, signature
 from tianshu.conversation.generation import attempt_for
 from tianshu.models.retry import retry_delay_seconds, transient_model_failure
 from tianshu.runtime.errors import AppError
@@ -13,6 +13,7 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from .growth_recovery import authorization_error, sequence
+from .growth_policy import OWNER, MAX_ATTEMPTS, fail as fail_recovery, succeed as succeed_recovery, field
 from .growth_output_repair import (correction_available, corrected_request, output_diagnostic,
                                    review_available, upgrade_request)
 from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, REVIEW_ERRORS,
@@ -51,7 +52,7 @@ def with_history(history, entry):
 def manual_retry_allowed(code):
     return bool(code) and not any(marker in code for marker in (
         "source", "cancel", "withdraw",
-        "retract", "business_deadline", "episode_revision", "episode_unavailable", "identity_conflict"))
+        "retract", "business_deadline", "episode_revision", "episode_unavailable", "identity_conflict", "budget_exhausted"))
 
 
 class GrowthRetries:
@@ -60,11 +61,42 @@ class GrowthRetries:
         self.database = growth.companion.database
 
     async def schedule_on(self, connection, row):
+        generation = row['batch']['runtime_generation']
+        await self.growth.jobs.assert_generation_on(connection, generation)
         await self.growth.jobs.enqueue(connection, JobSpec("companion.growth.retry",
-            f"growth-retry:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
-            {"actor_id": row["actor_id"], "scope_key": row["scope_key"], "retry_key": row["retry_key"]},
+            f"growth-retry:{generation}:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
+            {"actor_id": row["actor_id"], "scope_key": row["scope_key"], "retry_key": row["retry_key"], 'generation':generation},
             scheduled_at=row["due_at"] or datetime.now(UTC), subject_id=row["actor_id"]),
-            queueing_lock=f"growth-retry:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}")
+            queueing_lock=f"growth-retry:{generation}:{row['actor_id']}:{row['scope_key']}:{row['retry_key']}")
+
+    async def select_route(self, row, request, generation):
+        candidate = replace(request, route_id=None, route_revision=None)
+        profile = await self.growth.models.generation_profile(candidate)
+        if not profile.get('quota_group') or not profile.get('route_id') or not profile.get('route_revision'):
+            raise AppError('growth_model_quota_unavailable', status=503)
+        dependency = 'models:quota:'+profile['quota_group']
+        candidate = replace(candidate, route_id=profile['route_id'], route_revision=profile['route_revision'])
+        if dependency == row['batch']['recovery_dependency'] and profile['route_id'] == row['batch']['recovery_route']:
+            return row, candidate
+        async with self.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, generation)
+            current = await (await connection.execute(
+                "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s AND retry_key=%s FOR UPDATE",
+                (row['actor_id'], row['scope_key'], row['retry_key']))).fetchone()
+            if not current or current['revision'] != row['revision'] or current['state'] != 'waiting':
+                raise AppError('generation_no_longer_current', status=409)
+            batch = current['batch']
+            if dependency != batch['recovery_dependency']:
+                await self.growth.recovery_policy.update_dependency_on(connection, batch['lineage_id'], owner=OWNER,
+                    expected_version=batch['recovery_version'], expected_dependency=batch['recovery_dependency'],
+                    new_dependency=dependency)
+            batch = {**batch, 'recovery_dependency': dependency, 'recovery_route': profile['route_id']}
+            current = await (await connection.execute(
+                'UPDATE companion.growth_retry_batches SET batch=%s,revision=revision+1,updated_at=now() '
+                'WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *',
+                (document(batch), row['actor_id'], row['scope_key'], row['retry_key']))).fetchone()
+            await self.growth.observations.emit_on(connection, self.growth.observations.review_event(current), generation=generation)
+        return current, candidate
 
     async def defer(self, state, batch, code, result=None, *, diagnostic=None):
         """One CAS moves this owner to the tail; later input never joins its batch."""
@@ -75,15 +107,28 @@ class GrowthRetries:
             code = "explicit_cancel"
         correcting = bool(result and result.receipt.status == "succeeded" and diagnostic is not None
                           and correction_available(batch, code))
+        # Without an original Models receipt, even a source/authorization error
+        # does not establish what happened to the physical attempt.
+        uncertain = result is None or result.receipt.status == 'unknown'
         retryable = correcting or transient_model_failure(code, cancelled=explicit_cancel)
+        if number >= MAX_ATTEMPTS and not uncertain:
+            retryable = False
         due = datetime.now(UTC) + timedelta(seconds=0 if correcting else retry_delay_seconds(number)) if retryable else None
         async with self.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, batch['runtime_generation'])
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
                 (state["actor_id"], state["scope_key"]))).fetchone()
             if (not current or not current["active_batch"]
                     or current["active_batch"]["material_key"] != batch["material_key"]):
                 return {"state": "changed_since_original_result_read"}
+            if result is not None and result.receipt.status == 'succeeded':
+                # A malformed domain result does not change the physical
+                # Models receipt; a correction is a bounded continuation.
+                await succeed_recovery(self.growth.recovery_policy, connection, batch, attempt_for(batch['material_key']))
+            else:
+                await fail_recovery(self.growth.recovery_policy, connection, batch, attempt_for(batch['material_key']),
+                    'cancelled' if explicit_cancel else code, unknown=uncertain)
             await connection.execute(
                 "INSERT INTO companion.growth_retry_batches(actor_id,scope_key,retry_key,batch,current_material_key,state) "
                 "VALUES(%s,%s,%s,%s,%s,'active') ON CONFLICT DO NOTHING",
@@ -102,9 +147,10 @@ class GrowthRetries:
                 "UPDATE companion.growth_retry_batches SET batch=%s,state=%s,due_at=%s,last_error=%s,"
                 "waiting_on_original=%s,explicit_retry=false,history=%s,revision=revision+1,updated_at=now() "
                 "WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
-                (document(reserved), "waiting" if retryable else "blocked", due, code, result is None,
+                (document(reserved), "waiting" if retryable else "blocked", due, code, uncertain,
                  document(with_history(row["history"], history_entry(reserved, code, result))),
                  state["actor_id"], state["scope_key"], key))).fetchone()
+            await self.growth.observations.emit_on(connection, self.growth.observations.review_event(row), generation=batch['runtime_generation'])
             for identifier, version in batch["inputs"]:
                 await connection.execute(
                     "UPDATE companion.growth_inputs SET retry_key=%s,updated_at=now() "
@@ -122,7 +168,7 @@ class GrowthRetries:
                 (revision, state["actor_id"], state["scope_key"]))
             if retryable:
                 await self.schedule_on(connection, row)
-            await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], revision, "failed-batch-yield")
+            await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], revision, "failed-batch-yield", generation=batch['runtime_generation'])
         return {"state": "retry_waiting" if retryable else "retry_blocked", "retry_key": key,
             "error_code": code, "attempt_id": attempt_for(batch["material_key"]), "due_at": due,
             "attempt_number": number}
@@ -130,18 +176,34 @@ class GrowthRetries:
     async def postpone(self, row, *, code=None, blocked=False, waiting_on_original=True):
         """An unreadable/live original is observed later, never double-submitted."""
         async with self.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, row['batch']['runtime_generation'])
             updated = await (await connection.execute(
                 "UPDATE companion.growth_retry_batches SET state=%s,due_at=%s,last_error=COALESCE(%s,last_error),"
                 "waiting_on_original=%s,revision=revision+1,updated_at=now() "
                 "WHERE actor_id=%s AND scope_key=%s AND retry_key=%s AND revision=%s AND state='waiting' RETURNING *",
                 ("blocked" if blocked else "waiting", None if blocked else datetime.now(UTC)+timedelta(seconds=30),
                  code, waiting_on_original and not blocked, row["actor_id"], row["scope_key"], row["retry_key"], row["revision"]))).fetchone()
+            if updated:
+                await self.growth.observations.emit_on(connection, self.growth.observations.review_event(updated), generation=row['batch']['runtime_generation'])
+                if blocked and code and any(part in code for part in (
+                        'source', 'cancel', 'withdraw', 'retract', 'episode_revision', 'episode_unavailable')):
+                    batch = updated['batch']
+                    if batch.get('lineage_id'):
+                        versions = await (await connection.execute(
+                            'SELECT episode_id,revision FROM companion.growth_inputs WHERE actor_id=%s AND scope_key=%s '
+                            'AND episode_id=ANY(%s) ORDER BY episode_id',
+                            (row['actor_id'], row['scope_key'], [item[0] for item in batch['inputs']]))).fetchall()
+                        current_version = signature({'inputs': [(item['episode_id'], item['revision']) for item in versions],
+                                                     'terminal_reason': code})
+                        await self.growth.recovery_policy.update_version_on(connection, batch['lineage_id'], owner=OWNER,
+                            expected_version=batch['recovery_version'], current_version=current_version, cancelled=True)
             if updated and not blocked:
                 await self.schedule_on(connection, updated)
         return {"state": "retry_blocked" if blocked else "waiting_original", "error_code": code}
 
-    async def run(self, actor_id, scope_key, retry_key):
-        async with self.database.transaction(read_only=True) as connection:
+    async def run(self, actor_id, scope_key, retry_key, generation):
+        async with self.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, generation)
             row = await (await connection.execute(
                 "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s AND retry_key=%s",
                 (actor_id, scope_key, retry_key))).fetchone()
@@ -150,10 +212,12 @@ class GrowthRetries:
                 (actor_id, scope_key))).fetchone()
         if not row or not state or row["state"] not in {"waiting", "active"}:
             return
+        if row['batch'].get('runtime_generation') != generation or state['runtime_generation'] != generation:
+            raise AppError('growth_generation_changed', status=409)
         active = state["active_batch"]
         if active:
             if active["material_key"] == row["current_material_key"]:
-                return await self.growth.organize(actor_id, scope_key, state["revision"])
+                return await self.growth.organize(actor_id, scope_key, state["revision"], generation)
             return await self.postpone(row, waiting_on_original=False)
         if row["state"] == "active":
             # The pointer is transactional with this row. An externally changed
@@ -180,6 +244,32 @@ class GrowthRetries:
             if request is None:
                 return await self.postpone(row, code="reflection_material_contract_invalid", blocked=True)
             result = await self.growth.generations.read(request.attempt_id, context)
+            if row['waiting_on_original']:
+                if result is None or result.receipt.status in {'queued', 'running', 'unknown'}:
+                    return await self.postpone(row)
+                # The original Models ledger, not a timeout, settles unknown.
+                from tianshu.runtime.recovery_policy import classify_failure
+                observed_state = 'succeeded' if result.receipt.status == 'succeeded' else 'failed'
+                observed_code = ('cancelled' if getattr(result.receipt, 'cancellation_reason', None) == 'explicit_cancel'
+                    else result.receipt.error_code or 'reflection_generation_'+result.receipt.status)
+                async with self.database.transaction() as connection:
+                    await self.growth.jobs.assert_generation_on(connection, generation)
+                    current_retry = await (await connection.execute(
+                        'SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s '
+                        'AND retry_key=%s FOR UPDATE', (actor_id, scope_key, retry_key))).fetchone()
+                    if not current_retry or current_retry['revision'] != row['revision'] or not current_retry['waiting_on_original']:
+                        return {'state': 'changed_since_original_result_read'}
+                    await self.growth.recovery_policy.resolve_unknown_on(connection, request.attempt_id,
+                        observation_ref='models:'+request.attempt_id, state=observed_state,
+                        code=None if observed_state == 'succeeded' else observed_code,
+                        category=None if observed_state == 'succeeded' else classify_failure(observed_code),
+                        probe_token=row['batch'].get('probe_token'))
+                    row = await (await connection.execute(
+                        'UPDATE companion.growth_retry_batches SET waiting_on_original=false,revision=revision+1,updated_at=now() '
+                        'WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *',
+                        (actor_id, scope_key, retry_key))).fetchone()
+            if result is None or result.receipt.status == 'unknown':
+                return await self.postpone(row)
             if result and getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel":
                 return await self.postpone(row, code="explicit_cancel", blocked=True)
             if result and result.receipt.status in {"queued", "running"}:
@@ -216,6 +306,8 @@ class GrowthRetries:
                 # snapshot of the first failure. Re-read immediately before
                 # choosing/freezing a replacement computation.
                 result = await self.growth.generations.read(request.attempt_id, context)
+                if result is None or result.receipt.status == 'unknown':
+                    return await self.postpone(row)
                 if result and getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel":
                     return await self.postpone(row, code="explicit_cancel", blocked=True)
                 if result and result.receipt.status in {"queued", "running"}:
@@ -227,11 +319,20 @@ class GrowthRetries:
                         if result.receipt.status == "unknown" else "reflection_generation_" + result.receipt.status)
                     if not transient_model_failure(latest_code):
                         return await self.postpone(row, code=latest_code, blocked=True)
+            continuation = bool(successor and result and result.receipt.status == 'succeeded' and
+                                (pending_repair or (output_error and output_error.code in CORRECTABLE_ERRORS)))
+            if successor:
+                if row['attempt_number'] >= MAX_ATTEMPTS:
+                    return await self.postpone(row, code='growth_retry_budget_exhausted', blocked=True)
+                if result is not None and result.receipt.status == 'succeeded' and not continuation:
+                    return await self.postpone(row, code=row['last_error'], blocked=True)
             number = row["attempt_number"] + int(successor)
             key = f"{retry_key}:retry:{number}" if successor else row["current_material_key"]
             candidate = replace(request, intent_id=key, attempt_id=attempt_for(key), context=context,
                 budget=RequestBudget(datetime.now(UTC)+timedelta(minutes=3)), execution_timeout_seconds=180.0,
                 max_queue_wait=None, provider_session_scope="intent") if successor else request
+            if successor:
+                row, candidate = await self.select_route(row, candidate, generation)
             repair_update = {}
             if successor and (pending_repair or output_error and output_error.code in CORRECTABLE_ERRORS):
                 if not pending_repair and not correction_available(row["batch"], output_error.code):
@@ -270,6 +371,21 @@ class GrowthRetries:
                     "watermark": current["watermark"], "attempt_number": number,
                     "reflection_identity_protocol": IDENTITY_PROTOCOL, "material_at": material_time(episodes).isoformat(),
                     **repair_update}
+                if successor:
+                    claim = (await self.growth.recovery_policy.claim_continuation_on(connection,
+                        batch['lineage_id'], owner=OWNER, expected_version=batch['recovery_version'],
+                        prior_attempt_id=request.attempt_id, reason='schema_correction')) if continuation else (
+                        await self.growth.recovery_policy.claim_lineage_due_on(connection,
+                            batch['lineage_id'], owner=OWNER, lease_seconds=30))
+                    if not claim:
+                        return False
+                    reservation = await self.growth.recovery_policy.reserve_attempt_on(connection,
+                        batch['lineage_id'], owner=OWNER, expected_version=batch['recovery_version'],
+                        attempt_id=candidate.attempt_id, request_digest=signature(candidate),
+                        route=batch['recovery_route'], original_state='succeeded' if continuation else 'failed',
+                        claim_token=field(claim, 'claim_token'))
+                    batch['probe_token'] = field(reservation, 'probe_token')
+                    batch['recovery_observe_only'] = field(reservation, 'status') != 'reserved'
                 payload = frozen_material(candidate)
                 if payload.get("model_protocol") == OUTPUT_PROTOCOL:
                     batch.update(reflection_output_protocol=OUTPUT_PROTOCOL, episode_refs=payload["episode_refs"])
@@ -284,12 +400,13 @@ class GrowthRetries:
                         "UPDATE companion.growth_legacy_requests SET state='pending',error_code=NULL,updated_at=now() "
                         "WHERE actor_id=%s AND scope_key=%s AND material_key=%s AND state='abandoned'",
                         (actor_id, scope_key, key))
-                await connection.execute(
+                updated_retry = await (await connection.execute(
                     "UPDATE companion.growth_retry_batches SET state='active',batch=%s,current_material_key=%s,"
                     "previous_material_key=%s,attempt_number=%s,due_at=NULL,explicit_retry=false,waiting_on_original=false,"
-                    "revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND retry_key=%s",
+                    "revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
                     (document(batch), key, row["current_material_key"] if successor else row["previous_material_key"],
-                     number, actor_id, scope_key, retry_key))
+                     number, actor_id, scope_key, retry_key))).fetchone()
+                await self.growth.observations.emit_on(connection, self.growth.observations.review_event(updated_retry), generation=generation)
                 activated = await (await connection.execute(
                     "UPDATE companion.organize_state SET active_batch=%s,blocked_material=%s,last_error=NULL,"
                     "revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s RETURNING *",
@@ -298,14 +415,14 @@ class GrowthRetries:
                 return True
 
             async with self.database.transaction() as connection:
-                await self.growth._validate_material(connection, context, episodes, request.source_refs)
+                await self.growth._validate_material(connection, context, episodes, request.source_refs, generation=generation)
                 if successor:
                     await self.growth.generations.prepare(key, candidate, connection=connection, guard=claim)
                 else:
                     await claim(connection)
             if activated is None:
                 return await self.postpone(row, waiting_on_original=False)
-            return await self.growth.organize(actor_id, scope_key, activated["revision"])
+            return await self.growth.organize(actor_id, scope_key, activated["revision"], generation)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             if isinstance(error, AppError) and error.code == "generation_no_longer_current":
                 return await self.postpone(row, waiting_on_original=False)
@@ -321,13 +438,15 @@ class GrowthRetries:
             (current["actor_id"], current["scope_key"], batch["retry_key"]))).fetchone()
         if not row or row["state"] != "active" or row["current_material_key"] != batch["material_key"]:
             raise AppError("generation_no_longer_current", status=409)
-        await connection.execute(
+        updated = await (await connection.execute(
             "UPDATE companion.growth_retry_batches SET state='completed',due_at=NULL,last_error=NULL,history=%s,"
-            "outcome=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND retry_key=%s",
+            "outcome=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
             (document(with_history(row["history"], entry)), "historical_only" if history_only else "applied",
-             row["actor_id"], row["scope_key"], row["retry_key"]))
+             row["actor_id"], row["scope_key"], row["retry_key"]))).fetchone()
+        await self.growth.observations.emit_on(connection, self.growth.observations.review_event(updated), generation=current['runtime_generation'])
 
     async def resume_on(self, connection, current, caller, retry_key):
+        await self.growth.jobs.assert_generation_on(connection, current['runtime_generation'])
         row = await (await connection.execute(
             "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s AND retry_key=%s FOR UPDATE",
             (current["actor_id"], current["scope_key"], retry_key))).fetchone()
@@ -340,6 +459,7 @@ class GrowthRetries:
             "UPDATE companion.growth_retry_batches SET state='waiting',due_at=now(),explicit_retry=true,"
             "revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
             (row["actor_id"], row["scope_key"], retry_key))).fetchone()
+        await self.growth.observations.emit_on(connection, self.growth.observations.review_event(updated), generation=current['runtime_generation'])
         revision = current["revision"] + 1
         await connection.execute(
             "UPDATE companion.organize_state SET revision=%s,updated_at=now() WHERE actor_id=%s AND scope_key=%s",
@@ -359,8 +479,9 @@ class GrowthRetries:
 
     async def recover(self):
         async with self.database.transaction() as connection:
+            generation = await self.growth.jobs.current_generation_on(connection)
             rows = await (await connection.execute(
                 "SELECT * FROM companion.growth_retry_batches WHERE state IN ('waiting','active') "
-                "ORDER BY actor_id,scope_key,retry_key FOR UPDATE")).fetchall()
+                "AND batch->>'runtime_generation'=%s ORDER BY actor_id,scope_key,retry_key FOR UPDATE", (generation,))).fetchall()
             for row in rows:
                 await self.schedule_on(connection, row)

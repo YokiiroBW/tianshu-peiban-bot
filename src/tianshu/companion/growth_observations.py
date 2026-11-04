@@ -35,6 +35,17 @@ def episode_material(episode):
     no truncated body is presented as the complete original evidence.
     """
     actual = episode.actual_result
+    if (actual and actual.get('imagined') is True and actual.get('learning_value') == 'low'
+            and actual.get('experience_eligible') is not True):
+        row = wire(replace(episode, summary='', actual_result=None, consolidation={}))
+        row['summary'] = '低信息的虚构活动，按活动名称汇总；不推断实际身体行动。'
+        row['actual_result'] = {'imagined': True, 'experience_kind': 'imagined',
+            'learning_value': 'low', 'title': actual.get('title')}
+        row['reflection_coverage'] = {'representation': 'low_information_imagined_summary',
+            'complete': False, 'missing': ['imagined_details_not_assessed'],
+            'original': {'episode_id': episode.episode_id, 'revision': episode.revision,
+                         'retrieval': 'episodes_by_refs_or_source_trace'}}
+        return row
     if episode.origin_kind != OriginKind.TOOL_RESULT or not actual:
         return wire(episode)
     row = wire(replace(episode, actual_result=None, summary="", consolidation={}))

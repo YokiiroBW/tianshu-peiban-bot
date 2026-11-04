@@ -39,12 +39,29 @@ def create_module(service, growth, identity):
         route("growth/view", lambda ctx, body: growth.view(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
         route("growth/revoke", lambda ctx, body: growth.set_state(ctx, body, "revoked"), write=True)
         route("growth/restore", lambda ctx, body: growth.set_state(ctx, body, "active"), write=True)
+        route("growth/revise", growth.revise, write=True)
+        route("growth/unresolved/dismiss", growth.habits.dismiss_unresolved, write=True)
+        route("growth/history", lambda ctx, body: growth.habits.history(ctx, body.get('id')))
+        route("growth/reflections", lambda ctx, body: growth.reflection_page(ctx,
+              cursor=body.get('cursor'), limit=body.get('limit', 40), time_mode=body.get('time_mode', 'current'),
+              valid_at=body.get('valid_at'), known_at=body.get('known_at')))
+        route("growth/examples/reject", growth.examples.reject, write=True)
+        route("growth/examples/view", lambda ctx, body: growth.examples.view(ctx,
+              cursor=body.get('cursor'), limit=body.get('limit', 40)))
 
     def tasks(queue, _runtime):
         queue.register("companion.organize", growth.organize, retryable=False)
         queue.register("companion.growth.retry", growth.retries.run, retryable=False)
+        queue.register("companion.growth.input_retry", growth.retry_input, retryable=True)
+        queue.register("companion.episode_changed", growth.consume_episode_change, retryable=True)
+        queue.register("companion.growth.statistics", growth.observations.replay, retryable=False)
 
-    return DomainModule("companion", register, start=lambda _runtime:growth.recover(), register_tasks=tasks,
+    async def start(runtime):
+        if runtime.role == 'bot-background':
+            await growth.recover()
+
+    return DomainModule("companion", register, start=start, register_tasks=tasks,
         migrations=(Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),
             Migration("0034_companion_growth_batches", files("tianshu.companion").joinpath("growth_batches.sql").read_text()),
-            Migration("0037_companion_growth_retry", files("tianshu.companion").joinpath("growth_retry.sql").read_text())),)
+            Migration("0037_companion_growth_retry", files("tianshu.companion").joinpath("growth_retry.sql").read_text()),
+            Migration("0039_companion_learning", files("tianshu.companion").joinpath("habit_revisions.sql").read_text())),)

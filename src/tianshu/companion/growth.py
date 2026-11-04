@@ -7,15 +7,15 @@ import json
 import aiohttp
 
 from tianshu.models.types import ModelRequest
-from tianshu.models.retry import transient_model_failure
+from tianshu.models.retry import retry_delay_seconds, transient_model_failure
 from tianshu.memory.types import EpisodePage
-from tianshu.runtime.api import CommandResult
+from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
-from tianshu.types import ContextContribution, Coverage, RequestBudget, ServiceClass
+from tianshu.types import Coverage, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
-from tianshu.life.validation import revision
+from tianshu.life.validation import revision, timestamp
 from tianshu.conversation.generation import GenerationRequests, attempt_for
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.models.completion import completion_from_native
@@ -24,6 +24,11 @@ from .growth_observations import MATERIAL_PROTOCOL, material_coverages
 from .growth_output_repair import review_available
 from .growth_recovery import AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED, GrowthRecovery, authorization_error
 from .growth_retry import GrowthRetries, error_code, later_cursor, manual_retry_allowed, material_time
+from .habits import HabitLedger, management_scope
+from .expression_examples import ExpressionExamples
+from .growth_statistics import GrowthStatistics
+from .growth_operations import GrowthOperations
+from .growth_policy import MAX_ATTEMPTS, reserve_initial, succeed as succeed_recovery
 from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, OUTPUT_TOKEN_BUDGET,
                                 REVIEW_ERRORS, frozen_episodes, prepare_reflections, validate_batch_request)
 
@@ -37,26 +42,69 @@ class GrowthService:
         self.generations = GenerationRequests(companion.database, companion.sources, models)
         self.recovery = GrowthRecovery(self)
         self.retries = GrowthRetries(self)
+        self.habits = HabitLedger(companion, on_changed=self._index_learning)
+        self.examples = ExpressionExamples(companion, self.habits)
+        self.life = None
+        self.observations = GrowthStatistics(companion.database, jobs)
+        self.recovery_policy = None
+        self.operations = GrowthOperations(self)
 
-    async def changed(self, context, watermark, *, episode=None, connection=None):
-        if episode is None or not reflectable(episode):
+    def set_observability(self, *, statistics, recovery_policy):
+        self.observations.bind(statistics)
+        self.recovery_policy = recovery_policy
+
+    def set_conversation(self, conversation):
+        self.examples.conversation = conversation
+
+    def set_life(self, life):
+        self.life = life
+
+    def set_operations_guard(self, guard_on):
+        self.operations.guard_on = guard_on
+
+    async def changed(self, context, watermark, *, episode=None, connection=None, generation=None):
+        if episode is None:
+            return
+        actual = episode.actual_result or {}
+        low_rest = (actual.get('derived_kind') == 'routine_rest' and actual.get('learning_value') == 'low'
+                    and actual.get('experience_eligible') is False)
+        if not reflectable(episode) and not low_rest:
             return
         if connection is None:
+            if not generation:
+                raise AppError('growth_generation_required')
             await self.companion.identity.check(context)
             async with self.companion.database.transaction() as transaction:
-                return await self.changed(context, watermark, episode=episode, connection=transaction)
+                return await self.changed(context, watermark, episode=episode, connection=transaction, generation=generation)
+        if generation is None:
+            generation = await self.jobs.current_generation_on(connection)
+        await self.jobs.assert_generation_on(connection, generation)
         await self.companion.validate_persistence(connection, context)
         scope_key = signature(sorted(context.scope_ids))
         created = await (await connection.execute(
-            "INSERT INTO companion.organize_state(actor_id,scope_key,watermark,context,legacy_state) VALUES (%s,%s,%s,%s,'complete') "
+            "INSERT INTO companion.organize_state(actor_id,scope_key,watermark,context,legacy_state,runtime_generation) VALUES (%s,%s,%s,%s,'complete',%s) "
             "ON CONFLICT(actor_id,scope_key) DO NOTHING RETURNING revision",
-            (context.actor_id, scope_key, watermark, document(context)))).fetchone()
+            (context.actor_id, scope_key, watermark, document(context), generation))).fetchone()
         # Queue mutations consistently lock the consumer state before its inputs.
-        await connection.execute(
-            "SELECT revision FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
-            (context.actor_id, scope_key))
-        if not await self._register_input(connection, context, scope_key, episode):
+        saved = await (await connection.execute(
+            "SELECT revision,runtime_generation FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
+            (context.actor_id, scope_key))).fetchone()
+        if saved['runtime_generation'] != generation:
+            raise AppError('growth_generation_changed', status=409)
+        if not await self._register_input(connection, context, scope_key, episode, generation):
             return
+        if low_rest:
+            await connection.execute(
+                "UPDATE companion.growth_inputs SET reviewed_revision=revision,state='reviewed',skip_reason='low_value_rest',"
+                "missing='{}',updated_at=now() WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s",
+                (context.actor_id, scope_key, episode.episode_id, episode.revision))
+            await connection.execute(
+                'UPDATE companion.organize_state SET watermark=%s,revision=revision+%s,updated_at=now(),'
+                'reviewed_watermark=CASE WHEN NOT EXISTS(SELECT 1 FROM companion.growth_inputs i '
+                'WHERE i.actor_id=%s AND i.scope_key=%s AND i.reviewed_revision<i.revision) THEN %s ELSE reviewed_watermark END '
+                'WHERE actor_id=%s AND scope_key=%s',
+                (watermark, 0 if created else 1, context.actor_id, scope_key, watermark, context.actor_id, scope_key))
+            return {'state': 'skipped', 'reason': 'low_value_rest'}
         await connection.execute(
             "UPDATE companion.organize_state SET last_error=NULL,blocked_material=NULL WHERE actor_id=%s AND scope_key=%s "
             "AND blocked_material->>'episode_id'=%s AND (blocked_material->>'revision')::bigint<%s",
@@ -66,23 +114,41 @@ class GrowthService:
             "WHERE actor_id=%s AND scope_key=%s RETURNING revision,last_error",
             (watermark, AUTHORIZATION_BLOCKED, document(context), 0 if created else 1, context.actor_id, scope_key))).fetchone()
         if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}:
-            await self.jobs.enqueue(connection, JobSpec("companion.organize", f"organize:{context.actor_id}:{scope_key}:{row['revision']}",
-                {"actor_id": context.actor_id, "scope_key": scope_key, "expected_revision": row["revision"]},
+            await self.jobs.enqueue(connection, JobSpec("companion.organize", f"organize:{generation}:{context.actor_id}:{scope_key}:{row['revision']}",
+                {"actor_id": context.actor_id, "scope_key": scope_key, "expected_revision": row["revision"], 'generation': generation},
                 scheduled_at=datetime.now(UTC)+timedelta(seconds=30), subject_id=context.actor_id))
 
-    async def _register_input(self, connection, context, scope_key, episode):
+    async def _register_input(self, connection, context, scope_key, episode, generation):
         registered = await (await connection.execute(
             "INSERT INTO companion.growth_inputs(actor_id,scope_key,episode_id,revision,sequence,context) VALUES(%s,%s,%s,%s,%s,%s) "
             "ON CONFLICT(actor_id,scope_key,episode_id) DO UPDATE SET revision=excluded.revision,sequence=excluded.sequence,"
-            "context=excluded.context,state='pending',missing='{}',retry_key=NULL,updated_at=now() "
+            "context=excluded.context,state='pending',missing='{}',skip_reason=NULL,retry_key=NULL,updated_at=now() "
             "WHERE companion.growth_inputs.revision<excluded.revision RETURNING episode_id",
             (context.actor_id, scope_key, episode.episode_id, episode.revision, episode.sequence, document(context)))).fetchone()
+        if registered:
+            superseded = await (await connection.execute(
+                "UPDATE companion.growth_material_failures SET state='superseded',observation_revision=observation_revision+1,updated_at=now() "
+                "WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND episode_revision<%s AND runtime_generation=%s AND state='blocked' RETURNING *",
+                (context.actor_id, scope_key, episode.episode_id, episode.revision, generation))).fetchall()
+            for failure in superseded:
+                await self.observations.emit_on(connection, self.observations.material_event(failure), generation=failure['runtime_generation'])
         return bool(registered)
 
-    async def organize(self, actor_id, scope_key, expected_revision):
+    async def consume_episode_change(self, context, episode_id, revision, generation, watermark=None):
+        if isinstance(context, dict):
+            context = context_from_record(context)
+        async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+        await self.companion.identity.check(context)
+        page = await self.companion.memory.episodes_by_refs(context, ((episode_id, revision),))
+        if not page.items:
+            return {'state': 'unavailable', 'missing': page.coverage.missing}
+        return await self.changed(context, watermark or f'episode:{episode_id}:{revision}', episode=page.items[0], generation=generation)
+
+    async def organize(self, actor_id, scope_key, expected_revision, generation):
         owner = {}
         try:
-            return await self._organize(actor_id, scope_key, expected_revision, owner)
+            return await self._organize(actor_id, scope_key, expected_revision, owner, generation)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             code = error_code(error)
             if not transient_model_failure(code):
@@ -98,12 +164,15 @@ class GrowthService:
             # response. The due task observes this exact attempt first.
             return await self.retries.defer(state, state["active_batch"], code)
 
-    async def _organize(self, actor_id, scope_key, expected_revision, owner):
-        async with self.companion.database.transaction(read_only=True) as connection:
+    async def _organize(self, actor_id, scope_key, expected_revision, owner, generation):
+        async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
             state = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
         if not state:
             return
+        if state['runtime_generation'] != generation:
+            raise AppError('growth_generation_changed', status=409)
         if state["last_error"] == AUTHORIZATION_BLOCKED:
             return self.recovery.blocked(state)
         if state["last_error"] == IDENTITY_BLOCKED:
@@ -125,7 +194,8 @@ class GrowthService:
             return
         original_context = context_from_record(batch["context"] if batch else state["context"])
         context = original_context
-        observe_only = self.recovery.observes_original(batch, state["blocked_material"]) or state["last_error"] in REVIEW_ERRORS
+        observe_only = (self.recovery.observes_original(batch, state["blocked_material"])
+            or bool(batch and batch.get('recovery_observe_only')) or state["last_error"] in REVIEW_ERRORS)
         try:
             await self.companion.identity.check(context)
         except AppError as error:
@@ -185,6 +255,7 @@ class GrowthService:
                 items[-1].cursor if items else state["cursor"] or "e:0")
             if not any(reflectable(item) for item in page.items):
                 async with self.companion.database.transaction() as connection:
+                    await self.jobs.assert_generation_on(connection, generation)
                     current = await (await connection.execute(
                         "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE", (actor_id, scope_key))).fetchone()
                     if current and current["revision"] == expected_revision and not current["active_batch"]:
@@ -196,23 +267,21 @@ class GrowthService:
             persona = await self.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
             budget = RequestBudget(datetime.now(UTC) + timedelta(minutes=3))
             try:
+                rules = await self.habits.candidates(context, include_inactive=True)
+                examples = await self.examples.candidates(context, page.items)
                 episodes, pack, end_cursor, has_more = await select_batch(
-                    self.assembler, context, page, persona.prompt_text if persona else "", budget, expected_revision)
+                    self.assembler, context, page, persona.prompt_text if persona else "", budget, expected_revision,
+                    rules=rules, examples=examples)
             except AppError as error:
                 if error.code not in {"reflection_material_budget_exceeded", "reflection_material_source_required"}:
                     raise
-                async with self.companion.database.transaction() as connection:
-                    await connection.execute(
-                        "UPDATE companion.organize_state SET last_error=%s,blocked_material=%s,updated_at=now() "
-                        "WHERE actor_id=%s AND scope_key=%s AND revision=%s AND active_batch IS NULL",
-                        (error.code, document(error.details or {}), actor_id, scope_key, expected_revision))
-                return {"state": "blocked", "error_code": error.code, "material": error.details}
-            material_key = "organize:" + signature({"context": self.generations.context_key(context),
+                return await self._block_input(context, state, expected_revision, error)
+            material_key = "organize:" + signature({"generation": generation, "context": self.generations.context_key(context),
                 "episodes": [(item.episode_id, item.revision) for item in episodes],
                 "persona": (actor["persona_id"], actor["persona_revision"]), "generation_revision": state["generation_revision"],
                 "material_protocol": MATERIAL_PROTOCOL, "output_protocol": OUTPUT_PROTOCOL})
             owner["material_key"] = material_key
-            batch = {"material_key": material_key, "context": wire(context), "start_cursor": state["cursor"],
+            batch = {"material_key": material_key, "runtime_generation": generation, "context": wire(context), "start_cursor": state["cursor"],
                      "end_cursor": end_cursor, "watermark": state["watermark"], "has_more": has_more,
                      "inputs": [(item.episode_id, item.revision) for item in episodes],
                      "material_coverage": material_coverages(episodes),
@@ -223,8 +292,23 @@ class GrowthService:
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
                 execution_timeout_seconds=180.0)
+            try:
+                profile = await self.models.generation_profile(request)
+                if not profile.get('quota_group') or not profile.get('route_id') or not profile.get('route_revision'):
+                    raise AppError('growth_model_quota_unavailable', status=503)
+            except (AppError, TimeoutError, aiohttp.ClientError) as error:
+                if isinstance(error, AppError) and authorization_error(error):
+                    return await self.recovery.block(state, error)
+                failed = AppError('growth_model_profile_unavailable', status=503, details={
+                    'episode_id': episodes[0].episode_id, 'revision': episodes[0].revision,
+                    'underlying_error': error_code(error)})
+                return await self._block_input(context, state, expected_revision, failed)
+            request = replace(request, route_id=profile['route_id'], route_revision=profile['route_revision'])
+            batch.update(recovery_dependency='models:quota:'+profile['quota_group'], recovery_route=profile['route_id'])
 
         async def current_material(connection):
+            nonlocal batch
+            await self.jobs.assert_generation_on(connection, generation)
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE", (actor_id, scope_key))).fetchone()
             if not current or current["cursor"] != batch["start_cursor"]:
@@ -233,6 +317,8 @@ class GrowthService:
                 return current["active_batch"]["material_key"] == material_key and current["last_error"] not in REVIEW_ERRORS
             if current["revision"] != expected_revision or current["last_error"] in REVIEW_ERRORS:
                 return False
+            recovery = await reserve_initial(self.recovery_policy, connection, context, batch, request)
+            batch = {**batch, **recovery}
             # GenerationRequests stores the original request in this same transaction.
             # Later events may update the pending watermark, never this frozen batch.
             await connection.execute(
@@ -243,12 +329,41 @@ class GrowthService:
             if observe_only:
                 result = await self.generations.read(request.attempt_id, context)
             else:
-                result = await self.generations.run(material_key, request, guard=current_material)
+                request = await self.generations.prepare(material_key, request, guard=current_material)
+                result = await self.generations.read(request.attempt_id, context)
+                if batch.get('recovery_observe_only') and result is None:
+                    async with self.companion.database.transaction() as connection:
+                        await self._enqueue(connection, actor_id, scope_key, expected_revision,
+                                            'observe:'+material_key, generation=generation, delay=30)
+                    return {'state': 'waiting', 'attempt_id': request.attempt_id,
+                            'recovery': 'observe_original_attempt'}
+                if result is None:
+                    # A durable domain pointer is committed before the idempotent
+                    # Models admission. Completion only wakes this owner; Models
+                    # remains the authority for the result.
+                    completion = JobSpec('companion.organize',
+                        f'growth-completion:{generation}:{actor_id}:{scope_key}:{material_key}',
+                        {'actor_id': actor_id, 'scope_key': scope_key, 'expected_revision': expected_revision, 'generation': generation},
+                        subject_id=actor_id)
+                    receipt = await self.models.submit(request, completion=completion)
+                    if receipt.status in {'queued', 'running', 'succeeded'}:
+                        result = await self.generations.read(request.attempt_id, context)
+                        if result is None or result.receipt.status in {'queued', 'running'}:
+                            async with self.companion.database.transaction() as connection:
+                                await self._enqueue(connection, actor_id, scope_key, expected_revision,
+                                                    'observe:'+material_key, generation=generation, delay=30)
+                            return {'state': 'waiting', 'attempt_id': request.attempt_id,
+                                    'recovery': 'observe_original_attempt'}
+                    else:
+                        result = await self.generations.read(request.attempt_id, context)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             if isinstance(error, AppError) and error.code == "generation_no_longer_current":
                 return
             if authorization_error(error):
-                return await self.retries.defer(state, batch, error.code)
+                outcome = await self.retries.defer(state, batch, error.code)
+                if outcome.get('state') == 'changed_since_original_result_read' and not state['active_batch']:
+                    return await self.recovery.block(state, error)
+                return outcome
             if isinstance(error, AppError) and error.code == "generation_request_expired":
                 await self._rejected(actor_id, scope_key, material_key, error.code)
                 return {"state": "rejected", "error_code": error.code, "attempt_id": request.attempt_id}
@@ -268,6 +383,7 @@ class GrowthService:
                         return await self.retries.defer({**state, "active_batch": batch}, batch, failure.code)
                     read_error = failure.code if isinstance(failure, AppError) else type(failure).__name__
             async with self.companion.database.transaction() as connection:
+                await self.jobs.assert_generation_on(connection, generation)
                 current = await (await connection.execute(
                     "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
                     (actor_id, scope_key))).fetchone()
@@ -295,11 +411,12 @@ class GrowthService:
             if status not in {"queued", "running"}:
                 return await self.retries.defer(state, batch, code, result)
             async with self.companion.database.transaction() as connection:
+                await self.jobs.assert_generation_on(connection, generation)
                 await connection.execute(
                     "UPDATE companion.organize_state SET last_error=%s WHERE actor_id=%s AND scope_key=%s AND active_batch->>'material_key'=%s",
                     (code, actor_id, scope_key, material_key))
                 if status in {"queued", "running"}:
-                    await self._enqueue(connection, actor_id, scope_key, state["revision"], "observe:" + material_key, delay=30)
+                    await self._enqueue(connection, actor_id, scope_key, state["revision"], "observe:" + material_key, generation=generation, delay=30)
             return {"state": "waiting", "error_code": code, "attempt_id": request.attempt_id,
                     "recovery": "observe_original_attempt"}
         state = {**state, "active_batch": batch}
@@ -327,9 +444,6 @@ class GrowthService:
             if any(not item.source_refs for item in episodes.values()):
                 raise AppError("reflection_original_evidence_required", status=403)
             prepared = prepare_reflections(result, context, episodes, generated_refs, request=frozen)
-            if batch.get("identity_conversion_key"):
-                prepared, batch = await self.recovery.reflection_identities(state, context, batch, frozen, episodes, prepared)
-                state = {**state, "active_batch": batch}
             history_only = bool(batch.get("retry_key") and state["reviewed_material_at"]
                                 and state["reviewed_material_at"] > material_time(episodes))
             if history_only:
@@ -343,35 +457,54 @@ class GrowthService:
                         "missing": sorted(set(batch.get("material_coverage", {}).get(identifier, {}).get("missing", ()))
                                           | {"projection_superseded_by_newer_material"})}
                     for identifier, _version in batch["inputs"]}}
+            examples = {}
+            for item in prepared:
+                if item.action == 'example':
+                    examples[item.proposal.proposal_id] = await self.examples.prepare(context, item, episodes)
+            timezone = 'Asia/Shanghai'
+            if any(item.validity == 'today' and item.proposal.kind in {'style', 'interest'} for item in prepared):
+                if self.life is None:
+                    raise AppError('growth_timezone_unavailable', status=503)
+                timezone = (await self.life.state(context))['timezone']
             relationship = (await self.companion.memory.relationship(context, context.person_id)
                             if context.person_id and any(item.proposal.kind == "style" for item in prepared) else None)
             changed = bool(prepared)
             async with self.companion.database.transaction() as connection:
-                await self._validate_material(connection, context, episodes, generated_refs)
-                # Match Memory's source -> Episode -> projection lock order.
-                # Any later batch guard failure rolls back these writes too.
-                for item in prepared:
-                    await self.companion.memory.record_reflection(context, item.proposal, connection=connection,
-                        episode_revisions={key: episode.revision for key, episode in episodes.items()})
+                await self._validate_material(connection, context, episodes, generated_refs, generation=generation)
                 current = await (await connection.execute(
                     "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE", (actor_id, scope_key))).fetchone()
                 if not current or not current["active_batch"] or current["active_batch"]["material_key"] != material_key:
                     raise AppError("generation_no_longer_current", status=409)
                 for item in prepared:
                     proposal = item.proposal
-                    if proposal.kind in {"style", "interest"} and not (proposal.kind == "style" and relationship and relationship["frozen"]):
-                        inserted = await (await connection.execute(
-                            "INSERT INTO companion.style_rules(id,actor_id,person_id,kind,title,content,conditions,counterexamples,episode_ids,source_refs,scope_ids,state) "
-                            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'active') ON CONFLICT(id) DO UPDATE SET "
-                            "title=excluded.title,content=excluded.content,conditions=excluded.conditions,counterexamples=excluded.counterexamples,"
-                            "source_refs=excluded.source_refs,scope_ids=excluded.scope_ids,revision=companion.style_rules.revision+1,updated_at=now() "
-                            "WHERE companion.style_rules.source_refs<>excluded.source_refs RETURNING id",
-                            (proposal.proposal_id, actor_id, context.person_id, proposal.kind, item.title, proposal.content,
-                             document(proposal.conditions), document(proposal.counterexamples), list(proposal.episode_ids),
-                             document(proposal.source_refs), list(context.scope_ids)))).fetchone()
-                        changed = changed or bool(inserted)
-                    if item.affect is not None:
+                    if item.action == 'example':
+                        relations = examples.get(proposal.proposal_id, ())
+                        if not relations:
+                            await self.habits.unresolved(connection, context, item, 'example_original_unavailable')
+                        for relation in relations:
+                            await self.examples.record(connection, context, item, relation)
+                    elif proposal.kind in {"style", "interest"}:
+                        changed_rule = await self.habits.apply(connection, context, item, episodes,
+                            attempt_id=request.attempt_id,
+                            frozen=bool(proposal.kind == 'style' and relationship and relationship['frozen']),
+                            timezone=timezone)
+                        if changed_rule and changed_rule.get('_unresolved'):
+                            coverage = dict(batch.get('material_coverage', {}))
+                            for identifier in item.support_ids:
+                                existing = coverage.get(identifier, {})
+                                coverage[identifier] = {**existing, 'complete': False,
+                                    'missing': sorted(set(existing.get('missing', ())) | {'learning_identity_unresolved'})}
+                            batch = {**batch, 'material_coverage': coverage}
+                        elif changed_rule:
+                            await self._index_learning(connection, context, changed_rule, changed_rule['kind'])
+                    elif proposal.kind == 'reflection':
+                        reflection = await self._record_reflection(connection, context, item, request.attempt_id)
+                        await self._index_learning(connection, context, reflection, 'reflection')
+                    if item.affect is not None and item.action != 'example' and any(
+                            (episodes[identifier].actual_result or {}).get('derived_kind')
+                            not in {'expression', 'reflection', 'diary'} for identifier in item.support_ids):
                         await self.companion.apply_affect(context, item.affect, connection=connection)
+                await succeed_recovery(self.recovery_policy, connection, batch, request.attempt_id)
                 await self._finish(connection, current, batch, changed)
                 if changed:
                     await self.on_projection_changed(context, f"growth:{scope_key}:{batch['end_cursor']}", connection=connection)
@@ -379,9 +512,12 @@ class GrowthService:
             if error.code == "generation_no_longer_current":
                 return
             if authorization_error(error):
-                return await self.retries.defer(state, batch, error.code)
+                return await self.retries.defer(state, batch, error.code, result)
+            if error.code in {'growth_timezone_unavailable', 'growth_conversation_port_unavailable'}:
+                return await self.retries.defer(state, batch, error.code, result)
             if error.code == IDENTITY_BLOCKED:
                 async with self.companion.database.transaction() as connection:
+                    await self.jobs.assert_generation_on(connection, generation)
                     await connection.execute(
                         "UPDATE companion.organize_state SET last_error=%s,blocked_material=%s,updated_at=now() "
                         "WHERE actor_id=%s AND scope_key=%s AND active_batch->>'material_key'=%s",
@@ -394,9 +530,9 @@ class GrowthService:
                 raise
             code = error.code if error.code in REVIEW_ERRORS else "reflection_material_contract_invalid"
             if code in CORRECTABLE_ERRORS:
-                outcome = await self.retries.defer(state, batch, code, result, diagnostic=error.details)
+                outcome = await self.retries.defer(state, batch, code, result, diagnostic=error.details or {})
                 return {**outcome, "state": "rejected", "recovery": outcome["state"]}
-            await self._rejected(actor_id, scope_key, material_key, code)
+            await self._rejected(actor_id, scope_key, material_key, code, result=result)
             return {"state": "rejected", "error_code": code, "attempt_id": result.receipt.attempt_id}
         return {"state": "reviewed", "cursor": batch["end_cursor"], "has_more": batch["has_more"]}
 
@@ -410,7 +546,35 @@ class GrowthService:
             row=await (await connection.execute("SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",(context.actor_id,scope_key))).fetchone()
             if not row:
                 raise AppError("reflection_material_not_found",status=404)
+            await self.jobs.assert_generation_on(connection, row['runtime_generation'])
             revision(row,body.get("expected_revision"))
+            if body.get('input_failure_key'):
+                failure = await (await connection.execute(
+                    "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                    "AND failure_key=%s AND state='blocked' FOR UPDATE",
+                    (context.actor_id, scope_key, body['input_failure_key']))).fetchone()
+                if not failure or not self.recovery.same_scene(context, context_from_record(failure['context'])):
+                    raise AppError('reflection_material_not_found', status=404)
+                if not manual_retry_allowed(failure['error_code']):
+                    raise AppError('reflection_retry_not_available', status=409)
+                released = await (await connection.execute(
+                    "UPDATE companion.growth_inputs SET retry_key=NULL,missing='{}',updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s "
+                    "AND retry_key=%s AND reviewed_revision<revision RETURNING episode_id",
+                    (context.actor_id, scope_key, failure['episode_id'], failure['episode_revision'],
+                     failure['failure_key']))).fetchone()
+                if not released:
+                    raise AppError('reflection_episode_revision_conflict', status=409)
+                failure = await (await connection.execute("UPDATE companion.growth_material_failures SET state='released',"
+                    "observation_revision=observation_revision+1,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s AND failure_key=%s RETURNING *",
+                    (context.actor_id, scope_key, failure['failure_key']))).fetchone()
+                await self.observations.emit_on(connection, self.observations.material_event(failure), generation=row['runtime_generation'])
+                updated = await (await connection.execute(
+                    'UPDATE companion.organize_state SET revision=revision+1,updated_at=now() '
+                    'WHERE actor_id=%s AND scope_key=%s RETURNING revision', (context.actor_id, scope_key))).fetchone()
+                await self._enqueue(connection, context.actor_id, scope_key, updated['revision'], 'input-released', generation=row['runtime_generation'])
+                return CommandResult(body['client_request_id'], {'state': 'queued', 'recovery': 'retry_input'}, updated['revision'])
             if body.get("retry_key"):
                 current = await self.retries.resume_on(connection, row, context, body["retry_key"])
                 return CommandResult(body["client_request_id"], {"state": "queued", "recovery": "retry_computation"}, current)
@@ -433,7 +597,7 @@ class GrowthService:
                 await connection.execute(
                     "UPDATE companion.organize_state SET revision=%s,last_error=NULL,blocked_material=NULL,context=%s,updated_at=now() "
                     "WHERE actor_id=%s AND scope_key=%s", (current, document(context), context.actor_id, scope_key))
-                await self._enqueue(connection, context.actor_id, scope_key, current, "available-material-resume")
+                await self._enqueue(connection, context.actor_id, scope_key, current, "available-material-resume", generation=row['runtime_generation'])
                 return CommandResult(body["client_request_id"],
                     {"state": "queued", "recovery": "continue_available_material"}, current)
             if row["active_batch"] and row["active_batch"].get("legacy_material"):
@@ -443,13 +607,124 @@ class GrowthService:
                     (row["last_error"], context.actor_id, scope_key, row["active_batch"]["material_key"]))
             current=row["revision"]+1
             await connection.execute("UPDATE companion.organize_state SET generation_revision=generation_revision+1,revision=%s,watermark=%s,last_error=NULL,active_batch=NULL,blocked_material=NULL,context=%s WHERE actor_id=%s AND scope_key=%s",(current,"manual:"+body["client_request_id"],document(context),context.actor_id,scope_key))
-            await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-explicit:{body['client_request_id']}",{"actor_id":context.actor_id,"scope_key":scope_key,"expected_revision":current},subject_id=context.actor_id))
+            await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-explicit:{row['runtime_generation']}:{body['client_request_id']}",{"actor_id":context.actor_id,"scope_key":scope_key,"expected_revision":current,'generation':row['runtime_generation']},subject_id=context.actor_id))
             return CommandResult(body["client_request_id"],{"state":"queued"},current)
         return await self.companion.commands.execute(context,"companion.growth.review",body["client_request_id"],signature(body),apply)
+
+    async def _block_input(self, context, state, expected_revision, error):
+        details = error.details or {}
+        episode_id, version = details.get('episode_id'), details.get('revision')
+        if not episode_id or type(version) is not int:
+            raise error
+        scope_key = state['scope_key']
+        key = 'input:' + signature({'actor': context.actor_id, 'scope': scope_key,
+                                    'episode': episode_id, 'revision': version, 'generation': state['runtime_generation']})
+        async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, state['runtime_generation'])
+            await self.companion.validate_persistence(connection, context)
+            current = await (await connection.execute(
+                'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE',
+                (context.actor_id, scope_key))).fetchone()
+            if not current or current['revision'] != expected_revision or current['active_batch']:
+                return {'state': 'changed_since_material_read'}
+            reserved = await (await connection.execute(
+                'UPDATE companion.growth_inputs SET retry_key=%s,missing=%s,updated_at=now() '
+                'WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s '
+                'AND reviewed_revision<revision AND retry_key IS NULL RETURNING episode_id',
+                (key, [error.code], context.actor_id, scope_key, episode_id, version))).fetchone()
+            if not reserved:
+                return {'state': 'changed_since_material_read'}
+            failure = await (await connection.execute(
+                'INSERT INTO companion.growth_material_failures(actor_id,scope_key,episode_id,episode_revision,failure_key,error_code,details,context,runtime_generation) '
+                'VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(runtime_generation,actor_id,scope_key,episode_id,episode_revision) '
+                "DO UPDATE SET error_code=excluded.error_code,details=excluded.details,state='blocked',"
+                'retry_count=companion.growth_material_failures.retry_count+1,due_at=NULL,'
+                'observation_revision=companion.growth_material_failures.observation_revision+1,updated_at=now() RETURNING *',
+                (context.actor_id, scope_key, episode_id, version, key, error.code, document(details), document(context), state['runtime_generation']))).fetchone()
+            if (error.code == 'growth_model_profile_unavailable' and
+                    transient_model_failure(details.get('underlying_error')) and failure['retry_count'] < MAX_ATTEMPTS):
+                due = datetime.now(UTC) + timedelta(seconds=retry_delay_seconds(failure['retry_count']))
+                failure = await (await connection.execute(
+                    'UPDATE companion.growth_material_failures SET due_at=%s WHERE actor_id=%s AND scope_key=%s '
+                    'AND failure_key=%s RETURNING *', (due, context.actor_id, scope_key, key))).fetchone()
+                await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
+                    f"growth-input-retry:{state['runtime_generation']}:{key}:{failure['observation_revision']}",
+                    {'actor_id': context.actor_id, 'scope_key': scope_key, 'failure_key': key,
+                     'expected_revision': failure['observation_revision'], 'generation': state['runtime_generation']}, scheduled_at=due, subject_id=context.actor_id))
+            await self.observations.emit_on(connection, self.observations.material_event(failure), generation=state['runtime_generation'])
+            next_revision = current['revision'] + 1
+            await connection.execute('UPDATE companion.organize_state SET revision=%s,updated_at=now() '
+                'WHERE actor_id=%s AND scope_key=%s', (next_revision, context.actor_id, scope_key))
+            await self._enqueue(connection, context.actor_id, scope_key, next_revision, 'input-blocked-yield', generation=state['runtime_generation'])
+        return {'state': 'input_blocked', 'error_code': error.code, 'input_failure_key': key}
+
+    async def retry_input(self, actor_id, scope_key, failure_key, expected_revision, generation):
+        async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+            failure = await (await connection.execute(
+                "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                "AND failure_key=%s AND state='blocked'", (actor_id, scope_key, failure_key))).fetchone()
+        if not failure or failure['runtime_generation'] != generation or failure['observation_revision'] != expected_revision or not failure['due_at']:
+            return {'state': 'superseded'}
+        if failure['due_at'] > datetime.now(UTC):
+            async with self.companion.database.transaction() as connection:
+                await self.jobs.assert_generation_on(connection, generation)
+                await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
+                    f"growth-input-retry:{generation}:{failure_key}:{expected_revision}:due",
+                    {'actor_id': actor_id, 'scope_key': scope_key, 'failure_key': failure_key,
+                     'expected_revision': expected_revision, 'generation': generation}, scheduled_at=failure['due_at'], subject_id=actor_id))
+            return {'state': 'waiting'}
+        original = context_from_record(failure['context'])
+        try:
+            await self.companion.identity.check(original)
+            context = original
+        except AppError as error:
+            if not authorization_error(error):
+                raise
+            try:
+                context = await self.recovery.reader(original)
+            except AppError as denied:
+                if not authorization_error(denied):
+                    raise
+                return {'state': 'blocked', 'reason': denied.code}
+        page = await self.companion.memory.episodes_by_refs(context,
+            ((failure['episode_id'], failure['episode_revision']),))
+        if not page.items:
+            return {'state': 'blocked', 'reason': 'episode_unavailable_or_revised'}
+        async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+            await self.companion.validate_persistence(connection, context, page.items[0].source_refs)
+            state = await (await connection.execute(
+                'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE',
+                (actor_id, scope_key))).fetchone()
+            current = await (await connection.execute(
+                "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                "AND failure_key=%s AND state='blocked' FOR UPDATE", (actor_id, scope_key, failure_key))).fetchone()
+            if not state or state['runtime_generation'] != generation or not current or current['runtime_generation'] != generation or current['observation_revision'] != expected_revision:
+                return {'state': 'superseded'}
+            released = await (await connection.execute(
+                "UPDATE companion.growth_inputs SET retry_key=NULL,missing='{}',updated_at=now() "
+                'WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s AND retry_key=%s '
+                'AND reviewed_revision<revision RETURNING episode_id',
+                (actor_id, scope_key, current['episode_id'], current['episode_revision'], failure_key))).fetchone()
+            if not released:
+                return {'state': 'superseded'}
+            current = await (await connection.execute(
+                "UPDATE companion.growth_material_failures SET state='released',due_at=NULL,"
+                'observation_revision=observation_revision+1,updated_at=now() '
+                'WHERE actor_id=%s AND scope_key=%s AND failure_key=%s RETURNING *',
+                (actor_id, scope_key, failure_key))).fetchone()
+            await self.observations.emit_on(connection, self.observations.material_event(current), generation=generation)
+            next_revision = state['revision'] + 1
+            await connection.execute('UPDATE companion.organize_state SET revision=%s,updated_at=now() '
+                'WHERE actor_id=%s AND scope_key=%s', (next_revision, actor_id, scope_key))
+            await self._enqueue(connection, actor_id, scope_key, next_revision, 'input-retry', generation=generation)
+        return {'state': 'queued'}
 
     async def _unavailable(self, context, state, versions):
         """Close unavailable versions as coverage gaps, never successful reviews."""
         async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, state['runtime_generation'])
             await self.companion.validate_persistence(connection, context)
             current = await (await connection.execute(
                 "SELECT revision,active_batch FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
@@ -463,48 +738,179 @@ class GrowthService:
                     (list(missing), state["actor_id"], state["scope_key"], identifier, version))
         return True
 
-    async def _validate_material(self, connection, context, episodes, generated_refs):
+    async def _validate_material(self, connection, context, episodes, generated_refs, *, generation):
+        await self.jobs.assert_generation_on(connection, generation)
         closure = unique_refs(generated_refs, *(item.source_refs for item in episodes.values()))
         await self.companion.validate_persistence(connection, context, closure)
         versions = tuple((item.episode_id, item.revision) for item in episodes.values())
-        readable = await self.companion.memory.episodes_by_refs(context, versions, connection=connection)
+        readable = await self.companion.memory.lock_episodes(context, versions, connection=connection)
         if set(versions) != {(item.episode_id, item.revision) for item in readable.items}:
             if "unavailable_sources" in readable.coverage.missing:
                 raise AppError("source_unavailable", status=403)
             raise AppError("reflection_episode_unavailable", status=409)
 
-    async def recover(self):
-        await self.retries.recover()
+    async def _record_reflection(self, connection, context, item, attempt_id):
+        proposal = item.proposal
+        row = await (await connection.execute(
+            'INSERT INTO companion.learning_reflections(proposal_id,actor_id,principal_id,person_id,conversation_id,'
+            'content,episode_ids,support_ids,source_refs,scope_ids,conditions,counterexamples,occurred_at,attempt_id) '
+            'VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) '
+            'ON CONFLICT(proposal_id) DO NOTHING RETURNING *',
+            (proposal.proposal_id, context.actor_id, context.principal_id, context.person_id,
+             context.conversation_id, proposal.content, list(proposal.episode_ids), list(item.support_ids),
+             document(proposal.source_refs), list(proposal.scope_ids), document(proposal.conditions),
+             document(proposal.counterexamples), proposal.occurred_at, attempt_id))).fetchone()
+        if not row:
+            row = await (await connection.execute(
+                'SELECT * FROM companion.learning_reflections WHERE proposal_id=%s AND actor_id=%s FOR UPDATE',
+                (proposal.proposal_id, context.actor_id))).fetchone()
+            if not row or row['content'] != proposal.content or row['source_refs'] != wire(proposal.source_refs):
+                raise AppError('reflection_identity_conflict', status=409)
+        return row
+
+    async def _index_learning(self, connection, context, row, kind):
+        await self.companion.memory.index_learning(context,
+            rule_id=row['proposal_id'] if kind == 'reflection' else row['id'],
+            revision=row['revision'], semantic_revision=row.get('semantic_revision', row['revision']),
+            kind=kind, source_refs=source_refs(row['source_refs']), scope_ids=tuple(row['scope_ids']),
+            search_text=json.dumps({'text': row['content'], 'conditions': row['conditions'],
+                                    'counterexamples': row['counterexamples']}, ensure_ascii=False, default=str),
+            connection=connection)
+
+    async def learning_records(self, context, refs, *, purpose='history'):
+        """Resolve typed Memory references through the owning ledger."""
+        await self.companion.identity.check(context)
+        result = []
+        for ref in refs:
+            kind, identifier = ref.get('kind'), ref.get('id')
+            if kind in {'style', 'interest', 'habit'}:
+                rows = [row for row in await self.habits.candidates(context, include_inactive=True)
+                        if row['id'] == identifier]
+                if not rows:
+                    continue
+                row = rows[0]
+                if purpose != 'history':
+                    resolved = await self.resolve_behaviors(context,
+                        ({'rule_id': identifier, 'semantic_revision': row['semantic_revision']},), purpose=purpose)
+                    if not resolved[0]['eligible']:
+                        continue
+                result.append({'kind': row['kind'], 'id': row['id'], 'revision': row['revision'],
+                    'semantic_revision': row['semantic_revision'], 'state': row['state'], 'reason': row['reason'],
+                    'content': row['content'], 'conditions': row['conditions'], 'counterexamples': row['counterexamples'],
+                    'source_refs': row['source_refs'], 'scope_ids': row['scope_ids']})
+            elif kind == 'reflection':
+                async with self.companion.database.transaction(read_only=True) as connection:
+                    row = await (await connection.execute(
+                        'SELECT * FROM companion.learning_reflections WHERE proposal_id=%s AND actor_id=%s '
+                        'AND scope_ids<@%s::text[] AND (person_id IS NULL OR person_id=%s) '
+                        'AND (conversation_id IS NULL OR conversation_id=%s)',
+                        (identifier, context.actor_id, list(context.scope_ids), context.person_id,
+                         context.conversation_id))).fetchone()
+                if not row or row['state'] != 'active':
+                    continue
+                allowed = await self.companion.identity.check_many(context, (source_refs(row['source_refs']),))
+                if allowed[0]:
+                    result.append({'kind': 'reflection', 'id': identifier, 'revision': row['revision'],
+                        'semantic_revision': row['revision'], 'requested_revision': ref.get('revision'),
+                        'compatible': ref.get('revision') in (None, row['revision']),
+                        'state': row['state'], 'content': row['content'], 'conditions': row['conditions'],
+                        'counterexamples': row['counterexamples'], 'episode_ids': row['episode_ids'],
+                        'support_ids': row['support_ids'], 'attempt_id': row['attempt_id'],
+                        'source_refs': row['source_refs'], 'scope_ids': row['scope_ids'],
+                        'occurred_at': row['occurred_at'], 'recorded_at': row['created_at']})
+        return tuple(result)
+
+    async def reflection_page(self, context, *, cursor=None, limit=40, time_mode='current',
+                              valid_at=None, known_at=None):
+        await self.companion.identity.check(context)
+        if time_mode not in {'current', 'valid_at', 'known_at'}:
+            raise AppError('invalid_memory_time_mode')
+        valid_at, known_at = timestamp(valid_at, optional=True), timestamp(known_at, optional=True)
+        if time_mode == 'valid_at' and valid_at is None:
+            raise AppError('memory_valid_at_required')
+        if time_mode == 'known_at' and known_at is None:
+            raise AppError('memory_known_at_required')
+        limit = min(100, max(1, int(limit)))
         async with self.companion.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM companion.organize_state s WHERE (last_error IS NULL OR last_error<>ALL(%s)) AND (legacy_state<>'complete' OR "
+                "SELECT * FROM companion.learning_reflections WHERE actor_id=%s AND state='active' "
+                "AND scope_ids<@%s::text[] AND (%s OR person_id IS NULL OR person_id=%s) "
+                "AND (%s OR conversation_id IS NULL OR conversation_id=%s) "
+                "AND (%s::timestamptz IS NULL OR occurred_at<=%s) AND (%s::timestamptz IS NULL OR created_at<=%s) "
+                "AND (%s::text IS NULL OR proposal_id>%s) ORDER BY proposal_id LIMIT %s",
+                (context.actor_id, list(context.scope_ids), management_scope(context), context.person_id,
+                 management_scope(context), context.conversation_id,
+                 valid_at, valid_at, known_at, known_at, cursor, cursor, limit+1))).fetchall()
+        visible = rows[:limit]
+        allowed = await self.companion.identity.check_many(context,
+            tuple(source_refs(row['source_refs']) for row in visible))
+        items = tuple({'proposal_id': row['proposal_id'], 'revision': row['revision'], 'actor_id': row['actor_id'],
+            'person_id': row['person_id'], 'conversation_id': row['conversation_id'], 'episode_ids': row['episode_ids'],
+            'support_ids': row['support_ids'], 'content': row['content'], 'kind': 'reflection',
+            'occurred_at': row['occurred_at'], 'recorded_at': row['created_at'], 'source_refs': row['source_refs'],
+            'scope_ids': row['scope_ids'], 'conditions': row['conditions'], 'counterexamples': row['counterexamples'],
+            'interpretation': True, 'state': row['state']} for row, valid in zip(visible, allowed, strict=True) if valid)
+        missing = [] if all(allowed) else ['unavailable_sources']
+        if time_mode == 'valid_at' and items:
+            missing.append('reflection_valid_time_unknown')
+        return Page(items, visible[-1]['proposal_id'] if len(rows)>limit else None,
+                    Coverage(len(rows)<=limit and not missing, missing=tuple(missing)))
+
+    async def recover(self):
+        await self.retries.recover()
+        async with self.companion.database.transaction() as connection:
+            generation = await self.jobs.current_generation_on(connection)
+            failures = await (await connection.execute(
+                "SELECT * FROM companion.growth_material_failures WHERE state='blocked' AND due_at IS NOT NULL AND runtime_generation=%s",
+                (generation,))).fetchall()
+            for failure in failures:
+                await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
+                    f"growth-input-recover:{generation}:{failure['failure_key']}:{failure['observation_revision']}:{datetime.now(UTC).isoformat()}",
+                    {'actor_id': failure['actor_id'], 'scope_key': failure['scope_key'],
+                     'failure_key': failure['failure_key'], 'expected_revision': failure['observation_revision'],
+                     'generation': failure['runtime_generation']},
+                    scheduled_at=failure['due_at'], subject_id=failure['actor_id']))
+        if self.observations.statistics is not None:
+            async with self.companion.database.transaction() as connection:
+                generation = await self.jobs.current_generation_on(connection)
+                await self.observations.schedule_on(connection, generation=generation)
+        async with self.companion.database.transaction(read_only=True) as connection:
+            rows = await (await connection.execute(
+                "SELECT * FROM companion.organize_state s WHERE runtime_generation=%s AND (last_error IS NULL OR last_error<>ALL(%s)) AND (legacy_state<>'complete' OR "
                 "active_batch IS NOT NULL OR ((last_error IS NULL OR last_error<>ALL(%s)) AND ("
                 "EXISTS(SELECT 1 FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key "
                 "AND reviewed_revision<i.revision AND retry_key IS NULL) OR "
                 "EXISTS(SELECT 1 FROM companion.growth_legacy_requests r WHERE r.actor_id=s.actor_id AND r.scope_key=s.scope_key AND r.state='pending'))))",
-                (sorted({AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}), sorted(REVIEW_ERRORS)))).fetchall()
+                (generation, sorted({AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}), sorted(REVIEW_ERRORS)))).fetchall()
         for row in rows:
             # Startup only registers work. Each old context/material is handled
             # by its own nonretrying job; it cannot abort another domain's start.
             async with self.companion.database.transaction() as connection:
                 row = await self.recovery.register_active_on(connection, row)
-                await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
-                    {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"]},subject_id=row["actor_id"]))
+                await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['runtime_generation']}:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
+                    {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"], 'generation':row['runtime_generation']},subject_id=row["actor_id"]))
 
-    async def _rejected(self, actor_id, scope_key, material_key, code):
+    async def _rejected(self, actor_id, scope_key, material_key, code, *, result=None):
         async with self.companion.database.transaction(read_only=True) as connection:
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
         if current and current["active_batch"] and current["active_batch"]["material_key"] == material_key:
-            return await self.retries.defer(current, current["active_batch"], code)
+            return await self.retries.defer(current, current["active_batch"], code, result)
 
-    async def _enqueue(self, connection, actor_id, scope_key, revision, reason, *, delay=0):
+    async def _enqueue(self, connection, actor_id, scope_key, revision, reason, *, generation, delay=0):
+        await self.jobs.assert_generation_on(connection, generation)
+        state = await (await connection.execute(
+            'SELECT runtime_generation FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s',
+            (actor_id, scope_key))).fetchone()
+        if not state or state['runtime_generation'] != generation:
+            raise AppError('growth_generation_required')
         await self.jobs.enqueue(connection, JobSpec("companion.organize",
-            f"organize:{actor_id}:{scope_key}:{revision}:{reason}:{datetime.now(UTC).isoformat()}",
-            {"actor_id": actor_id, "scope_key": scope_key, "expected_revision": revision},
+            f"organize:{generation}:{actor_id}:{scope_key}:{revision}:{reason}:{datetime.now(UTC).isoformat()}",
+            {"actor_id": actor_id, "scope_key": scope_key, "expected_revision": revision, 'generation':generation},
             scheduled_at=datetime.now(UTC) + timedelta(seconds=delay), subject_id=actor_id))
 
     async def _finish(self, connection, current, batch, changed):
+        await self.jobs.assert_generation_on(connection, current['runtime_generation'])
         await self.retries.complete_on(connection, current, batch, history_only=batch.get("historical_only", False))
         if batch.get("legacy_material"):
             await connection.execute(
@@ -535,24 +941,26 @@ class GrowthService:
             "WHERE actor_id=%s AND scope_key=%s AND state='pending') AS pending",
             (current["actor_id"], current["scope_key"], current["actor_id"], current["scope_key"]))).fetchone()
         if ready["pending"]:
-            await self._enqueue(connection, current["actor_id"], current["scope_key"], next_revision, "continuation")
+            await self._enqueue(connection, current["actor_id"], current["scope_key"], next_revision, "continuation", generation=current['runtime_generation'])
 
     async def view(self, context, *, cursor=None, limit=40):
         await self.companion.identity.check(context)
         limit = min(100, max(1, int(limit)))
         async with self.companion.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM companion.style_rules WHERE actor_id=%s AND (person_id IS NULL OR person_id=%s) AND scope_ids<@%s::text[] "
-                "AND (%s::text IS NULL OR id>%s) ORDER BY id LIMIT %s",
-                (context.actor_id, context.person_id, list(context.scope_ids), cursor, cursor, limit+1))).fetchall()
+                "SELECT * FROM companion.style_rules WHERE actor_id=%s AND (%s OR person_id IS NULL OR person_id=%s) AND scope_ids<@%s::text[] "
+                "AND (%s OR conversation_id IS NULL OR conversation_id=%s) AND (%s::text IS NULL OR id>%s) ORDER BY id LIMIT %s",
+                (context.actor_id, management_scope(context), context.person_id, list(context.scope_ids),
+                 management_scope(context), context.conversation_id, cursor, cursor, limit+1))).fetchall()
         permitted = await self.companion.identity.check_many(context, tuple(source_refs(row["source_refs"]) for row in rows[:limit]))
         items = [{**row, "occurred_at": row["created_at"], "evidence": row["source_refs"], "can_modify": bool(context.permissions & {"*","companion.manage"})} for row, valid in zip(rows[:limit], permitted, strict=True) if valid]
-        projection = await self.companion.memory.projection(context, context.person_id)
-        notes = [{"id": item.proposal_id, "revision": item.revision, "kind": "reflection", "title": item.content[:60],
-                  "content": item.content, "state": "active", "occurred_at": item.occurred_at,
-                  "evidence": item.source_refs, "source_refs": item.source_refs, "episode_ids": item.episode_ids,
-                  "conditions": item.conditions, "counterexamples": item.counterexamples, "can_modify": False}
-                 for item in projection["reflections"] if item.kind == "reflection"]
+        reflections = await self.reflection_page(context, limit=40)
+        notes = [{'id': row['proposal_id'], 'revision': row['revision'], 'kind': 'reflection',
+                  'title': row['content'][:60], 'content': row['content'], 'state': row['state'],
+                  'occurred_at': row['occurred_at'], 'evidence': row['source_refs'],
+                  'source_refs': row['source_refs'], 'episode_ids': row['episode_ids'],
+                  'conditions': row['conditions'], 'counterexamples': row['counterexamples'], 'can_modify': False}
+                 for row in reflections.items]
         async with self.companion.database.transaction(read_only=True) as connection:
             review=await (await connection.execute(
                 "SELECT revision,last_error,last_reviewed_at,blocked_material,active_batch->>'material_key' AS material_key,"
@@ -561,6 +969,7 @@ class GrowthService:
                 "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND reviewed_revision<i.revision) AS pending_inputs,"
                 "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='unavailable') AS unavailable_inputs,"
                 "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='reviewed' AND cardinality(i.missing)>0) AS partial_inputs,"
+                "(SELECT count(*) FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.skip_reason='low_value_rest') AS low_value_skipped_inputs,"
                 "ARRAY(SELECT DISTINCT gap.reason FROM companion.growth_inputs i CROSS JOIN LATERAL unnest(i.missing) gap(reason) "
                 "WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key AND i.state='reviewed' ORDER BY gap.reason) AS material_missing,"
                 "ARRAY(SELECT DISTINCT gap.reason FROM companion.growth_inputs i CROSS JOIN LATERAL unnest(i.missing) gap(reason) "
@@ -580,8 +989,23 @@ class GrowthService:
                 "count(*) FILTER(WHERE state='blocked') AS blocked,min(due_at) FILTER(WHERE state='waiting') AS next_retry_at "
                 "FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s",
                 (context.actor_id, signature(sorted(context.scope_ids))))).fetchone()
+            input_failures = await (await connection.execute(
+                "SELECT failure_key,episode_id,episode_revision,error_code,details,context FROM companion.growth_material_failures "
+                "WHERE actor_id=%s AND scope_key=%s AND state='blocked' ORDER BY created_at LIMIT 20",
+                (context.actor_id, signature(sorted(context.scope_ids))))).fetchall()
+            unresolved = await (await connection.execute(
+                "SELECT * FROM companion.habit_unresolved WHERE actor_id=%s AND state='pending' "
+                "AND scope_ids<@%s::text[] AND (%s OR person_id IS NULL OR person_id=%s) "
+                "AND (%s OR conversation_id IS NULL OR conversation_id=%s) ORDER BY created_at DESC LIMIT 40",
+                (context.actor_id, list(context.scope_ids), management_scope(context), context.person_id,
+                 management_scope(context), context.conversation_id))).fetchall()
+        unresolved_allowed = await self.companion.identity.check_many(context,
+            tuple(source_refs(row['source_refs']) for row in unresolved))
         if review:
             review["retry_summary"] = retry_summary
+            review['input_failures'] = [{**{k: v for k, v in failure.items() if k != 'context'},
+                'can_request_review': self.recovery.same_scene(context, context_from_record(failure['context']))
+                and manual_retry_allowed(failure['error_code'])} for failure in input_failures]
             review["retry_batches"] = [{**{key: value for key, value in retry.items() if key != "context"},
                 "attempt_id": attempt_for(retry["current_material_key"]),
                 "can_request_review": retry["state"] == "blocked" and manual_retry_allowed(retry["last_error"])
@@ -614,29 +1038,26 @@ class GrowthService:
                 review.pop("legacy_state")  # Its exact phase remains in blocked_material.
         return {"can_review":bool(context.permissions & {"*","companion.manage"}),"review":review,"items": items, "next_cursor": rows[limit-1]["id"] if len(rows)>limit else None,
                 "reflections": notes, "missing": [] if all(permitted) else ["source_unavailable"],
-                "evidence": await self.companion.memory.style_view(context, context.person_id)}
+                "unresolved": [row for row, allowed in zip(unresolved, unresolved_allowed, strict=True) if allowed],
+                "evidence": {"evidence": items,
+                    "counterexamples": [value for item in items for value in item['counterexamples']],
+                    "source_refs": [ref for item in items for ref in item['source_refs']],
+                    "coverage": Coverage(not (len(rows) > limit), missing=())}}
 
-    async def material(self, context):
-        view = await self.view(context, limit=40)
-        rules = [row for row in view["items"] if row["state"] == "active"]
-        if not rules:
-            return ()
-        refs = unique_refs(tuple(ref for row in rules for ref in source_refs(row["source_refs"])))
-        return (ContextContribution("learned_habits", json.dumps(wire(rules), ensure_ascii=False), refs, context.scope_ids, 55),)
+    async def material(self, context, *, purpose='conversation', query=None, budget=None):
+        rules = await self.habits.material(context, purpose=purpose, query=query, budget=budget)
+        examples = await self.examples.material(context, purpose=purpose, query=query, budget=budget)
+        return rules + examples
+
+    async def record_example_usage(self, context, example_ids, *, usage_id, outcome, turn_id=None, expression_id=None):
+        return await self.examples.usage(context, example_ids, usage_id=usage_id, outcome=outcome,
+                                         turn_id=turn_id, expression_id=expression_id)
+
+    async def resolve_behaviors(self, context, refs, *, purpose):
+        return await self.habits.resolve(context, refs, purpose=purpose)
 
     async def set_state(self, context, body, state):
-        if state not in {"active", "revoked"}:
-            raise AppError("invalid_growth_state")
-        await self.companion.identity.check(context)
-        async with self.companion.database.transaction(read_only=True) as connection:
-            original = await (await connection.execute("SELECT * FROM companion.style_rules WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]", (body.get("id"), context.actor_id, list(context.scope_ids)))).fetchone()
-        if not original:
-            raise AppError("growth_item_not_found", status=404)
-        await self.companion.identity.check(context, source_refs(original["source_refs"]))
-        async def apply(connection):
-            await self.companion.validate_persistence(connection,context,source_refs(original["source_refs"]))
-            row = await (await connection.execute("SELECT * FROM companion.style_rules WHERE id=%s FOR UPDATE", (original["id"],))).fetchone()
-            revision(row, body.get("expected_revision"))
-            await connection.execute("UPDATE companion.style_rules SET state=%s,reason=%s,revision=revision+1,updated_at=now() WHERE id=%s", (state, "explicit_user_change", row["id"]))
-            return CommandResult(body["client_request_id"], {"id": row["id"], "state": state}, row["revision"]+1)
-        return await self.companion.commands.execute(context, "companion.growth."+state, body["client_request_id"], signature(body), apply)
+        return await self.habits.command(context, body, state=state)
+
+    async def revise(self, context, body):
+        return await self.habits.command(context, body)

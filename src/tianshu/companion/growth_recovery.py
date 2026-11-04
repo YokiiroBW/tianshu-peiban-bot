@@ -5,14 +5,11 @@ them, and prevents a newly assembled batch from replacing an unresolved original
 The old sequence cursor is used once to seed history, never as ongoing coverage.
 """
 
-from dataclasses import replace
-from uuid import NAMESPACE_URL, uuid5
 
-from tianshu.conversation.codec import context_from_record, document, signature, source_refs
+from tianshu.conversation.codec import context_from_record, document
 from tianshu.runtime.errors import AppError
-from tianshu.sources.dependencies import unique_refs
 from .growth_materials import reflectable
-from .reflection_output import IDENTITY_PROTOCOL, frozen_episodes, generation_identity
+from .reflection_output import IDENTITY_PROTOCOL, frozen_episodes
 
 
 PAGE_SIZE = 128
@@ -98,6 +95,7 @@ class GrowthRecovery:
 
     async def register_active_on(self, connection, state):
         """Register only pre-v2 in-flight intents in the existing finite manifest."""
+        await self.growth.jobs.assert_generation_on(connection, state['runtime_generation'])
         batch = state["active_batch"]
         if not batch or batch.get("reflection_identity_protocol") == IDENTITY_PROTOCOL or batch.get("identity_conversion_key"):
             return state
@@ -120,103 +118,9 @@ class GrowthRecovery:
             "UPDATE companion.organize_state SET active_batch=%s WHERE actor_id=%s AND scope_key=%s RETURNING *",
             (document(batch), current["actor_id"], current["scope_key"]))).fetchone()
 
-    @staticmethod
-    def _proposal_fingerprint(item, episodes):
-        proposal = item.proposal
-        closure = unique_refs(proposal.source_refs, *(value.source_refs for value in episodes.values()))
-        return signature({"proposal": {"id": proposal.proposal_id, "actor_id": proposal.actor_id,
-            "episode_ids": sorted(proposal.episode_ids), "content": proposal.content, "kind": proposal.kind,
-            "conditions": proposal.conditions, "counterexamples": proposal.counterexamples,
-            "scope_ids": sorted(proposal.scope_ids)}, "sources": sorted(signature(ref) for ref in closure)})
-
-    @staticmethod
-    def _same_legacy(row, item, episodes, original, context):
-        proposal = item.proposal
-        closure = unique_refs(proposal.source_refs, *(value.source_refs for value in episodes.values()))
-        old_refs = source_refs(row["source_refs"])
-        return (row["active"] and row["interpretation"]
-            and (row["actor_id"], row["principal_id"], row["person_id"], row["conversation_id"])
-                == (original.actor_id, original.principal_id, original.person_id, original.conversation_id)
-            and set(row["scope_ids"]) <= set(context.scope_ids)
-            and sorted(row["episode_ids"]) == sorted(proposal.episode_ids)
-            and row["kind"] == proposal.kind and row["content"] == proposal.content
-            and row["conditions"] == proposal.conditions and tuple(row["counterexamples"]) == proposal.counterexamples
-            and len(old_refs) == len(unique_refs(old_refs))
-            and {signature(ref) for ref in old_refs} == {signature(ref) for ref in closure})
-
-    async def reflection_identities(self, state, context, batch, request, episodes, prepared):
-        """One-time pre-v2 manifest conversion; ordinary v2 batches never enter."""
-        key = batch.get("identity_conversion_key")
-        if key is None:
-            return prepared, batch
-        if key != request.intent_id or key != batch["material_key"]:
-            raise AppError(IDENTITY_BLOCKED, status=409)
-        expected = {item.proposal.proposal_id: self._proposal_fingerprint(item, episodes) for item in prepared}
-        async with self.companion.database.transaction() as connection:
-            await self.growth._validate_material(connection, context, episodes, request.source_refs)
-            current = await (await connection.execute(
-                "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
-                (state["actor_id"], state["scope_key"]))).fetchone()
-            if not current or not current["active_batch"] or current["active_batch"]["material_key"] != key:
-                raise AppError("generation_no_longer_current", status=409)
-            manifest = await (await connection.execute(
-                "SELECT * FROM companion.growth_legacy_requests WHERE actor_id=%s AND scope_key=%s AND material_key=%s FOR UPDATE",
-                (state["actor_id"], state["scope_key"], key))).fetchone()
-            if manifest and (manifest["context"] is None or manifest["state"] == "invalidated"):
-                raise AppError("source_unavailable", status=403)
-            if (not manifest or manifest["state"] != "pending" or manifest["inputs"] != batch["inputs"]
-                    or context_from_record(manifest["context"]) != request.context):
-                raise AppError(IDENTITY_BLOCKED, status=409)
-            saved = manifest["context"].get("reflection_identity_conversion")
-            if saved is None:
-                # This v1 formula is restricted to this registered old intent.
-                # Persist its decision once, never probe old IDs for a new batch.
-                candidates = {item.proposal.proposal_id: str(uuid5(NAMESPACE_URL,
-                    f"reflection:{request.context.actor_id}:{item.proposal.kind}:{':'.join(item.support_ids)}"))
-                    for item in prepared}
-                rows = await (await connection.execute(
-                    "SELECT * FROM memory.reflections WHERE actor_id=%s AND proposal_id=ANY(%s)",
-                    (context.actor_id, list(candidates.values())))).fetchall() if candidates else []
-                old = {row["proposal_id"]: row for row in rows}
-                aliases = {item.proposal.proposal_id: candidates[item.proposal.proposal_id] for item in prepared
-                    if candidates[item.proposal.proposal_id] in old and self._same_legacy(
-                        old[candidates[item.proposal.proposal_id]], item, episodes, request.context, context)}
-                saved = {"protocol": IDENTITY_PROTOCOL, "attempt_id": request.attempt_id,
-                    "generation": signature(generation_identity(request, episodes)), "proposals": expected, "aliases": aliases}
-                await connection.execute(
-                    "UPDATE companion.growth_legacy_requests SET context=%s,updated_at=now() "
-                    "WHERE actor_id=%s AND scope_key=%s AND material_key=%s",
-                    (document({**manifest["context"], "reflection_identity_conversion": saved}),
-                     state["actor_id"], state["scope_key"], key))
-            if (saved.get("protocol") != IDENTITY_PROTOCOL or saved.get("attempt_id") != request.attempt_id
-                    or saved.get("generation") != signature(generation_identity(request, episodes))
-                    or saved.get("proposals") != expected):
-                raise AppError(IDENTITY_BLOCKED, status=409)
-            aliases = saved["aliases"]
-            rows = await (await connection.execute(
-                "SELECT * FROM memory.reflections WHERE actor_id=%s AND proposal_id=ANY(%s)",
-                (context.actor_id, list(aliases.values())))).fetchall() if aliases else []
-            existing = {row["proposal_id"]: row for row in rows}
-            converted = []
-            for item in prepared:
-                identifier = aliases.get(item.proposal.proposal_id)
-                if identifier is None:
-                    converted.append(item)
-                    continue
-                row = existing.get(identifier)
-                if row is None or not self._same_legacy(row, item, episodes, request.context, context):
-                    raise AppError(IDENTITY_BLOCKED, status=409)
-                converted.append(replace(item, proposal=replace(item.proposal, proposal_id=identifier,
-                    source_refs=source_refs(row["source_refs"])),
-                    affect=replace(item.affect, event_id=identifier) if item.affect else None))
-            batch = {**current["active_batch"], "reflection_identity_protocol": IDENTITY_PROTOCOL}
-            await connection.execute(
-                "UPDATE companion.organize_state SET active_batch=%s WHERE actor_id=%s AND scope_key=%s",
-                (document(batch), state["actor_id"], state["scope_key"]))
-        return tuple(converted), batch
-
     async def block(self, state, error):
         async with self.companion.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, state['runtime_generation'])
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
                 (state["actor_id"], state["scope_key"]))).fetchone()
@@ -236,6 +140,7 @@ class GrowthRecovery:
 
     async def resume(self, connection, current, caller):
         """Reauthorize inventory or observation, without replacing an attempt."""
+        await self.growth.jobs.assert_generation_on(connection, current['runtime_generation'])
         batch = current["active_batch"]
         previous = context_from_record(batch["context"] if batch else current["context"])
         if not self.same_scene(caller, previous):
@@ -257,7 +162,7 @@ class GrowthRecovery:
              document(previous if not batch and current["legacy_state"] == "requests" else refreshed), next_revision,
              current["actor_id"], current["scope_key"]))
         await self.growth._enqueue(connection, current["actor_id"], current["scope_key"], next_revision,
-                                   "authorization-resume")
+                                   "authorization-resume", generation=current['runtime_generation'])
         return next_revision
 
     async def _requests(self, state, context):
@@ -306,7 +211,7 @@ class GrowthRecovery:
                 "WHERE actor_id=%s AND scope_key=%s",
                 (materials[-1]["material_key"] if materials else state["legacy_request_cursor"],
                  "requests" if len(materials) == PAGE_SIZE else "episodes", state["actor_id"], state["scope_key"]))
-            await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], current["revision"], "legacy-requests")
+            await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], current["revision"], "legacy-requests", generation=state['runtime_generation'])
 
     async def _episodes(self, state, context):
         page = await self.companion.memory.episodes_since(context, state["legacy_episode_cursor"], PAGE_SIZE)
@@ -316,7 +221,7 @@ class GrowthRecovery:
                 return
             for episode in page.items:
                 if reflectable(episode):
-                    await self.growth._register_input(connection, context, state["scope_key"], episode)
+                    await self.growth._register_input(connection, context, state["scope_key"], episode, state['runtime_generation'])
             missing = sorted(set(current["legacy_missing"]) | set(page.coverage.missing))
             await connection.execute(
                 "UPDATE companion.organize_state SET legacy_episode_cursor=%s,legacy_state=%s,legacy_missing=%s,"
@@ -324,9 +229,10 @@ class GrowthRecovery:
                 "WHERE actor_id=%s AND scope_key=%s",
                 (page.next_cursor or page.watermark, "episodes" if page.next_cursor else "complete",
                  missing, document(context), state["actor_id"], state["scope_key"]))
-            await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], current["revision"], "legacy-episodes")
+            await self.growth._enqueue(connection, state["actor_id"], state["scope_key"], current["revision"], "legacy-episodes", generation=state['runtime_generation'])
 
     async def _locked(self, connection, state):
+        await self.growth.jobs.assert_generation_on(connection, state['runtime_generation'])
         current = await (await connection.execute(
             "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
             (state["actor_id"], state["scope_key"]))).fetchone()
@@ -335,6 +241,7 @@ class GrowthRecovery:
     async def activate(self, state):
         """An original manifest entry always precedes newly assembled material."""
         async with self.companion.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, state['runtime_generation'])
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE",
                 (state["actor_id"], state["scope_key"]))).fetchone()
