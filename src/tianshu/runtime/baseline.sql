@@ -4843,7 +4843,20 @@ CREATE TABLE runtime.recovery_attempts (
     observation_ref text,
     started_at timestamp with time zone DEFAULT now() NOT NULL,
     finished_at timestamp with time zone,
+    supersedes_attempt_id text,
     CONSTRAINT recovery_attempts_attempt_number_check CHECK ((attempt_number > 0))
+);
+
+
+--
+-- Name: recovery_computation_unknowns; Type: TABLE; Schema: runtime; Owner: -
+--
+
+CREATE TABLE runtime.recovery_computation_unknowns (
+    attempt_id text NOT NULL,
+    models_finished_at timestamp with time zone NOT NULL,
+    due_at timestamp with time zone NOT NULL,
+    observed_at timestamp with time zone DEFAULT now() NOT NULL
 );
 
 
@@ -4912,8 +4925,10 @@ CREATE TABLE runtime.recovery_lineages (
     continuation_attempt_id text,
     continuation_reason text,
     source_withdrawn boolean DEFAULT false NOT NULL,
+    recovery_kind text DEFAULT 'external_effect'::text NOT NULL,
     CONSTRAINT recovery_lineages_attempts_check CHECK ((attempts >= 0)),
-    CONSTRAINT recovery_lineages_max_attempts_check CHECK ((max_attempts > 0))
+    CONSTRAINT recovery_lineages_max_attempts_check CHECK ((max_attempts > 0)),
+    CONSTRAINT recovery_lineages_recovery_kind_check CHECK ((recovery_kind = ANY (ARRAY['external_effect'::text, 'pure_computation'::text])))
 );
 
 
@@ -7027,6 +7042,14 @@ ALTER TABLE ONLY runtime.recovery_attempts
 
 
 --
+-- Name: recovery_computation_unknowns recovery_computation_unknowns_pkey; Type: CONSTRAINT; Schema: runtime; Owner: -
+--
+
+ALTER TABLE ONLY runtime.recovery_computation_unknowns
+    ADD CONSTRAINT recovery_computation_unknowns_pkey PRIMARY KEY (attempt_id);
+
+
+--
 -- Name: recovery_dependencies recovery_dependencies_pkey; Type: CONSTRAINT; Schema: runtime; Owner: -
 --
 
@@ -8053,6 +8076,13 @@ CREATE INDEX recompute_due ON runtime.recompute_work USING btree (due_at) WHERE 
 
 
 --
+-- Name: recovery_attempts_supersedes; Type: INDEX; Schema: runtime; Owner: -
+--
+
+CREATE INDEX recovery_attempts_supersedes ON runtime.recovery_attempts USING btree (supersedes_attempt_id) WHERE (supersedes_attempt_id IS NOT NULL);
+
+
+--
 -- Name: recovery_lineages_due; Type: INDEX; Schema: runtime; Owner: -
 --
 
@@ -9032,6 +9062,22 @@ ALTER TABLE ONLY runtime.recovery_attempt_observations
 
 ALTER TABLE ONLY runtime.recovery_attempts
     ADD CONSTRAINT recovery_attempts_lineage_id_fkey FOREIGN KEY (lineage_id) REFERENCES runtime.recovery_lineages(lineage_id);
+
+
+--
+-- Name: recovery_attempts recovery_attempts_supersedes_attempt_id_fkey; Type: FK CONSTRAINT; Schema: runtime; Owner: -
+--
+
+ALTER TABLE ONLY runtime.recovery_attempts
+    ADD CONSTRAINT recovery_attempts_supersedes_attempt_id_fkey FOREIGN KEY (supersedes_attempt_id) REFERENCES runtime.recovery_attempts(attempt_id);
+
+
+--
+-- Name: recovery_computation_unknowns recovery_computation_unknowns_attempt_id_fkey; Type: FK CONSTRAINT; Schema: runtime; Owner: -
+--
+
+ALTER TABLE ONLY runtime.recovery_computation_unknowns
+    ADD CONSTRAINT recovery_computation_unknowns_attempt_id_fkey FOREIGN KEY (attempt_id) REFERENCES runtime.recovery_attempts(attempt_id);
 
 
 --

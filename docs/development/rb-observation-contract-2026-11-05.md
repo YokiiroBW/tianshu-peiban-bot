@@ -1,5 +1,16 @@
 # RB 统计与恢复装配合同
 
+## 历史行为收口：纯计算 unknown 的有限后继
+
+第六版主方案第 178 行与 PF-03 保留：本地执行已结束、Models 权威原回执明确为 unknown 时，纯计算可延迟发起独立尝试，原 unknown 与费用记录保留，业务结果最多应用一次。旧合同中对所有 unknown 一概禁止后继的规则由以下限定规则补充；外部效果仍保持原规则。
+
+- 首次 `register_on(..., recovery_kind="pure_computation")`；默认 `external_effect`，种类不能事后改变。
+- 领域 owner 每次在事务外重新调用 `await models.status(original_attempt_id)`，取得真实 `ModelReceipt`；无回执、404、异常、queued/running 或明确取消只能观察，不允许用缓存回执授权后继。
+- `record_computation_unknown_on(conn, attempt_id, owner=..., expected_version=..., model_receipt=..., retry_after=...)` 验证原身份、unknown 与 finished_at，首次设置有限延迟，重复观察不推迟 due。
+- 到期沿原 claim API 领取，然后 `reserve_attempt_on(..., original_state="unknown", claim_token=..., model_receipt=...)`；后继消耗同一 lineage 预算并记录替代关系，旧回执保持 unknown。共享策略不在数据库事务里调用 HTTP。
+- 业务应用前同事务执行 `assert_attempt_applicable_on(conn, attempt_id, owner=..., expected_version=...)`，然后由领域执行当前来源、权限、版本与 CAS。被取代的迟到原结果不能应用；结算原尝试不能修改后继的 due、probe 或预算。
+- 仅 Memory/Growth/Life 的纯模型计算显式接入；来源撤回、取消、暂停、代际变化、控制面缺失与外部未知效果不由该规则放行。
+
 本文件由主协调者发布，各域在既有事务/账本中接线，不新增独立事实权威。先完成实现，最后统一验证。
 
 ## 统计
