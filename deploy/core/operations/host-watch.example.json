@@ -1,0 +1,5 @@
+{
+  "spool_directory": "/path/to/tianshu-operations-spool",
+  "targets": [],
+  "smtp": null
+}
