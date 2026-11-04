@@ -164,6 +164,14 @@ function readPreferences(): Preferences {
   }
 }
 
+function readGenerationNotice() {
+  try {
+    return sessionStorage.getItem("tianshu-generation-notice") === "1";
+  } catch {
+    return false;
+  }
+}
+
 export function App() {
   return (
     <AuthProvider>
@@ -201,6 +209,7 @@ function AppShell() {
   const [customJson, setCustomJson] = useState("");
   const [customNotice, setCustomNotice] = useState("");
   const [storageUnavailable, setStorageUnavailable] = useState(false);
+  const [generationNotice, setGenerationNotice] = useState(readGenerationNotice);
   const [offline, setOffline] = useState(!navigator.onLine);
   const [now, setNow] = useState(() => new Date());
   const main = useRef<HTMLElement>(null);
@@ -214,6 +223,15 @@ function AppShell() {
   const activePreset =
     themeList.find((item) => item.id === preferences.preset) ??
     BUILTIN_THEME_PRESETS[0];
+
+  useEffect(() => {
+    if (!generationNotice) return;
+    try {
+      sessionStorage.removeItem("tianshu-generation-notice");
+    } catch {
+      // The notice can still be dismissed in the current page.
+    }
+  }, [generationNotice]);
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 30000);
@@ -326,6 +344,7 @@ function AppShell() {
           <PageBoundary>
             <AccountPage />
           </PageBoundary>
+          {generationNotice && <p role="status">数据已切换，页面已重新读取；旧草稿和未发送操作已清除。</p>}
           <p className="auth-footer">天枢 · 个人空间 · {shichen.caption}</p>
         </div>
       </main>
@@ -461,6 +480,9 @@ function AppShell() {
   else if (current.id === "projects" && section === 1)
     page = <pages.experience />;
   else if (current.id === "plugins") page = <pages.plugins />;
+  else if (current.id === "logs") page = <pages.logs />;
+  else if (current.id === "statistics") page = <pages.statistics />;
+  else if (current.id === "operations") page = <pages.operations />;
   else if (current.id === "settings" && section === 13) page = <pages.speech />;
   else if (current.id === "settings" && section === 14)
     page = <pages.images settings />;
@@ -676,6 +698,10 @@ function AppShell() {
               浏览器当前离线。已加载的页面仍可浏览。
             </div>
           )}
+          {generationNotice && <div className="offline-notice" role="status">
+            数据已切换，页面已重新读取；旧草稿和未发送操作已清除。
+            <button className="text-link" onClick={() => setGenerationNotice(false)}>收起</button>
+          </div>}
           <main id="main" ref={main} tabIndex={-1}>
             <h1 className="sr-only">
               {current?.id === "subscriptions" || current?.id === "companion"

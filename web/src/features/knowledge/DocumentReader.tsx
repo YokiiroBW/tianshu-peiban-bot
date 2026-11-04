@@ -53,7 +53,7 @@ export function DocumentReader({
   );
   const command = useDomainCommand(
     `document-remove:${document.document_id}`,
-    "actor",
+    "global",
   );
   return (
     <Drawer title={document.locator} open onClose={onClose}>

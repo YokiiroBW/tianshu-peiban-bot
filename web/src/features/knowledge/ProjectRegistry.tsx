@@ -1,5 +1,4 @@
 import { useState } from "react";
-import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { useDomainCommand } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import type { Project, Worktree } from "./types";
@@ -14,7 +13,6 @@ export function ProjectRegistry({
   roots: string[];
   onSaved: () => Promise<void>;
 }) {
-  const workspace = useRoleWorkspace();
   const [draft, setDraft] = useState({
     project_id: project?.project_id ?? "",
     label: project?.label ?? "",
@@ -30,10 +28,8 @@ export function ProjectRegistry({
   );
   const command = useDomainCommand<Project>(
     `project-registry:${project?.project_id ?? "new"}`,
-    "conversation",
+    "global",
   );
-  const conversation =
-    project?.conversation_id ?? workspace.conversation?.conversation_id;
   function change(index: number, patch: Partial<Worktree>) {
     setWorktrees((values) =>
       values.map((row, i) => (i === index ? { ...row, ...patch } : row)),
@@ -50,9 +46,6 @@ export function ProjectRegistry({
               "projects/registry/save",
               {
                 ...draft,
-                actor_id: workspace.actor,
-                person_id: null,
-                conversation_id: conversation ?? null,
                 directories: lines(directories),
                 allowed_urls: lines(urls),
                 worktrees,
@@ -67,7 +60,6 @@ export function ProjectRegistry({
       <p className="muted">
         登记服务器上实际受管目录。只注册范围，不扫描根目录，不修改外部项目文件。
       </p>
-      {!conversation && <p>请先在角色工作区选择项目所属的真实会话范围。</p>}
       <label>
         项目标识
         <input
@@ -106,7 +98,7 @@ export function ProjectRegistry({
       <p className="muted">
         服务器允许根：
         {roots.join("、") || "尚未配置capabilities.projects.allowed_roots"} ·
-        场景 {conversation ?? "未选择"}
+        当前授权工作区
       </p>
       <label>
         允许显式扫描的相对目录（每行一个，根目录不自动扫描）
@@ -221,7 +213,7 @@ export function ProjectRegistry({
       </label>
       <button
         className="button primary"
-        disabled={command.busy || !conversation || !roots.length}
+        disabled={command.busy || !roots.length}
       >
         保存登记
       </button>

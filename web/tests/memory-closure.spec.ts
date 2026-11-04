@@ -62,6 +62,46 @@ const unit = {
 
 test.beforeEach(async ({ page }) => nativeSession(page));
 
+test("memory status separates committed material from missing context and unknown indexing", async ({ page }) => {
+  const pending = { batch_id: "batch", status: "pending", target_results: [], unresolved: [] };
+  await page.route(apiPath("memory/episodes"), (route) => answer(route, {
+    ...emptyPage, watermark: "1", items: [{ episode_id: "episode", revision: 1, event_id: "event", origin_kind: "actor",
+      occurred_at: "2026-11-04T00:00:00Z", summary: "一条经历", source_refs: [], actual_result: null,
+      coverage, extraction_state: "pending", consolidation: pending }],
+  }));
+  await page.route(apiPath("memory/extraction/status"), (route) => answer(route, {
+    ...pending, status: "applied", revision: 1, commit_state: "applied", required_context_missing: ["原图缺失"],
+    indexing: { state: "unknown", objects: [{ kind: "claim", id: "claim-1", revision: 1 }] },
+  }));
+  await page.goto("/#/memory");
+  await page.getByLabel("读取范围").selectOption("actor");
+  await page.getByRole("button", { name: "经历与反思", exact: true }).click();
+  await page.getByRole("button", { name: "读取最新处理状态" }).click();
+  await expect(page.getByText("提交状态：记忆已应用。", { exact: true })).toBeVisible();
+  await expect(page.getByText("必要上下文仍有 1 项缺失")).toBeVisible();
+  await expect(page.getByText("索引状态：尚未确认")).toBeVisible();
+});
+
+test("reflections use the companion authority with scoped time and cursor", async ({ page }) => {
+  const reads: Record<string, unknown>[] = [];
+  let oldReads = 0;
+  await page.route(apiPath("memory/reflections"), (route) => { oldReads++; return answer(route, emptyPage); });
+  await page.route(apiPath("companion/growth/reflections"), (route) => {
+    const body = route.request().postDataJSON(); reads.push(body);
+    return answer(route, { items: [{ proposal_id: body.cursor ? "old" : "current", revision: 1, content: body.cursor ? "更早的反思" : "当前反思", kind: "reflection", occurred_at: "2026-11-04T00:00:00Z", recorded_at: "2026-11-04T00:01:00Z", source_refs: [], conditions: {}, counterexamples: [], interpretation: true, state: "active" }], next_cursor: body.cursor ? null : "next-reflection", coverage });
+  });
+  await page.goto("/#/memory");
+  await page.getByLabel("读取范围").selectOption("actor");
+  await page.getByRole("button", { name: "经历与反思", exact: true }).click();
+  await page.getByRole("button", { name: "反思与推测", exact: true }).click();
+  await expect(page.getByText("当前反思", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "下一批", exact: true }).click();
+  await expect(page.getByText("更早的反思", { exact: true })).toBeVisible();
+  expect(reads[0]).toMatchObject({ actor_id: "actor", time_mode: "current", cursor: null });
+  expect(reads[1]).toMatchObject({ actor_id: "actor", time_mode: "current", cursor: "next-reflection" });
+  expect(oldReads).toBe(0);
+});
+
 test("time queries and bounded history keep corrections on the latest claim head", async ({
   page,
 }) => {

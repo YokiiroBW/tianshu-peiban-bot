@@ -33,7 +33,7 @@ const Context = createContext<Workspace | null>(null);
 
 export function RoleWorkspaceProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const key = `tianshu-workspace-role:${session?.username ?? ""}`;
+  const key = `tianshu-workspace-role:${session?.username ?? ""}:${session?.data_generation ?? ""}`;
   const [roles, setRoles] = useState<WorkspaceRole[]>([]);
   const [actor, setActor] = useState("");
   const [error, setError] = useState("");

@@ -1,4 +1,5 @@
 import { uploadMedia } from "../../api/uploads";
+import { nativeResourceUrl } from "../../api/client";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { requestId } from "../../app/requestId";
 import { useEffect, useRef, useState } from "react";
@@ -21,8 +22,8 @@ export function PluginViewFrame({
   const binding = instance.bindings.find((item) => item.binding_id === bindingId && item.enabled);
   const actor = typeof binding?.scope.character_id === "string" ? binding.scope.character_id : null;
   const target = { actor_id: actor,
-    person_id: actor === workspace.actor ? workspace.conversation?.person_id ?? null : null,
-    conversation_id: actor === workspace.actor ? workspace.conversation?.conversation_id ?? null : null };
+    person_id: actor && actor === workspace.actor ? workspace.conversation?.person_id ?? null : null,
+    conversation_id: actor && actor === workspace.actor ? workspace.conversation?.conversation_id ?? null : null };
   const targetKey = JSON.stringify(target);
   const frame = useRef<HTMLIFrameElement>(null);
   const [url, setUrl] = useState("");
@@ -175,7 +176,7 @@ export function PluginViewFrame({
         title={view.title}
         sandbox="allow-scripts allow-forms"
         referrerPolicy="no-referrer"
-        src={url || undefined}
+        src={url ? nativeResourceUrl(url) : undefined}
       />
     </div>
   );

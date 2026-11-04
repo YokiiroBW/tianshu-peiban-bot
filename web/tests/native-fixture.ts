@@ -126,6 +126,7 @@ export async function nativeSession(page: Page) {
           permissions: ["*"],
         },
         csrf_token: "synthetic-csrf",
+        data_generation: "fixture-generation",
       },
       "companion/roles/list": {
         ...emptyPage,
@@ -163,6 +164,7 @@ export async function nativeSession(page: Page) {
         review: null,
         can_review: true,
       },
+      "companion/growth/examples/view": { items: [], next_cursor: null, missing: [] },
       "life/activities": { ...emptyPage, items: [state.activity] },
       "memory/episodes": { ...emptyPage, watermark: "0" },
       "infrastructure/host": { configured: false, node: null },
@@ -177,7 +179,7 @@ export async function nativeSession(page: Page) {
       },
       "memory/claims": emptyPage,
       "memory/matters": emptyPage,
-      "memory/reflections": emptyPage,
+      "companion/growth/reflections": emptyPage,
       "memory/query": emptyPage,
       "devices/view": {
         connections: [],

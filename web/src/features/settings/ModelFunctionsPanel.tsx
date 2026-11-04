@@ -41,6 +41,7 @@ function Binding({
         !row.actor_id,
     );
   const [selected, setSelected] = useState(own?.route_id ?? "");
+  const [fallbacks, setFallbacks] = useState<string[]>(own?.fallback_routes ?? []);
   const command = useModelCommand(
     `model-binding:${actorId ?? "system"}:${functionId}:${serviceClass}`,
     actorId,
@@ -67,7 +68,11 @@ function Binding({
         模型路由
         <select
           value={selected}
-          onChange={(event) => setSelected(event.target.value)}
+          onChange={(event) => {
+            const next = event.target.value;
+            setSelected(next);
+            setFallbacks((current) => current.filter((id) => id !== next));
+          }}
         >
           <option value="">
             {functionId === "*" ? "请选择系统默认路由" : "使用系统继承"}
@@ -87,6 +92,30 @@ function Binding({
           ))}
         </select>
       </label>
+      {selected && <fieldset>
+        <legend>按顺序尝试的备用路由</legend>
+        <p className="muted">只有原路线不可用且候选通过能力、容量及协议检查时才会切换；结果未知的请求不会自动重发。</p>
+        {fallbacks.map((id, index) => <div className="models-actions" key={`${index}:${id}`}>
+          <label>备用路由 {index + 1}
+            <select value={id} onChange={(event) => {
+              const next = event.target.value;
+              setFallbacks((current) => current.map((value, position) => position === index ? next : value));
+            }}>
+              {!routes.some((route) => route.route_id === id) && <option value={id}>{id}（当前不可用）</option>}
+              {routes.filter((route) => route.route_id !== selected && (route.route_id === id || !fallbacks.includes(route.route_id))).map((route) =>
+                <option key={route.route_id} value={route.route_id}>{route.model} · {route.route_id}</option>)}
+            </select>
+          </label>
+          <button type="button" className="button" disabled={index === 0} onClick={() => setFallbacks((current) => {
+            const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next;
+          })}>上移</button>
+          <button type="button" className="button" onClick={() => setFallbacks((current) => current.filter((_, position) => position !== index))}>移除</button>
+        </div>)}
+        {routes.some((route) => route.route_id !== selected && !fallbacks.includes(route.route_id)) && <button type="button" className="button" onClick={() => {
+          const next = routes.find((route) => route.route_id !== selected && !fallbacks.includes(route.route_id));
+          if (next) setFallbacks((current) => [...current, next.route_id]);
+        }}>添加备用路由</button>}
+      </fieldset>}
       {command.manageable && (
         <button
           className="button"
@@ -98,7 +127,7 @@ function Binding({
                 function: functionId,
                 service_class: serviceClass,
                 actor_id: actorId ?? null,
-                ...(selected ? { route_id: selected } : {}),
+                ...(selected ? { route_id: selected, fallback_routes: fallbacks } : {}),
               },
               own?.revision ?? 0,
             );

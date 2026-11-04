@@ -25,6 +25,14 @@ const slotLabels: Record<DaySlot["state"], string> = {
   carried: "进度留待下次",
 };
 
+const applicationLabels = {
+  scheduled: "已排入日程",
+  intentional_idle: "主动留白",
+  deferred_no_slot: "暂时没有合适时间，等待再安排",
+  stale_state: "依据已变化，等待重新考虑",
+  invalid_proposal: "提议无效，未排入日程",
+} as const;
+
 export function DayPlanPanel({
   canManage,
   timezone,
@@ -182,6 +190,28 @@ export function DayPlanPanel({
             </p>
           )}
           <LifePlanningStatus planning={view.data.planning} timezone={zone} />
+          {view.data.application && (
+            <section aria-label="本次日程选择结果">
+              <h4>本次日程选择结果</h4>
+              {view.data.application.items.length === 0 ? (
+                <p className="muted">这次没有记录候选结果。</p>
+              ) : (
+                <ul>
+                  {view.data.application.items.map((item) => (
+                    <li key={item.candidate_key}>
+                      <strong>{applicationLabels[item.status] ?? item.status}</strong>
+                      {item.reason && <> · {item.reason}</>}
+                      {item.activity_id && <> · 活动 {item.activity_id}</>}
+                      {item.next_due_at && <> · 下次考虑 {timeLabel(item.next_due_at, zone)}</>}
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {view.data.application.next_due_at && (
+                <p className="muted">下一次考虑：{timeLabel(view.data.application.next_due_at, zone)}</p>
+              )}
+            </section>
+          )}
           {view.data.unfinished.length > 0 && (
             <section>
               <h4>还想继续的事</h4>

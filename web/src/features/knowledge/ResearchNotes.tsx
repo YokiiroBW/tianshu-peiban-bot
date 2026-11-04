@@ -214,7 +214,7 @@ function WithdrawNote({
   scope: DomainTarget;
   onSaved: () => Promise<void>;
 }) {
-  const command = useDomainCommand(`note-withdraw:${note.note_id}`, "actor");
+  const command = useDomainCommand(`note-withdraw:${note.note_id}`, "global");
   return (
     <span>
       <button
@@ -291,7 +291,7 @@ function NoteEditor({
   });
   const command = useDomainCommand(
     `note-save:${projectId}:${note?.note_id ?? "new"}`,
-    "actor",
+    "global",
   );
   function addBasis(value: Citation) {
     if (!basis.some((item) => JSON.stringify(item) === JSON.stringify(value)))

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useDomainResource } from "../../api/useDomainResource";
+import type { Page } from "../../api/contracts";
+import { TurnEvidence } from "../companion/TurnEvidence";
 import type { Conversation } from "../people/types";
 import { ArchivePanel } from "../resources/ArchivePanel";
 import MemoryRecords from "./MemoryRecords";
@@ -10,6 +12,8 @@ import { CoverageNote } from "./EvidenceDetails";
 import { EpisodeProcessing } from "./ConsolidationStatus";
 import type { Projection } from "./types";
 import "./memory.css";
+
+type GroupMessage = { id: number; turn_id: string | null; created_at: string };
 
 export default function GroupInsights({ group }: { group: Conversation }) {
   const scope = {
@@ -24,6 +28,11 @@ export default function GroupInsights({ group }: { group: Conversation }) {
     ...query,
   });
   const [tab, setTab] = useState("processing");
+  const [turnCursor, setTurnCursor] = useState<string | null>(null);
+  const turns = useDomainResource<Page<GroupMessage>>(
+    "conversation/messages", { ...scope, cursor: turnCursor, limit: 25 }, tab === "turns",
+  );
+  const turnRows = [...new Map((turns.data?.items ?? []).filter((item) => item.turn_id).map((item): [string, GroupMessage] => [item.turn_id!, item])).values()];
   const processing = view.data?.group_consolidation;
   const subjectId = view.data?.group?.subject_id;
   const identities = Object.fromEntries(
@@ -41,6 +50,7 @@ export default function GroupInsights({ group }: { group: Conversation }) {
           ["claims", "共享事实与认识"],
           ["episodes", "经历与反思"],
           ["matters", "共享事项"],
+          ["turns", "本轮取材记录"],
           ["archive", "历史原文"],
         ].map(([id, label]) => (
           <button
@@ -127,6 +137,18 @@ export default function GroupInsights({ group }: { group: Conversation }) {
             <p>正在等待服务器核验群共享主体。</p>
           ))}
         {tab === "archive" && <ArchivePanel scope={scope} />}
+        {tab === "turns" && <>
+          <h3>群会话中的实际取材</h3>
+          <p className="muted">按当前权限读取每轮记录；历史未记录不代表没有选择。</p>
+          {turns.error && <p role="alert">{turns.error}</p>}
+          {turns.loading && <p role="status">正在读取群会话…</p>}
+          {turnRows.map((row) => <article key={row.turn_id} className="memory-record">
+            <p>{row.created_at ? new Date(row.created_at).toLocaleString("zh-CN") : "时间未记录"}</p>
+            <TurnEvidence turnId={row.turn_id!} selector={scope} />
+          </article>)}
+          {turns.data && !turnRows.length && <p>当前页没有可读取的会话轮次。</p>}
+          <div className="domain-actions">{turnCursor && <button className="button" onClick={() => setTurnCursor(null)}>回到最新轮次</button>}{turns.data?.next_cursor && <button className="button" onClick={() => setTurnCursor(turns.data!.next_cursor)}>读取更早轮次</button>}</div>
+        </>}
       </section>
     </div>
   );

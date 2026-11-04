@@ -1,5 +1,6 @@
 import { bookWords } from "./wording";
 import type { Book } from "./types";
+import { nativeResourceUrl } from "../../../api/client";
 
 export function groupedBooks(books: Book[]) {
   const groups = new Map<string, Book[]>();
@@ -54,5 +55,5 @@ export function bookFeedCode(code: string) {
 }
 
 export function bookFileUrl(book: Book, kind: "epub" | "cover") {
-  return `/api/v1/media/books/files/${encodeURIComponent(book.book_id)}/${kind}?v=${book.metadata_revision}`;
+  return nativeResourceUrl(`/api/v1/media/books/files/${encodeURIComponent(book.book_id)}/${kind}?v=${book.metadata_revision}`);
 }

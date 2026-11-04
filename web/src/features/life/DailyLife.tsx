@@ -192,7 +192,7 @@ export function DailyLife({ state }: { state: LifeState }) {
                 <span className="celadon-tag">
                   {current
                     ? (activityLabels[current.state] ?? current.state)
-                    : shichen.poeticMood}
+                    : state.role_status === "resting" ? "正在休息" : state.role_status === "active" ? "清醒中" : "状态尚未记录"}
                 </span>
               }
             />
@@ -206,14 +206,14 @@ export function DailyLife({ state }: { state: LifeState }) {
               </div>
               <div className="scene-caption">
                 <h4>
-                  {current ? current.title : `${shichen.fullLabel} · 轩窗小憩`}
+                  {current ? current.title : state.role_status === "resting" ? "正在休息" : "当前没有进行中的活动"}
                 </h4>
                 <p>
                   {current
                     ? current.waiting_reason
                       ? activityWaitingReason(current.waiting_reason)
                       : "正在按已保存的活动继续。"
-                    : "当前时段留白养神，等待下一次生活安排或伙伴来访。"}
+                    : "下一步安排以实际日程和后台状态为准。"}
                 </p>
               </div>
             </div>
@@ -338,6 +338,12 @@ export function DailyLife({ state }: { state: LifeState }) {
             }
           />
           {activities.error && <p role="alert">{activities.error}</p>}
+          {state.role_status && <p role="status">角色状态：{state.role_status === "resting" ? "休息" : "清醒"}。</p>}
+          {state.background_work && <section aria-label="后台进度"><h4>后台进度</h4>
+            {state.background_work.length ? <ul>{state.background_work.map((item) => <li key={item.id}>
+              {item.title} · {activityLabels[item.state] ?? item.state}{item.waiting_reason ? ` · ${activityWaitingReason(item.waiting_reason)}` : ""}
+            </li>)}</ul> : <p className="muted">当前没有后台活动。</p>}
+          </section>}
           {routine.error && <p role="alert">暂时无法读取生活调度状态。</p>}
           {routine.data && (
             <div className="scheduler-banner">

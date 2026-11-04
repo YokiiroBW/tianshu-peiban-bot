@@ -2,6 +2,9 @@ import type { ExecutionObservation } from "../api/commandRecovery";
 
 const lanes: Record<string, string> = {
   control: "运行控制",
+  life_control: "生活控制",
+  capability_control: "独立能力控制",
+  operations: "运维处理",
   inbound: "消息接收",
   delivery: "消息投递",
   conversation: "对话回应",

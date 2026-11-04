@@ -15,14 +15,14 @@ export type Worktree = {
 };
 export type ProjectCard = {
   project_id: string;
-  conversation_id: string;
+  conversation_id: string | null;
   label: string;
   revision: number;
   content_revision: number;
   enabled: boolean;
 };
 export type Project = ProjectCard & {
-  actor_id: string;
+  actor_id: string | null;
   root: string;
   directories: string[];
   allowed_urls: string[];

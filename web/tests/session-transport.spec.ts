@@ -32,6 +32,22 @@ test.beforeEach(async ({ page }) => {
   await page.goto("/__transport");
 });
 
+test("native media URLs carry the generation without changing external URLs", async ({ page }) => {
+  const result = await page.evaluate(async (source) => {
+    const { establishDataGeneration, nativeResourceUrl } = await import(
+      URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
+    );
+    establishDataGeneration("fixture-generation");
+    return {
+      internal: nativeResourceUrl("/api/v1/media/books/files/book/epub?v=2"),
+      external: nativeResourceUrl("https://example.test/image.png"),
+    };
+  }, source);
+  expect(result.internal).toContain("v=2");
+  expect(result.internal).toContain("data_generation=fixture-generation");
+  expect(result.external).toBe("https://example.test/image.png");
+});
+
 test("LAN HTTP login submits without secure-context randomUUID", async ({
   page,
 }) => {
@@ -52,6 +68,7 @@ test("LAN HTTP login submits without secure-context randomUUID", async ({
       ? { principal_id: "author", display_name: "测试作者", permissions: ["*"] }
       : null,
     csrf_token: "synthetic-csrf",
+    data_generation: "fixture-generation",
   });
   const submissions: Record<string, unknown>[] = [];
   const errors: string[] = [];
@@ -95,9 +112,10 @@ test("LAN HTTP commands keep the same intent after an uncertain submission", asy
   await page.goto(`${lanOrigin}/__transport`);
   const result = await page.evaluate(
     async ({ source, intentsSource }) => {
-      const { commandInput, apiCommand } = await import(
+      const { commandInput, apiCommand, establishDataGeneration } = await import(
         URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
       );
+      establishDataGeneration("fixture-generation");
       const { commandIntent, finishIntent } = await import(
         URL.createObjectURL(
           new Blob([intentsSource], { type: "text/javascript" }),
@@ -182,9 +200,10 @@ test("the shared client revalidates an expired session and never retries an unce
   page,
 }) => {
   const result = await page.evaluate(async (source) => {
-    const { apiFetch, apiRead, apiCommandData } = await import(
+    const { apiFetch, apiRead, apiCommandData, establishDataGeneration } = await import(
       URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
     );
+    establishDataGeneration("fixture-generation");
     const original = window.fetch;
     let calls = 0;
     let lost = 0;
@@ -254,9 +273,10 @@ test("an unknown receipt retains its action identity and null usage", async ({
   page,
 }) => {
   const result = await page.evaluate(async (source) => {
-    const { apiCommand } = await import(
+    const { apiCommand, establishDataGeneration } = await import(
       URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
     );
+    establishDataGeneration("fixture-generation");
     window.fetch = async () =>
       new Response(
         JSON.stringify({
@@ -297,9 +317,10 @@ test("write cancellation and a truncated successful body retain the original int
   page,
 }) => {
   const result = await page.evaluate(async (source) => {
-    const { apiCommand } = await import(
+    const { apiCommand, establishDataGeneration } = await import(
       URL.createObjectURL(new Blob([source], { type: "text/javascript" }))
     );
+    establishDataGeneration("fixture-generation");
     let calls = 0;
     const errors: { code: string; state: string; id: string }[] = [];
     const controller = new AbortController();

@@ -1,7 +1,7 @@
 import { ArrowUpRight, CalendarDays } from "lucide-react";
 import { HostResources } from "./HostResources";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
-import { useDomainResource } from "../../api/useDomainResource";
+import { GLOBAL_SCOPE, useDomainResource } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import type { LifeAccessView, LifeState } from "../life/domainTypes";
 import { activityLabels } from "../life/domainTypes";
@@ -42,7 +42,7 @@ export default function WorkbenchPage() {
     { limit: 20 },
     canRead,
   );
-  const devices = useDomainResource<DevicesView>("devices/view");
+  const devices = useDomainResource<DevicesView>("devices/view", GLOBAL_SCOPE);
   const name =
     workspace.roles.find((row) => row.id === workspace.actor)?.name ?? "角色";
 
@@ -74,6 +74,8 @@ export default function WorkbenchPage() {
               <p className="empty-title">
                 {state.data.activity?.title ?? "当前没有活动安排"}
               </p>
+              {state.data.role_status && <p>角色状态：{state.data.role_status === "resting" ? "休息" : "清醒"}</p>}
+              {state.data.background_work && <p>后台：{state.data.background_work.length ? state.data.background_work.map((item) => `${item.title}（${activityLabels[item.state] ?? item.state}）`).join("、") : "当前没有后台活动"}</p>}
               {state.data.activity && (
                 <p>
                   <span className="celadon-tag">

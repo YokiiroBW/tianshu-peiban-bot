@@ -1,5 +1,6 @@
 import type { Job } from "../types";
 import { bookBytes } from "./presentation";
+import { nativeResourceUrl } from "../../../api/client";
 
 export function BookDownloadReceipt({ job }: { job: Job }) {
   const artifact = job.book_artifact;
@@ -22,7 +23,7 @@ export function BookDownloadReceipt({ job }: { job: Job }) {
           )}
           <a
             className="button primary"
-            href={`/api/v1/media/books/files/${encodeURIComponent(job.book_id ?? "")}/epub`}
+            href={nativeResourceUrl(`/api/v1/media/books/files/${encodeURIComponent(job.book_id ?? "")}/epub`)}
             download
           >
             下载 EPUB

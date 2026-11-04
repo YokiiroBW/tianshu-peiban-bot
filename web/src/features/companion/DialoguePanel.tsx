@@ -9,6 +9,9 @@ import { uploadMedia, type UploadedMedia } from "../../api/uploads";
 import type { ArtifactRef, Page, Receipt } from "../../api/contracts";
 import { MediaPreview } from "../../components/MediaPreview";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import { ContextSelection } from "../../components/ContextSelection";
+import { TurnEvidence } from "./TurnEvidence";
+import { DialogueFlowEvidence, type DialogueFlow } from "./DialogueFlow";
 
 type Part = {
   kind: string;
@@ -24,6 +27,7 @@ type Part = {
 };
 type Message = {
   id: number;
+  turn_id?: string | null;
   speaker: string;
   parts: Part[];
   created_at: string;
@@ -37,6 +41,10 @@ type Turn = {
   action_ids: string[];
   expression_id: string | null;
   error_code: string | null;
+  context_selection?: unknown;
+  token_usage?: unknown;
+  provider_usage?: unknown;
+  flow?: DialogueFlow | null;
 };
 const active = new Set([
   "collecting",
@@ -122,6 +130,7 @@ export function DialoguePanel({
               </time>
             </header>
             <PublicParts parts={message.parts} />
+            {message.turn_id && <TurnEvidence turnId={message.turn_id} selector={selector} />}
           </article>
         ))}
         {messages.data && !messages.data.items.length && (
@@ -288,6 +297,10 @@ function TurnStatus({
       {view.data?.missing.length ? (
         <p className="muted">本轮缺少：{view.data.missing.join("、")}</p>
       ) : null}
+      {view.data && <details><summary>本轮材料与用量</summary>
+        <ContextSelection selection={view.data.context_selection} tokenUsage={view.data.token_usage} providerUsage={view.data.provider_usage} />
+      </details>}
+      {view.data && <DialogueFlowEvidence flow={view.data.flow} />}
       {reason && <p role="alert">{turnErrors[reason] ?? reason}</p>}
       {view.data && active.has(view.data.state) && (
         <button

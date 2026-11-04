@@ -5,7 +5,7 @@ import {
   useDomainResource,
   useDomainCommand,
 } from "../../api/useDomainResource";
-import { API_ROOT } from "../../api/client";
+import { API_ROOT, nativeResourceUrl } from "../../api/client";
 import type { MediaRef } from "../../components/MediaPreview";
 
 type Activity = {
@@ -84,7 +84,7 @@ export function useRoomLife() {
     image.onerror = () => {
       if (!disposed) setGarmentError("当前穿搭参考原件暂时无法读取。");
     };
-    image.src = `${API_ROOT}capabilities/media/${encodeURIComponent(reference.media_id)}?${new URLSearchParams(selector)}`;
+    image.src = nativeResourceUrl(`${API_ROOT}capabilities/media/${encodeURIComponent(reference.media_id)}?${new URLSearchParams(selector)}`);
     return () => {
       disposed = true;
       image.onload = null;

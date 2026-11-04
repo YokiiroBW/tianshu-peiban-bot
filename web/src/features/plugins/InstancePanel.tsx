@@ -45,6 +45,8 @@ function ActionForm({
   const workspace = useRoleWorkspace();
   const binding = instance.bindings.find((item) => item.binding_id === bindingId);
   const actor = typeof binding?.scope.character_id === "string" ? binding.scope.character_id : null;
+  const allowed = !!binding?.enabled && ["character", "workspace"].includes(binding.scope.kind) &&
+    (binding.entries ?? []).some((entry) => entry.kind === "action" && entry.id === action.id);
   return (
     <form
       className="plugins-action"
@@ -55,8 +57,8 @@ function ActionForm({
           action: action.id,
           input: value,
           actor_id: actor,
-          person_id: workspace.actor === actor ? workspace.conversation?.person_id ?? null : null,
-          conversation_id: workspace.actor === actor ? workspace.conversation?.conversation_id ?? null : null,
+          person_id: actor && workspace.actor === actor ? workspace.conversation?.person_id ?? null : null,
+          conversation_id: actor && workspace.actor === actor ? workspace.conversation?.conversation_id ?? null : null,
           client_request_id: requestId(),
           ...(bindingId ? { binding_id: bindingId } : {}),
         });
@@ -76,7 +78,7 @@ function ActionForm({
       )}
       <button
         className="button primary"
-        disabled={busy || !actor || !action.availability.available}
+        disabled={busy || !allowed || !action.availability.available}
       >
         执行
       </button>
@@ -171,7 +173,7 @@ export function InstancePanel({
       {tab === "actions" && (
         <div className="plugins-actions">
           {instance.bindings.some(
-            (binding) => binding.enabled && binding.scope.kind === "character",
+            (binding) => binding.enabled && ["character", "workspace"].includes(binding.scope.kind),
           ) && (
             <label className="plugins-field">
               使用范围
@@ -179,15 +181,15 @@ export function InstancePanel({
                 value={bindingId}
                 onChange={(event) => setBindingId(event.target.value)}
               >
-                <option value="">请选择已授权角色</option>
+                <option value="">请选择已授权范围</option>
                 {instance.bindings
                   .filter(
                     (binding) =>
-                      binding.enabled && binding.scope.kind === "character",
+                      binding.enabled && ["character", "workspace"].includes(binding.scope.kind),
                   )
                   .map((binding) => (
                     <option key={binding.binding_id} value={binding.binding_id}>
-                      {String(binding.scope.character_id)}
+                      {binding.scope.kind === "workspace" ? `网页工作区 · ${binding.scope.workspace_id ?? ""}` : String(binding.scope.character_id)}
                     </option>
                   ))}
               </select>

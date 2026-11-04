@@ -665,6 +665,65 @@ test("a diary draft publishes the selected revision and explicit readers only", 
   });
 });
 
+test("day plan distinguishes intentional idle from deferred and stale proposals", async ({ page }) => {
+  await setup(page);
+  await page.route(apiPath("life/day-plan"), (route) => answer(route, {
+    day: "2026-11-02", plan: null, slots: [], unfinished: [],
+    application: { generation_key: "plan-1", next_due_at: "2026-11-02T06:00:00Z", items: [
+      { candidate_key: "idle", status: "intentional_idle", reason: null, activity_id: null, slot_id: null, revision: null, next_due_at: null },
+      { candidate_key: "later", status: "deferred_no_slot", reason: "时间冲突", activity_id: null, slot_id: null, revision: null, next_due_at: null },
+      { candidate_key: "stale", status: "stale_state", reason: "依据更新", activity_id: null, slot_id: null, revision: null, next_due_at: null },
+    ] },
+  }));
+  await page.goto("/#/roles/life");
+  await page.getByRole("tab", { name: "今日安排", exact: true }).click();
+  const result = page.getByLabel("本次日程选择结果");
+  await expect(result).toContainText("主动留白");
+  await expect(result).toContainText("暂时没有合适时间");
+  await expect(result).toContainText("依据已变化");
+});
+
+test("thin activity lists fetch the full checkpoint only when requested", async ({ page }) => {
+  await setup(page);
+  const { checkpoint_data: checkpoint, ...thin } = activity;
+  const reads: Record<string, unknown>[] = [];
+  await page.route(apiPath("life/activities"), (route) => answer(route, { ...emptyPage, items: [thin] }));
+  await page.route(apiPath("life/activities/checkpoint"), (route) => {
+    reads.push(route.request().postDataJSON());
+    return answer(route, { id: thin.id, revision: thin.revision, checkpoint_data: { ...checkpoint, exploration: { intention: "下一段的变化" } } });
+  });
+  await page.goto("/#/roles/life");
+  await page.getByRole("tab", { name: "活动与进度", exact: true }).click();
+  expect(reads).toHaveLength(0);
+  const card = page.locator("article.domain-record").filter({ has: page.getByText(thin.title, { exact: true }) });
+  await card.getByRole("button", { name: "读取完整活动进度" }).click();
+  await expect(card).toContainText("下一段的变化");
+  expect(reads[0]).toMatchObject({ id: thin.id, actor_id: "actor" });
+});
+
+test("diary feedback uses the current revision and does not gate publication", async ({ page }) => {
+  await setup(page);
+  await page.route(apiPath("life/diaries/read"), (route) => answer(route, {
+    diary: draft, version: { revision: 1, content: "今天的经历。", created_at: "2026-11-01T15:00:00Z", recipe: { source_refs: [], coverage } },
+  }));
+  const reviews: Record<string, unknown>[] = [];
+  await page.route(apiPath("life/diaries/review"), (route) => {
+    const body = route.request().postDataJSON(); reviews.push(body);
+    return answer(route, command(body, { id: draft.id }, draft.revision));
+  });
+  await page.goto("/#/roles/life");
+  await page.getByRole("tab", { name: "日记", exact: true }).click();
+  await page.getByRole("button", { name: "打开 2026-11-01", exact: true }).click();
+  const sheet = page.getByRole("dialog", { name: "2026-11-01", exact: true });
+  await expect(sheet.getByRole("button", { name: "发布当前修订" })).toBeVisible();
+  await sheet.getByLabel("意见", { exact: true }).selectOption("changes_requested");
+  await sheet.getByLabel("说明", { exact: true }).fill("补充当时的感受");
+  await sheet.getByRole("button", { name: "保存意见" }).click();
+  await expect.poll(() => reviews.length).toBe(1);
+  expect(reviews[0]).toMatchObject({ id: draft.id, expected_revision: 5, state: "changes_requested", note: "补充当时的感受" });
+  expect(typeof reviews[0].client_request_id).toBe("string");
+});
+
 test("video continuation uses returned original identity and keeps sampling uncertainty", async ({
   page,
 }) => {

@@ -67,3 +67,26 @@ test("quota queue expiry stays optional and saves an explicit limit or null", as
   expect(writes[2].max_wait_seconds).toBeNull();
   await expect(queue).toHaveValue("");
 });
+
+test("model binding saves ordered fallback routes with the current revision", async ({ page }) => {
+  await nativeSession(page);
+  const provider = { provider_id: "p", name: "测试供应商", base_url: "https://example.test", protocol: "openai.chat", enabled: true, revision: 1 };
+  const route = (id: string) => ({ route_id: id, provider_id: "p", model: id, quota_group: id, enabled: true, revision: 1, verified_capabilities: ["text"], verification: null, parameters: {} });
+  const catalog = { providers: [provider], routes: [route("primary"), route("backup-a"), route("backup-b")], quota_groups: [],
+    bindings: [{ function: "chat", service_class: "interactive", actor_id: "", route_id: "primary", fallback_routes: ["backup-a"], revision: 3 }],
+    functions: ["chat"], protocols: ["openai.chat"], embedding_profile: null };
+  const writes: Record<string, unknown>[] = [];
+  await page.route(apiPath("models/catalog"), (route) => answer(route, catalog));
+  await page.route(apiPath("models/bindings"), (route) => {
+    const body = route.request().postDataJSON(); writes.push(body);
+    return answer(route, command(body, catalog, 4));
+  });
+  await page.goto("/#/settings/models");
+  const binding = page.getByRole("heading", { name: "对话", exact: true }).locator("..");
+  await expect(binding.getByLabel("备用路由 1")).toHaveValue("backup-a");
+  await binding.getByRole("button", { name: "添加备用路由" }).click();
+  await binding.getByRole("button", { name: "上移" }).nth(1).click();
+  await binding.getByRole("button", { name: "保存绑定" }).click();
+  await expect.poll(() => writes.length).toBe(1);
+  expect(writes[0]).toMatchObject({ function: "chat", route_id: "primary", fallback_routes: ["backup-b", "backup-a"], expected_revision: 3 });
+});

@@ -1,4 +1,5 @@
 import { DetailCard } from "../../../components/DetailCard";
+import { nativeResourceUrl } from "../../../api/client";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { MediaController } from "../useMediaController";
 import type { ChapterPreview, BookChapter } from "./types";
@@ -216,7 +217,7 @@ function ReaderContent({
               ref={player}
               controls
               preload="metadata"
-              src={manifest.url}
+              src={nativeResourceUrl(manifest.url)}
               onLoadedMetadata={() => {
                 if (player.current) {
                   player.current.currentTime = Math.min(

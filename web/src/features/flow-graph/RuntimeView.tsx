@@ -4,8 +4,9 @@ import { RuntimeTasks } from "../settings/TasksPanel";
 
 type LogView = {
   streams: { stream: Record<string, string>; values: [string, string][] }[];
-  coverage: { complete: boolean; missing: string[] };
+  coverage: { complete: boolean; snapshot_complete?: boolean; has_more?: boolean; missing: string[] };
   next_end_ns: string | null;
+  next_cursor?: string | null;
 };
 type Event = {
   key: string;
@@ -14,7 +15,7 @@ type Event = {
   body: Record<string, unknown>;
   line: string;
 };
-const roles = ["interactive", "model-broker", "worker"];
+const roles = ["interactive", "model-broker", "bot-foreground", "bot-background", "independent", "operations"];
 function localTime(value: Date) {
   return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
     .toISOString()
@@ -26,10 +27,11 @@ export default function RuntimeView() {
     end_ns: string;
   } | null>(null);
   const [filter, setFilter] = useState("");
+  const [cursor, setCursor] = useState<string | null>(null);
   const [selected, setSelected] = useState<Event | null>(null);
   const logs = useDomainResource<LogView>(
     "system/logs",
-    { ...GLOBAL_SCOPE, ...range, limit: 300 },
+    { ...GLOBAL_SCOPE, ...range, cursor, limit: 300 },
     !!range,
   );
   const events = (logs.data?.streams ?? [])
@@ -116,7 +118,7 @@ export default function RuntimeView() {
   return (
     <div className="flow-runtime">
       <p>
-        三运行角色共用同一领域模块、真实作业和模型资源。泳道只列实际返回的日志，不补造缺失的请求阶段。
+        六类运行角色各有实际职责。泳道只列实际返回的日志，不补造缺失的请求阶段。
       </p>
       <form
         className="domain-form"
@@ -124,6 +126,7 @@ export default function RuntimeView() {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
           setSelected(null);
+          setCursor(null);
           setRange({
             start_ns: (
               BigInt(new Date(String(data.get("start"))).getTime()) * 1000000n
@@ -171,8 +174,8 @@ export default function RuntimeView() {
         <>
           <p>
             {logs.data.coverage.complete
-              ? "本次范围未触及日志返回上限"
-              : "本次日志返回有缺口"}{" "}
+              ? "已观测本地来源的持久化覆盖完整"
+              : "已观测本地来源的持久化可能有缺口"}{" "}
             · {logs.data.coverage.missing.join("、") || "没有声明缺口"} ·{" "}
             {visible.length}条匹配记录
           </p>
@@ -181,7 +184,7 @@ export default function RuntimeView() {
           </div>
           {visible.some((event) => !roles.includes(event.role)) && (
             <details>
-              <summary>未归属当前三角色的真实记录</summary>
+              <summary>未归属当前六角色的真实记录</summary>
               {visible
                 .filter((event) => !roles.includes(event.role))
                 .map((event) => (
@@ -189,19 +192,19 @@ export default function RuntimeView() {
                 ))}
             </details>
           )}
-          {logs.data.next_end_ns && !logs.data.coverage.complete && range && (
+          {logs.data.next_cursor && range && (
             <button
               className="button"
               onClick={() => {
                 setSelected(null);
-                setRange({
-                  ...range,
-                  end_ns: (BigInt(logs.data!.next_end_ns!) - 1n).toString(),
-                });
+                setCursor(logs.data!.next_cursor!);
               }}
             >
-              读取更早范围（同纳秒密集记录需缩小时间窗核对）
+              读取下一页
             </button>
+          )}
+          {!logs.data.next_cursor && logs.data.coverage.snapshot_complete !== true && (
+            <p>当前查询未提供续页游标，不能确认范围完整。请查看<a href="#/system/logs">运行日志</a>的采集覆盖。</p>
           )}
         </>
       )}

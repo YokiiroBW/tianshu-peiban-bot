@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import type { ActorOption, Binding, Instance } from "./types";
 import { SchemaFields } from "./SchemaFields";
 import { pluginCall } from "./api";
+import { GLOBAL_SCOPE, useDomainResource } from "../../api/useDomainResource";
 
 export function BindingsPanel({
   instance,
@@ -18,6 +19,8 @@ export function BindingsPanel({
   const [bindings, setBindings] = useState(instance.bindings);
   const [actors, setActors] = useState<ActorOption[]>([]);
   const [actorError, setActorError] = useState("");
+  const scopeView = useDomainResource<{ scopes: { scope_id: string; kind: string; label: string | null }[] }>("identity/directory", GLOBAL_SCOPE);
+  const workspaces = (scopeView.data?.scopes ?? []).filter((scope) => scope.kind === "system");
   useEffect(() => {
     const controller = new AbortController();
     setActorError("");
@@ -89,8 +92,8 @@ export function BindingsPanel({
           </label>
           {binding.scope.kind === "workspace" ? (
             <label className="plugins-field">
-              工作区名称
-              <input
+              已授权工作区
+              <select
                 required
                 value={binding.scope.workspace_id ?? ""}
                 onChange={(event) =>
@@ -101,7 +104,10 @@ export function BindingsPanel({
                     },
                   })
                 }
-              />
+              >
+                {!workspaces.some((scope) => scope.scope_id === binding.scope.workspace_id) && <option value={binding.scope.workspace_id ?? ""}>当前范围不可用（{binding.scope.workspace_id || "未选择"}）</option>}
+                {workspaces.map((scope) => <option key={scope.scope_id} value={scope.scope_id}>{scope.label || scope.scope_id}</option>)}
+              </select>
             </label>
           ) : binding.scope.kind === "character" ? (
             <>
@@ -134,40 +140,21 @@ export function BindingsPanel({
                   ))}
                 </select>
               </label>
-              <fieldset className="plugins-fields">
-                <legend>允许调用的动作</legend>
-                {instance.contributions.actions.map((action) => (
-                  <label className="plugins-check" key={action.id}>
-                    <input
-                      type="checkbox"
-                      checked={(binding.entries ?? []).some(
-                        (entry) =>
-                          entry.kind === "action" && entry.id === action.id,
-                      )}
-                      onChange={(event) => {
-                        const entries = (binding.entries ?? []).filter(
-                          (entry) =>
-                            entry.kind !== "action" || entry.id !== action.id,
-                        );
-                        if (event.target.checked)
-                          entries.push({ kind: "action", id: action.id });
-                        update(index, { entries });
-                      }}
-                    />
-                    {action.title}（
-                    {action.effect === "write" ? "写入操作" : "只读查询"}）
-                  </label>
-                ))}
-                {(binding.entries ?? []).filter(
-                  (entry) => entry.kind === "action",
-                ).length === 0 && (
-                  <p className="plugins-note">尚未允许任何动作。</p>
-                )}
-              </fieldset>
             </>
           ) : (
             <p>{JSON.stringify(binding.scope)}</p>
           )}
+          {["workspace", "character"].includes(binding.scope.kind) && <fieldset className="plugins-fields">
+            <legend>允许调用的动作</legend>
+            {instance.contributions.actions.map((action) => <label className="plugins-check" key={action.id}>
+              <input type="checkbox" checked={(binding.entries ?? []).some((entry) => entry.kind === "action" && entry.id === action.id)} onChange={(event) => {
+                const entries = (binding.entries ?? []).filter((entry) => entry.kind !== "action" || entry.id !== action.id);
+                if (event.target.checked) entries.push({ kind: "action", id: action.id });
+                update(index, { entries });
+              }} />{action.title}（{action.effect === "write" ? "写入操作" : "只读查询"}）
+            </label>)}
+            {!(binding.entries ?? []).some((entry) => entry.kind === "action") && <p className="plugins-note">尚未允许任何动作。</p>}
+          </fieldset>}
           <label className="plugins-field">
             优先级
             <input
@@ -225,6 +212,11 @@ export function BindingsPanel({
       {!actorError && actors.length === 0 && (
         <p className="plugins-note">暂无可绑定的已启用角色。</p>
       )}
+      <button type="button" disabled={busy || !workspaces.length} onClick={() => setBindings((current) => [...current, {
+        kind: "binding", schema_version: 1, binding_id: requestId(), instance_id: instance.id, revision: 1,
+        enabled: true, scope: { kind: "workspace", workspace_id: workspaces[0].scope_id }, entries: [], overrides: {}, priority: 0,
+      }])}>添加网页工作区</button>
+      {scopeView.error && <p className="plugins-note">无法读取已授权工作区：{scopeView.error}</p>}
       <button className="button primary" disabled={busy}>
         保存范围
       </button>

@@ -32,7 +32,7 @@ function saveReceipt(key: string, value: Receipt | null) {
 export function useControlRequest(scope: string, durable = true) {
   const { session } = useAuth();
   const csrf = session?.authenticated ? session.csrf : "";
-  const storageKey = `tianshu-infra-control:${session?.username ?? ""}:${scope}`;
+  const storageKey = `tianshu-infra-control:${session?.data_generation ?? ""}:${session?.username ?? ""}:${scope}`;
   const [pending, setPending] = useState<Receipt | null>(() =>
     durable ? readReceipt(storageKey) : null,
   );

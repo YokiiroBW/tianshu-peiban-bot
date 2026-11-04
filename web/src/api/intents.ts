@@ -18,3 +18,4 @@ export function commandIntent(session: string, scope: string, path: string, valu
 
 export function finishIntent(key: string) { intents.delete(key); }
 window.addEventListener("tianshu:session-ended", () => intents.clear());
+window.addEventListener("tianshu:data-generation-changed", () => intents.clear());

@@ -1,4 +1,5 @@
 import { PanelsTopLeft } from "lucide-react";
+import { nativeResourceUrl } from "../../../api/client";
 import type { Comic } from "./types";
 import { languageEvidence } from "./language";
 
@@ -18,7 +19,7 @@ export function ComicCard({
       >
         {comic.has_cover ? (
           <img
-            src={`/api/v1/media/comics/files/${comic.comic_id}/cover`}
+            src={nativeResourceUrl(`/api/v1/media/comics/files/${comic.comic_id}/cover`)}
             alt=""
             loading="lazy"
             onError={(e) => {

@@ -24,6 +24,9 @@ type Diary = {
   published_revision: number | null;
   generation_id?: string | null;
   reason?: string | null;
+  review_state?: "approved" | "changes_requested" | null;
+  review_note?: string | null;
+  review_content_revision?: number | null;
   source_refs: SourceRef[];
   automatic?: {
     state: string;
@@ -283,6 +286,11 @@ function DiarySheet({
       {current.state === "unknown" && (
         <p role="status">保留原模型请求，只核对原结果；尚未作为写作成功。</p>
       )}
+      {canManage && current.review_state !== undefined && <p className="muted">
+        {current.review_state === "approved" ? "已记录认可" : current.review_state === "changes_requested" ? "已记录希望修改" : "当前版本暂无反馈"}
+        {current.review_content_revision != null ? ` · 正文第 ${current.review_content_revision} 版` : ""}
+        {current.review_note ? ` · ${current.review_note}` : ""}
+      </p>}
       {!read.data && !read.error && !current.current_revision && (
         <p className="muted">
           这一页还没有可阅读的正文，整理状态会继续显示在这里。
@@ -452,6 +460,32 @@ function DiarySheet({
                   收起编辑
                 </button>
               </div>
+            </form>
+          )}
+          {!!current.current_revision && !["collecting", "generating", "cancelling", "unknown"].includes(current.state) && (
+            <form
+              key={`${current.id}:${current.revision}`}
+              className="domain-form"
+              onSubmit={(event) => {
+                event.preventDefault();
+                const form = new FormData(event.currentTarget);
+                void action.run(
+                  "life/diaries/review",
+                  { id: current.id, state: String(form.get("state")), note: String(form.get("note") ?? "").trim() },
+                  current.revision,
+                ).then((result) => { if (result) reload(); });
+              }}
+            >
+              <h4>记录对当前日记的意见</h4>
+              <p className="muted">这是可选反馈，不影响发布。</p>
+              <label>意见
+                <select name="state" defaultValue={current.review_state ?? "approved"}>
+                  <option value="approved">认可这一版</option>
+                  <option value="changes_requested">希望修改</option>
+                </select>
+              </label>
+              <label>说明<textarea name="note" maxLength={2000} rows={3} defaultValue={current.review_note ?? ""} /></label>
+              <button className="button" disabled={action.busy}>保存意见</button>
             </form>
           )}
           {!!current.current_revision &&

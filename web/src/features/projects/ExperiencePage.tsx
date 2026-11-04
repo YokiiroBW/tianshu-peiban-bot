@@ -27,8 +27,6 @@ export default function ExperiencePage() {
       </nav>
       {tab === "experiences" ? (
         <SharedExperience
-          key={workspace.actor}
-          actor={workspace.actor}
           canShare={workspace.view.data?.can_share ?? false}
         />
       ) : (

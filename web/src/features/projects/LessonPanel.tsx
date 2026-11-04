@@ -197,7 +197,7 @@ function RetireLesson({
 }) {
   const command = useDomainCommand(
     `lesson-retire:${lesson.lesson_id}`,
-    "actor",
+    "global",
   );
   return (
     <span>
@@ -258,7 +258,7 @@ function LessonEditor({
   );
   const command = useDomainCommand(
     `lesson-save:${projectId}:${lesson?.lesson_id ?? "new"}`,
-    "actor",
+    "global",
   );
   return (
     <form

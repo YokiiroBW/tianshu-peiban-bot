@@ -21,6 +21,9 @@ import {
   BookMarked,
   PenLine,
   SlidersHorizontal,
+  ScrollText,
+  ChartNoAxesCombined,
+  ShieldCheck,
 } from "lucide-react";
 
 // Local navigation metadata, never a cross-product API or a connection-health registry.
@@ -121,6 +124,30 @@ export const modules = [
     sections: [],
   },
   {
+    id: "logs",
+    label: "运行日志",
+    icon: ScrollText,
+    group: "管理",
+    description: "查找实际运行记录和采集覆盖",
+    sections: [],
+  },
+  {
+    id: "statistics",
+    label: "系统统计",
+    icon: ChartNoAxesCombined,
+    group: "管理",
+    description: "查看业务、模型与资源的实际统计",
+    sections: [],
+  },
+  {
+    id: "operations",
+    label: "运维事件",
+    icon: ShieldCheck,
+    group: "管理",
+    description: "查看故障、恢复与通知配置",
+    sections: [],
+  },
+  {
     id: "settings",
     label: "任务与设置",
     icon: Settings,
@@ -186,6 +213,9 @@ export const subscriptionNavigation = [
 
 // Room remains a separate chunk. Future modules register one lazy page here.
 export const pages = {
+  logs: lazy(() => import("../features/system-logs/LogsPage")),
+  statistics: lazy(() => import("../features/system-statistics/StatisticsPage")),
+  operations: lazy(() => import("../features/operations/OperationsPage")),
   speech: lazy(() => import("../features/multimodal/SpeechPage")),
   images: lazy(() => import("../features/multimodal/ImagesPage")),
   reactions: lazy(() => import("../features/multimodal/ReactionsPage")),
@@ -280,7 +310,10 @@ export const sectionPaths: Record<ModuleId, readonly string[]> = {
   "room": ["roles/room"],
   "plugins": [
     "plugins"
-  ]
+  ],
+  "logs": ["system/logs"],
+  "statistics": ["system/statistics"],
+  "operations": ["system/operations"]
 };
 
 export function routeHref(module: ModuleId, section = 0) {

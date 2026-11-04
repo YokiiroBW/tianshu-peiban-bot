@@ -1,0 +1,7 @@
+.operations-page { display: grid; gap: 1rem; }
+.operations-incidents { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+.operations-incident { display: grid; gap: 0.35rem; text-align: left; color: var(--text-primary); background: var(--bg-card-alt); border: 1px solid var(--border-inner); padding: 0.9rem; cursor: pointer; overflow-wrap: anywhere; }
+.operations-incident[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+.operations-settings-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 0.75rem; }
+.operations-settings-grid label { display: grid; gap: 0.3rem; }
+.operations-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; }

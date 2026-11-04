@@ -1,3 +1,4 @@
+import { useEffect, useState } from "react";
 import {
   useDomainResource,
   useDomainCommand,
@@ -11,7 +12,10 @@ import {
   dedupeTitleAndBody,
   sanitizeInternalText,
 } from "../../design/humanize";
-import type { GrowthView } from "./domainTypes";
+import type { GrowthItem, GrowthView } from "./domainTypes";
+import { GrowthRuleHistory } from "./GrowthRuleHistory";
+import { GrowthRuleEditor } from "./GrowthRuleEditor";
+import { GrowthExamples } from "./GrowthExamples";
 import { DetailCard } from "../../components/DetailCard";
 import { useMemoryCursor } from "../memory/pagination";
 import { showValue, time } from "../memory/types";
@@ -30,6 +34,8 @@ function reviewReason(code: string) {
 
 export default function GrowthPage() {
   const { actor } = useRoleWorkspace();
+  const [editing, setEditing] = useState<GrowthItem | null>(null);
+  useEffect(() => setEditing(null), [actor]);
   const scope = actorScope(actor);
   const cursor = useMemoryCursor(scope, "growth");
   const view = useDomainResource<GrowthView>(
@@ -103,11 +109,12 @@ export default function GrowthPage() {
               </p>
               {review.retry_summary &&
                 (review.retry_summary.waiting > 0 ||
-                  review.retry_summary.active > 0) && (
+                  review.retry_summary.active > 0 ||
+                  review.retry_summary.blocked > 0) && (
                   <div role="status" aria-label="成长自动重试">
                     <p>
                       等待重试 {review.retry_summary.waiting} 批 · 正在处理重试{" "}
-                      {review.retry_summary.active} 批。
+                      {review.retry_summary.active} 批 · 停止自动重试 {review.retry_summary.blocked} 批。
                       暂时失败的材料已单独保留，后续经历可以继续整理。
                     </p>
                     {review.retry_summary.next_retry_at && (
@@ -340,6 +347,7 @@ export default function GrowthPage() {
                     </span>
                   </header>
                   {displayBody && <p>{displayBody}</p>}
+                  <p className="muted">状态：{item.state === "revoked" ? "已撤回" : item.state === "active" ? "当前有效" : item.state} · 版本 {item.revision}</p>
                   {item.reason && (
                     <p className="muted">
                       {item.reason === "explicit_user_change"
@@ -369,6 +377,9 @@ export default function GrowthPage() {
                   <DetailCard title="允许查看的经历依据">
                     <SourceEvidence sources={item.evidence} scope={scope} />
                   </DetailCard>
+                  {["style", "interest"].includes(item.kind) && <GrowthRuleHistory id={item.id} scope={scope} />}
+                  {item.can_modify && ["style", "interest"].includes(item.kind) && item.state !== "revoked" && <button className="button" onClick={() => setEditing(structuredClone(item))}>修订这项变化</button>}
+                  {editing?.id === item.id && <GrowthRuleEditor key={`${editing.id}:${editing.revision}`} item={editing} scope={scope} onClose={() => setEditing(null)} onSaved={async () => { setEditing(null); await view.refresh(); }} />}
                   {item.can_modify &&
                     ["style", "interest"].includes(item.kind) && (
                       <button
@@ -416,6 +427,7 @@ export default function GrowthPage() {
               </button>
             )}
           </div>
+          <GrowthExamples scope={scope} canReview={view.data.can_review} />
           <CommandFeedback {...action} />
         </section>
       )}

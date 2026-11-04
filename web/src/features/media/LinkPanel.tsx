@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { Download, Search } from "lucide-react";
 import { StatePanel } from "../../components/StatePanel";
+import { nativeResourceUrl } from "../../api/client";
 import { AccountField, QualityField, TargetField } from "./Fields";
 import { bestQuality, type Job, type Preview } from "./types";
 import type { MediaController } from "./useMediaController";
@@ -183,7 +184,7 @@ export function LinkPanel({
             /^https?:\/\//.test(preview.video.cover_url) ? (
               <img
                 className="media-cover"
-                src={preview.video.cover_url}
+                src={nativeResourceUrl(preview.video.cover_url)}
                 alt={`${preview.video.title} 的封面`}
                 referrerPolicy="no-referrer"
               />

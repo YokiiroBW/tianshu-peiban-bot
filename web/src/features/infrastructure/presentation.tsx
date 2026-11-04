@@ -31,6 +31,8 @@ const reasons: Record<string, string> = {
   stale: "采样间隔过长，等待连续读数",
   ssh_unavailable: "SSH 连接不可用",
   ssh_failed: "SSH 连接失败",
+  command_unavailable: "节点缺少所需命令，需在目标节点安装或配置执行路径",
+  permission_denied: "节点拒绝了采集操作，需检查执行账号的权限",
   infrastructure_executor_unavailable: "节点执行器尚未安装或部署配置不可用",
   infrastructure_executor_timeout: "节点执行器超时",
   infrastructure_executor_failed: "节点执行器运行失败",
@@ -139,7 +141,9 @@ export function Freshness({
         <span>最近尝试 · {time(observation.last_attempt_at)}</span>
       )}
       {observation.reason_codes.length > 0 && (
-        <span>{explanation(observation.reason_codes)}</span>
+        <ul aria-label="采集缺失原因">
+          {observation.reason_codes.map((code) => <li key={code}>{explanation([code])} <code>{code}</code></li>)}
+        </ul>
       )}
     </div>
   );

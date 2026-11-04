@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { API_ROOT } from "../api/client";
+import { API_ROOT, nativeResourceUrl } from "../api/client";
 import { useDomainTarget, type DomainTarget } from "../api/useDomainResource";
 import type { ArtifactRef } from "../api/contracts";
 
@@ -21,7 +21,7 @@ export function MediaPreview({
   const query = new URLSearchParams();
   for (const [key, value] of Object.entries(target))
     if (typeof value === "string" && value) query.set(key, value);
-  const url = `${API_ROOT}capabilities/media/${encodeURIComponent(media.media_id)}?${query}`;
+  const url = nativeResourceUrl(`${API_ROOT}capabilities/media/${encodeURIComponent(media.media_id)}?${query}`);
   useEffect(() => {
     setError("");
   }, [url]);

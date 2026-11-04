@@ -274,7 +274,7 @@ export function LifecyclePanel({
                   </span>
                 </header>
                 <ActivityProgress activity={item} />
-                {!item.checkpoint_data?.capability_id && (
+                {item.checkpoint_data && !item.checkpoint_data.capability_id && (
                   <p className="muted">
                     角色主观活动，完成记录不表示发生了现实身体活动或真实工具执行。
                   </p>
@@ -378,7 +378,7 @@ export function LifecyclePanel({
           </div>
           <CommandFeedback {...action} error={lifeCommandError(action.error)} />
           {activity && (
-            <ActivityEditor
+            <ActivityEditorWithCheckpoint
               key={
                 activity === "new"
                   ? "new"
@@ -722,6 +722,24 @@ function GoalEditor({
   );
 }
 
+function ActivityEditorWithCheckpoint(props: {
+  value: Activity | null;
+  goals: Goal[];
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const detail = useDomainResource<{ id: string; revision: number; checkpoint_data: NonNullable<Activity["checkpoint_data"]> }>(
+    "life/activities/checkpoint", { id: props.value?.id }, !!props.value && !props.value.checkpoint_data,
+  );
+  if (props.value && !props.value.checkpoint_data) {
+    if (detail.error) return <div role="alert">{detail.error}<button className="button" onClick={() => void detail.refresh()}>重新读取活动进度</button><button className="button" onClick={props.onClose}>收起</button></div>;
+    if (!detail.data) return <p role="status">正在读取活动进度…</p>;
+    if (detail.data.revision !== props.value.revision) return <div role="status">活动已更新，请读取最新列表后再编辑。<button className="button" onClick={props.onSaved}>刷新活动</button></div>;
+    return <ActivityEditor {...props} value={{ ...props.value, checkpoint_data: detail.data.checkpoint_data }} />;
+  }
+  return <ActivityEditor {...props} />;
+}
+
 function ActivityEditor({
   value,
   goals,
@@ -737,10 +755,10 @@ function ActivityEditor({
     "capabilities/discover",
   );
   const [capability, setCapability] = useState(
-    value?.checkpoint_data.capability_id ?? "",
+    value?.checkpoint_data?.capability_id ?? "",
   );
   const [argumentsValue, setArguments] = useState<Record<string, unknown>>(
-    value?.checkpoint_data.arguments ?? {},
+    value?.checkpoint_data?.arguments ?? {},
   );
   const action = useDomainCommand(`activity:${value?.id ?? "new"}`);
   const selected = choices.data?.items.find(

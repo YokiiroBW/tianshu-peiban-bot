@@ -17,6 +17,63 @@ export class ApiError extends Error {
   }
 }
 
+let dataGeneration: string | null = null;
+let generationInvalidated = false;
+
+function generationChanged(nextGeneration?: string) {
+  if (generationInvalidated) return;
+  generationInvalidated = true;
+  try {
+    const staleKeys = Array.from({ length: sessionStorage.length }, (_, index) => sessionStorage.key(index))
+      .filter((key): key is string => Boolean(key) && ["tianshu-workspace-role:", "tianshu-memory-role:", "tianshu-infra-control:"].some((prefix) => key!.startsWith(prefix)));
+    staleKeys.forEach((key) => sessionStorage.removeItem(key));
+    if (nextGeneration) sessionStorage.setItem("tianshu-data-generation", nextGeneration);
+    else sessionStorage.removeItem("tianshu-data-generation");
+    sessionStorage.setItem("tianshu-generation-notice", "1");
+  } catch {
+    // A reload still clears in-memory business state when storage is unavailable.
+  }
+  window.dispatchEvent(new Event("tianshu:data-generation-changed"));
+  const route = window.location.hash.split("?")[0] || "#/workbench";
+  window.history.replaceState(null, "", window.location.pathname + window.location.search + route);
+  window.location.reload();
+}
+
+/** Only the session establishes the active installation generation. */
+export function establishDataGeneration(value: string) {
+  if (!value || generationInvalidated)
+    throw new ApiError("data_generation_unavailable", 0, "当前数据代际尚未取得，请重新连接。", null, null, "not_started");
+  let previous = dataGeneration;
+  try {
+    previous ??= sessionStorage.getItem("tianshu-data-generation");
+  } catch {
+    // The live in-memory generation still protects this page.
+  }
+  if (previous && previous !== value) {
+    generationChanged(value);
+    throw new ApiError("data_generation_changed", 409, "数据已切换，正在重新读取。", null, null, "not_started");
+  }
+  dataGeneration = value;
+  try {
+    sessionStorage.setItem("tianshu-data-generation", value);
+  } catch {
+    // In-memory generation remains authoritative for this page.
+  }
+}
+
+/** Native media, downloads and frames cannot attach request headers. */
+export function nativeResourceUrl(value: string): string {
+  try {
+    const url = new URL(value, window.location.href);
+    if (url.origin !== window.location.origin || !url.pathname.startsWith(API_ROOT)) return value;
+    if (!dataGeneration || generationInvalidated) return "about:blank";
+    url.searchParams.set("data_generation", dataGeneration);
+    return url.pathname + url.search + url.hash;
+  } catch {
+    return value;
+  }
+}
+
 type Options = {
   body?: object;
   csrf?: string;
@@ -74,6 +131,9 @@ function selectedEndpoint(path: string, body?: object) {
 /** One transport for all domains; never retries a mutation. */
 export async function apiFetch(path: string, options: Options = {}) {
   const isCommand = options.kind === "command";
+  const bootstrap = ["session", "setup", "auth/login"].includes(path.split("?")[0]);
+  if (generationInvalidated || (!dataGeneration && !bootstrap))
+    throw new ApiError("data_generation_unavailable", 0, "当前数据代际尚未取得，请重新连接。", null, null, "not_started");
   if (options.signal?.aborted) {
     if (!isCommand) throw options.signal.reason ?? new DOMException("Aborted", "AbortError");
     throw new ApiError("request_not_started", 0, "请求尚未发出，已停止提交。",
@@ -88,10 +148,13 @@ export async function apiFetch(path: string, options: Options = {}) {
       cache: "no-store",
       signal: options.signal,
       keepalive: options.keepalive,
-      headers: options.body === undefined && options.binary === undefined ? options.headers : {
-        ...(options.binary instanceof FormData ? {} : { "Content-Type": options.binary === undefined ? "application/json" : "application/octet-stream" }),
-        "X-CSRF-Token": options.csrf ?? "",
+      headers: {
+        ...(options.body === undefined && options.binary === undefined ? {} : {
+          ...(options.binary instanceof FormData ? {} : { "Content-Type": options.binary === undefined ? "application/json" : "application/octet-stream" }),
+          "X-CSRF-Token": options.csrf ?? "",
+        }),
         ...options.headers,
+        ...(dataGeneration ? { "X-Tianshu-Data-Generation": dataGeneration } : {}),
       },
       body: options.binary ?? (options.body === undefined ? undefined : JSON.stringify(options.body)),
     });
@@ -100,11 +163,27 @@ export async function apiFetch(path: string, options: Options = {}) {
     if (options.signal?.aborted) throw cause;
     throw new ApiError("connection_failed", 0, "连接中断，本次没有取得数据。");
   }
+  const observedGeneration = response.headers.get("X-Tianshu-Data-Generation");
+  if (generationInvalidated) {
+    if (isCommand) throw uncertain(path, options, response.status);
+    throw new ApiError("data_generation_changed", 409, "数据已切换，正在重新读取。", null, null, "not_started");
+  }
+  if (dataGeneration && observedGeneration && observedGeneration !== dataGeneration) {
+    const payload = response.status === 409 ? await response.clone().json().catch(() => null) as ApiErrorBody | null : null;
+    const rejected = payload?.error?.code === "data_generation_changed";
+    generationChanged(observedGeneration);
+    if (isCommand && !rejected) throw uncertain(path, options, response.status);
+    throw new ApiError("data_generation_changed", 409, "数据已切换，正在重新读取。", null, null, "not_started");
+  }
   if (!response.ok) {
     const payload = await response.json().catch(() => null) as ApiErrorBody | null;
     const error = payload?.error;
     if (!error && isCommand) throw uncertain(path, options, response.status);
     const code = error?.code ?? "invalid_response";
+    if (code === "data_generation_changed") {
+      generationChanged(observedGeneration ?? undefined);
+      throw new ApiError(code, response.status, "数据已切换，正在重新读取。", error?.details ?? null, error?.request_id ?? null, "not_started");
+    }
     if (isCommand && response.status >= 500 && error?.details?.execution_state !== "not_started") {
       uncertain(path, options, response.status);
       throw new ApiError("outcome_unknown", response.status, "本次提交结果尚未确认，请查询原任务或当前版本。",

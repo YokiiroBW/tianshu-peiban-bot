@@ -1,7 +1,7 @@
 import { useState } from "react";
 import type { Page } from "../../api/contracts";
 import {
-  actorScope,
+  GLOBAL_SCOPE,
   useDomainCommand,
   useDomainResource,
   type DomainTarget,
@@ -13,13 +13,11 @@ import { confirmed, lines } from "../knowledge/types";
 import type { Experience, Lesson, LessonRef } from "./types";
 
 export function SharedExperience({
-  actor,
   canShare,
 }: {
-  actor: string;
   canShare: boolean;
 }) {
-  const scope = actorScope(actor);
+  const scope = GLOBAL_SCOPE;
   const [cursor, setCursor] = useState<string | null>(null);
   const [edit, setEdit] = useState<Experience | "new" | null>(null);
   const view = useDomainResource<Page<Experience>>("projects/experiences", {
@@ -107,7 +105,6 @@ export function SharedExperience({
           key={
             edit === "new" ? "new" : edit.experience_id + ":" + edit.revision
           }
-          actor={actor}
           item={edit === "new" ? null : edit}
           onClose={() => setEdit(null)}
           onSaved={async () => {
@@ -131,7 +128,7 @@ function Withdraw({
 }) {
   const command = useDomainCommand(
     `experience-withdraw:${item.experience_id}`,
-    "actor",
+    "global",
   );
   return (
     <span>
@@ -159,17 +156,15 @@ function Withdraw({
 }
 
 function ExperienceEditor({
-  actor,
   item,
   onClose,
   onSaved,
 }: {
-  actor: string;
   item: Experience | null;
   onClose: () => void;
   onSaved: () => Promise<void>;
 }) {
-  const scope = actorScope(actor);
+  const scope = GLOBAL_SCOPE;
   const [draft, setDraft] = useState({
     title: item?.payload.title ?? "",
     rule: item?.payload.rule ?? "",
@@ -183,7 +178,7 @@ function ExperienceEditor({
   );
   const command = useDomainCommand(
     `experience-promote:${item?.experience_id ?? "new"}`,
-    "actor",
+    "global",
   );
   const multipleProjects =
     new Set(evidence.map((value) => value.project_id)).size >= 2;
@@ -268,7 +263,7 @@ function ExperienceEditor({
           }
         />
       </label>
-      <LessonEvidence actor={actor} values={evidence} onChange={setEvidence} />
+      <LessonEvidence values={evidence} onChange={setEvidence} />
       {!multipleProjects && <p>请选择至少两个不同项目的当前经验版本。</p>}
       <button
         className="button primary"
@@ -282,15 +277,13 @@ function ExperienceEditor({
 }
 
 function LessonEvidence({
-  actor,
   values,
   onChange,
 }: {
-  actor: string;
   values: LessonRef[];
   onChange: (values: LessonRef[]) => void;
 }) {
-  const scope = actorScope(actor);
+  const scope = GLOBAL_SCOPE;
   const [cursor, setCursor] = useState<string | null>(null);
   const [project, setProject] = useState("");
   const [lessonCursor, setLessonCursor] = useState<string | null>(null);
@@ -302,10 +295,7 @@ function LessonEvidence({
   const selected = projects.data?.items.find(
     (row) => row.project_id === project,
   );
-  const scene = {
-    ...scope,
-    conversation_id: selected?.conversation_id ?? null,
-  };
+  const scene = scope;
   const lessons = useDomainResource<Page<Lesson>>(
     "projects/lessons",
     { ...scene, project_id: project, cursor: lessonCursor, limit: 16 },

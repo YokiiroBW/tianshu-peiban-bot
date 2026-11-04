@@ -1,4 +1,5 @@
 import { Drawer } from "../../../components/Drawer";
+import { nativeResourceUrl } from "../../../api/client";
 import { useCallback, useEffect, useState } from "react";
 import type { Chapter, Comic, Detail, Kind, Media, Mutate } from "./types";
 import { kinds } from "./types";
@@ -491,7 +492,7 @@ export function ComicDetail({
               (_, index) => (
                 <figure key={preview.chapter_id + index}>
                   <img
-                    src={`/api/v1/media/comics/files/${comic.comic_id}/preview/${preview.chapter_id}/${index}`}
+                    src={nativeResourceUrl(`/api/v1/media/comics/files/${comic.comic_id}/preview/${preview.chapter_id}/${index}`)}
                     alt={`第 ${index + 1} 页`}
                     onError={(e) => {
                       e.currentTarget.alt = `第 ${index + 1} 页暂不可用，请检查来源或完成本地导入后阅读`;

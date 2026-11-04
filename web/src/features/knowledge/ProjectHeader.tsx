@@ -80,11 +80,11 @@ export function ProjectHeader({
       {project && (
         <p className="muted">
           登记修订 {project.revision} · 内容修订 {project.content_revision} ·
-          所属会话 {project.conversation_id}
+          {project.conversation_id ? `所属会话 ${project.conversation_id}` : "当前工作区"}
         </p>
       )}
       {view.data && !view.data.items.length && (
-        <p>当前范围没有已登记项目。管理员可在选定真实会话后登记受管目录。</p>
+        <p>当前范围没有已登记项目。管理员可登记受管目录。</p>
       )}
       {edit && (
         <ProjectRegistry

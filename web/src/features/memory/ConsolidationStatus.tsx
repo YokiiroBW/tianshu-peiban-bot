@@ -21,12 +21,14 @@ const stateNames: Record<string, string> = {
   consolidation_unknown: "原请求结果未知，已隔离，不阻塞后续整理",
   consolidation_stale: "迟到结果已过期，按当前材料重新准备",
   ready: "结果待原子提交",
-  applied: "本批已提交",
+  applied: "本批已提交，索引状态以实际读回为准",
   stale: "固定材料已变化",
   failed: "本批未提交",
+  consolidation_failed: "整理失败，本批未提交",
+  consolidation_revoked: "整理依据已撤回",
   revoked: "来源已撤回",
   unknown: "原执行结果未知",
-  pending: "等待整理",
+  pending: "已接收，等待整理",
   queued: "已排队",
   running: "原整理正在进行",
   completed: "已完成本次材料",
@@ -67,6 +69,12 @@ const actions: Record<string, { label: string; description: string }> = {
       "旧映射无法证明，保留原执行回执；尚未处理材料由当前整理流程接续。",
   },
 };
+const indexStates: Record<string, string> = {
+  unknown: "尚未确认",
+  not_required: "无需索引",
+  pending: "等待索引",
+  ready: "已索引",
+};
 
 export function ConsolidationStatus({
   value,
@@ -91,6 +99,9 @@ export function ConsolidationStatus({
           迟到结果与当前材料或记忆版本不一致，未写入；保留原记录，按当前材料重新准备。
         </p>
       )}
+      {value.commit_state && <p>提交状态：{value.commit_state === "applied" ? "记忆已应用" : "尚未提交记忆"}。</p>}
+      {value.required_context_missing?.length ? <details open><summary>必要上下文仍有 {value.required_context_missing.length} 项缺失</summary><pre>{showValue(value.required_context_missing)}</pre></details> : null}
+      {value.indexing && <details><summary>索引状态：{indexStates[value.indexing.state] ?? value.indexing.state}</summary><pre>{showValue(value.indexing.objects)}</pre></details>}
       {recovery && (
         <p className="muted curio-consolidation-hint">
           {recovery.label}：{recovery.description}

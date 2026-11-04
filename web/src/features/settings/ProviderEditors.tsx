@@ -197,6 +197,9 @@ export function ModelEditor({
   const [capabilities, setCapabilities] = useState(
     draft.verified_capabilities.join(", "),
   );
+  const [contextWindow, setContextWindow] = useState(() =>
+    typeof draft.verification?.context_window_tokens === "number" ? String(draft.verification.context_window_tokens) : "",
+  );
   const [evidence, setEvidence] = useState("");
   const [error, setError] = useState("");
   return (
@@ -210,6 +213,9 @@ export function ModelEditor({
           if (!parsed || typeof parsed !== "object" || Array.isArray(parsed))
             throw new Error("原生参数需要 JSON 对象。");
           const caps = capabilities.split(/[,，\s]+/).filter(Boolean);
+          const windowTokens = contextWindow.trim() ? Number(contextWindow) : null;
+          if (windowTokens !== null && (!Number.isSafeInteger(windowTokens) || windowTokens < 1))
+            throw new Error("上下文窗口需要是正整数。");
           const targetChanged =
             !!route &&
             (draft.model !== route.model ||
@@ -217,7 +223,8 @@ export function ModelEditor({
               JSON.stringify(parsed) !== JSON.stringify(route.parameters));
           const changed =
             targetChanged ||
-            caps.join(",") !== (route?.verified_capabilities ?? []).join(",");
+            caps.join(",") !== (route?.verified_capabilities ?? []).join(",") ||
+            windowTokens !== (route?.verification?.context_window_tokens ?? null);
           const verified = targetChanged && !evidence.trim() ? [] : caps;
           if (verified.length && changed && !evidence.trim())
             throw new Error("请填写实际能力依据，或留空能力等待真实测试。");
@@ -226,12 +233,18 @@ export function ModelEditor({
             parameters: parsed,
             verified_capabilities: verified,
             verification: !verified.length
-              ? null
+              ? !changed && !targetChanged
+                ? (route?.verification ?? null)
+                : windowTokens === null || (targetChanged && !evidence.trim())
+                  ? null
+                  : { source: "operator", note: evidence.trim(), observed_at: new Date().toISOString(), context_window_tokens: windowTokens }
               : changed
                 ? {
+                    ...(!targetChanged ? route?.verification ?? {} : {}),
                     source: "operator",
                     note: evidence.trim(),
                     observed_at: new Date().toISOString(),
+                    context_window_tokens: windowTokens,
                   }
                 : (route?.verification ?? null),
           });
@@ -310,6 +323,10 @@ export function ModelEditor({
             />
           </label>
           <label>
+            已核验上下文窗口 Token（可留空）
+            <input type="number" min={1} value={contextWindow} onChange={(event) => setContextWindow(event.target.value)} />
+          </label>
+          <label>
             本次修改能力的实际依据
             <textarea
               rows={3}
@@ -318,7 +335,7 @@ export function ModelEditor({
             />
           </label>
           <p className="muted">
-            配置与实际验证分别记录；文字/流式可用下方真实测试，多模态能力需要对应材料与依据。
+            配置与实际验证分别记录；文字/流式可用下方真实测试，多模态能力需要对应材料与依据。备用路由还需要可证明的上下文容量；JSON 用途需要已核验 json 能力。
           </p>
         </details>
         {error && <p role="alert">{error}</p>}
@@ -337,6 +354,7 @@ const initialQuota: QuotaGroup = {
   quota_group: "",
   revision: 0,
   concurrency: 2,
+  cloud_concurrency: null,
   interactive_reserve: 1,
   background_max: 1,
   rpm: null,
@@ -378,7 +396,8 @@ export function QuotaEditor({
     optional?: boolean;
     min: number;
   }[] = [
-    { key: "concurrency", label: "总并发", min: 1 },
+    { key: "concurrency", label: "外部资源并发", min: 1 },
+    { key: "cloud_concurrency", label: "云请求并发上限（可留空）", optional: true, min: 1 },
     { key: "interactive_reserve", label: "即时并发预留", min: 0 },
     { key: "background_max", label: "后台并发上限", min: 0 },
     { key: "rpm", label: "每分钟请求上限", optional: true, min: 1 },
@@ -478,7 +497,7 @@ export function QuotaEditor({
           ))}
         </div>
         <p className="muted">
-          排队过期留空时不设置等待时限；填写后只限制排队等待。模型执行超时从获得额度并开始执行后计算，任务自身的业务到期仍然有效。
+          云请求上限留空时不单独限制该组的云并发；外部资源并发仍单独生效。排队过期留空时不设置等待时限；填写后只限制排队等待。模型执行超时从获得额度并开始执行后计算，任务自身的业务到期仍然有效。
         </p>
         <details>
           <summary>分单位额度与预留</summary>

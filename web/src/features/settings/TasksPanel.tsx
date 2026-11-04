@@ -647,13 +647,14 @@ export function RuntimeTasks({
   includeLogs = true,
 }: { includeLogs?: boolean } = {}) {
   const { session } = useAuth();
+  const jobId = new URLSearchParams(window.location.hash.split("?")[1] ?? "").get("job_id");
   const canRead =
     session?.principal?.permissions.some(
       (permission) => permission === "*" || permission === "config.publish",
     ) === true;
   const tasks = useDomainResource<RuntimeTasksView>(
     "system/tasks",
-    { ...GLOBAL_SCOPE, limit: 50 },
+    { ...GLOBAL_SCOPE, limit: 50, ...(jobId ? { job_id: jobId } : {}) },
     canRead,
     15000,
   );
@@ -703,6 +704,9 @@ export function RuntimeTasks({
         ))}
       </div>
       <div className="table-scroll">
+        {jobId && <p role="status">{tasks.data?.jobs.some((job) => String(job.id) === jobId)
+          ? `原任务 #${jobId} 已在下方标出。`
+          : tasks.data ? `没有找到原任务 #${jobId}，请核对任务标识。` : `正在查找原任务 #${jobId}。`}</p>}
         <table>
           <thead>
             <tr>
@@ -715,7 +719,7 @@ export function RuntimeTasks({
           </thead>
           <tbody>
             {tasks.data?.jobs.map((job) => (
-              <tr key={job.id}>
+              <tr key={job.id} id={`job-${job.id}`} aria-label={String(job.id) === jobId ? `原任务 ${job.id}` : undefined}>
                 <td>
                   {job.task_name} <small>#{job.id}</small>
                 </td>
@@ -739,7 +743,7 @@ export function RuntimeTasks({
           </tbody>
         </table>
       </div>
-      {tasks.data && !tasks.data.complete && (
+      {tasks.data && !tasks.data.complete && !jobId && (
         <p className="muted">
           这里只显示最近 {tasks.data.limit}{" "}
           个持久作业；日志和原执行查询可继续核对，不能视为全部历史。
@@ -754,116 +758,11 @@ export function RuntimeTasks({
     </section>
   );
 }
-function localTime(value: Date) {
-  return new Date(value.getTime() - value.getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
-}
 function RuntimeLogs() {
-  const [range, setRange] = useState<{
-    start_ns: string;
-    end_ns: string;
-    role: string | null;
-  } | null>(null);
-  const logs = useDomainResource<{
-    streams: { stream: Record<string, string>; values: [string, string][] }[];
-    coverage: { complete: boolean; missing: string[] };
-    next_end_ns: string | null;
-  }>("system/logs", { ...GLOBAL_SCOPE, ...range, limit: 200 }, range !== null);
   return (
     <DetailCard title="真实运行日志">
-      <form
-        className="domain-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          setRange({
-            start_ns: (
-              BigInt(new Date(String(data.get("start"))).getTime()) * 1000000n
-            ).toString(),
-            end_ns: (
-              BigInt(new Date(String(data.get("end"))).getTime()) * 1000000n
-            ).toString(),
-            role: String(data.get("role") ?? "") || null,
-          });
-        }}
-      >
-        <div className="domain-grid">
-          <label>
-            开始（本地时间）
-            <input
-              type="datetime-local"
-              name="start"
-              defaultValue={localTime(new Date(Date.now() - 3600000))}
-              required
-            />
-          </label>
-          <label>
-            结束（本地时间）
-            <input
-              type="datetime-local"
-              name="end"
-              defaultValue={localTime(new Date())}
-              required
-            />
-          </label>
-          <label>
-            实际进程
-            <select name="role">
-              <option value="">全部</option>
-              <option value="interactive">interactive</option>
-              <option value="model-broker">model-broker</option>
-              <option value="worker">worker</option>
-            </select>
-          </label>
-        </div>
-        <button className="button" disabled={logs.loading}>
-          读取日志范围
-        </button>
-      </form>
-      {logs.error && <p role="alert">{logs.error}</p>}
-      {logs.data && (
-        <>
-          <p>
-            {logs.data.coverage.complete
-              ? "本次日志范围未触及返回上限"
-              : "当前范围尚未完整返回；密集同纳秒记录可缩小时间范围核对"}
-            {logs.data.coverage.missing.length
-              ? ` · ${logs.data.coverage.missing.join("、")}`
-              : ""}
-          </p>
-          {logs.data.streams.map((stream, index) => (
-            <article key={index}>
-              <small>
-                {Object.entries(stream.stream)
-                  .map(([key, value]) => `${key}=${value}`)
-                  .join(" · ")}
-              </small>
-              <pre>
-                {stream.values
-                  .map(
-                    ([stamp, line]) =>
-                      `${new Date(Number(BigInt(stamp) / 1000000n)).toLocaleString("zh-CN")} ${line}`,
-                  )
-                  .join("\n")}
-              </pre>
-            </article>
-          ))}
-          {logs.data.next_end_ns && !logs.data.coverage.complete && range && (
-            <button
-              className="button"
-              onClick={() =>
-                setRange({
-                  ...range,
-                  end_ns: (BigInt(logs.data!.next_end_ns!) - 1n).toString(),
-                })
-              }
-            >
-              读取更早日志
-            </button>
-          )}
-        </>
-      )}
+      <p>按时间、进程、级别和关联标识查看日志与采集覆盖。</p>
+      <a className="button" href="#/system/logs">打开运行日志</a>
     </DetailCard>
   );
 }

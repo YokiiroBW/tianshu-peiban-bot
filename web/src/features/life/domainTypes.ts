@@ -51,7 +51,7 @@ export type Activity = {
     kind: "user_reply" | "activity_completed" | "capability_available";
     subject_id: string;
   } | null;
-  checkpoint_data: {
+  checkpoint_data?: {
     capability_id?: string;
     arguments?: Record<string, unknown>;
     consumption?: Consumption | null;
@@ -96,6 +96,8 @@ export type LifeState = {
   room_id: string;
   weather_location: string | null;
   activity: Activity | null;
+  role_status?: "active" | "resting";
+  background_work?: { id: string; revision: number; title: string; state: string; waiting_reason: string | null }[];
   outfit: Outfit | null;
   affect: Affect;
   observed_at: string;
@@ -187,6 +189,19 @@ export type DayPlanView = {
   slots: DaySlot[];
   unfinished: Activity[];
   planning?: Routine["planning"];
+  application?: {
+    generation_key: string;
+    items: {
+      candidate_key: string;
+      status: "scheduled" | "intentional_idle" | "deferred_no_slot" | "stale_state" | "invalid_proposal";
+      reason: string | null;
+      activity_id: string | null;
+      slot_id: string | null;
+      revision: number | null;
+      next_due_at: string | null;
+    }[];
+    next_due_at: string | null;
+  } | null;
 };
 export type GrowthItem = {
   id: string;

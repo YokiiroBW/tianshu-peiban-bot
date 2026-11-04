@@ -69,8 +69,12 @@ export function ConsumptionProgress({ value }: { value: Consumption }) {
 
 export function ActivityProgress({ activity }: { activity: Activity }) {
   const [open, setOpen] = useState(false);
-  const actionId =
-    activity.action_id ?? activity.checkpoint_data.completed_action_id;
+  const [inspectCheckpoint, setInspectCheckpoint] = useState(false);
+  const detail = useDomainResource<{ id: string; revision: number; checkpoint_data: NonNullable<Activity["checkpoint_data"]> }>(
+    "life/activities/checkpoint", { id: activity.id }, inspectCheckpoint,
+  );
+  const checkpoint: NonNullable<Activity["checkpoint_data"]> = detail.data?.checkpoint_data ?? activity.checkpoint_data ?? {};
+  const actionId = activity.action_id ?? checkpoint.completed_action_id;
   const original = useDomainResource<ActionView>(
     "capabilities/get",
     { action_id: actionId },
@@ -88,7 +92,6 @@ export function ActivityProgress({ activity }: { activity: Activity }) {
         sharing?: { notice?: string | null; decision?: string };
       }
     | undefined;
-  const checkpoint = activity.checkpoint_data;
   const units: Record<string, string> = {
     characters: "字符",
     seconds: "秒",
@@ -113,6 +116,14 @@ export function ActivityProgress({ activity }: { activity: Activity }) {
           {activityWaitingReason(activity.wake_condition.kind)}
         </p>
       )}
+      {!activity.checkpoint_data && <div>
+        <button className="text-link" disabled={detail.loading} onClick={() => {
+          if (inspectCheckpoint) void detail.refresh(); else setInspectCheckpoint(true);
+        }}>读取完整活动进度</button>
+        {detail.loading && <p role="status">正在读取活动进度…</p>}
+        {detail.error && <p role="alert">{detail.error}</p>}
+        {detail.data && detail.data.revision !== activity.revision && <p>活动已更新；这里显示最新进度，请刷新活动列表后编辑。</p>}
+      </div>}
       {checkpoint.exploration?.intention && (
         <p>继续想弄清楚：{checkpoint.exploration.intention}</p>
       )}

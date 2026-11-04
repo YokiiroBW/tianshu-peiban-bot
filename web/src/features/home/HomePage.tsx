@@ -2,6 +2,7 @@ import { RefreshCw } from "lucide-react";
 import {
   useDomainCommand,
   useDomainResource,
+  GLOBAL_SCOPE,
 } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { StatusRail } from "../../components/StatusRail";
@@ -9,8 +10,8 @@ import type { DevicesView } from "./deviceTypes";
 import "./home.css";
 
 export default function HomePage() {
-  const view = useDomainResource<DevicesView>("devices/view");
-  const action = useDomainCommand("devices");
+  const view = useDomainResource<DevicesView>("devices/view", GLOBAL_SCOPE);
+  const action = useDomainCommand("devices", "global");
   async function run(
     path: string,
     body: object,

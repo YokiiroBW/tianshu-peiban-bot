@@ -85,6 +85,9 @@ export type Consolidation = {
     [key: string]: unknown;
   }[];
   context_unfulfilled?: unknown[];
+  commit_state?: "applied" | "not_committed";
+  required_context_missing?: unknown[];
+  indexing?: { state: string; objects: { kind: string; id: string; revision: number }[] } | null;
   coverage?: { state?: string; missing?: string[]; [key: string]: unknown };
 };
 export type Episode = {
@@ -109,13 +112,14 @@ export type Reflection = {
   proposal_id: string;
   revision: number;
   content: string;
-  kind: string;
+  kind: "reflection";
   occurred_at: string;
+  recorded_at: string | null;
   source_refs: SourceRef[];
   counterexamples: string[];
   conditions: Record<string, unknown>;
-  interpretation: boolean;
-  recorded_at?: string | null;
+  interpretation: true;
+  state: string;
 };
 export type Matter = {
   matter_id: string;

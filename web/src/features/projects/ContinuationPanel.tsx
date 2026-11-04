@@ -444,7 +444,7 @@ function StateEditor({
   const [evidence, setEvidence] = useState<ReadUnitRef[]>([]);
   const command = useDomainCommand(
     `project-state:${project.project_id}`,
-    "actor",
+    "global",
   );
   return (
     <form

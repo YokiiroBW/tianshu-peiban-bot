@@ -30,6 +30,7 @@ export type QuotaGroup = {
   quota_group: string;
   revision: number;
   concurrency: number;
+  cloud_concurrency?: number | null;
   interactive_reserve: number;
   background_max: number;
   rpm: number | null;
@@ -48,6 +49,7 @@ export type ModelBinding = {
   service_class: ServiceClass;
   actor_id: string;
   route_id: string;
+  fallback_routes?: string[];
   revision: number;
 };
 export type EmbeddingProfile = {

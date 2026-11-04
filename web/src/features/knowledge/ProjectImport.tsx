@@ -21,11 +21,11 @@ export function ProjectImport({
   const { session } = useAuth();
   const command = useDomainCommand<Record<string, unknown>>(
     `project-import:${project.project_id}`,
-    "actor",
+    "global",
   );
   const preview = useDomainCommand<DirectoryPlan>(
     `project-preview:${project.project_id}`,
-    "actor",
+    "global",
   );
   const [directory, setDirectory] = useState(project.directories[0] ?? "");
   const [checked, setChecked] = useState<string[]>([]);
