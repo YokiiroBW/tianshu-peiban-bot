@@ -70,7 +70,7 @@ def test_deferred_provider_clock_is_explicit_and_never_uses_the_prepare_deadline
 
 
 async def test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and_bounded():
-    scheduler = QuotaScheduler({"quota": QuotaPolicy("quota", 2, 1, 1, max_queue=1)})
+    scheduler = QuotaScheduler({"quota": QuotaPolicy("quota", 2, 1, 1, max_queue=1, cloud_concurrency=1)})
     await scheduler.start()
     pending = None
     try:
@@ -86,11 +86,11 @@ async def test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and
             await pending
         assert scheduler.snapshot()["quota"]["waiting"] == 0
         assert "waiting" not in scheduler.groups["quota"].active
-        # Free the bounded waiting slot before checking the separate capacity
-        # reservation. A reserve never permits bypassing a full hard queue.
+        # Configured cloud capacity is shared; release it before admission.
+        await scheduler.release("quota", "held", not_started=True)
         await scheduler.acquire(request("human", service_class=ServiceClass.INTERACTIVE), "quota", {})
-        assert scheduler.snapshot()["quota"]["active"] == 2
-        assert "held" in scheduler.groups["quota"].active
+        assert scheduler.snapshot()["quota"]["active"] == 1
+        assert "human" in scheduler.groups["quota"].active
     finally:
         if pending and not pending.done():
             pending.cancel()
@@ -101,7 +101,7 @@ async def test_queue_wait_may_outlast_execution_window_and_stays_cancellable_and
 @pytest.mark.parametrize("limit", ["business", "request", "author", "immediate"])
 async def test_queue_still_honors_business_expiry_and_explicit_queue_limits(limit):
     scheduler = QuotaScheduler({"quota": QuotaPolicy("quota", 1, 0, 1,
-        max_wait_seconds=0.03 if limit == "author" else None)})
+        max_wait_seconds=0.03 if limit == "author" else None, cloud_concurrency=1)})
     await scheduler.start()
     try:
         await scheduler.acquire(request("held"), "quota", {})
@@ -139,7 +139,7 @@ async def test_waiting_business_expiry_does_not_relabel_an_independent_phase_tim
 async def test_queue_timer_preserves_its_frozen_constraint_even_before_wall_clock_expiry(monkeypatch, constraint):
     from tianshu.models import scheduler as module
     scheduler=QuotaScheduler({"quota":QuotaPolicy("quota",1,0,1,
-        max_wait_seconds=1 if constraint=="author" else None)})
+        max_wait_seconds=1 if constraint=="author" else None, cloud_concurrency=1)})
     await scheduler.start()
     try:
         await scheduler.acquire(request("held"),"quota",{})
@@ -191,6 +191,8 @@ async def test_ledger_freezes_duration_before_admission_and_never_restarts_an_at
     old_wire.pop("execution_timeout_seconds")
     old_wire.pop("business_deadline_at")
     old_wire.pop("provider_session_scope")
+    for name in ("behavior_refs", "behavior_purpose", "data_generation"):
+        old_wire.pop(name)
     old_semantic = {key: value for key, value in old_wire.items() if key not in {"budget", "max_queue_wait"}}
     row, created = await ledger.create(request_from_wire(old_wire), plan, {})
     assert created and row["request_digest"] == digest(old_semantic)
@@ -211,6 +213,8 @@ async def test_new_ledger_identity_canonicalizes_only_its_unordered_contract_inp
     semantic=wire(original)
     semantic.pop("budget")
     semantic.pop("business_deadline_at")
+    for name in ("behavior_refs", "behavior_purpose", "data_generation"):
+        semantic.pop(name)
     semantic["context"]["permissions"].sort()
     semantic["required_capabilities"].sort()
     row,created=await ledger.create(original,plan,{})
@@ -226,7 +230,8 @@ async def test_new_ledger_identity_canonicalizes_only_its_unordered_contract_inp
         provider_session_scope="conversation",
         budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=60)))
     legacy_semantic=wire(legacy)
-    for name in ("budget","max_queue_wait","execution_timeout_seconds","business_deadline_at","provider_session_scope"):
+    for name in ("budget","max_queue_wait","execution_timeout_seconds","business_deadline_at","provider_session_scope",
+                 "behavior_refs", "behavior_purpose", "data_generation"):
         legacy_semantic.pop(name)
     unchanged,created=await ledger.create(legacy,plan,{})
     assert created and unchanged["request_digest"]==digest(legacy_semantic)

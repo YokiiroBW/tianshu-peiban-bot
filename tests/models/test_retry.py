@@ -26,8 +26,13 @@ def test_permanent_or_explicitly_cancelled_work_is_not_retried(code):
     assert not transient_model_failure(code)
 
 
-def test_computation_failure_backoff_grows_and_stays_bounded():
+def test_computation_failure_backoff_grows_and_stays_bounded(monkeypatch):
+    monkeypatch.setattr("tianshu.models.retry.random.uniform", lambda _low, _high: 1.0)
     assert [retry_delay_seconds(number) for number in range(1, 8)] == [30, 60, 120, 240, 480, 900, 900]
     assert retry_delay_seconds(10**9) == 900
+    monkeypatch.setattr("tianshu.models.retry.random.uniform", lambda low, _high: low)
+    assert retry_delay_seconds(1) == 24 and retry_delay_seconds(6) == 768
+    monkeypatch.setattr("tianshu.models.retry.random.uniform", lambda _low, high: high)
+    assert retry_delay_seconds(1) == 36 and retry_delay_seconds(6) == 900
     with pytest.raises(ValueError):
         retry_delay_seconds(0)

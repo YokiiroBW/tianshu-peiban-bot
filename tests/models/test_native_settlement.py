@@ -55,18 +55,21 @@ async def test_native_terminal_response_is_settled_and_releases_capacity(
         row["usage"] = wire(row.get("usage") or {})
         return dict(row)
 
-    broker = ModelBroker.__new__(ModelBroker)
+    broker = ModelBroker(None, None, None)
     broker.ready, broker.credential_store = True, None
-    broker.prepare_pending, broker.prepare_slots, broker.active = 0, asyncio.Semaphore(1), {}
+    broker.prepare_slots = asyncio.Semaphore(1)
     broker.recheck = AsyncMock()
     broker.prepare_media = AsyncMock(side_effect=lambda value: value)
     plan = RoutePlan("r", 1, "p", "m", "openai.responses", "https://synthetic.invalid", "key", "q", frozenset({"text", "stream"}), {})
     broker.catalog = SimpleNamespace(resolve=AsyncMock(return_value=plan))
     broker.compiler = SimpleNamespace(compile=lambda *_args, **_kwargs: SimpleNamespace(url="https://synthetic.invalid", body={}, headers={}))
-    broker.ledger = SimpleNamespace(create=AsyncMock(return_value=(dict(row), True)), started=AsyncMock(),
+    broker.ledger = SimpleNamespace(create=AsyncMock(return_value=(dict(row), True)),
+        get=AsyncMock(side_effect=lambda _attempt: dict(row)), record_wire=AsyncMock(),
+        started=AsyncMock(), assert_generation=AsyncMock(), save_observation=AsyncMock(),
         checkpoint=AsyncMock(), finish=AsyncMock(side_effect=finish))
     broker.scheduler = SimpleNamespace(acquire=AsyncMock(), submitted=AsyncMock(), release=AsyncMock(),
-        policies={"q": SimpleNamespace(unknown_hold_seconds=300)})
+        group_deferred=AsyncMock(return_value=False),
+        policies={"q": SimpleNamespace(unknown_hold_seconds=300, max_wait_seconds=None)})
     broker.session, broker.event = SimpleNamespace(post=post), AsyncMock()
     events = [event async for event in broker._events(request, stream=stream)]
     result = next(event.data for event in events if event.kind == "receipt")

@@ -20,6 +20,17 @@ from .timing import waiting_timeout, ExternalExecutionClock
 _DEFAULT_TIMEOUT = object()
 
 
+def _result_timeout(request):
+    """Leave time to observe a deadline already enforced by the broker."""
+    timeout = waiting_timeout(request)
+    if timeout is not None and request.execution_timeout_seconds is not None:
+        # The business deadline still bounds admission and execution on the
+        # broker. The transport also needs time to persist and return its
+        # original receipt after that deadline has fired.
+        return timeout + 5
+    return timeout
+
+
 def _known_wait_expiry(receipt):
     if (receipt is not None and receipt.status == "cancelled" and receipt.dispatch == "not_started"
             and receipt.error_code in {"queue_wait_expired", "business_deadline_expired"}):
@@ -88,7 +99,7 @@ class ModelClient:
             return value
 
     async def generate(self, request):
-        timeout = waiting_timeout(request)
+        timeout = _result_timeout(request)
         value = await self._json("/internal/v1/models/generate", body=request,
                                  timeout=timeout, service_class=request.service_class)
         return result_from_wire(value)
@@ -119,7 +130,7 @@ class ModelClient:
                 details={"attempt_id": request.attempt_id, "action": "observe_original_attempt"}) from None
 
     async def stream(self, request):
-        timeout = waiting_timeout(request)
+        timeout = _result_timeout(request)
         complete = False
         try:
             async with self._data_session(request.service_class).post(
@@ -139,6 +150,11 @@ class ModelClient:
                             status=failure.get("status", 502), fallback=receipt_from_wire(failure.get("receipt")))
                     event = event_from_wire(value)
                     complete |= event.kind == "receipt"
+                    if (event.kind == "receipt" and event.receipt is not None
+                            and event.receipt.status != "succeeded"):
+                        raise await self._stream_failure(request.attempt_id,
+                            event.receipt.error_code or "model_attempt_" + event.receipt.status,
+                            fallback=event.receipt)
                     yield event
                 if not complete:
                     complete = True
@@ -148,7 +164,7 @@ class ModelClient:
 
     async def _stream_failure(self, attempt_id, code, *, status=502, fallback=None):
         try:
-            original = await self.status(attempt_id)
+            original = await self.status(attempt_id) or fallback
         except (AppError, TimeoutError, aiohttp.ClientError):
             original = fallback
         known = _known_wait_expiry(original)

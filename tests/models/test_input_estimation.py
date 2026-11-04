@@ -73,8 +73,9 @@ async def test_broker_image_admission_is_bounded_but_reported_usage_still_settle
     native = {"candidates": [{"content": {"parts": [{"text": "OK"}]}, "finishReason": "STOP"}],
               "usageMetadata": {"promptTokenCount": 1460, "candidatesTokenCount": 750}}
     broker, sent = compiled_broker(tmp_path, plan("gemini.generate", {}), native)
-    result = await broker.generate(request(function="vision" if image else "chat", native_payload=body,
-        estimated_input_tokens=explicit, max_output_tokens=1200))
+    events = [event async for event in broker._events(request(function="vision" if image else "chat", native_payload=body,
+        estimated_input_tokens=explicit, max_output_tokens=1200), stream=False)]
+    result = next(event.data for event in events if event.kind == "receipt")
     estimate = explicit if explicit is not None else input_tokens("gemini.generate", sent[0])
     if image:
         assert estimate < 4096

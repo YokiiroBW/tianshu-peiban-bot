@@ -72,22 +72,24 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
     await seed(database, provider_origin)
     async with database.transaction() as conn:
         await conn.execute("UPDATE models.routes SET verified_capabilities=ARRAY['text','stream']")
+        await conn.execute("UPDATE models.quota_groups SET cloud_concurrency=1 WHERE quota_group='fixture-account'")
         await conn.execute("INSERT INTO models.bindings(function,service_class,route_id) VALUES('chat','elastic','fixture')")
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
     broker_runner, broker_origin = await serve(create_broker_app(broker, "fixture"))
     client = ModelClient(broker_origin, "fixture")
     await client.open()
-    blocker = await broker.begin_external(ExternalRequest("blocker", "blocker", context(),
-        RequestBudget(datetime.now(UTC) + timedelta(seconds=10)), "fixture-account", "image",
-        ServiceClass.ELASTIC, "fixture"))
+    blocker = ModelRequest("blocker", "blocker", "chat", ServiceClass.ELASTIC, context(),
+        RequestBudget(datetime.now(UTC) + timedelta(seconds=10)), (), execution_timeout_seconds=10)
+    await broker.scheduler.acquire(blocker, "fixture-account", {})
+    blocker_active = True
     prepared = asyncio.Event()
     allocated = []
     create = broker.ledger.create
     allocate = broker_module.execution_budget
 
-    async def recorded(request, *args):
-        value = await create(request, *args)
+    async def recorded(request, *args, **kwargs):
+        value = await create(request, *args, **kwargs)
         if request.attempt_id == "wait-then-execute":
             prepared.set()
         return value
@@ -123,7 +125,8 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
         assert queued["execution_timeout_seconds"] == 1
         await asyncio.sleep(1.05)
         assert not task.done() and not calls and not allocated
-        await blocker.rejected("synthetic_release")
+        await broker.scheduler.release("fixture-account", blocker.attempt_id, not_started=True)
+        blocker_active = False
         try:
             result = await asyncio.wait_for(task, 5)
         except (AppError, TimeoutError) as error:
@@ -144,8 +147,8 @@ async def test_preparation_and_supplier_queue_do_not_spend_execution_or_client_t
     finally:
         task.cancel()
         await asyncio.gather(task, return_exceptions=True)
-        if not blocker.done:
-            await blocker.rejected("synthetic_cleanup")
+        if blocker_active:
+            await broker.scheduler.release("fixture-account", blocker.attempt_id, not_started=True)
         await client.close()
         await broker_runner.cleanup()
         await broker.close()
@@ -165,8 +168,8 @@ async def test_external_client_uses_server_admission_deadline_after_long_queue(d
     registered, entered = asyncio.Event(), asyncio.Event()
     create = broker.ledger.create
 
-    async def recorded(request, *args):
-        value = await create(request, *args)
+    async def recorded(request, *args, **kwargs):
+        value = await create(request, *args, **kwargs)
         if request.attempt_id == "external-queued":
             registered.set()
         return value
@@ -211,21 +214,23 @@ async def test_external_client_uses_server_admission_deadline_after_long_queue(d
 
 
 @pytest.mark.parametrize("expiry", ["queue", "business"])
-@pytest.mark.parametrize("transport", ["direct", "client"])
+@pytest.mark.parametrize("transport", ["direct", "client", "client-stream"])
 async def test_new_expiry_before_admission_is_a_known_not_started_receipt(database, tmp_path, expiry, transport):
     await seed(database, "http://127.0.0.1:9")
     async with database.transaction() as conn:
+        await conn.execute("UPDATE models.quota_groups SET cloud_concurrency=1 WHERE quota_group='fixture-account'")
+        await conn.execute("UPDATE models.routes SET verified_capabilities=ARRAY['text','stream'] WHERE route_id='fixture'")
         await conn.execute("INSERT INTO models.bindings(function,service_class,route_id) VALUES('chat','elastic','fixture')")
     broker = ModelBroker(database, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     await broker.open()
     client = runner = None
-    if transport == "client":
+    if transport != "direct":
         runner, origin = await serve(create_broker_app(broker, "fixture"))
         client = ModelClient(origin, "fixture")
         await client.open()
-    blocker = await broker.begin_external(ExternalRequest("blocker", "blocker", context(),
-        RequestBudget(datetime.now(UTC) + timedelta(seconds=10)), "fixture-account", "image",
-        ServiceClass.ELASTIC, "fixture"))
+    blocker = ModelRequest("blocker", "blocker", "chat", ServiceClass.ELASTIC, context(),
+        RequestBudget(datetime.now(UTC) + timedelta(seconds=10)), (), execution_timeout_seconds=10)
+    await broker.scheduler.acquire(blocker, "fixture-account", {})
     original = ModelRequest("known-expiry", "known-expiry", "chat", ServiceClass.ELASTIC, context(),
         RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
         (ModelMessage("user", (ModelPart("text", text="synthetic"),)),), execution_timeout_seconds=10,
@@ -234,13 +239,17 @@ async def test_new_expiry_before_admission_is_a_known_not_started_receipt(databa
     code = "queue_wait_expired" if expiry == "queue" else "business_deadline_expired"
     try:
         with pytest.raises(AppError, match=code):
-            await (client or broker).generate(original)
+            if transport == "client-stream":
+                async for _event in client.stream(original):
+                    pass
+            else:
+                await (client or broker).generate(original)
         row = await broker.ledger.get(original.attempt_id)
         assert row["status"] == "cancelled" and row["dispatch"] == "not_started"
         assert row["started_at"] is None and row["deadline_at"] is None and row["error_code"] == code
         assert broker.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 0
     finally:
-        await blocker.rejected("synthetic_cleanup")
+        await broker.scheduler.release("fixture-account", blocker.attempt_id, not_started=True)
         if client:
             await client.close()
             await runner.cleanup()
@@ -319,8 +328,9 @@ async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstr
             (ModelMessage("user", (ModelPart("text", text="fixture"),)),),
             execution_timeout_seconds=execution_timeout,
         )
-        with pytest.raises(TimeoutError):
+        with pytest.raises(AppError, match="timeout_unknown") as caught:
             await broker.generate(request)
+        assert caught.value.details["status"] == caught.value.details["dispatch"] == "unknown"
         assert (await broker.status("original-attempt")).status == "unknown"
         assert len(calls) == 1
     finally:
@@ -329,7 +339,7 @@ async def test_timeout_and_broker_restart_do_not_replay_or_release_unknown_upstr
     await restarted.open()
     try:
         assert (await restarted.status("original-attempt")).dispatch == "unknown"
-        assert restarted.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 1
+        assert restarted.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 0
         assert len(calls) == 1
     finally:
         await restarted.close()
@@ -460,7 +470,7 @@ async def test_upstream_502_retains_unknown_effect(database, tmp_path):
         with pytest.raises(AppError, match="upstream_http_502"):
             await broker.generate(request)
         assert (await broker.status(request.attempt_id)).status == "unknown"
-        assert broker.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 1
+        assert broker.scheduler.snapshot()["fixture-account"]["unknown_holds"] == 0
     finally:
         await broker.close()
         await runner.cleanup()
@@ -499,12 +509,14 @@ async def test_absent_attempt_first_registration_is_unique_even_with_a_late_orig
         assert await broker.result(request.attempt_id, context=request.context) is None
         original = asyncio.create_task(broker.generate(request))
         await entered.wait()
-        observed = await broker.generate(request)
-        assert observed.receipt.status == "running" and observed.parts == ()
+        observed = asyncio.create_task(broker.generate(request))
+        await asyncio.sleep(0.05)
+        assert not observed.done()
+        assert (await broker.submit(request)).status == "running"
         release.set()
-        actual = await original
+        actual, observed_result = await asyncio.gather(original, observed)
         recovered = await broker.result(request.attempt_id, context=request.context)
-        assert actual.receipt.attempt_id == recovered.receipt.attempt_id == request.attempt_id
+        assert actual.receipt.attempt_id == observed_result.receipt.attempt_id == recovered.receipt.attempt_id == request.attempt_id
         assert recovered.parts[0].text == "one actual result" and len(calls) == 1
     finally:
         release.set()
@@ -554,6 +566,7 @@ async def test_native_continuation_cannot_cross_conversation_with_empty_sources(
             RequestBudget(datetime.now(UTC) + timedelta(seconds=10)),
             (ModelMessage("user", (ModelPart("text", text="private material"),)),),
             persona_revision=1,
+            provider_session_scope="conversation",
         )
         assert (await broker.generate(original)).receipt.status == "succeeded"
         later = replace(

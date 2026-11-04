@@ -86,17 +86,20 @@ def compiled_broker(tmp_path, selected, native):
         row["usage"] = wire(row.get("usage") or {})
         return dict(row)
 
-    broker = ModelBroker.__new__(ModelBroker)
+    broker = ModelBroker(None, FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     broker.ready, broker.credential_store = True, None
-    broker.prepare_pending, broker.prepare_slots, broker.active = 0, asyncio.Semaphore(1), {}
+    broker.prepare_slots = asyncio.Semaphore(1)
     broker.recheck, broker.event = AsyncMock(), AsyncMock()
     broker.prepare_media = AsyncMock(side_effect=lambda value: value)
     broker.catalog = SimpleNamespace(resolve=AsyncMock(return_value=selected))
     broker.compiler = NativeCompiler(FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
-    broker.ledger = SimpleNamespace(create=AsyncMock(return_value=(dict(row), True)), started=AsyncMock(),
+    broker.ledger = SimpleNamespace(create=AsyncMock(return_value=(dict(row), True)),
+        get=AsyncMock(side_effect=lambda _attempt: dict(row)), record_wire=AsyncMock(),
+        started=AsyncMock(), assert_generation=AsyncMock(), save_observation=AsyncMock(),
         checkpoint=AsyncMock(), finish=AsyncMock(side_effect=finish))
     broker.scheduler = SimpleNamespace(acquire=AsyncMock(), submitted=AsyncMock(), release=AsyncMock(),
-        policies={"quota": SimpleNamespace(unknown_hold_seconds=300)})
+        group_deferred=AsyncMock(return_value=False),
+        policies={"quota": SimpleNamespace(unknown_hold_seconds=300, max_wait_seconds=None)})
     broker.session = SimpleNamespace(post=post)
     return broker, sent
 
@@ -106,7 +109,8 @@ async def test_broker_admits_and_meters_the_exact_compiled_output_limit(tmp_path
     selected = plan("openai.chat", {"max_tokens": 8192})
     native = {"choices": [{"index": 0, "message": {"role": "assistant", "content": "OK"}, "finish_reason": "stop"}]}
     broker, sent = compiled_broker(tmp_path, selected, native)
-    result = await broker.generate(request())
+    events = [event async for event in broker._events(request(), stream=False)]
+    result = next(event.data for event in events if event.kind == "receipt")
     assert result.receipt.status == "succeeded" and sent[0]["max_tokens"] == 8192
     admitted_request, _route, units = broker.ledger.create.call_args.args
     assert admitted_request.max_output_tokens == 8192 and units == {"tokens": 8315}

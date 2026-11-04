@@ -121,7 +121,7 @@ async def test_background_and_due_holds_leave_chat_stream_and_control_available(
         held[0].cancel()
         with pytest.raises(asyncio.CancelledError):
             await held[0]
-        assert cancelled == ["original", "elastic-hold"]
+        assert cancelled == ["original"]  # A disconnected observer does not cancel the model attempt.
         assert (await asyncio.wait_for(client.generate(
             request("after-cancel", ServiceClass.ELASTIC)), timeout=5)).receipt.attempt_id == "after-cancel"
         assert not held[1].done()
