@@ -257,18 +257,32 @@ async def expire(service, supplement_id, attempt):
 
 async def wake_for_configuration(service, connection, connection_id, revision):
     rows = await (await connection.execute(
-        "UPDATE channels.media_supplements s SET state='waiting_retry',next_due=now(),config_revision=%s,error_code=NULL "
-        "FROM channels.events e WHERE s.event_key=e.id AND e.connection_id=%s AND e.state<>'withdrawn' "
-        "AND s.state='waiting_config' AND s.config_revision<%s RETURNING s.id,s.attempts,s.context,s.lineage_id,s.lineage_version,s.deployment_generation",
-        (revision, connection_id, revision))).fetchall()
+        "SELECT s.id,s.attempts,s.context,s.lineage_id,s.lineage_version,s.deployment_generation "
+        "FROM channels.media_supplements s JOIN channels.events e ON s.event_key=e.id "
+        "WHERE e.connection_id=%s AND e.state<>'withdrawn' "
+        "AND s.state='waiting_config' AND s.config_revision<%s FOR UPDATE OF s",
+        (connection_id, revision))).fetchall()
     for row in rows:
+        new_version = row["lineage_version"]
         if service.recovery_policy is not None and row["lineage_id"]:
             new_version = digest([row["lineage_version"], "configuration", revision])
-            await service.recovery_policy.update_version_on(connection, row["lineage_id"],
-                owner="channels.media:"+row["id"], expected_version=row["lineage_version"],
-                current_version=new_version, paused=False, cancelled=False)
-            await connection.execute("UPDATE channels.media_supplements SET lineage_version=%s WHERE id=%s",
-                                     (new_version, row["id"]))
+            from tianshu.runtime.errors import AppError
+            try:
+                async with connection.transaction():
+                    await service.recovery_policy.update_version_on(connection, row["lineage_id"],
+                        owner="channels.media:"+row["id"], expected_version=row["lineage_version"],
+                        current_version=new_version, paused=False, cancelled=False, resume_due=True)
+            except AppError as error:
+                if not error.code.startswith("recovery_"):
+                    raise
+                # A paused, cancelled or otherwise ineligible lineage is not a
+                # reason to reject the user's connection configuration change.
+                import logging
+                logging.getLogger(__name__).warning("media_supplement_resume_deferred: %s", error.code)
+                continue
+        await connection.execute("UPDATE channels.media_supplements SET state='waiting_retry',next_due=now(),"
+            "config_revision=%s,error_code=NULL,lineage_version=%s WHERE id=%s",
+            (revision, new_version, row["id"]))
         await service.runtime.jobs.enqueue(connection, job(row["id"], row["attempts"]+1,
             datetime.now(UTC), (row["context"] or {}).get("actor_id"), row["deployment_generation"]))
 

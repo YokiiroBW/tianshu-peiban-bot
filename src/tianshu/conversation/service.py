@@ -93,14 +93,18 @@ class ConversationService:
         )).fetchone()
         return ExecutionLane.PROACTIVE if row and row["autonomous"] else ExecutionLane.CONVERSATION
 
-    async def _prepare_input(self, context, message: InputMessage, *, connection=None):
-        await self.identity.check(context, message.source_refs)
+    async def _prepare_input(self, context, message: InputMessage, *, connection=None, actor=None):
+        if connection is None:
+            await self.identity.check(context, message.source_refs)
+        else:
+            await self.identity.check_on(connection, context, message.source_refs)
         if not context.actor_id or not context.conversation_id:
             raise AppError("conversation_required")
         if message.conversation_kind != context.conversation_kind:
             raise AppError("conversation_kind_mismatch", status=403)
         self._validate_parts(message.parts)
-        actor = await self.companion.actor(context)
+        if actor is None:
+            actor = await self.companion.actor(context)
         turn_id = str(uuid5(NAMESPACE_URL, f"turn:{context.actor_id}:{context.conversation_id}:{message.producer}:{message.event_id}:{message.revision}"))
         query = "SELECT original_parts,original_source_refs,original_digest,occurred_at FROM conversation.turns WHERE turn_id=%s"
         if connection is None:
@@ -128,10 +132,14 @@ class ConversationService:
             async with self.database.transaction() as connection:
                 generation = await self.jobs.current_generation_on(connection)
             message = replace(message, deployment_generation=generation)
+        actor = await self.companion.actor(context)
+        prepared = await self.participation.prepare(context, message)
+        prepared_occurred_at = message.occurred_at
         async with self.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, message.deployment_generation)
-            message, refs, turn_id, responding = await self._prepare_input(context, message, connection=connection)
-            prepared = await self.participation.prepare(context, message) if not responding else None
+            message, refs, turn_id, responding = await self._prepare_input(context, message, connection=connection, actor=actor)
+            if message.occurred_at != prepared_occurred_at:
+                prepared = None
             if not await self.sources.validate_persistence(connection,context,refs):
                 raise AppError("source_unavailable",status=409)
             result = await self.collector.accept(connection, context, message, refs, turn_id, responding)
@@ -152,8 +160,8 @@ class ConversationService:
             if not row:
                 raise AppError("turn_not_found", status=404)
             parts, refs = input_parts(row["original_parts"]), source_refs(row["original_source_refs"])
-            await self.identity.check(context, refs)
-            await self.contacts.received(context, row["occurred_at"], input_id=turn_id)
+            await self.identity.check_on(connection, context, refs)
+            await self.contacts.received(context, row["occurred_at"], input_id=turn_id, connection=connection)
             # Coverage describes accepted input parts, not whether attached media was understood.
             unavailable = tuple(
                 f"media_part_unavailable:{index}:{part.metadata.get('error_code', 'media_unavailable')}"
@@ -186,9 +194,10 @@ class ConversationService:
         async with self.database.transaction() as connection:
             generation = await self.jobs.current_generation_on(connection)
         message = replace(message, deployment_generation=generation)
+        actor = await self.companion.actor(context)
         async def apply(connection):
             await self.jobs.assert_generation_on(connection, generation)
-            prepared_message, refs, _, responding = await self._prepare_input(context, message, connection=connection)
+            prepared_message, refs, _, responding = await self._prepare_input(context, message, connection=connection, actor=actor)
             if not await self.sources.validate_persistence(connection,context,refs):
                 raise AppError("source_unavailable",status=409)
             result = await self.collector.accept(connection, context, prepared_message, refs, turn_id, responding)
@@ -461,7 +470,11 @@ class ConversationService:
             manifest, selection["token_usage"] if selection else None, provider_usage, flow)
 
     async def run(self, turn_id):
+        from tianshu.runtime.jobs import current_execution_generation
+        work_generation = current_execution_generation()
         async with self.database.transaction() as connection:
+            if work_generation is not None:
+                await self.jobs.assert_generation_on(connection, work_generation)
             row = await (await connection.execute("SELECT * FROM conversation.turns WHERE turn_id=%s", (turn_id,))).fetchone()
             if not row or row["state"] != "queued":
                 return

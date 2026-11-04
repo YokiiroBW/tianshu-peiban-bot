@@ -161,7 +161,11 @@ async def event_withdrawn(connection, event_key):
 
 
 async def _process_event(service, event_key):
-    async with service.runtime.database.transaction(read_only=True) as conn:
+    from tianshu.runtime.jobs import current_execution_generation
+    work_generation = current_execution_generation()
+    async with service.runtime.database.transaction() as conn:
+        if work_generation is not None:
+            await service.runtime.jobs.assert_generation_on(conn, work_generation)
         row = await (
             await conn.execute(
                 "SELECT e.*,EXISTS(SELECT 1 FROM channels.events newer WHERE newer.connection_id=e.connection_id AND newer.producer=e.producer AND newer.event_id=e.event_id AND newer.revision>e.revision) AS superseded FROM channels.events e WHERE e.id=%s",
