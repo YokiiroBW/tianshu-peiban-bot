@@ -1,7 +1,8 @@
 """Chapter work uses the same asynchronous receipt path as daily diaries."""
 
 from unittest.mock import AsyncMock
-from datetime import date
+from dataclasses import replace
+from datetime import UTC, date, datetime, timedelta
 
 import pytest
 
@@ -15,11 +16,36 @@ from test_rb_diary_experience import rb_fixture
 
 
 @pytest.mark.asyncio
+async def test_chapter_result_from_old_installation_cannot_be_saved(database):
+    from uuid import uuid4
+
+    value = await rb_fixture(database)
+    writing = WritingService(value.life,value.models,value.diaries.assembler)
+    writing.bind_observability(recovery_policy=value.diaries.recovery.policy,statistics=None)
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.works(id,actor_id,title,scope_ids) VALUES('work','actor','Story',ARRAY['actor-scope'])")
+        await connection.execute("INSERT INTO life.chapters(id,work_id,position,title) VALUES('chapter','work',1,'First')")
+    command = await writing.request_generation(value.context,{"id":"chapter","expected_revision":1,
+        "client_request_id":"old-installation"})
+    original = await value.jobs.current_generation()
+    await writing.generate("chapter",command.attempt_id,original)
+    assert value.models.completions[command.attempt_id].data_generation == original
+    value.models.complete(command.attempt_id,"旧代次正文")
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton=true",(str(uuid4()),))
+    with pytest.raises(AppError,match="job_generation_expired"):
+        await writing.generate("chapter",command.attempt_id,original)
+    async with database.transaction(read_only=True) as connection:
+        assert not await (await connection.execute("SELECT 1 FROM life.chapter_revisions WHERE chapter_id='chapter'")).fetchall()
+
+
+@pytest.mark.asyncio
 async def test_chapter_submit_observe_review_and_publication_use_the_saved_version(database):
     value = await rb_fixture(database)
     value.life.sources.record_event = AsyncMock(return_value=(SourceRef("chapter-save", 1),))
     value.life.sources.disclose = AsyncMock(return_value=SourceRef("published-chapter", 1))
     writing = WritingService(value.life, value.models, value.diaries.assembler)
+    writing.bind_observability(recovery_policy=value.diaries.recovery.policy,statistics=None)
     callback = AsyncMock()
     writing.bind_completion(callback)
     async with database.transaction() as connection:
@@ -55,6 +81,7 @@ async def test_cancelled_chapter_never_applies_late_success_to_another_chapter(d
     value = await rb_fixture(database)
     value.life.sources.record_event = AsyncMock(return_value=(SourceRef("chapter-save", 1),))
     writing = WritingService(value.life, value.models, value.diaries.assembler)
+    writing.bind_observability(recovery_policy=value.diaries.recovery.policy,statistics=None)
     controls = GenerationControl(value.life, writing, value.diaries)
     async with database.transaction() as connection:
         await connection.execute("INSERT INTO life.works(id,actor_id,title,scope_ids) VALUES('work','actor','Story',ARRAY['actor-scope'])")
@@ -69,7 +96,7 @@ async def test_cancelled_chapter_never_applies_late_success_to_another_chapter(d
         row = await (await connection.execute("SELECT * FROM life.chapters WHERE id='a'")).fetchone()
     await controls.request(value.context, {"id":"a", "expected_revision":row["revision"],
         "client_request_id":"cancel"}, kind="chapter", operation="cancel")
-    await controls.work("chapter", "a", first.attempt_id, wire(value.context), "cancel")
+    await controls.work("chapter", "a", first.attempt_id, wire(value.context), "cancel",await value.jobs.current_generation())
     value.models.complete(first.attempt_id, "迟到的 A")
     value.models.complete(second.attempt_id, "完成的 B")
     await writing.generate("a", first.attempt_id)
@@ -77,6 +104,74 @@ async def test_cancelled_chapter_never_applies_late_success_to_another_chapter(d
     async with database.transaction(read_only=True) as connection:
         revisions = await (await connection.execute("SELECT chapter_id,content FROM life.chapter_revisions")).fetchall()
     assert revisions == [{"chapter_id":"b", "content":"完成的 B"}]
+
+
+@pytest.mark.asyncio
+async def test_chapter_retry_keeps_budget_and_switches_actual_quota_after_known_failure(database):
+    value = await rb_fixture(database)
+    writing = WritingService(value.life,value.models,value.diaries.assembler)
+    writing.bind_observability(recovery_policy=value.diaries.recovery.policy,statistics=None)
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.works(id,actor_id,title,scope_ids) VALUES('work','actor','Story',ARRAY['actor-scope'])")
+        await connection.execute("INSERT INTO life.chapters(id,work_id,position,title) VALUES('chapter','work',1,'First')")
+    command = await writing.request_generation(value.context,{"id":"chapter","expected_revision":1,
+        "client_request_id":"writing-original"})
+    attempt = command.attempt_id
+    await writing.generate("chapter",attempt)
+    value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="unknown",dispatch="unknown",
+        error_code="transport_unknown")
+    await writing.generate("chapter",attempt)
+    await writing.generate("chapter",attempt)
+    async with database.transaction(read_only=True) as connection:
+        original = await (await connection.execute("SELECT * FROM runtime.recovery_attempts WHERE attempt_id=%s",(attempt,))).fetchone()
+    assert original["status"] == "unknown" and len(value.models.requests) == 1
+
+    value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="failed",dispatch="submitted",
+        error_code="upstream_http_503")
+    await writing.generate("chapter",attempt)
+    value.models.selected_route = "backup-route"
+    past = datetime.now(UTC)-timedelta(seconds=1)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.recovery_lineages SET due_at=%s WHERE lineage_id=%s",(past,original["lineage_id"]))
+        await connection.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=%s",(past,))
+        await connection.execute("UPDATE life.chapters SET generation_retry_due_at=%s WHERE id='chapter'",(past,))
+    await writing.generate("chapter",attempt)
+    async with database.transaction(read_only=True) as connection:
+        row = await (await connection.execute("SELECT * FROM life.chapters WHERE id='chapter'")).fetchone()
+    assert row["generation_id"] != attempt
+    await writing.generate("chapter",row["generation_id"])
+    async with database.transaction(read_only=True) as connection:
+        lineage = await (await connection.execute("SELECT attempts,dependency FROM runtime.recovery_lineages WHERE lineage_id=%s",(original["lineage_id"],))).fetchone()
+    assert lineage == {"attempts":2,"dependency":"models:quota:backup-quota"}
+
+
+@pytest.mark.asyncio
+async def test_completed_model_result_cannot_use_a_revised_previous_chapter(database):
+    from tianshu.conversation.codec import document
+
+    value = await rb_fixture(database)
+    value.life.sources.record_event = AsyncMock(return_value=(SourceRef("chapter-save", 1),))
+    writing = WritingService(value.life,value.models,value.diaries.assembler)
+    writing.bind_observability(recovery_policy=value.diaries.recovery.policy,statistics=None)
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.works(id,actor_id,title,scope_ids) VALUES('work','actor','Story',ARRAY['actor-scope'])")
+        await connection.execute("INSERT INTO life.chapters(id,work_id,position,title,current_revision) VALUES('first','work',1,'First',1),('second','work',2,'Second',0)")
+        await connection.execute("INSERT INTO life.chapter_revisions(chapter_id,revision,content,work_revision,recipe) VALUES('first',1,'旧章节',1,%s)",
+            (document({"source_refs":[]}),))
+    command = await writing.request_generation(value.context,{"id":"second","expected_revision":1,
+        "client_request_id":"with-first-chapter"})
+    await writing.generate("second",command.attempt_id)
+    async with database.transaction() as connection:
+        await connection.execute("INSERT INTO life.chapter_revisions(chapter_id,revision,content,work_revision,recipe) VALUES('first',2,'新章节',1,%s)",
+            (document({"source_refs":[]}),))
+        await connection.execute("UPDATE life.chapters SET current_revision=2,revision=revision+1 WHERE id='first'")
+    value.models.complete(command.attempt_id,"基于旧章节的正文")
+    await writing.generate("second",command.attempt_id)
+    async with database.transaction(read_only=True) as connection:
+        chapter = await (await connection.execute("SELECT * FROM life.chapters WHERE id='second'")).fetchone()
+        rows = await (await connection.execute("SELECT * FROM life.chapter_revisions WHERE chapter_id='second'")).fetchall()
+    assert not rows and chapter["state"] == "failed" and chapter["reason"] == "writing_material_changed"
+    value.life.sources.record_event.assert_not_awaited()
 
 
 @pytest.mark.asyncio

@@ -11,20 +11,28 @@ from tianshu.life.diary_automation import diary_experience
 from tianshu.life.diary_materials import episode_observation, episode_versions
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.migrations import Migration, migrate
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind
-from test_diary_automation import collect_current, diary_state, fixture
+from test_diary_automation import diary_state, fixture
 
 
 class Broker:
     """A receipt ledger: submit returns before a result exists."""
 
     def __init__(self, profile):
-        self.generation_profile = profile
+        self._profile = profile
         self.requests = {}
         self.receipts = {}
         self.results = {}
         self.completions = {}
+        self.selected_route = "fixture-route"
+        self.quota_groups = {"fixture-route":"fixture-quota", "backup-route":"backup-quota"}
+
+    async def generation_profile(self, request):
+        route = request.route_id or self.selected_route
+        return {**await self._profile(request), "route_id":route,
+            "route_revision":request.route_revision or 1,"quota_group":self.quota_groups[route]}
 
     async def submit(self, request, *, completion=None):
         if request.attempt_id in self.requests:
@@ -32,8 +40,9 @@ class Broker:
             return self.receipts[request.attempt_id]
         self.requests[request.attempt_id] = request
         self.completions[request.attempt_id] = completion
+        route = request.route_id or self.selected_route
         receipt = ModelReceipt(request.attempt_id, request.intent_id, "queued", "not_started",
-            "route", 1, "provider", "model", "openai.chat", "quota")
+            route, request.route_revision or 1, "provider", "model", "openai.chat", self.quota_groups[route])
         self.receipts[request.attempt_id] = receipt
         return receipt
 
@@ -65,21 +74,77 @@ async def rb_fixture(database):
         column = await (await connection.execute(
             "SELECT 1 FROM information_schema.columns WHERE table_schema='life' "
             "AND table_name='diaries' AND column_name='scene_key'")).fetchone()
+        runtime = await (await connection.execute("SELECT to_regclass('runtime.recovery_lineages') AS name")).fetchone()
+    if not runtime["name"]:
+        await migrate(database, (Migration("rb_runtime_experience_test",
+            files("tianshu.runtime").joinpath("rb_runtime.sql").read_text()),))
     if not column:
         await migrate(database, (Migration("rb_experience_test",
             files("tianshu.life").joinpath("rb_experience.sql").read_text()),))
+    from tianshu.runtime.jobs import JobQueue
+    value.jobs.current_generation_on = JobQueue.current_generation_on
+    value.jobs.assert_generation_on = JobQueue.assert_generation_on
+    async def current_generation():
+        async with database.transaction(read_only=True) as connection:
+            return await value.jobs.current_generation_on(connection)
+    value.jobs.current_generation = current_generation
     broker = Broker(value.models.generation_profile)
     value.diaries.models = broker
     value.diaries.generations.models = broker
     value.models = broker
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    value.diaries.bind_observability(recovery_policy=RecoveryPolicy(),statistics=None)
     return value
+
+
+async def collect_current(database, value):
+    diary = await diary_state(database)
+    await value.diaries.collect(diary["id"],diary["generation_id"],None,
+        data_generation=await value.jobs.current_generation())
+    return await diary_state(database)
 
 
 async def begin(value, database, day="2026-11-02"):
     key = value.identity.scene_id(value.context)
     await value.diaries.day_closed(value.context, day)
-    await value.diaries.review_day(value.context.actor_id, key, day, 1)
+    await value.diaries.review_day(value.context.actor_id, key, day, 1,await value.jobs.current_generation())
     return await collect_current(database, value)
+
+
+@pytest.mark.asyncio
+async def test_old_generation_cannot_collect_after_installation_reset(database):
+    from uuid import uuid4
+
+    value = await rb_fixture(database)
+    await value.diaries.day_closed(value.context,"2026-11-02")
+    original = await value.jobs.current_generation()
+    await value.diaries.review_day("actor",value.identity.scene_id(value.context),"2026-11-02",1,original)
+    diary = await diary_state(database)
+    assert value.jobs.items[-1].data_generation == original
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton=true",(str(uuid4()),))
+    with pytest.raises(AppError,match="job_generation_expired"):
+        await value.diaries.collect(diary["id"],diary["generation_id"],None,data_generation=original)
+    current = await diary_state(database)
+    assert current["state"] == "collecting" and current["current_revision"] == 0
+
+
+@pytest.mark.asyncio
+async def test_episode_notification_cannot_rebind_to_new_installation(database):
+    from uuid import uuid4
+
+    value = await rb_fixture(database)
+    await value.diaries.day_closed(value.context,"2026-11-02")
+    original = await value.jobs.current_generation()
+    async with database.transaction() as connection:
+        before = await (await connection.execute("SELECT revision FROM life.diary_days")).fetchone()
+        await connection.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton=true",(str(uuid4()),))
+    with pytest.raises(AppError,match="job_generation_expired"):
+        await value.diaries.consume_episode_change(wire(value.context),value.episode.episode_id,
+            value.episode.revision,data_generation=original)
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute("SELECT revision FROM life.diary_days")).fetchone()
+    assert after == before
 
 
 @pytest.mark.asyncio
@@ -105,7 +170,7 @@ async def test_scope_change_preserves_one_day_and_reconciles_original_body(datab
     await value.diaries.day_closed(wider, "2026-11-02")
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.diary_days SET last_error='old_error',blocked_revision=revision")
-    outcome = await value.diaries.review_day("actor", value.identity.scene_id(wider), "2026-11-02", 2)
+    outcome = await value.diaries.review_day("actor", value.identity.scene_id(wider), "2026-11-02", 2,await value.jobs.current_generation())
     assert outcome["state"] == "reviewed"
     async with database.transaction(read_only=True) as connection:
         days = await (await connection.execute("SELECT * FROM life.diary_days")).fetchall()
@@ -139,7 +204,7 @@ async def test_group_member_change_reuses_the_saved_day_and_automatic_binding(da
     value = await rb_fixture(database)
     first_context = replace(value.context, person_id="member-a",
         conversation_id="group-1", conversation_kind="group")
-    second_context = replace(first_context, person_id="member-b")
+    second_context = replace(first_context, person_id="member-b", principal_id="another-author")
     value.context = first_context
     assert value.identity.scene_id(first_context) == value.identity.scene_id(second_context)
     diary = await begin(value, database)
@@ -168,7 +233,7 @@ async def test_same_actor_day_different_scenes_do_not_choose_or_overwrite_each_o
     other = replace(value.context, conversation_id="other-scene", conversation_kind="group")
     assert value.identity.scene_id(other) != value.identity.scene_id(value.context)
     await value.diaries.day_closed(other, "2026-11-02")
-    await value.diaries.review_day("actor", value.identity.scene_id(other), "2026-11-02", 1)
+    await value.diaries.review_day("actor", value.identity.scene_id(other), "2026-11-02", 1,await value.jobs.current_generation())
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute("SELECT * FROM life.diaries ORDER BY scene_key")).fetchall()
     assert len(rows) == 2 and len({row["id"] for row in rows}) == 2
@@ -252,6 +317,117 @@ async def test_explicit_cancel_does_not_save_a_late_diary_result(database):
     await value.diaries.generate(diary["id"], diary["generation_id"])
     assert (await diary_state(database))["current_revision"] == 0
     assert (await value.models.status(diary["generation_id"])).cancellation_reason == "explicit_cancel"
+
+
+@pytest.mark.asyncio
+async def test_unknown_attempt_is_observed_then_definitive_failure_retries_same_lineage(database):
+    from datetime import UTC, datetime, timedelta
+
+    value = await rb_fixture(database)
+    diary = await begin(value, database)
+    attempt = diary["generation_id"]
+    await value.diaries.generate(diary["id"], attempt)
+    value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="unknown",dispatch="unknown",
+        error_code="transport_unknown")
+    await value.diaries.generate(diary["id"], attempt)
+    await value.diaries.generate(diary["id"], attempt)
+    async with database.transaction(read_only=True) as connection:
+        first = await (await connection.execute("SELECT * FROM runtime.recovery_attempts WHERE attempt_id=%s",(attempt,))).fetchone()
+        lineage = await (await connection.execute("SELECT * FROM runtime.recovery_lineages WHERE lineage_id=%s",(first["lineage_id"],))).fetchone()
+    assert first["status"] == "unknown" and lineage["attempts"] == 1
+    assert len(value.models.requests) == 1 and (await diary_state(database))["generation_id"] == attempt
+
+    value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="failed",dispatch="submitted",
+        error_code="upstream_http_503")
+    await value.diaries.generate(diary["id"], attempt)
+    value.models.selected_route = "backup-route"
+    past = datetime.now(UTC)-timedelta(seconds=1)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.recovery_lineages SET due_at=%s WHERE lineage_id=%s",(past,lineage["lineage_id"]))
+        await connection.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=%s",(past,))
+        await connection.execute("UPDATE life.diaries SET generation_retry_due_at=%s WHERE id=%s",(past,diary["id"]))
+    await value.diaries.generate(diary["id"], attempt)
+    second = await diary_state(database)
+    assert second["generation_id"] != attempt
+    await value.diaries.generate(diary["id"], second["generation_id"])
+    async with database.transaction(read_only=True) as connection:
+        attempts = await (await connection.execute("SELECT lineage_id,status,dependency FROM runtime.recovery_attempts ORDER BY started_at")).fetchall()
+        current = await (await connection.execute("SELECT attempts,dependency FROM runtime.recovery_lineages WHERE lineage_id=%s",(lineage["lineage_id"],))).fetchone()
+    assert len(attempts) == 2 and {item["lineage_id"] for item in attempts} == {lineage["lineage_id"]}
+    assert current["attempts"] == 2 and current["dependency"] == "models:quota:backup-quota"
+    assert {item["dependency"] for item in attempts} == {"models:quota:fixture-quota", "models:quota:backup-quota"}
+
+
+@pytest.mark.asyncio
+async def test_author_edit_and_new_request_do_not_reset_exhausted_generation_budget(database):
+    from tianshu.runtime.errors import AppError
+
+    value = await rb_fixture(database)
+    diary = await begin(value, database)
+    attempt = diary["generation_id"]
+    await value.diaries.generate(diary["id"], attempt)
+    value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="failed",dispatch="submitted",
+        error_code="upstream_http_503")
+    await value.diaries.generate(diary["id"], attempt)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.recovery_lineages SET attempts=max_attempts,due_at=NULL")
+        await connection.execute("UPDATE life.diary_days SET generation_id=NULL,generation_revision=NULL,blocked_revision=revision")
+        await connection.execute("UPDATE life.diaries SET state='failed',generation_retry_due_at=NULL")
+    failed = await diary_state(database)
+    edited = await value.diaries.revise(value.context,{"id":diary["id"],"expected_revision":failed["revision"],
+        "client_request_id":"author-edit-after-failure","content":"作者手写正文"})
+    request = await value.diaries.request(value.context,{"day":"2026-11-02","expected_revision":edited.revision,
+        "client_request_id":"new-request-after-failure"})
+    await value.diaries.collect(request.data["id"],request.attempt_id,None)
+    with pytest.raises(AppError,match="recovery_budget_exhausted"):
+        await value.diaries.generate(request.data["id"],request.attempt_id)
+    async with database.transaction(read_only=True) as connection:
+        lineages = await (await connection.execute("SELECT attempts,max_attempts FROM runtime.recovery_lineages")).fetchall()
+    assert len(value.models.requests) == 1 and len(lineages) == 1
+    assert lineages[0]["attempts"] == lineages[0]["max_attempts"] == 3
+
+
+@pytest.mark.asyncio
+async def test_saved_diary_statistics_are_replayed_from_immutable_versions(database):
+    class Statistics:
+        available = False
+        events = {}
+        marks = []
+        async def record_safely_on(self, connection, event):
+            if not self.available:
+                return False
+            key = (event["family"],event["event_id"])
+            old = self.events.get(key)
+            if old is None or old["revision"] < event["revision"]:
+                self.events[key] = event
+            return True
+        async def mark_producer_on(self, connection, producer, **fields):
+            self.marks.append((producer,fields["complete"]))
+
+    value = await rb_fixture(database)
+    stats = Statistics()
+    value.diaries.statistics = stats
+    diary = await begin(value, database)
+    await value.diaries.generate(diary["id"], diary["generation_id"])
+    value.models.complete(diary["generation_id"])
+    await value.diaries.generate(diary["id"], diary["generation_id"])
+    saved = await diary_state(database)
+    before = await value.diaries.backfill_statistics(data_generation=await value.jobs.current_generation())
+    assert saved["current_revision"] == 1 and before["pending"] == 1 and not before["complete"]
+    stats.available = True
+    after = await value.diaries.backfill_statistics(data_generation=await value.jobs.current_generation())
+    assert after["complete"] and after["processed"] == 1
+    event = next(iter(stats.events.values()))
+    assert event["event_id"] == "life.diary:"+diary["id"] and event["metrics"] == {"business_success":1}
+    await value.diaries.revise(value.context,{"id":diary["id"],"expected_revision":saved["revision"],
+        "client_request_id":"stats-edit","content":"修改后的正文"})
+    assert len(stats.events) == 1 and next(iter(stats.events.values()))["revision"] == 2
+    from tianshu.life.generation_control import GenerationControl
+    from tianshu.life.writing import WritingService
+    writing = WritingService(value.life,value.models,value.diaries.assembler)
+    writing.bind_observability(recovery_policy=value.diaries.recovery.policy,statistics=stats)
+    coverage = await GenerationControl(value.life,writing,value.diaries).backfill_statistics(await value.jobs.current_generation())
+    assert coverage["complete"] and stats.marks[-1] == ("life.experience", True)
 
 
 def test_semantic_types_do_not_turn_discovery_or_uncertain_images_into_reading():

@@ -35,13 +35,15 @@ class DiaryAutomation:
     def __init__(self, diaries):
         self.diaries, self.life = diaries, diaries.life
 
-    async def changed(self, context, watermark, *, episode=None, connection=None):
+    async def changed(self, context, watermark, *, episode=None, connection=None, data_generation=None):
         if episode is None or not diary_experience(episode) or not episode.source_refs:
             return
         if connection is None:
             await self.life.identity.check(context, episode.source_refs)
             async with self.life.database.transaction() as transaction:
-                return await self.changed(context, watermark, episode=episode, connection=transaction)
+                return await self.changed(context, watermark, episode=episode, connection=transaction,data_generation=data_generation)
+        if data_generation is not None:
+            await self.life.jobs.assert_generation_on(connection,data_generation)
         await self.life.validate_persistence(connection, context, episode.source_refs)
         # No daily polling or history seed: day_closed owns the initial review.
         # Later events wake only an already closed day whose author could read it.
@@ -53,7 +55,7 @@ class DiaryAutomation:
             (episode.episode_id, episode.revision, context.actor_id, episode.occurred_at,
              list(episode.scope_ids), episode.episode_id, episode.revision))).fetchall()
         for row in rows:
-            await self.enqueue(connection, row, delay=30)
+            await self.enqueue(connection, row, delay=30,data_generation=data_generation)
 
     async def day_closed(self, context, day, *, connection=None):
         try:
@@ -84,14 +86,17 @@ class DiaryAutomation:
             await self.enqueue(connection, row)
         return {"day": day.isoformat(), "state": "queued" if row["reviewed_revision"] < row["revision"] else "reviewed"}
 
-    async def enqueue(self, connection, row, *, delay=0, reason="material"):
+    async def enqueue(self, connection, row, *, delay=0, reason="material", data_generation=None):
+        if data_generation is None:
+            data_generation = await self.life.jobs.current_generation_on(connection)
+        await self.life.jobs.assert_generation_on(connection,data_generation)
         await self.life.jobs.enqueue(connection, JobSpec(
             "life.diary_review", f"diary-review:{row['actor_id']}:{row['scope_key']}:{row['day']}:{row['revision']}:{uuid4()}",
             {"actor_id": row["actor_id"], "scope_key": row["scope_key"], "day": row["day"].isoformat(),
-             "expected_revision": row["revision"]}, scheduled_at=datetime.now(UTC)+timedelta(seconds=delay),
-            subject_id=row["actor_id"]),queueing_lock=f"diary-review:{row['actor_id']}:{row['scope_key']}:{row['day']}:{row['revision']}")
+             "expected_revision": row["revision"],"data_generation":data_generation}, scheduled_at=datetime.now(UTC)+timedelta(seconds=delay),
+            subject_id=row["actor_id"],data_generation=data_generation),queueing_lock=f"diary-review:{row['actor_id']}:{row['scope_key']}:{row['day']}:{row['revision']}")
 
-    async def review(self, actor_id, scope_key, day, expected_revision):
+    async def review(self, actor_id, scope_key, day, expected_revision, data_generation):
         async with self.life.database.transaction(read_only=True) as connection:
             row = await (await connection.execute(
                 "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s",
@@ -122,16 +127,18 @@ class DiaryAutomation:
                         from .computation_retry import freeze_recipe
                         from tianshu.conversation.codec import source_refs
                         async with self.life.database.transaction() as connection:
+                            await self.life.jobs.assert_generation_on(connection,data_generation)
                             if diary["generation_recipe"] is not None:
                                 await freeze_recipe(self.life,connection,"diary",diary["id"],diary["generation_id"],context,
                                     diary["generation_recipe"],source_refs(diary["source_refs"]))
-                        await self.diaries._generation_state(diary["id"],diary["generation_id"],"failed","diary_material_changed",settle=True)
+                        await self.diaries._generation_state(diary["id"],diary["generation_id"],"failed","diary_material_changed",settle=True,data_generation=data_generation)
                         return {"state":"changed_since_review"}
-                return await self.diaries.generate(diary["id"], diary["generation_id"])
+                return await self.diaries.generate(diary["id"], diary["generation_id"],data_generation=data_generation)
             if diary and diary["current_revision"] and diary["state"] in {"draft", "published"}:
                 # A saved body is authoritative. Repair its closed-day projection
                 # from that original success rather than creating another draft.
                 async with self.life.database.transaction() as connection:
+                    await self.life.jobs.assert_generation_on(connection,data_generation)
                     await self.diaries.reconcile_saved(context, diary, connection)
                     fresh = await (await connection.execute(
                         "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
@@ -148,19 +155,23 @@ class DiaryAutomation:
                 reason = (diary.get("reason") if diary and diary["state"] in {"failed", "cancelled"} else None)
                 reason = reason or "diary_saved_body_missing"
                 async with self.life.database.transaction() as connection:
-                    await self.settle(connection, row["generation_id"], error=reason)
+                    await self.life.jobs.assert_generation_on(connection,data_generation)
+                    await self.settle(connection, row["generation_id"], error=reason,data_generation=data_generation)
                 # A later event has its own queued review. This job only settles its original.
                 return {"state": "blocked", "reason": reason}
             result = await self.diaries.request(context,
                 {"client_request_id": "auto-diary:"+signature((actor_id,scope_key,day,row["revision"])),
                  "day": day, "expected_revision": diary["revision"] if diary else 0},
                 automatic={"actor_id": actor_id, "scope_key": scope_key, "day": day,
-                           "revision": row["revision"], "timezone": row["timezone"]})
+                           "revision": row["revision"], "timezone": row["timezone"],"data_generation":data_generation})
             return result.data
         except AppError as error:
+            if error.code == "job_generation_expired":
+                raise
             if error.code in {"diary_generation_unresolved", "revision_conflict", "diary_review_no_longer_current"}:
                 return {"state": "changed_since_review"}
             async with self.life.database.transaction() as connection:
+                await self.life.jobs.assert_generation_on(connection,data_generation)
                 await connection.execute(
                     "UPDATE life.diary_days SET last_error=%s,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND day=%s",
                     (error.code, actor_id, scope_key, row["day"]))
@@ -209,7 +220,12 @@ class DiaryAutomation:
             raise AppError("diary_review_no_longer_current", status=409)
         return automatic,context
 
-    async def settle(self, connection, generation_id, *, error=None, recipe=None, reviewed_at=None):
+    async def settle(self, connection, generation_id, *, error=None, recipe=None, reviewed_at=None, data_generation=None):
+        if data_generation is None and isinstance(recipe,dict):
+            data_generation = recipe.get("data_generation")
+        if not data_generation:
+            raise AppError("job_generation_missing",status=409)
+        await self.life.jobs.assert_generation_on(connection,data_generation)
         rows = await (await connection.execute(
             "SELECT * FROM life.diary_days WHERE generation_id=%s FOR UPDATE", (generation_id,))).fetchall()
         for row in rows:
@@ -223,7 +239,7 @@ class DiaryAutomation:
                 "last_error=%s,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND day=%s RETURNING *",
                 (bool(error),bool(error),document(revisions),bool(error),reviewed_at,error, row["actor_id"], row["scope_key"], row["day"]))).fetchone()
             if max(current["reviewed_revision"],current["blocked_revision"]) < current["revision"]:
-                await self.enqueue(connection, current, reason="after-original")
+                await self.enqueue(connection, current, reason="after-original",data_generation=data_generation)
 
     async def recover(self):
         # Only registered closed days are recovered; an installation/restart does
