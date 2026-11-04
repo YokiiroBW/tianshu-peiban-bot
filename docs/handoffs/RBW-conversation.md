@@ -35,5 +35,6 @@
 
 - `DialogueResult.input_status` 按原输入 `input_id/event_id/event_revision` 列出 `context.selection` 与各次 `attempts`；某次输入实际提交须同时满足 `selected=true` 和 `dispatch=submitted`。没有选材或派发证据时为 `not_recorded`；`reply_compliance` 为 `not_recorded`，不推断模型遵守或用户认可。
 - `learning` 通过 Growth 公开的 `input_learning_status(context, *, inputs=...)` 按原身份批量读取。`state=reviewed` 只表示输入已整理；`revision_state=applied` 需要 Growth 返回精确的 `revision_evidence`。未返回记录为 `not_recorded`，读取失败或合同不符为 `unavailable`；不直接访问 Growth 私表。
+- `learning.revision_evidence` 原样透传 Growth 返回的序列，每项为 `{rule_id: str, revision: int, semantic_revision: int, action: 'revise'|'retract', proposal_id: str, attempt_id: str}`；`learning` 还可包含 `episode_id`、`episode_revision`、`source_refs`、`reason`。Growth 仅在同一 proposal 的修订与独立支持原 `event_id`、来源版本精确匹配且当前授权有效时返回 `applied`；否则为 `unresolved` 或 `not_recorded`。
 - 自然语言输入没有可信的逐条纠正分类，界面应按“输入进入请求”和“输入的学习/规则修订状态”呈现，不把所有输入标成纠正。对话已结束但学习状态仍待处理时，页面需继续刷新；具体结果以 Growth 已授权的实际证据为准。
-- 本增量随本文件同提交；新增针对多轮/合并输入和学习证据的回归用例，但本窗口不执行测试或构建，由主协调集中验证并装配 Growth 正式接口。
+- 此项代码增量提交为 `920c77fbf92d787993ea11640d5e7f13e84773c2`；新增针对多轮/合并输入和学习证据的回归用例，但本窗口不执行测试或构建，由主协调集中验证并装配 Growth 正式接口。
