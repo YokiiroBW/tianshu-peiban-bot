@@ -12,6 +12,7 @@ from tianshu.runtime.errors import AppError
 class Request:
     attempt_id: str
     route_id: str
+    data_generation: str = "installation-generation"
 
 
 def policy():
@@ -91,6 +92,7 @@ async def test_initial_attempt_uses_real_quota_and_missing_quota_is_not_guessed(
     result = await reserve(p, continuation=False)
     assert result["lineage_id"] == "lineage"
     assert p.register_on.await_args.kwargs["dependency"] == "models:quota:quota"
+    assert p.register_on.await_args.kwargs["data_generation"] == "installation-generation"
     assert p.register_on.await_args.kwargs["max_attempts"] == 3
     assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "none"
     with pytest.raises(AppError, match="planner_recovery_quota_unavailable"):

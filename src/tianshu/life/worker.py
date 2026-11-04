@@ -8,7 +8,7 @@ from uuid import NAMESPACE_URL, uuid5
 from zoneinfo import ZoneInfo
 
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.serialization import wire
 from tianshu.types import Action, OriginKind, ServiceClass
 from tianshu.conversation.codec import context_from_record, artifacts, document, receipt, source_refs
@@ -54,9 +54,16 @@ class LifeWorker:
     def bind_writing(self,writing):
         self.writing=writing
 
-    async def plan(self, actor_id, revision, context):
+    async def plan(self, actor_id, revision, context, data_generation):
         from .planning_engine import PlanningEngine
-        return await PlanningEngine(self).run(actor_id, revision, context)
+        execution_generation = current_execution_generation()
+        if execution_generation is not None and execution_generation != data_generation:
+            raise AppError("job_generation_expired", status=409)
+        return await PlanningEngine(self, data_generation=data_generation).run(actor_id, revision, context)
+
+    async def recovery_candidates(self, limit=32):
+        from .operations_recovery import LifeOperationsRecovery
+        return await LifeOperationsRecovery(self, self.recovery_guard_on).candidates(limit=limit)
 
     async def contact_preflight(self,context,candidate_id,*,expression_id=None):
         from .contact_control import preflight
@@ -412,7 +419,7 @@ class LifeWorker:
                 await self.capability_result(context,original)
                 return
             async with self.life.database.transaction() as connection:
-                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1 WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
+                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1,updated_at=now() WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,activity_id))
                 await self.life.days.result(connection,activity_id,state='unknown')
             return
@@ -425,7 +432,7 @@ class LifeWorker:
                 await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile", f"activity-reconcile:{row['action_id']}:{sequence+1}", {"activity_id": activity_id, "context": wire(context), "sequence": sequence+1}, scheduled_at=datetime.now(UTC)+timedelta(seconds=15), subject_id=context.actor_id))
         elif not result or result.execution in {"pending", "running"}:
             async with self.life.database.transaction() as connection:
-                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1 WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
+                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1,updated_at=now() WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,activity_id))
                 await self.life.days.result(connection,activity_id,state='unknown')
 

@@ -84,16 +84,18 @@ class Contacts:
                 (plan.expression_id, context.actor_id, context.person_id, context.conversation_id,
                  getattr(plan, "candidate_id", None), document(fingerprint(" ".join(part.get("text", "") for part in plan.public_parts), [ref.source_id for ref in plan.source_refs])), document(result)))
 
-    async def received(self, context, occurred_at=None, *, input_id):
+    async def received(self, context, occurred_at=None, *, input_id, connection=None):
         at = occurred_at or datetime.now(UTC)
-        async with self.database.transaction() as connection:
-            inserted = await (await connection.execute("INSERT INTO life.contact_replies(input_id) VALUES (%s) ON CONFLICT DO NOTHING RETURNING input_id", (input_id,))).fetchone()
-            if not inserted:
-                return
-            await connection.execute(
-                "UPDATE life.contacts SET replied_at=%s WHERE expression_id=(SELECT expression_id FROM life.contacts "
-                "WHERE actor_id=%s AND person_id IS NOT DISTINCT FROM %s AND conversation_id=%s "
-                "AND delivered_at<=%s AND replied_at IS NULL ORDER BY delivered_at DESC LIMIT 1)",
-                (at, context.actor_id, context.person_id, context.conversation_id, at))
-            if self.on_received:
-                await self.on_received(context, input_id=input_id, occurred_at=at, connection=connection)
+        if connection is None:
+            async with self.database.transaction() as transaction:
+                return await self.received(context, at, input_id=input_id, connection=transaction)
+        inserted = await (await connection.execute("INSERT INTO life.contact_replies(input_id) VALUES (%s) ON CONFLICT DO NOTHING RETURNING input_id", (input_id,))).fetchone()
+        if not inserted:
+            return
+        await connection.execute(
+            "UPDATE life.contacts SET replied_at=%s WHERE expression_id=(SELECT expression_id FROM life.contacts "
+            "WHERE actor_id=%s AND person_id IS NOT DISTINCT FROM %s AND conversation_id=%s "
+            "AND delivered_at<=%s AND replied_at IS NULL ORDER BY delivered_at DESC LIMIT 1)",
+            (at, context.actor_id, context.person_id, context.conversation_id, at))
+        if self.on_received:
+            await self.on_received(context, input_id=input_id, occurred_at=at, connection=connection)

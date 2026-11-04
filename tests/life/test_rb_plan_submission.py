@@ -6,11 +6,12 @@ from unittest.mock import AsyncMock
 
 import pytest
 
-from tianshu.life import model_budget, planning_engine
+from tianshu.life import model_budget, planning, planning_engine
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
+from test_planner_contract import context as trusted_context
 from test_planner_execution import mark, setup
 
 
@@ -53,13 +54,18 @@ async def test_planning_submits_once_yields_worker_and_consumes_original_complet
         return state["receipt"]
     value.models.submit = submit
     value.models.status = status
+    async with database.transaction(read_only=True) as connection:
+        data_generation = await value.jobs.current_generation_on(connection)
 
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), data_generation)
     first = await mark(database)
     assert first["reason"] == "planner_queued" and not first["generation_consumed"]
     assert len(submitted) == 1 and submitted[0][1].task == "life.plan"
+    assert submitted[0][0].data_generation == data_generation
+    assert submitted[0][1].data_generation == data_generation
+    assert submitted[0][1].payload["data_generation"] == data_generation
     assert not value.models.calls and not value.models.streams
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), data_generation)
     assert len(submitted) == 1
 
     request = submitted[0][0]
@@ -67,7 +73,7 @@ async def test_planning_submits_once_yields_worker_and_consumes_original_complet
         "route", 1, "provider", "model", "native", "quota")
     value.models.actual = ModelResult((ModelPart("text", text=output),), state["receipt"],
         completion=ModelCompletion("complete", ("stop",)))
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), data_generation)
     final = await mark(database)
     async with database.transaction(read_only=True) as connection:
         generation = await (await connection.execute("SELECT * FROM life.plan_generations WHERE generation_key=%s",
@@ -94,3 +100,28 @@ async def test_unknown_original_attempt_remains_observation_only():
     assert engine.waiting.await_args.args[2] == "planner_unknown"
     engine.mark_unknown.assert_awaited_once()
     engine.failure.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_stale_plan_generation_cannot_write_or_submit_after_reset(database):
+    value = await setup(database, "{}")
+    value.models.submit = AsyncMock()
+    before = await mark(database)
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await value.worker.plan("actor", 1, wire(value.context), "old-installation-generation")
+    after = await mark(database)
+    assert after["revision"] == before["revision"] and after["generation_key"] == before["generation_key"]
+    value.models.submit.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_signal_preserves_the_running_jobs_generation(monkeypatch):
+    monkeypatch.setattr(planning, "current_execution_generation", lambda: "original-generation")
+    connection = SimpleNamespace(execute=AsyncMock(return_value=SimpleNamespace(fetchone=AsyncMock(return_value={"revision": 4}))))
+    jobs = SimpleNamespace(current_generation_on=AsyncMock(return_value="new-generation"),
+        assert_generation_on=AsyncMock(), enqueue=AsyncMock())
+    context = trusted_context()
+    await planning.signal(connection, jobs, context, "rhythm:time")
+    spec = jobs.enqueue.await_args.args[1]
+    assert spec.data_generation == spec.payload["data_generation"] == "original-generation"
+    jobs.current_generation_on.assert_not_awaited()

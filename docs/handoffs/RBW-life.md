@@ -34,3 +34,11 @@ Life module 注册 `0040_life_execution`（`src/tianshu/life/rb_life_execution.s
 - 新增 `tests/life/test_rb_plan*.py`、`test_rb_activity*.py` 覆盖独立片段、组回滚、五种应用结果、异步提交、原 unknown、共同恢复预算、quota 切换、单能力复检、跨日和阅读续接等；这些是测试代码，尚未执行。
 - 集成后先更新历史测试契约再集中验证：`tests/life/test_activity_continuation.py`、`test_read_failure_continuation.py` 仍 import 已删除的 `MAX_WINDOW_STEPS`；`test_rolling_day_plan.py` 和 `test_activity_continuation.py` 有 `days.apply` 按整数计数的旧断言。旧计划 fixture 还使用同步模型、无 `quota_group`/RecoveryPolicy 的构造，相关断言须按新接口和后台可跨休息执行语义修订；这些文件不在本卡测试白名单。
 - 集成重点验证 Capability 快照及真实单能力可用性、Runtime policy 的 claim/unknown/依赖切换与 JobQueue lane/代际装配、Operations 的 observation-only guard、Growth/经验包接口，以及按 actor 的来源扇出。排程/模型回执/统计补投通过不等于真实聊天或业务结果已验收。
+
+## 接线追补
+
+- `life.plan` 首次 signal 和启动恢复冻结 `data_generation`，后台 signal 优先继承 `current_execution_generation()` 的原 job 代际，HTTP 等非任务调用在原事务取得当前代际；计划写事务、能力唤醒、恢复谱系都校验或携带原代际。`LifeWorker.plan(actor_id, revision, context, data_generation)` 接收原 job payload；Models Request、completion JobSpec 和后续计划任务保留同一 UUID。队列 handler 信封与 payload 代际不一致时拒绝。旧测试直接调用 `worker.plan` 三参需更新为含原代际的四参。
+- `await worker.recovery_candidates(limit=32)` 从 Life 活动账本只读列出真实未解决原 Action，返回 `eligible/due_at/dependency/error_family/version/material_id/role/target`；`due_at` 为等待状态的实际更新时间，`target={kind:'life.activity',id,revision}`，仍在正常运行的 capability 标 `executing=True` 供 Operations 跳过。候选不执行动作，实际窄恢复仍重新校验原 context、来源和版本。
+- Life module 在同一个 `GenerationControl` 实例注册 `life.diary_episode_changed=diaries.consume_episode_change` 与 `life.experience_statistics_backfill=generation_control.backfill_statistics`，均属 DIARY lane。时钟闭日去重键与经验包统一为 `identity.scene_id(context)`。
+- `contacts.received(context, occurred_at=None, *, input_id, connection=None)` 可复用 Conversation 入站原事务，回复记录、候选取消和后续 `on_received` 共用该连接；未提供连接时维持原独立事务。新增用例检查重复 input_id、事务回滚与不再嵌套取连接。
+- 本追补依赖 Runtime 的 `current_execution_generation`、`JobSpec.data_generation` 和 Models 的 `ModelRequest.data_generation`，以及经验包的两个任务方法和 Identity 的 `scene_id`；不改共享模块。按本批授权未运行测试、构建或烟测。

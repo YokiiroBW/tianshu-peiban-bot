@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature
@@ -255,6 +255,9 @@ class LifeClock:
     async def tick(self, actor_id, expected_revision, due_at):
         try:
             async with self.database.transaction() as connection:
+                generation = current_execution_generation()
+                if generation is not None:
+                    await self.jobs.assert_generation_on(connection, generation)
                 row = await (await connection.execute(
                     "SELECT * FROM life.routines WHERE actor_id=%s", (actor_id,),
                 )).fetchone()
@@ -277,7 +280,7 @@ class LifeClock:
                     if self.on_day_closed:
                         already = await (await connection.execute(
                             "SELECT 1 FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s",
-                            (actor_id, signature(sorted(context.scope_ids)), closed))).fetchone()
+                            (actor_id, self.identity.scene_id(context), closed))).fetchone()
                         if not already:
                             await self.on_day_closed(context,closed.isoformat(),connection=connection)
                 await connection.execute(

@@ -1,6 +1,7 @@
 """One decision joins directions, today's appointments and the next actual step."""
 from datetime import UTC, datetime, timedelta
 from dataclasses import replace
+from contextlib import asynccontextmanager
 from zoneinfo import ZoneInfo
 from uuid import uuid4
 
@@ -103,14 +104,23 @@ def photo_followup(events, context, day, timezone):
 
 
 class PlanningEngine:
-    def __init__(self, worker):
+    def __init__(self, worker, *, data_generation=None):
         self.worker, self.life = worker, worker.life
+        self.data_generation = data_generation
+
+    @asynccontextmanager
+    async def transaction(self):
+        if not self.data_generation:
+            raise AppError("job_generation_missing", status=409)
+        async with self.life.database.transaction() as connection:
+            await self.life.jobs.assert_generation_on(connection, self.data_generation)
+            yield connection
 
     async def run(self, actor_id, revision, context):
         context = context_from_record(context)
         if context.actor_id != actor_id:
             raise AppError("actor_scope_mismatch", status=403)
-        async with self.life.database.transaction(read_only=True) as connection:
+        async with self.transaction() as connection:
             mark = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s", (actor_id,))).fetchone()
             routine = await (await connection.execute("SELECT * FROM life.routines WHERE actor_id=%s", (actor_id,))).fetchone()
         now = datetime.now(UTC)
@@ -143,7 +153,7 @@ class PlanningEngine:
         writing=await writing_material(self.worker.writing,context)
         choices = await self.worker.catalog.planning(context)
         from .events import available
-        await available(self.life,context,choices)
+        await available(self.life,context,choices,data_generation=self.data_generation)
         if photo_followup(mark["change"] or {},context,day,state["timezone"]):
             choices = [item for item in choices if item["definition"].id != "images.generate"]
         growth = await self.worker.growth.material(context, purpose="planning") if self.worker.growth else ()
@@ -173,7 +183,7 @@ class PlanningEngine:
         recovery_material = recovery_fingerprint(context, actor, data, day, mark["change"])
         pending = mark["generation_key"] and not mark["generation_consumed"]
         same_material = mark["generation_material"] == material
-        async with self.life.database.transaction(read_only=True) as connection:
+        async with self.transaction() as connection:
             previous = await plan_recovery.generation_on(connection, mark["generation_key"])
         same_recovery_material = bool(previous and previous.get("recovery_lineage_id")
             and previous.get("recovery_version") == recovery_material)
@@ -225,13 +235,15 @@ class PlanningEngine:
                 # missing original is an explicit integrity failure, never a replay.
                 await self.failure(context, mark, "planner_original_request_missing", material, now)
                 return
-            key = "life-plan:" + signature({"actor": actor_id, "material": material, "previous": mark["generation_key"]})
+            key = "life-plan:" + signature({"data_generation": self.data_generation, "actor": actor_id,
+                "material": material, "previous": mark["generation_key"]})
             persona = await self.life.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor.get("persona_id") else None
             try:
                 if profile_error:
                     raise profile_error
                 selected = await generation_request(self.worker.models, context, key=key, attempt_id=attempt_for(key),
                     function="life.plan", profile=profile, business_deadline_at=next_boundary)
+                selected = replace(selected, data_generation=self.data_generation)
                 frozen = await planner.request(self.worker.assembler, context, selected.budget,
                     key=key, persona=persona.prompt_text if persona else "", data=data, refs=refs,
                     growth=growth, model_request=selected)
@@ -242,7 +254,7 @@ class PlanningEngine:
                 reason = "planner_context_budget_exceeded" if "budget" in error.code else "planner_model_unavailable"
                 await self.failure(context, mark, reason, material, now)
                 return
-            async with self.life.database.transaction() as connection:
+            async with self.transaction() as connection:
                 await self.life.validate_persistence(connection, context, frozen.source_refs)
                 fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,))).fetchone()
                 if (fresh["revision"] != revision or fresh["generation_key"] != mark["generation_key"]
@@ -275,6 +287,8 @@ class PlanningEngine:
                     (material, key, repairs,fresh["computation_retry_count"] if same_material else 0, actor_id))
                 mark = {**fresh, "generation_key": key, "generation_material": material, "generation_consumed": False, "repair_count": repairs,
                         "computation_retry_count":fresh["computation_retry_count"] if same_material else 0}
+        if frozen.data_generation != self.data_generation:
+            raise AppError("job_generation_expired", status=409)
         key = mark["generation_key"]
 
         async def current(connection):
@@ -290,14 +304,15 @@ class PlanningEngine:
                     raise AppError("generation_observation_context_mismatch", status=403)
                 if deadline is not None and deadline.deadline_at <= datetime.now(UTC):
                     raise AppError("generation_request_expired", status=409)
-                async with self.life.database.transaction() as connection:
+                async with self.transaction() as connection:
                     await self.life.validate_persistence(connection, context, frozen.source_refs)
                     if not await current(connection):
                         return
                     await connection.execute("UPDATE conversation.generation_requests SET state='claimed',claimed_at=COALESCE(claimed_at,now()) "
                         "WHERE material_key=%s AND state IN ('prepared','claimed')", (key,))
                 completion = JobSpec("life.plan", f"life-plan-result:{key}:{revision}",
-                    {"actor_id": actor_id, "revision": revision, "context": wire(context)}, subject_id=actor_id)
+                    {"actor_id": actor_id, "revision": revision, "context": wire(context),
+                     "data_generation": self.data_generation}, subject_id=actor_id, data_generation=self.data_generation)
                 status = await self.worker.models.submit(frozen, completion=completion)
             if status.status in {"queued", "running"}:
                 await self.waiting(context, mark, "planner_" + status.status, now)
@@ -309,6 +324,8 @@ class PlanningEngine:
                 await self.waiting(context, mark, "planner_unknown", now)
                 return
         except AppError as error:
+            if error.code == "job_generation_expired":
+                raise
             if error.code == "generation_request_expired":
                 await self.failure(context, mark, "original_planner_not_registered_before_deadline", material, now)
                 return
@@ -326,7 +343,7 @@ class PlanningEngine:
         if status != "succeeded":
             await self.computation_failure(context,mark,material,now,result=result)
             return
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             if not await current(connection):
                 return
             await plan_recovery.succeed_on(self.life, connection, key)
@@ -334,7 +351,7 @@ class PlanningEngine:
         _, boundary = awake_window(routine, finished_at)
         if finished_at >= next_boundary or finished_at.astimezone(ZoneInfo(state["timezone"])).date() != day:
             await self.finish(context, mark, "waiting_for_next_life_window", consumed=True, next_due=boundary)
-            async with self.life.database.transaction() as connection:
+            async with self.transaction() as connection:
                 await connection.execute("UPDATE life.plan_generations SET state='superseded',reason='life_window_expired',reviewed_at=now() "
                     "WHERE generation_key=%s AND state='reviewed'", (key,))
             return
@@ -363,7 +380,7 @@ class PlanningEngine:
             return
         from .contact_planning import prepare as prepare_contact
         prepared_contact=await prepare_contact(self.worker,context,decision.get("contact"),original_data,now)
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             await self.life.validate_persistence(connection, context, frozen.source_refs)
             fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,))).fetchone()
             if fresh["revision"] != revision or fresh["generation_key"] != key or fresh["generation_consumed"]:
@@ -448,7 +465,7 @@ class PlanningEngine:
                 status_reason="planner_cancelled" if code=="explicit_cancel" or status=="cancelled" else "planner_failed",
                 physical_failure=status in {"failed", "cancelled"} or code == "explicit_cancel")
             return
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             fresh=await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",(context.actor_id,))).fetchone()
             if (not fresh or fresh["revision"]!=mark["revision"] or fresh["generation_key"]!=mark["generation_key"]
                     or fresh["generation_consumed"]):
@@ -485,23 +502,23 @@ class PlanningEngine:
                 code,retry=getattr(error,"code","planner_original_request_missing"),False
                 status="failed"
             else:
-                async with self.life.database.transaction() as connection:
+                async with self.transaction() as connection:
                     await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
                 return None
         else:
             if code != "explicit_cancel" and status in {"queued","running","unknown"}:
-                async with self.life.database.transaction() as connection:
+                async with self.transaction() as connection:
                     await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
                 return None
             from tianshu.models.timing import waiting_budget
             deadline=waiting_budget(frozen)
             if code != "explicit_cancel" and deadline is not None and deadline.deadline_at<=now:
-                async with self.life.database.transaction() as connection:
+                async with self.transaction() as connection:
                     await connection.execute("UPDATE life.plan_generations SET state='superseded',reason='life_window_expired',reviewed_at=now() "
                         "WHERE generation_key=%s",(mark["generation_key"],))
                 return {}
             if code != "explicit_cancel" and result is not None and result.receipt.status=="succeeded":
-                async with self.life.database.transaction() as connection:
+                async with self.transaction() as connection:
                     fresh=await (await connection.execute("UPDATE life.plan_watermarks SET generation_consumed=false,last_error=NULL,repair_due_at=NULL "
                         "WHERE actor_id=%s AND revision=%s AND generation_key=%s AND generation_consumed RETURNING *",
                         (context.actor_id,mark["revision"],mark["generation_key"]))).fetchone()
@@ -509,7 +526,7 @@ class PlanningEngine:
                         await connection.execute("UPDATE life.plan_generations SET state='pending' WHERE generation_key=%s",(mark["generation_key"],))
                 return fresh
             if code != "explicit_cancel" and status=="succeeded":
-                async with self.life.database.transaction() as connection:
+                async with self.transaction() as connection:
                     await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
                 return None
             if retry:
@@ -517,7 +534,7 @@ class PlanningEngine:
                     await self.finish(context,mark,"planner_retry_wait",next_due=mark["repair_due_at"])
                     return None
                 return {}
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             await connection.execute("UPDATE life.plan_watermarks SET last_error=%s,repair_due_at=NULL,reason=%s "
                 "WHERE actor_id=%s AND revision=%s AND generation_key=%s AND generation_consumed",
                 (code,"planner_cancelled" if code=="explicit_cancel" else "planner_failed",context.actor_id,mark["revision"],mark["generation_key"]))
@@ -528,7 +545,7 @@ class PlanningEngine:
     async def supersede(self, mark, reason, recovery_material):
         state = await self.worker.models.status(attempt_for(mark["generation_key"]))
         status = state.status if state else "absent"
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             previous = await plan_recovery.generation_on(connection, mark["generation_key"], lock=True)
             await plan_recovery.cancel_on(self.life, connection, previous, recovery_material)
             await connection.execute("UPDATE life.plan_generations SET state='superseded',reason=%s,reviewed_at=now() WHERE generation_key=%s AND state='pending'",
@@ -536,6 +553,9 @@ class PlanningEngine:
         return status
 
     async def schedule(self, connection, context, mark, when, kind):
+        if not self.data_generation:
+            raise AppError("job_generation_missing", status=409)
+        await self.life.jobs.assert_generation_on(connection, self.data_generation)
         current=await (await connection.execute("SELECT revision,generation_key FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",
             (context.actor_id,))).fetchone()
         if not current or current["revision"]!=mark["revision"] or current["generation_key"]!=mark["generation_key"]:
@@ -543,13 +563,13 @@ class PlanningEngine:
         value=wire(context)
         for key in ("scope_ids","audience","permissions"):
             value[key]=sorted(value[key])
-        payload={"actor_id":context.actor_id,"revision":mark["revision"],"context":value}
+        payload={"actor_id":context.actor_id,"revision":mark["revision"],"context":value,"data_generation":self.data_generation}
         await self.life.jobs.enqueue(connection, JobSpec("life.plan",
             f"plan-{kind}:{mark['generation_key']}:{mark['revision']}:{uuid4()}",payload,
-            scheduled_at=when, subject_id=context.actor_id),queueing_lock="life-plan:"+signature(payload))
+            scheduled_at=when, subject_id=context.actor_id, data_generation=self.data_generation),queueing_lock="life-plan:"+signature(payload))
 
     async def waiting(self, context, mark, reason, now):
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             fresh = await (await connection.execute(
                 "UPDATE life.plan_watermarks SET reason=%s WHERE actor_id=%s AND revision=%s "
                 "AND generation_key=%s AND NOT generation_consumed RETURNING actor_id",
@@ -558,7 +578,7 @@ class PlanningEngine:
                 await self.schedule(connection, context, mark, now + timedelta(seconds=30), "observe")
 
     async def mark_unknown(self, context, mark, code):
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",
                 (context.actor_id,))).fetchone()
             if (fresh and fresh["revision"] == mark["revision"] and fresh["generation_key"] == mark["generation_key"]
@@ -569,7 +589,7 @@ class PlanningEngine:
         """Reject a result without accepting its material as a valid decision."""
         count = (mark["repair_count"] if mark["generation_material"] == material else 0) + int(repairable)
         retry_at = now + REPAIR_DELAY * 2**max(0, count - 1) if repairable and count <= MAX_REPAIRS else None
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             fresh = await (await connection.execute(
                 "SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (context.actor_id,))).fetchone()
             if (not fresh or fresh["revision"] != mark["revision"]
@@ -612,7 +632,7 @@ class PlanningEngine:
                 (reason, mark["generation_key"]))
 
     async def finish(self, context, mark, reason, **kwargs):
-        async with self.life.database.transaction() as connection:
+        async with self.transaction() as connection:
             dates = [value for value in (mark["repair_due_at"], decision_review_at(mark))
                      if value is not None and value > datetime.now(UTC)]
             if dates and "next_due" not in kwargs:

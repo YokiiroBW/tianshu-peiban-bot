@@ -1,4 +1,4 @@
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from unittest.mock import AsyncMock
 
 import pytest
@@ -48,4 +48,34 @@ async def test_missing_unknown_action_is_not_reissued(database):
             (document({"capability_id": "content.read", "frozen_action": {"action_id": "original"}}), document(value.context)))
     value.actions.get = AsyncMock(side_effect=AppError("not_found", status=404))
     await value.worker.reconcile_activity("activity", wire(value.context), 0)
+    assert not value.actions.calls
+
+
+@pytest.mark.asyncio
+async def test_candidates_are_real_unresolved_actions_and_running_work_is_not_stalled(database):
+    value = await setup(database, "{}")
+    timestamp = datetime.now(UTC) - timedelta(minutes=10)
+    records = [
+        ("unknown", "dormant", "outcome_unknown", "action-unknown", {"capability_id": "content.read"}),
+        ("running", "dormant", "capability_running", "action-running", {"capability_id": "content.read"}),
+        ("completed", "dormant", "outcome_unknown", "action-complete",
+            {"capability_id": "content.read", "completed_action_id": "action-complete"}),
+        ("paused", "paused", "outcome_unknown", "action-paused", {"capability_id": "content.read"}),
+        ("unknown-capability", "dormant", "outcome_unknown", "action-no-capability", {}),
+    ]
+    async with database.transaction() as connection:
+        for identifier, state, reason, action_id, checkpoint in records:
+            await connection.execute("INSERT INTO life.activities(id,actor_id,title,kind,state,waiting_reason,action_id,"
+                "checkpoint_data,scope_ids,context,updated_at) VALUES (%s,'actor','read','reading',%s,%s,%s,%s,"
+                "ARRAY['actor-scope'],%s,%s)", (identifier, state, reason, action_id, document(checkpoint),
+                document(value.context), timestamp))
+    candidates = await value.worker.recovery_candidates()
+    by_id = {item["target"]["id"]: item for item in candidates}
+    assert set(by_id) == {"unknown", "running"}
+    unknown = by_id["unknown"]
+    assert unknown["eligible"] and unknown["due_at"] == timestamp and unknown["material_id"] == "action-unknown"
+    assert unknown["dependency"] == "content.read" and unknown["error_family"] == "outcome_unknown"
+    assert unknown["role"] == "bot-background" and unknown["target"] == {"kind": "life.activity", "id": "unknown", "revision": 1}
+    assert by_id["running"]["executing"] and not unknown["executing"]
+    assert len(await value.worker.recovery_candidates(limit=1)) == 1
     assert not value.actions.calls

@@ -2,6 +2,7 @@ from importlib.resources import files
 from tianshu.runtime.api import command_body, json_response
 from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.migrations import Migration
 from .generation_control import GenerationControl
 
@@ -103,6 +104,10 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.contact_due", worker.contact_due, retryable=False)
         queue.register("life.contact_reconcile", worker.reconcile_contact, retryable=False)
         queue.register("life.diary_review", diaries.review_day, retryable=False)
+        queue.register("life.diary_episode_changed", diaries.consume_episode_change,
+            retryable=True, execution_lane=ExecutionLane.DIARY)
+        queue.register("life.experience_statistics_backfill", generation_control.backfill_statistics,
+            retryable=True, execution_lane=ExecutionLane.DIARY)
         queue.register("life.diary_collect", diaries.collect, retryable=False)
         queue.register("life.diary_generate", diaries.generate, retryable=False)
         queue.register("life.chapter_generate", writing.generate, retryable=False)

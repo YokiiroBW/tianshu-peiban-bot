@@ -3,6 +3,7 @@ from tianshu.conversation.codec import context_from_record, signature, source_re
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
+from .continuation import READ_CAPABILITIES, action_resolved
 from .recovery import scheduled_context
 
 
@@ -18,6 +19,34 @@ def material(row):
 class LifeOperationsRecovery:
     def __init__(self, worker, guard_on):
         self.worker, self.life, self.guard_on = worker, worker.life, guard_on
+
+    async def candidates(self, *, limit=32):
+        """Offer bounded, source-backed observations from actual waiting activities."""
+        limit = max(1, min(int(limit), 250))
+        async with self.life.database.transaction(read_only=True) as connection:
+            rows = await (await connection.execute(
+                "SELECT id,actor_id,revision,state,waiting_reason,action_id,checkpoint_data,updated_at "
+                "FROM life.activities WHERE state IN ('running','dormant') AND context IS NOT NULL "
+                "AND action_id IS NOT NULL AND waiting_reason=ANY(%s) "
+                "AND NULLIF(checkpoint_data->>'capability_id','') IS NOT NULL "
+                "AND checkpoint_data->>'completed_action_id' IS DISTINCT FROM action_id "
+                "AND NOT COALESCE(checkpoint_data->>'resolved_action_id'=action_id "
+                "AND checkpoint_data->>'capability_id'=ANY(%s) AND checkpoint_data->>'resolved_effect'='none' "
+                "AND checkpoint_data->>'resolved_delivery'='not_requested' AND "
+                "(checkpoint_data->>'resolved_execution'='failed' OR "
+                "(checkpoint_data->>'resolved_execution'='cancelled' AND checkpoint_data->>'resolved_error_code'='capability_timeout')),false) "
+                "ORDER BY updated_at,id LIMIT %s", (list(ERROR_FAMILIES), list(READ_CAPABILITIES), limit))).fetchall()
+        result = []
+        for row in rows:
+            capability = (row["checkpoint_data"] or {}).get("capability_id")
+            if not isinstance(capability, str) or not capability or action_resolved(row):
+                continue
+            result.append({"eligible": True, "due_at": row["updated_at"], "dependency": capability,
+                "error_family": row["waiting_reason"], "version": str(row["revision"]),
+                "material_id": row["action_id"], "role": "bot-background",
+                "executing": row["waiting_reason"] == "capability_running",
+                "target": {"kind": "life.activity", "id": row["id"], "revision": row["revision"]}})
+        return result
 
     async def _row(self, target):
         identifier = target.get("activity_id") or target.get("id")

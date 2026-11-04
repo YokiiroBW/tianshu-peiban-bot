@@ -53,9 +53,10 @@ async def wake(life, context, *, kind, subject_id, event_id, connection):
                 ServiceClass.DUE, subject_id=context.actor_id))
 
 
-async def available(life,context,choices):
+async def available(life,context,choices,*,data_generation):
     ready={item["definition"].id for item in choices if item["can_execute"]}
     async with life.database.transaction() as connection:
+        await life.jobs.assert_generation_on(connection,data_generation)
         needed=set()
         for table in ("activities","commitments"):
             rows=await (await connection.execute(f"SELECT DISTINCT wake_condition->>'subject_id' AS capability_id FROM life.{table} WHERE actor_id=%s AND scope_ids<@%s::text[] AND wake_condition->>'kind'='capability_available'",(context.actor_id,list(context.scope_ids)))).fetchall()

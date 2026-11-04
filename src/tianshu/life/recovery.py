@@ -17,6 +17,7 @@ async def scheduled_context(life, value, *, connection=None):
 async def recover(worker):
     life = worker.life
     async with life.database.transaction(read_only=True) as connection:
+        generation = await life.jobs.current_generation_on(connection)
         plans = await (await connection.execute(
             "SELECT p.*,c.context FROM life.plan_watermarks p JOIN life.routines c USING(actor_id) "
             "WHERE c.enabled AND (p.planned_watermark<>p.change_watermark OR (p.generation_key IS NOT NULL AND NOT p.generation_consumed) "
@@ -38,9 +39,9 @@ async def recover(worker):
             from .planning_engine import PlanningEngine, decision_review_at
             dates = [value for value in (row["repair_due_at"], decision_review_at(row)) if value is not None]
             async with life.database.transaction() as connection:
-                await PlanningEngine(worker).schedule(connection,context,row,datetime.now(UTC) if pending else min(dates),"recover")
+                await PlanningEngine(worker, data_generation=generation).schedule(connection,context,row,datetime.now(UTC) if pending else min(dates),"recover")
         except AppError as error:
-            if error.status not in {401, 403, 404, 409, 410}:
+            if error.code == "job_generation_expired" or error.status not in {401, 403, 404, 409, 410}:
                 raise
     for table, row in work:
         try:
@@ -72,13 +73,15 @@ async def recover(worker):
                 payload, due = {"candidate_id": row["id"], "expected_revision": row["revision"]}, row["due_at"] if task.endswith("due") else None
             async with life.database.transaction() as connection:
                 await life.jobs.enqueue(connection, JobSpec(task, f"life-recover:{table}:{row['id']}:{row['revision']}:{uuid4()}",
-                    payload, scheduled_at=max(due, datetime.now(UTC)) if due else None, subject_id=context.actor_id))
+                    payload, scheduled_at=max(due, datetime.now(UTC)) if due else None, subject_id=context.actor_id,
+                    data_generation=generation))
         except AppError as error:
-            if error.status not in {401, 403, 404, 409, 410}:
+            if error.code == "job_generation_expired" or error.status not in {401, 403, 404, 409, 410}:
                 raise
             # A visible reason remains on the affected object; other actors and
             # independent commitments continue to recover.
             async with life.database.transaction() as connection:
+                await life.jobs.assert_generation_on(connection, generation)
                 field = "waiting_reason" if table == "activities" else "reason"
                 await connection.execute(f"UPDATE life.{table} SET {field}=%s WHERE id=%s AND revision=%s",
                     ("scheduled_authorization_unavailable", row["id"], row["revision"]))

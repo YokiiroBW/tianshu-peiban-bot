@@ -25,6 +25,8 @@ def policy_for(life):
 
 async def reserve_on(life, connection, *, context, scene, material, key, frozen, profile, previous, continuation):
     policy = policy_for(life)
+    if not getattr(frozen, "data_generation", None):
+        raise AppError("job_generation_missing", status=409)
     quota = (profile or {}).get("quota_group")
     if not isinstance(quota, str) or not quota:
         raise AppError("planner_recovery_quota_unavailable", status=503)
@@ -65,7 +67,7 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
             await cancel_on(life, connection, previous, material)
         lineage = await policy.register_on(connection, domain="life", subject_id=context.actor_id,
             owner=owner, material_id=key, material_digest=material, dependency=dependency,
-            current_version=material, max_attempts=MAX_ATTEMPTS)
+            current_version=material, max_attempts=MAX_ATTEMPTS, data_generation=frozen.data_generation)
         lineage_id = lineage["lineage_id"]
     attempt = await policy.reserve_attempt_on(connection, lineage_id, owner=owner, expected_version=material,
         attempt_id=frozen.attempt_id, request_digest=signature(frozen), route=frozen.route_id,
