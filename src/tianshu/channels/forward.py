@@ -29,7 +29,8 @@ def _missing(output, reason, node_index, part_index=None):
 
 
 async def expand_forward(service, context, connection, part, call_api, event_id, *, depth=0,
-    max_parts=128, path="root", event_revision=1):
+    max_parts=128, path="root", event_revision=1, supplement_parts=None, output_offset=0,
+    deployment_generation=None):
     segment = part.metadata.get("segment", {})
     refs, source = [], None
     try:
@@ -49,7 +50,8 @@ async def expand_forward(service, context, connection, part, call_api, event_id,
             "forward_id": segment.get("data", {}).get("id"), "depth": depth, "path": path,
             "revision": event_revision,
             "evidence_unit": connection["namespace"]+":"+connection["id"]+":"+event_id,
-        }, raw=native, mime_type="application/json")
+        }, raw=native, mime_type="application/json",
+            **({"generation": deployment_generation} if deployment_generation is not None else {}))
         refs.append(source)
         if not isinstance(raw, Mapping):
             raise ChannelError("forward_response_format", 502)
@@ -100,10 +102,11 @@ async def expand_forward(service, context, connection, part, call_api, event_id,
                 **child.metadata, "original_author_external_id": author, "original_author_display_name": name,
                 "forward_node_index": node_index, "forward_source_ref": wire(source)})
             if child.metadata.get("original_pending"):
+                original_child = child
                 try:
                     child, media_source = await service.media.receive(context, connection, child, call_api,
                         event_id=event_id, part_index=path+":"+str(node_index)+":"+str(child_index),
-                        revision=event_revision)
+                        revision=event_revision, deployment_generation=deployment_generation)
                     if media_source:
                         refs.append(media_source)
                 except asyncio.CancelledError:
@@ -113,11 +116,16 @@ async def expand_forward(service, context, connection, part, call_api, event_id,
                     child = _unavailable(replace(child, metadata={**child.metadata,
                         "original_pending": False, "media_unavailable": True, "error_code": reason}), reason)
                 if child.metadata.get("media_unavailable"):
+                    if supplement_parts is not None:
+                        supplement_parts.append({"part_index": output_offset + len(output),
+                            "part": original_child, "error_code": child.metadata.get("error_code", "channel_media_unavailable")})
                     _missing(output, child.metadata.get("error_code", "channel_media_unavailable"), node_index, child_index)
             if child.kind == "forward":
                 nested, nested_refs = await expand_forward(service, context, connection, child, call_api,
                     event_id, depth=depth+1, path=path+":"+str(node_index)+":"+str(child_index),
-                    event_revision=event_revision, max_parts=max_parts-len(output))
+                    event_revision=event_revision, max_parts=max_parts-len(output),
+                    supplement_parts=supplement_parts, output_offset=output_offset+len(output),
+                    deployment_generation=deployment_generation)
                 output.extend(nested)
                 refs.extend(nested_refs)
                 if nested[0].metadata.get("missing"):

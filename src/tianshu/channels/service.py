@@ -15,7 +15,7 @@ from tianshu.capabilities.serialization import context_from
 from .contracts import ChannelError, TransportResult
 from .repository import Repository
 from .media import Media
-from .delivery import ChannelDelivery, DeliveryHandler, ContactPreflightStopped
+from .delivery import ChannelDelivery, DeliveryHandler, ContactPreflightStopped, BehaviorPreflightPending
 from .transports import OneBotTransport, OwnerClient
 from .telegram import TelegramTransport, BOT_API_METHODS
 from .onebot.registry import BY_NAME
@@ -50,6 +50,9 @@ class Channels:
         self.media = Media(artifacts, sources, runtime.files)
         self.web, self.expression, self.conversation = web, None, None
         self.contact_preflight = None
+        self.behavior_resolver = None
+        self.recovery_policy = None
+        self.statistics = None
         self.delivery = ChannelDelivery(self)
         self.owner_id = str(uuid4())
         self.owner = False
@@ -73,8 +76,74 @@ class Channels:
     def bind_contact_preflight(self, callback):
         self.contact_preflight = callback
 
+    def bind_behavior_resolver(self, resolver):
+        self.behavior_resolver = resolver
+
+    def bind_recovery_policy(self, policy):
+        self.recovery_policy = policy
+        self.repository.recovery_policy = policy
+
+    def bind_statistics(self, statistics):
+        self.statistics = statistics
+        self.repository.statistics = statistics
+
+    async def backfill_media_statistics(self, *, after_id="", limit=500):
+        from .observability import backfill_media
+        return await backfill_media(self, after_id=after_id, limit=limit)
+
+    async def reconcile_media_statistics(self, after_id=""):
+        if self.statistics is None:
+            return
+        result = await self.backfill_media_statistics(after_id=after_id)
+        if not result["complete"]:
+            from .observability import schedule_repair
+            async with self.runtime.database.transaction() as conn:
+                await schedule_repair(self, conn, after_id=result["next_cursor"])
+
+    async def defer_delivery(self, action_id):
+        from tianshu.runtime.execution import ExecutionLane
+        async with self.runtime.database.transaction() as conn:
+            await self.runtime.jobs.enqueue(conn, JobSpec("channels.resume_delivery", f"delivery-behavior:{action_id}:{uuid4()}",
+                {"action_id": action_id}, ServiceClass.INTERACTIVE, datetime.now(UTC)+timedelta(seconds=10),
+                execution_lane=ExecutionLane.CONVERSATION))
+
+    async def resume_delivery(self, action_id):
+        action, attempt, current = await self.actions.load_for_execution(action_id)
+        if current.execution in {"succeeded", "failed", "cancelled", "unknown"}:
+            return
+        result = await self.delivery_handler.resume(action, attempt)
+        await self.actions.save(result, attempt)
+
     def bind_web(self, web):
         self.web = web
+
+    async def notify_operations(self, context, *, notification_id, target_ref, text, source_refs=()):
+        """Submit one real operations notice through the existing QQ connection owner."""
+        if (context.origin_kind != OriginKind.SYSTEM or not context.delivery_allowed
+                or not context.actor_id or context.conversation_id != target_ref):
+            raise ChannelError("operations_notification_context", 403)
+        if (not isinstance(notification_id, str) or not 1 <= len(notification_id) <= 200
+                or not isinstance(text, str) or not text.strip() or len(text) > 10000):
+            raise ChannelError("operations_notification_invalid", 400)
+        target = await self.identity.channel_target(context, target_ref)
+        if target["adapter"] == "web" or not target.get("connection_id"):
+            raise ChannelError("operations_qq_target_required", 409)
+        connection = await self.repository.connection(target["connection_id"], target["context"])
+        if connection["adapter"] not in {"onebot", "nonebot", "astrbot"}:
+            raise ChannelError("operations_qq_target_required", 409)
+        from tianshu.conversation.types import ExpressionPlan
+        expression_id = "operations:" + digest(notification_id)
+        plan = ExpressionPlan(expression_id, context.actor_id, target_ref,
+            ({"kind": "text", "text": "【天枢运维】\n" + text.strip()},), tuple(source_refs), OriginKind.SYSTEM)
+        return await self.delivery.deliver(context, plan)
+
+    async def operations_notification_status(self, context, *, notification_id, reconcile=False):
+        if context.origin_kind != OriginKind.SYSTEM or not isinstance(notification_id, str) or not notification_id:
+            raise ChannelError("operations_notification_context", 403)
+        expression_id = "operations:" + digest(notification_id)
+        if reconcile:
+            return await self.delivery.reconcile(context, expression_id)
+        return await self.delivery.get(context, expression_id)
 
     def verify_target(self, target, params, connection_id):
         if target["connection_id"] != connection_id:
@@ -142,6 +211,12 @@ class Channels:
             await self.acquire_owner()
             await self.refresh_transports()
             self.owner_task = asyncio.create_task(self.maintain_owner(), name="channels-owner")
+        from .supplements import recover
+        await recover(self)
+        if self.statistics is not None:
+            from .observability import schedule_repair
+            async with self.runtime.database.transaction() as conn:
+                await schedule_repair(self, conn)
 
     async def acquire_owner(self):
         async with self.runtime.database.transaction(control=True) as conn:
@@ -295,6 +370,8 @@ class Channels:
         if transport is None:
             raise ChannelError("channel_transport_unavailable", 503)
         async with self.runtime.database.transaction(control=True) as conn:
+            if row.get("deployment_generation") is not None:
+                await self.runtime.jobs.assert_generation_on(conn, row["deployment_generation"])
             if not await self.sources.validate_persistence(conn, context, action.source_refs):
                 raise ChannelError("source_revoked", 410)
             claimed = await (
@@ -317,14 +394,17 @@ class Channels:
                 if not current["context"].delivery_allowed:
                     raise ChannelError("channel_delivery_not_allowed", 403)
                 self.verify_target(current, params, connection["id"])
+                await self.delivery_handler.behavior_preflight(action)
                 decision = await self.delivery_handler.preflight(action, attempt, current_call_id=identifier) if not row["control"] else None
                 if decision:
                     # This exception is deliberately outside transport I/O errors:
                     # no bytes have been submitted and the outcome is known.
                     raise ContactPreflightStopped(decision)
-            if not row["control"]:
-                await self.actions.submitted(attempt, identifier)
             async with self.runtime.database.transaction(control=True) as conn:
+                if row.get("deployment_generation") is not None:
+                    await self.runtime.jobs.assert_generation_on(conn, row["deployment_generation"])
+                if not row["control"]:
+                    await self.actions.submitted(attempt, identifier)
                 await conn.execute(
                     "UPDATE channels.calls SET submitted_at=now() WHERE id=%s", (identifier,)
                 )
@@ -394,6 +474,9 @@ class Channels:
             result = await transport.call(
                 identifier, row["api_name"], params, submitted, context=context
             )
+            current = await self.repository.call(identifier)
+            if result.state == "unknown" and not current["submitted_at"]:
+                result = replace(result, state="rejected")
             if (
                 row["api_name"]
                 in {
@@ -432,7 +515,10 @@ class Channels:
             raise
         except Exception as error:
             current = await self.repository.call(identifier)
-            if isinstance(error, ContactPreflightStopped) and not current["submitted_at"]:
+            if isinstance(error, BehaviorPreflightPending) and not current["submitted_at"]:
+                result = TransportResult("prepared", error_code=error.code)
+                await self.defer_delivery(action.action_id)
+            elif isinstance(error, ContactPreflightStopped) and not current["submitted_at"]:
                 result = TransportResult("rejected", error_code=error.code,
                     raw={"contact_preflight": error.decision})
             else:
@@ -562,11 +648,28 @@ class Channels:
 
     def register_tasks(self):
         from .ingress import process_event
+        from .supplements import retry, expire
+        from tianshu.runtime.execution import ExecutionLane
 
         async def ingest(**payload):
             return await process_event(self, **payload)
 
         self.runtime.jobs.register("channels.ingest", ingest)
+
+        async def media_supplement(supplement_id):
+            await retry(self, supplement_id)
+
+        async def media_supplement_expire(supplement_id, attempt):
+            await expire(self, supplement_id, attempt)
+
+        self.runtime.jobs.register("channels.media_supplement", media_supplement,
+                                   execution_lane=ExecutionLane.CONVERSATION)
+        self.runtime.jobs.register("channels.media_supplement_expire", media_supplement_expire,
+                                   execution_lane=ExecutionLane.CONVERSATION)
+        self.runtime.jobs.register("channels.resume_delivery", self.resume_delivery,
+                                   execution_lane=ExecutionLane.CONVERSATION)
+        self.runtime.jobs.register("channels.statistics_reconcile", self.reconcile_media_statistics,
+                                   retryable=True, execution_lane=ExecutionLane.CONTROL)
 
         async def cancel(call_id):
             await self.cancel_call(call_id)
@@ -575,6 +678,12 @@ class Channels:
 
     async def withdraw_sources(self, connection, refs, reason="source_revoked"):
         return await self.repository.withdraw_sources(connection, refs, reason)
+
+    async def actors_for_source(self, connection, refs, kind):
+        return await self.repository.actors_for_source(connection, refs, kind)
+
+    async def invalidate_actor(self, connection, refs, kind, *, actor_id):
+        return await self.repository.withdraw_sources(connection, refs, kind, actor_id=actor_id, filter_actor=True)
 
     async def close(self):
         self.owner = False

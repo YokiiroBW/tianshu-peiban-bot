@@ -44,6 +44,10 @@ def build_module(
             Migration(
                 "channels-0001", Path(__file__).with_name("schema.sql").read_text(encoding="utf-8")
             ),
+            Migration(
+                "channels-0002-media-supplements",
+                Path(__file__).with_name("media_supplements.sql").read_text(encoding="utf-8"),
+            ),
         ),
     )
     return module, service

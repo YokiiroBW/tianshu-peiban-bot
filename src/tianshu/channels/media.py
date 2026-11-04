@@ -84,8 +84,13 @@ class Media:
         return await asyncio.to_thread(store)
 
     async def receive(
-        self, context, connection, part, call_api, *, event_id, part_index, revision=1
+        self, context, connection, part, call_api, *, event_id, part_index, revision=1,
+        source_support=(), supplement_revision=None, producer=None, deployment_generation=None,
     ):
+        if supplement_revision is not None and not source_support:
+            raise ChannelError("supplement_original_source_required", 400)
+        if supplement_revision is not None and deployment_generation is None:
+            raise ChannelError("supplement_generation_required", 409)
         metadata = dict(part.metadata)
         try:
             raw_ref = None
@@ -140,10 +145,17 @@ class Media:
                     )
                 if segment["type"] == "record" and descriptor:
                     metadata.update(representation="provider_transcode", original_unavailable=True)
-            source = await self.sources.register_media(
-                context,
-                raw_ref,
-                locator={
+            if supplement_revision is not None:
+                source = await self.sources.register_media_supplement(
+                    context, raw_ref, original_ref=source_support[0],
+                    producer=producer or connection["namespace"] + ":" + connection["id"],
+                    event_id=event_id, event_revision=revision, part_index=part_index,
+                    supplement_revision=supplement_revision, generation=deployment_generation)
+            else:
+                source = await self.sources.register_media(
+                    context,
+                    raw_ref,
+                    locator={
                     "kind": "channel_original"
                     if not metadata.get("original_unavailable")
                     else "channel_media_representation",
@@ -158,9 +170,10 @@ class Media:
                     + event_id,
                     "part_index": part_index,
                     "channel": metadata["channel"],
-                },
-                origin_kind=OriginKind.HUMAN,
-            )
+                    },
+                    origin_kind=OriginKind.HUMAN,
+                    **({"generation": deployment_generation} if deployment_generation is not None else {}),
+                )
             registered = await self.sources.read(
                 context, source, {"position": 0, "max_characters": 1}
             )

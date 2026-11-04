@@ -43,6 +43,7 @@ class InputMessage:
     command: str | None = None
     conversation_kind: str = "unknown"
     autonomous_eligible: bool = False
+    deployment_generation: Any = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +57,7 @@ class ExpressionPlan:
     turn_id: str | None = None
     artifacts: tuple[ArtifactRef, ...] = ()
     candidate_id: str | None = None
+    behavior_refs: tuple[Mapping[str, Any], ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +72,10 @@ class DialogueResult:
     missing: tuple[str, ...] = ()
     revision: int = 1
     error_code: str | None = None
+    context_selection: tuple[Mapping[str, Any], ...] | None = None
+    token_usage: Mapping[str, Any] | None = None
+    provider_usage: Mapping[str, Any] | None = None
+    flow: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)

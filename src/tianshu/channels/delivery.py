@@ -22,6 +22,14 @@ class ContactPreflightStopped(Exception):
         self.code = "contact_preflight_stopped"
 
 
+class BehaviorPreflightPending(Exception):
+    code = "behavior_preflight_pending"
+
+
+class BehaviorPreflightInvalid(Exception):
+    code = "behavior_invalid"
+
+
 class ChannelDelivery:
     def __init__(self, service):
         self.service = service
@@ -80,7 +88,8 @@ class ChannelDelivery:
             expression_id=plan.expression_id,
         )
         return await self.service.actions.invoke(
-            action, background=True, service_class=ServiceClass.INTERACTIVE
+            action, background=True, service_class=ServiceClass.INTERACTIVE,
+            behavior_refs=plan.behavior_refs, behavior_purpose="conversation"
         )
 
     async def get(self, context, expression_id):
@@ -129,6 +138,15 @@ class DeliveryHandler:
 
     async def availability(self, context):
         return Availability(True, True)
+
+    async def behavior_preflight(self, action):
+        from tianshu.conversation.behaviors import behavior_status
+        refs = tuple(action.arguments.get("plan", {}).get("behavior_refs", ()))
+        state, _ = await behavior_status(getattr(self.service, "behavior_resolver", None), action.context, refs)
+        if state == "pending":
+            raise BehaviorPreflightPending()
+        if state == "invalid":
+            raise BehaviorPreflightInvalid()
 
     @staticmethod
     def begun(attempt, rows, *, current_call_id=None):
@@ -195,6 +213,7 @@ class DeliveryHandler:
                 value.get("turn_id"),
                 tuple(artifact_from(x) for x in value.get("artifacts", [])),
                 value.get("candidate_id"),
+                tuple(value.get("behavior_refs", ())),
             )
             identifier = await self.service.repository.prepare_call(
                 action,
@@ -207,7 +226,20 @@ class DeliveryHandler:
             if decision:
                 stopped = await self.stopped(action, attempt, decision)
                 return stopped or await self.reconcile(action, attempt)
+            try:
+                await self.behavior_preflight(action)
+            except BehaviorPreflightPending:
+                await self.service.defer_delivery(action.action_id)
+                return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "pending", "none", "pending",
+                               result={"expression_id": action.expression_id}, error_code="behavior_preflight_pending")
+            except BehaviorPreflightInvalid:
+                from .contracts import TransportResult
+                await self.service.repository.settle(identifier, TransportResult("rejected", error_code="behavior_invalid"))
+                return await self.reconcile(action, attempt)
             async with self.service.runtime.database.transaction() as conn:
+                persisted_call = await self.service.repository.call(identifier)
+                if persisted_call.get("deployment_generation") is not None:
+                    await self.service.runtime.jobs.assert_generation_on(conn, persisted_call["deployment_generation"])
                 if not await self.service.sources.validate_persistence(
                     conn, context, action.source_refs
                 ):
@@ -259,8 +291,59 @@ class DeliveryHandler:
             )
             identifiers.append(call_id)
         for call_id in identifiers:
-            result = await self.service.execute_call(call_id)
+            try:
+                result = await self.service.execute_call(call_id)
+            except ChannelError as error:
+                if error.effect == "unknown":
+                    return await self.reconcile(action, attempt)
+                if error.code not in {"source_revoked", "source_unavailable", "channel_delivery_not_allowed",
+                                      "channel_target_connection_mismatch", "channel_configuration_changed"}:
+                    raise
+                from .contracts import TransportResult
+                for pending_id in identifiers:
+                    pending = await self.service.repository.call(pending_id)
+                    if pending["state"] == "prepared":
+                        await self.service.repository.settle(pending_id, TransportResult("rejected", error_code=error.code))
+                return await self.reconcile(action, attempt)
             if result.state != "confirmed":
+                if result.error_code == "behavior_invalid":
+                    from .contracts import TransportResult
+                    for pending_id in identifiers:
+                        pending = await self.service.repository.call(pending_id)
+                        if pending["state"] == "prepared":
+                            await self.service.repository.settle(pending_id, TransportResult("rejected", error_code="behavior_invalid"))
+                break
+        return await self.reconcile(action, attempt)
+
+    async def resume(self, action, attempt):
+        rows = await self.service.repository.calls_for(action.action_id, attempt.attempt_id)
+        if any(row["state"] in {"unknown", "accepted", "sending"} for row in rows):
+            return await self.reconcile(action, attempt)
+        if rows and rows[0]["api_name"] == "web.publish":
+            return await self.execute(action, attempt)
+        from .contracts import TransportResult
+        for row in rows:
+            if row["state"] != "prepared":
+                continue
+            try:
+                outcome = await self.service.execute_call(row["id"])
+            except ChannelError as error:
+                if error.effect == "unknown":
+                    return await self.reconcile(action, attempt)
+                if error.code not in {"source_revoked", "source_unavailable", "channel_delivery_not_allowed",
+                                      "channel_target_connection_mismatch", "channel_configuration_changed"}:
+                    raise
+                for other in rows:
+                    current = await self.service.repository.call(other["id"])
+                    if current["state"] == "prepared":
+                        await self.service.repository.settle(other["id"], TransportResult("rejected", error_code=error.code))
+                return await self.reconcile(action, attempt)
+            if outcome.state != "confirmed":
+                if outcome.error_code == "behavior_invalid":
+                    for other in rows:
+                        current = await self.service.repository.call(other["id"])
+                        if current["state"] == "prepared":
+                            await self.service.repository.settle(other["id"], TransportResult("rejected", error_code="behavior_invalid"))
                 break
         return await self.reconcile(action, attempt)
 
@@ -322,7 +405,7 @@ class DeliveryHandler:
         else:
             execution, effect, delivery = (
                 "pending",
-                "unknown" if any(row["submitted_at"] for row in rows) else "none",
+                "confirmed" if ids else "unknown" if any(row["submitted_at"] for row in rows) else "none",
                 "pending",
             )
         expected = rows[0]["expected_count"]
@@ -338,8 +421,14 @@ class DeliveryHandler:
             result={
                 "expression_id": action.expression_id,
                 "message_ids": ids,
+                "delivery_progress": ("delivered" if states == {"confirmed"}
+                                      else "partial_unknown" if ids and ("unknown" in states or "sending" in states)
+                                      else "partial" if ids else "none"),
                 "calls": [
-                    {"call_id": row["id"], "api_name": row["api_name"], "state": row["state"]}
+                    {"call_id": row["id"], "api_name": row["api_name"], "state": row["state"],
+                     "submitted_at": wire(row.get("submitted_at")), "completed_at": wire(row.get("completed_at")),
+                     "error_code": (row.get("result") or {}).get("error_code"),
+                     "retcode": (row.get("result") or {}).get("retcode")}
                     for row in rows
                 ],
             },

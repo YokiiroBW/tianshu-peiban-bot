@@ -10,10 +10,11 @@ from tianshu.types import Action,OriginKind,ServiceClass
 from .codec import artifacts,context_from_record,document,receipt,signature,source_refs
 from .types import ExpressionPlan,ExpressionProgress
 from .expression import delivery_state, receipt_advances
+from .behaviors import behavior_status
 
 
 def decode_plan(value):
-    return ExpressionPlan(value["expression_id"],value["actor_id"],value["target_ref"],tuple(value["public_parts"]),source_refs(value["source_refs"]),OriginKind(value["origin_kind"]),value.get("turn_id"),artifacts(value.get("artifacts",())),value.get("candidate_id"))
+    return ExpressionPlan(value["expression_id"],value["actor_id"],value["target_ref"],tuple(value["public_parts"]),source_refs(value["source_refs"]),OriginKind(value["origin_kind"]),value.get("turn_id"),artifacts(value.get("artifacts",())),value.get("candidate_id"),tuple(value.get("behavior_refs", ())))
 
 
 def progress(row):
@@ -25,6 +26,38 @@ class ExpressionRenderer:
         self.database,self.jobs,self.identity,self.sources=database,jobs,identity,sources
         self.actions,self.speech,self.delivery=actions,speech,delivery
         self.contact_preflight = None
+        self.behavior_resolver = None
+
+    def bind_behavior_resolver(self, resolver):
+        self.behavior_resolver = resolver
+        channel_service = getattr(getattr(self.delivery, "channels", None), "service", None)
+        if channel_service is not None:
+            channel_service.bind_behavior_resolver(resolver)
+
+    def bind_statistics(self, statistics):
+        if hasattr(self.delivery, "bind_statistics"):
+            self.delivery.bind_statistics(statistics)
+
+    async def behavior_ready(self, context, plan, *, task, payload):
+        status, _ = await behavior_status(self.behavior_resolver, context, plan.behavior_refs)
+        if status == "invalid":
+            await self._failed(context, plan.expression_id, "behavior_invalid")
+            return False
+        if status == "pending":
+            from datetime import timedelta
+            from uuid import uuid4
+            async with self.database.transaction() as connection:
+                if plan.turn_id:
+                    await connection.execute("UPDATE conversation.turns SET error_code='behavior_pending' "
+                        "WHERE turn_id=%s AND state IN ('running','waiting_expression')", (plan.turn_id,))
+                await self.jobs.enqueue(connection, JobSpec(task, f"behavior-wake:{plan.expression_id}:{uuid4()}",
+                    payload, ServiceClass.INTERACTIVE, datetime.now(UTC)+timedelta(seconds=10), context.actor_id))
+            return False
+        if plan.turn_id:
+            async with self.database.transaction() as connection:
+                await connection.execute("UPDATE conversation.turns SET error_code=NULL WHERE turn_id=%s "
+                    "AND error_code IN ('behavior_pending','behavior_preflight_pending')", (plan.turn_id,))
+        return True
 
     def bind_contact_preflight(self, callback):
         self.contact_preflight = callback
@@ -83,6 +116,9 @@ class ExpressionRenderer:
         if not row or row["state"] not in {"waiting_render","render_unknown"}:
             return
         context,plan=context_from_record(row["context"]),decode_plan(row["plan"])
+        if not await self.behavior_ready(context, plan, task="conversation.expression_render",
+                                         payload={"expression_id": expression_id, "index": index}):
+            return
         await self.identity.check(context,plan.source_refs)
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,plan.source_refs):
@@ -109,7 +145,8 @@ class ExpressionRenderer:
                     return
                 # No ledger entry exists. This is the first registration of the
                 # original action ID, including a crash before invoke.
-                await self.actions.invoke(action,background=True,service_class=ServiceClass(row["service_class"]))
+                await self.actions.invoke(action,background=True,service_class=ServiceClass(row["service_class"]),
+                                          behavior_refs=plan.behavior_refs,behavior_purpose="conversation")
                 current=await self.actions.get(action.action_id,context)
             if current["receipt"] and current["receipt"]["execution"]=="unknown":
                 await self.actions.reconcile(action.action_id,context)
@@ -193,6 +230,12 @@ class ExpressionRenderer:
             return progress(row) if row else None
         context=context_from_record(row["context"])
         plan=decode_plan(row["rendered"] or row["plan"])
+        if not await self.behavior_ready(context, plan, task="conversation.expression_release",
+                                         payload={"expression_id": expression_id}):
+            async with self.database.transaction(read_only=True) as connection:
+                current = await (await connection.execute(
+                    "SELECT * FROM conversation.expression_plans WHERE expression_id=%s", (expression_id,))).fetchone()
+            return progress(current) if current else None
         await self.identity.check(context,plan.source_refs)
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,plan.source_refs):
@@ -213,7 +256,7 @@ class ExpressionRenderer:
                     updated=await (await connection.execute("UPDATE conversation.expression_plans SET state='cancelled',reason='turn_cancelled',revision=revision+1 WHERE expression_id=%s RETURNING *",(expression_id,))).fetchone()
                     await self._event(connection,context,expression_id,updated["revision"])
                     return progress(updated)
-                earlier=await (await connection.execute("SELECT turn_id FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND sequence<%s AND state IN ('collecting','queued','running','waiting_external','waiting_expression') ORDER BY sequence LIMIT 1",(context.actor_id,context.conversation_id,turn["sequence"]))).fetchone()
+                earlier=await (await connection.execute("SELECT turn_id FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND sequence<%s AND state IN ('collecting','queued','running','waiting_external','waiting_expression') AND COALESCE(error_code,'') NOT IN ('behavior_pending','behavior_preflight_pending') ORDER BY sequence LIMIT 1",(context.actor_id,context.conversation_id,turn["sequence"]))).fetchone()
                 if earlier:
                     updated=await (await connection.execute("UPDATE conversation.expression_plans SET state='waiting_order',reason='earlier_turn_pending' WHERE expression_id=%s RETURNING *",(expression_id,))).fetchone()
                     return progress(updated)

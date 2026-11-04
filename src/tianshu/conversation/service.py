@@ -23,6 +23,8 @@ from .types import CollectorPolicy, DialogueResult, ExpressionPlan, InputMessage
 from .collector import ConversationCollector
 from .participation import GroupParticipation
 from .expression import expression_turn_state
+from .context.assembly import ContextMessage
+from .generation import GenerationRequests
 
 
 CHAT_EXECUTION_SECONDS = 15 * 60
@@ -47,6 +49,43 @@ class ConversationService:
         self.catalog, self.actions, self.expression, self.contacts = catalog, actions, expression, contacts
         self.collector = ConversationCollector(database, jobs, policy)
         self.participation = GroupParticipation(self)
+        self.generation = GenerationRequests(database, sources, models)
+        self.statistics = None
+        if hasattr(self.assembler, "bind_behavior_resolver"):
+            self.assembler.bind_behavior_resolver(growth)
+        if hasattr(expression, "bind_behavior_resolver"):
+            expression.bind_behavior_resolver(growth)
+
+    def bind_statistics(self, statistics):
+        self.statistics = statistics
+        if hasattr(self.expression, "bind_statistics"):
+            self.expression.bind_statistics(statistics)
+
+    async def _schedule_statistics_repair(self, connection):
+        if self.statistics is not None:
+            from .observability import schedule_repair_on
+            await schedule_repair_on(self.jobs, connection)
+
+    async def backfill_message_statistics(self, *, after_sequence=0, limit=500):
+        from .observability import backfill_inputs
+        return await backfill_inputs(self, after_sequence=after_sequence, limit=limit)
+
+    async def backfill_delivery_statistics(self, *, after_id="", limit=500):
+        from .observability import backfill_deliveries
+        return await backfill_deliveries(self, after_id=after_id, limit=limit)
+
+    async def reconcile_statistics(self, after_sequence=0, after_id="", inputs_done=False, deliveries_done=False):
+        if self.statistics is None:
+            return
+        inputs = {"complete": True} if inputs_done else await self.backfill_message_statistics(after_sequence=after_sequence)
+        deliveries = {"complete": True} if deliveries_done else await self.backfill_delivery_statistics(after_id=after_id)
+        if not inputs["complete"] or not deliveries["complete"]:
+            async with self.database.transaction() as connection:
+                await self.jobs.enqueue(connection, JobSpec("conversation.statistics_reconcile", "conversation-statistics:"+str(uuid4()),
+                    {"after_sequence": inputs.get("next_cursor") if not inputs["complete"] else after_sequence,
+                     "after_id": deliveries.get("next_cursor") if not deliveries["complete"] else after_id,
+                     "inputs_done": inputs["complete"], "deliveries_done": deliveries["complete"]},
+                    ServiceClass.ELASTIC, datetime.now(UTC)+timedelta(seconds=10), execution_lane=ExecutionLane.CONTROL))
 
     async def execution_lane_on(self, connection, payload):
         row = await (await connection.execute(
@@ -54,7 +93,7 @@ class ConversationService:
         )).fetchone()
         return ExecutionLane.PROACTIVE if row and row["autonomous"] else ExecutionLane.CONVERSATION
 
-    async def _prepare_input(self, context, message: InputMessage):
+    async def _prepare_input(self, context, message: InputMessage, *, connection=None):
         await self.identity.check(context, message.source_refs)
         if not context.actor_id or not context.conversation_id:
             raise AppError("conversation_required")
@@ -63,55 +102,79 @@ class ConversationService:
         self._validate_parts(message.parts)
         actor = await self.companion.actor(context)
         turn_id = str(uuid5(NAMESPACE_URL, f"turn:{context.actor_id}:{context.conversation_id}:{message.producer}:{message.event_id}:{message.revision}"))
-        async with self.database.transaction(read_only=True) as probe:
-            previous = await (await probe.execute("SELECT original_parts,original_source_refs,occurred_at FROM conversation.turns WHERE turn_id=%s", (turn_id,))).fetchone()
+        query = "SELECT original_parts,original_source_refs,original_digest,occurred_at FROM conversation.turns WHERE turn_id=%s"
+        if connection is None:
+            async with self.database.transaction(read_only=True) as probe:
+                previous = await (await probe.execute(query, (turn_id,))).fetchone()
+        else:
+            previous = await (await connection.execute(query, (turn_id,))).fetchone()
         if previous:
-            if signature(previous["original_parts"]) != signature(message.parts):
+            if (previous.get("original_digest") or signature(previous["original_parts"])) != signature(message.parts):
                 raise AppError("event_revision_conflict", status=409)
             refs = source_refs(previous["original_source_refs"])
             message = replace(message, occurred_at=previous["occurred_at"])
         else:
+            options = ({"connection": connection, "generation": message.deployment_generation}
+                       if connection is not None and message.deployment_generation is not None else {})
             refs = await self.sources.record_event(context, producer=message.producer, event_id=message.event_id,
-                revision=message.revision, occurred_at=message.occurred_at, parts=message.parts, origin_kind=context.origin_kind)
+                revision=message.revision, occurred_at=message.occurred_at, parts=message.parts, origin_kind=context.origin_kind,
+                **options)
         # The channel has already resolved an external reply owner; observing never steals it.
         responding = context.delivery_allowed and message.reply_required and message.reply_owner == "tianshu" and actor["enabled"]
         return message, refs, turn_id, responding
 
     async def ingest(self, context, message: InputMessage):
-        message, refs, turn_id, responding = await self._prepare_input(context, message)
-        prepared = await self.participation.prepare(context, message) if not responding else None
+        if message.deployment_generation is None:
+            async with self.database.transaction() as connection:
+                generation = await self.jobs.current_generation_on(connection)
+            message = replace(message, deployment_generation=generation)
         async with self.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, message.deployment_generation)
+            message, refs, turn_id, responding = await self._prepare_input(context, message, connection=connection)
+            prepared = await self.participation.prepare(context, message) if not responding else None
             if not await self.sources.validate_persistence(connection,context,refs):
                 raise AppError("source_unavailable",status=409)
             result = await self.collector.accept(connection, context, message, refs, turn_id, responding)
             await self.participation.offer(connection, context, message, turn_id, prepared)
-        await self._observe_turn(context, turn_id)
+            from .observability import received_on
+            recorded = await received_on(self.statistics, connection, input_id=turn_id, actor_id=context.actor_id,
+                                         occurred_at=message.received_at, reply_required=message.reply_required)
+            if self.statistics is not None and not recorded:
+                await self._schedule_statistics_repair(connection)
+        await self._observe_turn(context, turn_id, deployment_generation=message.deployment_generation)
         return {**result,"source_refs":refs}
 
-    async def _observe_turn(self, context, turn_id):
-        async with self.database.transaction(read_only=True) as connection:
+    async def _observe_turn(self, context, turn_id, *, deployment_generation=None):
+        async with self.database.transaction() as connection:
+            if deployment_generation is not None:
+                await self.jobs.assert_generation_on(connection, deployment_generation)
             row = await (await connection.execute("SELECT * FROM conversation.turns WHERE turn_id=%s AND actor_id=%s AND conversation_id=%s", (turn_id, context.actor_id, context.conversation_id))).fetchone()
-        if not row:
-            raise AppError("turn_not_found", status=404)
-        parts, refs = input_parts(row["original_parts"]), source_refs(row["original_source_refs"])
-        await self.identity.check(context, refs)
-        await self.contacts.received(context, row["occurred_at"], input_id=turn_id)
-        # Coverage describes accepted input parts, not whether attached media was understood.
-        received_all = len(refs) == len(parts)
-        coverage = Coverage(
-            received_all,
-            total=len(parts),
-            missing=() if received_all else ("source_parts_unavailable",),
-            ranges=({"start": 0, "end": len(parts), "unit": "parts"},) if received_all else (),
-            representation="received_input_parts",
-        )
-        await self.memory.observe_episode(context, {"episode_id": "input:"+turn_id, "event_id": row["event_id"],
-            "revision": row["event_revision"], "origin_kind": context.origin_kind, "actor_id": context.actor_id,
-            "subject_id": context.person_id, "occurred_at": row["occurred_at"],
-            "summary": "\n".join(part.text for part in parts if part.text)[:4000], "source_refs": refs,
-            "coverage": coverage,
-            "actual_result": {"reply_owner": row["reply_owner"], "representation": "source_excerpt",
-                              "modalities": [part.kind for part in parts]}})
+            if not row:
+                raise AppError("turn_not_found", status=404)
+            parts, refs = input_parts(row["original_parts"]), source_refs(row["original_source_refs"])
+            await self.identity.check(context, refs)
+            await self.contacts.received(context, row["occurred_at"], input_id=turn_id)
+            # Coverage describes accepted input parts, not whether attached media was understood.
+            unavailable = tuple(
+                f"media_part_unavailable:{index}:{part.metadata.get('error_code', 'media_unavailable')}"
+                for index, part in enumerate(parts)
+                if part.kind in {"image", "audio", "video", "file"} and part.media is None
+            )
+            received_all = len(refs) == len(parts) and not unavailable
+            coverage = Coverage(
+                received_all,
+                total=len(parts),
+                missing=unavailable + (() if len(refs) == len(parts) else ("source_parts_unavailable",)),
+                ranges=({"start": 0, "end": len(parts), "unit": "parts"},) if len(refs) == len(parts) else (),
+                representation="received_input_parts",
+            )
+            await self.memory.observe_episode(context, {"episode_id": "input:"+turn_id, "event_id": row["event_id"],
+                "revision": row["event_revision"], "origin_kind": context.origin_kind, "actor_id": context.actor_id,
+                "subject_id": context.person_id, "occurred_at": row["occurred_at"],
+                "summary": "\n".join(part.text for part in parts if part.text)[:4000], "source_refs": refs,
+                "coverage": coverage,
+                "actual_result": {"reply_owner": row["reply_owner"], "representation": "source_excerpt",
+                                  "modalities": [part.kind for part in parts]}}, connection=connection)
 
     async def send(self, context, body):
         await self.identity.check(context)
@@ -120,11 +183,20 @@ class ConversationService:
         message = InputMessage("web:"+context.principal_id, body["client_request_id"], 1, now, now,
                                parts, conversation_kind=context.conversation_kind)
         turn_id = str(uuid5(NAMESPACE_URL, f"turn:{context.actor_id}:{context.conversation_id}:{message.producer}:{message.event_id}:1"))
-        message, refs, turn_id, responding = await self._prepare_input(context, message)
+        async with self.database.transaction() as connection:
+            generation = await self.jobs.current_generation_on(connection)
+        message = replace(message, deployment_generation=generation)
         async def apply(connection):
+            await self.jobs.assert_generation_on(connection, generation)
+            prepared_message, refs, _, responding = await self._prepare_input(context, message, connection=connection)
             if not await self.sources.validate_persistence(connection,context,refs):
                 raise AppError("source_unavailable",status=409)
-            result = await self.collector.accept(connection, context, message, refs, turn_id, responding)
+            result = await self.collector.accept(connection, context, prepared_message, refs, turn_id, responding)
+            from .observability import received_on
+            recorded = await received_on(self.statistics, connection, input_id=turn_id, actor_id=context.actor_id,
+                                         occurred_at=message.received_at, reply_required=message.reply_required)
+            if self.statistics is not None and not recorded:
+                await self._schedule_statistics_repair(connection)
             return CommandResult(body["client_request_id"], result, 1)
         async def replay(connection, original):
             row = await (await connection.execute("SELECT turn_id,state,merged_into,revision FROM conversation.turns WHERE turn_id=%s", (turn_id,))).fetchone()
@@ -132,7 +204,7 @@ class ConversationService:
                 raise AppError("turn_not_found", status=404)
             return replace(original, data={"turn_id": row["merged_into"] or row["turn_id"], "state": row["state"], "revision": row["revision"]})
         result = await self.commands.execute(context, "conversation.send", body["client_request_id"], signature(body), apply, on_replay=replay)
-        await self._observe_turn(context, turn_id)
+        await self._observe_turn(context, turn_id, deployment_generation=generation)
         return result
 
     async def messages(self, context, *, cursor=None, limit=50, before_id=None):
@@ -140,10 +212,118 @@ class ConversationService:
         limit = min(100, max(1, int(limit)))
         async with self.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute("SELECT * FROM conversation.messages WHERE actor_id=%s AND conversation_id=%s AND scope_ids<@%s::text[] AND (%s::bigint IS NULL OR id<%s) AND (%s::bigint IS NULL OR id<=%s) ORDER BY id DESC LIMIT %s", (context.actor_id, context.conversation_id, list(context.scope_ids), cursor, cursor, before_id, before_id, limit+1))).fetchall()
+        rows = await self._supplemented_messages(context, rows)
         valid = await self.identity.check_many(context, tuple(source_refs(row["source_refs"]) for row in rows[:limit]))
         items = tuple(row for row, allowed in zip(rows[:limit], valid, strict=True) if allowed)
         more = len(rows)>limit
         return Page(items, str(rows[limit-1]["id"]) if more else None, Coverage(not more and all(valid), missing=() if all(valid) else ("source_unavailable",)))
+
+    async def _supplemented_messages(self, context, rows):
+        """Overlay available attachments for reads without rewriting original input."""
+        ids = [row["turn_id"] for row in rows if row.get("turn_id")]
+        if not ids:
+            return rows
+        async with self.database.transaction(read_only=True) as connection:
+            supplements = await (await connection.execute(
+                "SELECT DISTINCT ON (input_id,part_index) * FROM conversation.input_supplements "
+                "WHERE input_id=ANY(%s) ORDER BY input_id,part_index,supplement_revision DESC", (ids,))).fetchall()
+        allowed = await self.identity.check_many(context, tuple(
+            source_refs((item["original_ref"], item["supplement_ref"])) for item in supplements))
+        grouped = {}
+        for item, valid in zip(supplements, allowed, strict=True):
+            if valid:
+                grouped.setdefault(item["input_id"], []).append(item)
+        result = []
+        for row in rows:
+            row = dict(row)
+            parts = [dict(part) for part in row["parts"]]
+            refs = source_refs(row["source_refs"])
+            for item in grouped.get(row.get("turn_id"), ()):
+                index = item["part_index"]
+                if not 0 <= index < len(parts) or parts[index].get("media"):
+                    continue
+                metadata = dict(parts[index].get("metadata") or {})
+                metadata.update(media_unavailable=False, original_pending=False,
+                                supplement_revision=item["supplement_revision"],
+                                supplement_source_ref=item["supplement_ref"])
+                metadata.pop("error_code", None)
+                parts[index] = {**parts[index], "media": item["media"], "metadata": metadata}
+                refs = unique_refs(refs, source_refs((item["supplement_ref"],)))
+            row["parts"], row["source_refs"] = parts, wire(refs)
+            result.append(row)
+        return result
+
+    async def supplement_input(self, connection, context, *, input_id, part_index, original_ref, supplement_ref, media,
+                               deployment_generation=None):
+        """Attach a separate version to an original part, never re-ingest it."""
+        refs = (original_ref, supplement_ref)
+        if deployment_generation is not None:
+            await self.jobs.assert_generation_on(connection, deployment_generation)
+        if not await self.sources.validate_persistence(connection, context, refs):
+            raise AppError("source_unavailable", status=409)
+        row = await (await connection.execute(
+            "SELECT * FROM conversation.turns WHERE turn_id=%s AND actor_id=%s AND conversation_id=%s FOR UPDATE",
+            (input_id, context.actor_id, context.conversation_id))).fetchone()
+        if not row or not 0 <= part_index < len(row["original_parts"]):
+            raise AppError("supplement_original_missing", status=404)
+        original_refs = source_refs(row["original_source_refs"])
+        if part_index >= len(original_refs) or original_refs[part_index] != original_ref:
+            raise AppError("supplement_original_mismatch", status=409)
+        if not await self.sources.validate_media_supplement_on(connection, context, supplement_ref,
+                original_ref=original_ref, producer=row["producer"], event_id=row["event_id"],
+                event_revision=row["event_revision"], part_index=part_index):
+            raise AppError("supplement_source_mismatch", status=409)
+        original = row["original_parts"][part_index]
+        if original["kind"] not in {"image", "audio", "video", "file"} or original.get("media"):
+            raise AppError("supplement_part_not_missing", status=409)
+        content_digest = signature({"sha256": media.sha256, "size": media.size_bytes, "mime": media.mime_type})
+        existing = await (await connection.execute(
+            "SELECT * FROM conversation.input_supplements WHERE input_id=%s AND part_index=%s AND content_digest=%s",
+            (input_id, part_index, content_digest))).fetchone()
+        if existing:
+            return existing["supplement_revision"]
+        head = await (await connection.execute(
+            "SELECT COALESCE(max(supplement_revision),0) AS revision FROM conversation.input_supplements "
+            "WHERE input_id=%s AND part_index=%s", (input_id, part_index))).fetchone()
+        revision = head["revision"] + 1
+        await connection.execute(
+            "INSERT INTO conversation.input_supplements(input_id,part_index,supplement_revision,original_ref,supplement_ref,media,content_digest,deployment_generation) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
+            (input_id, part_index, revision, document(original_ref), document(supplement_ref), document(media), content_digest,
+             document(deployment_generation)))
+        await self.jobs.enqueue(connection, JobSpec("conversation.supplement_notify",
+            f"supplement:{input_id}:{part_index}:{revision}",
+            {"input_id": input_id, "part_index": part_index, "supplement_revision": revision},
+            ServiceClass.ELASTIC, subject_id=context.actor_id, execution_lane=ExecutionLane.CONTROL))
+        return revision
+
+    async def supplement_notify(self, input_id, part_index, supplement_revision):
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT s.*,t.context,t.event_revision,t.event_id FROM conversation.input_supplements s "
+                "JOIN conversation.turns t ON t.turn_id=s.input_id WHERE s.input_id=%s AND s.part_index=%s "
+                "AND s.supplement_revision=%s", (input_id, part_index, supplement_revision))).fetchone()
+        if not row or row["notification_state"] != "pending":
+            return
+        context = context_from_record(row["context"])
+        original_ref, supplement_ref = source_refs((row["original_ref"], row["supplement_ref"]))
+        async with self.database.transaction() as connection:
+            if row["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, row["deployment_generation"])
+            if not await self.sources.validate_persistence(connection, context, (original_ref, supplement_ref)):
+                await connection.execute(
+                    "UPDATE conversation.input_supplements SET notification_state='withdrawn' "
+                    "WHERE input_id=%s AND part_index=%s AND supplement_revision=%s AND notification_state='pending'",
+                    (input_id, part_index, supplement_revision))
+                return
+            await self.memory.supplement_episode(context, episode_id="input:" + input_id,
+                event_id=row["event_id"], event_revision=row["event_revision"], part_index=part_index,
+                supplement_revision=supplement_revision, original_ref=original_ref, supplement_ref=supplement_ref,
+                generation=row["deployment_generation"], connection=connection)
+            await connection.execute(
+                "UPDATE conversation.input_supplements SET notification_state='notified',notified_at=now() "
+                "WHERE input_id=%s AND part_index=%s AND supplement_revision=%s AND notification_state='pending'",
+                (input_id, part_index, supplement_revision))
 
     async def memory_neighborhood(
         self, context, *, cutoff=None, before_id=None, start=None, end=None, event_ids=(), limit=8
@@ -188,6 +368,7 @@ class ConversationService:
                 count += len(refs)
             if groups:
                 valid.extend(await self.sources.check_many_on(connection, context, tuple(groups)))
+        rows = await self._supplemented_messages(context, rows)
         items = []
         for row, allowed in reversed(tuple(zip(rows[:limit], valid, strict=True))):
             if allowed:
@@ -200,6 +381,59 @@ class ConversationService:
                 "coverage": Coverage(len(rows)<=limit and all(valid),
                     missing=() if all(valid) else ("unavailable_conversation_sources",))}
 
+    async def learning_reply(self, context, *, turn_id, expression_id, message_ids=()):
+        """Expose one real turn/receipt to Growth without granting private-table access."""
+        await self.identity.check(context)
+        if (turn_id is not None and not isinstance(turn_id, str) or not isinstance(expression_id, str)
+                or not isinstance(message_ids, (tuple, list))
+                or any(not isinstance(value, str) for value in message_ids)):
+            raise AppError("learning_reply_invalid")
+        async with self.database.transaction(read_only=True) as connection:
+            if turn_id is None:
+                link = await (await connection.execute(
+                    "SELECT turn_id FROM conversation.expressions WHERE expression_id=%s AND actor_id=%s AND conversation_id=%s",
+                    (expression_id, context.actor_id, context.conversation_id))).fetchone()
+                if not link or not link["turn_id"]:
+                    return None
+                turn_id = link["turn_id"]
+            turn = await (await connection.execute(
+                "SELECT * FROM conversation.turns WHERE turn_id=%s AND actor_id=%s AND conversation_id=%s",
+                (turn_id, context.actor_id, context.conversation_id))).fetchone()
+            if not turn or turn["expression_id"] != expression_id:
+                return None
+            expression = await (await connection.execute(
+                "SELECT * FROM conversation.expressions WHERE expression_id=%s AND actor_id=%s AND conversation_id=%s",
+                (expression_id, context.actor_id, context.conversation_id))).fetchone()
+            inputs = await (await connection.execute(
+                "SELECT m.*,t.producer,t.event_id,t.event_revision FROM conversation.messages m "
+                "JOIN conversation.turns t ON t.turn_id=m.turn_id WHERE m.actor_id=%s AND m.conversation_id=%s "
+                "AND m.scope_ids<@%s::text[] AND m.speaker='user' AND (t.turn_id=%s OR t.merged_into=%s) ORDER BY m.id",
+                (context.actor_id, context.conversation_id, list(context.scope_ids), turn_id, turn_id))).fetchall()
+            outputs = await (await connection.execute(
+                "SELECT * FROM conversation.messages WHERE expression_id=%s AND actor_id=%s AND conversation_id=%s "
+                "AND scope_ids<@%s::text[] AND speaker='assistant' ORDER BY id",
+                (expression_id, context.actor_id, context.conversation_id, list(context.scope_ids)))).fetchall()
+        inputs = await self._supplemented_messages(context, inputs)
+        actual = receipt(expression["receipt"]) if expression and expression["receipt"] else None
+        actual_ids = tuple(str(value) for value in (actual.result.get("message_ids", ()) if actual else ()))
+        if message_ids and not set(message_ids) <= set(actual_ids):
+            return None
+        refs = unique_refs(source_refs(turn["source_refs"]),
+            *(source_refs(item["source_refs"]) for item in (*inputs, *outputs)),
+            source_refs(expression["source_refs"]) if expression else ())
+        await self.identity.check(context, refs)
+        def public_input(item):
+            return {"message_id": item["id"], "turn_id": item["turn_id"], "event_id": item["event_id"],
+                    "producer": item["producer"], "revision": item["event_revision"],
+                    "parts": item["parts"], "source_refs": item["source_refs"]}
+        return {"turn_id": turn_id, "expression_id": expression_id, "conversation_id": context.conversation_id,
+                "person_id": context.person_id, "scope_ids": tuple(context.scope_ids), "source_refs": refs,
+                "input_messages": tuple(public_input(item) for item in inputs),
+                "output_messages": tuple({"message_id": item["id"], "parts": item["parts"],
+                                          "source_refs": item["source_refs"]} for item in outputs),
+                "generated": bool(turn["model_parts"]),
+                "delivery_state": actual.delivery if actual else "not_requested", "message_ids": actual_ids}
+
     async def turn(self, context, turn_id):
         await self.identity.check(context)
         async with self.database.transaction(read_only=True) as connection:
@@ -207,14 +441,24 @@ class ConversationService:
             if row and row["merged_into"]:
                 row = await (await connection.execute("SELECT * FROM conversation.turns WHERE turn_id=%s", (row["merged_into"],))).fetchone()
                 turn_id = row["turn_id"]
-            links = await (await connection.execute("SELECT action_id FROM conversation.tool_links WHERE turn_id=%s", (turn_id,))).fetchall()
+            links = await (await connection.execute("SELECT * FROM conversation.tool_links WHERE turn_id=%s ORDER BY call_id", (turn_id,))).fetchall()
+            selections = await (await connection.execute(
+                "SELECT attempt_id,round,selection,token_usage,model_receipt,model_result FROM conversation.context_selections "
+                "WHERE turn_id=%s ORDER BY round,created_at", (turn_id,))).fetchall()
         if not row:
             raise AppError("turn_not_found", status=404)
         await self.identity.check(context, source_refs(row["source_refs"]))
         expression = await self.expression.get(context, row["expression_id"]) if row["expression_id"] else None
+        selection = selections[-1] if selections else None
+        from .flow import dialogue_flow
+        flow = dialogue_flow(row, selections, links, expression, expression)
+        manifest = (tuple(item if item.get("selected") else {**item, "source_refs": []}
+                          for item in selection["selection"]) if selection else None)
+        provider_usage = (selection["model_receipt"] or {}).get("usage") if selection else None
         return DialogueResult(turn_id, row["state"], row["expression_id"], receipt(expression["receipt"]) if expression else None,
             tuple(expression["public_parts"]) if expression else (), tuple(item["action_id"] for item in links),
-            (row["model_attempt_id"],) if row["model_attempt_id"] else (), tuple(row["missing"]), row["revision"], row["error_code"])
+            (row["model_attempt_id"],) if row["model_attempt_id"] else (), tuple(row["missing"]), row["revision"], row["error_code"],
+            manifest, selection["token_usage"] if selection else None, provider_usage, flow)
 
     async def run(self, turn_id):
         async with self.database.transaction() as connection:
@@ -225,6 +469,8 @@ class ConversationService:
             row = await (await connection.execute("SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE", (turn_id,))).fetchone()
             if not row or row["state"] != "queued":
                 return
+            if row["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, row["deployment_generation"])
             busy = await (await connection.execute("SELECT count(*) AS count FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND state='running' AND turn_id<>%s", (row["actor_id"], row["conversation_id"], turn_id))).fetchone()
             if busy["count"] >= self.collector.policy.max_active_turns:
                 return  # The running owner schedules the oldest queued turn when releasing this lane.
@@ -237,10 +483,18 @@ class ConversationService:
             if row.get("autonomous"):
                 lease = min(deadline, lease)
             row = await (await connection.execute(
-                "UPDATE conversation.turns SET state='running',started_at=now(),model_attempt_id=%s,lease_until=%s,deadline_at=%s "
+                "UPDATE conversation.turns SET state='running',error_code=NULL,started_at=COALESCE(started_at,now()),model_attempt_id=%s,lease_until=%s,deadline_at=%s "
                 "WHERE turn_id=%s RETURNING *", (attempt_id, lease, deadline, turn_id))).fetchone()
             await self.jobs.enqueue(connection, JobSpec("conversation.expire", f"turn-lease:{turn_id}:{attempt_id}",
                 {"turn_id": turn_id, "attempt_id": attempt_id}, ServiceClass.INTERACTIVE, lease, row["actor_id"]))
+            from .observability import processed_on
+            inputs = await (await connection.execute(
+                "SELECT turn_id FROM conversation.turns WHERE turn_id=%s OR merged_into=%s ORDER BY sequence", (turn_id, turn_id))).fetchall()
+            for item in inputs:
+                recorded = await processed_on(self.statistics, connection, input_id=item["turn_id"], actor_id=row["actor_id"],
+                                               occurred_at=row["started_at"])
+                if self.statistics is not None and not recorded:
+                    await self._schedule_statistics_repair(connection)
         context = context_from_record(row["context"])
         try:
             try:
@@ -257,89 +511,539 @@ class ConversationService:
                 await self._model_turn(context, row, attempt_id, choices)
         except BaseException as error:
             if isinstance(error, asyncio.CancelledError):
-                await self.models.cancel(attempt_id)
+                await self.models.cancel(attempt_id, reason="consumer_interrupted")
             code = getattr(error, "code", "turn_outcome_unknown")
             known = isinstance(error, TurnRejected)
             async with self.database.transaction() as connection:
+                if row["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, row["deployment_generation"])
                 await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() WHERE turn_id=%s AND state='running'", ("failed" if known else "unknown", code, turn_id))
             if isinstance(error, asyncio.CancelledError):
                 raise
         finally:
             await self._next(row["actor_id"], row["conversation_id"])
 
+    async def _context_history(self, context, row, query):
+        """Read complete original messages; selection determines their direct dependencies."""
+        input_items = input_parts(row["input_parts"])
+        reply_ids = {str(value) for part in input_items for value in (
+            part.metadata.get("reply_to_event_id"), part.metadata.get("event_id")
+        ) if part.kind in {"reply", "reference", "quote"} and value}
+        async with self.database.transaction(read_only=True) as connection:
+            rows = await (await connection.execute(
+                "SELECT m.*,t.producer,t.event_id,t.event_revision,t.merged_into,t.occurred_at "
+                "FROM conversation.messages m LEFT JOIN conversation.turns t ON t.turn_id=m.turn_id "
+                "WHERE m.actor_id=%s AND m.conversation_id=%s AND m.scope_ids<@%s::text[] AND m.id<=%s "
+                "AND (m.id IN (SELECT id FROM conversation.messages WHERE actor_id=%s AND conversation_id=%s "
+                "AND scope_ids<@%s::text[] AND id<=%s ORDER BY id DESC LIMIT 30) "
+                "OR t.turn_id=%s OR t.merged_into=%s OR t.event_id=ANY(%s::text[])) ORDER BY m.id",
+                (context.actor_id, context.conversation_id, list(context.scope_ids), row["message_cutoff"],
+                 context.actor_id, context.conversation_id, list(context.scope_ids), row["message_cutoff"],
+                 row["turn_id"], row["turn_id"], list(reply_ids)))).fetchall()
+        rows = await self._supplemented_messages(context, rows)
+        current = [index for index, item in enumerate(rows)
+                   if item["turn_id"] == row["turn_id"] or item.get("merged_into") == row["turn_id"]]
+        if not current:
+            raise AppError("context_current_input_unavailable", status=409)
+        required = set(current)
+        required.update(index for index, item in enumerate(rows) if item.get("event_id") in reply_ids)
+        # Deterministic anaphora needs the immediately preceding exchange. A
+        # richer reference is retained explicitly when its event ID is known.
+        if reply_ids or any(token in query for token in (
+                "刚才", "之前", "上面", "上一", "那个", "这个", "第二", "第一", "刚刚", "那种", "它", "they", "that", "earlier")):
+            required.update(range(max(0, current[0] - 2), current[0]))
+        result = []
+        for index, item in enumerate(rows):
+            result.append(ContextMessage(
+                self._message(item["speaker"], item["parts"]), source_refs(item["source_refs"]),
+                {"message_id": item["id"], "turn_id": item["turn_id"], "producer": item.get("producer"),
+                 "event_id": item.get("event_id"), "revision": item.get("event_revision"),
+                 "reply_to": [part.get("metadata", {}).get("reply_to_event_id") or part.get("metadata", {}).get("event_id")
+                              for part in item["parts"] if part.get("kind") in {"reply", "reference"}],
+                 "missing_parts": [{"index": part_index, "kind": part["kind"],
+                                    "reason": part.get("metadata", {}).get("error_code", "media_unavailable")}
+                                   for part_index, part in enumerate(item["parts"])
+                                   if part.get("kind") in {"image", "audio", "video", "file"} and not part.get("media")],
+                 "missing_references": [{"index": part_index,
+                    "reason": part.get("metadata", {}).get("lookup_unavailable") or "quoted_content_partial"}
+                    for part_index, part in enumerate(item["parts"]) if part.get("kind") in {"reply", "reference"}
+                    and (part.get("metadata", {}).get("lookup_unavailable") or
+                         part.get("metadata", {}).get("quoted_parts_complete") is False)],
+                 "speaker": item["speaker"]}, index in required))
+        for index, item in enumerate(row["continuation"]):
+            result.append(ContextMessage(self._message(item["role"], item["parts"], item.get("native", {})),
+                source_refs(row["source_refs"]), {"kind": "tool_continuation", "index": index}, True))
+        return tuple(result)
+
     async def _prepare_model_request(self, context, row, attempt_id, choices):
         actor = await self.companion.actor(context)
         persona = await self.companion.persona(context, actor["persona_id"], actor["persona_revision"]) if actor["persona_id"] else None
-        state = await self.life.state(context)
-        commitments = await self.life.commitments(context, limit=20)
-        life_refs = unique_refs(tuple(ref for ref in (
-            *state["affect"]["source_refs"],
-            *(source_refs(state["activity"]["source_refs"]) if state["activity"] else ()),
-            *(ref for item in commitments.items for ref in source_refs(item["source_refs"])))))
-        material = {"current_activity": state["activity"], "local_timezone": state["timezone"],
-                    "short_term_feelings": state["affect"]["feelings"], "expression_direction": state["affect"]["regulation"]["expression_direction"],
-                    "commitments": wire(commitments.items),"expression":await self.expression.hint(context)}
-        contributions = (ContextContribution("life_and_feelings", json.dumps(wire(material), ensure_ascii=False),
-            life_refs, context.scope_ids, 65),) + await self.growth.material(context)
-        recent = await self.messages(context, limit=30, before_id=row["message_cutoff"])
-        conversation_refs = unique_refs(tuple(ref for ref in (
-            *source_refs(row["source_refs"]), *(ref for item in recent.items for ref in source_refs(item["source_refs"])))))
-        contributions += (ContextContribution("current_input_sources", "", source_refs(row["source_refs"]),context.scope_ids,100,True),)
+        budget = RequestBudget(row["deadline_at"])
+        if budget.remaining() <= 0:
+            raise AppError("deadline_exceeded", status=408)
+        query = "\n".join(part.text for part in input_parts(row["input_parts"]) if part.text)
+
+        async def life_material():
+            state, commitments, hint = await asyncio.gather(
+                self.life.state(context), self.life.commitments(context, limit=20), self.expression.hint(context))
+            refs = unique_refs(tuple(ref for ref in (
+                *state["affect"]["source_refs"],
+                *(source_refs(state["activity"]["source_refs"]) if state["activity"] else ()),
+                *(ref for item in commitments.items for ref in source_refs(item["source_refs"])))))
+            material = {"current_activity": state["activity"], "local_timezone": state["timezone"],
+                "short_term_feelings": state["affect"]["feelings"],
+                "expression_direction": state["affect"]["regulation"]["expression_direction"],
+                "commitments": wire(commitments.items), "expression": hint}
+            return (ContextContribution("life_and_feelings", json.dumps(wire(material), ensure_ascii=False),
+                                        refs, context.scope_ids, 65),)
+
+        async def growth_material():
+            return await self.growth.material(context, purpose="conversation", query=query, budget=budget)
+
+        async def group_terms():
+            if context.conversation_kind != "group" or not query:
+                return ()
+            values = await self.memory.group_term_meanings(context, query, limit=8)
+            try:
+                async with self.database.transaction() as connection:
+                    if row["deployment_generation"] is not None:
+                        await self.jobs.assert_generation_on(connection, row["deployment_generation"])
+                    await self.memory.record_group_term_usage(context, row["event_id"],
+                        tuple((value.claim_id, value.revision) for value in values),
+                        outcome="matched" if values else "no_match")
+            except Exception:
+                # Usage accounting cannot turn an available term into a failed read.
+                pass
+            return tuple(ContextContribution("group_term_meaning", json.dumps(wire(value), ensure_ascii=False),
+                tuple(value.source_refs), context.scope_ids, 66, False,
+                content_revision=f"group_term:{value.claim_id}:{value.revision}",
+                material_id="group_term:" + value.claim_id, semantic_role="current_fact") for value in values)
+
+        async def optional(reader):
+            try:
+                async with asyncio.timeout(min(2.0, max(budget.remaining() - 0.1, 0.01))):
+                    return await reader(), None
+            except Exception as error:
+                return (), type(error).__name__
+
+        life_result, growth_result, terms_result, recent = await asyncio.gather(
+            optional(life_material), optional(growth_material), optional(group_terms), self._context_history(context, row, query))
+        growth_materials = tuple(replace(item, mandatory=True, priority=100)
+            if item.semantic_role in {"constraint", "prohibition", "explicit_constraint"} else item
+            for item in growth_result[0])
+        contributions = tuple(life_result[0]) + growth_materials + tuple(terms_result[0])
+        optional_missing = tuple(name for name, result in (("life_context_unavailable", life_result),
+            ("growth_context_unavailable", growth_result), ("group_terms_unavailable", terms_result)) if result[1])
+        contributions += (ContextContribution("current_input_sources", "", source_refs(row["source_refs"]),
+                                              context.scope_ids, 100, True),)
+        async with self.database.transaction(read_only=True) as connection:
+            previous = await (await connection.execute(
+                "SELECT selection FROM conversation.context_selections WHERE turn_id=%s AND round<%s "
+                "AND model_receipt->>'dispatch'='submitted' ORDER BY round,created_at",
+                (row["turn_id"], row["round"]))).fetchall()
+        from .behaviors import unique_behavior_refs
+        inherited = unique_behavior_refs(*(self._selected_behavior_refs(item["selection"]) for item in previous))
+        contributions += tuple(ContextContribution("prior_behavior_dependency", "", (), context.scope_ids, 100, True,
+            content_revision=str(ref.get("semantic_revision")) if ref.get("semantic_revision") is not None else None,
+            material_id="prior-behavior:"+str(ref.get("rule_id"))+":"+str(ref.get("revision")),
+            semantic_role=ref.get("semantic_role"), behavior_ref=ref) for ref in inherited)
         if row.get("autonomous"):
             contributions += (ContextContribution("group_participation_origin",
                 "This is the character's unsolicited contribution to a public group topic, not a direct human command. "
                 "Be brief, respect the current group audience, and do not invent a personal request or disclose private context.",
                 (), context.scope_ids, 100, True),)
-        contributions += (ContextContribution("conversation_provenance", "近期消息和工具结果仍受各自原来源约束。",
-            conversation_refs, context.scope_ids, 95, True),)
-        messages = tuple(self._message(item["speaker"], item["parts"]) for item in reversed(recent.items))
-        continuation = tuple(self._message(item["role"], item["parts"], item.get("native", {})) for item in row["continuation"])
         tools, tool_map = self._tools(choices)
-        budget = RequestBudget(row["deadline_at"])
-        if budget.remaining() <= 0:
-            raise AppError("deadline_exceeded", status=408)
         input_budget = ({"max_input_tokens": BACKGROUND_INPUT_TOKENS + AUTONOMOUS_OUTPUT_RESERVE,
                          "reserved_output_tokens": AUTONOMOUS_OUTPUT_RESERVE} if row.get("autonomous") else {})
-        pack = await self.assembler.assemble(context, "chat", "\n".join(part.text for part in input_parts(row["input_parts"]) if part.text), budget,
-            persona_text=persona.prompt_text if persona else "", recent_messages=messages+continuation,
-            tools=tools, contributions=contributions, **input_budget)
+        pack = await self.assembler.assemble(context, "chat", query, budget,
+            persona_text=persona.prompt_text if persona else "", recent_units=recent, query_is_present=True,
+            tools=tools, contributions=contributions, behavior_resolver=self.growth, **input_budget)
+        media_missing = tuple(f"media_part_unavailable:{record.get('message_id')}:{part['index']}:{part['reason']}"
+            for entry in pack.selection if entry.get("selected") for record in entry.get("records", ())
+            for part in record.get("missing_parts", ()))
+        reference_missing = tuple(f"reference_unavailable:{record.get('message_id')}:{part['index']}:{part['reason']}"
+            for entry in pack.selection if entry.get("selected") for record in entry.get("records", ())
+            for part in record.get("missing_references", ()))
+        if optional_missing or media_missing or reference_missing:
+            pack = replace(pack, missing=tuple(dict.fromkeys((*pack.missing, *optional_missing, *media_missing, *reference_missing))))
         required = {"text"}
         if tools:
             required.add("tools")
-        required.update("vision" if part.kind == "image" else part.kind for message in pack.messages for part in message.parts if part.kind in {"image", "audio", "video"})
+        required.update("vision" if part.kind == "image" else part.kind for message in pack.messages
+                        for part in message.parts if part.kind in {"image", "audio", "video"})
         if budget.remaining() <= 0:
             raise AppError("deadline_exceeded", status=408)
-        request = ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat", ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
-            context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools), required_capabilities=frozenset(required),
-            estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None,
+        request = ModelRequest(row["turn_id"]+":"+str(row["round"]), attempt_id, "chat",
+            ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
+            context, budget, tuple(pack.messages), system=pack.system, tools=tuple(pack.tools),
+            required_capabilities=frozenset(required), estimated_input_tokens=pack.token_usage.estimated_tokens,
+            source_refs=tuple(pack.source_refs), persona_revision=persona.revision if persona else None,
             execution_timeout_seconds=float(CHAT_EXECUTION_SECONDS),
-            business_deadline_at=_business_deadline(row), provider_session_scope="conversation")
+            business_deadline_at=_business_deadline(row), provider_session_scope="conversation",
+            behavior_refs=self._selected_behavior_refs(pack.selection), behavior_purpose="conversation",
+            data_generation=row["deployment_generation"])
         return request, pack, tool_map
 
     async def _model_turn(self, context, row, attempt_id, choices):
         try:
-            request, pack, tool_map = await self._prepare_model_request(context, row, attempt_id, choices)
+            for retry in range(2):
+                request, pack, tool_map = await self._prepare_model_request(context, row, attempt_id, choices)
+                try:
+                    async with self.database.transaction() as connection:
+                        fresh = await lock_material_row(connection, self.sources, context,
+                            "SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE",
+                            (row["turn_id"],), additional_refs=tuple(pack.source_refs))
+                        if not fresh or fresh["state"] != "running" or fresh["model_attempt_id"] != attempt_id:
+                            return
+                        generation = row["deployment_generation"]
+                        if generation is not None:
+                            await self.jobs.assert_generation_on(connection, generation)
+                        elif fresh["deployment_generation"] is None:
+                            generation = await self.jobs.current_generation_on(connection)
+                            await connection.execute("UPDATE conversation.turns SET deployment_generation=%s WHERE turn_id=%s",
+                                                     (generation, row["turn_id"]))
+                        else:
+                            return
+                        if request.data_generation != generation:
+                            request = replace(request, data_generation=generation)
+                        frozen = await (await connection.execute(
+                            "INSERT INTO conversation.context_selections(attempt_id,turn_id,round,request_digest,selection,token_usage,source_refs,round_snapshot,deployment_generation) "
+                            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(attempt_id) DO NOTHING RETURNING request_digest",
+                            (attempt_id, row["turn_id"], row["round"], signature(request),
+                             document(pack.selection), document(pack.token_usage), document(pack.source_refs),
+                             document({"ordered_parts": row["ordered_parts"], "continuation": row["continuation"],
+                                       "artifacts": row["artifacts"]}), document(generation)))).fetchone()
+                        if not frozen:
+                            old = await (await connection.execute(
+                                "SELECT request_digest FROM conversation.context_selections WHERE attempt_id=%s",
+                                (attempt_id,))).fetchone()
+                            if not old or old["request_digest"] != signature(request):
+                                raise AppError("context_attempt_conflict", status=409)
+                        await self.generation.prepare(f"turn:{row['turn_id']}:{row['round']}", request, connection=connection)
+                        await connection.execute(
+                            "UPDATE conversation.turns SET state='waiting_external',source_refs=%s,missing=%s,tool_dispatch_complete=false "
+                            "WHERE turn_id=%s AND state='running' AND model_attempt_id=%s",
+                            (document(pack.source_refs), list(pack.missing), row["turn_id"], attempt_id))
+                        await self.jobs.enqueue(connection, JobSpec("conversation.model_submit", "model-submit:"+attempt_id,
+                            {"turn_id": row["turn_id"], "attempt_id": attempt_id},
+                            ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
+                            subject_id=context.actor_id, execution_lane=ExecutionLane.CONVERSATION,
+                            data_generation=generation))
+                        await self.jobs.enqueue(connection, JobSpec("conversation.model_complete", "model-observe:"+attempt_id,
+                            {"turn_id": row["turn_id"], "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
+                            datetime.now(UTC)+timedelta(seconds=10), context.actor_id,
+                            execution_lane=ExecutionLane.CONVERSATION, data_generation=generation))
+                    break
+                except AppError as error:
+                    if retry == 0 and error.code in {"source_unavailable", "revision_conflict"}:
+                        continue
+                    raise
         except AppError as error:
+            if error.code == "context_behavior_pending":
+                async with self.database.transaction() as connection:
+                    if row["deployment_generation"] is not None:
+                        await self.jobs.assert_generation_on(connection, row["deployment_generation"])
+                    changed = await (await connection.execute(
+                        "UPDATE conversation.turns SET state='queued',error_code='behavior_pending' "
+                        "WHERE turn_id=%s AND state='running' AND model_attempt_id=%s RETURNING actor_id",
+                        (row["turn_id"], attempt_id))).fetchone()
+                    if changed:
+                        await self.jobs.enqueue(connection, JobSpec("conversation.run", f"behavior-turn:{row['turn_id']}:{uuid4()}",
+                            {"turn_id": row["turn_id"]}, ServiceClass.INTERACTIVE,
+                            datetime.now(UTC)+timedelta(seconds=10), context.actor_id,
+                            execution_lane=ExecutionLane.CONVERSATION, data_generation=row["deployment_generation"]))
+                return
             # This boundary has not called ModelClient.generate or admitted this attempt.
             raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
+        # Submission and observation are durable jobs; no model wait owns the
+        # conversation worker or the short session lock.
+        return
+
+    @staticmethod
+    def _selected_behavior_refs(selection):
+        from .behaviors import unique_behavior_refs
+        return unique_behavior_refs(*(tuple(entry.get("behavior_refs", ())) for entry in selection if entry.get("selected")))
+
+    async def model_submit(self, turn_id, attempt_id):
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT * FROM conversation.turns WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'",
+                (turn_id, attempt_id))).fetchone()
+            frozen = await (await connection.execute(
+                "SELECT * FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not row or not frozen or frozen["consumed_at"] is not None:
+            return
+        context = context_from_record(row["context"])
+        async with self.database.transaction() as connection:
+            if frozen["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+        from .behaviors import behavior_status
+        status, _ = await behavior_status(self.growth, context, self._selected_behavior_refs(frozen["selection"]))
+        if status == "invalid":
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute("UPDATE conversation.turns SET state='failed',error_code='behavior_invalid',completed_at=now() "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
+            await self._next(row["actor_id"], row["conversation_id"])
+            return
+        if status == "pending":
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute("UPDATE conversation.turns SET error_code='behavior_pending' "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
+            await self._schedule_model_observation(row, attempt_id, submit=True)
+            return
+        request = await self.generation.request(attempt_id, context)
+        if request is None:
+            raise AppError("generation_request_not_found", status=404)
+        await self.identity.check(context, request.source_refs)
+        completion = JobSpec("conversation.model_complete", "model-complete:"+attempt_id,
+            {"turn_id": turn_id, "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
+            subject_id=context.actor_id, execution_lane=ExecutionLane.CONVERSATION,
+            data_generation=frozen["deployment_generation"])
         try:
-            result = await self.models.generate(request)
+            accepted = await self.models.submit(request, completion=completion)
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s "
+                                         "WHERE attempt_id=%s AND model_receipt IS NULL",
+                                         (document(accepted), attempt_id))
+                if accepted.dispatch == "submitted":
+                    await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
+                                                      actor_id=row["actor_id"], outcome="selected")
         except Exception:
-            # An RPC can still arrive late even when a read currently finds no attempt.
-            # Only an actual terminal receipt settles that uncertainty; never resubmit.
-            original = None
-            try:
-                original = await self.models.result(attempt_id, context=context)
-            except Exception:
-                pass
-            if original is None or original.receipt.status not in {"succeeded", "failed", "cancelled"}:
-                raise
-            result = original
+            # Submission may have reached Models. The next job observes the same
+            # attempt first; only an authoritative absence re-admits this exact ID.
+            await self._schedule_model_observation(row, attempt_id)
+
+    async def _schedule_model_observation(self, row, attempt_id, *, submit=False):
+        task = "conversation.model_submit" if submit else "conversation.model_complete"
+        async with self.database.transaction() as connection:
+            if row["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, row["deployment_generation"])
+            await self.jobs.enqueue(connection, JobSpec(task, f"model-wake:{attempt_id}:{uuid4()}",
+                {"turn_id": row["turn_id"], "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
+                datetime.now(UTC)+timedelta(seconds=10), row["actor_id"],
+                execution_lane=ExecutionLane.CONVERSATION, data_generation=row["deployment_generation"]))
+
+    async def _enqueue_example_usage(self, connection, *, attempt_id, turn_id, actor_id, outcome, expression_id=None):
+        await self.jobs.enqueue(connection, JobSpec("conversation.example_usage",
+            f"example-usage:{attempt_id}:{outcome}:{expression_id or '-'}", {"attempt_id": attempt_id,
+            "turn_id": turn_id, "outcome": outcome, "expression_id": expression_id}, ServiceClass.ELASTIC,
+            subject_id=actor_id, execution_lane=ExecutionLane.CONTROL))
+
+    async def record_example_usage(self, attempt_id, turn_id, outcome, expression_id=None):
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT s.selection,s.model_receipt,t.context,t.expression_id FROM conversation.context_selections s "
+                "JOIN conversation.turns t ON t.turn_id=s.turn_id WHERE s.attempt_id=%s AND s.turn_id=%s",
+                (attempt_id, turn_id))).fetchone()
+            expression = None
+            if expression_id:
+                expression = await (await connection.execute(
+                    "SELECT receipt FROM conversation.expressions WHERE expression_id=%s AND turn_id=%s",
+                    (expression_id, turn_id))).fetchone()
+        if not row or not row["model_receipt"] or row["model_receipt"].get("dispatch") != "submitted":
+            return
+        identifiers = tuple(dict.fromkeys(entry["material_id"][len("growth-example:"):]
+            for entry in row["selection"] if entry.get("selected") and entry.get("kind") == "expression_example"
+            and isinstance(entry.get("material_id"), str) and entry["material_id"].startswith("growth-example:")))
+        if not identifiers:
+            return
+        if outcome in {"expressed", "delivered"} and row["expression_id"] != expression_id:
+            return
+        if outcome == "delivered" and (not expression or not expression["receipt"]
+                                       or expression["receipt"].get("delivery") != "delivered"):
+            return
+        context = context_from_record(row["context"])
+        await self.growth.record_example_usage(context, identifiers, usage_id=attempt_id, outcome=outcome,
+                                                turn_id=turn_id, expression_id=expression_id)
+
+    async def model_complete(self, turn_id, attempt_id):
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT * FROM conversation.turns WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'",
+                (turn_id, attempt_id))).fetchone()
+            frozen = await (await connection.execute(
+                "SELECT * FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not row or not frozen or frozen["consumed_at"] is not None:
+            return
+        context = context_from_record(row["context"])
+        try:
+            result = await self.models.result(attempt_id, context=context)
+        except Exception:
+            await self._schedule_model_observation(row, attempt_id)
+            return
+        if result is None:
+            # Broker's successful absence permits the same immutable admission.
+            await self._schedule_model_observation(row, attempt_id, submit=True)
+            return
+        if result.receipt.status not in {"succeeded", "failed", "cancelled"}:
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute(
+                    "UPDATE conversation.context_selections SET model_receipt=%s WHERE attempt_id=%s "
+                    "AND consumed_at IS NULL AND (model_receipt IS NULL OR model_receipt->>'status' NOT IN ('succeeded','failed','cancelled'))",
+                    (document(result.receipt), attempt_id))
+                if result.receipt.dispatch == "submitted":
+                    await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
+                                                      actor_id=row["actor_id"], outcome="selected")
+                if result.receipt.status == "unknown":
+                    changed = await (await connection.execute("UPDATE conversation.turns SET state='unknown',error_code=%s "
+                        "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external' RETURNING turn_id",
+                        (result.receipt.error_code or "model_outcome_unknown", turn_id, attempt_id))).fetchone()
+                    if changed:
+                        await self.jobs.enqueue(connection, JobSpec("conversation.model_observe_unknown",
+                            f"model-unknown:{attempt_id}:{uuid4()}", {"turn_id": turn_id, "attempt_id": attempt_id},
+                            ServiceClass.INTERACTIVE, datetime.now(UTC)+timedelta(seconds=60), row["actor_id"],
+                            execution_lane=ExecutionLane.CONVERSATION))
+            if result.receipt.status == "unknown":
+                await self._next(row["actor_id"], row["conversation_id"])
+                return
+            await self._schedule_model_observation(row, attempt_id)
+            return
+        from .behaviors import behavior_status
+        refs = self._selected_behavior_refs(frozen["selection"])
+        status, _ = (await behavior_status(self.growth, context, refs)
+                     if result.receipt.status == "succeeded" else ("valid", ()))
+        if status == "pending":
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute("UPDATE conversation.turns SET error_code='behavior_pending' "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
+            await self._schedule_model_observation(row, attempt_id)
+            return
+        if status == "invalid":
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute("UPDATE conversation.turns SET state='failed',error_code='behavior_invalid',completed_at=now() "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumed_at=now() WHERE attempt_id=%s",
+                    (document(result.receipt), document(result), attempt_id))
+                if result.receipt.dispatch == "submitted":
+                    await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
+                                                      actor_id=row["actor_id"], outcome="selected")
+            await self._next(row["actor_id"], row["conversation_id"])
+            return
+        source_invalid = False
+        async with self.database.transaction() as connection:
+            if frozen["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+            if not await self.sources.validate_persistence(connection, context, source_refs(frozen["source_refs"])):
+                source_invalid = True
+                await connection.execute("UPDATE conversation.turns SET state='failed',error_code='source_unavailable',completed_at=now() "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,consumed_at=now() WHERE attempt_id=%s",
+                                         (document(result.receipt), attempt_id))
+            else:
+                claimed = await (await connection.execute(
+                    "UPDATE conversation.turns SET state='running',error_code=NULL,lease_until=now()+interval '5 minutes' "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external' RETURNING *",
+                    (turn_id, attempt_id))).fetchone()
+                if not claimed:
+                    return
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s WHERE attempt_id=%s",
+                                         (document(result.receipt), document(result), attempt_id))
+                if result.receipt.dispatch == "submitted":
+                    await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
+                                                      actor_id=row["actor_id"], outcome="selected")
+                await self.jobs.enqueue(connection, JobSpec("conversation.model_consume_expire", f"model-consume:{attempt_id}:{uuid4()}",
+                    {"turn_id": turn_id, "attempt_id": attempt_id}, ServiceClass.INTERACTIVE, claimed["lease_until"],
+                    row["actor_id"], execution_lane=ExecutionLane.CONVERSATION))
+        if source_invalid:
+            await self._next(row["actor_id"], row["conversation_id"])
+            return
+        from types import SimpleNamespace
+        pack = SimpleNamespace(source_refs=source_refs(frozen["source_refs"]), missing=tuple(claimed["missing"]),
+                               behavior_refs=refs, selection=frozen["selection"], deployment_generation=frozen["deployment_generation"])
+        snapshot = frozen["round_snapshot"]
+        claimed.update(ordered_parts=snapshot["ordered_parts"], continuation=snapshot["continuation"],
+                       artifacts=snapshot["artifacts"])
+        consumed = False
+        try:
+            choices = await self.catalog.discover(context)
+            _, tool_map = self._tools(choices)
+            await self._consume_model_result(context, claimed, attempt_id, pack, tool_map, result)
+            consumed = True
+        except Exception as error:
+            async with self.database.transaction() as connection:
+                if frozen["deployment_generation"] is not None:
+                    await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                await connection.execute("UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND state='running'",
+                    ("failed" if isinstance(error, TurnRejected) else "unknown",
+                     getattr(error, "code", "turn_outcome_unknown"), turn_id, attempt_id))
+            consumed = True
+        finally:
+            if consumed:
+                async with self.database.transaction() as connection:
+                    if frozen["deployment_generation"] is not None:
+                        await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                    await connection.execute("UPDATE conversation.context_selections SET consumed_at=now() WHERE attempt_id=%s", (attempt_id,))
+            await self._next(row["actor_id"], row["conversation_id"])
+
+    async def model_consume_expire(self, turn_id, attempt_id):
+        async with self.database.transaction() as connection:
+            selected = await (await connection.execute(
+                "SELECT deployment_generation FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
+            if not selected:
+                return
+            if selected["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, selected["deployment_generation"])
+            row = await (await connection.execute(
+                "UPDATE conversation.turns SET state='waiting_external' WHERE turn_id=%s AND model_attempt_id=%s "
+                "AND state='running' AND lease_until<=now() RETURNING *", (turn_id, attempt_id))).fetchone()
+        if row:
+            await self._schedule_model_observation(row, attempt_id)
+
+    async def model_observe_unknown(self, turn_id, attempt_id):
+        """Observe the original uncertain attempt without initiating an old reply."""
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute("SELECT * FROM conversation.turns WHERE turn_id=%s "
+                "AND model_attempt_id=%s AND state='unknown'", (turn_id, attempt_id))).fetchone()
+            frozen = await (await connection.execute("SELECT * FROM conversation.context_selections WHERE attempt_id=%s",
+                                                     (attempt_id,))).fetchone()
+        if not row or not frozen:
+            return
+        context = context_from_record(row["context"])
+        try:
+            result = await self.models.result(attempt_id, context=context)
+        except Exception:
+            result = None
+        terminal = result is not None and result.receipt.status in {"succeeded", "failed", "cancelled"}
+        async with self.database.transaction() as connection:
+            if frozen["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+            if terminal:
+                if not await self.sources.validate_persistence(connection, context, source_refs(frozen["source_refs"])):
+                    return
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumed_at=now() WHERE attempt_id=%s",
+                                         (document(result.receipt), document(result), attempt_id))
+                if result.receipt.dispatch == "submitted":
+                    await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
+                                                      actor_id=row["actor_id"], outcome="selected")
+                await connection.execute("UPDATE conversation.turns SET error_code=%s WHERE turn_id=%s AND model_attempt_id=%s AND state='unknown'",
+                    ("model_late_"+result.receipt.status+"_unexpressed", turn_id, attempt_id))
+            else:
+                await self.jobs.enqueue(connection, JobSpec("conversation.model_observe_unknown",
+                    f"model-unknown:{attempt_id}:{uuid4()}", {"turn_id": turn_id, "attempt_id": attempt_id},
+                    ServiceClass.INTERACTIVE, datetime.now(UTC)+timedelta(seconds=60), row["actor_id"],
+                    execution_lane=ExecutionLane.CONVERSATION))
+
+    async def _consume_model_result(self, context, row, attempt_id, pack, tool_map, result):
         result_parts = tuple(replace(part, call_id=part.call_id or f"call_r{row['round']}_p{index}")
             if part.kind == "tool_call" else part for index, part in enumerate(result.parts))
         try:
             await self.identity.check(context, tuple(pack.source_refs))
             async with self.database.transaction() as connection:
+                if pack.deployment_generation is not None:
+                    await self.jobs.assert_generation_on(connection, pack.deployment_generation)
                 fresh = await lock_material_row(connection,self.sources,context,"SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE",(row["turn_id"],),additional_refs=tuple(pack.source_refs))
                 if fresh["state"] != "running":
                     return
@@ -367,6 +1071,8 @@ class ConversationService:
             elif part.kind in {"image", "audio", "video"} and part.media:
                 ordered.append({"kind": part.kind, "media": wire(part.media)})
         async with self.database.transaction() as connection:
+            if pack.deployment_generation is not None:
+                await self.jobs.assert_generation_on(connection, pack.deployment_generation)
             if not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
                 raise TurnRejected("source_unavailable",status=409)
             await connection.execute("UPDATE conversation.turns SET ordered_parts=%s,tool_dispatch_complete=false WHERE turn_id=%s AND state='running'", (document(ordered), row["turn_id"]))
@@ -375,6 +1081,8 @@ class ConversationService:
                 raise AppError("tool_round_limit", status=409)
             continuation = list(row["continuation"])+[{"role": "assistant", "parts": wire(result_parts)}]
             async with self.database.transaction() as connection:
+                if pack.deployment_generation is not None:
+                    await self.jobs.assert_generation_on(connection, pack.deployment_generation)
                 if not await self.sources.validate_persistence(connection,context,tuple(pack.source_refs)):
                     raise TurnRejected("source_unavailable",status=409)
                 await connection.execute("UPDATE conversation.turns SET continuation=%s WHERE turn_id=%s AND state='running'", (document(continuation), row["turn_id"]))
@@ -384,30 +1092,47 @@ class ConversationService:
                 definition = tool_map.get(call.name)
                 if not definition:
                     raise TurnRejected("capability_unavailable", status=409)
-                await self._invoke(context, row, call.call_id or f"round:{row['round']}:{index}", definition, call.arguments or {}, tuple(pack.source_refs))
+                await self._invoke(context, row, call.call_id or f"round:{row['round']}:{index}", definition,
+                                   call.arguments or {}, tuple(pack.source_refs), behavior_refs=pack.behavior_refs,
+                                   deployment_generation=pack.deployment_generation)
             async with self.database.transaction() as connection:
+                if pack.deployment_generation is not None:
+                    await self.jobs.assert_generation_on(connection, pack.deployment_generation)
                 await connection.execute("UPDATE conversation.turns SET tool_dispatch_complete=true WHERE turn_id=%s", (row["turn_id"],))
-            await self._await_tools(context, row["turn_id"])
+            await self._await_tools(context, row["turn_id"], deployment_generation=pack.deployment_generation)
             return
         public = tuple(part for part in ordered if part["kind"] != "tool_slot")
         if not public:
             async with self.database.transaction() as connection:
+                if pack.deployment_generation is not None:
+                    await self.jobs.assert_generation_on(connection, pack.deployment_generation)
                 await connection.execute("UPDATE conversation.turns SET state='completed',completed_at=now() WHERE turn_id=%s AND state='running'", (row["turn_id"],))
             return
         expression_id = "turn:"+row["turn_id"]
         # The turn is attached before dispatch, so an unknown browser/QQ delivery stays visible.
         async with self.database.transaction() as connection:
+            if pack.deployment_generation is not None:
+                await self.jobs.assert_generation_on(connection, pack.deployment_generation)
             fresh = await (await connection.execute("SELECT state FROM conversation.turns WHERE turn_id=%s FOR UPDATE", (row["turn_id"],))).fetchone()
             if fresh["state"] != "running":
                 return
             await connection.execute("UPDATE conversation.turns SET expression_id=%s WHERE turn_id=%s", (expression_id, row["turn_id"]))
+            used_attempts = await (await connection.execute(
+                "SELECT attempt_id FROM conversation.context_selections WHERE turn_id=%s AND model_receipt->>'dispatch'='submitted'",
+                (row["turn_id"],))).fetchall()
+            for used in used_attempts:
+                await self._enqueue_example_usage(connection, attempt_id=used["attempt_id"], turn_id=row["turn_id"],
+                                                  actor_id=context.actor_id, outcome="expressed", expression_id=expression_id)
         output_artifacts = artifacts(row["artifacts"])
         expression_refs = unique_refs(tuple(ref for ref in (*pack.source_refs, *(ref for item in output_artifacts for ref in item.source_refs))))
         delivered = await self.expression.send(context, ExpressionPlan(expression_id, context.actor_id, context.conversation_id,
-            public, expression_refs, OriginKind.ACTOR, turn_id=row["turn_id"], artifacts=output_artifacts),
+            public, expression_refs, OriginKind.ACTOR, turn_id=row["turn_id"], artifacts=output_artifacts,
+            behavior_refs=tuple(pack.behavior_refs)),
             service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE)
         state = expression_turn_state(delivered.state)
         async with self.database.transaction() as connection:
+            if pack.deployment_generation is not None:
+                await self.jobs.assert_generation_on(connection, pack.deployment_generation)
             await connection.execute(
                 "UPDATE conversation.turns SET state=%s,completed_at=CASE WHEN %s='waiting_expression' "
                 "THEN NULL ELSE now() END WHERE turn_id=%s AND state='running'",
@@ -418,6 +1143,14 @@ class ConversationService:
         public_role = "assistant" if role == "assistant" else "tool" if role == "tool" else "user"
         converted = []
         for item in parts:
+            if item["kind"] in {"image", "audio", "video", "file"} and not item.get("media"):
+                metadata = item.get("metadata") or {}
+                converted.append(ModelPart("text", text=json.dumps({
+                    "kind": item["kind"], "availability": "unavailable",
+                    "reason": metadata.get("error_code", "media_unavailable"),
+                    "instruction": "原附件未取得，不能推测其内容。",
+                }, ensure_ascii=False)))
+                continue
             if item["kind"] in {"text", "image", "audio", "video", "tool_call", "tool_result"}:
                 if item["kind"] in {"audio","image","video"} and item.get("metadata",{}).get("analysis_media"):
                     item={**item,"media":item["metadata"]["analysis_media"]}
@@ -448,7 +1181,7 @@ class ConversationService:
                 (context.actor_id,context.conversation_id,turn_id,turn_id))).fetchall()
         return unique_refs(*(source_refs(item["original_source_refs"]) for item in originals))
 
-    async def _invoke(self, context, row, call_id, definition, arguments, refs):
+    async def _invoke(self, context, row, call_id, definition, arguments, refs, *, behavior_refs=(), deployment_generation=None):
         provider_call_id = call_id
         business_deadline = _business_deadline(row)
         if definition.id=="images.generate":
@@ -462,9 +1195,11 @@ class ConversationService:
         call_id = f"{row['round']}:{provider_call_id}"
         action_id = str(uuid5(NAMESPACE_URL, f"tool:{row['turn_id']}:{call_id}"))
         async with self.database.transaction() as connection:
+            if deployment_generation is not None:
+                await self.jobs.assert_generation_on(connection, deployment_generation)
             if not await self.sources.validate_persistence(connection,context,refs):
                 raise TurnRejected("source_unavailable",status=409)
-            unresolved = await (await connection.execute("SELECT action_id FROM conversation.tool_links WHERE turn_id=%s AND capability_id=%s AND arguments_hash=%s AND state='unknown'", (row["turn_id"], definition.id, signature(arguments)))).fetchone()
+            unresolved = await (await connection.execute("SELECT action_id FROM conversation.tool_links WHERE turn_id=%s AND capability_id=%s AND arguments_hash=%s AND state='unknown' AND action_id<>%s", (row["turn_id"], definition.id, signature(arguments), action_id))).fetchone()
             if unresolved:
                 raise AppError("original_action_unresolved", status=409, details={"action_id": unresolved["action_id"]})
             tool_name = definition.model_tool["name"] if definition.model_tool else "declared_command"
@@ -474,8 +1209,9 @@ class ConversationService:
             arguments, context.origin_kind, refs, expression_id="turn:"+row["turn_id"], deadline_at=business_deadline,
             current_input_refs=current_input_refs)
         # Background work releases the dialogue lane; the persisted action owns its actual completion.
-        result = receipt(await self.actions.invoke(action, background=definition.long_running,
-            service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE))
+        result = receipt(await self.actions.invoke(action, background=True,
+            service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
+            behavior_refs=tuple(behavior_refs), behavior_purpose="conversation"))
         await self._tool_receipt(context, result)
 
     async def _command(self, context, row, choices):
@@ -518,8 +1254,10 @@ class ConversationService:
             state = result.execution
             await connection.execute("UPDATE conversation.tool_links SET state=%s,last_receipt_id=%s,result=%s,result_revision=%s WHERE action_id=%s", (state, result.receipt_id, document(result), result_revision, result.action_id))
 
-    async def _await_tools(self, context, turn_id):
+    async def _await_tools(self, context, turn_id, *, deployment_generation=None):
         async with self.database.transaction() as connection:
+            if deployment_generation is not None:
+                await self.jobs.assert_generation_on(connection, deployment_generation)
             snapshots = await (await connection.execute("SELECT * FROM conversation.tool_links WHERE turn_id=%s AND consumed=false ORDER BY call_id", (turn_id,))).fetchall()
             dependencies=[]
             for item in snapshots:
@@ -604,7 +1342,7 @@ class ConversationService:
 
     async def _next(self, actor_id, conversation_id):
         async with self.database.transaction() as connection:
-            row = await (await connection.execute("SELECT turn_id,round,autonomous FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND state='queued' ORDER BY received_at LIMIT 1", (actor_id, conversation_id))).fetchone()
+            row = await (await connection.execute("SELECT turn_id,round,autonomous FROM conversation.turns WHERE actor_id=%s AND conversation_id=%s AND state='queued' AND error_code IS DISTINCT FROM 'behavior_pending' ORDER BY received_at LIMIT 1", (actor_id, conversation_id))).fetchone()
             if row:
                 await self.jobs.enqueue(connection, JobSpec("conversation.run", f"turn-wake:{row['turn_id']}:{row['round']}:{uuid4()}", {"turn_id": row["turn_id"]}, ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE, subject_id=actor_id))
 
@@ -631,6 +1369,8 @@ class ConversationService:
                     postpone |= original.receipt.finished_at + timedelta(seconds=TURN_SETTLEMENT_SECONDS) > datetime.now(UTC)
             if postpone:
                 async with self.database.transaction() as connection:
+                    if pending["deployment_generation"] is not None:
+                        await self.jobs.assert_generation_on(connection, pending["deployment_generation"])
                     renewed = await (await connection.execute(
                         "UPDATE conversation.turns SET lease_until=now()+(%s*interval '1 second') "
                         "WHERE turn_id=%s AND model_attempt_id=%s AND state='running' AND lease_until<=now() "
@@ -641,10 +1381,12 @@ class ConversationService:
                             ServiceClass.INTERACTIVE, renewed["lease_until"], renewed["actor_id"]))
                 return
         async with self.database.transaction() as connection:
+            if pending["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, pending["deployment_generation"])
             row = await (await connection.execute("UPDATE conversation.turns SET state='unknown',error_code='worker_lease_expired',completed_at=now() WHERE turn_id=%s AND model_attempt_id=%s AND state='running' AND lease_until<=now() RETURNING actor_id,conversation_id", (turn_id, attempt_id))).fetchone()
         if row:
             if pending["autonomous"]:
-                await self.models.cancel(attempt_id)
+                await self.models.cancel(attempt_id, reason="consumer_interrupted")
             await self._next(row["actor_id"], row["conversation_id"])
 
     async def recover(self):
@@ -657,6 +1399,58 @@ class ConversationService:
             for row in collectors:
                 await self.jobs.enqueue(connection, JobSpec("conversation.seal", f"collector-recover:{row['turn_id']}:{row['collection_revision']}:{uuid4()}",
                     {"turn_id": row["turn_id"], "expected_revision": row["collection_revision"]}, ServiceClass.INTERACTIVE, row["seal_at"], row["actor_id"]))
+            blocked = await (await connection.execute(
+                "SELECT turn_id,actor_id FROM conversation.turns WHERE state='queued' AND error_code='behavior_pending'")).fetchall()
+            for item in blocked:
+                await self.jobs.enqueue(connection, JobSpec("conversation.run", f"behavior-recover:{item['turn_id']}:{uuid4()}",
+                    {"turn_id": item["turn_id"]}, ServiceClass.INTERACTIVE, datetime.now(UTC)+timedelta(seconds=10),
+                    item["actor_id"], execution_lane=ExecutionLane.CONVERSATION))
+            pending = await (await connection.execute(
+                "SELECT s.input_id,s.part_index,s.supplement_revision,t.actor_id FROM conversation.input_supplements s "
+                "JOIN conversation.turns t ON t.turn_id=s.input_id WHERE s.notification_state='pending'")).fetchall()
+            for item in pending:
+                await self.jobs.enqueue(connection, JobSpec("conversation.supplement_notify",
+                    f"supplement-recover:{item['input_id']}:{item['part_index']}:{item['supplement_revision']}:{uuid4()}",
+                    {"input_id": item["input_id"], "part_index": item["part_index"],
+                     "supplement_revision": item["supplement_revision"]}, ServiceClass.ELASTIC,
+                    subject_id=item["actor_id"], execution_lane=ExecutionLane.CONTROL))
+            waiting = await (await connection.execute(
+                "SELECT t.turn_id,t.actor_id,t.model_attempt_id,t.state,t.lease_until "
+                "FROM conversation.turns t JOIN conversation.context_selections s ON s.attempt_id=t.model_attempt_id "
+                "WHERE s.consumed_at IS NULL AND t.state IN ('waiting_external','running')")).fetchall()
+            for item in waiting:
+                task = "conversation.model_complete" if item["state"] == "waiting_external" else "conversation.model_consume_expire"
+                await self.jobs.enqueue(connection, JobSpec(task, f"model-recover:{item['model_attempt_id']}:{uuid4()}",
+                    {"turn_id": item["turn_id"], "attempt_id": item["model_attempt_id"]}, ServiceClass.INTERACTIVE,
+                    item["lease_until"] if item["state"] == "running" else datetime.now(UTC), item["actor_id"],
+                    execution_lane=ExecutionLane.CONVERSATION))
+            unknown = await (await connection.execute(
+                "SELECT t.turn_id,t.actor_id,t.model_attempt_id FROM conversation.turns t "
+                "JOIN conversation.context_selections s ON s.attempt_id=t.model_attempt_id "
+                "WHERE t.state='unknown' AND s.consumed_at IS NULL")).fetchall()
+            for item in unknown:
+                await self.jobs.enqueue(connection, JobSpec("conversation.model_observe_unknown",
+                    f"model-unknown-recover:{item['model_attempt_id']}:{uuid4()}",
+                    {"turn_id": item["turn_id"], "attempt_id": item["model_attempt_id"]}, ServiceClass.INTERACTIVE,
+                    datetime.now(UTC)+timedelta(seconds=60), item["actor_id"], execution_lane=ExecutionLane.CONVERSATION))
+            usage = await (await connection.execute(
+                "SELECT s.attempt_id,s.turn_id,t.actor_id,t.expression_id,e.receipt FROM conversation.context_selections s "
+                "JOIN conversation.turns t ON t.turn_id=s.turn_id LEFT JOIN conversation.expressions e ON e.expression_id=t.expression_id "
+                "WHERE s.model_receipt->>'dispatch'='submitted' "
+                "AND s.selection@>%s::jsonb", (document([{"kind": "expression_example", "selected": True}]),))).fetchall()
+            for item in usage:
+                outcomes = ["selected"]
+                if item["expression_id"]:
+                    outcomes.append("expressed")
+                if item["receipt"] and item["receipt"].get("delivery") == "delivered":
+                    outcomes.append("delivered")
+                for outcome in outcomes:
+                    expression_id = item["expression_id"] if outcome != "selected" else None
+                    await self.jobs.enqueue(connection, JobSpec("conversation.example_usage",
+                        f"example-usage-recover:{item['attempt_id']}:{outcome}:{uuid4()}",
+                        {"attempt_id": item["attempt_id"], "turn_id": item["turn_id"], "outcome": outcome,
+                         "expression_id": expression_id}, ServiceClass.ELASTIC, subject_id=item["actor_id"],
+                        execution_lane=ExecutionLane.CONTROL))
 
     async def cancel(self, context, body):
         await self.identity.check(context)
@@ -717,7 +1511,8 @@ class ConversationService:
                 raise AppError("invalid_input_text")
             if part.kind == "quote" and not isinstance(part.metadata, dict):
                 raise AppError("invalid_quote_metadata")
-            if part.kind in {"image", "audio", "video", "file"} and part.media is None:
+            if (part.kind in {"image", "audio", "video", "file"} and part.media is None
+                    and not (part.metadata.get("media_unavailable") or part.metadata.get("original_pending"))):
                 raise AppError("input_media_required")
 
     async def expression_result(self,context,expression_id,current):
@@ -733,4 +1528,12 @@ class ConversationService:
                 "AND (state IS DISTINCT FROM %s OR error_code IS DISTINCT FROM %s)",
                 (state, current.get("reason"), state, context.actor_id, context.conversation_id,
                  expression_id, state, state, current.get("reason")))
+            if state == "completed":
+                attempts = await (await connection.execute(
+                    "SELECT s.attempt_id,s.turn_id FROM conversation.context_selections s JOIN conversation.turns t ON t.turn_id=s.turn_id "
+                    "WHERE t.actor_id=%s AND t.conversation_id=%s AND t.expression_id=%s AND s.model_receipt->>'dispatch'='submitted'",
+                    (context.actor_id, context.conversation_id, expression_id))).fetchall()
+                for attempt in attempts:
+                    await self._enqueue_example_usage(connection, attempt_id=attempt["attempt_id"], turn_id=attempt["turn_id"],
+                        actor_id=context.actor_id, outcome="delivered", expression_id=expression_id)
         await self.expression.wake(context.actor_id,context.conversation_id)

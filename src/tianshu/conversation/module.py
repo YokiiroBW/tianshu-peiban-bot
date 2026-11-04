@@ -4,6 +4,7 @@ from tianshu.runtime.api import command_body, json_response
 from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration
+from tianshu.runtime.execution import ExecutionLane
 
 
 def create_module(service, expression, identity, result_consumer, renderer):
@@ -43,16 +44,35 @@ def create_module(service, expression, identity, result_consumer, renderer):
         queue.register("conversation.result", result_consumer.consume, retryable=True)
         queue.register("conversation.expire", service.expire, retryable=True)
         queue.register("conversation.expression_expire", renderer.expire_delivery, retryable=True)
+        queue.register("conversation.supplement_notify", service.supplement_notify, retryable=True,
+                       execution_lane=ExecutionLane.CONTROL)
+        queue.register("conversation.model_submit", service.model_submit, retryable=False,
+                       execution_lane=ExecutionLane.CONVERSATION)
+        queue.register("conversation.model_complete", service.model_complete, retryable=False,
+                       execution_lane=ExecutionLane.CONVERSATION)
+        queue.register("conversation.model_consume_expire", service.model_consume_expire, retryable=True,
+                       execution_lane=ExecutionLane.CONVERSATION)
+        queue.register("conversation.model_observe_unknown", service.model_observe_unknown, retryable=True,
+                       execution_lane=ExecutionLane.CONVERSATION)
+        queue.register("conversation.example_usage", service.record_example_usage, retryable=True,
+                       execution_lane=ExecutionLane.CONTROL)
+        queue.register("conversation.statistics_reconcile", service.reconcile_statistics, retryable=True,
+                       execution_lane=ExecutionLane.CONTROL)
 
     async def start(_runtime):
         await service.recover()
         await service.participation.recover()
         await expression.recover()
         await renderer.recover()
+        if service.statistics is not None:
+            async with service.database.transaction() as connection:
+                await service._schedule_statistics_repair(connection)
         async with service.database.transaction() as connection:
             queued = await (await connection.execute("SELECT DISTINCT actor_id,conversation_id FROM conversation.turns WHERE state='queued'")).fetchall()
         for row in queued:
             await service._next(row["actor_id"], row["conversation_id"])
 
     return DomainModule("conversation", register, start=start, register_tasks=tasks,
-        migrations=(Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+        migrations=(Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+                    Migration("0039_conversation_context_selection", files("tianshu.conversation").joinpath("context_selection.sql").read_text()),
+                    Migration("0040_conversation_input_supplements", files("tianshu.conversation").joinpath("input_supplements.sql").read_text())))

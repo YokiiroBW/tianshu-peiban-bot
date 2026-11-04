@@ -10,6 +10,8 @@ from .contracts import ChannelError, TransportResult
 class Repository:
     def __init__(self, runtime, identity, sources):
         self.actions = None
+        self.recovery_policy = None
+        self.statistics = None
         self.runtime, self.database, self.identity, self.sources = (
             runtime,
             runtime.database,
@@ -154,6 +156,8 @@ class Repository:
                 "INSERT INTO channels.connections(id,revision,body,secret_ref) VALUES(%s,%s,%s::jsonb,%s) ON CONFLICT(id) DO UPDATE SET revision=excluded.revision,body=excluded.body,secret_ref=excluded.secret_ref,updated_at=now()",
                 (value["id"], value["revision"], canonical(value), secret_ref),
             )
+            from .supplements import wake_for_configuration
+            await wake_for_configuration(self, conn, value["id"], value["revision"])
         return value
 
     async def token(self, connection):
@@ -194,12 +198,13 @@ class Repository:
         identifier = digest([action.action_id, attempt.attempt_id, suffix])
         payload = self.seal(params, identifier + ":request")
         async with self.database.transaction() as conn:
+            generation = await self.runtime.jobs.current_generation_on(conn)
             if not await self.sources.validate_persistence(
                 conn, action.context, action.source_refs
             ):
                 raise ChannelError("source_revoked", 410)
             await conn.execute(
-                "INSERT INTO channels.calls(id,action_id,attempt_id,connection_id,expression_id,api_name,payload,expected_count,control) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                "INSERT INTO channels.calls(id,action_id,attempt_id,connection_id,expression_id,api_name,payload,expected_count,control,deployment_generation) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING",
                 (
                     identifier,
                     action.action_id,
@@ -210,6 +215,7 @@ class Repository:
                     payload,
                     expected_count,
                     control,
+                    canonical(wire(generation)),
                 ),
             )
             if action.source_refs:
@@ -289,7 +295,26 @@ class Repository:
             (event_key, canonical(wire(refs))),
         )
 
-    async def withdraw_sources(self, conn, refs, reason="source_revoked"):
+    async def actors_for_source(self, conn, refs, reason="source_revoked"):
+        if not refs:
+            return ()
+        from tianshu.sources.dependencies import changes_for, intersects
+        changes, _ = changes_for(refs)
+        identifiers, revisions = [r.source_id for r in refs], [r.revision for r in refs]
+        calls = await (await conn.execute(
+            "SELECT d.refs,a.action->'context'->>'actor_id' AS actor_id FROM channels.source_dependencies d "
+            "JOIN channels.calls c ON c.id=d.call_id JOIN capabilities.actions a ON a.id=c.action_id "
+            "WHERE (d.source_id,d.source_revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+            (identifiers,revisions))).fetchall()
+        events = await (await conn.execute(
+            "SELECT d.refs,e.actor_id FROM channels.event_sources d "
+            "JOIN channels.events e ON e.id=d.event_key "
+            "WHERE (d.source_id,d.source_revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+            (identifiers,revisions))).fetchall()
+        actors = {row["actor_id"] for row in (*calls, *events) if intersects(row["refs"], changes, reason)}
+        return tuple(sorted(actors, key=lambda value: "" if value is None else value))
+
+    async def withdraw_sources(self, conn, refs, reason="source_revoked", *, actor_id=None, filter_actor=False):
         if not refs:
             return
         from tianshu.sources.dependencies import changes_for, intersects
@@ -299,7 +324,11 @@ class Repository:
         changes, _ = changes_for(refs)
         rows = await (
             await conn.execute(
-                "SELECT call_id,refs FROM channels.source_dependencies WHERE (source_id,source_revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+                "SELECT d.call_id,d.refs FROM channels.source_dependencies d JOIN channels.calls c ON c.id=d.call_id "
+                "JOIN capabilities.actions a ON a.id=c.action_id WHERE (d.source_id,d.source_revision) IN "
+                "(SELECT * FROM unnest(%s::text[],%s::bigint[]))" +
+                (" AND a.action->'context'->>'actor_id' IS NOT DISTINCT FROM %s" if filter_actor else ""),
+                ([r.source_id for r in refs], [r.revision for r in refs], actor_id) if filter_actor else
                 ([r.source_id for r in refs], [r.revision for r in refs]),
             )
         ).fetchall()
@@ -307,12 +336,18 @@ class Repository:
             {row["call_id"] for row in rows if intersects(row["refs"], changes, reason)}
         )
         await conn.execute(
-            "UPDATE channels.calls SET payload=NULL,response=NULL,result=coalesce(result,'{}'::jsonb)||jsonb_build_object('state',CASE WHEN state='prepared' THEN 'rejected' ELSE state END,'error_code','source_revoked'),state=CASE WHEN state='prepared' THEN 'rejected' ELSE state END WHERE id=ANY(%s)",
+            "UPDATE channels.calls SET payload=NULL,response=NULL,result=CASE WHEN state='prepared' "
+            "THEN coalesce(result,'{}'::jsonb)||jsonb_build_object('state','rejected','error_code','source_revoked') "
+            "ELSE result END,state=CASE WHEN state='prepared' THEN 'rejected' ELSE state END WHERE id=ANY(%s)",
             (identifiers,),
         )
         events = await (
             await conn.execute(
-                "SELECT event_key,refs FROM channels.event_sources WHERE (source_id,source_revision) IN (SELECT * FROM unnest(%s::text[],%s::bigint[]))",
+                "SELECT d.event_key,d.refs FROM channels.event_sources d JOIN channels.events e ON e.id=d.event_key "
+                "WHERE (d.source_id,d.source_revision) IN "
+                "(SELECT * FROM unnest(%s::text[],%s::bigint[]))" +
+                (" AND e.actor_id IS NOT DISTINCT FROM %s" if filter_actor else ""),
+                ([r.source_id for r in refs], [r.revision for r in refs], actor_id) if filter_actor else
                 ([r.source_id for r in refs], [r.revision for r in refs]),
             )
         ).fetchall()
@@ -324,6 +359,9 @@ class Repository:
                 "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=ANY(%s)",
                 (event_keys,),
             )
+            await conn.execute(
+                "UPDATE channels.media_supplements SET state='withdrawn',payload=NULL,lease_until=NULL "
+                "WHERE event_key=ANY(%s) AND state<>'complete'", (event_keys,))
         for identifier in identifiers:
             await self.runtime.jobs.enqueue(
                 conn,

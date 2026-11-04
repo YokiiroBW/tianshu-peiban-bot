@@ -42,11 +42,13 @@ class ConversationCollector:
                 raise AppError("conversation_busy", "当前消息队列已满，请稍后重试；这条消息尚未受理。", status=429)
         state = "merged" if parent else "queued" if responding and message.command else "collecting" if responding else "observed"
         seal_at = now+timedelta(milliseconds=self.policy.silence_ms)
+        generation = message.deployment_generation or await self.jobs.current_generation_on(connection)
+        await self.jobs.assert_generation_on(connection, generation)
         await connection.execute(
-            "INSERT INTO conversation.turns(turn_id,actor_id,conversation_id,producer,event_id,event_revision,context,input_parts,source_refs,original_parts,original_source_refs,state,reply_owner,reply_required,command,occurred_at,received_at,deadline_at,collector_key,seal_at,collection_messages,collection_bytes,merged_into) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1,%s,%s)",
+            "INSERT INTO conversation.turns(turn_id,actor_id,conversation_id,producer,event_id,event_revision,context,input_parts,source_refs,original_parts,original_source_refs,original_digest,deployment_generation,state,reply_owner,reply_required,command,occurred_at,received_at,deadline_at,collector_key,seal_at,collection_messages,collection_bytes,merged_into) "
+            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,1,%s,%s)",
             (turn_id, context.actor_id, context.conversation_id, message.producer, message.event_id, message.revision, document(context),
-             document(raw), document(refs), document(raw), document(refs), state, message.reply_owner, message.reply_required,
+             document(raw), document(refs), document(raw), document(refs), signature(raw), generation, state, message.reply_owner, message.reply_required,
              message.command, message.occurred_at, message.received_at, now+timedelta(minutes=15), key, seal_at, size, parent["turn_id"] if parent else None))
         message_row = await (await connection.execute("INSERT INTO conversation.messages(turn_id,actor_id,conversation_id,speaker,parts,source_refs,scope_ids) VALUES (%s,%s,%s,'user',%s,%s,%s) RETURNING id", (turn_id, context.actor_id, context.conversation_id, document(raw), document(refs), list(context.scope_ids)))).fetchone()
         root_id = parent["turn_id"] if parent else turn_id

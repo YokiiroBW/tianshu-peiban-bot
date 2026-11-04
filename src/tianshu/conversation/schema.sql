@@ -76,3 +76,41 @@ CREATE TABLE conversation.group_participation (
 );
 CREATE UNIQUE INDEX one_group_participation ON conversation.turns(actor_id,conversation_id)
     WHERE participation_state IN ('waiting','evaluating');
+
+-- Fresh installations include the same domain additions as the upgrade migrations.
+CREATE TABLE IF NOT EXISTS conversation.context_selections (
+    attempt_id text PRIMARY KEY,
+    turn_id text NOT NULL REFERENCES conversation.turns(turn_id),
+    round integer NOT NULL,
+    request_digest text NOT NULL,
+    selection jsonb NOT NULL,
+    token_usage jsonb NOT NULL,
+    source_refs jsonb NOT NULL,
+    deployment_generation jsonb,
+    round_snapshot jsonb NOT NULL,
+    model_receipt jsonb,
+    model_result jsonb,
+    consumed_at timestamptz,
+    created_at timestamptz NOT NULL DEFAULT now()
+);
+CREATE INDEX IF NOT EXISTS context_selections_turn ON conversation.context_selections(turn_id, round);
+
+CREATE TABLE IF NOT EXISTS conversation.input_supplements (
+    input_id text NOT NULL REFERENCES conversation.turns(turn_id),
+    part_index integer NOT NULL,
+    supplement_revision bigint NOT NULL,
+    original_ref jsonb NOT NULL,
+    supplement_ref jsonb NOT NULL,
+    media jsonb NOT NULL,
+    content_digest text NOT NULL,
+    deployment_generation jsonb,
+    created_at timestamptz NOT NULL DEFAULT now(),
+    notification_state text NOT NULL DEFAULT 'pending',
+    notified_at timestamptz,
+    PRIMARY KEY(input_id, part_index, supplement_revision),
+    UNIQUE(input_id, part_index, content_digest)
+);
+ALTER TABLE conversation.turns ADD COLUMN IF NOT EXISTS original_digest text;
+ALTER TABLE conversation.turns ADD COLUMN IF NOT EXISTS withdrawn_at timestamptz;
+ALTER TABLE conversation.turns ADD COLUMN IF NOT EXISTS deployment_generation text;
+ALTER TABLE conversation.expressions ADD COLUMN IF NOT EXISTS result_observed_at timestamptz;

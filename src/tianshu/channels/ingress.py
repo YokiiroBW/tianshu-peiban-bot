@@ -2,6 +2,7 @@
 
 from dataclasses import replace
 from datetime import UTC, datetime
+import hashlib
 from uuid import uuid5, NAMESPACE_URL
 from tianshu.types import Action, OriginKind, ServiceClass, SourceRef
 from tianshu.runtime.jobs import JobSpec
@@ -42,6 +43,40 @@ def live_eligible(event, decision, row):
     )
 
 
+def predates_generation(event, cutoff):
+    """Old transport journals are not new inputs after a data switch."""
+    return event is not None and event.occurred_at < cutoff
+
+
+def quoted_parts(original):
+    """The explicit reply supplies a bounded, attributed observation as new input."""
+    from .onebot.messages import input_parts, segments
+
+    value = original.get("message", original.get("raw_message"))
+    if value is None:
+        return (), False
+    result = []
+    remaining = 12000
+    complete = True
+    for part in input_parts(segments(value)):
+        if part.kind == "text":
+            text = (part.text or "")[:remaining]
+            if len(text) < len(part.text or ""):
+                complete = False
+            remaining -= len(text)
+            result.append({"kind": "text", "text": text})
+        elif part.kind in {"image", "audio", "video", "file"}:
+            result.append({"kind": part.kind, "availability": "original_not_fetched"})
+        elif part.kind in {"mention", "mention_all"}:
+            result.append({"kind": part.kind, "user_id": part.metadata.get("user_id")})
+        else:
+            result.append({"kind": part.kind, "availability": "not_expanded"})
+        if remaining <= 0:
+            complete = False
+            break
+    return tuple(result), complete
+
+
 async def accept_event(service, connection_id, raw, *, ownership=None):
     connection = await service.repository.connection(connection_id)
     if not connection.get("enabled"):
@@ -64,13 +99,22 @@ async def accept_event(service, connection_id, raw, *, ownership=None):
         producer = event.producer
         revision = event.revision
     key = digest([connection_id, producer, identifier, revision])
+    original_digest = hashlib.sha256(canonical(raw).encode("utf-8", errors="backslashreplace")).hexdigest()
     envelope = {"raw": raw, "ownership": ownership}
     payload = service.repository.seal(envelope, key + ":event")
     async with service.runtime.database.transaction() as conn:
+        generation = await service.runtime.jobs.current_generation_on(conn)
+        await service.runtime.jobs.assert_generation_on(conn, generation)
+        boundary = await (await conn.execute(
+            "SELECT created_at FROM runtime.installation_generation WHERE singleton=true AND id=%s",
+            (generation,))).fetchone()
+        if predates_generation(event, boundary["created_at"]):
+            return {"accepted": True, "event_id": identifier, "revision": revision,
+                    "duplicate": False, "ignored": "before_data_generation"}
         row = await (
             await conn.execute(
-                "INSERT INTO channels.events(id,connection_id,producer,event_id,revision,payload) VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING id",
-                (key, connection_id, producer, identifier, revision, payload),
+                "INSERT INTO channels.events(id,connection_id,producer,event_id,revision,payload,original_digest,deployment_generation) VALUES(%s,%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING RETURNING id",
+                (key, connection_id, producer, identifier, revision, payload, original_digest, canonical(wire(generation))),
             )
         ).fetchone()
         if row:
@@ -81,8 +125,13 @@ async def accept_event(service, connection_id, raw, *, ownership=None):
                     key,
                     {"event_key": key},
                     service_class=ServiceClass.INTERACTIVE,
+                    data_generation=generation,
                 ),
             )
+        else:
+            original = await (await conn.execute("SELECT original_digest FROM channels.events WHERE id=%s", (key,))).fetchone()
+            if original and original["original_digest"] and original["original_digest"] != original_digest:
+                raise ChannelError("event_revision_conflict", 409)
     return {
         "accepted": True,
         "event_id": identifier,
@@ -165,13 +214,15 @@ async def _process_event(service, event_key):
             else:
                 converted = []
                 refs = []
+                pending_media = []
                 if needs_normalization(raw):
                     # Preserve the exact transport representation before derived
                     # display fields or message text are made database-safe.
                     original = await service.sources.capture(context,
                         locator={"kind": "channel_transport_original", "connection_id": connection["id"],
                                  "event_id": event.event_id, "revision": event.revision},
-                        raw=canonical(raw).encode("utf-8", errors="backslashreplace"), mime_type="application/json")
+                        raw=canonical(raw).encode("utf-8", errors="backslashreplace"), mime_type="application/json",
+                        **({"generation": row["deployment_generation"]} if row.get("deployment_generation") is not None else {}))
                     refs.append(original)
 
                 async def call_api(name, params):
@@ -204,6 +255,7 @@ async def _process_event(service, event_key):
 
                 for index, part in enumerate(parts):
                     if part.metadata.get("original_pending"):
+                        original_part = part
                         part, source = await service.media.receive(
                             context,
                             connection,
@@ -212,19 +264,20 @@ async def _process_event(service, event_key):
                             event_id=event.event_id,
                             part_index=index,
                             revision=event.revision,
+                            deployment_generation=row.get("deployment_generation"),
                         )
                         if source:
                             refs.append(source)
+                        elif part.metadata.get("media_unavailable"):
+                            pending_media.append({"part_index": len(converted), "part": original_part,
+                                "error_code": part.metadata.get("error_code", "channel_media_unavailable")})
                     elif part.kind == "reply" and connection["adapter"] != "telegram":
                         try:
                             original = await call_api(
                                 "get_msg", {"message_id": part.metadata["event_id"]}
                             )
-                            if original.get(
-                                "group_id"
-                            ) is not None and event.conversation_external_id != "group:" + str(
-                                original["group_id"]
-                            ):
+                            if (event.conversation_kind == "group" and
+                                    event.conversation_external_id != "group:" + str(original.get("group_id"))):
                                 raise ChannelError("reply_origin_scope_mismatch", 403)
                             author = str(original.get("sender", {}).get("user_id", ""))
                             if event.conversation_kind == "private" and (
@@ -232,6 +285,7 @@ async def _process_event(service, event_key):
                                 or author != event.sender_external_id
                             ):
                                 raise ChannelError("reply_origin_scope_mismatch", 403)
+                            quoted, quote_complete = quoted_parts(original)
                             part = replace(
                                 part,
                                 metadata={
@@ -240,6 +294,8 @@ async def _process_event(service, event_key):
                                     "original_message_id": str(
                                         original.get("message_id", part.metadata["event_id"])
                                     ),
+                                    "quoted_parts": quoted,
+                                    "quoted_parts_complete": quote_complete,
                                 },
                             )
                         except Exception as error:
@@ -262,6 +318,9 @@ async def _process_event(service, event_key):
                             event.event_id,
                             event_revision=event.revision,
                             max_parts=max(1, 250 - len(converted) - len(parts)),
+                            supplement_parts=pending_media,
+                            output_offset=len(converted),
+                            deployment_generation=row.get("deployment_generation"),
                         )
                         converted.extend(expanded)
                         refs.extend(extra)
@@ -272,9 +331,21 @@ async def _process_event(service, event_key):
                 async with service.runtime.database.transaction() as conn:
                     if await event_withdrawn(conn, event_key):
                         return
+                    if row.get("deployment_generation") is not None:
+                        await service.runtime.jobs.assert_generation_on(conn, row["deployment_generation"])
                     if not await service.sources.validate_persistence(conn, context, refs):
                         raise ChannelError("source_revoked", 410)
+                    await conn.execute("UPDATE channels.events SET actor_id=%s WHERE id=%s AND state<>'withdrawn'",
+                                       (context.actor_id, event_key))
                     await service.repository.bind_event_sources(conn, event_key, refs)
+                    for pending in pending_media:
+                        supplement_id = digest([event_key, pending["part_index"]])
+                        sealed = service.repository.seal(wire(pending["part"]), supplement_id + ":media")
+                        await conn.execute(
+                            "INSERT INTO channels.media_supplements(id,event_key,part_index,payload,state,config_revision,error_code,deployment_generation) "
+                            "VALUES(%s,%s,%s,%s,'waiting_ingest',%s,%s,%s::jsonb) ON CONFLICT(event_key,part_index) DO NOTHING",
+                            (supplement_id, event_key, pending["part_index"], sealed, connection["revision"], pending["error_code"],
+                             canonical(wire(row.get("deployment_generation")))))
                     await conn.execute(
                         "UPDATE channels.events SET outcome=%s::jsonb WHERE id=%s AND state<>'withdrawn'",
                         (
@@ -291,9 +362,11 @@ async def _process_event(service, event_key):
                     )
             if service.conversation is None:
                 raise ChannelError("conversation_ingress_not_bound", 503)
-            async with service.runtime.database.transaction(read_only=True) as conn:
+            async with service.runtime.database.transaction() as conn:
                 if await event_withdrawn(conn, event_key):
                     return
+                if row.get("deployment_generation") is not None:
+                    await service.runtime.jobs.assert_generation_on(conn, row["deployment_generation"])
             # Existing checkpoints predate this metadata. Add only the current
             # admission's verified identities when resuming the original event.
             parts = verified_parts(parts, decision)
@@ -310,6 +383,7 @@ async def _process_event(service, event_key):
                 event.command,
                 context.conversation_kind or "unknown",
                 autonomous_eligible=live_eligible(event, decision, row),
+                deployment_generation=row.get("deployment_generation"),
             )
             ingested = await service.conversation.ingest(context, message)
             registered_refs = tuple(
@@ -317,6 +391,9 @@ async def _process_event(service, event_key):
                 for item in ingested.get("source_refs", ())
             )
             refs = tuple(refs) + registered_refs
+            from .supplements import activate_supplements
+            await activate_supplements(service, event_key, context, ingested["input_id"], registered_refs,
+                                       deployment_generation=row.get("deployment_generation"))
             outcome = {
                 "disposition": decision.disposition,
                 "event_id": event.event_id,
@@ -326,6 +403,9 @@ async def _process_event(service, event_key):
     async with service.runtime.database.transaction() as conn:
         if await event_withdrawn(conn, event_key):
             return
+        if event is not None and parts and decision.context is not None:
+            await conn.execute("UPDATE channels.events SET actor_id=%s WHERE id=%s AND state<>'withdrawn'",
+                               (decision.context.actor_id, event_key))
         if refs and not await service.sources.validate_persistence(conn, context, refs):
             await conn.execute(
                 "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=%s",

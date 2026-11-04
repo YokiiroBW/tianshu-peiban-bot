@@ -61,6 +61,10 @@ class ExpressionService:
         self.database, self.jobs, self.identity = database, jobs, identity
         self.channels, self.contacts = channels, contacts
         self.sources = sources
+        self.statistics = None
+
+    def bind_statistics(self, statistics):
+        self.statistics = statistics
 
     async def send(self, context, plan: ExpressionPlan):
         if not context.delivery_allowed or context.actor_id != plan.actor_id or context.conversation_id != plan.target_ref:
@@ -71,7 +75,8 @@ class ExpressionService:
             raise AppError("empty_expression")
         plan = replace(plan, public_parts=public)
         fingerprint = signature({"target": plan.target_ref, "parts": public,
-                                 "artifacts": plan.artifacts, "source_refs": plan.source_refs})
+                                 "artifacts": plan.artifacts, "source_refs": plan.source_refs,
+                                 "behavior_refs": plan.behavior_refs})
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,plan.source_refs):
                 raise AppError("source_unavailable",status=409)
@@ -111,7 +116,7 @@ class ExpressionService:
         async with self.database.transaction() as connection:
             material_valid = await self.sources.validate_persistence(connection,context,plan.source_refs)
             current = await (await connection.execute(
-                "SELECT state,receipt FROM conversation.expressions WHERE expression_id=%s "
+                "SELECT state,receipt,revision,created_at FROM conversation.expressions WHERE expression_id=%s "
                 "AND actor_id=%s AND conversation_id=%s FOR UPDATE",
                 (plan.expression_id, context.actor_id, context.conversation_id))).fetchone()
             if not current:
@@ -125,10 +130,18 @@ class ExpressionService:
             if not receipt_advances(previous, result):
                 return previous
             state = delivery_state(result)
+            observed_at = datetime.now(UTC)
             await connection.execute(
                 "UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,"
-                "completed_at=CASE WHEN %s='waiting_delivery' THEN NULL ELSE now() END WHERE expression_id=%s",
-                (state, document(result), state, plan.expression_id))
+                "result_observed_at=%s,completed_at=CASE WHEN %s='waiting_delivery' THEN NULL ELSE %s END WHERE expression_id=%s",
+                (state, document(result), observed_at, state, observed_at, plan.expression_id))
+            from .observability import delivery_on
+            recorded = await delivery_on(self.statistics, connection, expression_id=plan.expression_id,
+                                         actor_id=context.actor_id, revision=current["revision"]+1,
+                                         occurred_at=observed_at, value=result)
+            if self.statistics is not None and not recorded:
+                from .observability import schedule_repair_on
+                await schedule_repair_on(self.jobs, connection)
             if state == "delivered" and material_valid:
                 await connection.execute(
                     "INSERT INTO conversation.messages(actor_id,conversation_id,speaker,parts,source_refs,scope_ids,turn_id,expression_id) "
