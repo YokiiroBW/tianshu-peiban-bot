@@ -4,6 +4,7 @@
 
 - 基线：`e2529c95a92857f368111d9ae5b23ee66800b636`；分支 `codex/rbw-runtime-20261105`。
 - 运行时代码及回归用例提交：`278a007ccf35f1fef9e87429a182fe44e4b5d9ea`；本文在后续交接提交中。
+- 配置修复恢复、执行代际上下文和任务路由增量：`040017fce7fb3ddf421a5a3e36a73248b7caccf7`，在前述两个提交之后应用。
 - 工作树 `.codex/config.toml` 是协调者设置的普通速度改动，保留在工作树，不属于上述提交。
 - 本窗口未操作生产、清理数据、推送或部署。**未运行测试、构建、烟测或真实模型/QQ 调用。**完成静态 diff 审阅和 `git diff --cached --check`；这不是运行验收。
 
@@ -38,3 +39,12 @@
 - `product.py`、`config.py`、schema、公共迁移、CLI、日志包、Models、领域 owner 和 deploy 根不在本窗口单写范围。上面的装配完成之前，六角色和共享统计、代际及业务生命周期不能宣称联通。
 - 集中验证需覆盖真实 PostgreSQL DDL/公平领取 SQL 与持续负载成本、同 lane 多主体推进和锁语义、队列提交前后崩溃、变更期间重算、别名取消/重放、代际切换、成功 continuation/unknown/换依赖共享预算、单项领取、各角色唯一 owner、可选能力故障以及完整关停。现有旧测试对未命名 wake 合并、旧 queueing_lock 字面值、三角色和无 generation 的假设需要按最终合同核对，不能把原用例失败机械视为新行为正确。
 - 对外结果、模型提交和 QQ 动作的异步等待及关停语义仍由各领域与 Models 原账本实现和联合验证；本窗口没有证明真实供应商、实际资源上限或业务收敛。
+
+## 配置修复恢复增量
+
+- `await policy.update_version_on(conn, lineage_id, owner=..., expected_version='v1', current_version='v2', resume_due=True)` 只在原版本与新版本不同、当前未暂停/取消/源撤回、末次物理 attempt 已失败、没有 reserved/unknown 且预算未耗尽时将 `due_at` 设为数据库当前时间。失败时分别返回 `recovery_version_unchanged`、`recovery_version_changed` 或 `recovery_resume_not_eligible`；原 attempt、failure_category（包括 OTHER）、lineage 与已用次数不改变。版本身份必须由拥有配置的领域提供，不能凭空生成。
+- 可选参数 `paused`、`cancelled`、`source_withdrawn` 的 `None` 表示保持，显式 bool 表示设置。当前已暂停/取消/源撤回的状态不能通过同一次 `resume_due=True` 调用清除并恢复。权威领域收到来源撤回时须在自己的事务记录 `source_withdrawn=True`，并在后续领域提交前复核真实来源；已分类为 SOURCE_INVALID 且错误码含 withdraw/retract/revoked/forgotten 的失败也会记录撤回。
+- 在 `0007_rb_runtime` **之后**追加 `Migration('0008_rb_recovery_change', files('tianshu.runtime').joinpath('rb_recovery_change.sql').read_text())`；SQL 添加 `source_withdrawn` 并回填旧账本中已明确记录的撤回。公共 product migrations 和通用 PG fixture 由协调者接线，不能只改 0007 的已执行定义。
+- `from tianshu.runtime.jobs import current_execution_generation` 返回当前 worker 已验证的原 job 信封代际；不在 job 中返回 `None`，不查当前数据库。handler 的 ContextVar 在退出时复位；迟到结果仍需在提交事务调用 `assert_generation_on`。
+- 新路由：`companion.growth.input_retry -> GROWTH`；`life.experience_statistics_backfill -> DIARY`；`conversation.supplement_notify`、`conversation.example_usage`、`conversation.statistics_reconcile`、`channels.statistics_reconcile -> CONTROL`；`conversation.model_complete`、`channels.media_supplement`、`channels.media_supplement_expire`、`channels.resume_delivery -> CONVERSATION`。没有新增不存在的 Conversation 媒体/送达任务名。
+- 回归代码覆盖 OTHER 分类保留、相同/过期版本、暂停/取消/撤回、未知/执行中/成功及预算耗尽的拒绝、并发 job 的原代际隔离和异常退出复位。**本增量仍未运行测试、构建或烟测**；协调者集中验证迁移回填、领域撤回传播及实际 handler 接线。
