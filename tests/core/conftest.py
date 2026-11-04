@@ -39,7 +39,8 @@ class UnconfiguredModels:
 
 @pytest_asyncio.fixture
 async def core(tmp_path, database):
-    jobs = JobQueue(database.config.dsn)
+    jobs = JobQueue(database.config.dsn, database=database)
+    jobs.register_static_routes()
     commands = CommandStore(database)
     files = FileStore(tmp_path / "files")
     settings = Settings(
@@ -54,10 +55,14 @@ async def core(tmp_path, database):
     memory = MemoryService(database, identity, sources, commands, jobs, models)
     claims = ClaimService(memory)
     memory.bind_claims(claims)
-    sources.register_dependant(memory.source_changed)
+    sources.register_dependant(
+        memory.invalidate_actor, name="memory", partitions=memory.actors_for_source
+    )
     steps = ModelSteps(database, models, sources)
     embeddings = Embeddings(database, models, steps)
     retrieval = MemoryRetrieval(memory, embeddings, {"vector": False})
+    memory.bind_record_candidates(retrieval.candidates)
+    memory.bind_index_readiness(retrieval.index_readiness)
     assembler = ContextAssembler(identity, memory, retrieval)
     workers = MemoryWorkers(memory, assembler, embeddings, steps)
     modules = (

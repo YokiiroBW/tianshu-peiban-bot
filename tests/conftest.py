@@ -13,7 +13,7 @@ from tianshu.runtime.migrations import execution_migrations, foundation_migratio
 
 
 @pytest_asyncio.fixture
-async def database():
+async def empty_database():
     """Requires an explicitly supplied disposable-database admin, never a production default."""
     admin_dsn = os.environ.get("TIANSHU_TEST_POSTGRES_ADMIN_DSN")
     if not admin_dsn:
@@ -23,11 +23,16 @@ async def database():
     await admin.execute(sql.SQL("CREATE DATABASE {}").format(sql.Identifier(name)))
     db = Database(DatabaseConfig(make_conninfo(admin_dsn, dbname=name)))
     await db.open()
-    queue = JobQueue(db.config.dsn, database=db)
     try:
-        await migrate(db, foundation_migrations() + execution_migrations(queue))
         yield db
     finally:
         await db.close()
         await admin.execute(sql.SQL("DROP DATABASE {} WITH (FORCE)").format(sql.Identifier(name)))
         await admin.close()
+
+
+@pytest_asyncio.fixture
+async def database(empty_database):
+    queue = JobQueue(empty_database.config.dsn, database=empty_database)
+    await migrate(empty_database, foundation_migrations() + execution_migrations(queue))
+    return empty_database

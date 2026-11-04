@@ -224,7 +224,7 @@ def test_input_layout_change_rearms_only_a_known_blocked_receipt():
     from tianshu.memory.recovery import ConsolidationRecovery
     memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
     memory.consolidation=Consolidation(memory)
-    recovery=ConsolidationRecovery(memory,None)
+    recovery=ConsolidationRecovery(memory)
     episode={'extraction_state':'pending','extraction_cursor':{'protocol':SCHEMA_VERSION},'extraction_missing':[]}
     current=memory.consolidation._input_budget_record()
     old={'configuration':{**current,'input_layout':'expanded-before-shared-defs'},'required_tokens':12803}

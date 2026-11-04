@@ -33,7 +33,7 @@ TABLES = (
     "models.embedding_profile", "channels.connections", "capabilities.configuration",
     "capability_connections.connections", "capability_media.documents",
     "capability_plugins.plugin_packages", "capability_plugins.plugin_instances",
-    "capability_plugins.plugin_secrets", "life.contact_preferences", "life.routines",
+    "capability_plugins.plugin_secrets", "life.actor_state", "life.contact_preferences", "life.routines",
 )
 MEDIA_CONFIGURATION = frozenset({
     "account", "media_target", "book_settings", "book_source", "comic_settings",
@@ -87,6 +87,10 @@ def export_seed(connection, output):
     now = datetime.now(UTC).isoformat()
     for row in tables["life.routines"]:
         row.update(next_due_at=now, last_tick_at=None)
+    for row in tables["life.actor_state"]:
+        # World, room controls, timezone and weather location are authored settings.
+        # The retired activity and its wardrobe asset are business data.
+        row.update(activity_id=None, outfit_id=None, revision=1, updated_at=now)
     for row in tables["life.contact_preferences"]:
         row.update(
             responsiveness=0.5, availability="unknown", available_until=None,

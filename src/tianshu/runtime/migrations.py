@@ -72,7 +72,9 @@ def execution_migrations(jobs):
     return (
         Migration("0003_procrastinate", jobs.app.schema_manager.get_schema()),
         Migration("0007_rb_runtime", files("tianshu.runtime").joinpath("rb_runtime.sql").read_text()),
+        Migration("0008_rb_recovery_change", files("tianshu.runtime").joinpath("rb_recovery_change.sql").read_text()),
         Migration("0008_models_async_execution", files("tianshu.models").joinpath("async_execution.sql").read_text()),
+        Migration("0009_models_generation_fence", files("tianshu.models").joinpath("generation_fence.sql").read_text()),
     )
 
 

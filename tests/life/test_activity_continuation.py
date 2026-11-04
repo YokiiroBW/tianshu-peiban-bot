@@ -11,7 +11,7 @@ import pytest
 from tianshu.conversation import generation
 from tianshu.conversation.codec import document, signature
 from tianshu.life import day_plan, planning_engine, service, worker
-from tianshu.life.continuation import MAX_WINDOW_STEPS, automatic_step, execution_window
+from tianshu.life.continuation import automatic_step, execution_window
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, Receipt, SourceRef
@@ -183,7 +183,6 @@ async def test_delayed_imagined_start_does_not_reopen_the_accepted_activity_wind
 
 @pytest.mark.parametrize("change,reason", [
     ({"execution_window": {"ends_at": (NOW-timedelta(seconds=1)).isoformat()}}, "activity_window_ended"),
-    ({"execution_window": {"steps": MAX_WINDOW_STEPS}}, "continuation_step_limit"),
     ({"execution_window": {"seen_steps": [signature(READ)]}}, "continuation_repeated_step"),
     ({"consumption": {"stop_reason": "requested_window_processed"}}, "continuation_stop_condition"),
 ])

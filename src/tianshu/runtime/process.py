@@ -230,6 +230,14 @@ async def run(settings, role, *, initialize=False):
         if role == "model-broker":
             jobs.register_static_routes()
             authority = build_authority(services)
+            from tianshu.companion.behavior_resolver import BehaviorResolver
+            from .product_behaviors import validate_action_behaviors
+
+            behavior_reader = BehaviorResolver(database, authority.identity, authority.sources)
+
+            async def validate_behaviors(context, refs, *, purpose):
+                return await validate_action_behaviors(behavior_reader, context, refs, purpose=purpose)
+
             broker = ModelBroker(
                 database,
                 files,
@@ -240,6 +248,7 @@ async def run(settings, role, *, initialize=False):
                 upstream_connections=settings.get("broker", {}).get("upstream_connections", 64),
                 diagnostic_connections=settings.get("broker", {}).get("diagnostic_connections", 4),
                 validate_submission=authority.identity.check,
+                validate_behaviors=validate_behaviors,
                 validate_persistence=authority.sources.validate_persistence,
                 media_resolver=authority.media.reference,
                 provider_credential_refs=settings.get("broker", {}).get(
@@ -325,13 +334,12 @@ async def run(settings, role, *, initialize=False):
                       for name, group in groups.items()}
             groups = {name: group for name, group in groups.items() if group["queues"]}
             # Domain starts may register prepared owners and their work tasks.
-            # Resolve old metadata only after that graph is complete, while no
-            # lane consumer can claim a partially classified job yet.
-            routed = await jobs.route_legacy_pending(database, role=role)
+            # Apply ordinary queue-ownership changes only after the complete
+            # graph is ready, before consumers can claim affected pending jobs.
             reassigned = await jobs.route_reassigned_pending(database, role)
             registration = {
                 "tasks": sorted(jobs.tasks), "groups": groups,
-                "queue_listeners": len(groups), "legacy_job_routing": routed,
+                "queue_listeners": len(groups),
                 "reassigned_control_jobs": reassigned,
                 "modules": services.module_status, "disabled_queues": sorted(disabled),
                 "consumers": {name: {} for name in groups},

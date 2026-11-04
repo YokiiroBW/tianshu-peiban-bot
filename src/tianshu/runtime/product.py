@@ -325,6 +325,7 @@ async def build_product(runtime):
         operations = attach_operations(
             runtime, authority, caps.actions, channels,
             life_worker=life_worker, index_jobs=memory_workers.index_jobs,
+            memory=memory, growth=growth, infrastructure=caps.web_infrastructure,
         )
         modules.append(operations.module)
     return Product(tuple(modules), authority, caps, channels, operations)

@@ -205,7 +205,7 @@ def test_known_old_protocol_refresh_and_finite_v2_retry_preserve_the_frozen_requ
     from tianshu.memory.recovery import ConsolidationRecovery
     memory=SimpleNamespace(database=None,identity=None,sources=None,jobs=None)
     memory.consolidation=Consolidation(memory)
-    recovery=ConsolidationRecovery(memory,None)
+    recovery=ConsolidationRecovery(memory)
     episode={'extraction_state':'consolidation_failed','extraction_cursor':{'protocol':'memory.consolidation.v1'},
         'extraction_missing':[]}
     batch={'batch_id':'old-minimum','schema_version':SCHEMA_VERSION,

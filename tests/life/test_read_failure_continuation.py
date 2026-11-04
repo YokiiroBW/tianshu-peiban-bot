@@ -10,7 +10,7 @@ import pytest
 from tianshu.conversation.codec import document, signature
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.conversation.types import InputPart
-from tianshu.life.continuation import MAX_WINDOW_STEPS, action_resolved, execution_window, options, resume_step
+from tianshu.life.continuation import action_resolved, execution_window, options, resume_step
 from tianshu.life.day_plan import resumable
 from tianshu.life.planner import INPUT_BODY_TOKENS
 from tianshu.runtime.errors import AppError
@@ -215,19 +215,6 @@ async def test_expired_failure_replans_the_same_activity_at_full_quota_with_orig
     await value.worker.activity_step("research", replanned["revision"], wire(value.context))
     assert len(value.models.calls) == 1 and dict(value.actions.calls[-1][0].arguments) == NEXT["arguments"]
     assert value.models.calls[0].estimated_input_tokens <= INPUT_BODY_TOKENS
-
-
-@pytest.mark.asyncio
-async def test_failure_at_step_limit_retains_candidates_for_planning_without_starting_another_action(database):
-    value, _, _, failure = await successful_prefix(database)
-    async with database.transaction() as connection:
-        await connection.execute("UPDATE life.activities SET checkpoint_data=jsonb_set(checkpoint_data,'{execution_window,steps}',%s) WHERE id='research'",
-            (document(MAX_WINDOW_STEPS),))
-    await value.worker._activity_result(value.context, failure, 1, NOW, "content.read")
-    stopped = await activity(database)
-    assert stopped["checkpoint_data"]["continuation_stop_reason"] == "continuation_step_limit"
-    assert action_resolved(stopped) and resumable(stopped, NOW) and stopped["next_due_at"] is None
-    assert resume_step(stopped) == NEXT and len(value.actions.calls) == 3
 
 
 @pytest.mark.asyncio

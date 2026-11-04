@@ -1,26 +1,60 @@
 """Operations composition: public recovery ports without BOT or media owners."""
 
 from dataclasses import replace
+import asyncio
 
 from tianshu.capabilities.actions import Actions
 from tianshu.capabilities.catalog import Catalog
 from tianshu.capabilities.configuration import Configuration
 from tianshu.channels.service import Channels
 from tianshu.operations.module import build_operations
-from tianshu.operations.recovery import RecoveryExecutor
+from tianshu.operations.recovery import RecoveryAction, RecoveryExecutor
 from tianshu.runtime.recovery_policy import RecoveryPolicy
 
 
-def attach_operations(runtime, authority, actions, channels, *, life_worker=None, index_jobs=None):
+def attach_operations(runtime, authority, actions, channels, *, life_worker=None, index_jobs=None,
+                      memory=None, growth=None, infrastructure=None):
     settings = runtime.settings.get("operations", {})
     principal_id = settings.get("principal_id")
 
     async def diagnostic_context():
         return await authority.identity.system_context(principal_id, permission="config.publish")
 
+    async def progress():
+        readers = []
+        if life_worker is not None:
+            readers.append(("life", life_worker.recovery_candidates(limit=32)))
+        if index_jobs is not None:
+            readers.append(("memory_index", index_jobs.recovery_candidates(limit=32)))
+        if memory is not None:
+            readers.append(("memory_consolidation", memory.recovery_candidates(limit=32)))
+        if growth is not None:
+            readers.append(("growth", growth.operations.progress(limit=32)))
+        values = await asyncio.gather(*(reader for _, reader in readers), return_exceptions=True)
+        facts = []
+        for (domain, _), value in zip(readers, values):
+            if isinstance(value, BaseException):
+                runtime.module_status["operations.progress." + domain] = {
+                    "state": "unavailable", "error": type(value).__name__,
+                }
+            else:
+                runtime.module_status["operations.progress." + domain] = {"state": "ready"}
+                facts.extend(value)
+        return tuple(facts)
+
+    recovery_actions = ()
+    if memory is not None:
+        memory.set_operations_guard(RecoveryExecutor.guard_on)
+        recovery_actions = (RecoveryAction(
+            "memory.consolidation.resume", frozenset({"memory_consolidation_failed"}),
+            memory.operations.inspect, memory.operations.invoke, memory.operations.observe,
+            observation_only=True, domain_managed=True,
+        ),)
     return build_operations(
         runtime, authority.identity, capability_actions=actions, channels=channels,
+        actions=recovery_actions,
         life_worker=life_worker, index_jobs=index_jobs,
+        growth=growth, infrastructure=infrastructure, progress=progress,
         diagnostic_context=diagnostic_context if principal_id else None,
         policy=RecoveryPolicy(),
         host_spool_directory=settings.get(
@@ -33,6 +67,7 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
 async def build_operations_product(runtime):
     from .product import Product, build_authority
     from tianshu.companion.service import CompanionService
+    from tianshu.companion.growth import GrowthService
     from tianshu.conversation.context.assembly import ContextAssembler
     from tianshu.life.clock import LifeClock
     from tianshu.life.contacts import Contacts
@@ -79,14 +114,18 @@ async def build_operations_product(runtime):
     # This instance supplies the narrow original-Action observation port only.
     # No Life clock, planner, dialogue or Memory consumer starts in Operations.
     life_worker = LifeWorker(life, models, assembler, catalog, actions, None)
+    growth = GrowthService(companion, jobs, models, assembler, on_projection_changed=life.signal)
+    growth.set_life(life)
     operations = attach_operations(
         runtime, authority, actions, channels, life_worker=life_worker, index_jobs=workers.index_jobs,
+        memory=memory, growth=growth,
     )
     runtime.statistics = operations.statistics
     policy = RecoveryPolicy()
     memory.bind_observability(statistics=operations.statistics, recovery_policy=policy)
     life.bind_statistics(operations.statistics)
     life.bind_recovery_policy(policy)
+    growth.set_observability(statistics=operations.statistics, recovery_policy=policy)
     channels.bind_recovery_policy(policy)
     channels.bind_statistics(operations.statistics)
     actions.statistics = operations.statistics
