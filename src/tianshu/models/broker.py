@@ -170,7 +170,7 @@ class ModelBroker:
         async with self.database.transaction(control=True, read_only=True) as conn:
             row = await (
                 await conn.execute(
-                    "SELECT e.*,r.provider_id,r.model,r.revision AS route_revision "
+                    "SELECT e.*,r.provider_id,r.model,r.revision AS route_revision,r.quota_group "
                     "FROM models.embedding_profile e JOIN models.routes r USING(route_id) WHERE singleton"
                 )
             ).fetchone()
@@ -572,7 +572,7 @@ class ModelBroker:
         output = effective_output_tokens(plan, request)
         parameters = merged_parameters(plan, request)
         return {"route_id": plan.route_id, "route_revision": plan.revision,
-                "protocol": plan.protocol, "model": plan.model,
+                "protocol": plan.protocol, "model": plan.model, "quota_group": plan.quota_group,
                 "verified_capabilities": sorted(plan.verified_capabilities),
                 "max_output_tokens": output,
                 "output_parameters": with_output_tokens(plan.protocol,

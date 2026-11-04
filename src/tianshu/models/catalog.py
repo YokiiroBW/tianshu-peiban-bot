@@ -204,7 +204,13 @@ class ModelCatalog:
                     # an author changes the binding while assembly is in flight.
                     if request.route_revision is None:
                         raise AppError("model_route_forbidden", status=403)
-                    if not binding or request.route_id not in (binding["route_id"], *binding["fallback_routes"]):
+                    embedding_route = None
+                    if request.function == "embed":
+                        embedding = await (await conn.execute(
+                            "SELECT route_id FROM models.embedding_profile WHERE singleton")).fetchone()
+                        embedding_route = embedding["route_id"] if embedding else None
+                    bound_route = binding and request.route_id in (binding["route_id"], *binding["fallback_routes"])
+                    if request.route_id != embedding_route and not bound_route:
                         raise AppError("model_route_binding_changed", status=409)
                 route_id = request.route_id
             elif request.function == "embed":
@@ -261,7 +267,8 @@ class ModelCatalog:
             unavailable = not primary or not primary["enabled"] or not primary["provider_enabled"]
             # Native proxy aliases and explicitly privileged route choices must
             # stay exact. Backups are only those configured for this binding.
-            may_fallback = (frozen_attempt is None and request.function != "ops.diagnose" and request.native_payload is None
+            pinned = request.route_id is not None and request.route_revision is not None
+            may_fallback = (frozen_attempt is None and not pinned and request.function != "ops.diagnose" and request.native_payload is None
                             and (not request.route_id or request.allow_configured_fallback))
             if may_fallback and (unavailable or cooldown or route_cooldown):
                 try:
