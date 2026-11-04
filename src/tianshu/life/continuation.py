@@ -6,7 +6,6 @@ from tianshu.runtime.errors import AppError
 
 
 READ_CAPABILITIES = frozenset({"content.discover", "content.read", "content.continue", "video.observe", "life.reading"})
-MAX_WINDOW_STEPS = 12
 
 
 def read_failure_status(capability_id, execution, effect, delivery, error_code):
@@ -39,8 +38,37 @@ def failed_target(step, exploration):
         for item in exploration.get("failed_reads", ()))
 
 
+def completed_target(step, exploration):
+    arguments = step.get("arguments") or {}
+    key = step.get("content_key") or arguments.get("content_key")
+    return bool(key and key in exploration.get("completed_content_keys", ())
+        and step.get("capability_id") == "content.read" and arguments.get("mode") != "continue")
+
+
 def remaining_actions(exploration):
-    return [item for item in exploration.get("next_actions", ()) if not failed_target(item, exploration)]
+    seen = set(exploration.get("completed_content_keys", ()))
+    remaining = []
+    for item in exploration.get("next_actions", ()):
+        key = item.get("content_key") or (item.get("arguments") or {}).get("content_key")
+        if failed_target(item, exploration) or (key and key in seen):
+            continue
+        if key:
+            seen.add(key)
+        remaining.append(item)
+    return remaining
+
+
+def discovery_progress(previous, current, result):
+    """Repeated pages with no new candidates are not progress, even if cursors change."""
+    keys = sorted({item.get("content_key") for item in result.get("candidates", ()) if item.get("content_key")})
+    if set(keys) - set(previous.get("seen_keys", ())):
+        current.pop("no_progress_signature", None)
+        current.pop("no_progress_stop", None)
+    else:
+        value = signature({"query": current.get("query"), "mode": current.get("mode"), "content_keys": keys})
+        current["no_progress_stop"] = previous.get("no_progress_signature") == value
+        current["no_progress_signature"] = value
+    return current
 
 
 def unread_coverage(result, checkpoint):
@@ -77,6 +105,9 @@ def failed_read_checkpoint(activity, result, result_revision, capability_id):
         if signature({"capability_id": item["capability_id"], "arguments": item["arguments"]}) not in window.get("seen_steps", ())]
     pending = exploration["next_actions"]
     continuation = {name: pending[0][name] for name in ("capability_id", "arguments")} if pending else None
+    discovery = exploration.get("discovery_continuation")
+    if continuation is None and discovery and not failed_target(discovery, exploration):
+        continuation = {name: discovery[name] for name in ("capability_id", "arguments")}
     exploration["continuation"] = continuation
     data.update(resolved_action_id=result.action_id, resolved_execution=result.execution,
         resolved_effect=result.effect, resolved_delivery=result.delivery, resolved_error_code=result.error_code,
@@ -89,9 +120,11 @@ def failed_read_checkpoint(activity, result, result_revision, capability_id):
 
 
 def execution_window(checkpoint, begins, ends):
-    """A newly accepted arrangement owns one finite run, including discovery."""
+    """Retain progress signatures when an activity is arranged again."""
+    previous = checkpoint.get("execution_window") or {}
     return {**checkpoint, "execution_window": {"starts_at": begins.isoformat(),
-        "ends_at": ends.isoformat(), "steps": 0, "seen_steps": []}, "continuation_stop_reason": None}
+        "ends_at": ends.isoformat(), "steps": previous.get("steps", 0),
+        "seen_steps": list(previous.get("seen_steps", ()))}, "continuation_stop_reason": None}
 
 
 def submitted_checkpoint(checkpoint):
@@ -121,10 +154,12 @@ def automatic_step(activity, now):
         return None, "continuation_requires_arrangement"
     if now < datetime.fromisoformat(window["starts_at"]):
         return None, "activity_window_not_started"
-    if now >= datetime.fromisoformat(window["ends_at"]):
+    from .eligibility import background_work
+    deadline = data.get("business_deadline_at")
+    if deadline and now >= (datetime.fromisoformat(deadline) if isinstance(deadline, str) else deadline):
+        return None, "activity_deadline_expired"
+    if not background_work(data) and now >= datetime.fromisoformat(window["ends_at"]):
         return None, "activity_window_ended"
-    if window.get("steps", 0) >= MAX_WINDOW_STEPS:
-        return None, "continuation_step_limit"
     consumption = data.get("consumption") or {}
     if consumption.get("stop_reason") not in {None, "checkpoint", "segment_limit", "window_limit"}:
         return None, "continuation_stop_condition"
@@ -134,6 +169,8 @@ def automatic_step(activity, now):
         return None, error.code
     if step["capability_id"] not in READ_CAPABILITIES:
         return None, "continuation_requires_arrangement"
+    if step["capability_id"] == "content.discover" and (data.get("exploration") or {}).get("no_progress_stop"):
+        return None, "continuation_no_progress"
     if signature(step) in window.get("seen_steps", ()):
         return None, "continuation_repeated_step"
     return step, None
@@ -168,7 +205,7 @@ def resume_step(activity, selected_key=None):
             continuation = next((item for item in options if item.get("candidate_key") == selected_key or item.get("content_key") == selected_key), None)
         if continuation is None or failed_target(continuation, exploration):
             raise AppError("activity_continuation_invalid", status=409)
-    elif continuation and failed_target(continuation, exploration):
+    elif continuation and (failed_target(continuation, exploration) or completed_target(continuation, exploration)):
         pending = remaining_actions(exploration)
         continuation = pending[0] if pending else None
     if not selected_key and not continuation and not remaining_actions(exploration):

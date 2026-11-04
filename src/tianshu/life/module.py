@@ -43,6 +43,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("day-plan.move", service.days.move, write=True)
         route("day-plan.reconsider", service.days.reconsider, write=True)
         route("activities", lambda ctx, body: service.activities(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
+        route("activities/checkpoint", service.activity_checkpoint)
         route("activities.save", service.save_activity, write=True)
         route("activities.pause", lambda ctx, body: service.transition_activity(ctx, body, "paused"), write=True)
         route("activities.resume", lambda ctx, body: service.transition_activity(ctx, body, "running"), write=True)
@@ -65,6 +66,7 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("diaries/cancel", lambda ctx, body: generation_control.request(ctx,body,kind="diary",operation="cancel"), write=True)
         route("diaries/reconcile", lambda ctx, body: generation_control.request(ctx,body,kind="diary",operation="reconcile"), write=True)
         route("diaries/revise", diaries.revise, write=True)
+        route("diaries/review", diaries.review, write=True)
         route("diaries/publish", diaries.publish, write=True)
         route("works", lambda ctx, body: writing.list(ctx, cursor=body.get("cursor"), limit=body.get("limit", 30)), permission="life.published.read")
         route("works.save", writing.save_work, write=True)
@@ -93,6 +95,9 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.activity_step", worker.activity_step, retryable=False)
         queue.register("life.activity_cancel", worker.cancel_activity, retryable=False)
         queue.register("life.activity_reconcile", worker.reconcile_activity, retryable=False)
+        queue.register("life.recovery_observe_activity", worker.recovery_observe_activity, retryable=False)
+        queue.register("life.statistics_replay", worker.statistics_replay, retryable=False)
+        queue.register("life.statistics_backfill", worker.statistics_backfill, retryable=False)
         queue.register("life.commitment_due", worker.commitment_due, retryable=False)
         queue.register("life.commitment_reconcile", worker.reconcile_commitment, retryable=False)
         queue.register("life.contact_due", worker.contact_due, retryable=False)
@@ -103,10 +108,14 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.chapter_generate", writing.generate, retryable=False)
 
     async def start(_runtime):
+        if _runtime.role != "bot-background":
+            return
         await clock.recover()
         await worker.recover()
         await generation_control.recover()
         await diaries.recover()
+        from .statistics import enqueue_backfill
+        await enqueue_backfill(worker)
 
     return DomainModule("life", register, start=start, register_tasks=tasks,
         migrations=(
@@ -114,4 +123,5 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
             Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
             Migration("0035_life_planning_recovery", files("tianshu.life").joinpath("planning_recovery.sql").read_text()),
             Migration("0038_life_computation_retry", files("tianshu.life").joinpath("0038_life_computation_retry.sql").read_text()),
+            Migration("0040_life_execution", files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),
         ))

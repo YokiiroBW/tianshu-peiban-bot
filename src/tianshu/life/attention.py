@@ -30,7 +30,7 @@ def quiet_until(now: datetime, timezone: str, start: str, end: str):
 
 
 class AttentionPolicy:
-    def decide(self, candidate, preferences, history, *, now=None):
+    def decide(self, candidate, preferences, history, *, now=None, routine=None):
         now = now or datetime.now(UTC)
         expires = contact_expiry(candidate["expires_at"], preferences,
             created_at=candidate["created_at"], explicit=candidate.get("explicit", False),
@@ -50,6 +50,13 @@ class AttentionPolicy:
             return AttentionDecision("archive", "contact_disabled")
         if candidate.get("explicit"):
             return AttentionDecision("send", "explicit_commitment_at_requested_time", target_ref=candidate["target_ref"])
+        if routine and routine.get("enabled"):
+            from .clock import awake_and_due
+            awake, wake = awake_and_due(routine, now)
+            if not awake:
+                if wake >= expires:
+                    return AttentionDecision("cancel", "contact_window_before_available_time")
+                return AttentionDecision("defer", "actor_resting", wake)
         salience = candidate.get("payload", {}).get("salience")
         if salience is None or salience["score"] < salience["thresholds"]["engage"]:
             return AttentionDecision("archive", "kept_for_relevant_conversation")

@@ -27,6 +27,7 @@ PLANNING_STATUS_CODES = frozenset({
     "planner_goal_basis_invalid", "planner_goal_criteria_changed", "planner_goal_changed", "planner_activity_unavailable", "source_unavailable",
     "planner_contact_basis_invalid",
     "planner_output_completion_unknown", "planner_model_unavailable",
+    "planner_stale_state", "planner_deferred_no_slot", "planner_attempts_exhausted",
 })
 
 
@@ -59,18 +60,37 @@ def awake_and_due(row, now):
 
 
 def day_to_close(row, now):
-    """Close only an observed date or an observed awake-to-sleep boundary."""
+    """Return the first due local day, including a first start after bedtime."""
+    days = days_to_close(row, now)
+    return days[0] if days else None
+
+
+def days_to_close(row, now):
+    """Crossed local dates and a passed sleep boundary each close at most once."""
     previous=row.get('last_tick_at')
-    if previous is None or previous>=now:
-        return None
     zone=ZoneInfo(row['timezone'])
-    previous_day=previous.astimezone(zone).date()
-    current_day=now.astimezone(zone).date()
-    if previous_day<current_day:
-        return previous_day
-    was_awake,_=awake_and_due(row,previous)
+    local = now.astimezone(zone)
+    current_day=local.date()
+    if previous is not None and previous >= now:
+        return ()
+    days = []
+    previous_day = previous.astimezone(zone).date() if previous else current_day
+    day = previous_day
+    while day < current_day:
+        days.append(day)
+        day += timedelta(days=1)
     awake,_=awake_and_due(row,now)
-    return current_day if previous_day==current_day and was_awake and not awake else None
+    local_time = local.time().replace(tzinfo=None)
+    wake, sleep = hour(row['wake_at']), hour(row['sleep_at'])
+    # A first boot after midnight but before the normal wake belongs to the
+    # preceding sleeping day, even though no earlier clock tick was saved.
+    if previous is None and not awake and wake < sleep and local_time < wake:
+        days.append(current_day - timedelta(days=1))
+    after_sleep = local_time >= sleep
+    if not awake and after_sleep:
+        if previous is None or previous_day < current_day or awake_and_due(row,previous)[0]:
+            days.append(current_day)
+    return tuple(days)
 
 
 def authorization_blocked(error):
@@ -251,12 +271,15 @@ class LifeClock:
                 if not fresh["enabled"] or fresh["revision"] != expected_revision or fresh["next_due_at"].isoformat() != due_at or fresh["next_due_at"] > now:
                     return
                 awake, due = awake_and_due(fresh, now)
-                closed=day_to_close(fresh,now)
-                if closed is not None:
+                for closed in days_to_close(fresh,now):
                     if self.day_plans:
                         await self.day_plans.close(connection,context,closed)
                     if self.on_day_closed:
-                        await self.on_day_closed(context,closed.isoformat(),connection=connection)
+                        already = await (await connection.execute(
+                            "SELECT 1 FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s",
+                            (actor_id, signature(sorted(context.scope_ids)), closed))).fetchone()
+                        if not already:
+                            await self.on_day_closed(context,closed.isoformat(),connection=connection)
                 await connection.execute(
                     "UPDATE life.routines SET context=%s,next_due_at=%s,last_tick_at=%s WHERE actor_id=%s",
                     (document(context), due, now, actor_id),

@@ -10,10 +10,10 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
 from tianshu.sources.dependencies import unique_refs
 from .clock import awake_and_due, hour
-from .continuation import action_resolved
+from .eligibility import background_work, evaluate
+from .types import PlanApplyResult, PlanCandidateResult
 
 
-GAP_MINUTES = 20
 COMMITMENT_MARGIN = timedelta(minutes=10)
 
 
@@ -22,13 +22,13 @@ def awake_window(routine, now):
     zone = ZoneInfo(routine["timezone"])
     local = now.astimezone(zone)
     awake, due = awake_and_due(routine, now)
+    midnight = datetime.combine(local.date() + timedelta(days=1), time(), zone)
     if not awake:
-        return None, due
+        return None, min(due, midnight.astimezone(UTC))
     end = datetime.combine(local.date(), hour(routine["sleep_at"]), zone)
     if end <= local:
         end += timedelta(days=1)
     # A plan belongs to a local calendar day even for night-shift routines.
-    midnight = datetime.combine(local.date() + timedelta(days=1), time(), zone)
     return now, min(end, midnight).astimezone(UTC)
 
 
@@ -40,14 +40,8 @@ def next_gap(start, duration, end, occupied):
             continue
         if finish <= begin:
             break
-        start, finish = until + timedelta(minutes=GAP_MINUTES), until + timedelta(minutes=GAP_MINUTES) + duration
+        start, finish = until, until + duration
     return (start, finish) if finish <= end else None
-
-
-def resumable(row, now):
-    return (row["state"] == "dormant" and row["waiting_reason"] in {"continuation_available", "day_finished", "follow_up_available"}
-        and (not row["protected_until"] or row["protected_until"] <= now)
-        and action_resolved(row))
 
 
 class DayPlans:
@@ -105,6 +99,17 @@ class DayPlans:
             except (TypeError, ValueError):
                 raise AppError("invalid_day") from None
         data = await self.snapshot(context, local_day)
+        application = None
+        if data["plan"]:
+            async with self.life.database.transaction(read_only=True) as connection:
+                application = await (await connection.execute(
+                    "SELECT generation_key,application_results FROM life.plan_generations "
+                    "WHERE actor_id=%s AND day=%s AND state='applied' AND application_results IS NOT NULL "
+                    "AND context->'scope_ids'<@%s::jsonb AND context->'audience'<@%s::jsonb "
+                    "ORDER BY reviewed_at DESC,generation_key DESC LIMIT 1",
+                    (context.actor_id, local_day, document(sorted(context.scope_ids)), document(sorted(context.audience))))).fetchone()
+            if application:
+                application = {"generation_key": application["generation_key"], **application["application_results"]}
         from .service import public_record
         data={"plan":public_record(data["plan"]) if data["plan"] else None,
             "slots":[public_record(row) for row in data["slots"]],
@@ -115,7 +120,7 @@ class DayPlans:
                 "last_error,repair_count,repair_due_at,review_after,"
                 "(planned_watermark<>change_watermark OR (generation_key IS NOT NULL AND NOT generation_consumed)) AS pending "
                 "FROM life.plan_watermarks WHERE actor_id=%s",(context.actor_id,))).fetchone()
-        return {"day": local_day.isoformat(), **data, "planning":planning}
+        return {"day": local_day.isoformat(), **data, "planning":planning, "application": application}
 
     async def reconsider(self, context, body):
         from .validation import text, revision
@@ -148,13 +153,16 @@ class DayPlans:
             begin,end=awake_window(routine,starts)
             finish=starts+(slot["ends_at"]-slot["starts_at"])
             zone=ZoneInfo(routine["timezone"] if routine else "Asia/Shanghai")
-            if starts<=datetime.now(UTC) or starts.astimezone(zone).date()!=slot["day"] or begin is None or finish>end:
+            background = background_work(row["checkpoint_data"])
+            if starts<=datetime.now(UTC) or starts.astimezone(zone).date()!=slot["day"] or (not background and (begin is None or finish>end)):
                 raise AppError("invalid_day_slot_window")
-            conflict=await (await connection.execute("SELECT 1 FROM life.day_slots WHERE actor_id=%s AND id<>%s AND kind='activity' AND state IN ('planned','running') AND starts_at<%s AND ends_at>%s LIMIT 1",(context.actor_id,slot["id"],finish,starts))).fetchone()
-            if conflict:
+            collisions=await (await connection.execute("SELECT a.checkpoint_data FROM life.day_slots s LEFT JOIN life.activities a ON a.id=s.activity_id "
+                "WHERE s.actor_id=%s AND s.id<>%s AND s.kind='activity' AND s.state IN ('planned','running') AND s.starts_at<%s AND s.ends_at>%s",
+                (context.actor_id,slot["id"],finish,starts))).fetchall()
+            if not background_work(row["checkpoint_data"]) and any(not background_work(item["checkpoint_data"]) for item in collisions):
                 raise AppError("day_slot_conflict",status=409)
             promise=await (await connection.execute("SELECT 1 FROM life.commitments WHERE actor_id=%s AND state IN ('scheduled','waiting') AND due_at>%s AND due_at<%s LIMIT 1",(context.actor_id,starts-COMMITMENT_MARGIN,finish+COMMITMENT_MARGIN))).fetchone()
-            if promise:
+            if promise and not background:
                 raise AppError('day_slot_conflict',status=409)
             version=row["revision"]+1
             from .continuation import execution_window
@@ -163,7 +171,11 @@ class DayPlans:
             await connection.execute("UPDATE life.activities SET next_due_at=%s,checkpoint_data=%s,revision=%s WHERE id=%s",(starts,document(data),version,row["id"]))
             original=context_from_record(row["context"]) if row["context"] else context
             await self.life.jobs.enqueue(connection,JobSpec("life.activity_step",f"activity:{row['id']}:{version}",{"activity_id":row["id"],"expected_revision":version,"context":wire(original)},scheduled_at=starts,subject_id=context.actor_id))
-            await self._free_time(connection,context,slot["day"],datetime.now(UTC),end,"留白，允许休息和临时变化",source_refs(row["source_refs"]))
+            current = datetime.now(UTC)
+            free_start, free_end = awake_window(routine, current)
+            if free_start is not None and current.astimezone(zone).date() == slot["day"]:
+                await self._free_time(connection,context,slot["day"],free_start,free_end,"留白，允许休息和临时变化",source_refs(row["source_refs"]))
+            await self.life.signal(context, f"activity-moved:{row['id']}:{version}", connection=connection)
             return CommandResult(body["client_request_id"],{"id":slot["id"],"revision":slot["revision"]+1,"starts_at":starts,"ends_at":finish},slot["revision"]+1)
         return await self.life.commands.execute(context,"life.day-plan.move",body["client_request_id"],signature(body),apply)
 
@@ -174,26 +186,31 @@ class DayPlans:
             "WHERE s.actor_id=%s AND s.day=%s AND s.state='planned' AND a.state='planned' AND a.action_id IS NULL AND a.scope_ids<@%s::text[] FOR UPDATE OF a",
             (context.actor_id, day, list(context.scope_ids)))).fetchall()
         for row in rows:
+            if background_work(row["checkpoint_data"]):
+                continue
             await connection.execute(
                 "UPDATE life.activities SET state='dormant',waiting_reason='day_finished',resume_condition='next_day_plan',"
                 "next_due_at=NULL,revision=revision+1 WHERE id=%s", (row["id"],))
-        await connection.execute(
-            "UPDATE life.day_slots SET state='carried',revision=revision+1 WHERE actor_id=%s AND day=%s AND state='planned' AND kind='activity' AND scope_ids<@%s::text[]",
-            (context.actor_id, day, list(context.scope_ids)))
-        await connection.execute("UPDATE life.day_plans SET state='closed',updated_at=now() WHERE actor_id=%s AND day=%s AND scope_ids<@%s::text[]",
+            await connection.execute(
+                "UPDATE life.day_slots SET state='carried',revision=revision+1 WHERE actor_id=%s AND day=%s AND activity_id=%s "
+                "AND state='planned' AND kind='activity' AND scope_ids<@%s::text[]",
+                (context.actor_id, day, row["id"], list(context.scope_ids)))
+        await connection.execute("UPDATE life.day_plans SET state='closed',updated_at=now() WHERE actor_id=%s AND day=%s AND state<>'closed' AND scope_ids<@%s::text[]",
             (context.actor_id, day, list(context.scope_ids)))
 
     async def apply(self, connection, context, decision, frozen_data, generation_key, aliases, refs, routine, now, fingerprint):
         day = now.astimezone(ZoneInfo(routine["timezone"] if routine else "Asia/Shanghai")).date()
+        zone = ZoneInfo(routine["timezone"] if routine else "Asia/Shanghai")
+        midnight = datetime.combine(day + timedelta(days=1), time(), zone).astimezone(UTC)
         old = await (await connection.execute(
             "SELECT * FROM life.day_plans WHERE actor_id=%s AND day=%s FOR UPDATE", (context.actor_id, day))).fetchone()
-        if old is None or set(old["scope_ids"]) <= set(context.scope_ids):
+        editable_plan = old is None or set(old["scope_ids"]) <= set(context.scope_ids)
+        if old is None:
             await connection.execute(
             "INSERT INTO life.day_plans(actor_id,day,timezone,reason,context,scope_ids,source_refs,material_fingerprint) "
-            "VALUES (%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(actor_id,day) DO UPDATE SET revision=life.day_plans.revision+1,"
-            "reason=excluded.reason,context=excluded.context,source_refs=excluded.source_refs,material_fingerprint=excluded.material_fingerprint,updated_at=now()",
-                (context.actor_id, day, routine["timezone"] if routine else "Asia/Shanghai", decision["reason"], document(context),
-                 list(context.scope_ids), document(unique_refs(source_refs(old["source_refs"]) if old else (), refs)), fingerprint))
+            "VALUES (%s,%s,%s,'planning_incomplete',%s,%s,%s,'') ON CONFLICT(actor_id,day) DO NOTHING",
+                (context.actor_id, day, routine["timezone"] if routine else "Asia/Shanghai", document(context),
+                 list(context.scope_ids), document(refs)))
         # A local replan can retract an unstarted proposal. It cannot erase an action.
         original_activities = {row["id"]: row for row in frozen_data.get("unfinished", ())}
         for identifier in decision.get("cancel_activity_ids", ()):
@@ -212,33 +229,75 @@ class DayPlans:
             "UPDATE life.day_slots s SET state='cancelled',reason='goal_not_active',revision=s.revision+1 "
             "FROM life.activities a WHERE s.activity_id=a.id AND s.state='planned' AND a.waiting_reason='goal_not_active' AND s.actor_id=%s AND s.scope_ids<@%s::text[]", (context.actor_id,list(context.scope_ids)))
         retained = await (await connection.execute(
-            "SELECT * FROM life.day_slots WHERE actor_id=%s AND day=%s AND kind='activity' AND state IN ('planned','running') ORDER BY starts_at",
+            "SELECT s.*,a.checkpoint_data FROM life.day_slots s LEFT JOIN life.activities a ON a.id=s.activity_id "
+            "WHERE s.actor_id=%s AND s.day=%s AND s.kind='activity' AND s.state IN ('planned','running') ORDER BY s.starts_at",
             (context.actor_id, day))).fetchall()
         start, end = awake_window(routine, now)
-        if start is None:
-            return 0
-        occupied = [(row["starts_at"], row["ends_at"]) for row in retained]
-        for commitment in frozen_data["commitments"]:
+        occupied = [(row["starts_at"], row["ends_at"]) for row in retained if not background_work(row.get("checkpoint_data"))]
+        commitments = await (await connection.execute(
+            "SELECT due_at FROM life.commitments WHERE actor_id=%s AND state IN ('scheduled','waiting') AND due_at IS NOT NULL",
+            (context.actor_id,))).fetchall()
+        for commitment in commitments:
             due = commitment.get("due_at")
             if due:
                 due = datetime.fromisoformat(due) if isinstance(due, str) else due
                 occupied.append((due - COMMITMENT_MARGIN, due + COMMITMENT_MARGIN))
         offered = ([decision["activity"]] if decision["activity"] else []) + decision.get("arrangements", [])
-        created = 0
+        results = [PlanCandidateResult(**item) for item in decision.get("_invalid_candidates", ())]
+        if not offered and not results and not decision.get("_has_deferred_group"):
+            results.append(PlanCandidateResult("idle", "intentional_idle", decision.get("free_time_reason") or decision["reason"], next_due_at=end))
         for index, activity in enumerate(offered):
             identifier = activity.get("existing_activity_id")
+            candidate_key = activity.get("_candidate_key") or activity.get("option_id") or ("activity:" + identifier + ":" + str(activity.get("continuation_key") or "next") if identifier else f"proposal:{index}")
+            if activity.get("_capability_stale"):
+                results.append(PlanCandidateResult(candidate_key, "stale_state", "capability_snapshot_changed", identifier))
+                continue
+            goal_id = aliases.get(activity.get("goal_id"), activity.get("goal_id"))
+            goal = None
+            if goal_id:
+                goal = await (await connection.execute("SELECT * FROM life.goals WHERE id=%s AND actor_id=%s FOR UPDATE", (goal_id, context.actor_id))).fetchone()
+                if not goal or not set(goal["scope_ids"]) <= set(context.scope_ids) or goal["state"] != "active":
+                    results.append(PlanCandidateResult(candidate_key, "stale_state", "goal_not_active", identifier, revision=goal["revision"] if goal else None))
+                    continue
+                frozen_goal = next((item for item in frozen_data.get("goals", ()) if item["id"] == goal_id), None)
+                changed_goal_ids = {change.get("id") for change in decision.get("goal_changes", ()) if change.get("id")}
+                if frozen_goal is None and goal_id not in aliases.values():
+                    results.append(PlanCandidateResult(candidate_key, "stale_state", "goal_not_in_snapshot", identifier, revision=goal["revision"]))
+                    continue
+                if frozen_goal and goal_id not in changed_goal_ids and goal["revision"] != frozen_goal["revision"]:
+                    results.append(PlanCandidateResult(candidate_key, "stale_state", "goal_revision_changed", identifier, revision=goal["revision"]))
+                    continue
+            row = None
+            if identifier:
+                original = original_activities.get(identifier)
+                row = await self.life.lock_row(connection, context,
+                    "SELECT * FROM life.activities WHERE id=%s AND actor_id=%s FOR UPDATE", (identifier, context.actor_id))
+                if not original or not row:
+                    results.append(PlanCandidateResult(candidate_key, "stale_state", "activity_missing", identifier))
+                    continue
+                if row.get("goal_id") != goal_id:
+                    results.append(PlanCandidateResult(candidate_key, "stale_state", "activity_goal_changed", identifier, revision=row["revision"]))
+                    continue
+                assessment = evaluate(goal=goal, activity=row, expected_revision=original["revision"],
+                    continuation_key=activity.get("continuation_key"), now=now, resume=True)
+                if not assessment.eligible:
+                    results.append(PlanCandidateResult(candidate_key, "stale_state", assessment.reason, identifier, revision=assessment.revision,
+                        next_due_at=row.get("protected_until") if assessment.reason == "activity_protected" else None))
+                    continue
+                if assessment.step["capability_id"] != activity.get("capability_id"):
+                    results.append(PlanCandidateResult(candidate_key, "invalid_proposal", "continuation_capability_mismatch", identifier, revision=row["revision"]))
+                    continue
+            background = background_work({"capability_id": activity.get("capability_id")})
             duration = timedelta(minutes=activity["duration_minutes"])
-            begins = now + timedelta(minutes=activity.get("after_minutes", index * GAP_MINUTES))
-            period = next_gap(begins, duration, end, occupied)
+            begins = now + timedelta(minutes=activity.get("after_minutes", 0))
+            period = (begins, begins + duration) if background and begins < midnight else (
+                next_gap(begins, duration, end, occupied) if start is not None else None)
             if period is None:
+                next_due = min((value for value in [end, midnight, *(until for _, until in occupied if until > now)] if value and value > now), default=end)
+                results.append(PlanCandidateResult(candidate_key, "deferred_no_slot", "no_available_window", identifier, revision=row["revision"] if row else None, next_due_at=next_due))
                 continue
             begins, finish = period
             if identifier:
-                original = original_activities[identifier]
-                row = await self.life.lock_row(connection, context,
-                    "SELECT * FROM life.activities WHERE id=%s AND actor_id=%s FOR UPDATE", (identifier, context.actor_id))
-                if not row or row["revision"] != original["revision"] or not resumable(row, now):
-                    continue
                 data = dict(row["checkpoint_data"])
                 if row["waiting_reason"] in {"continuation_available","follow_up_available"}:
                     from .continuation import resumed_checkpoint
@@ -254,7 +313,6 @@ class DayPlans:
                     (begins, document(data), version, identifier))
             else:
                 identifier = str(uuid5(NAMESPACE_URL, generation_key + f":activity:{index}"))
-                goal_id = aliases.get(activity["goal_id"], activity["goal_id"])
                 version = 1
                 await connection.execute(
                     "INSERT INTO life.activities(id,actor_id,goal_id,title,kind,state,next_due_at,waiting_reason,checkpoint_data,scope_ids,source_refs) "
@@ -271,17 +329,31 @@ class DayPlans:
                 (slot_id, context.actor_id, day, begins, finish, identifier, decision["reason"],list(context.scope_ids),document(refs)))
             await self.life.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{identifier}:{version}",
                 {"activity_id": identifier, "expected_revision": version, "context": wire(context)}, scheduled_at=begins, subject_id=context.actor_id))
-            occupied.append((begins, finish))
-            created += 1
-        await self._free_time(connection, context, day, start, end, decision.get("free_time_reason") or "留白，允许休息和临时变化",refs)
-        return created
+            if not background:
+                occupied.append((begins, finish))
+            results.append(PlanCandidateResult(candidate_key, "scheduled", "accepted", identifier, slot_id, version, begins))
+        accepted = any(item.status in {"scheduled", "intentional_idle"} for item in results)
+        complete = bool(results) and not decision.get("_has_deferred_group") and all(item.status in {"scheduled", "intentional_idle"} for item in results)
+        if editable_plan and accepted:
+            await connection.execute("UPDATE life.day_plans SET reason=%s,context=%s,source_refs=%s,"
+                "material_fingerprint=CASE WHEN %s THEN %s ELSE material_fingerprint END,"
+                "revision=revision+%s,updated_at=now() WHERE actor_id=%s AND day=%s",
+                (decision["reason"], document(context), document(unique_refs(source_refs(old["source_refs"]) if old else (), refs)),
+                 complete, fingerprint, int(old is not None), context.actor_id, day))
+        if start is not None and accepted:
+            await self._free_time(connection, context, day, start, end, decision.get("free_time_reason") or "留白，允许休息和临时变化",refs)
+        dates = [item.next_due_at or now for item in results if item.status == "stale_state"]
+        dates.extend(item.next_due_at for item in results if item.status == "deferred_no_slot" and item.next_due_at)
+        return PlanApplyResult(tuple(results), min(dates) if dates else None)
 
     async def _free_time(self, connection, context, day, start, end, reason, refs):
         actor_id=context.actor_id
         await connection.execute("DELETE FROM life.day_slots WHERE actor_id=%s AND day=%s AND kind='free' AND scope_ids<@%s::text[]", (actor_id, day,list(context.scope_ids)))
         occupied = await (await connection.execute(
-            "SELECT starts_at,ends_at FROM life.day_slots WHERE actor_id=%s AND day=%s AND kind='activity' AND state IN ('planned','running') ORDER BY starts_at",
+            "SELECT s.starts_at,s.ends_at,a.checkpoint_data FROM life.day_slots s LEFT JOIN life.activities a ON a.id=s.activity_id "
+            "WHERE s.actor_id=%s AND s.day=%s AND s.kind='activity' AND s.state IN ('planned','running') ORDER BY s.starts_at",
             (actor_id, day))).fetchall()
+        occupied = [row for row in occupied if not background_work(row.get("checkpoint_data"))]
         promises=await (await connection.execute("SELECT due_at FROM life.commitments WHERE actor_id=%s AND state IN ('scheduled','waiting') AND due_at>%s AND due_at<%s",(actor_id,start-COMMITMENT_MARGIN,end+COMMITMENT_MARGIN))).fetchall()
         occupied.extend({'starts_at':row['due_at']-COMMITMENT_MARGIN,'ends_at':row['due_at']+COMMITMENT_MARGIN} for row in promises)
         occupied.sort(key=lambda row:row['starts_at'])

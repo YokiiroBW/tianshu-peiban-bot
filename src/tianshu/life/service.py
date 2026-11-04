@@ -15,6 +15,7 @@ from .attention import AttentionPolicy
 from .contacts import DEFAULT_EXPIRY_SECONDS
 from .validation import revision, text, timestamp, timezone
 from .continuation import action_resolved
+from .eligibility import background_work
 
 TRANSITIONS = {
     "planned": {"running", "cancelled", "dormant"},
@@ -24,11 +25,23 @@ TRANSITIONS = {
 }
 
 
-def public_record(row):
+def public_record(row, *, checkpoint_detail=False):
     value={key:item.isoformat() if isinstance(item,date) and not isinstance(item,datetime) else item
         for key,item in row.items() if key not in {"context","frozen_action"}}
     if "checkpoint_data" in value:
-        value["checkpoint_data"]={key:item for key,item in (value["checkpoint_data"] or {}).items() if key not in {"planning_context","frozen_action"}}
+        checkpoint = {key:item for key,item in (value["checkpoint_data"] or {}).items() if key not in {"planning_context","frozen_action"}}
+        if not checkpoint_detail:
+            checkpoint = {key: checkpoint[key] for key in ("capability_id", "arguments", "completed_action_id",
+                "completion_basis", "continuation_stop_reason", "coverage", "consumption", "result_summary") if key in checkpoint}
+            if isinstance(checkpoint.get("consumption"), dict):
+                consumption = checkpoint["consumption"]
+                checkpoint["consumption"] = {key: consumption[key] for key in ("source", "requested", "ranges", "frame_times",
+                    "model_input_modalities", "modalities", "omitted", "analysis_completed", "requested_completed",
+                    "next_position", "unresolved_questions") if key in consumption}
+            exploration = (value["checkpoint_data"] or {}).get("exploration") or {}
+            if exploration:
+                checkpoint["exploration"] = {key: exploration[key] for key in ("mode", "intention", "stop_reason") if key in exploration}
+        value["checkpoint_data"] = checkpoint
     return value
 
 
@@ -38,12 +51,24 @@ class LifeService:
         self.database, self.commands, self.jobs = database, commands, jobs
         self.identity, self.companion, self.contacts = identity, companion, contacts
         self.sources, self.memory, self.weather = sources, memory, weather
+        self.statistics = None
+        self.recovery_policy = None
         self.attention = AttentionPolicy()
         from .directions import Directions
         from .day_plan import DayPlans
         self.directions, self.days = Directions(self), DayPlans(self)
         if contacts is not None:
             contacts.bind_authority(identity)
+
+    def bind_statistics(self, statistics):
+        self.statistics = statistics
+
+    def bind_recovery_policy(self, recovery_policy):
+        self.recovery_policy = recovery_policy
+
+    async def backfill_statistics(self, *, cursor=None, limit=100, source_quiescent=False):
+        from .statistics import backfill
+        return await backfill(self, cursor=cursor, limit=limit, source_quiescent=source_quiescent)
 
     async def validate_persistence(self, connection, context, refs=()):
         if not await self.sources.validate_persistence(connection, context, tuple(refs)):
@@ -70,6 +95,11 @@ class LifeService:
             outfit = await (await connection.execute(
                 "SELECT * FROM life.outfits WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]",
                 (state["outfit_id"], context.actor_id, list(context.scope_ids)))).fetchone()
+            routine = await (await connection.execute("SELECT * FROM life.routines WHERE actor_id=%s", (context.actor_id,))).fetchone()
+            work = await (await connection.execute(
+                "SELECT * FROM life.activities WHERE actor_id=%s AND scope_ids<@%s::text[] "
+                "AND (state='running' OR (state='dormant' AND waiting_reason IN ('capability_running','outcome_unknown'))) ORDER BY id",
+                (context.actor_id, list(context.scope_ids)))).fetchall()
         valid = await self.identity.check_many(context, tuple(source_refs(row["source_refs"]) for row in (activity, outfit) if row))
         decisions = iter(valid)
         missing = []
@@ -79,8 +109,17 @@ class LifeService:
         if outfit and not next(decisions):
             outfit = None
             missing.append("outfit_source_unavailable")
+        if activity and background_work(activity.get("checkpoint_data")):
+            activity = None
+        allowed_work = await self.identity.check_many(context, tuple(source_refs(row["source_refs"]) for row in work))
+        background = [{"id": row["id"], "revision": row["revision"], "title": row["title"], "state": row["state"],
+            "waiting_reason": row["waiting_reason"]} for row, allowed in zip(work, allowed_work, strict=True)
+            if allowed and background_work(row["checkpoint_data"])]
+        from .clock import awake_and_due
+        role_status = "resting" if routine and routine["enabled"] and not awake_and_due(routine, datetime.now(UTC))[0] else "active"
         return {"actor_id": context.actor_id, "actor_revision": actor["revision"], **state,
                 "activity": public_record(activity) if activity else None, "outfit": outfit, "affect": await self.companion.affect(context),
+                "role_status": role_status, "background_work": background,
                 "observed_at": datetime.now(UTC), "missing": missing}
 
     async def goals(self, context, *, cursor=None, limit=40):
@@ -102,6 +141,19 @@ class LifeService:
                 "AND (%s::text IS NULL OR id>%s) ORDER BY id LIMIT %s",
                 (context.actor_id, list(context.scope_ids), cursor, cursor, limit + 1))).fetchall()
         return await self._page(context, rows, limit)
+
+    async def activity_checkpoint(self, context, body):
+        await self.identity.check(context)
+        identifier = text(body.get("id"), "活动标识", 128)
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT * FROM life.activities WHERE id=%s AND actor_id=%s AND scope_ids<@%s::text[]",
+                (identifier, context.actor_id, list(context.scope_ids)))).fetchone()
+        if not row:
+            raise AppError("activity_not_found", status=404)
+        await self.identity.check(context, source_refs(row["source_refs"]))
+        return {"id": identifier, "revision": row["revision"],
+            "checkpoint_data": public_record(row, checkpoint_detail=True)["checkpoint_data"]}
 
     async def _page(self, context, rows, limit):
         missing, accepted = [], []
@@ -202,19 +254,21 @@ class LifeService:
             await connection.execute("SELECT actor_id FROM life.actor_state WHERE actor_id=%s FOR UPDATE", (context.actor_id,))
             if not isinstance(body.get("arguments",{}),dict):
                 raise AppError("invalid_activity_arguments")
-            checkpoint={**(row["checkpoint_data"] if row else {}),"capability_id":body.get("capability_id"),"arguments":body.get("arguments",{})}
+            previous = row["checkpoint_data"] if row else {}
+            checkpoint={**previous,"capability_id":body.get("capability_id", previous.get("capability_id")),
+                "arguments":body.get("arguments", previous.get("arguments", {}))}
             if row and row["action_id"] and checkpoint!=row["checkpoint_data"]:
                 raise AppError("activity_action_unresolved",status=409,details={"action_id":row["action_id"]})
             if row and state != row["state"] and state not in TRANSITIONS[row["state"]]:
                 raise AppError("invalid_activity_transition", status=409)
             if state == "running":
-                other = await (await connection.execute(
-                    "SELECT id FROM life.activities WHERE actor_id=%s AND state='running' AND id<>%s",
-                    (context.actor_id, activity_id))).fetchone()
-                if other:
-                    raise AppError("activity_already_running", status=409)
                 if row and not action_resolved(row):
                     raise AppError("outcome_unknown", status=409, details={"action_id": row["action_id"]})
+                if not background_work(checkpoint):
+                    from .focus import conflict
+                    occupied = await conflict(connection, context.actor_id, activity_id, datetime.now(UTC))
+                    if occupied:
+                        raise AppError("day_slot_conflict", status=409, details=occupied)
             next_revision = row["revision"] + 1 if row else 1
             await connection.execute(
                 "INSERT INTO life.activities(id,actor_id,goal_id,title,kind,state,next_due_at,resume_condition,waiting_reason,matter_id,scope_ids) "
@@ -228,7 +282,7 @@ class LifeService:
             await connection.execute("UPDATE life.activities SET wake_condition=%s,context=%s WHERE id=%s",
                 (document(wake_condition) if wake_condition else None, document(context), activity_id))
             await connection.execute("UPDATE life.activities SET goal_id=%s,checkpoint_data=%s,source_refs=%s WHERE id=%s",(goal_id,document(checkpoint),document(unique_refs(source_refs(row["source_refs"] if row else ()),source_refs(body.get("source_refs",())),goal_refs)),activity_id))
-            if state == "running":
+            if state == "running" and not background_work(checkpoint):
                 await connection.execute("UPDATE life.actor_state SET activity_id=%s,revision=revision+1,updated_at=now() WHERE actor_id=%s", (activity_id, context.actor_id))
             else:
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s", (context.actor_id, activity_id))
@@ -236,6 +290,7 @@ class LifeService:
                 await self.jobs.enqueue(connection, JobSpec("life.activity_step", f"activity:{activity_id}:{next_revision}",
                     {"activity_id": activity_id, "expected_revision": next_revision, "context": self._context(context)},
                     ServiceClass.ELASTIC, due or datetime.now(UTC), context.actor_id, body.get("matter_id")))
+            await self.signal(context, f"activity-user:{activity_id}:{next_revision}", connection=connection)
             return CommandResult(body["client_request_id"], {"id": activity_id, "revision": next_revision, "state": state}, next_revision)
         return await self.commands.execute(context, "life.activities.save", body["client_request_id"], signature(body), apply)
 
@@ -254,9 +309,12 @@ class LifeService:
                 await self.validate_persistence(connection, context, source_refs(row["source_refs"]))
             revision(row, body.get("expected_revision"))
             await connection.execute("SELECT actor_id FROM life.actor_state WHERE actor_id=%s FOR UPDATE", (context.actor_id,))
+            if target == row["state"]:
+                return CommandResult(body["client_request_id"], {"id": activity_id, "revision": row["revision"],
+                    "state": target, "action_id": row["action_id"]}, row["revision"])
             if target not in TRANSITIONS[row["state"]]:
                 raise AppError("invalid_activity_transition", status=409)
-            if target == "running" and not explicit and row["protected_until"] and row["protected_until"] > datetime.now(UTC):
+            if target == "running" and not explicit and not background_work(row["checkpoint_data"]) and row["protected_until"] and row["protected_until"] > datetime.now(UTC):
                 raise AppError("activity_protected", status=409, details={"until": row["protected_until"].isoformat()})
             if target == "running" and not action_resolved(row):
                 raise AppError("outcome_unknown", status=409, details={"action_id": row["action_id"]})
@@ -270,25 +328,32 @@ class LifeService:
                     (document(checkpoint),activity_id))
                 row = {**row, "action_id": None}
             if target == "running":
-                other = await (await connection.execute("SELECT id FROM life.activities WHERE actor_id=%s AND state='running' AND id<>%s", (context.actor_id, activity_id))).fetchone()
-                if other:
-                    raise AppError("activity_already_running", status=409)
                 from .continuation import execution_window
                 from .day_plan import awake_window
                 now = datetime.now(UTC)
+                if not background_work(checkpoint):
+                    from .focus import conflict
+                    occupied = await conflict(connection, context.actor_id, activity_id, now)
+                    if occupied:
+                        raise AppError("day_slot_conflict", status=409, details=occupied)
                 routine = await (await connection.execute("SELECT * FROM life.routines WHERE actor_id=%s", (context.actor_id,))).fetchone()
                 _, boundary = awake_window(routine, now)
                 end = min(now + timedelta(minutes=int(checkpoint.get("duration_minutes", 30))), boundary)
-                upcoming = await (await connection.execute("SELECT starts_at FROM life.day_slots WHERE actor_id=%s AND activity_id<>%s AND kind='activity' AND state='planned' AND starts_at>%s ORDER BY starts_at LIMIT 1", (context.actor_id, activity_id, now))).fetchone()
+                upcoming_rows = await (await connection.execute("SELECT s.starts_at,a.checkpoint_data FROM life.day_slots s LEFT JOIN life.activities a ON a.id=s.activity_id "
+                    "WHERE s.actor_id=%s AND s.activity_id<>%s AND s.kind='activity' AND s.state='planned' AND s.starts_at>%s ORDER BY s.starts_at",
+                    (context.actor_id, activity_id, now))).fetchall()
+                upcoming = next((item for item in upcoming_rows if not background_work(item["checkpoint_data"])), None)
                 if upcoming:
                     end = min(end, upcoming["starts_at"])
-                checkpoint = execution_window(checkpoint, now, end)
+                if not checkpoint.get("execution_window"):
+                    checkpoint = execution_window(checkpoint, now, end)
                 await connection.execute("UPDATE life.activities SET checkpoint_data=%s WHERE id=%s", (document(checkpoint), activity_id))
             next_revision = row["revision"] + 1
             waiting = "paused_by_user" if target == "paused" else None
             await connection.execute("UPDATE life.activities SET state=%s,revision=%s,waiting_reason=%s,next_due_at=NULL,updated_at=now() WHERE id=%s", (target, next_revision, waiting, activity_id))
-            if target == "running":
+            if target == "running" and not background_work(checkpoint):
                 await connection.execute("UPDATE life.actor_state SET activity_id=%s,revision=revision+1 WHERE actor_id=%s", (activity_id, context.actor_id))
+            if target == "running":
                 await connection.execute("UPDATE life.day_slots SET state='running',revision=revision+1 WHERE activity_id=%s "
                     "AND state='paused' AND starts_at<=%s AND ends_at>%s", (activity_id, now, now))
             else:

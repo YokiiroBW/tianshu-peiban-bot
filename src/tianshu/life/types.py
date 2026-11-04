@@ -34,3 +34,20 @@ class PreparedContact:
     candidate: ContactCandidate
     payload: Mapping[str, Any]
     expiry_seconds: int
+
+
+@dataclass(frozen=True, slots=True)
+class PlanCandidateResult:
+    candidate_key: str
+    status: str
+    reason: str
+    activity_id: str | None = None
+    slot_id: str | None = None
+    revision: int | None = None
+    next_due_at: datetime | None = None
+
+
+@dataclass(frozen=True, slots=True)
+class PlanApplyResult:
+    items: tuple[PlanCandidateResult, ...]
+    next_due_at: datetime | None = None

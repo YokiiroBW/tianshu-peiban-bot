@@ -15,7 +15,7 @@ async def absent_action(worker, frozen):
     if not frozen:
         return None
     action=action_from(frozen)
-    if action.deadline_at is None or action.deadline_at<=datetime.now(UTC):
+    if action.deadline_at is not None and action.deadline_at<=datetime.now(UTC):
         return None
     # Original-ID admission is only reached after Actions.get proved absence.
     # Its original deadline and authorization are never refreshed or extended.

@@ -16,6 +16,12 @@ async def record_completed_imagined(life, context, activity, activity_revision, 
         "recorded_at": recorded_at, "experience_kind": "imagined", "imagined": True,
         "representation": "fictional_world", "software_action": False,
         "completion_basis": "actor_activity_checkpoint"}
+    # A routine rest checkpoint has a title and timestamps, not an observed
+    # lesson. Keep it available to the diary without treating every repetition
+    # as a separate learning opportunity.
+    details = activity.get("checkpoint_data") or {}
+    if activity.get("kind") == "rest" and not any(details.get(key) for key in ("observation", "actual_result", "subjective_observation")):
+        completion.update(derived_kind="routine_rest", learning_value="low", experience_eligible=False)
     dependencies = unique_refs(source_refs(activity["source_refs"]), tuple(support_refs))
     original = await life.sources.record_event(
         context, producer="life:actor:" + context.actor_id,

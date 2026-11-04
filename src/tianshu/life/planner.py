@@ -72,7 +72,7 @@ def output_schema():
                             "goal_id": {"type": ["string", "null"]},
                             "capability_id": {"type": ["string", "null"]},
                             "arguments": {"type": "object"},
-                            "duration_minutes": {"type": "integer", "minimum": 15, "maximum": 180},
+                            "duration_minutes": {"type": "integer", "minimum": 1, "maximum": 180},
                             "after_minutes": {"type": "integer", "minimum": 0, "maximum": 1080},
                             "existing_activity_id": {"type": ["string", "null"]},
                             "continuation_key": {"type": ["string", "null"]},
@@ -95,7 +95,7 @@ TASK = (
     "URLs, source refs, accounts, recipients or unavailable inputs. Only choose a software capability listed "
     "in life_plan.capabilities and supply its valid input_schema arguments. Otherwise capability_id must "
     "be null, arguments {}, and kind one of rest/reflection/room for a fictional-world activity. "
-    "Choose a duration of 15-180 minutes. goal_id is null or an active supplied goal ID. "
+    "Choose a duration of 1-180 minutes. goal_id is null or an active supplied goal ID. "
     "Create a direction only from the authored persona or actual new experience in basis; cite its exact basis_ids and state a personal motivation. "
     "At a quiet cold start, the authored persona can suggest one or two modest feasible directions; no past experience needs to be invented, and rest remains valid. "
     "Keep a few stable directions across dates. Update, pause or abandon one only with a concrete sourced reason. Never output progress or completion: "
@@ -104,8 +104,9 @@ TASK = (
     "related unstarted proposals for an important current change. Do not reset the entire day for a style or mood revision. "
     "activity is one proposed next action; arrangements contains up to three additional feasible activities later today, using after_minutes. "
     "Keep plenty of free time; it is valid to quietly rest or do nothing. Never duplicate existing or completed work. "
-    "Continue reading, writing or exploration from unfinished checkpoints across days: select existing_activity_id, its same capability_id "
-    "and arguments:{}; the executor obtains continuation arguments from the confirmed original receipt. Do not restart it from an invented position. "
+    "Continue reading, writing or exploration from unfinished checkpoints across days: select existing_activity_id and a receipt-proven continuation_key, "
+    "set capability_id to that option's capability_id and arguments:{}; the executor obtains arguments from the confirmed original receipt. "
+    "Do not restart it from an invented position. Only choose candidates marked eligible. "
     "Waiting for a person and unknown outcomes are not resumable. No current meaningful change means preserve goals, appointments and silence. "
     "A resolved no-effect read failure is unread coverage, never a successful read; continue only other remaining receipt-proven candidates, never retry its failed URL. "
     "unfinished.continuation_options contains receipt-proven candidate keys. discovery_page is offered only after pending candidates are consumed. "
@@ -147,17 +148,41 @@ def eligible_capabilities(choices):
 
 
 def capability_material(choices):
-    constraints = {item["definition"].id: wire(item.get("availability", {})).get("constraints", {}) for item in choices}
+    snapshots = {item["definition"].id: wire(item.get("availability", {})) for item in choices}
+    freshness = {item["definition"].id: item.get("freshness") for item in choices}
     return [{"id": definition.id, "title": definition.title, "description": definition.description[:500],
              "input_schema": definition.input_schema,
-             **({"constraints": constraints[definition.id]} if constraints.get(definition.id) else {})}
+             **({"constraints": snapshots[definition.id]["constraints"]} if snapshots[definition.id].get("constraints") else {}),
+             "availability": {"freshness": freshness[definition.id] or snapshots[definition.id].get("freshness"),
+                 "verified_at": snapshots[definition.id].get("verified_at")}}
             for definition in eligible_capabilities(choices)]
+
+
+def unfinished_candidate(row, goals, capabilities, *, now=None):
+    from .continuation import options
+    from .eligibility import evaluate
+    goal = next((item for item in goals if item["id"] == row.get("goal_id")), None)
+    assessment = evaluate(goal=goal, activity=row, available=capabilities, now=now, resume=True)
+    options_with_eligibility = []
+    for option in options(row["checkpoint_data"]):
+        choice = evaluate(goal=goal, activity=row, continuation_key=option["key"], available=capabilities, now=now, resume=True)
+        options_with_eligibility.append({**option, "candidate_key": "activity:" + row["id"] + ":" + str(option["key"]),
+            "eligible": choice.eligible, "reason": choice.reason, "revision": choice.revision})
+    return {**{key: row.get(key) for key in ("id", "revision", "goal_id", "title", "kind", "state", "waiting_reason", "resume_condition", "protected_until", "next_due_at", "checkpoint_step", "action_id")},
+        "candidate_key": "activity:" + row["id"] + ":next",
+        "continuation_options": options_with_eligibility,
+        "checkpoint_data": {key: row["checkpoint_data"].get(key) for key in
+            ("capability_id", "arguments", "next_position", "continuation", "coverage", "exploration", "completed_action_id", "continuation_stop_reason",
+             "resolved_action_id", "resolved_execution", "resolved_effect", "resolved_delivery", "resolved_error_code", "last_execution", "consumption", "continuation_result")},
+        "eligibility": {"eligible": assessment.eligible, "reason": assessment.reason, "revision": assessment.revision,
+            "next_capability_id": assessment.step.get("capability_id") if assessment.step else None}}
 
 
 def material(context, state, routine, goals, commitments, choices, local_time, *, day=None, basis=(), interests=(),writing=()):
     """Keep facts useful to a decision, without admin DTOs, output schemas or secrets."""
-    from .continuation import options
     local = datetime.fromisoformat(local_time)
+    capabilities = capability_material(choices)
+    capability_ids = {item["id"] for item in capabilities}
     data = {
         "logical_conversation_id": context.conversation_id,
         "delivery_allowed": context.delivery_allowed,
@@ -200,22 +225,23 @@ def material(context, state, routine, goals, commitments, choices, local_time, *
             for row in (day or {}).get("recent_results",())],
         "day_plan": [{key: row.get(key) for key in ("id", "activity_id", "state", "starts_at", "ends_at", "title", "goal_id")}
             for row in (day or {}).get("slots", [])],
-        "unfinished": [{**{key: row.get(key) for key in ("id", "revision", "goal_id", "title", "kind", "state", "waiting_reason", "protected_until", "next_due_at", "checkpoint_step", "action_id")},
-            "continuation_options": options(row["checkpoint_data"]),
-            "checkpoint_data": {key: row["checkpoint_data"].get(key) for key in
-                ("capability_id", "arguments", "next_position", "continuation", "coverage", "exploration", "completed_action_id", "continuation_stop_reason",
-                 "resolved_action_id", "resolved_execution", "resolved_effect", "resolved_delivery", "resolved_error_code", "last_execution")}}
-            for row in (day or {}).get("unfinished", [])],
+        "unfinished": [unfinished_candidate(row, goals.items, capability_ids, now=local)
+            for row in (day or {}).get("unfinished", [])
+            if not row.get("goal_id") or any(goal["id"] == row["goal_id"] and goal["state"] == "active" for goal in goals.items)],
         "current_outfit": (
             {"id": state["outfit"]["id"], "description": state["outfit"]["description"][:300]}
             if state["outfit"]
             else None
         ),
-        "capabilities": capability_material(choices),
+        "capabilities": capabilities,
         "coverage": {
             "goals": wire(goals.coverage),
             "commitments": wire(commitments.coverage),
             "omitted_capabilities": [],
+            "unavailable_capabilities": [{"id": item["definition"].id,
+                "freshness": item.get("freshness"), "verified_at": wire(item.get("availability", {})).get("verified_at"),
+                "reason": wire(item.get("availability", {})).get("reason")}
+                for item in choices if item.get("can_execute") is not True],
             "omitted_goal_count": 0,
             "omitted_commitment_count": 0,
         },
@@ -340,7 +366,37 @@ def decision(result, frozen):
 
     try:
         value = json.loads(raw, object_pairs_hook=pairs, parse_constant=invalid_constant)
-        Draft202012Validator(output_schema()).validate(value)
+        if (not isinstance(value, dict) or "activity" not in value
+                or not isinstance(value.get("arrangements"), list) or len(value["arrangements"]) > 3
+                or not isinstance(value.get("goal_changes"), list) or len(value["goal_changes"]) > 3
+                or not isinstance(value.get("cancel_activity_ids"), list) or len(value["cancel_activity_ids"]) > 4):
+            raise ValueError("invalid_envelope")
+        schema = output_schema()
+        activity_validator = Draft202012Validator({"$ref": "#/$defs/activity", "$defs": schema["$defs"]})
+        goal_validator = Draft202012Validator(schema["properties"]["goal_changes"]["items"])
+        candidates = ([value["activity"]] if value.get("activity") is not None else []) + value["arrangements"]
+        invalid = []
+        invalid_goals = set()
+        valid = []
+        for index, item in enumerate(candidates):
+            if not activity_validator.is_valid(item):
+                invalid.append({"candidate_key": f"proposal:{index}", "status": "invalid_proposal", "reason": "activity_schema_invalid"})
+                if isinstance(item, dict) and isinstance(item.get("goal_id"), str):
+                    invalid_goals.add(item["goal_id"])
+            else:
+                valid.append((index, item))
+        cancellations = []
+        for index, identifier in enumerate(value["cancel_activity_ids"]):
+            if not isinstance(identifier, str) or identifier in cancellations:
+                invalid.append({"candidate_key": f"cancel:proposal:{index}", "status": "invalid_proposal", "reason": "cancel_schema_invalid"})
+            else:
+                cancellations.append(identifier)
+        value["cancel_activity_ids"] = cancellations
+        if not Draft202012Validator(schema["properties"]["contact"]).is_valid(value.get("contact")):
+            invalid.append({"candidate_key": "contact", "status": "invalid_proposal", "reason": "contact_schema_invalid"})
+            value["contact"] = None
+        envelope = {**value, "activity": None, "arrangements": [], "goal_changes": [], "cancel_activity_ids": []}
+        Draft202012Validator(schema).validate(envelope)
         if not value["reason"].strip():
             raise ValueError("empty_reason")
     except (ValueError, TypeError, RecursionError, ValidationError):
@@ -352,75 +408,147 @@ def decision(result, frozen):
     capabilities = {item["id"]: item for item in data["capabilities"]}
     contact=value.get("contact")
     if contact and any(identifier not in {item["id"] for item in data["basis"] if item["kind"]=="actual_result"} for identifier in contact["basis_ids"]):
-        raise AppError("planner_contact_basis_invalid")
-    for change in value["goal_changes"]:
-        if not set(change["basis_ids"]) <= bases or not change["reason"].strip():
-            raise AppError("planner_goal_basis_invalid")
-        known=goals.get(change['id'])
-        unchanged_criteria=known and change['operation']!='create' and change['criteria']==known.get('criteria')
-        if not unchanged_criteria and change["criteria"]["capability_id"] not in capabilities:
-            raise AppError("planner_capability_unavailable")
-        if not unchanged_criteria and change["criteria"]["kind"]=="chapter_saved" and (change["criteria"]["capability_id"]!="writing.request" or change["criteria"].get("work_id") not in {row["id"] for row in data.get("writing",())}):
-            raise AppError("planner_goal_basis_invalid")
+        invalid.append({"candidate_key": "contact", "status": "invalid_proposal", "reason": "planner_contact_basis_invalid"})
+        value["contact"] = None
+    valid_changes = []
+    invalid_goal_changes = set()
+    for index, change in enumerate(value["goal_changes"]):
+        identity = goal_change_identity(change)
+        try:
+            if not goal_validator.is_valid(change):
+                raise AppError("planner_goal_schema_invalid")
+            validate_goal_change(change, data, bases, goals, created, changed, capabilities)
+        except AppError as error:
+            invalid.append({"candidate_key": "goal:" + (identity or f"proposal:{index}"),
+                "status": "invalid_proposal", "reason": error.code})
+            if identity:
+                invalid_goals.add(identity)
+                invalid_goal_changes.add(identity)
+            continue
+        valid_changes.append(change)
         if change["operation"] == "create":
-            if change["id"] is not None or change["key"] in created:
-                raise AppError("planner_output_invalid")
             created.add(change["key"])
         else:
-            if change["id"] not in goals or change["id"] in changed:
-                raise AppError("planner_goal_unavailable")
-            if goals[change["id"]].get("progress", 0) > 0 and change["criteria"] != goals[change["id"]].get("criteria"):
-                raise AppError("planner_goal_criteria_changed")
             changed.add(change["id"])
+    value["goal_changes"] = [change for change in valid_changes if goal_change_identity(change) not in invalid_goal_changes]
+    created = {change["key"] for change in value["goal_changes"] if change["operation"] == "create"}
     unfinished = {row["id"]: row for row in data.get("unfinished", ())}
-    if not set(value["cancel_activity_ids"]) <= set(unfinished):
-        raise AppError("planner_activity_unavailable")
-    resumed = set()
-    for activity in ([value["activity"]] if value["activity"] else []) + value["arrangements"]:
-        if activity.get("option_id"):
-            option=next((item for item in data.get("opportunities",()) if item["id"]==activity["option_id"]),None)
-            if option is None:
-                raise AppError("planner_activity_unavailable")
-            timing={key:activity[key] for key in ("duration_minutes","after_minutes") if key in activity}
-            activity.clear()
-            activity.update(option["activity"],**timing)
-        if not activity["title"].strip() or not activity["kind"].strip():
-            raise AppError("planner_output_invalid")
-        goal_id = activity["goal_id"]
-        if goal_id is not None and goal_id not in goals and goal_id not in {"new:" + key for key in created}:
-            raise AppError("planner_goal_unavailable")
-        if goal_id in goals:
-            edits=[item for item in value['goal_changes'] if item['id']==goal_id]
-            active=edits[0]['operation']=='update' if edits else goals[goal_id]['state']=='active'
-            if not active:
-                raise AppError('planner_goal_unavailable')
-        identifier = activity.get("existing_activity_id")
-        name = activity["capability_id"]
-        if identifier:
-            from .continuation import action_resolved
-            row = unfinished.get(identifier)
-            if (not row or identifier in resumed or row["state"] != "dormant"
-                    or row["waiting_reason"] not in {"continuation_available", "day_finished", "follow_up_available"}
-                    or not action_resolved(row)
-                    or name != row["checkpoint_data"]["capability_id"] or activity["arguments"]):
-                raise AppError("planner_activity_unavailable")
-            selected=activity.get('continuation_key')
-            if selected and selected not in {item['key'] for item in row.get('continuation_options',())}:
-                raise AppError('planner_activity_unavailable')
-            if (selected=='follow_up' and activity.get('after_minutes',0)<30) or (row['waiting_reason']=='follow_up_available' and selected!='follow_up'):
-                raise AppError('planner_activity_unavailable')
-            resumed.add(identifier)
-        elif name is None:
-            if activity["kind"] not in FICTIONAL_KINDS or activity["arguments"]:
-                raise AppError("planner_output_invalid")
-        else:
-            capability = capabilities.get(name)
-            if capability is None:
-                raise AppError("planner_capability_unavailable")
-            if not allowed_arguments(capability, activity["arguments"]):
-                raise AppError("planner_arguments_invalid")
+    for identifier in value["cancel_activity_ids"]:
+        if identifier not in unfinished:
+            invalid.append({"candidate_key": "cancel:" + identifier, "status": "invalid_proposal", "reason": "planner_activity_unavailable"})
+    value["cancel_activity_ids"] = [identifier for identifier in value["cancel_activity_ids"] if identifier in unfinished]
+    resumed, candidate_keys = set(), set()
+    accepted = []
+    for index, activity in valid:
+        candidate_key = activity.get("option_id") or ("activity:" + activity["existing_activity_id"] + ":" + str(activity.get("continuation_key") or "next")
+            if activity.get("existing_activity_id") else f"proposal:{index}")
+        if candidate_key in candidate_keys:
+            invalid.append({"candidate_key": f"proposal:{index}", "status": "invalid_proposal", "reason": "duplicate_candidate"})
+            if activity.get("goal_id"):
+                invalid_goals.add(activity["goal_id"])
+            continue
+        candidate_keys.add(candidate_key)
+        try:
+            _validate_activity(activity, value, data, goals, created, capabilities, unfinished, resumed, invalid_goal_changes)
+        except AppError as error:
+            invalid.append({"candidate_key": candidate_key, "status": "invalid_proposal", "reason": error.code})
+            if activity.get("goal_id"):
+                invalid_goals.add(activity["goal_id"])
+            continue
+        activity["_candidate_key"] = candidate_key
+        accepted.append(activity)
+    seen_keys = {item["_candidate_key"] for item in accepted}
+    for item in invalid:
+        base = item["candidate_key"]
+        suffix = 1
+        while item["candidate_key"] in seen_keys:
+            item["candidate_key"] = f"{base}:invalid:{suffix}"
+            suffix += 1
+        seen_keys.add(item["candidate_key"])
+    value["activity"] = accepted[0] if accepted else None
+    value["arrangements"] = accepted[1:]
+    value["_invalid_candidates"] = invalid
+    value["_invalid_goal_ids"] = sorted(invalid_goals)
     return value, data
 
+
+def goal_change_identity(change):
+    if not isinstance(change, dict):
+        return None
+    if change.get("operation") == "create" and isinstance(change.get("key"), str):
+        return "new:" + change["key"]
+    return change.get("id") if isinstance(change.get("id"), str) else None
+
+
+def validate_goal_change(change, data, bases, goals, created, changed, capabilities):
+    if not set(change["basis_ids"]) <= bases or not change["reason"].strip():
+        raise AppError("planner_goal_basis_invalid")
+    known = goals.get(change["id"])
+    unchanged = known and change["operation"] != "create" and change["criteria"] == known.get("criteria")
+    if not unchanged and change["criteria"]["capability_id"] not in capabilities:
+        raise AppError("planner_capability_unavailable")
+    if not unchanged and change["criteria"]["kind"] == "chapter_saved" and (
+            change["criteria"]["capability_id"] != "writing.request"
+            or change["criteria"].get("work_id") not in {row["id"] for row in data.get("writing", ())}):
+        raise AppError("planner_goal_basis_invalid")
+    if change["operation"] == "create":
+        if change["id"] is not None or change["key"] in created:
+            raise AppError("planner_output_invalid")
+    else:
+        if change["id"] not in goals or change["id"] in changed:
+            raise AppError("planner_goal_unavailable")
+        if goals[change["id"]].get("progress", 0) > 0 and change["criteria"] != goals[change["id"]].get("criteria"):
+            raise AppError("planner_goal_criteria_changed")
+
+
+def _validate_activity(activity, value, data, goals, created, capabilities, unfinished, resumed, invalid_goal_changes):
+    if activity.get("option_id"):
+        option=next((item for item in data.get("opportunities",()) if item["id"]==activity["option_id"]),None)
+        if option is None:
+            raise AppError("planner_activity_unavailable")
+        timing={key:activity[key] for key in ("duration_minutes","after_minutes") if key in activity}
+        activity.clear()
+        activity.update(option["activity"],**timing)
+    if not activity["title"].strip() or not activity["kind"].strip():
+        raise AppError("planner_output_invalid")
+    goal_id = activity["goal_id"]
+    if goal_id in invalid_goal_changes:
+        raise AppError("planner_goal_unavailable")
+    if goal_id is not None and goal_id not in goals and goal_id not in {"new:" + key for key in created}:
+        raise AppError("planner_goal_unavailable")
+    if goal_id in goals:
+        edits=[item for item in value['goal_changes'] if item['id']==goal_id]
+        active=edits[0]['operation']=='update' if edits else goals[goal_id]['state']=='active'
+        if not active:
+            raise AppError('planner_goal_unavailable')
+    identifier = activity.get("existing_activity_id")
+    name = activity["capability_id"]
+    if identifier:
+        from .eligibility import evaluate
+        row = unfinished.get(identifier)
+        if not row or identifier in resumed or activity["arguments"]:
+            raise AppError("planner_activity_unavailable")
+        selected=activity.get('continuation_key')
+        if selected and selected not in {item['key'] for item in row.get('continuation_options',())}:
+            raise AppError('planner_activity_unavailable')
+        if (selected=='follow_up' and activity.get('after_minutes',0)<30) or (row['waiting_reason']=='follow_up_available' and selected!='follow_up'):
+            raise AppError('planner_activity_unavailable')
+        assessment = evaluate(activity=row, continuation_key=selected, available=capabilities,
+            now=datetime.fromisoformat(data["local_time"]), resume=True)
+        if not assessment.eligible:
+            raise AppError("planner_capability_unavailable" if assessment.reason == "capability_unavailable" else "planner_activity_unavailable")
+        if name != assessment.step["capability_id"]:
+            raise AppError("planner_activity_unavailable")
+        resumed.add(identifier)
+    elif name is None:
+        if activity["kind"] not in FICTIONAL_KINDS or activity["arguments"]:
+            raise AppError("planner_output_invalid")
+    else:
+        capability = capabilities.get(name)
+        if capability is None:
+            raise AppError("planner_capability_unavailable")
+        if not allowed_arguments(capability, activity["arguments"]):
+            raise AppError("planner_arguments_invalid")
 
 def valid_arguments(schema, arguments):
     return Draft202012Validator(schema).is_valid(arguments)
