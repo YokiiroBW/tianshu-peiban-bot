@@ -6,7 +6,7 @@ address = "127.0.0.1:18686"
 type = "file"
 include = ["/data/logs/*.jsonl"]
 read_from = "beginning"
-max_line_bytes = 2097152
+max_line_bytes = 8388608
 fingerprint.strategy = "device_and_inode"
 [transforms.decode]
 type = "remap"
@@ -27,7 +27,15 @@ route.product = '.schema_version == "2.0.0" && .service == "tianshu"'
 [transforms.clock]
 type = "remap"
 inputs = ["valid.product"]
-source = '.timestamp = parse_timestamp!(string!(.timestamp), format: "%+")'
+source = '''
+stamp, error = parse_timestamp(string(.timestamp) ?? "", format: "%+")
+if error == null {
+  .timestamp = stamp
+} else {
+  .timestamp_parse_error = true
+  .timestamp = now()
+}
+'''
 [sinks.loki]
 type = "loki"
 inputs = ["clock"]
@@ -39,6 +47,7 @@ labels.service = "tianshu"
 labels.role = "{{ role }}"
 labels.level = "{{ level }}"
 healthcheck.enabled = false
+acknowledgements.enabled = true
 buffer.type = "disk"
 buffer.max_size = 536870912
 buffer.when_full = "block"
@@ -49,6 +58,7 @@ type = "file"
 inputs = ["valid._unmatched"]
 path = "/data/observability/vector/quarantine-%Y-%m-%d.jsonl"
 encoding.codec = "json"
+acknowledgements.enabled = true
 [sources.vector_metrics]
 type = "internal_metrics"
 [sinks.metrics_exporter]

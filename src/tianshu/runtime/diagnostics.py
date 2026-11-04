@@ -1,18 +1,22 @@
 """Read actual jobs, process resources and Loki; no parallel operational state ledger."""
 
-import json
+import asyncio
+from datetime import UTC, datetime
+import os
 import ssl
-import re
 
 import aiohttp
 
 from .errors import AppError
 from .execution import job_observation
+from .rb_logs_query import LogQuery
+from .rb_logs_output import secret_values
 
 
 class RuntimeDiagnostics:
-    def __init__(self, database, models, settings):
+    def __init__(self, database, models, settings, *, events=None):
         self.database, self.models, self.settings = database, models, settings
+        self.events = events
 
     async def tasks(self, *, limit=50):
         limit = max(1, min(int(limit), 100))
@@ -48,76 +52,99 @@ class RuntimeDiagnostics:
             broker = {"status": "unavailable", "quota_groups": None}
         return {"processes": processes, "broker": broker}
 
-    async def logs(self, *, start_ns, end_ns, role=None, limit=100):
+    async def _log_pipeline(self):
         config = self.settings.get("observability", {})
-        if not config.get("loki_url"):
-            raise AppError("log_query_not_configured", status=503)
+        names = {item.get("name") for item in config.get("processes", ()) if isinstance(item, dict)}
+        loki_url = config.get("loki_url")
 
-        def nanoseconds(value):
-            if type(value) is int:
-                parsed = value
-            elif isinstance(value, str) and re.fullmatch(r"[0-9]{1,19}", value):
-                parsed = int(value)
-            else:
-                raise AppError("invalid_log_time_range")
-            if not 0 <= parsed <= 2**63 - 1:
-                raise AppError("invalid_log_time_range")
-            return parsed
+        async def probe(url, *, headers=None, tls=None):
+            try:
+                async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=2)) as session:
+                    async with session.get(url, headers=headers, ssl=tls, allow_redirects=False) as response:
+                        return "available" if response.status == 200 else "unavailable"
+            except (aiohttp.ClientError, TimeoutError, OSError, ValueError):
+                return "unavailable"
 
-        start_ns, end_ns = nanoseconds(start_ns), nanoseconds(end_ns)
-        if end_ns <= start_ns or end_ns - start_ns > 24 * 3600 * 1_000_000_000:
-            raise AppError("invalid_log_time_range")
-        if role not in {None, "interactive", "model-broker", "worker"}:
-            raise AppError("invalid_log_role")
-        limit = max(1, min(int(limit), 1000))
-        selector = '{stack="tianshu",service="tianshu"}'
-        if role:
-            selector += ' | json | role="' + role + '"'
-        headers = {"X-Scope-OrgID": config.get("tenant", "tianshu")}
-        if config.get("query_token_ref"):
-            headers["Authorization"] = "Bearer " + self.settings.secrets.resolve(
-                config["query_token_ref"]
-            )
-        tls = ssl.create_default_context(cafile=config.get("ca_file"))
-        async with aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=10)) as session:
-            async with session.get(
-                config["loki_url"].rstrip("/") + "/loki/api/v1/query_range",
-                params={
-                    "query": selector,
-                    "start": str(start_ns),
-                    "end": str(end_ns),
-                    "limit": str(limit),
-                    "direction": "backward",
-                },
-                headers=headers,
-                ssl=tls,
-                allow_redirects=False,
-            ) as response:
-                if response.status != 200:
-                    raise AppError("log_query_unavailable", status=503)
-                chunks, size = [], 0
-                async for chunk in response.content.iter_chunked(65536):
-                    size += len(chunk)
-                    if size > 8 * 1024 * 1024:
-                        raise AppError("log_query_unavailable", status=503)
-                    chunks.append(chunk)
-                try:
-                    value = json.loads(b"".join(chunks))
-                except (ValueError, UnicodeError):
-                    raise AppError("log_query_unavailable", status=503) from None
-        if value.get("status") != "success":
-            raise AppError("log_query_unavailable", status=503)
-        streams = value.get("data", {}).get("result", [])
-        count = sum(len(stream.get("values", [])) for stream in streams)
-        # A saturated bucket is explicitly incomplete; never promise false full coverage.
-        next_end = min(
-            (int(item[0]) for stream in streams for item in stream.get("values", [])), default=None
-        )
-        return {
-            "streams": streams,
-            "coverage": {
-                "complete": count < limit,
-                "missing": ["query_limit"] if count >= limit else [],
-            },
-            "next_end_ns": str(next_end) if next_end is not None else None,
-        }
+        async def loki():
+            if not loki_url:
+                return "not_configured"
+            try:
+                headers = {"X-Scope-OrgID": config.get("tenant", "tianshu")}
+                if config.get("query_token_ref"):
+                    headers["Authorization"] = "Bearer " + self.settings.secrets.resolve(config["query_token_ref"])
+                tls = ssl.create_default_context(cafile=config.get("ca_file"))
+            except (OSError, ValueError, AppError, KeyError):
+                return "unavailable"
+            return await probe(loki_url.rstrip("/") + "/ready", headers=headers, tls=tls)
+
+        async def vector():
+            if "vector" not in names:
+                return "not_configured"
+            # This endpoint is the exporter configured by deploy/core/observability.
+            # Reachability is not proof of any individual Loki delivery.
+            return await probe("http://127.0.0.1:18687/metrics")
+
+        loki_state, collector_state = await asyncio.gather(loki(), vector())
+        return {"loki": {"status": loki_state},
+                "collector": {"status": collector_state, "checkpoint": "vector_managed",
+                              "collected_sequence": None, "delivered_sequence": None,
+                              "reason": "per_source_delivery_not_exposed"}}
+
+    async def logs(self, *, start_ns, end_ns, role=None, level=None, module=None,
+                   correlation_id=None, trace_id=None, job_id=None, attempt_id=None,
+                   keyword=None, exclude_conversation=False, cursor=None, limit=100):
+        query = self._log_query()
+        pipeline = asyncio.create_task(self._log_pipeline())
+        try:
+            try:
+                result = await asyncio.to_thread(
+                    query.page, start_ns=start_ns, end_ns=end_ns, role=role, level=level,
+                    module=module, correlation_id=correlation_id, trace_id=trace_id,
+                    job_id=job_id, attempt_id=attempt_id, keyword=keyword,
+                    exclude_conversation=exclude_conversation, cursor=cursor, limit=limit,
+                )
+            except AppError as exc:
+                if exc.code not in {"local_log_directory_unavailable", "log_snapshot_unavailable"}:
+                    raise
+                result = {"entries": [], "next_cursor": None, "streams": [], "next_end_ns": None,
+                          "coverage": {"complete": False, "snapshot_complete": False,
+                                       "source": "local_append_files", "missing": [exc.code],
+                                       "has_more": False},
+                          "freshness": {"as_of": datetime.now(UTC).isoformat(), "snapshot_at": None,
+                                        "late_arrivals": "refresh_with_new_snapshot", "writers": [],
+                                        "disk": {"total_bytes": None, "free_bytes": None}}}
+            result["freshness"].update(await pipeline)
+            if self.events:
+                result["freshness"]["current_writer"] = self.events.status()
+            return result
+        finally:
+            if not pipeline.done():
+                pipeline.cancel()
+                await asyncio.gather(pipeline, return_exceptions=True)
+
+    def _log_query(self):
+        environ = dict(os.environ)
+        configured = getattr(getattr(self.settings, "secrets", None), "environ", None)
+        if configured is not None:
+            environ.update(configured)
+        return LogQuery(self.settings.artifact_directory.parent / "logs", secrets=secret_values(environ))
+
+    async def log_changes(self, *, checkpoint=None, limit=500):
+        """Expose durable source-position changes for an idempotent statistics projection.
+
+        Consumers commit the returned checkpoint with their projection and dedupe
+        on event_id. A checkpoint never claims every generated event was persisted.
+        """
+        query = self._log_query()
+        try:
+            result = await asyncio.to_thread(query.changes, checkpoint=checkpoint, limit=limit)
+        except AppError as exc:
+            if exc.code != "local_log_directory_unavailable":
+                raise
+            result = {"entries": [], "next_checkpoint": checkpoint,
+                      "coverage": {"complete": False, "missing": [exc.code],
+                                   "source": "local_append_files", "caught_up": False},
+                      "freshness": {"as_of": datetime.now(UTC).isoformat(), "writers": []}}
+        if self.events:
+            result["freshness"]["current_writer"] = self.events.status()
+        return result
