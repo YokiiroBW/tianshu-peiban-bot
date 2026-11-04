@@ -3,14 +3,15 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
 
-from tianshu.models.async_jobs import completion_record, enqueue_completion
+from tianshu.models.async_jobs import completion_record, enqueue_completion, pending_completions
 from tianshu.models.catalog import RoutePlan
 from tianshu.models.configuration_reload import event_id, mark_applied, pending, record_pending_on, status
-from tianshu.models.ledger import AttemptLedger
+from tianshu.models.ledger import AttemptLedger, receipt
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest, ModelUsage
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
@@ -20,9 +21,18 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContex
 @pytest_asyncio.fixture
 async def rb_database(database):
     async with database.transaction() as conn:
+        await conn.execute("CREATE TABLE IF NOT EXISTS runtime.installation_generation "
+            "(singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),id text NOT NULL,"
+            "created_at timestamptz NOT NULL DEFAULT now())")
+        await conn.execute("INSERT INTO runtime.installation_generation(singleton,id) VALUES(true,%s) "
+                           "ON CONFLICT(singleton) DO NOTHING", (str(uuid4()),))
         found = await (await conn.execute("SELECT to_regclass('models.submissions') AS table_name")).fetchone()
         if found["table_name"] is None:
             await conn.execute(files("tianshu.models").joinpath("async_execution.sql").read_text())
+        column = await (await conn.execute("SELECT 1 FROM information_schema.columns WHERE table_schema='models' "
+            "AND table_name='attempts' AND column_name='data_generation'")).fetchone()
+        if column is None:
+            await conn.execute(files("tianshu.models").joinpath("generation_fence.sql").read_text())
     return database
 
 
@@ -42,8 +52,10 @@ def plan():
 async def test_acceptance_identity_late_subscription_and_transactional_outbox(rb_database):
     ledger = AttemptLedger(rb_database, "test")
     original = request("same")
+    async with rb_database.transaction(read_only=True) as conn:
+        generation = (await (await conn.execute("SELECT id FROM runtime.installation_generation WHERE singleton")).fetchone())["id"]
     wake = JobSpec("memory.index_retry", "model-result:same", {"index_id": "fixture"},
-                   ServiceClass.ELASTIC, subject_id="actor")
+                   ServiceClass.ELASTIC, subject_id="actor", data_generation=str(generation))
     row, created = await ledger.create(original, plan(), {"tokens": 3}, frozen=original)
     assert created and row["status"] == "queued"
     await ledger.finish("same", "failed", error_code="synthetic_failure")
@@ -176,3 +188,60 @@ async def test_configuration_reload_fact_shares_command_transaction_and_revision
         await mark_applied(rb_database, identity, 3)
     assert (await mark_applied(rb_database, identity, 4))["state"] == "applied"
     assert await pending(rb_database) == []
+
+
+async def test_completion_and_explicit_request_generation_are_checked_on_acceptance(rb_database):
+    ledger = AttemptLedger(rb_database, "test")
+    async with rb_database.transaction(read_only=True) as conn:
+        current = (await (await conn.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton")).fetchone())["id"]
+    previous = str(uuid4())
+    original = replace(request("stale"), data_generation=previous)
+    wake = JobSpec("memory.index_retry", "wake:stale", {}, data_generation=previous)
+    with pytest.raises(AppError, match="data_generation_expired"):
+        await ledger.create(original, plan(), {}, frozen=original,
+                            completion=completion_record(wake), data_generation=current)
+    assert await ledger.get("stale") is None
+
+    original = replace(request("mismatch"), data_generation=current)
+    wake = replace(wake, key="wake:mismatch")
+    with pytest.raises(AppError, match="data_generation_expired"):
+        await ledger.create(original, plan(), {}, frozen=original,
+                            completion=completion_record(wake), data_generation=current)
+    assert await ledger.get("mismatch") is None
+    with pytest.raises(AppError, match="model_data_generation_required"):
+        completion_record(replace(wake, data_generation=None))
+
+
+async def test_generation_cutover_expires_outbox_and_does_not_dispatch_queued_work(rb_database):
+    ledger = AttemptLedger(rb_database, "test")
+    async with rb_database.transaction(read_only=True) as conn:
+        current = (await (await conn.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton")).fetchone())["id"]
+    outgoing = replace(request("wake"), data_generation=current)
+    pending = replace(request("pending"), data_generation=current)
+    wake = JobSpec("memory.index_retry", "wake:result", {}, data_generation=current)
+    await ledger.create(outgoing, plan(), {}, frozen=outgoing, completion=completion_record(wake),
+                        data_generation=current)
+    await ledger.create(pending, plan(), {}, frozen=pending, data_generation=current)
+    await ledger.finish("wake", "unknown", error_code="transport_unknown")
+    async with rb_database.transaction() as conn:
+        await conn.execute("UPDATE runtime.installation_generation SET id=%s WHERE singleton", (str(uuid4()),))
+
+    class Queue:
+        async def enqueue(self, _connection, _spec):
+            raise AssertionError("stale completion reached queue")
+
+    assert await enqueue_completion(rb_database, Queue(), "wake") is False
+    assert "wake" not in await pending_completions(rb_database)
+    result = receipt(await ledger.get("wake"))
+    assert result.status == result.dispatch == "unknown"
+    assert result.completion_state == "expired"
+    assert result.completion_error_code == "data_generation_expired"
+    with pytest.raises(AppError, match="data_generation_expired"):
+        await ledger.started("pending", None, deadline_at=datetime.now(UTC) + timedelta(seconds=30))
+    assert (await ledger.get("pending"))["dispatch"] == "not_started"
+    await ledger.recover()
+    expired = await ledger.get("pending")
+    assert expired["status"] == "cancelled"
+    assert expired["error_code"] == "data_generation_expired"

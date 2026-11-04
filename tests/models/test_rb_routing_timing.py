@@ -4,6 +4,7 @@ import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
+from uuid import uuid4
 
 import pytest
 import pytest_asyncio
@@ -21,9 +22,18 @@ from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContex
 @pytest_asyncio.fixture
 async def rb_database(database):
     async with database.transaction() as conn:
+        await conn.execute("CREATE TABLE IF NOT EXISTS runtime.installation_generation "
+            "(singleton boolean PRIMARY KEY DEFAULT true CHECK(singleton),id text NOT NULL,"
+            "created_at timestamptz NOT NULL DEFAULT now())")
+        await conn.execute("INSERT INTO runtime.installation_generation(singleton,id) VALUES(true,%s) "
+                           "ON CONFLICT(singleton) DO NOTHING", (str(uuid4()),))
         found = await (await conn.execute("SELECT to_regclass('models.submissions') AS table_name")).fetchone()
         if found["table_name"] is None:
             await conn.execute(files("tianshu.models").joinpath("async_execution.sql").read_text())
+        column = await (await conn.execute("SELECT 1 FROM information_schema.columns WHERE table_schema='models' "
+            "AND table_name='attempts' AND column_name='data_generation'")).fetchone()
+        if column is None:
+            await conn.execute(files("tianshu.models").joinpath("generation_fence.sql").read_text())
     return database
 
 

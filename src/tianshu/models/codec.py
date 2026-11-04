@@ -1,6 +1,7 @@
 """Strict reconstruction at the broker process boundary; no domain rules live here."""
 
 from datetime import datetime
+from collections.abc import Mapping
 
 from tianshu.types import MediaRef, OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
 from tianshu.runtime.errors import AppError
@@ -48,9 +49,23 @@ def request_from_wire(value):
         value["tools"] = tuple(ToolSpec(**item) for item in value.get("tools", []))
         value["required_capabilities"] = frozenset(value.get("required_capabilities", ["text"]))
         value["source_refs"] = tuple(SourceRef(**item) for item in value.get("source_refs", []))
+        refs = value.get("behavior_refs", ())
+        if not isinstance(refs, (tuple, list)) or any(not isinstance(ref, Mapping) for ref in refs):
+            raise ValueError("invalid_behavior_refs")
+        value["behavior_refs"] = tuple(dict(ref) for ref in refs)
         request = ModelRequest(**value)
         if type(request.allow_configured_fallback) is not bool:
             raise ValueError("invalid_configured_fallback")
+        if request.behavior_purpose is not None and (not isinstance(request.behavior_purpose, str)
+                                                      or not request.behavior_purpose):
+            raise ValueError("invalid_behavior_purpose")
+        if request.behavior_refs and not request.behavior_purpose:
+            raise ValueError("behavior_purpose_required")
+        if request.data_generation is not None:
+            if not isinstance(request.data_generation, str):
+                raise ValueError("invalid_data_generation")
+            from .generation import generation_id
+            generation_id(request.data_generation)
         validate_timing(request)
         validate_provider_session(request.provider_session_scope,
             parameters=request.parameters, native_payload=request.native_payload)

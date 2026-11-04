@@ -66,6 +66,9 @@ class ModelRequest:
     business_deadline_at: datetime | None = None
     provider_session_scope: Literal["conversation", "intent"] = "intent"
     allow_configured_fallback: bool = False
+    behavior_refs: tuple[Mapping[str, Any], ...] = ()
+    behavior_purpose: str | None = None
+    data_generation: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,6 +112,9 @@ class ModelReceipt:
     stream_coverage: Mapping[str, Any] | None = None
     request_digest: str | None = None
     completion_digest: str | None = None
+    data_generation: str | None = None
+    completion_state: Literal["none", "pending", "enqueued", "expired"] | None = None
+    completion_error_code: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

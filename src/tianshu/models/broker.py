@@ -75,6 +75,7 @@ class ModelBroker:
         upstream_connections=64,
         diagnostic_connections=4,
         statistics=None,
+        validate_behaviors=None,
     ):
         if any(type(value) is not int or value < 1 for value in (upstream_connections, diagnostic_connections)):
             raise ValueError("positive_upstream_connection_capacity_required")
@@ -85,6 +86,7 @@ class ModelBroker:
         self.ledger = AttemptLedger(database, self.instance_id, statistics=statistics)
         self.session = None
         self.diagnostic_session = None
+        self.data_generation = None
         self.scheduler = None
         self.owner = None
         self.owner_watch = None
@@ -98,6 +100,7 @@ class ModelBroker:
         self.events = events
         self.validate_submission = validate_submission
         self.validate_persistence = validate_persistence
+        self.validate_behaviors = validate_behaviors
         self.prepare_slots = asyncio.Semaphore(8)
         # A real local connection/memory limit, independent of supplier quota.
         self.upstream_connections = upstream_connections
@@ -159,6 +162,25 @@ class ModelBroker:
         elif request.source_refs:
             raise AppError("source_validation_not_bound", status=503)
 
+    async def recheck_behaviors(self, request):
+        from collections.abc import Mapping
+
+        refs = request.behavior_refs
+        if not isinstance(refs, (tuple, list)) or any(not isinstance(ref, Mapping) for ref in refs):
+            raise AppError("invalid_behavior_refs")
+        if request.behavior_purpose is not None and (
+                not isinstance(request.behavior_purpose, str) or not request.behavior_purpose):
+            raise AppError("invalid_behavior_purpose")
+        if not refs:
+            return
+        if not request.behavior_purpose:
+            raise AppError("behavior_purpose_required")
+        if self.validate_behaviors is None:
+            raise AppError("behavior_validation_not_bound", status=503)
+        accepted = await self.validate_behaviors(request.context, tuple(refs), purpose=request.behavior_purpose)
+        if accepted is not True:
+            raise AppError("behavior_dependency_invalid", status=409)
+
     async def may_persist(self, connection, request):
         if self.native_grant(request):
             return True
@@ -197,7 +219,8 @@ class ModelBroker:
                     "SELECT id FROM runtime.installation_generation WHERE singleton")).fetchone()
                 if generation is None:
                     raise AppError("installation_generation_missing", status=503)
-                self.compiler.session_generation = str(generation["id"])
+                self.data_generation = str(generation["id"])
+                self.compiler.session_generation = self.data_generation
             self.session = aiohttp.ClientSession(
                 connector=aiohttp.TCPConnector(limit=self.upstream_connections, limit_per_host=0),
                 cookie_jar=aiohttp.DummyCookieJar(),
@@ -676,9 +699,11 @@ class ModelBroker:
             estimate = input_tokens(plan.protocol, call.body)
         units = {"tokens": estimate + request.max_output_tokens}
         await self.event("model.queued", "started", request.attempt_id)
+        attempt_generation = (saved_attempt.get("data_generation") if saved_attempt is not None
+                              else self.data_generation)
         row, created = await self.ledger.create(request, plan, units, frozen=frozen,
                                                  streaming=stream, completion=completion,
-                                                 input_estimate=estimate)
+                                                 input_estimate=estimate, data_generation=attempt_generation)
         if not created and resume and row["status"] == "queued" and any(
                 row[key] != getattr(plan, attribute) for key, attribute in (
                     ("route_id", "route_id"), ("route_revision", "revision"),
@@ -697,7 +722,7 @@ class ModelBroker:
         if request.attempt_id in self.active:
             raise AppError("attempt_already_running", status=409)
         self.active[request.attempt_id] = asyncio.current_task()
-        acquired, submitted, terminal, local_acquired = False, False, False, False
+        acquired, submitted, terminal, local_acquired, network_started = False, False, False, False, False
         collector = ResponseCollector(plan.protocol)
         started = None
         timing = HttpTiming(row.get("queued_at"))
@@ -749,6 +774,7 @@ class ModelBroker:
                     raise AppError("broker_stopping", status=503)
                 saved_attempt = await self.ledger.get(request.attempt_id)
                 await self.catalog.resolve(request, frozen_attempt=saved_attempt)
+                await self.recheck_behaviors(request)
                 if request.execution_timeout_seconds is None:
                     await self.ledger.started(request.attempt_id, None)
                 else:
@@ -759,6 +785,11 @@ class ModelBroker:
                 await self.scheduler.submitted(plan.quota_group, request.attempt_id)
                 await self.event("model.submitted", "started", request.attempt_id)
             async with request.budget.timeout():
+                # Policy or installation generation can change while writing
+                # the started receipt. Recheck before the provider call.
+                await self.recheck_behaviors(request)
+                await self.ledger.assert_generation(request.attempt_id)
+                network_started = True
                 async with http_session.post(
                     call.url,
                     json=call.body,
@@ -940,7 +971,7 @@ class ModelBroker:
                 }
             ):
                 status = "failed"
-            not_sent = submitted and isinstance(exc, aiohttp.ClientConnectorError)
+            not_sent = submitted and (not network_started or isinstance(exc, aiohttp.ClientConnectorError))
             incomplete = isinstance(exc, AppError) and exc.code in {"incomplete_native_stream", "upstream_response_incomplete"}
             if not_sent or (submitted and read_complete and not incomplete):
                 status = "failed"
@@ -955,7 +986,7 @@ class ModelBroker:
                     else "transport_unknown"
                 )
             )
-            if not_sent:
+            if not_sent and not isinstance(exc, AppError):
                 code = "transport_not_sent"
             elif read_complete and not isinstance(exc, AppError) and not isinstance(exc, (asyncio.CancelledError, TimeoutError)):
                 code = "invalid_upstream_response"
@@ -1057,7 +1088,8 @@ class ModelBroker:
             {},
         )
         await self.event("resource.queued", "started", request.attempt_id)
-        row, created = await self.ledger.create(request, plan, request.estimated_units)
+        row, created = await self.ledger.create(request, plan, request.estimated_units,
+                                                 data_generation=self.data_generation)
         if not created:
             raise AppError("attempt_already_exists", status=409, details=wire(receipt(row)))
         if row["status"] == "cancelled":
