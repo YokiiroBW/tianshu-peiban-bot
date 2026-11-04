@@ -83,6 +83,7 @@ class SourcePort(Protocol):
         *,
         locator: dict,
         origin_kind: OriginKind = OriginKind.HUMAN,
+        generation: str | None = None,
     ) -> SourceRef: ...
     async def register_media_supplement(
         self, context: TrustedContext, media: MediaRef, *, original_ref: SourceRef,

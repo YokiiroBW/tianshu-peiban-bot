@@ -292,6 +292,15 @@ class SourceService:
             async with self.database.transaction() as opened:
                 yield opened
 
+    async def _freeze_generation(self, generation, *, connection=None):
+        """Keep a supplied generation or capture one for a new synchronous call."""
+        if generation is not None:
+            return generation
+        if connection is not None:
+            return await self.jobs.current_generation_on(connection)
+        async with self.database.transaction(control=True) as snapshot:
+            return await self.jobs.current_generation_on(snapshot)
+
     async def _register(
         self,
         conn,
@@ -636,8 +645,13 @@ class SourceService:
         media = await asyncio.to_thread(self.files.put_bytes, raw, media_type=mime_type)
         return await self._register_media(context, media, locator, OriginKind.TOOL_RESULT, text)
 
-    async def register_media(self, context, media, *, locator, origin_kind=OriginKind.HUMAN):
-        return await self._register_media(context, media, locator, origin_kind, None)
+    async def register_media(
+        self, context, media, *, locator, origin_kind=OriginKind.HUMAN, generation=None,
+    ):
+        generation = await self._freeze_generation(generation)
+        return await self._register_media(
+            context, media, locator, origin_kind, None, generation=generation,
+        )
 
     async def register_media_supplement(
         self, context, media, *, original_ref, producer, event_id, event_revision,
@@ -659,12 +673,7 @@ class SourceService:
 
         # Freeze the current generation before file verification yields. A
         # resumed job supplies its original generation instead of acquiring one.
-        if generation is None:
-            if connection is not None:
-                generation = await self.jobs.current_generation_on(connection)
-            else:
-                async with self.database.transaction(control=True) as snapshot:
-                    generation = await self.jobs.current_generation_on(snapshot)
+        generation = await self._freeze_generation(generation, connection=connection)
 
         def verify():
             with self.files.open_reader(media):
@@ -791,7 +800,7 @@ class SourceService:
 
     async def _register_media(
         self, context, media, locator, origin_kind, content, *,
-        actor_shared=False, source_refs=(), disclosure=False,
+        actor_shared=False, source_refs=(), disclosure=False, generation=None,
     ):
         await self.check(context, source_refs)
         if not self.files.was_written(media):
@@ -803,6 +812,8 @@ class SourceService:
 
         await asyncio.to_thread(verify)
         async with self.database.transaction() as conn:
+            if generation is not None:
+                await self.jobs.assert_generation_on(conn, generation)
             if actor_shared:
                 scope = await self.identity.public_scope(context, connection=conn)
                 intake = (scope,)

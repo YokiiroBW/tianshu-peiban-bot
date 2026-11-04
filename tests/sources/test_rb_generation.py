@@ -39,6 +39,34 @@ async def _record(core, context, event_id, *, connection=None, generation=None):
     ))[0]
 
 
+async def _change_generation_during_file_verification(core, monkeypatch, operation_factory):
+    before = await _generation(core)
+    entered, release = Event(), Event()
+    actual_reader = core.files.open_reader
+
+    @contextmanager
+    def delayed_reader(reference):
+        entered.set()
+        if not release.wait(5):
+            raise RuntimeError("file verification was not released")
+        with actual_reader(reference) as stream:
+            yield stream
+
+    monkeypatch.setattr(core.files, "open_reader", delayed_reader)
+    operation = asyncio.create_task(operation_factory(str(before)))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        replacement = uuid4() if isinstance(before, UUID) else str(uuid4())
+        async with core.database.transaction() as conn:
+            await conn.execute(
+                "UPDATE runtime.installation_generation SET id=%s WHERE singleton", (replacement,)
+            )
+    finally:
+        release.set()
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await operation
+
+
 class RollbackMarker(Exception):
     pass
 
@@ -98,34 +126,51 @@ async def test_new_supplement_snapshots_generation_before_file_verification(
     alice, _ = ordinary_users
     original = await _record(core, alice, "generation-race")
     media = core.files.put_bytes(b"attachment", media_type="image/png")
-    before = await _generation(core)
-    entered, release = Event(), Event()
-    actual_reader = core.files.open_reader
-
-    @contextmanager
-    def delayed_reader(reference):
-        entered.set()
-        if not release.wait(5):
-            raise RuntimeError("file verification was not released")
-        with actual_reader(reference) as stream:
-            yield stream
-
-    monkeypatch.setattr(core.files, "open_reader", delayed_reader)
-    operation = asyncio.create_task(core.sources.register_media_supplement(
-        alice, media, original_ref=original, producer="web", event_id="generation-race",
-        event_revision=1, part_index=0, supplement_revision=1,
-    ))
-    try:
-        assert await asyncio.to_thread(entered.wait, 5)
-        replacement = uuid4() if isinstance(before, UUID) else str(uuid4())
-        async with core.database.transaction() as conn:
-            await conn.execute(
-                "UPDATE runtime.installation_generation SET id=%s WHERE singleton", (replacement,)
-            )
-    finally:
-        release.set()
-    with pytest.raises(AppError, match="job_generation_expired"):
-        await operation
+    await _change_generation_during_file_verification(
+        core, monkeypatch,
+        lambda _generation: core.sources.register_media_supplement(
+            alice, media, original_ref=original, producer="web", event_id="generation-race",
+            event_revision=1, part_index=0, supplement_revision=1,
+        ),
+    )
     async with core.database.transaction(read_only=True) as conn:
         row = await (await conn.execute("SELECT 1 FROM sources.media_supplements")).fetchone()
+    assert row is None
+
+
+async def test_initial_media_rejects_old_generation_without_creating_a_source(core, ordinary_users):
+    alice, _ = ordinary_users
+    current = str(await _generation(core))
+    media = core.files.put_bytes(b"initial attachment", media_type="image/png")
+    locator = {"kind": "initial_media", "event_id": "stale-initial-media"}
+    with pytest.raises(AppError, match="job_generation_expired"):
+        await core.sources.register_media(alice, media, locator=locator, generation=str(uuid4()))
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE locator->>'event_id'=%s", (locator["event_id"],)
+        )).fetchone()
+    assert row is None
+
+    reference = await core.sources.register_media(alice, media, locator=locator, generation=current)
+    assert (await core.sources.check_many(alice, ((reference,),))) == (True,)
+
+
+@pytest.mark.parametrize("explicit_generation", [True, False])
+async def test_initial_media_does_not_cross_generation_during_file_verification(
+    core, ordinary_users, monkeypatch, explicit_generation
+):
+    alice, _ = ordinary_users
+    media = core.files.put_bytes(b"initial attachment", media_type="image/png")
+    locator = {"kind": "initial_media", "event_id": "initial-media-race"}
+    await _change_generation_during_file_verification(
+        core, monkeypatch,
+        lambda generation: core.sources.register_media(
+            alice, media, locator=locator,
+            generation=generation if explicit_generation else None,
+        ),
+    )
+    async with core.database.transaction(read_only=True) as conn:
+        row = await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE locator->>'event_id'=%s", (locator["event_id"],)
+        )).fetchone()
     assert row is None
