@@ -30,8 +30,8 @@ test("workspace plugin execution uses the selected authorized binding without a 
   let invoked: Record<string, unknown> | null = null;
   await page.route(apiPath("plugins/invoke"), (route) => { const body = route.request().postDataJSON(); invoked = body; return answer(route, command(body, { id: "call" })); });
   await page.goto("/#/plugins");
-  await page.getByRole("button", { name: /实例/ }).click();
-  await page.getByLabel("使用范围").selectOption("workspace-binding");
+  await page.getByRole("button", { name: "实例 运行中", exact: true }).click();
+  await page.getByRole("combobox", { name: "使用范围", exact: true }).selectOption("workspace-binding");
   await page.getByRole("button", { name: "执行", exact: true }).click();
   await expect.poll(() => invoked).not.toBeNull();
   expect(invoked).toMatchObject({ actor_id: null, conversation_id: null, binding_id: "workspace-binding", action: "lookup" });

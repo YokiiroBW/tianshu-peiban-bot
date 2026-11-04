@@ -338,7 +338,11 @@ function TurnStatus({
         <button
           className="text-link"
           onClick={() => {
-            window.location.hash = `#/system/tasks?expression=${encodeURIComponent(view.data!.expression_id!)}&${new URLSearchParams(Object.fromEntries(Object.entries(selector).filter(([, value]) => typeof value === "string")))}`;
+            const query = new URLSearchParams({ expression: view.data!.expression_id! });
+            for (const [key, value] of Object.entries(selector)) {
+              if (typeof value === "string") query.set(key, value);
+            }
+            window.location.hash = `#/system/tasks?${query}`;
           }}
         >
           查看原表达

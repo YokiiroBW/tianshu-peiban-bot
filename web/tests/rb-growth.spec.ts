@@ -17,7 +17,7 @@ test("growth exposes current-rule history, revision and explicit example withdra
   await page.getByText("规则历史与依据").click();
   await expect(page.getByText(/旧版本/)).toBeVisible();
   await page.getByRole("button", { name: "修订这项变化" }).click();
-  await page.getByLabel("正文", { exact: true }).fill("先讲结论，再说明依据");
+  await page.getByRole("textbox", { name: "正文", exact: true }).fill("先讲结论，再说明依据");
   await page.getByRole("button", { name: "保存修订" }).click();
   await expect.poll(() => requests.length).toBe(1);
   expect(requests[0]).toMatchObject({ path: "companion/growth/revise", body: { id: "rule-1", expected_revision: 4, content: "先讲结论，再说明依据" } });

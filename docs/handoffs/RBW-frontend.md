@@ -28,8 +28,24 @@
 - `memory/extraction/status` 使用 `commit_state`、`required_context_missing`、`indexing`；索引逐对象返回 `state/profile_key/generation`，不能从应用成功推断索引成功。`companion/growth/reflections` 是反思列表权威；Growth 进度使用 `input_missing` 和同代际 `pending_original_requests`。Life 的 `day-plan` 返回 `timings_ms`，服务内部 `view_total` 不包含路由鉴权、JSON 序列化和网络；未执行/未测量不显示为零，也不把各阶段相加当作整请求时长。
 - 逐输入学习状态中的 `coverage_missing` 单独展示材料缺口；`revision_evidence_complete=false` 明示修订证据未全覆盖，`null` 表示覆盖范围未记录，不据缺失证据推断不存在。
 
+## 2026-11-05 前端分片验证
+
+- 修复 `DialoguePanel` 中原表达链接对可空场景字段构造 `URLSearchParams` 的类型错误；只加入字符串字段。新用例覆盖保留原会话、特殊字符和缺省人物字段。
+- 使用 Node `C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe`，`web/node_modules` 为指向主集成检出既有依赖的 junction；没有安装或更新共享依赖。以下命令在本工作树 `web/` 运行，`node.exe` 所在目录加入进程 PATH：
+
+```powershell
+$env:PATH = 'C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin;' + $env:PATH
+& 'C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' 'node_modules\typescript\bin\tsc' -p tsconfig.json --noEmit
+& 'C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' 'node_modules\vite\bin\vite.js' build
+& 'C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' 'node_modules\@playwright\test\cli.js' test tests/rb-growth.spec.ts tests/rb-independent.spec.ts tests/rb-logs.spec.ts tests/rb-operations.spec.ts tests/rb-selection.spec.ts tests/rb-statistics.spec.ts tests/data-generation.spec.ts tests/growth-coverage.spec.ts tests/life-closure.spec.ts tests/memory-closure.spec.ts tests/provider-queue.spec.ts tests/session-transport.spec.ts tests/frontend-807.spec.ts tests/native-pages.spec.ts --project=desktop --project=mobile --workers=4
+& 'C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' 'node_modules\@playwright\test\cli.js' test tests/life-closure.spec.ts tests/rb-growth.spec.ts tests/rb-independent.spec.ts --grep 'diary feedback uses|growth exposes current-rule|workspace plugin execution' --project=desktop --project=mobile --workers=4
+& 'C:\Users\Administrator\.cache\codex-runtimes\codex-primary-runtime\dependencies\node\bin\node.exe' 'node_modules\@playwright\test\cli.js' test tests/rb-selection.spec.ts --grep 'unknown expression links' --project=desktop --project=mobile --workers=2
+```
+
+- TypeScript 检查、Vite 构建通过；Vite 提示一个生成分块超过 500 kB，未阻止构建。首轮 Playwright 共 120 项，114 项通过、6 项失败：三个用例在桌面/移动端各一次，分别为按钮匹配歧义及两个精确标签定位问题。仅修复测试定位器后，6 项定向重跑全部通过；新增原表达链接用例桌面/移动各 1 项通过。原产品代码在首次构建之后未变更，因此未重复类型检查和构建。
+
 ## 尚待集中完成和验证
 
 - Memory 索引、逐输入学习状态和 Life 阶段计时页面已按公开 DTO 接线；仍需主协调者合入对应后端并在集成环境验证真实记录。当前没有可观察证据证明回复是否遵守具体输入，页面显示未记录；`json_serialization` 与 `http_total` 当前未测量。
 - 22 类既有功能、窄屏、旧书签、真实媒体 Range、日志大于单页且同时间戳、跨域动作与权限，尚未完成集成环境验证。日志/统计页面可用不代表采集、业务收敛或真实用户体验已验收。
-- 新增/修改了日志、统计、运维、代际、模型备用、对话取材、成长、生活、独立范围和记忆相关回归用例；本窗口按授权未运行测试、构建、类型检查、浏览器烟测、真实模型、QQ 或生产操作。只做静态 diff 审阅和提交前 `git diff --cached --check`，通过；统一验证由主协调者执行。
+- 上述前端检查使用本地夹具，未验证真实模型、QQ、NAS 或生产数据；后端装配与实际业务验收仍由主协调者完成。

@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { answer, apiPath, emptyPage, nativeSession } from "./native-fixture";
+import { answer, apiPath, command, conversation, emptyPage, nativeSession } from "./native-fixture";
 
 test("conversation loads a turn's recorded selection on demand and keeps unrecorded distinct from empty", async ({ page }) => {
   await nativeSession(page);
@@ -81,4 +81,29 @@ test("a completed turn refreshes pending learning and stops when the result is k
   expect(reads).toBe(2);
   await page.clock.fastForward(30000);
   expect(reads).toBe(2);
+});
+
+test("unknown expression links retain the original scope without null selectors", async ({ page }) => {
+  await nativeSession(page);
+  await page.route(apiPath("identity/conversations"), (route) =>
+    answer(route, { ...emptyPage, items: [{ ...conversation, person_id: null }] }),
+  );
+  await page.route(apiPath("conversation/messages"), (route) => answer(route, emptyPage));
+  await page.route(apiPath("conversation/send"), (route) =>
+    answer(route, command(route.request().postDataJSON(), { turn_id: "unknown-turn", state: "queued" })),
+  );
+  await page.route(apiPath("conversation/turn"), (route) => answer(route, {
+    turn_id: "unknown-turn", state: "unknown", revision: 1, receipt: null, missing: [],
+    action_ids: [], expression_id: "expression / 1?&", error_code: null,
+  }));
+  await page.goto("/#/roles/chat");
+  await page.getByRole("textbox", { name: "说点什么" }).fill("请核对原表达");
+  await page.getByRole("button", { name: "发送", exact: true }).click();
+  await page.getByRole("button", { name: "查看原表达" }).click();
+  await expect(page).toHaveURL(/#\/system\/tasks\?/);
+  const query = new URLSearchParams(new URL(page.url()).hash.split("?")[1]);
+  expect(query.get("expression")).toBe("expression / 1?&");
+  expect(query.get("actor_id")).toBe("actor");
+  expect(query.get("conversation_id")).toBe("web-conversation");
+  expect(query.has("person_id")).toBe(false);
 });

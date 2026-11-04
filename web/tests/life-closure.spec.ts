@@ -725,8 +725,8 @@ test("diary feedback uses the current revision and does not gate publication", a
   await page.getByRole("button", { name: "打开 2026-11-01", exact: true }).click();
   const sheet = page.getByRole("dialog", { name: "2026-11-01", exact: true });
   await expect(sheet.getByRole("button", { name: "发布当前修订" })).toBeVisible();
-  await sheet.getByLabel("意见", { exact: true }).selectOption("changes_requested");
-  await sheet.getByLabel("说明", { exact: true }).fill("补充当时的感受");
+  await sheet.getByRole("combobox", { name: "意见", exact: true }).selectOption("changes_requested");
+  await sheet.getByRole("textbox", { name: "说明", exact: true }).fill("补充当时的感受");
   await sheet.getByRole("button", { name: "保存意见" }).click();
   await expect.poll(() => reviews.length).toBe(1);
   expect(reviews[0]).toMatchObject({ id: draft.id, expected_revision: 5, state: "changes_requested", note: "补充当时的感受" });
