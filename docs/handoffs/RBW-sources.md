@@ -94,3 +94,11 @@ sources.register_dependant(owner.invalidate_actor, name="stable-owner-name",
 - 受保留配置中可能引用的身份、scope、来源和文件的闭包识别及空库导入由协调者的配置种子/清空装配处理；本包没有执行导出、清理或保留生产记录，也没有宣称相关配置引用已核实。
 - 旧 `tests/core/test_archive_sources.py` 对旧自动历史拒绝原因 `explicit_history_request_required` 的断言需按代际新语义调整；其他旧用例如假设领域清理在撤回事务内同步完成，应改为先验立即不可读，再执行持久消费者任务。
 - 所有产品测试、数据库迁移验证、构建、烟测、真实生产及部署均**未执行**。已完成静态完整 diff 审阅及 `git diff --cached --check`；回归用例已编写但尚无运行结果。需集中验证 Runtime 代际装配、session 在各路径返回真实代际、来源跨代拒绝与调用方事务回滚、文件校验期间代际变化、真实 PG 同事务可见性和授权锁、撤回竞态、分 actor 消费失败隔离、附件幂等与跨域接线、AND/OR 和生成依赖、archive 边界及 actorless 真实项目路径。
+
+## 初次媒体来源代际增量
+
+- 代码及回归用例提交：`9498da326aca2fb5403210d07dadab01ef34c237`。`register_media(context, media, *, locator, origin_kind=..., generation=None)` 接受任务原代际，在来源实际写入事务中调用 Runtime 的 `assert_generation_on`。
+- 新同步调用省略 generation 时，在身份检查和文件校验前捕获当前代际；跨下载或其他异步等待的调用必须传入等待前已冻结的原代际。否则，方法无法识别在调用之前已经发生的代际切换。`register_media_supplement` 继续复用同一代际捕获逻辑。
+- 新增回归用例覆盖旧代际拒绝、新代际成功及文件校验期间代际切换；未运行测试或构建，静态 diff 和 `git diff --cached --check` 已检查。共用测试数据库 fixture 仍需先装配 Runtime RB 迁移。
+- 本增量保证过期任务不登记新的来源记录。调用方在进入 `register_media` 前可能已将文件放入内容寻址存储；本包未删除已写文件，也未验证其清理。
+- 同属 Sources 的 `capture` 和 `publish_media` 另有异步准备路径，当前 API 不接收调用方代际，本次没有覆盖；已向协调者回报，需结合对应 Channels/Capabilities 调用方处理。
