@@ -6,6 +6,7 @@ from datetime import UTC, datetime
 import json
 import re
 
+from aiohttp import ClientError
 from psycopg.types.json import Jsonb
 
 from tianshu.runtime.api import CommandResult, Page
@@ -36,6 +37,7 @@ class MemoryService:
         self.episode_observer = None
         self.statistics = None
         self.recovery_policy = None
+        self.index_readiness = None
         self.settings = settings or {}
         from .consolidation import Consolidation
         self.consolidation = Consolidation(self, self.settings.get("consolidation", {}))
@@ -45,6 +47,12 @@ class MemoryService:
 
     def bind_record_candidates(self,read_port):
         self.consolidation.materials.record_candidates=read_port
+
+    def bind_index_readiness(self, callback):
+        """Bind Retrieval's authorized, current-profile readiness read port."""
+        if self.index_readiness is not None:
+            raise RuntimeError("memory_index_readiness_already_bound")
+        self.index_readiness = callback
 
     def bind_observability(self, *, statistics, recovery_policy):
         self.statistics, self.recovery_policy = statistics, recovery_policy
@@ -384,7 +392,7 @@ class MemoryService:
                     (context.actor_id,context.conversation_id,event_id,claim_id,revision,outcome))
 
     async def supplement_episode(self, context, *, episode_id, event_id, event_revision, part_index,
-                                 supplement_revision, original_ref, supplement_ref):
+                                 supplement_revision, original_ref, supplement_ref, generation, connection=None):
         """Attach a verified late source to its original Episode without ingesting a new event."""
         from tianshu.sources.dependencies import unique_refs
         from .extraction_contract import SCHEMA_VERSION
@@ -395,7 +403,8 @@ class MemoryService:
                 or type(supplement_revision) is not int or supplement_revision < 1
                 or supplement.revision != supplement_revision):
             raise AppError("memory_episode_supplement_invalid")
-        async with self.database.transaction() as conn:
+        async with self.connection(connection) as conn:
+            await self.jobs.assert_generation_on(conn,generation)
             await self.identity.check_context(context, connection=conn)
             probe = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s AND actor_id=%s AND active",
                 (episode_id,context.actor_id))).fetchone()
@@ -612,9 +621,9 @@ class MemoryService:
             "e:" + str(watermark),
         )
 
-    async def extraction_status(self,context,episode_id):
-        await self.identity.check_context(context)
+    async def _extraction_status_snapshot(self,context,episode_id):
         async with self.database.transaction(read_only=True) as conn:
+            await self.identity.check_context(context,connection=conn)
             row=await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s AND actor_id=%s AND active",
                 (episode_id,context.actor_id))).fetchone()
             if not row or not set(row["scope_ids"])<=set(context.scope_ids) or not all(
@@ -622,6 +631,63 @@ class MemoryService:
                 raise AppError("episode_unavailable",status=404)
             return {"episode_id":episode_id,"revision":row["revision"],
                 **await self.pipeline_recovery.status_on(conn,context,row)}
+
+    async def _read_index_readiness(self,context,records):
+        """Ask Retrieval after releasing the Memory transaction; preserve each object."""
+        def unavailable(record):
+            return {**record,"profile_key":None,"generation":None,"state":"unavailable"}
+
+        results=[]
+        for start in range(0,len(records),128):
+            chunk=records[start:start+128]
+            if self.index_readiness is None:
+                results.extend(unavailable(record) for record in chunk)
+                continue
+            try:
+                returned=wire(await self.index_readiness(context,tuple(chunk),budget=None))
+            except (AppError,TimeoutError,OSError,ClientError):
+                results.extend(unavailable(record) for record in chunk)
+                continue
+            if not isinstance(returned,list) or len(returned)!=len(chunk):
+                results.extend(unavailable(record) for record in chunk)
+                continue
+            for expected,actual in zip(chunk,returned,strict=True):
+                if (not isinstance(actual,dict) or any(actual.get(key)!=expected.get(key)
+                        for key in ("kind","id","revision"))
+                        or actual.get("state") not in {"ready","pending","failed","unavailable"}
+                        or actual["state"] == "ready" and (not actual.get("profile_key")
+                                                           or actual.get("generation") is None)):
+                    results.append(unavailable(expected))
+                else:
+                    results.append({key:actual.get(key) for key in
+                        ("kind","id","revision","profile_key","generation","state")})
+        states={item["state"] for item in results}
+        state=next((item for item in ("failed","unavailable","pending") if item in states),"ready")
+        return {"state":state,"objects":results}
+
+    async def extraction_status(self,context,episode_id):
+        await self.identity.check_context(context)
+        snapshot=await self._extraction_status_snapshot(context,episode_id)
+        for _ in range(2):
+            records=snapshot["indexing"]["objects"]
+            if not records:
+                return snapshot
+            indexing=await self._read_index_readiness(context,records)
+            # The profile lookup can involve network I/O. Reauthorize the
+            # episode and its batch after it, in a new short transaction.
+            current=await self._extraction_status_snapshot(context,episode_id)
+            if (current["revision"]==snapshot["revision"]
+                    and current["batch_id"]==snapshot["batch_id"]
+                    and current["commit_state"]==snapshot["commit_state"]=="applied"
+                    and current["indexing"]["objects"]==records):
+                current["indexing"]=indexing
+                return current
+            snapshot=current
+        if snapshot["indexing"]["objects"]:
+            snapshot["indexing"]={"state":"unavailable","objects":[
+                {**record,"profile_key":None,"generation":None,"state":"unavailable"}
+                for record in snapshot["indexing"]["objects"]]}
+        return snapshot
 
     async def relationship(self, context, person_id):
         selected = await self.identity.context(

@@ -144,6 +144,8 @@ class ModelSteps:
     async def submit_or_observe(self, step_id, partition_id, *, data_generation, observe_only=False):
         """Submit the frozen attempt once, then release the worker while Models runs."""
         _, original = await self.recorded(step_id)
+        if original.data_generation != data_generation:
+            raise AppError("job_generation_expired", status=409)
         async with self.database.transaction() as conn:
             if not await self.sources.validate_persistence(conn, original.context, original.source_refs):
                 raise AppError("source_unavailable", status=403)

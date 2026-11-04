@@ -505,6 +505,7 @@ class Consolidation:
                     frozen = reduced
             request=self._budgeted_request(context,frozen,step_id,metrics=reads.metrics,allow_required_context=False)
             with reads.metrics.phase("route_ms"):
+                request=replace(request,data_generation=data_generation)
                 request=await native_request(self.steps.models,request)
         dependencies = self.materials.dependencies(frozen)
         manifest = {"frozen": frozen_mapping(frozen), "episodes": frozen["episodes"], "source_budget":text_ceiling,
@@ -1084,6 +1085,7 @@ class Consolidation:
         step_id = batch["batch_id"]+":step:1"
         try:
             request = self._request(context,expanded,step_id,context_round=1,requests=outcomes)
+            request = replace(request,data_generation=batch["manifest"]["data_generation"])
             request = await native_request(self.steps.models,request)
         except AppError as exc:
             if exc.code == "memory_consolidation_input_budget":
@@ -1215,7 +1217,7 @@ class Consolidation:
 
     async def _failure(self, partition_id, batch_id, exc, *, owner=None):
         code = failure_code(exc)
-        if code in {"memory_consolidation_lease_changed", "job_generation_expired"}:
+        if code in {"memory_consolidation_lease_changed", "job_generation_expired", "data_generation_expired"}:
             # A successor may already be observing/applying this same batch.
             # The expired writer has no authority to settle or reset its work.
             return
@@ -1241,6 +1243,17 @@ class Consolidation:
         terminal = batch_id is not None or not transient_model_failure(code)
         shrink = False
         async with self.database.transaction() as conn:
+            if batch_id:
+                batch_snapshot = await (await conn.execute("SELECT manifest FROM memory.consolidation_batches "
+                    "WHERE batch_id=%s",(batch_id,))).fetchone()
+                if not batch_snapshot:
+                    return
+                try:
+                    await self._assert_batch_generation_on(conn,batch_snapshot)
+                except AppError as error:
+                    if error.code == "job_generation_expired":
+                        return
+                    raise
             ownership = await (await conn.execute("SELECT lease_owner FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(partition_id,))).fetchone()
             if owner is not None and (not ownership or ownership["lease_owner"] != owner):
                 return

@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 from base64 import b64decode
+from contextlib import asynccontextmanager
 import asyncio
 import json
 
@@ -208,6 +209,8 @@ async def test_schema_correction_is_a_successful_physical_continuation_on_one_li
     assert [item["status"] for item in attempts] == ["succeeded","succeeded"]
     assert attempts[1]["continuation_of"] == attempts[0]["attempt_id"]
     assert attempts[1]["continuation_reason"] == "schema_correction"
+    assert all(request.data_generation == completion.data_generation == batch["manifest"]["data_generation"]
+               for request,completion in model.submissions)
 
 
 async def test_waiting_model_releases_worker_and_completion_observes_same_attempt(core, ordinary_users):
@@ -221,6 +224,7 @@ async def test_waiting_model_releases_worker_and_completion_observes_same_attemp
     assert waiting["status"] == "waiting_model" and len(model.submissions) == 1
     assert model.submissions[0][1].task == "memory.consolidate"
     assert model.submissions[0][1].data_generation == waiting["manifest"]["data_generation"]
+    assert model.submissions[0][0].data_generation == waiting["manifest"]["data_generation"]
     async with core.database.transaction(read_only=True) as conn:
         state = await (await conn.execute("SELECT lease_owner FROM memory.consolidation_state WHERE partition_id=%s",
                                           (partition,))).fetchone()
@@ -256,6 +260,58 @@ async def test_previous_generation_completion_cannot_apply_after_reset(core, ord
             (old_batch["manifest"]["data_generation"] + ":new",))).fetchone()
     assert batch["status"] == "waiting_model" and count["count"] == 0
     assert stale_wakes["count"] == 0
+
+
+async def test_extraction_status_reads_current_index_outside_transaction_and_rechecks_sources(
+        core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model = RecordedModel()
+    configure(core,model)
+    item = await episode(core,alice,"rb-index-readiness")
+    partition, _ = await batch_for(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    transactions = 0
+    original_transaction = core.database.transaction
+
+    @asynccontextmanager
+    async def tracked_transaction(*args, **kwargs):
+        nonlocal transactions
+        async with original_transaction(*args, **kwargs) as conn:
+            transactions += 1
+            try:
+                yield conn
+            finally:
+                transactions -= 1
+
+    monkeypatch.setattr(core.database,"transaction",tracked_transaction)
+    state = "pending"
+    withdraw = False
+
+    async def readiness(context,records,budget=None,*,profile_key=None):
+        assert transactions == 0
+        assert 0 < len(records) <= 128 and budget is None
+        if state == "error":
+            raise AppError("index_profile_unavailable",status=503)
+        if withdraw:
+            await core.sources.invalidate(context,{"source_id":item.source_refs[0].source_id,
+                "expected_revision":item.source_refs[0].revision,"client_request_id":"rb-index-withdraw"},
+                forgotten=True)
+        return [{**record,"profile_key":"profile-a","generation":7,"state":state} for record in records]
+
+    core.memory.bind_index_readiness(readiness)
+    pending = await core.memory.extraction_status(alice,item.episode_id)
+    assert pending["commit_state"] == "applied" and pending["indexing"]["state"] == "pending"
+    state = "ready"
+    ready = await core.memory.extraction_status(alice,item.episode_id)
+    assert ready["indexing"]["state"] == "ready"
+    assert all(value["generation"] == 7 for value in ready["indexing"]["objects"])
+    state = "error"
+    unavailable = await core.memory.extraction_status(alice,item.episode_id)
+    assert unavailable["indexing"]["state"] == "unavailable"
+    state = "ready"
+    withdraw = True
+    with pytest.raises(AppError,match="episode_unavailable"):
+        await core.memory.extraction_status(alice,item.episode_id)
 
 
 async def test_same_scene_different_principals_keep_separate_batch_authority(core, ordinary_users):
@@ -376,12 +432,18 @@ async def test_late_media_is_idempotent_and_its_withdrawal_preserves_original_te
         "summary":"这是图片说明","source_refs":refs,"origin_kind":"human"})
     png = b64decode("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+/a8sAAAAASUVORK5CYII=")
     media = await asyncio.to_thread(core.files.put_bytes,png,media_type="image/png")
+    async with core.database.transaction(read_only=True) as conn:
+        generation = await core.memory.jobs.current_generation_on(conn)
     supplement = await core.sources.register_media_supplement(alice,media,original_ref=refs[1],producer="web",
-        event_id=event,event_revision=1,part_index=1,supplement_revision=1)
+        event_id=event,event_revision=1,part_index=1,supplement_revision=1,generation=generation)
     kwargs = {"episode_id":original.episode_id,"event_id":event,"event_revision":1,"part_index":1,
-              "supplement_revision":supplement.revision,"original_ref":refs[1],"supplement_ref":supplement}
-    updated = await core.memory.supplement_episode(alice,**kwargs)
+              "supplement_revision":supplement.revision,"original_ref":refs[1],"supplement_ref":supplement,
+              "generation":generation}
+    async with core.database.transaction() as conn:
+        updated = await core.memory.supplement_episode(alice,connection=conn,**kwargs)
     again = await core.memory.supplement_episode(alice,**kwargs)
+    with pytest.raises(AppError,match="job_generation_expired"):
+        await core.memory.supplement_episode(alice,**{**kwargs,"generation":generation+":old"})
     replay = await core.memory.observe_episode(alice, {"event_id":event,"revision":1,"occurred_at":at,
         "summary":"这是图片说明","source_refs":refs,"origin_kind":"human"})
     assert updated.episode_id == original.episode_id and updated.revision == original.revision + 1
