@@ -25,7 +25,11 @@ class SourceService:
         self.dependants = {}
 
     def register_dependant(self, callback, *, name=None, partitions=None):
-        """Register a stable consumer name; delivery runs after the source commits."""
+        """Register a transaction-local invalidator, delivered after source commit.
+
+        Both callback and partitioner use the supplied connection; irreversible
+        external work must be dispatched separately through durable state.
+        """
         name = name or f"{callback.__module__}.{callback.__qualname__}"
         if name in self.dependants:
             raise ValueError("duplicate_source_dependant")

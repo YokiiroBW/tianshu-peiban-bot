@@ -47,11 +47,12 @@ def create_module(service, identity):
         )
 
     def tasks(queue, _runtime):
-        queue.register("sources.propagate", service.propagate, retryable=True)
+        queue.register("sources.propagate", service.propagate, retryable=True,
+                       resource_recovery=True)
         queue.register("sources.dispatch", service.dispatch_dependant, retryable=True,
-                       execution_lane=ExecutionLane.SOURCE_LIFECYCLE)
+                       execution_lane=ExecutionLane.SOURCE_LIFECYCLE, resource_recovery=True)
         queue.register("sources.notify", service.notify_dependant, retryable=True,
-                       execution_lane=ExecutionLane.SOURCE_LIFECYCLE)
+                       execution_lane=ExecutionLane.SOURCE_LIFECYCLE, resource_recovery=True)
 
     return DomainModule(
         "sources",

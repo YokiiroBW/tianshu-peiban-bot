@@ -304,8 +304,8 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
             conn,
             tuple(SourceRef(row["source_id"], row["revision"], {}) for row in bound),
             extra=tuple("source_" + key[:48] for _, _, key, _ in prepared),
-            exclusive=True,
             extra_aliases=all_keys,
+            write_ids=tuple("source_" + key[:48] for _, _, key, _ in prepared),
         )
         # Locks precede this second metadata query: a concurrent forget cannot be missed.
         bound = await (
@@ -421,6 +421,7 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 "archive:" + body_hash({"channel": channel, "locator": record["locator"]}),
                 Coverage(True, representation="stored_text"),
                 (supports,) if supports else (),
+                locks_prepared=True,
             )
             await conn.execute(
                 "INSERT INTO sources.archive_records(archive_key,source_id,content_hash,alias_keys,explicit_authorized) "

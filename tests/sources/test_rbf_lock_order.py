@@ -13,6 +13,7 @@ from tianshu.conversation.types import InputPart
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.sources.archives import lock_selected
+from tianshu.sources.module import create_module
 from tianshu.sources.service import SourceService
 from tianshu.types import OriginKind, SourceRef
 
@@ -141,6 +142,21 @@ async def test_persistence_validation_propagates_the_typed_wait():
     with pytest.raises(RecoveryWait) as failure:
         await service.validate_persistence(object(), object(), (SourceRef("a", 1, {}),))
     assert failure.value is wait
+
+
+def test_source_lifecycle_jobs_opt_in_to_rolled_back_resource_recovery():
+    calls = {}
+
+    class Queue:
+        def register(self, name, handler, **options):
+            calls[name] = options
+
+    service = SimpleNamespace(
+        propagate=AsyncMock(), dispatch_dependant=AsyncMock(), notify_dependant=AsyncMock()
+    )
+    create_module(service, None).register_tasks(Queue(), None)
+    assert set(calls) == {"sources.propagate", "sources.dispatch", "sources.notify"}
+    assert all(options["retryable"] and options["resource_recovery"] for options in calls.values())
 
 
 async def test_same_event_revisions_serialize_before_selecting_removed_parts(core, ordinary_users):
