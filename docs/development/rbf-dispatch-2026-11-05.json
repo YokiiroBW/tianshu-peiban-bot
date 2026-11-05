@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBF-20261105",
-  "state": "parallel_implementation_active",
+  "state": "all_implementation_integrated",
   "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "model": "gpt-6.1-terra",
   "reasoning_effort": "max",
@@ -31,15 +31,23 @@
       ],
       "commits": [
         "36c88b8adffb21badb7d23dbaac1f0a96abeffb2",
-        "b44e8f7f07f98128b65a24cd0195179d3f357f56"
+        "b44e8f7f07f98128b65a24cd0195179d3f357f56",
+        "a9548f9296e197e8361b3ca3159db1c677c5f068",
+        "f9cdaad3bb336ebf30b079107397cc0f60177263",
+        "6fc3dc90f59519a93c3729e09477f303709fc45c",
+        "f92b0c436ac40d8f4e92757f25a13344c1ca23c9"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "acknowledged": true,
       "integrated_commits": [
-        "9403778a",
-        "e24b8aef"
+        "9403778aaf8d26b2d54d8dbfb603f583cad58c3c",
+        "e24b8aef669aa041cb3cc31aa270802419fb60c9",
+        "4632a40c9dd2c6391ae086b748a8fd125a9e8bb8",
+        "a10e993691d99f133512e6fb8582270199d99073",
+        "96436f535ad5eb5c725a6ea34056e7decf3de01f",
+        "e4e839813c0ba688abba395d7d5b0658eaa7bbaa"
       ]
     },
     {
@@ -50,16 +58,23 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
       "branch": "codex/rbf-life-20261105",
-      "status": "implementing",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/life/",
         "tests/life/test_rbf_*.py"
       ],
-      "commits": [],
+      "commits": [
+        "8f3a251f6fa065400f3fc965656b1bf7c3a760dd",
+        "fca004a096752b72b834d038541de21997410ed5"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "e58e32a728379cab85cd9440f260bde7defc483b",
+        "39fc1e78c2166eb063bef24662eb5eb0ec2ab0b2"
+      ]
     },
     {
       "id": "RBF-03",
@@ -69,16 +84,23 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-memory/tianshu-peiban-bot",
       "branch": "codex/rbf-memory-20261105",
-      "status": "implementing",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/memory/",
         "tests/memory/test_rbf_*.py"
       ],
-      "commits": [],
+      "commits": [
+        "e66893d02ca57da7526f24780e50492a44895e1c",
+        "385ce5c18f37514224b58e9ce899c5cd19338be1"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "0ae65df1362ccc853be0e3447cf05c0657db12db",
+        "f2912e62241a39e4fc70d9d8e80f4b4c695c3414"
+      ]
     },
     {
       "id": "RBF-04",
@@ -88,16 +110,23 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
       "branch": "codex/rbf-capabilities-20261105",
-      "status": "implementing",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/capabilities/",
         "tests/capabilities/test_rbf_*.py"
       ],
-      "commits": [],
+      "commits": [
+        "b6f3fcd5aca9d110dda9f4f23c2866b95b86fc40",
+        "fd181af7bc7b654e65513a3b4f6da5f0b5ea7ad4"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "2f1c64c9e60aff4d35a85612b543a34e9751d1f8",
+        "9b0e6ec1deb0ca0738c84b22acc5f5232d1f7d1a"
+      ]
     },
     {
       "id": "RBF-05",
@@ -126,9 +155,9 @@
       "service_tier": "default",
       "acknowledged": true,
       "integrated_commits": [
-        "46d1615c",
-        "e3665de1",
-        "b88221d6"
+        "46d1615c4fed17c35bcaf63b6940c468a6491fd1",
+        "e3665de1a22c0517a5efd337927dc6b3e972e3c9",
+        "b88221d648eee98837f325f05a510a44e43a080d"
       ]
     },
     {
@@ -147,16 +176,22 @@
       "commits": [
         "171b432bdcaacee2969a265cae3ecde9cd41b78d",
         "e078ea7b1373a308782ef24cc6fca39bf2bee588",
-        "d4fe9ccdbfa20d1d134f7e2aa4211247c53d7d03"
+        "d4fe9ccdbfa20d1d134f7e2aa4211247c53d7d03",
+        "67e48c14f122bd3c5e57cc00921e7c98e4e37261",
+        "9b02adaf3d1a2e979b3c6e0145cb9e30307f7a83",
+        "1240d5e2757e6e1b050a55168ff934e6f84a0631"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "acknowledged": true,
       "integrated_commits": [
-        "d0d3f1a8",
-        "134fdf57",
-        "6db3646d"
+        "d0d3f1a82c97c0c403675dde139afcb45cd41ced",
+        "134fdf571d8230378fe256cdcd73d08bfc629d07",
+        "6db3646d83e5bcc5416590678c4ed988efbd37bf",
+        "d753aacde395cf7d17d7378d66de26856818d2f5",
+        "5a49b5802ff67e2958bf11bfab657b47a520f94d",
+        "255b44c11cda79208f61f4d2c006534bf7775ab4"
       ]
     },
     {
@@ -167,7 +202,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-growth/tianshu-peiban-bot",
       "branch": "codex/rbf-growth-20261105",
-      "status": "ready_for_integration",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/companion/",
         "tests/companion/test_rbf_*.py",
@@ -175,12 +210,24 @@
       ],
       "commits": [
         "3452fca7a1fe85dc59f8f0ee711cfabe976607b6",
-        "c349a3334ab568f495e2234a1756b71a07c16d4d"
+        "c349a3334ab568f495e2234a1756b71a07c16d4d",
+        "1fc6bac83099c732db1cb2868d70d118ed8b7362",
+        "8e46fd530bf57dab761db504fc292cddb24ad83d",
+        "272a72b31832a1e6a9d08268195d60944d6ba0f7",
+        "c1b3b6ae62ccc13c9d15eb531c69d58e986ebd79"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "90b224d4cef6bbb8710408fa1647591348db955d",
+        "7cf39f610f671a131af3201a4bb808c4c480255f",
+        "0597982b6f9fd8c9394758a7a7c238c401d5338e",
+        "2b00b91e4ea727a293d8aef3c0dd1c20c1cc3ba3",
+        "5a801dfffd685c40a0c6dcf57dcedf08cf5d780f",
+        "425e5e1c2b72efcac06b7e31d01ff4590fde2b81"
+      ]
     },
     {
       "id": "RBF-08",
@@ -190,7 +237,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-observability/tianshu-peiban-bot",
       "branch": "codex/rbf-observability-20261105",
-      "status": "ready_for_integration_rpc_followup_active",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/operations/",
         "src/tianshu/runtime/api.py",
@@ -207,12 +254,18 @@
       ],
       "commits": [
         "0ec7059f512db6001dce882edef3f28a1451afcd",
-        "89be0a1d20197a002c03b38d0aad59539f8b5404"
+        "89be0a1d20197a002c03b38d0aad59539f8b5404",
+        "50ce55981ceabf54c1f52eb8fd99b0bed8310a85"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "f64a7cc0e440895bd51b040fbf089af3b933e28a",
+        "7cafc4607e9529452e7685bad84cd11eec56f65d",
+        "590c9e98dc5fe3d16b464c7c35279b9777efe082"
+      ]
     },
     {
       "id": "RBF-09",
@@ -222,30 +275,35 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
       "branch": "codex/rbf-conversation-20261105",
-      "status": "implementing",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/conversation/ except persistence.py",
         "tests/conversation/",
         "docs/handoffs/RBF-09.md"
       ],
-      "commits": [],
+      "commits": [
+        "c030674b9dfe5fc403fef062903580ede8b6191b"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "2b68b00c7d92fd45a4254323339a6b16d6d96d21"
+      ]
     }
   ],
   "integration_branch": "codex/rbf-integration-20261105",
   "dispatched_at": "2026-11-05T02:24:09.670928+00:00",
   "all_tasks_acknowledged": true,
-  "last_updated_at": "2026-11-05T02:34:24.680185+00:00",
+  "last_updated_at": "2026-11-05T04:09:57.863571+00:00",
   "interfaces": "docs/development/rbf-interfaces-2026-11-05.md",
   "coordinator_commits": [
     "553cf173",
     "a53c95c2"
   ],
   "next_step": "collect implementation commits, integrate serially, run centralized relevant checks",
-  "validation_state": "not_run_waiting_for_all_implementations",
+  "validation_state": "ready_for_central_validation",
   "validation_database": {
     "host": "192.168.31.230",
     "port": 25019,
@@ -253,10 +311,13 @@
     "private_admin_record": ".runtime/rbf-execution-20261105/validation-pg.private.json",
     "purpose": "isolated RBF verification only"
   },
-  "pending_followups": [
-    "runtime typed wait RPC evidence",
-    "models owner CAS cleanup and typed wait RPC",
-    "observability typed wait envelope",
-    "Life and Conversation domain migrations"
-  ]
+  "pending_followups": [],
+  "shared_migrations_registered": [
+    "models_recovery_wait",
+    "models_prestart_reconciliation",
+    "0041_conversation_submission_confirmation",
+    "rbf_life_planning_wake"
+  ],
+  "integration_head": "39fc1e78c2166eb063bef24662eb5eb0ec2ab0b2",
+  "production_changed": false
 }

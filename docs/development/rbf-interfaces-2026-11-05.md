@@ -42,3 +42,11 @@
 - Models出现跨owner启动CAS输者错误收尾覆盖赢家的具体窄缺口，RBF-06追加本人queued/not_started+broker_instance条件的原子收尾修复；不得改已有running/unknown/终态及赢家诊断。
 - content.read result.recovery为字符串resume_material_read/resume_commit/observe_original_attempt/none；同级phase/outcome/retry_at/attempt_number/max_attempts。outcome=wait且attempt_number=0不代表已读取失败。原Action/原材料全部读取方式共用5次物理预算，提交续接不重新读取。Actions.resume携原attempt/receipt/result_revision CAS及可选活动recovery_guard；pending才路由切换，terminal阶段恢复。历史缺少可验证检查点不伪造恢复。
 - Conversation公共GenerationRequests的确认字段用于其run/claim路径；Life直接submit的本域确认字段是独立消费者的单调观察证据，均不构成第二个模型执行权威。
+
+## 最终收口
+
+- 共享依赖 probe 使用已有 token 和 expires_at。真实 cooldown/Retry-After 优先；有效租约内仅一个 owner，到期后在 dependency 行锁内按旧 token/expiry 接管。新材料接管不改原 attempt、unknown 或 lineage 预算；旧 probe 的迟到成功/失败不能覆盖新 probe 的状态。
+- Models 已接受但尚未外发的依赖等待保存在原 submissions，状态为 checking/scheduled/observe_only，带递增 recovery_version；普通排队不占 checking。安全等待到期沿原 ID 续跑，未确认等待不自动外发。ModelReceipt.recovery 暴露状态与是否需要对账。
+- 显式对账沿现有 models.manage：原 attempt 的 recovery version、request digest、data generation、client_request_id、evidence_ref 和 decision=authorized_resume_original，事务中复核当前操作者、原场景与来源、取消、queued/not_started/started_at、原请求及 CAS。授权依据与原否定证据追加保存；不把任意引用当作机器验证的回滚证明。running/submitted/unknown 不适用此入口。
+- Memory/Growth 的远端控制不确定与本地事务安全分开。只有本地已确认回滚或尚未开始时，才将确切原材料保存在已有隔离/重试记录并释放分区执行位；后续独立材料可以推进，旧批只观察原 ID、复用已成功原结果，不能自动或手动派生新 attempt。原结果迟到仍核对来源、版本、游标和读取集。本地 commit 不明先对账，不能猜测释放。
+- 产品迁移在冻结 baseline 后按序增加 models_recovery_wait、models_prestart_reconciliation、0041_conversation_submission_confirmation、rbf_life_planning_wake。测试 execution_migrations 复用同一 Models 迁移定义；不重写已部署的基线，不清空当前数据。
