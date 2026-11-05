@@ -34,3 +34,9 @@ await models.seal_admission(
 ## 验证与局限
 
 新增定向用例 `tests/models/test_rbg_admission.py`、`tests/life/test_rbg_plan_retirement.py`，并更新历史模型假体；覆盖缺回执终态、迟到准入、并发、CAS 竞争、来源撤回、明确取消、unknown、历史低频对账与恢复唤醒。关联的原有回归包括 `tests/life/test_rbf_planning_recovery.py`、`tests/life/test_rb_plan_submission.py`、`tests/life/test_pure_unknown_recovery.py`、`tests/conversation/test_generation_recovery.py`。测试、构建和烟测依授权留给主协调者集中执行；定向用例需要隔离 PostgreSQL/pgvector。静态检查结果及最终 SHA 随提交回执报告。无真实模型调用、生产恢复或业务验收，job 18182 的具体超时层仍无直接证据。
+
+## 首轮集中验证后的夹具返修
+
+主协调者报告集成源码 `e5d6ccb4b2d932b06f0aa106aa6d215b6f24880e` 首轮集中检查中，`tests/models/test_cancellation_reasons.py::test_status_and_result_project_latest_explicit_reason_without_rewriting_original_receipt` 的 `unknown` 和 `succeeded` 两个参数因夹具缺少 `drivers` 而失败。基线 `5cd309ae67c9896feb787ad03cc65272c4884173` 中 `ModelBroker._receipt` 已读取 `self.drivers` 和 `self.instance_id`，同一基线的 `broker_for` 已使用 `ModelBroker.__new__` 跳过构造，未初始化这两个字段；本卡之前未修改这条状态投影路径或测试文件。
+
+夹具改用 `ModelBroker(ledger.database, None, None)` 正常初始化，再绑定原 ledger 及其 instance ID；原状态、结果、取消原因和不得再次准入等断言全部保留，另比较取消原因以外的整个前后回执。返修仅涉及该测试及本交接，不加生产 fallback。本窗口不运行测试、构建或烟测，由主协调者对两个参数集中补测；此前全批通过数不代表返修已验证。

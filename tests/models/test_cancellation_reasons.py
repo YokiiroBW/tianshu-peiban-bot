@@ -35,8 +35,8 @@ def plan():
 
 
 def broker_for(ledger):
-    broker = ModelBroker.__new__(ModelBroker)
-    broker.ledger, broker.active, broker.external, broker.ready = ledger, {}, {}, True
+    broker = ModelBroker(ledger.database, None, None)
+    broker.ledger, broker.instance_id, broker.ready = ledger, ledger.instance_id, True
     broker.scheduler = SimpleNamespace(cancel=AsyncMock(), acquire=AsyncMock(), submitted=AsyncMock(),
         release=AsyncMock(), policies={"quota": SimpleNamespace(unknown_hold_seconds=300)})
     broker.recheck, broker.event = AsyncMock(), AsyncMock()
@@ -83,6 +83,7 @@ async def test_status_and_result_project_latest_explicit_reason_without_rewritin
     assert current.cancellation_reason == result.receipt.cancellation_reason == "explicit_cancel"
     assert current.status == result.receipt.status == state
     assert current.error_code == result.receipt.error_code == old["error_code"]
+    assert replace(current, cancellation_reason=before.cancellation_reason) == before
     assert (await ledger.get(original.attempt_id))["result"] == body
     broker.scheduler.acquire.assert_not_awaited()  # Observation/cancel never admits another attempt.
     if state == "succeeded":
