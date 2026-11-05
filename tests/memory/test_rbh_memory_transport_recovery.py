@@ -4,12 +4,13 @@ from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+import json
 
 import pytest
 
 from tianshu.models.ledger import submission_digest
 from tianshu.models.http_timing import HttpTiming
-from tianshu.models.types import ModelReceipt, ModelResult
+from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryPolicy, RecoveryWait
 
@@ -345,8 +346,19 @@ async def test_shared_dependency_allows_only_one_live_probe(core, ordinary_users
 
 
 async def test_unknown_original_success_is_observed_once_before_future_retry_due(core, ordinary_users):
+    class ValidRpcModel(rpc_examples.RpcModels):
+        def answer(self,request,status="succeeded",error=None):
+            result = super().answer(request,status,error)
+            if status != "succeeded":
+                return result
+            proposal = json.loads(result.parts[0].text)
+            for target in proposal["targets"]:
+                if target["status"] == "no_change":
+                    target["reason"] = "没有新增事实"
+            return replace(result,parts=(ModelPart("text",text=json.dumps(proposal,ensure_ascii=False)),))
+
     alice, _ = ordinary_users
-    model = rpc_examples.RpcModels()
+    model = ValidRpcModel()
     rpc_examples.configure(core,model)
     core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
     item = await examples.episode(core,alice,"rbh-original-arrives")
@@ -357,7 +369,8 @@ async def test_unknown_original_success_is_observed_once_before_future_retry_due
     model.release()
     await core.workers.consolidate(partition)
     _, applied = await waits.batch_for_episode(core,item.episode_id)
-    assert applied["status"] == "applied" and applied["step_ids"] == held["step_ids"]
+    assert applied["status"] == "applied", applied.get("error_code")
+    assert applied["step_ids"] == held["step_ids"]
     await core.workers.consolidate(partition)
     assert len(model.requests) == 1
 
@@ -393,6 +406,8 @@ async def test_runtime_budget_exhaustion_keeps_original_without_auto_requeue(cor
 
 
 async def test_explicit_historical_resume_keeps_targeted_wake(core, ordinary_users, monkeypatch):
+    from tianshu.memory import consolidation_wait
+
     alice, _ = ordinary_users
     model,policy = waits.Model(),RecoveryPolicy()
     examples.configure(core,model)
@@ -413,6 +428,15 @@ async def test_explicit_historical_resume_keeps_targeted_wake(core, ordinary_use
     partition, _ = await waits.batch_for_episode(core,item.episode_id)
     await core.workers.consolidate(partition)
     _, batch = await waits.batch_for_episode(core,item.episode_id)
+
+    class AheadClock(datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz)+timedelta(minutes=5)
+
+    # The scheduler compares retry_due_at to database now(); a skewed app
+    # clock must not postpone a user-requested restoration of the original.
+    monkeypatch.setattr(consolidation_wait,"datetime",AheadClock)
     async with core.database.transaction() as conn:
         await conn.execute("UPDATE memory.consolidation_batches SET status='failed',"
             "error_code='recovery_dependency_probe_in_progress',manifest=manifest-'local_wait',retry_due_at=NULL "
@@ -424,5 +448,14 @@ async def test_explicit_historical_resume_keeps_targeted_wake(core, ordinary_use
         generation = await core.memory.jobs.current_generation_on(conn)
         jobs = await (await conn.execute("SELECT args FROM procrastinate_jobs WHERE status='todo' AND queueing_lock=%s",
             ("memory-consolidate-batch:"+partition+":"+batch["batch_id"]+":generation:"+generation,))).fetchall()
+        timing = await (await conn.execute("SELECT retry_due_at,now() AS db_now FROM memory.consolidation_batches "
+            "WHERE batch_id=%s",(batch["batch_id"],))).fetchone()
     assert result.data["queued"] and result.data["action"] == "resume_original_batch"
     assert len(jobs) == 1 and jobs[0]["args"] == {"partition_id":partition,"batch_id":batch["batch_id"]}
+    assert timing["retry_due_at"] == timing["db_now"]
+    await core.workers.consolidate(partition,batch_id=batch["batch_id"])
+    async with core.database.transaction(read_only=True) as conn:
+        restored = await (await conn.execute("SELECT status,step_ids,error_code FROM memory.consolidation_batches "
+            "WHERE batch_id=%s",(batch["batch_id"],))).fetchone()
+    assert restored["status"] == "applied", restored["error_code"]
+    assert restored["step_ids"] == batch["step_ids"] and len(model.submissions) == 1

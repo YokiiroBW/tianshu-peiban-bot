@@ -398,7 +398,10 @@ class ConsolidationWait:
                     or episode.get("content_digest") is not None and row["content_hash"] != episode["content_digest"]):
                 raise AppError("memory_consolidation_episode_changed",status=409)
         previous = {"status":batch["status"], "error_code":batch["error_code"], "request_id":request_id}
-        due = due or datetime.now(UTC)
+        if due is None:
+            # An explicit recovery must be due according to the same database
+            # clock used by the worker's retry_due_at eligibility query.
+            due = (await (await conn.execute("SELECT now() AS due")).fetchone())["due"]
         if transport:
             manifest.pop("recovery_budget_blocked",None)
             manifest.pop("rbh_claim_budget",None)

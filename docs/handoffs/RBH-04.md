@@ -24,6 +24,7 @@ await core.memory.consolidation.reconcile_transport_waits(limit=32)
 
 - 新增 `tests/memory/test_rbh_memory_transport_recovery.py`，覆盖有界历史扫描及幂等、乱序证据、原请求/回执与单调尝试号、暂停/撤回/unknown/变更来源/摘要冲突、共享分区唤醒、同依赖单探针、预算耗尽、原结果只应用一次和显式定向恢复。
 - 同一文件补充来源或身份在模型回执返回前失效、以及来源在原失败后失效的实时路径用例；核对旧失败归档保留、未调用 Runtime note、没有后继尝试。
+- 根的 central-2 报告中两条历史显式恢复用例停在隔离态：显式恢复未指定到期时间时，改用数据库事务 `now()`，与工作者到期判断使用同一时钟；Runtime 已给出的到期时间仍原样使用。补充应用时钟快于数据库时仍恢复原批次的用例。新 unknown→success 用例的模型夹具按当前协议补齐 no-change `reason`；根需重跑这三例及相关新用例确认。
 - 更新 `tests/memory/test_rbf_wait_recovery.py` 中原先依赖逐批自动定向任务的断言，检查实际同分区合并任务身份；其他现有用例保持。
 - 按本批授权仅作 Python AST 解析和 diff 静态检查；未运行测试、构建、烟测、真实模型、QQ 或生产操作。请根在 Runtime 及迁移集成后集中执行上述 Memory 用例，并按共享行为影响选取 `tests/core/test_memory_rpc_recovery.py`、`tests/core/test_rb_consolidation_write.py`、`tests/core/test_consolidation_pipeline.py` 中相关回归。集成、业务收敛和部署尚未验证。
 
