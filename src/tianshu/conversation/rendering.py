@@ -195,9 +195,9 @@ class ExpressionRenderer:
                 # have rolled back. An existing expression owns any send.
                 if fresh["continuation_unconfirmed"]:
                     return True
-                existing = await (await connection.execute("SELECT 1 FROM conversation.expressions WHERE expression_id=%s",
+                existing = await (await connection.execute("SELECT state FROM conversation.expressions WHERE expression_id=%s",
                                                             (row["expression_id"],))).fetchone()
-                if existing:
+                if existing and existing["state"] != "prepared":
                     return True
                 state = "delivering"
                 refs = source_refs(fresh["source_refs"])

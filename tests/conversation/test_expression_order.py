@@ -50,6 +50,35 @@ class Delivery:
                        "succeeded", "confirmed", "delivered")
 
 
+@pytest.mark.asyncio
+async def test_contact_projection_recovers_after_expression_commit_without_redelivery(database):
+    context = await prepare(database)
+    delivered = Receipt("delivered", "action", "attempt", "succeeded", "confirmed", "delivered")
+    class Channels:
+        calls = 0
+        async def deliver(self, _context, _plan):
+            self.calls += 1
+            return delivered
+    class Contacts:
+        calls = 0
+        saved = False
+        async def record_delivery(self, _context, _plan, result):
+            if result.delivery != "delivered":
+                return
+            self.calls += 1
+            if self.calls == 1:
+                raise RuntimeError("contact transaction interrupted")
+            self.saved = True
+    authority, channels, contacts = Authority(), Channels(), Contacts()
+    service = ExpressionService(database, Jobs(), authority, channels, contacts, sources=authority)
+    plan = ExpressionPlan("recover-contact", context.actor_id, context.conversation_id,
+                          ({"kind": "text", "text": "hello"},), (), OriginKind.ACTOR)
+    with pytest.raises(RuntimeError, match="contact transaction interrupted"):
+        await service.send(context, plan)
+    await service.channel_result(context, plan.expression_id, delivered)
+    assert contacts.saved and channels.calls == 1
+
+
 async def prepare(database):
     await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
         Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
@@ -149,6 +178,8 @@ async def test_async_channel_receipt_converges_without_redelivery(database, scen
             self.observations = []
 
         async def record_delivery(self, _context, _plan, result):
+            if result.delivery == "delivered" and any(item.delivery == "delivered" for item in self.observations):
+                return
             self.observations.append(result)
 
     authority, jobs, channels, contacts = Authority(), Jobs(), Channels(), Contacts()

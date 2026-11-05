@@ -4,14 +4,15 @@ from tianshu.sources.dependencies import unique_refs
 
 from datetime import UTC, datetime, timedelta
 import json
-from uuid import NAMESPACE_URL, uuid5
+from uuid import NAMESPACE_URL, uuid4, uuid5
 from zoneinfo import ZoneInfo
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.serialization import wire
 from tianshu.types import Action, OriginKind, ServiceClass
-from tianshu.conversation.codec import context_from_record, artifacts, document, receipt, source_refs
+from tianshu.conversation.codec import context_from_record, artifacts, document, receipt, signature, source_refs
+from tianshu.conversation.persistence import MaterialSnapshotChanged, retry_material_snapshot
 from tianshu.conversation.types import ExpressionPlan, InputPart
 from tianshu.conversation.generation import GenerationRequests
 from tianshu.capabilities.actions import result_sources
@@ -19,7 +20,9 @@ from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
 from .imagined import record_completed_imagined
 from .continuation import (READ_CAPABILITIES, action_resolved, automatic_step, completed_target, discovery_progress, execution_window, failed_read_checkpoint,
-    failed_target, known_read_failure, options, recoverable_action, remaining_actions, resumed_checkpoint, submitted_checkpoint, unread_coverage)
+    failed_target, known_read_failure, options, remaining_actions, resumed_checkpoint, submitted_checkpoint, unread_coverage)
+from .rbg_result_capability import recoverable_action
+from .rbg_result_transaction import result_transaction
 from .types import ContactCandidate, PreparedContact
 from .eligibility import background_work, evaluate as activity_eligibility
 from . import planner
@@ -158,9 +161,7 @@ class LifeWorker:
                 "AND state='failed' AND starts_at<=%s AND ends_at>%s", (row["id"], now, now))
         return continuing
 
-    async def _record_read_skip(self, connection, context, row, result, result_revision, refs):
-        """Observe today's control decision without rewriting the old failed Episode."""
-        now = datetime.now(UTC)
+    def _read_skip_event(self, row, result, result_revision, refs):
         event = f"activity-read-skip:{result.action_id}:{result_revision}"
         coverage = unread_coverage(result, row["checkpoint_data"])
         observation = {"derived_kind": "activity_read_skip", "activity_id": row["id"],
@@ -169,10 +170,19 @@ class LifeWorker:
             "effect": result.effect, "delivery": result.delivery, "error_code": result.error_code,
             "read_basis": "unread_candidate", "content_key": row["checkpoint_data"].get("arguments", {}).get("content_key"),
             "missing": list(coverage.missing), "decision": "skip_failed_candidate_without_retry"}
+        parts = (InputPart("text", json.dumps(observation, ensure_ascii=False), metadata={
+            "derived_kind": "activity_read_skip", "action_id": result.action_id}),)
+        return {"producer": "life:continuation", "event_id": event, "revision": 1,
+                "parts": parts, "support_refs": refs}, observation, coverage
+
+    async def _record_read_skip(self, connection, context, row, result, result_revision, refs):
+        """Observe today's control decision without rewriting the old failed Episode."""
+        now = datetime.now(UTC)
+        prepared, observation, coverage = self._read_skip_event(row, result, result_revision, refs)
+        event = prepared["event_id"]
         original = await self.life.sources.record_event(context, producer="life:continuation", event_id=event,
             revision=1, occurred_at=now, origin_kind=OriginKind.ACTOR,
-            parts=(InputPart("text", json.dumps(observation, ensure_ascii=False), metadata={
-                "derived_kind": "activity_read_skip", "action_id": result.action_id}),), support_refs=refs, connection=connection)
+            parts=prepared["parts"], support_refs=refs, connection=connection)
         refs = unique_refs(refs, original)
         await self.life.memory.observe_episode(context, {"episode_id": event, "event_id": event, "revision": 1,
             "origin_kind": "actor", "actor_id": context.actor_id, "occurred_at": now,
@@ -182,7 +192,44 @@ class LifeWorker:
         await connection.execute("UPDATE life.activities SET source_refs=%s WHERE id=%s", (document(refs), row["id"]))
         await connection.execute("UPDATE life.day_slots SET source_refs=%s WHERE activity_id=%s", (document(refs), row["id"]))
 
-    async def activity_step(self, activity_id, expected_revision, context):
+    async def activity_step(self, activity_id, expected_revision, context, recheck=False):
+        from .recovery import scheduled_context
+        from tianshu.runtime.recovery_policy import recovery_wait_retryable
+        current_revision = expected_revision
+        for attempt in range(3):
+            if recheck or attempt:
+                reader = await scheduled_context(self.life, context)
+                await self.life.identity.check(reader)
+                async with self.life.database.transaction(read_only=True) as connection:
+                    row = await (await connection.execute(
+                        "SELECT * FROM life.activities WHERE id=%s AND actor_id=%s", (activity_id, reader.actor_id))).fetchone()
+                if not row or row["state"] in {"completed", "cancelled", "paused"}:
+                    return
+                if row["action_id"] and not action_resolved(row):
+                    async with self.life.database.transaction() as connection:
+                        await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile",
+                            f"activity-snapshot-reconcile:{row['action_id']}:{uuid4()}",
+                            {"activity_id": activity_id, "context": wire(reader), "sequence": 0},
+                            subject_id=reader.actor_id, data_generation=current_execution_generation()))
+                    return
+                current_revision = row["revision"]
+            try:
+                return await self._activity_step_once(activity_id, current_revision, context)
+            except MaterialSnapshotChanged as error:
+                if getattr(error, "transaction_rollback_confirmed", None) is not True or not recovery_wait_retryable(error):
+                    raise
+                if attempt == 2:
+                    reader = await scheduled_context(self.life, context)
+                    async with self.life.database.transaction() as connection:
+                        await self.life.jobs.enqueue(connection, JobSpec("life.activity_step",
+                            f"activity-snapshot-retry:{activity_id}:{uuid4()}",
+                            {"activity_id": activity_id, "expected_revision": current_revision,
+                             "context": wire(reader), "recheck": True},
+                            scheduled_at=datetime.now(UTC)+timedelta(seconds=5), subject_id=reader.actor_id,
+                            data_generation=current_execution_generation()))
+                    return
+
+    async def _activity_step_once(self, activity_id, expected_revision, context):
         from .recovery import scheduled_context
         context = await scheduled_context(self.life, context)
         await self.life.identity.check(context)
@@ -430,7 +477,7 @@ class LifeWorker:
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as connection:
             row = await (await connection.execute("SELECT * FROM life.activities WHERE id=%s AND actor_id=%s", (activity_id, context.actor_id))).fetchone()
-        if not row or not row["action_id"] or row["state"] in {"cancelled", "completed"} or action_resolved(row):
+        if not row or not row["action_id"] or row["state"] in {"cancelled", "completed", "paused"} or action_resolved(row):
             return
         await self.life.identity.check(context, source_refs(row["source_refs"]))
         try:
@@ -450,28 +497,43 @@ class LifeWorker:
             if original:
                 await self.capability_result(context,original)
                 return
-            async with self.life.database.transaction() as connection:
-                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1,updated_at=now() WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
-                await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,activity_id))
-                await self.life.days.result(connection,activity_id,state='unknown')
+            await self._mark_activity_unknown(context, row)
             return
         result = receipt(actual["receipt"])
         if (result and row["state"] == "dormant" and row["waiting_reason"] == "capability_recovery"
                 and row["last_result_revision"] == actual["result_revision"]
                 and row["last_receipt_id"] == result.receipt_id
-                and recoverable_action(actual["action"]["capability_id"], result)):
+                and await self._capability_recovery(context, result, actual["result_revision"], actual["action"]["capability_id"])):
             return await self.resume_capability(context, row, actual, result, sequence)
         if actual["receipt"]:
             await self.capability_result(context, actual["receipt"])
+        async with self.life.database.transaction(read_only=True) as connection:
+            fresh = await (await connection.execute("SELECT * FROM life.activities WHERE id=%s AND actor_id=%s",
+                (activity_id, context.actor_id))).fetchone()
+        if (not fresh or fresh["action_id"] != row["action_id"]
+                or fresh["state"] in {"cancelled", "completed", "paused"} or action_resolved(fresh)):
+            return
+        row = fresh
         unknown = result and (result.execution == "unknown" or result.effect == "unknown")
         if unknown or (result and result.execution in {"pending", "running"} and (row["next_due_at"] is None or row["next_due_at"] > datetime.now(UTC))):
             async with self.life.database.transaction() as connection:
                 await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile", f"activity-reconcile:{row['action_id']}:{sequence+1}", {"activity_id": activity_id, "context": wire(context), "sequence": sequence+1}, scheduled_at=datetime.now(UTC)+timedelta(seconds=15), subject_id=context.actor_id))
         elif not result or result.execution in {"pending", "running"}:
-            async with self.life.database.transaction() as connection:
-                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1,updated_at=now() WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
-                await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,activity_id))
-                await self.life.days.result(connection,activity_id,state='unknown')
+            await self._mark_activity_unknown(context, row)
+
+    async def _mark_activity_unknown(self, context, snapshot):
+        async with self.life.database.transaction() as connection:
+            row = await self.life.lock_row(connection, context,
+                "SELECT * FROM life.activities WHERE id=%s AND actor_id=%s FOR UPDATE",
+                (snapshot["id"], context.actor_id))
+            if (not row or row["revision"] != snapshot["revision"] or row["action_id"] != snapshot["action_id"]
+                    or row["state"] in {"completed", "cancelled", "paused"} or action_resolved(row)):
+                return
+            await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',"
+                "resume_condition='reconcile_original_action',revision=revision+1,updated_at=now() WHERE id=%s", (row["id"],))
+            await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",
+                (context.actor_id, row["id"]))
+            await self.life.days.result(connection, row["id"], state="unknown")
 
     async def defer_capability_recovery(self, context, row, result, result_revision, sequence, when):
         async with self.life.database.transaction() as connection:
@@ -598,37 +660,86 @@ class LifeWorker:
             return activity or commitment
         return False
 
-    async def _receipt_sources(self, context, result, result_revision, observed_at, connection, dependencies):
+    async def _capability_recovery(self, context, result, result_revision, capability_id):
+        recovery = recoverable_action(capability_id, result)
+        video_parse = (capability_id == "video.observe" and known_read_failure(capability_id, result)
+            and (result.result.get("recovery") in {"resume_parse", "invalid_model_output"}
+                 or result.error_code == "invalid_model_output"))
+        if not video_parse:
+            return recovery
+        inspect = getattr(self.actions, "inspect_video_parse_recovery", None)
+        if inspect is None:
+            raise AppError("video_parse_recovery_unavailable", status=503)
+        facts = await inspect(result.action_id, context, expected_attempt_id=result.attempt_id)
+        if not facts.get("eligible"):
+            return None
+        if (facts.get("operation") != "resume_parse" or facts.get("result_revision") != result_revision
+                or facts.get("action_id") != result.action_id or facts.get("attempt_id") != result.attempt_id
+                or facts.get("receipt_id") != result.receipt_id):
+            raise AppError("video_parse_recovery_changed", status=409)
+        return "resume_parse"
+
+    def _receipt_event(self, result, result_revision, dependencies):
         refs = unique_refs(tuple(dependencies), result_sources(result))
-        original = await self.life.sources.record_event(context, producer="life:action",
-            event_id="result:" + result.action_id, revision=result_revision,
-            occurred_at=observed_at, origin_kind=OriginKind.TOOL_RESULT,
-            parts=(InputPart("text", json.dumps(wire(result), ensure_ascii=False), metadata={
+        return {"producer": "life:action", "event_id": "result:" + result.action_id, "revision": result_revision,
+            "parts": (InputPart("text", json.dumps(wire(result), ensure_ascii=False), metadata={
                 "derived_kind": "action_receipt", "action_id": result.action_id,
                 "receipt_id": result.receipt_id, "execution": result.execution, "effect": result.effect}),),
-            support_refs=refs, connection=connection)
+            "support_refs": refs}
+
+    async def _receipt_sources(self, context, result, result_revision, observed_at, connection, dependencies):
+        event = self._receipt_event(result, result_revision, dependencies)
+        refs = event["support_refs"]
+        original = await self.life.sources.record_event(context, **event,
+            occurred_at=observed_at, origin_kind=OriginKind.TOOL_RESULT, connection=connection)
         return unique_refs(refs, original)
 
-    async def _activity_result(self, context, result, result_revision, observed_at, capability_id, *, recovery_fence=None, recovery_deadline_expired=False):
+    async def _activity_result(self, context, result, result_revision, observed_at, capability_id, *, recovery_fence=None, recovery_deadline_expired=False, on_complete=None):
+        async def apply():
+            return await self._activity_result_once(context, result, result_revision, observed_at, capability_id,
+                recovery_fence=recovery_fence, recovery_deadline_expired=recovery_deadline_expired, on_complete=on_complete)
+        return await retry_material_snapshot(apply)
+
+    async def _activity_result_once(self, context, result, result_revision, observed_at, capability_id, *, recovery_fence=None, recovery_deadline_expired=False, on_complete=None):
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as probe:
             snapshot = await (await probe.execute("SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s", (result.action_id, context.actor_id))).fetchone()
+        recoverable = (await self._capability_recovery(context, result, result_revision, capability_id)
+                       if snapshot and snapshot["state"] not in {"completed", "cancelled"} else None)
         prepared = None
-        if snapshot and snapshot["state"] != "cancelled":
+        if snapshot and snapshot["state"] not in {"cancelled", "completed"}:
             from .photo_contacts import prepare
             prepared = await prepare(self, context, result, source_refs(snapshot["source_refs"]), snapshot["title"])
-        async with self.life.database.transaction() as connection:
+        async with result_transaction(self.life.database, on_complete) as (connection, outcome):
+            if snapshot and snapshot["state"] not in {"cancelled", "completed"} and result_revision > 0:
+                dependencies = unique_refs(source_refs(snapshot["source_refs"]), result_sources(result))
+                events = [self._receipt_event(result, result_revision, dependencies)]
+                skip_needed = (result_revision == snapshot["last_result_revision"] and snapshot["state"] == "dormant"
+                    and ((snapshot["resume_condition"] == "review_failure" and snapshot["waiting_reason"] not in {"video_checkpoint_unavailable", "read_checkpoint_unavailable"})
+                         or (recovery_deadline_expired and snapshot["waiting_reason"] == "capability_recovery"))
+                    and not action_resolved(snapshot) and known_read_failure(capability_id, result))
+                if skip_needed:
+                    events.append(self._read_skip_event(snapshot, result, result_revision, dependencies)[0])
+                await self.life.sources.prepare_event_writes(connection, context, events, additional_refs=dependencies)
             if recovery_fence is not None:
                 if self.recovery_guard_on is None:
                     raise AppError("recovery_guard_unavailable", status=503)
                 await self.recovery_guard_on(connection, recovery_fence["attempt_id"], recovery_fence["owner_token"])
             row = await self.life.lock_row(connection,context,"SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id), additional_refs=result_sources(result))
+            if signature(snapshot) != signature(row):
+                raise MaterialSnapshotChanged(row["revision"] if row else None)
             if not row:
+                outcome.update(disposition="superseded", reason="activity_action_replaced")
                 return False
+            if row["state"] in {"completed", "cancelled"}:
+                outcome.update(disposition="superseded", reason="activity_" + row["state"])
+                return True
             if recovery_fence is not None:
                 if row["revision"] != recovery_fence["expected_revision"] or row["id"] != recovery_fence["activity_id"]:
                     raise AppError("recovery_target_changed", status=409)
             if result_revision <= row["last_result_revision"]:
+                outcome["proof"] = {"activity_id": row["id"], "last_result_revision": row["last_result_revision"],
+                                    "last_receipt_id": row["last_receipt_id"]}
                 if (result_revision == row["last_result_revision"] and row["state"] == "dormant"
                         and (row["resume_condition"] == "review_failure" and row["waiting_reason"] not in {"video_checkpoint_unavailable", "read_checkpoint_unavailable"}
                              or recovery_deadline_expired and row["waiting_reason"] == "capability_recovery") and not action_resolved(row)
@@ -645,7 +756,6 @@ class LifeWorker:
             refs = unique_refs(source_refs(row["source_refs"]), result_sources(result))
             await self.life.validate_persistence(connection, context, refs)
             await connection.execute("UPDATE life.activities SET last_result_revision=%s,last_receipt_id=%s,updated_at=now() WHERE id=%s", (result_revision, result.receipt_id, row["id"]))
-            recoverable = recoverable_action(capability_id,result)
             due = capability_recovery_due(result,row) if recoverable else None
             if recoverable and due is not None and row["state"] == "paused":
                 await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s,revision=revision+1 WHERE id=%s",
@@ -910,7 +1020,12 @@ class LifeWorker:
                 if next_due:
                     await self._recur(connection, fresh, next_due)
 
-    async def _commitment_result(self, context, result, result_revision, observed_at, capability_id):
+    async def _commitment_result(self, context, result, result_revision, observed_at, capability_id, *, on_complete=None):
+        async def apply():
+            return await self._commitment_result_once(context, result, result_revision, observed_at, capability_id, on_complete=on_complete)
+        return await retry_material_snapshot(apply)
+
+    async def _commitment_result_once(self, context, result, result_revision, observed_at, capability_id, *, on_complete=None):
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as probe:
             snapshot=await (await probe.execute("SELECT * FROM life.commitments WHERE action_id=%s AND actor_id=%s",(result.action_id,context.actor_id))).fetchone()
@@ -918,13 +1033,24 @@ class LifeWorker:
         if snapshot and snapshot["state"] not in {"completed","expired","cancelled","scheduled"}:
             from .photo_contacts import prepare
             prepared=await prepare(self,context,result,source_refs(snapshot["source_refs"]),snapshot["title"])
-        async with self.life.database.transaction() as connection:
+        async with result_transaction(self.life.database, on_complete) as (connection, outcome):
+            if (snapshot and snapshot["state"] not in {"completed", "expired", "cancelled", "scheduled"}
+                    and result.execution == "succeeded" and result.effect != "unknown" and result_revision > 0):
+                dependencies = unique_refs(source_refs(snapshot["source_refs"]), result_sources(result))
+                await self.life.sources.prepare_event_writes(connection, context,
+                    (self._receipt_event(result, result_revision, dependencies),), additional_refs=dependencies)
             row = await self.life.lock_row(connection,context,"SELECT * FROM life.commitments WHERE action_id=%s AND actor_id=%s FOR UPDATE", (result.action_id, context.actor_id), additional_refs=result_sources(result))
+            if signature(snapshot) != signature(row):
+                raise MaterialSnapshotChanged(row["revision"] if row else None)
             if not row:
+                outcome.update(disposition="superseded", reason="commitment_action_replaced")
                 return False
             if row["state"] in {"completed", "expired", "cancelled", "scheduled"}:
+                outcome.update(disposition="superseded", reason="commitment_" + row["state"])
                 return True
             if result_revision <= row["last_result_revision"]:
+                outcome["proof"] = {"commitment_id": row["id"], "last_result_revision": row["last_result_revision"],
+                                    "last_receipt_id": row["last_receipt_id"]}
                 return True
             await connection.execute("UPDATE life.commitments SET last_result_revision=%s WHERE id=%s", (result_revision, row["id"]))
             state = "unknown" if result.execution == "unknown" or result.effect == "unknown" else "completed" if result.execution == "succeeded" else "waiting_result" if result.execution in {"pending", "running"} else "failed"
@@ -1010,12 +1136,18 @@ class LifeWorker:
             await connection.execute("UPDATE life.contact_candidates SET state=%s,reason=%s,revision=revision+1 WHERE actor_id=%s AND expression_id=%s AND state IN ('sending','waiting_expression','unknown')",("delivered" if state=="completed" else state,current.get("reason"),context.actor_id,expression_id))
 
 
-    async def detached_result(self,context,result,action):
+    async def detached_result(self,context,result,action,*,on_complete=None):
         from .photo_contacts import eligible,prepare
-        if action["capability_id"]!="images.generate" or not eligible(result):
+        prepared = None
+        if action["capability_id"]=="images.generate" and eligible(result):
+            prepared=await prepare(self,context,result,source_refs(action["source_refs"]),
+                (result.result.get("photo_intent") or {}).get("motivation") or "图片已完成")
+        if prepared is None and on_complete is None:
             return
-        prepared=await prepare(self,context,result,source_refs(action["source_refs"]),
-            (result.result.get("photo_intent") or {}).get("motivation") or "图片已完成")
-        if prepared:
-            async with self.life.database.transaction() as connection:
+        async with result_transaction(self.life.database, on_complete) as (connection, outcome):
+            if prepared:
                 await self.persist_contact(connection,prepared)
+                if on_complete is not None:
+                    outcome["proof"] = {"candidate_id": prepared.candidate.candidate_id}
+            else:
+                outcome.update(disposition="not_applicable", reason="no_detached_contact")

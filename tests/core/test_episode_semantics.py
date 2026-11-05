@@ -36,13 +36,18 @@ async def consumer(core):
                 ("0032_conversation", "tianshu.conversation"),
                 ("capabilities-0001", "tianshu.capabilities"),
             )
+        ) + (
+            Migration("rbg_life", files("tianshu.life").joinpath("schema.sql").read_text()),
+            Migration("rbg_conversation_results", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text()),
         ),
     )
     catalog = Catalog()
     actions = Actions(core.database, core.memory.jobs, catalog, core.identity)
-    life = SimpleNamespace(
-        capability_result=AsyncMock(return_value=False), detached_result=AsyncMock()
-    )
+    async def detached(_context, _result, _action, *, on_complete):
+        async with core.database.transaction() as connection:
+            await on_complete(connection, "not_applicable", reason="no_detached_contact")
+    life = SimpleNamespace(_activity_result=AsyncMock(), _commitment_result=AsyncMock(),
+                           detached_result=AsyncMock(side_effect=detached))
     growth = SimpleNamespace(changed=AsyncMock())
     # Product binds its combined Growth/Diary callback here. ResultConsumer never
     # independently notifies Growth, including when the same receipt is replayed.
@@ -53,7 +58,7 @@ async def consumer(core):
         actions,
         core.memory,
         growth,
-        SimpleNamespace(on_result=AsyncMock()),
+        SimpleNamespace(on_result=AsyncMock(), jobs=core.memory.jobs),
         life,
         SimpleNamespace(on_action_result=AsyncMock(return_value=False)),
     )
@@ -78,16 +83,18 @@ async def consume(core, result_consumer, context, capability, *, result=None, co
         result=result or {},
     )
     async with core.database.transaction() as conn:
+        data_generation = await core.memory.jobs.current_generation_on(conn)
         await conn.execute(
             "INSERT INTO capabilities.actions(id,intent,semantics,principal_id,kind,created_at,document,"
             "action,attempt,receipt,result_revision,result_observed_at) "
-            "VALUES(%s,%s,'fixture',%s,%s,%s,'{}',%s,%s,%s,1,now())",
+            "VALUES(%s,%s,'fixture',%s,%s,%s,%s,%s,%s,%s,1,now())",
             (
                 identifier,
                 identifier,
                 context.principal_id,
                 capability,
                 datetime.now(UTC).timestamp(),
+                json.dumps({"data_generation": data_generation}),
                 Jsonb(wire(action)),
                 Jsonb(wire(attempt)),
                 Jsonb(wire(receipt)),
@@ -98,6 +105,10 @@ async def consume(core, result_consumer, context, capability, *, result=None, co
         "version": 1,
         "context": wire(context),
         "action_id": identifier,
+        "event_id": receipt.receipt_id,
+        "result_revision": 1,
+        "result_observed_at": datetime.now(UTC).isoformat(),
+        "receipt": wire(receipt),
         "source_refs": [],
     }
     await result_consumer.consume(event)

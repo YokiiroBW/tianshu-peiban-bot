@@ -142,26 +142,29 @@ class ExpressionService:
                     attempt_id=result.attempt_id or previous.attempt_id,
                 )
             if not receipt_advances(previous, result):
-                return previous
-            state = delivery_state(result)
-            observed_at = datetime.now(UTC)
-            await connection.execute(
-                "UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,"
-                "result_observed_at=%s,completed_at=CASE WHEN %s='waiting_delivery' THEN NULL ELSE %s END WHERE expression_id=%s",
-                (state, document(result), observed_at, state, observed_at, plan.expression_id))
-            from .observability import delivery_on
-            recorded = await delivery_on(self.statistics, connection, expression_id=plan.expression_id,
-                                         actor_id=context.actor_id, revision=current["revision"]+1,
-                                         occurred_at=observed_at, value=result)
-            if self.statistics is not None and not recorded:
-                from .observability import schedule_repair_on
-                await schedule_repair_on(self.jobs, connection)
-            if state == "delivered" and material_valid:
+                # A previous transaction may have committed the expression but
+                # stopped before the idempotent contact projection was written.
+                result = previous
+            else:
+                state = delivery_state(result)
+                observed_at = datetime.now(UTC)
                 await connection.execute(
-                    "INSERT INTO conversation.messages(actor_id,conversation_id,speaker,parts,source_refs,scope_ids,turn_id,expression_id) "
-                    "VALUES (%s,%s,'assistant',%s,%s,%s,%s,%s) ON CONFLICT(expression_id) DO NOTHING",
-                    (context.actor_id, context.conversation_id, document(plan.public_parts), document(plan.source_refs),
-                     list(context.scope_ids), plan.turn_id, plan.expression_id))
+                    "UPDATE conversation.expressions SET state=%s,receipt=%s,revision=revision+1,"
+                    "result_observed_at=%s,completed_at=CASE WHEN %s='waiting_delivery' THEN NULL ELSE %s END WHERE expression_id=%s",
+                    (state, document(result), observed_at, state, observed_at, plan.expression_id))
+                from .observability import delivery_on
+                recorded = await delivery_on(self.statistics, connection, expression_id=plan.expression_id,
+                                             actor_id=context.actor_id, revision=current["revision"]+1,
+                                             occurred_at=observed_at, value=result)
+                if self.statistics is not None and not recorded:
+                    from .observability import schedule_repair_on
+                    await schedule_repair_on(self.jobs, connection)
+                if state == "delivered" and material_valid:
+                    await connection.execute(
+                        "INSERT INTO conversation.messages(actor_id,conversation_id,speaker,parts,source_refs,scope_ids,turn_id,expression_id) "
+                        "VALUES (%s,%s,'assistant',%s,%s,%s,%s,%s) ON CONFLICT(expression_id) DO NOTHING",
+                        (context.actor_id, context.conversation_id, document(plan.public_parts), document(plan.source_refs),
+                         list(context.scope_ids), plan.turn_id, plan.expression_id))
         if material_valid:
             await self.contacts.record_delivery(context, plan, result)
         return result

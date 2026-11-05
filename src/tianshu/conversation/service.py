@@ -20,7 +20,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import Action, ContextContribution, Coverage, OriginKind, RequestBudget, ServiceClass
 from .codec import (artifacts, context_from_record, document, input_parts, model_parts, receipt,
                     signature, source_refs)
-from .persistence import lock_material_row
+from .persistence import MaterialSnapshotChanged, lock_material_row, retry_material_snapshot
 from .types import CollectorPolicy, DialogueResult, ExpressionPlan, InputMessage
 from .collector import ConversationCollector
 from .participation import GroupParticipation
@@ -1465,6 +1465,11 @@ class ConversationService:
             await connection.execute("UPDATE conversation.tool_links SET state=%s,last_receipt_id=%s,result=%s,result_revision=%s WHERE action_id=%s", (state, result.receipt_id, document(result), result_revision, result.action_id))
 
     async def _await_tools(self, context, turn_id, *, deployment_generation=None):
+        async def apply():
+            return await self._await_tools_once(context, turn_id, deployment_generation=deployment_generation)
+        return await retry_material_snapshot(apply)
+
+    async def _await_tools_once(self, context, turn_id, *, deployment_generation=None):
         async with self.database.transaction() as connection:
             if deployment_generation is not None:
                 await self.jobs.assert_generation_on(connection, deployment_generation)
@@ -1482,8 +1487,7 @@ class ConversationService:
                 return
             links = await (await connection.execute("SELECT * FROM conversation.tool_links WHERE turn_id=%s AND consumed=false ORDER BY call_id FOR UPDATE", (turn_id,))).fetchall()
             if signature(links)!=signature(snapshots):
-                await self.jobs.enqueue(connection,JobSpec("conversation.reconcile",f"turn-links-changed:{turn_id}:{uuid4()}",{"turn_id":turn_id,"sequence":0},ServiceClass.INTERACTIVE,subject_id=context.actor_id))
-                return
+                raise MaterialSnapshotChanged(row["revision"])
             if not links:
                 return
             if any(link["state"] in {"queued", "pending", "running"} and not link["background"] for link in links):
