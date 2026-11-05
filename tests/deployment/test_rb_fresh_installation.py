@@ -35,3 +35,53 @@ async def test_repeated_start_keeps_new_generation_and_post_installation_data(em
         assert await (await conn.execute(
             "SELECT to_regclass('memory.reflections') AS retired_learning_owner"
         )).fetchone() == {'retired_learning_owner': None}
+
+
+async def test_upgrade_keeps_original_unknown_and_confirms_only_existing_admission(empty_database):
+    database = empty_database
+    jobs = JobQueue(database.config.dsn, database=database)
+    migrations = product_migrations()
+    await migrate(database, migrations[:1])
+    async with database.transaction() as conn:
+        generation = await jobs.current_generation_on(conn)
+        await conn.execute(
+            "INSERT INTO models.attempts(attempt_id,intent_id,principal_id,function,service_class,"
+            "route_id,route_revision,provider_id,model,protocol,quota_group,request_digest,"
+            "context_fingerprint,status,dispatch,data_generation) "
+            "VALUES('original','material-original','owner','life.plan','elastic','route',1,'provider',"
+            "'model','openai.chat','quota','original-digest','context','unknown','unknown',%s)",
+            (generation,),
+        )
+        for identifier in ('original', 'unconfirmed'):
+            await conn.execute(
+                "INSERT INTO conversation.generation_requests(material_key,attempt_id,context_key,"
+                "request,source_refs,state) VALUES(%s,%s,'context','{\"frozen\":true}','[]','claimed')",
+                ('material-' + identifier, identifier),
+            )
+            await conn.execute(
+                "INSERT INTO life.plan_generations(generation_key,actor_id,day,material_fingerprint,"
+                "base_revision,context) VALUES(%s,'actor',CURRENT_DATE,%s,1,'{}')",
+                ('material-' + identifier, identifier),
+            )
+    await migrate(database, migrations)
+    await migrate(database, migrations)
+    async with database.transaction(read_only=True) as conn:
+        assert await jobs.current_generation_on(conn) == generation
+        original = await (await conn.execute(
+            "SELECT status,dispatch,request_digest FROM models.attempts WHERE attempt_id='original'"
+        )).fetchone()
+        assert original == {'status': 'unknown', 'dispatch': 'unknown', 'request_digest': 'original-digest'}
+        rows = await (await conn.execute(
+            "SELECT request.attempt_id,request.request,request.submission_confirmed,"
+            "plan.submission_confirmed AS plan_confirmed,plan.admission_started "
+            "FROM conversation.generation_requests request JOIN life.plan_generations plan "
+            "ON plan.generation_key=request.material_key ORDER BY request.attempt_id"
+        )).fetchall()
+        assert rows == [
+            {'attempt_id': 'original', 'request': {'frozen': True}, 'submission_confirmed': True,
+             'plan_confirmed': True, 'admission_started': None},
+            {'attempt_id': 'unconfirmed', 'request': {'frozen': True}, 'submission_confirmed': False,
+             'plan_confirmed': None, 'admission_started': None},
+        ]
+        applied = await (await conn.execute("SELECT name FROM runtime.schema_migrations")).fetchall()
+        assert {row['name'] for row in applied} == {item.name for item in migrations}

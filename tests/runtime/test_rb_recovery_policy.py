@@ -265,6 +265,9 @@ async def test_unknown_probe_retry_respects_cooldown_and_transfers_probe(databas
         with pytest.raises(AppError, match="recovery_dependency_cooling"):
             await policy.reserve_attempt_on(connection, identity, **arguments)
         await connection.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=now()-interval '1 second'")
+        with pytest.raises(AppError, match="recovery_dependency_probe_in_progress"):
+            await policy.reserve_attempt_on(connection, identity, **arguments)
+        await connection.execute("UPDATE runtime.recovery_dependencies SET probe_expires_at=now()-interval '1 second'")
         assert (await policy.reserve_attempt_on(connection, identity, **arguments)).probe_token == "probe-2"
         await policy.resolve_unknown_on(connection, "probe-1", observation_ref="models:probe-1:succeeded", state="succeeded")
         dependency = await (await connection.execute("SELECT probe_token FROM runtime.recovery_dependencies WHERE dependency='quota'")).fetchone()
@@ -312,8 +315,13 @@ async def test_confirmed_pure_unknown_can_change_route_without_resetting_budget(
         await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
                                  (identity,))
         claim = await policy.claim_lineage_due_on(connection, identity, owner="memory")
-        third = await policy.reserve_attempt_on(connection, identity, owner="memory", expected_version="v1",
-            attempt_id="route-3", request_digest="req-3", route="C", original_state="failed", claim_token=claim["claim_token"])
+        arguments = dict(owner="memory", expected_version="v1", attempt_id="route-3", request_digest="req-3",
+                         route="C", original_state="failed", claim_token=claim["claim_token"])
+        with pytest.raises(AppError, match="recovery_dependency_probe_in_progress"):
+            await policy.reserve_attempt_on(connection, identity, **arguments)
+        await connection.execute("UPDATE runtime.recovery_dependencies SET probe_expires_at=now()-interval '1 second' "
+                                 "WHERE dependency='quota-a'")
+        third = await policy.reserve_attempt_on(connection, identity, **arguments)
         assert third.number == 3 and third.dependency == "quota-a" and third.probe_token == "route-3"
         original = await (await connection.execute("SELECT status FROM runtime.recovery_attempts WHERE attempt_id='route-1'")).fetchone()
         assert original["status"] == "unknown"

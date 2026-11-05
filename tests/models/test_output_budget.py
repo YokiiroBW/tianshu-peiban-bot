@@ -95,7 +95,7 @@ def compiled_broker(tmp_path, selected, native):
     broker.compiler = NativeCompiler(FileStore(tmp_path), Secrets({"FIXTURE_KEY": "synthetic"}))
     broker.ledger = SimpleNamespace(create=AsyncMock(return_value=(dict(row), True)),
         get=AsyncMock(side_effect=lambda _attempt: dict(row)), record_wire=AsyncMock(),
-        started=AsyncMock(), assert_generation=AsyncMock(), save_observation=AsyncMock(),
+        started=AsyncMock(), assert_generation=AsyncMock(), save_observation=AsyncMock(), prestart_check=AsyncMock(),
         checkpoint=AsyncMock(), finish=AsyncMock(side_effect=finish))
     broker.scheduler = SimpleNamespace(acquire=AsyncMock(), submitted=AsyncMock(), release=AsyncMock(),
         group_deferred=AsyncMock(return_value=False),

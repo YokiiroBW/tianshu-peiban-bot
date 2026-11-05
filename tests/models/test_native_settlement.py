@@ -65,7 +65,7 @@ async def test_native_terminal_response_is_settled_and_releases_capacity(
     broker.compiler = SimpleNamespace(compile=lambda *_args, **_kwargs: SimpleNamespace(url="https://synthetic.invalid", body={}, headers={}))
     broker.ledger = SimpleNamespace(create=AsyncMock(return_value=(dict(row), True)),
         get=AsyncMock(side_effect=lambda _attempt: dict(row)), record_wire=AsyncMock(),
-        started=AsyncMock(), assert_generation=AsyncMock(), save_observation=AsyncMock(),
+        started=AsyncMock(), assert_generation=AsyncMock(), save_observation=AsyncMock(), prestart_check=AsyncMock(),
         checkpoint=AsyncMock(), finish=AsyncMock(side_effect=finish))
     broker.scheduler = SimpleNamespace(acquire=AsyncMock(), submitted=AsyncMock(), release=AsyncMock(),
         group_deferred=AsyncMock(return_value=False),

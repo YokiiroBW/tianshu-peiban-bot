@@ -24,8 +24,24 @@ def foundation_migrations():
 
 def product_migrations():
     """Install the frozen empty schema, then apply subsequent named upgrades."""
-    return (Migration("20261105_fresh_installation",
-        files("tianshu.runtime").joinpath("baseline.sql").read_text(encoding="utf-8")),)
+    return (
+        Migration("20261105_fresh_installation",
+            files("tianshu.runtime").joinpath("baseline.sql").read_text(encoding="utf-8")),
+        *model_recovery_migrations(),
+        Migration("0041_conversation_submission_confirmation",
+            files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text(encoding="utf-8")),
+        Migration("rbf_life_planning_wake",
+            files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text(encoding="utf-8")),
+    )
+
+
+def model_recovery_migrations():
+    return (
+        Migration("models_recovery_wait",
+            files("tianshu.models").joinpath("recovery_wait.sql").read_text(encoding="utf-8")),
+        Migration("models_prestart_reconciliation",
+            files("tianshu.models").joinpath("prestart_reconciliation.sql").read_text(encoding="utf-8")),
+    )
 
 
 def execution_migrations(jobs):
@@ -37,6 +53,7 @@ def execution_migrations(jobs):
         Migration("rb_recovery_computation", files("tianshu.runtime").joinpath("rb_recovery_computation.sql").read_text()),
         Migration("0008_models_async_execution", files("tianshu.models").joinpath("async_execution.sql").read_text()),
         Migration("0009_models_generation_fence", files("tianshu.models").joinpath("generation_fence.sql").read_text()),
+        *model_recovery_migrations(),
     )
 
 
