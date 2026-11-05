@@ -5,6 +5,7 @@
 - 基线：`33e5282f60fe4c803c3b16d498d1d924621ed1b9`
 - 首批代码和回归用例提交：`3452fca7a1fe85dc59f8f0ee711cfabe976607b6`；首次交接提交：`c349a3334ab568f495e2234a1756b71a07c16d4d`。
 - RPC 回滚证据补充代码和用例提交：`1fc6bac83099c732db1cb2868d70d118ed8b7362`。
+- 控制不确定旧批隔离与回归补充：`272a72b31832a1e6a9d08268195d60944d6ba0f7`。
 
 ## 实现
 
@@ -16,11 +17,14 @@
 - Growth 将冻结请求、proposal、affect 和已准备的表达示例来源一次传给 Memory `lock_episodes(..., extra_source_refs=...)`；Memory 合并当前原件/supplement 后先锁来源再锁 Episode。`CompanionService.apply_affect(connection=...)` 用同一连接验证身份/来源，不再在业务事务内另开 Sources 控制事务。
 - 保留 `historical_only`、材料版本、watermark、已冻结请求、原物理回执、unknown、权限/来源重检以及原应用 CAS。没有修改 Runtime、Memory、Sources、Life、公共迁移、模型预算或部署文件。
 
-## RPC 回滚证据补充
+## RPC 回滚证据与活动位隔离
 
-- Growth 捕获配置查询、提交、结果读取和重试的 `RecoveryWait` 时，使用 Runtime `recovery_wait_retryable(wait)` 同时检查本地与远端回滚证据。任一方明确否定时不持久化等待、不写终态、不自动安排后继尝试；已知 material 时按原 attempt ID 只读 Models 状态或原结果，然后保留同一个异常交上层记录未解决。状态回执本身不证明 RPC 事务已回滚。
-- 安全的准入前等待沿领域原 due/revision CAS 保存；请求已冻结或重试批已激活时将等待交还原 Runtime job，避免用过期等待行写 CAS。原 commit 结果不明的对账若又遇到远端不安全等待，原样传播该等待；安全的 RPC 等待也不能证明本地 commit 结果，仍保留原 commit 异常。
-- 新增 `tests/companion/test_rbf_growth_remote_wait.py`，覆盖本地/远端否定与确认、原 ID 状态读取、冻结/已激活批次、后继尝试、二次结果读取、claim 检查和 commit unknown。该文件及其相关行为尚未运行验证。
+- Growth 捕获配置查询、提交、结果读取和重试的 `RecoveryWait` 时，使用 Runtime `recovery_wait_retryable(wait)` 同时检查本地与远端回滚证据。任一方明确否定时不把它当作安全等待重排原动作，也不把控制不确定伪装成物理失败；按原 attempt ID 只读 Models，并原样传播异常供上层记录。
+- 远端未确认且本地事务明确回滚或未开始时，已冻结的活动批次通过现有重试批次和输入版本占位进入 `control_observation`：保存原请求身份和回滚证据，释放 `active_batch` 并唤醒独立新材料；只为读取原 ID 排期，不更新 Runtime 物理 attempt 状态，不为旧批产生后继或输出纠正 attempt。重复的远端等待仍只安排原 ID 观察。
+- 只接受同 attempt、intent 和 generation 的 Models 确定回执。原结果成功后沿现有来源重检、应用 CAS、`historical_only` 和不回退游标规则处理；真实失败才走既有 RecoveryPolicy 记账并阻止旧批自动或手动生成新尝试。来源/身份变化继续按既有规则处理。
+- 如果本地回滚或隔离 commit 本身不明，先只读核对当前领域 owner，不据活动指针猜测回滚结果，不贸然释放；隔离提交失败作为原异常的 cause 保留。原 commit unknown 对账遇到远端不安全等待时同样传播原等待；安全 RPC 等待不能证明本地 commit 结果。
+- 安全的准入前等待仍按领域原 due/revision CAS 保存；请求已冻结或重试批已激活时，安全等待交还原 Runtime job。新增及更新 `tests/companion/test_rbf_growth_remote_wait.py`，覆盖本地/远端证据、已冻结和已激活批、仅观察原 ID、新材料继续、原结果晚到、真实失败和未知 commit。该文件尚未运行。
+- 共享 dependency probe 由 Runtime 另行实现并集成租约到期与 token CAS 处理；Growth 不直接修改 Runtime 表或 probe。源自真实 Models 终态的原 attempt 记账继续通过既有 RecoveryPolicy 接口。
 
 ## 共享接线与集成顺序
 
@@ -34,7 +38,7 @@
 
 新增 `tests/companion/test_rbf_growth_affect.py`、`test_rbf_growth_material_locking.py`、`test_rbf_growth_recovery.py`，覆盖复用连接及授权失败、来源集合传递、材料变更、重复通知、任务注册、初始/后继依赖等待与到期、claim lost、共享预算不增加、本地失败复用成功结果、commit unknown 对账、已完成批次不重复应用及 `growth:` 唤醒。既有两个测试假端口仅适配共享方法签名及来源校验。
 
-仅静态检查：首批 10 个改动 Python 文件和 RPC 补充的 4 个 Python 文件分别经 `ast.parse` 语法解析；`git diff --cached --check` 通过。按本轮任务卡，**未运行测试、构建或烟测**，未访问生产/真实模型/QQ，不能据此声称回归通过、部署完成或业务已恢复。
+仅静态检查：首批 10 个改动 Python 文件、RPC 补充及活动位隔离各 4 个 Python 文件分别经 `ast.parse` 语法解析；`git diff --cached --check` 通过。按本轮任务卡，**未运行测试、构建或烟测**，未访问生产/真实模型/QQ，不能据此声称回归通过、部署完成或业务已恢复。
 
 建议协调者在三项共享依赖集成后，使用已有隔离 PostgreSQL 验证驱动集中执行：
 
