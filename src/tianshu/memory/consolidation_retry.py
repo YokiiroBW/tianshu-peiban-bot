@@ -151,16 +151,13 @@ class ConsolidationRetries:
             return current["step_id"], False
         status,code=outcome.status,outcome.code
         if outcome.receipt is None:
-            if current_step["state"] in {"prepared","dispatching"} and not current["rejected_error"]:
+            if (current_step["state"] in {"prepared", "dispatching"}
+                    and current["status"] in {"prepared", "observing"} and not current["rejected_error"]):
                 return current["step_id"],False
             # Persisted old wrapper codes never substitute for a missing
             # current authoritative receipt, including after another restart.
             await self._postpone(batch,code=code,owner=owner)
             return None
-        if current_step["state"] == "dispatching" and not current["rejected_error"]:
-            # The original may exist while its completion registration is
-            # unacknowledged. Re-submit exactly the same request and wake.
-            return current["step_id"], False
         if status in {"queued", "running", "dispatching"} or status == "succeeded" and not current["rejected_error"]:
             await self._postpone(batch, code=code, owner=owner)
             return None
@@ -247,11 +244,23 @@ class ConsolidationRetries:
                 claim = await (await conn.execute("SELECT * FROM memory.recovery_due_claims WHERE lineage_id=%s "
                     "AND expires_at>now() FOR UPDATE",(recovery["lineage_id"],))).fetchone()
                 if not claim or claim["current_version"] != recovery["version"]:
-                    due = datetime.now(UTC)+timedelta(seconds=OBSERVE_SECONDS)
-                    await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=%s WHERE batch_id=%s",
-                        (due,batch["batch_id"]))
-                    await self.consolidation._schedule_on(conn,batch["partition_id"],due,suffix="recovery-await-claim")
-                    return None
+                    waiting = await policy.inspect_wait_on(conn, recovery["lineage_id"],
+                        owner=recovery["owner"], expected_version=recovery["version"])
+                    if waiting is not None:
+                        raise waiting
+                    claim = await policy.claim_lineage_due_on(conn, recovery["lineage_id"],
+                        owner=recovery["owner"], lease_seconds=30)
+                    if claim is None:
+                        # No observed wait is not permission to reserve.
+                        due = datetime.now(UTC)+timedelta(seconds=OBSERVE_SECONDS)
+                        await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=%s WHERE batch_id=%s",
+                            (due,batch["batch_id"]))
+                        await self.consolidation._schedule_on(conn,batch["partition_id"],due,suffix="recovery-await-claim")
+                        return None
+                    await conn.execute("INSERT INTO memory.recovery_due_claims(lineage_id,claim_token,current_version,expires_at) "
+                        "VALUES(%s,%s,%s,%s) ON CONFLICT(lineage_id) DO UPDATE SET claim_token=excluded.claim_token,"
+                        "current_version=excluded.current_version,expires_at=excluded.expires_at",
+                        (recovery["lineage_id"],claim["claim_token"],claim["current_version"],claim["claim_expires_at"]))
             if not await self.consolidation._consume_recovery_on(conn, fresh, "retry"):
                 raise AppError("memory_reorganization_recovery_exhausted", status=409)
             if recovery and policy and continuation:
@@ -346,8 +355,9 @@ class ConsolidationRetries:
         state = await (await conn.execute("SELECT active_batch_id,wake_due_at FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
                                          (partition_id,))).fetchone()
         held = await (await conn.execute("SELECT min(COALESCE(retry_due_at,now())) AS due FROM memory.consolidation_batches "
-            "WHERE partition_id=%s AND status='quarantined' AND manifest->>'data_generation'="
-            "(SELECT id FROM runtime.installation_generation WHERE singleton=true)", (partition_id,))).fetchone()
+            "WHERE partition_id=%s AND status='quarantined' AND NOT (manifest ? 'remote_wait_unresolved') "
+            "AND manifest->>'data_generation'=(SELECT id FROM runtime.installation_generation WHERE singleton=true)",
+            (partition_id,))).fetchone()
         values = [value for value in (state["wake_due_at"], held["due"]) if value is not None]
         if values and state["active_batch_id"] is None:
             await self.consolidation._schedule_on(conn, partition_id, min(values), suffix="retry")
@@ -356,8 +366,8 @@ class ConsolidationRetries:
         """Reopen only a failed RPC wrapper for authoritative original observation."""
         if not rpc_recovery_available(batch):
             return False
-        if not await self.consolidation.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
-            raise AppError("source_unavailable",status=403)
+        # The entrypoint proves the complete batch closure under this frozen
+        # context before taking partition/batch locks, then rechecks its snapshot.
         await self.consolidation.identity.check_context(context,connection=conn)
         step_id=batch["step_ids"][-1]
         step=await (await conn.execute("SELECT request,state,error_code FROM memory.model_steps WHERE step_id=%s",(step_id,))).fetchone()

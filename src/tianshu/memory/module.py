@@ -186,12 +186,15 @@ def create_module(memory, retrieval, workers, identity):
 
         route("extraction/resume", resume_extraction, write=True)
         route("extraction/status",lambda ctx,body:memory.extraction_status(ctx,body["episode_id"]))
+        route("extraction/attribution",lambda ctx,body:workers.recovery.attribution.for_episode(
+            ctx,body["episode_id"],limit=body.get("limit",20)))
 
     def tasks(queue, _runtime):
-        queue.register("memory.consolidate", workers.consolidate, retryable=False)
-        queue.register("memory.index_object", workers.index_object, retryable=False)
-        queue.register("memory.index_retry", workers.index_retry, retryable=False, execution_lane=ExecutionLane.MEMORY_INDEX)
-        queue.register("memory.recover", workers.recover, retryable=True)
+        queue.register("memory.consolidate", workers.consolidate, retryable=False, resource_recovery=True)
+        queue.register("memory.index_object", workers.index_object, retryable=False, resource_recovery=True)
+        queue.register("memory.index_retry", workers.index_retry, retryable=False,
+                       execution_lane=ExecutionLane.MEMORY_INDEX, resource_recovery=True)
+        queue.register("memory.recover", workers.recover, retryable=True, resource_recovery=True)
 
     async def start(runtime):
         if runtime.role == "bot-background":

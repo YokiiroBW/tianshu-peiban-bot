@@ -9,7 +9,9 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.serialization import wire
 from . import codec
-from .consolidation import context_from_bound
+from .consolidation import context_from_bound, PREPARATION_DEPENDENCY_WAIT
+from .consolidation_wait import batch_snapshot
+from .recovery_wait import is_unresolved_wait
 from .consolidation_retry import explicit_retry_available, semantic_output_failure, rpc_recovery_available
 from .extraction_contract import SCHEMA_VERSION
 from .materials import batch_frozen, closed_episode_split
@@ -19,6 +21,8 @@ class ConsolidationRecovery:
     def __init__(self, memory):
         self.memory = memory
         self.database, self.sources, self.identity = memory.database,memory.sources,memory.identity
+        from .consolidation_attribution import ConsolidationAttribution
+        self.attribution = ConsolidationAttribution(memory)
 
     async def statuses_on(self,conn,context,episodes):
         if not episodes:
@@ -68,6 +72,8 @@ class ConsolidationRecovery:
         error=batch["error_code"] if batch else pipeline_error
         if not batch and not unfinished:
             error=None
+        if not batch and is_unresolved_wait(error):
+            action, error = "wait_for_reconciliation", "memory_remote_wait_unresolved"
         budget=None
         if not active and unfinished and pipeline_error == "memory_consolidation_input_budget":
             # This failure has no model attempt/batch. Its persisted observed
@@ -111,6 +117,14 @@ class ConsolidationRecovery:
             result["blocks_following"]=False
             result["retry_due_at"]=wire(batch.get("retry_due_at"))
             result["selected_step_id"]=batch.get("selected_step_id")
+        if batch and batch["status"] == "failed" and batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT:
+            result["action"] = "resume_original_batch"
+        if batch and batch["manifest"].get("local_wait"):
+            result["action"] = "wait_for_dependency"
+            result["retry_due_at"] = wire(batch.get("retry_due_at"))
+        if batch and batch["manifest"].get("remote_wait_unresolved"):
+            result["action"] = "observe_original_attempt"
+            result["recovery_observation"] = "rollback_unconfirmed"
         if explicit_retry_available(batch) and result["action"] != "configure_budget":
             result["action"]="retry_computation"
         elif rpc_recovery_available(batch):
@@ -166,18 +180,54 @@ class ConsolidationRecovery:
         batch = await (await conn.execute(
             "SELECT * FROM memory.consolidation_batches WHERE manifest->'episodes' @> %s "
             "ORDER BY created_at DESC LIMIT 1",(Jsonb([{"episode_id":snapshot["episode_id"],"sequence":snapshot["sequence"]}]),))).fetchone()
+        from tianshu.sources.dependencies import unique_refs
         dependencies = (*codec.refs(snapshot["source_refs"]),*codec.refs(snapshot.get("supplement_refs")))
+        original_context = context
+        state_bound = None
         if batch:
-            from tianshu.sources.dependencies import unique_refs
             await self.memory.consolidation._assert_batch_generation_on(conn,batch)
             dependencies = unique_refs(dependencies,codec.refs(batch["dependency_refs"]))
-        if not await self.sources.validate_persistence(conn,context,dependencies):
+            bound = batch["manifest"].get("authority_bound")
+            if not bound:
+                state_bound = await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
+                    (batch["partition_id"],))).fetchone()
+                if not state_bound:
+                    raise AppError("memory_original_batch_unavailable",status=409)
+                bound = state_bound["authority_bound"]
+            original_context = context_from_bound(bound)
+        elif snapshot.get("consolidation_partition_id"):
+            state_bound = await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
+                (snapshot["consolidation_partition_id"],))).fetchone()
+            if state_bound:
+                original_context = context_from_bound(state_bound["authority_bound"])
+        await self.identity.check_context(context,connection=conn)
+        if not set(snapshot["scope_ids"]) <= set(context.scope_ids):
+            raise AppError("episode_unavailable",status=404)
+        if not all(await self.sources.check_many_on(conn,context,(dependencies,))):
             raise AppError("source_unavailable",status=403)
+        # Prove the whole batch under the frozen authorizing scene before any
+        # domain row lock; the caller's own visibility was checked above.
+        if not await self.sources.validate_persistence(conn,original_context,dependencies):
+            raise AppError("source_unavailable",status=403)
+        previous_batch = batch_snapshot(batch) if batch else None
         if batch:
-            await conn.execute("SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(batch["partition_id"],))
-            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch["batch_id"],))).fetchone()
+            state = await (await conn.execute("SELECT * FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
+                (batch["partition_id"],))).fetchone()
+            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
+                (batch["batch_id"],))).fetchone()
+            if not state or not batch or batch_snapshot(batch) != previous_batch or (
+                    state_bound is not None and state["authority_bound"] != state_bound["authority_bound"]):
+                raise AppError("memory_consolidation_batch_changed",status=409)
+        elif state_bound is not None:
+            state = await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
+                (snapshot["consolidation_partition_id"],))).fetchone()
+            if not state or state["authority_bound"] != state_bound["authority_bound"]:
+                raise AppError("memory_consolidation_batch_changed",status=409)
         current = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",(snapshot["episode_id"],))).fetchone()
-        if not current or current["sequence"] != snapshot["sequence"] or current["revision"] != body.get("expected_revision"):
+        if (not current or not current["active"] or current["sequence"] != snapshot["sequence"]
+                or current["revision"] != body.get("expected_revision") or current["revision"] != snapshot["revision"]
+                or current["source_refs"] != snapshot["source_refs"] or current.get("supplement_refs") != snapshot.get("supplement_refs")
+                or current["scope_ids"] != snapshot["scope_ids"] or current["extraction_cursor"] != snapshot["extraction_cursor"]):
             raise AppError("revision_conflict",status=409)
         data = {"episode_id":current["episode_id"],"queued":False,"action":"wait_for_new_evidence",
                 "batch_id":batch["batch_id"] if batch else None}
@@ -194,20 +244,19 @@ class ConsolidationRecovery:
                 # Observation never advances the independent retry's due time.
                 data["retry_due_at"]=wire(batch.get("retry_due_at"))
             await self.memory.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
-                suffix="explicit:"+body["client_request_id"])
+                suffix="explicit:"+body["client_request_id"],
+                target_batch_id=batch["batch_id"] if batch["status"] == "quarantined"
+                    and batch["manifest"].get("remote_wait_unresolved") else None)
             data.update(queued=True,action="observe_original_attempt")
+        elif batch and batch["status"] == "failed" and batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT:
+            if await self.memory.consolidation.waits.reopen_failed_on(conn,batch,original_context,body["client_request_id"]):
+                data.update(queued=True,action="resume_original_batch")
         elif rpc_recovery_available(batch):
-            state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
-                (batch["partition_id"],))).fetchone()
-            original_context=context_from_bound(batch["manifest"].get("authority_bound",state["authority_bound"]))
             if await self.memory.consolidation.retries.resume_rpc_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="observe_original_attempt")
         elif (batch and batch["status"] == "failed"
                 and semantic_output_failure(batch)
                 and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
-            state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
-                (batch["partition_id"],))).fetchone()
-            original_context=context_from_bound(batch["manifest"].get("authority_bound",state["authority_bound"]))
             if await self.memory.consolidation.retries.resume_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="retry_computation")
             elif current["extraction_state"] not in {"completed","completed_with_missing"}:
@@ -220,13 +269,7 @@ class ConsolidationRecovery:
             else:
                 data["action"]="wait_for_new_evidence"
         elif current["extraction_state"] not in {"completed","completed_with_missing"}:
-            original_context=context
-            if current.get("consolidation_partition_id"):
-                state=await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s",
-                    (current["consolidation_partition_id"],))).fetchone()
-                if state:
-                    original_context=context_from_bound(state["authority_bound"])
-                    await self.identity.check_context(original_context,connection=conn)
+            await self.identity.check_context(original_context,connection=conn)
             await conn.execute("UPDATE memory.episodes SET extraction_state='pending',extraction_started_at=NULL,"
                 "extraction_cursor=extraction_cursor || %s WHERE episode_id=%s",(Jsonb({"protocol":SCHEMA_VERSION}),current["episode_id"]))
             partition_id = await self.memory.consolidation.dirty_on(conn,original_context,current)

@@ -634,6 +634,7 @@ class MaterialBuilder:
                 missing.add("no_original_material")
                 complete = True
             episodes.append({"episode_id": row["episode_id"], "revision": row["revision"],
+                "content_digest": row.get("content_hash"),
                 "sequence": row["sequence"], "before": wire(row["extraction_cursor"]), "after": after,
                 "source_refs": wire(refs), "scope_ids": row["scope_ids"], "missing": sorted(missing), "complete": complete,
                 "material_ids": [key for key, item in materials.items() if item.get("episode_id") == row["episode_id"]]})

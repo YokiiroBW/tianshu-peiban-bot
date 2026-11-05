@@ -5,13 +5,29 @@ from math import ceil
 from psycopg.types.json import Jsonb
 
 from tianshu.models.codec import request_from_wire
+from tianshu.models.timing import waiting_timeout
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 from .authority import request_identity
 from .model_outcome import needs_rpc_observation, observe_original
+
+
+def admission_open(request):
+    """Honor the original absolute/business deadline without changing its budget."""
+    try:
+        waiting_timeout(request)
+    except TimeoutError:
+        return False
+    except AppError as error:
+        if error.code in {"business_deadline_expired", "queue_wait_expired"}:
+            return False
+        raise
+    return True
 
 
 class ModelSteps:
@@ -85,6 +101,8 @@ class ModelSteps:
                         await self._outcome(step_id,outcome.status,outcome.receipt.error_code)
                     raise outcome.exception(original.attempt_id)
         except BaseException as exc:
+            if isinstance(exc,RecoveryWait) or classify_database_failure(exc) is not None:
+                raise
             # A generation RPC can fail after Models already persisted its
             # actual outcome. Only that original result/receipt may replace the
             # transport wrapper; arbitrary internal_error is never retry policy.
@@ -141,25 +159,63 @@ class ModelSteps:
                     "cancellation_reason":getattr(result.receipt,"cancellation_reason",None)})
         return result, original
 
-    async def submit_or_observe(self, step_id, partition_id, *, data_generation, observe_only=False):
+    async def submit_or_observe(self, step_id, partition_id, *, data_generation, observe_only=False, owner=None,
+                                validate_on=None):
         """Submit the frozen attempt once, then release the worker while Models runs."""
-        _, original = await self.recorded(step_id)
+        recorded, original = await self.recorded(step_id)
         if original.data_generation != data_generation:
             raise AppError("job_generation_expired", status=409)
+        existing = None
+        if not observe_only and recorded["state"] in {"prepared", "dispatching"}:
+            # Only a genuinely prepared step uses the pre-submit lookup. An
+            # absent observe result after dispatch is inconclusive, but Broker
+            # can idempotently admit this exact frozen request and completion.
+            existing = (await self.models.status(original.attempt_id, phase="pre_submit")
+                        if recorded["state"] == "prepared" else await self.models.status(original.attempt_id))
+            if existing and (existing.attempt_id != original.attempt_id or existing.intent_id != original.intent_id
+                    or existing.data_generation != original.data_generation):
+                raise AppError("memory_model_result_identity_conflict", status=409)
         async with self.database.transaction() as conn:
+            generation = await (await conn.execute("SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+            if not generation or generation["id"] != data_generation:
+                raise AppError("job_generation_expired", status=409)
             if not await self.sources.validate_persistence(conn, original.context, original.source_refs):
                 raise AppError("source_unavailable", status=403)
-            fresh = await (await conn.execute(
-                "SELECT state FROM memory.model_steps WHERE step_id=%s FOR UPDATE", (step_id,))).fetchone()
+            state = await (await conn.execute("SELECT active_batch_id,lease_owner,lease_until>now() AS leased FROM memory.consolidation_state "
+                "WHERE partition_id=%s FOR UPDATE", (partition_id,))).fetchone()
+            if owner is not None and (not state or state["lease_owner"] != owner or not state["leased"]):
+                raise AppError("memory_consolidation_lease_changed", status=409)
+            batch = await (await conn.execute("SELECT b.* FROM memory.consolidation_batches b "
+                "JOIN memory.consolidation_attempts a ON a.batch_id=b.batch_id "
+                "WHERE a.step_id=%s AND b.partition_id=%s FOR UPDATE OF b", (step_id, partition_id))).fetchone()
+            attempt = await (await conn.execute("SELECT status FROM memory.consolidation_attempts WHERE step_id=%s FOR UPDATE",
+                (step_id,))).fetchone()
+            fresh = await (await conn.execute("SELECT state,request FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
+                (step_id,))).fetchone()
             if not fresh or fresh["state"] == "source_revoked":
                 raise AppError("source_unavailable", status=403)
-            # submit is idempotent for the same attempt and request digest. A
-            # crash between the local marker and submit can safely adopt that
-            # exact request without manufacturing another physical attempt.
-            submit = not observe_only and fresh["state"] in {"prepared", "dispatching"}
+            if (not state or not batch or not attempt or batch["status"] not in {"prepared", "waiting_model", "ready", "quarantined"}
+                    or batch["status"] != "quarantined" and state["active_batch_id"] != batch["batch_id"]
+                    or not batch["step_ids"] or batch["step_ids"][-1] != step_id or batch.get("selected_step_id")
+                    or batch["manifest"].get("data_generation") != data_generation
+                    or step_id not in batch["manifest"].get("steps", {})
+                    or batch["manifest"].get("recovery_pending") or fresh["request"] != recorded["request"]):
+                raise AppError("memory_consolidation_attempt_changed", status=409)
+            submit = (not observe_only and recorded["state"] in {"prepared", "dispatching"}
+                      and fresh["state"] == recorded["state"] and existing is None
+                      and attempt["status"] in {"prepared", "observing"} and admission_open(original))
             if submit:
+                if validate_on is None or batch["dependency_refs"] != wire(original.source_refs):
+                    raise AppError("memory_consolidation_attempt_changed", status=409)
+                await validate_on(conn, batch, original.context, step_id)
+            if submit and fresh["state"] == "prepared":
                 await conn.execute("UPDATE memory.model_steps SET state='dispatching',updated_at=now() WHERE step_id=%s",
                     (step_id,))
+            elif existing is not None and fresh["state"] in {"prepared", "dispatching"}:
+                await conn.execute("UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() WHERE step_id=%s",
+                    (existing.status, existing.error_code, step_id))
+                await conn.execute("UPDATE memory.consolidation_attempts SET status=%s,error_code=%s,updated_at=now() "
+                    "WHERE step_id=%s", (existing.status, existing.error_code, step_id))
         if submit:
             completion = JobSpec("memory.consolidate", "memory-model-completion:" + original.attempt_id,
                 {"partition_id": partition_id}, ServiceClass.ELASTIC, subject_id=partition_id,
@@ -167,6 +223,8 @@ class ModelSteps:
             try:
                 receipt = await self.models.submit(original, completion=completion)
             except BaseException as exc:
+                if isinstance(exc,RecoveryWait) or classify_database_failure(exc) is not None:
+                    raise
                 if not needs_rpc_observation(exc):
                     raise
                 # A lost submit acknowledgement is not the Models outcome.
@@ -179,13 +237,15 @@ class ModelSteps:
                 if outcome.result is not None and outcome.status == "succeeded":
                     await self._outcome(step_id, "succeeded", None)
                     return outcome.result, original
-                if outcome.receipt is not None and outcome.status not in {"queued", "running"}:
+                if outcome.receipt is not None:
+                    # Once any receipt is confirmed, a later missing lookup is
+                    # observation-only and cannot become another admission.
                     await self._outcome(step_id, outcome.status, outcome.receipt.error_code)
-                # Keep dispatching for missing or in-flight control. An
-                # idempotent resubmission can then restore the completion wake
-                # for the same attempt without creating a new physical call.
+                # With no receipt, keep the frozen dispatching request for
+                # idempotent admission by the same attempt and completion.
                 raise outcome.exception(original.attempt_id, rpc_error=exc) from exc
-            if receipt.attempt_id != original.attempt_id or receipt.intent_id != original.intent_id:
+            if (receipt.attempt_id != original.attempt_id or receipt.intent_id != original.intent_id
+                    or receipt.data_generation != original.data_generation):
                 raise AppError("memory_model_result_identity_conflict", status=409)
             await self._outcome(step_id, receipt.status, receipt.error_code)
             async with self.database.transaction() as conn:

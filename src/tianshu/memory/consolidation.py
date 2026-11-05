@@ -11,10 +11,13 @@ from aiohttp import ClientError
 from psycopg.types.json import Jsonb
 
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest
+from tianshu.models.codec import request_from_wire
 from tianshu.models.budgets import MAX_INLINE_MEDIA_BYTES, MAX_INLINE_MEDIA_PARTS
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, SourceRef, TrustedContext
 from . import codec
@@ -23,6 +26,8 @@ from .extraction_contract import MODEL_PROTOCOL, SCHEMA_VERSION, consolidation_e
 from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, repairable, repair_request, repair_input_estimate, repair_diagnostic, decode_model_json
 from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, closed_episode_split, expand_record_endpoints, freeze_dependency_closure, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, refresh_read_set
 from .consolidation_retry import ConsolidationRetries, failure_code
+from .consolidation_wait import ConsolidationWait
+from .recovery_wait import is_unresolved_wait
 from .model_outcome import observe_original
 from .preparation import candidate_coverage_reserve
 from .proposal import COMPILER_VERSION, compile_proposal
@@ -52,6 +57,7 @@ class Consolidation:
         self.materials = MaterialBuilder(memory, self.policy)
         self.steps = self.counter = None
         self.retries = ConsolidationRetries(self)
+        self.waits = ConsolidationWait(self)
 
     def bind_execution(self, steps, counter):
         self.steps, self.counter = steps, counter
@@ -93,6 +99,67 @@ class Consolidation:
                 "recovery_policy_state='reserved' WHERE batch_id=%s AND step_id=%s",
                 (recovery["lineage_id"],batch_id,step_id))
 
+    async def _validate_submission_on(self, conn, batch, context, step_id):
+        for episode in sorted(batch["manifest"]["episodes"], key=lambda item:item["episode_id"]):
+            row = await (await conn.execute("SELECT revision,sequence,extraction_cursor,content_hash,active "
+                "FROM memory.episodes WHERE episode_id=%s FOR UPDATE", (episode["episode_id"],))).fetchone()
+            if (not row or not row["active"] or row["revision"] != episode["revision"]
+                    or row["sequence"] != episode["sequence"] or row["extraction_cursor"] != episode["before"]
+                    or episode.get("content_digest") is not None and row["content_hash"] != episode["content_digest"]):
+                raise AppError("memory_consolidation_episode_changed", status=409)
+        frozen = batch["manifest"].get("steps", {}).get(step_id)
+        if not frozen:
+            raise AppError("memory_consolidation_attempt_changed", status=409)
+        await self.memory.claims.revisions.validate_read_set_on(conn, context, frozen)
+
+    async def _admit_prepared(self, batch, *, owner):
+        """Reserve the frozen request only after its batch is durably prepared."""
+        context = context_from_bound(batch["manifest"]["authority_bound"])
+        async with self.database.transaction() as conn:
+            await self._assert_batch_generation_on(conn, batch)
+            if not await self.sources.validate_persistence(conn, context, codec.refs(batch["dependency_refs"])):
+                raise AppError("source_unavailable", status=403)
+            await self.identity.check_context(context, connection=conn)
+            state = await self._lock_owned_partition(conn, batch["partition_id"], owner)
+            current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
+                (batch["batch_id"],))).fetchone()
+            if (not current or current["status"] not in _OBSERVABLE or
+                    current["status"] in _ACTIVE and state["active_batch_id"] != batch["batch_id"]):
+                raise AppError("memory_consolidation_batch_changed", status=409)
+            pending = current["manifest"].get("recovery_pending")
+            if not pending:
+                return
+            if (current["dependency_refs"] != batch["dependency_refs"] or
+                    pending != batch["manifest"].get("recovery_pending") or not current["step_ids"]):
+                raise AppError("memory_consolidation_batch_changed", status=409)
+            step_id = pending.get("step_id", current["step_ids"][-1])
+            if current["step_ids"][-1] != step_id:
+                raise AppError("memory_consolidation_batch_changed", status=409)
+            step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
+                (step_id,))).fetchone()
+            if not step or step["state"] != "prepared":
+                raise AppError("memory_consolidation_attempt_changed", status=409)
+            request = request_from_wire(step["request"])
+            if request.intent_id != step_id or request.data_generation != current["manifest"]["data_generation"]:
+                raise AppError("memory_consolidation_attempt_changed", status=409)
+            await self._validate_submission_on(conn, current, context, step_id)
+            if self.memory.recovery_policy is None:
+                raise AppError("memory_recovery_policy_unavailable", status=503)
+            manifest = deepcopy(current["manifest"])
+            if pending["kind"] == "original":
+                recovery = await self._register_recovery_on(conn, current["batch_id"], manifest["frozen"], context, request)
+            elif pending["kind"] == "continuation" and manifest.get("recovery"):
+                recovery = manifest["recovery"]
+                await self._reserve_continuation_on(conn, recovery, request,
+                    prior_attempt_id=pending["prior_attempt_id"], reason=pending["reason"])
+            else:
+                raise AppError("memory_recovery_preparation_invalid", status=409)
+            manifest["recovery"] = recovery
+            del manifest["recovery_pending"]
+            await self._track_policy_on(conn, current["batch_id"], step_id, recovery)
+            await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,updated_at=now() WHERE batch_id=%s",
+                (Jsonb(manifest), current["batch_id"]))
+
     async def cancel_recovery_on(self, conn, manifest):
         recovery = manifest.get("recovery")
         if self.memory.recovery_policy and recovery:
@@ -104,24 +171,45 @@ class Consolidation:
         policy = self.memory.recovery_policy
         if policy is None:
             return
-        async with self.database.transaction() as conn:
-            if generation is not None:
-                await self.jobs.assert_generation_on(conn,generation)
-            claims = await policy.claim_due_on(conn,owner="memory",limit=64,lease_seconds=30)
-            destinations = []
-            for claim in claims:
-                batch = await (await conn.execute("SELECT batch_id,partition_id FROM memory.consolidation_batches "
-                    "WHERE manifest->'recovery'->>'lineage_id'=%s AND status='quarantined' "
-                    "ORDER BY updated_at DESC LIMIT 1",(claim["lineage_id"],))).fetchone()
-                if not batch:
+        async with self.database.transaction(read_only=True) as conn:
+            if generation is not None and await self.jobs.current_generation_on(conn) != generation:
+                raise AppError("job_generation_expired",status=409)
+            candidates = await (await conn.execute("SELECT b.batch_id,b.partition_id,"
+                "b.manifest->'recovery'->>'lineage_id' AS lineage_id FROM memory.consolidation_batches b "
+                "JOIN runtime.recovery_lineages l ON l.lineage_id=b.manifest->'recovery'->>'lineage_id' "
+                "AND l.owner='memory' AND l.data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
+                "WHERE b.status='quarantined' AND NOT (b.manifest ? 'remote_wait_unresolved') "
+                "AND (b.retry_due_at IS NULL OR b.retry_due_at<=now()) "
+                "AND l.due_at<=now() AND NOT l.paused AND NOT l.cancelled AND NOT l.source_withdrawn "
+                "AND l.attempts<l.max_attempts AND (l.claim_token IS NULL OR l.claim_expires_at<=now()) "
+                "AND b.manifest->>'data_generation'=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
+                "ORDER BY l.due_at,b.batch_id LIMIT 64")).fetchall()
+        seen = set()
+        for candidate in candidates:
+            if candidate["lineage_id"] in seen:
+                continue
+            seen.add(candidate["lineage_id"])
+            async with self.database.transaction() as conn:
+                if generation is not None:
+                    await self.jobs.assert_generation_on(conn,generation)
+                state = await (await conn.execute("SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
+                    (candidate["partition_id"],))).fetchone()
+                batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
+                    (candidate["batch_id"],))).fetchone()
+                if (not state or not batch or batch["status"] != "quarantined"
+                        or batch["manifest"].get("remote_wait_unresolved")
+                        or batch["manifest"].get("recovery",{}).get("lineage_id") != candidate["lineage_id"]
+                        or batch.get("retry_due_at") and batch["retry_due_at"] > datetime.now(UTC)):
+                    continue
+                claim = await policy.claim_lineage_due_on(conn,candidate["lineage_id"],owner="memory",lease_seconds=30)
+                if not claim:
                     continue
                 await conn.execute("INSERT INTO memory.recovery_due_claims(lineage_id,claim_token,current_version,expires_at) "
                     "VALUES(%s,%s,%s,%s) ON CONFLICT(lineage_id) DO UPDATE SET "
                     "claim_token=excluded.claim_token,current_version=excluded.current_version,expires_at=excluded.expires_at",
                     (claim["lineage_id"],claim["claim_token"],claim["current_version"],claim["claim_expires_at"]))
-                destinations.append((batch["partition_id"],batch["batch_id"]))
-            for partition_id, batch_id in sorted(destinations):
-                await self._schedule_on(conn,partition_id,datetime.now(UTC),suffix="recovery-claim:"+batch_id)
+                await self._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
+                    suffix="recovery-claim:"+batch["batch_id"])
 
     async def _policy_outcome(self, batch_id, step_id, *, status, code=None, observation_ref=None, retry_after=None):
         policy = self.memory.recovery_policy
@@ -256,13 +344,17 @@ class Consolidation:
             if not state:
                 return
             now = datetime.now(UTC)
+            if is_unresolved_wait(state.get("last_error")) and not state["active_batch_id"]:
+                raise AppError("memory_remote_wait_unresolved", status=503)
             if state["lease_until"] and state["lease_until"] > now:
                 return
             held = await (await conn.execute("SELECT batch_id FROM memory.consolidation_batches "
                 "WHERE partition_id=%s AND status='quarantined' AND manifest->>'data_generation'=%s "
+                "AND (NOT (manifest ? 'local_wait') OR retry_due_at<=now()) "
+                "AND (NOT (manifest ? 'remote_wait_unresolved') OR %s::text IS NOT NULL AND batch_id=%s) "
                 "AND (%s::text IS NULL OR batch_id=%s) "
                 "ORDER BY COALESCE(retry_due_at,updated_at),batch_id LIMIT 1",
-                (partition_id,run_generation,target_batch_id,target_batch_id))).fetchone()
+                (partition_id,run_generation,target_batch_id,target_batch_id,target_batch_id,target_batch_id))).fetchone()
             if target_batch_id is not None and (not held or state["active_batch_id"]):
                 return
             if not state["active_batch_id"] and state["wake_due_at"] is None and not held:
@@ -275,20 +367,53 @@ class Consolidation:
                 "UPDATE memory.consolidation_state SET lease_owner=%s,lease_until=now()+%s*interval '1 second',updated_at=now() "
                 "WHERE partition_id=%s RETURNING lease_until", (owner, LEASE_SECONDS, partition_id))).fetchone()
         batch_id = state["active_batch_id"]
+        suppress_rearm = False
+        leave_lease = False
+        unresolved_marked = False
         lease_lost = asyncio.Event()
         heartbeat = asyncio.create_task(self._keep_lease(partition_id, owner, run_generation,
             asyncio.current_task(), lease_lost), name="memory-consolidation-lease")
+
+        async def handle_failure(target, error):
+            nonlocal suppress_rearm, leave_lease, unresolved_marked
+            try:
+                await self._failure(partition_id, target, error, owner=owner, generation=run_generation)
+            except Exception as failure:
+                if classify_database_failure(failure) is not None:
+                    suppress_rearm = True
+                if isinstance(failure, RecoveryWait):
+                    if failure.reason == "recovery_claim_lost":
+                        suppress_rearm = leave_lease = True
+                    elif not recovery_wait_retryable(failure):
+                        suppress_rearm = True
+                        unresolved_marked = await self.waits.mark_unresolved(partition_id, target, failure, owner=owner, generation=run_generation)
+                raise
+
         try:
             context = context_from_bound(state["authority_bound"])
             # One bounded original observation per wake. An unavailable original
             # must not prevent this same wake from processing unrelated input.
             if held:
                 try:
-                    result = await self._execute(held["batch_id"], context, owner=owner)
-                    if result is not None:
-                        return result
+                    resumed = await self.waits.reactivate(held["batch_id"], owner=owner)
+                    if resumed != "blocked":
+                        result = await self._execute(held["batch_id"], context, owner=owner)
+                        if result is not None or resumed == "active":
+                            return result
                 except (AppError, TimeoutError, OSError, ClientError, ValueError, TypeError) as exc:
-                    await self._failure(partition_id, held["batch_id"], exc, owner=owner)
+                    if isinstance(exc, RecoveryWait) and exc.reason != "recovery_claim_lost" and not recovery_wait_retryable(exc):
+                        suppress_rearm = True
+                        unresolved_marked = await self.waits.mark_unresolved(partition_id,held["batch_id"],exc,owner=owner,generation=run_generation)
+                        raise
+                    if isinstance(exc, AppError) and exc.code == "memory_remote_wait_unresolved":
+                        suppress_rearm = True
+                        raise
+                    if ((isinstance(exc, RecoveryWait) and exc.reason == "recovery_claim_lost")
+                            or classify_database_failure(exc) is not None):
+                        suppress_rearm = True
+                        leave_lease = isinstance(exc, RecoveryWait) and exc.reason == "recovery_claim_lost"
+                        raise
+                    await handle_failure(held["batch_id"], exc)
                 if target_batch_id is not None:
                     return
             if not batch_id and state["wake_due_at"] is None:
@@ -310,34 +435,54 @@ class Consolidation:
             # The next owner now owns all batch/episode mutations. Cancellation
             # still reaches the original ModelClient, preserving its receipt.
         except (AppError, TimeoutError, OSError, ClientError, ValueError, TypeError) as exc:
-            await self._failure(partition_id, batch_id, exc, owner=owner)
+            if isinstance(exc, RecoveryWait) and exc.reason != "recovery_claim_lost" and not recovery_wait_retryable(exc):
+                suppress_rearm = True
+                if not unresolved_marked:
+                    await self.waits.mark_unresolved(partition_id,batch_id,exc,owner=owner,generation=run_generation)
+                raise
+            if isinstance(exc, AppError) and exc.code == "memory_remote_wait_unresolved":
+                suppress_rearm = True
+                raise
+            if ((isinstance(exc, RecoveryWait) and exc.reason == "recovery_claim_lost")
+                    or classify_database_failure(exc) is not None):
+                suppress_rearm = True
+                leave_lease = isinstance(exc, RecoveryWait) and exc.reason == "recovery_claim_lost"
+                raise
+            await handle_failure(batch_id, exc)
+        except Exception as exc:
+            if classify_database_failure(exc) is not None:
+                suppress_rearm = True
+            raise
         finally:
             heartbeat.cancel()
             await asyncio.gather(heartbeat, return_exceptions=True)
-            async with self.database.transaction() as conn:
-                try:
-                    await self.jobs.assert_generation_on(conn, run_generation)
-                except AppError as error:
-                    if error.code != "job_generation_expired":
-                        raise
-                else:
-                    released = await (await conn.execute(
-                        "UPDATE memory.consolidation_state SET lease_owner=NULL,lease_until=NULL "
-                        "WHERE partition_id=%s AND lease_owner=%s RETURNING active_batch_id,wake_due_at",
-                        (partition_id, owner))).fetchone()
-                    if released and released["active_batch_id"] is None:
-                        # A concurrent wake may have run while this owner still held
-                        # the lease. Re-arm remaining input after releasing only ours.
-                        await self.retries.arm_on(conn, partition_id)
-                    elif released:
-                        # The completion notice is a wake signal, not the model
-                        # receipt. A bounded fallback also covers lost notices.
-                        active = await (await conn.execute("SELECT status FROM memory.consolidation_batches "
-                            "WHERE batch_id=%s AND manifest->>'data_generation'=%s",
-                            (released["active_batch_id"],run_generation))).fetchone()
-                        if active:
-                            delay = 30 if active["status"] == "waiting_model" else 0
-                            await self._schedule_on(conn,partition_id,datetime.now(UTC)+timedelta(seconds=delay),suffix="active")
+            # A lost policy claim fences all domain writes by this claimant.
+            # Its lease expires naturally; the periodic owner scan repairs a wake.
+            if not leave_lease:
+                async with self.database.transaction() as conn:
+                    try:
+                        await self.jobs.assert_generation_on(conn, run_generation)
+                    except AppError as error:
+                        if error.code != "job_generation_expired":
+                            raise
+                    else:
+                        released = await (await conn.execute(
+                            "UPDATE memory.consolidation_state SET lease_owner=NULL,lease_until=NULL "
+                            "WHERE partition_id=%s AND lease_owner=%s RETURNING active_batch_id,wake_due_at",
+                            (partition_id, owner))).fetchone()
+                        if released and released["active_batch_id"] is None and not suppress_rearm:
+                            # A concurrent wake may have run while this owner still held
+                            # the lease. Re-arm remaining input after releasing only ours.
+                            await self.retries.arm_on(conn, partition_id)
+                        elif released and not suppress_rearm:
+                            # The completion notice is a wake signal, not the model
+                            # receipt. A bounded fallback also covers lost notices.
+                            active = await (await conn.execute("SELECT status FROM memory.consolidation_batches "
+                                "WHERE batch_id=%s AND manifest->>'data_generation'=%s",
+                                (released["active_batch_id"],run_generation))).fetchone()
+                            if active:
+                                delay = 30 if active["status"] == "waiting_model" else 0
+                                await self._schedule_on(conn,partition_id,datetime.now(UTC)+timedelta(seconds=delay),suffix="active")
 
     async def _renew_lease(self, partition_id, owner, data_generation):
         async with self.database.transaction() as conn:
@@ -578,27 +723,29 @@ class Consolidation:
             await self.identity.check_context(context, connection=conn)
             for episode in frozen["episodes"]:
                 original = await (await conn.execute(
-                    "SELECT revision,sequence,extraction_cursor,active FROM memory.episodes WHERE episode_id=%s FOR UPDATE",
+                    "SELECT revision,sequence,extraction_cursor,content_hash,active FROM memory.episodes WHERE episode_id=%s FOR UPDATE",
                     (episode["episode_id"],))).fetchone()
-                if not original or not original["active"] or original["sequence"] != episode["sequence"] or original["extraction_cursor"] != episode["before"]:
+                if (not original or not original["active"] or original["revision"] != episode["revision"]
+                        or original["sequence"] != episode["sequence"] or original["extraction_cursor"] != episode["before"]
+                        or episode.get("content_digest") is not None and original["content_hash"] != episode["content_digest"]):
                     raise AppError("memory_consolidation_episode_changed", status=409)
             recovery = None
             if request and part:
                 root = await (await conn.execute("SELECT manifest FROM memory.consolidation_batches WHERE batch_id=%s",
                     (part["root_batch_id"],))).fetchone()
                 if not root or root["manifest"].get("data_generation") != data_generation:
-                    raise AppError("job_generation_expired", status=409)
-                recovery = root["manifest"].get("recovery") if root else None
-                if recovery:
+                    raise AppError("job_generation_expired",status=409)
+                recovery = root["manifest"].get("recovery")
+                if recovery and self.memory.recovery_policy is not None:
                     prior = await (await conn.execute("SELECT model_attempt_id FROM memory.consolidation_attempts "
                         "WHERE recovery_lineage_id=%s AND recovery_policy_state='succeeded' "
                         "ORDER BY created_at DESC,step_id DESC LIMIT 1",(recovery["lineage_id"],))).fetchone()
                     if not prior:
                         raise AppError("memory_recovery_prior_unavailable",status=409)
-                    await self._reserve_continuation_on(conn,recovery,request,prior_attempt_id=prior["model_attempt_id"],
-                        reason="capacity_repartition")
-            elif request:
-                recovery = await self._register_recovery_on(conn,batch_id,frozen,context,request)
+                    manifest["recovery_pending"] = {"kind":"continuation",
+                        "prior_attempt_id":prior["model_attempt_id"], "reason":"capacity_repartition"}
+            elif request and self.memory.recovery_policy is not None:
+                manifest["recovery_pending"] = {"kind":"original"}
             if recovery:
                 manifest["recovery"] = recovery
             if request:
@@ -616,7 +763,8 @@ class Consolidation:
                     raise AppError("memory_reorganization_part_changed", status=409)
             if request:
                 await self.retries.track_on(conn, batch_id, step_id, kind="original")
-                await self._track_policy_on(conn,batch_id,step_id,recovery)
+                if not manifest.get("recovery_pending"):
+                    await self._track_policy_on(conn,batch_id,step_id,recovery)
             await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=%s,last_error=NULL,budget_failure=NULL "
                 "WHERE partition_id=%s", (batch_id,state["partition_id"]))
             for episode in frozen["episodes"]:
@@ -829,8 +977,24 @@ class Consolidation:
                         "RETURNING partition_id",(LEASE_SECONDS,batch["partition_id"],owner))).fetchone()
                     if not renewed:
                         raise AppError("memory_consolidation_lease_changed",status=409)
-                await conn.execute("UPDATE memory.consolidation_batches SET status='waiting_model',updated_at=now() WHERE batch_id=%s AND status='prepared'", (batch_id,))
+                await conn.execute("UPDATE memory.consolidation_batches SET status='waiting_model',updated_at=now() "
+                    "WHERE batch_id=%s AND status='prepared' AND NOT (manifest ? 'remote_wait_unresolved')", (batch_id,))
             manifest = batch["manifest"]
+            if manifest.get("remote_wait_unresolved"):
+                step_id = manifest["remote_wait_unresolved"].get("step_id")
+                if not step_id:
+                    raise AppError("memory_remote_wait_unresolved",status=503)
+                _, original = await self.steps.recorded(step_id)
+                outcome = await observe_original(self.steps.models,original)
+                # A still-unconfirmed local reservation needs separate policy
+                # reconciliation, even if the original receipt becomes visible.
+                if outcome.receipt is None or manifest.get("recovery_pending"):
+                    raise AppError("memory_remote_wait_unresolved",status=503)
+                await self.waits.resolve_observed(batch,outcome.receipt,owner=owner)
+                continue
+            if manifest.get("recovery_pending"):
+                await self._admit_prepared(batch, owner=owner)
+                continue
             # New events may refresh the scene's authority while this older
             # batch waits. Each attempt keeps its own original upper bound.
             context = context_from_bound(manifest["authority_bound"])
@@ -857,8 +1021,11 @@ class Consolidation:
                     batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s", (batch_id,))).fetchone()
                 manifest = batch["manifest"]
             observed = await self.steps.submit_or_observe(step_id, batch["partition_id"],
-                data_generation=manifest["data_generation"], observe_only=observe_only)
+                data_generation=manifest["data_generation"], observe_only=observe_only, owner=owner,
+                validate_on=self._validate_submission_on)
             if observed is None:
+                if batch["status"] == "quarantined":
+                    await self.retries._postpone(batch,code="model_outcome_unconfirmed",owner=owner)
                 return None
             result, recorded = observed
             await self._policy_outcome(batch_id,step_id,status="succeeded",
@@ -898,6 +1065,8 @@ class Consolidation:
                 await self._freeze_compilation(batch, context, frozen, proposal, alias_map,
                     owner=owner, step_id=step_id)
                 return await self._apply(batch, context, frozen, proposal,owner=owner,step_id=step_id)
+            except RecoveryWait:
+                raise
             except AppError as exc:
                 await self.retries.reject(batch_id, step_id, exc.code)
                 if await self._repair(batch,context,frozen,recorded,result,exc,owner=owner):
@@ -926,10 +1095,18 @@ class Consolidation:
                 return False
             if not await self._consume_recovery_on(conn, current, "repair"):
                 return False
+            if current.get("selected_step_id") not in {None, recorded.intent_id}:
+                raise AppError("memory_consolidation_attempt_changed", status=409)
+            if current.get("selected_step_id"):
+                # A semantic apply rejection keeps its old compilation for
+                # audit, but the correction must be allowed to select its own.
+                await conn.execute("UPDATE memory.consolidation_compilations SET selected=false "
+                    "WHERE batch_id=%s AND selected AND step_id=%s", (batch["batch_id"], recorded.intent_id))
             recovery = current["manifest"].get("recovery")
-            await self._reserve_continuation_on(conn,recovery,request,prior_attempt_id=recorded.attempt_id,
-                reason="schema_correction")
             manifest=deepcopy(current["manifest"])
+            if recovery and self.memory.recovery_policy is not None:
+                manifest["recovery_pending"] = {"kind":"continuation", "step_id":step_id,
+                    "prior_attempt_id":recorded.attempt_id, "reason":"schema_correction"}
             manifest["steps"][step_id]=frozen_mapping(frozen)
             manifest["output_repairs"]=[{"step_id":step_id,"original_step_id":recorded.intent_id,
                 "original_attempt_id":recorded.attempt_id,"error_code":error.code,
@@ -937,9 +1114,10 @@ class Consolidation:
                 "diagnostic":repair_diagnostic(error)}]
             await self.steps.prepare_on(conn,step_id,request)
             await self.retries.track_on(conn,batch["batch_id"],step_id,kind="repair",previous_step_id=recorded.intent_id)
-            await self._track_policy_on(conn,batch["batch_id"],step_id,recovery)
+            if not manifest.get("recovery_pending"):
+                await self._track_policy_on(conn,batch["batch_id"],step_id,recovery)
             await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,step_ids=array_append(step_ids,%s),"
-                "status=CASE WHEN status='quarantined' THEN status ELSE 'prepared' END,proposal_digest=NULL,"
+                "status=CASE WHEN status='quarantined' THEN status ELSE 'prepared' END,selected_step_id=NULL,proposal_digest=NULL,"
                 "retry_due_at=NULL,error_code=NULL,updated_at=now() WHERE batch_id=%s",
                 (Jsonb(manifest),step_id,batch["batch_id"]))
         return True
@@ -1211,14 +1389,16 @@ class Consolidation:
             if not await self._consume_recovery_on(conn, current, "context"):
                 return False
             recovery = current["manifest"].get("recovery")
-            await self._reserve_continuation_on(conn,recovery,request,prior_attempt_id=recorded.attempt_id,
-                reason="need_context")
             manifest = deepcopy(current["manifest"])
+            if recovery and self.memory.recovery_policy is not None:
+                manifest["recovery_pending"] = {"kind":"continuation", "step_id":step_id,
+                    "prior_attempt_id":recorded.attempt_id, "reason":"need_context"}
             manifest["steps"][step_id] = frozen_mapping(expanded)
             manifest["context_round"] = 1
             await self.steps.prepare_on(conn,step_id,request)
             await self.retries.track_on(conn,batch["batch_id"],step_id,kind="context",previous_step_id=recorded.intent_id)
-            await self._track_policy_on(conn,batch["batch_id"],step_id,recovery)
+            if not manifest.get("recovery_pending"):
+                await self._track_policy_on(conn,batch["batch_id"],step_id,recovery)
             await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,step_ids=array_append(step_ids,%s),dependency_refs=%s,read_set=%s,updated_at=now() WHERE batch_id=%s",
                 (Jsonb(manifest),step_id,Jsonb(wire(dependencies)),Jsonb(wire(expanded["read_set"])),batch["batch_id"]))
         return True
@@ -1324,8 +1504,18 @@ class Consolidation:
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=NULL,first_pending_at=NULL WHERE partition_id=%s",(batch["partition_id"],))
         return result
 
-    async def _failure(self, partition_id, batch_id, exc, *, owner=None):
+    async def _failure(self, partition_id, batch_id, exc, *, owner=None, generation=None):
         code = failure_code(exc)
+        if isinstance(exc, RecoveryWait):
+            if exc.reason == "recovery_claim_lost" or not recovery_wait_retryable(exc):
+                raise exc
+            try:
+                await self.waits.defer(partition_id, batch_id, exc, owner=owner, generation=generation)
+            except AppError as error:
+                if error.code not in {"source_unavailable", "memory_consolidation_episode_changed"}:
+                    raise
+                await self._failure(partition_id, batch_id, error, owner=owner, generation=generation)
+            return
         if code in {"memory_consolidation_lease_changed", "job_generation_expired", "data_generation_expired"}:
             # A successor may already be observing/applying this same batch.
             # The expired writer has no authority to settle or reset its work.

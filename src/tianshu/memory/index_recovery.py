@@ -65,6 +65,10 @@ class IndexRecovery:
         if attempt["number"] > 1:
             matching = claim or await self.policy.claim_lineage_due_on(conn, lineage_id, owner=owner, lease_seconds=30)
             if matching is None:
+                wait = await self.policy.inspect_wait_on(conn, lineage_id, owner=owner,
+                    expected_version=str(job["revision"]))
+                if wait is not None:
+                    raise wait
                 return False
             claim_token = _field(matching, "claim_token")
         options = {"model_receipt": original_receipt} if original_receipt is not None else {}

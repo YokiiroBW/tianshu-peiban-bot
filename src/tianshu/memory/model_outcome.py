@@ -8,6 +8,7 @@ from aiohttp import ClientError
 from tianshu.models.retry import transient_model_failure
 from tianshu.models.types import ModelReceipt, ModelResult
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.serialization import wire
 
 
@@ -32,6 +33,8 @@ def needs_rpc_observation(error):
 
 
 def _control_failure(error):
+    if classify_database_failure(error) is not None:
+        raise error
     if isinstance(error,AppError) and ("not_configured" in error.code or "configuration" in error.code or error.code=="explicit_cancel"):
         raise error
     if isinstance(error,AppError) and error.status not in {404,408,429} and error.status < 500:
@@ -116,16 +119,35 @@ async def observe_original(models, request):
         control_error=_control_failure(error)
         result=None
     if result is not None:
-        if result.receipt.attempt_id != request.attempt_id or result.receipt.intent_id != request.intent_id:
+        if (result.receipt.attempt_id != request.attempt_id or result.receipt.intent_id != request.intent_id
+                or result.receipt.data_generation != request.data_generation):
             raise AppError("memory_model_result_identity_conflict",status=409)
         if result.receipt.status=="succeeded":
-            return OriginalOutcome(result,result.receipt)
+            try:
+                # The ordinary result port may return a succeeded receipt with
+                # no body after cancellation or source withdrawal. Only the
+                # authoritative reusable-result port may provide commit input.
+                reusable=await models.reusable_result(request.attempt_id,context=request.context,
+                    expected_data_generation=request.data_generation)
+            except CONTROL_ERRORS as error:
+                if not isinstance(error,AppError) or error.code not in {
+                        "model_result_unavailable", "model_result_pending", "model_result_unknown",
+                        "model_result_not_succeeded", "model_attempt_cancelled", "attempt_not_found"}:
+                    control_error=_control_failure(error)
+                result=None
+            else:
+                if (reusable.receipt.attempt_id != request.attempt_id or reusable.receipt.intent_id != request.intent_id
+                        or reusable.receipt.data_generation != request.data_generation or reusable.receipt.status != "succeeded"
+                        or getattr(reusable.receipt,"cancellation_reason",None) == "explicit_cancel"):
+                    raise AppError("memory_model_result_identity_conflict",status=409)
+                return OriginalOutcome(reusable,reusable.receipt)
     try:
         receipt=await models.status(request.attempt_id)
     except CONTROL_ERRORS as error:
         control_error=_control_failure(error)
         receipt=None
-    if receipt is not None and (receipt.attempt_id != request.attempt_id or receipt.intent_id != request.intent_id):
+    if receipt is not None and (receipt.attempt_id != request.attempt_id or receipt.intent_id != request.intent_id
+            or receipt.data_generation != request.data_generation):
         raise AppError("memory_model_result_identity_conflict",status=409)
     if receipt is None and result is not None:
         receipt=result.receipt

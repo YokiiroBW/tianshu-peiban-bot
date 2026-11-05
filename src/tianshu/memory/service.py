@@ -515,8 +515,8 @@ class MemoryService:
             missing.append("unavailable_sources")
         return Page(items,None,Coverage(not missing,missing=tuple(missing)))
 
-    async def lock_episodes(self, context, refs, *, connection):
-        """Lock selected sources first, then recheck and lock episode heads in ID order."""
+    async def lock_episodes(self, context, refs, *, connection, extra_source_refs=()):
+        """Lock the complete source closure before rechecking episode heads."""
         from .domain_utils import unique_refs
         refs = tuple(refs)
         if (len(refs) > 128 or any(not isinstance(item, (tuple, list)) or len(item) != 2
@@ -531,8 +531,8 @@ class MemoryService:
         if len(first) != len(ids) or any(not row["active"] or row["revision"] != expected[row["episode_id"]]
                 or not set(row["scope_ids"]) <= set(context.scope_ids) for row in first):
             return EpisodePage((), None, Coverage(False, missing=("episodes_unavailable_or_revised",)), "e:0")
-        sources = unique_refs(ref for row in first
-                              for ref in (*codec.refs(row["source_refs"]), *codec.refs(row["supplement_refs"])))
+        sources = unique_refs((*codec.refs(extra_source_refs), *(ref for row in first
+            for ref in (*codec.refs(row["source_refs"]), *codec.refs(row["supplement_refs"])))))
         if not await self.sources.validate_persistence(connection, context, sources):
             return EpisodePage((), None, Coverage(False, missing=("unavailable_sources",)), "e:0")
         locked = await (await connection.execute("SELECT * FROM memory.episodes WHERE actor_id=%s "

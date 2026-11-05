@@ -14,7 +14,9 @@ from tianshu.models.retry import retry_delay_seconds, transient_model_failure
 from tianshu.models.codec import request_from_wire
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 from tianshu.runtime.serialization import wire
 from tianshu.sources.dependencies import unique_refs
 from tianshu.types import RequestBudget, ServiceClass
@@ -26,6 +28,8 @@ from .episode_original import needs_original_text, read_original_text
 from .evidence import build_evidence_unit
 from .indexing import index_text
 from .index_recovery import IndexRecovery, MAX_ATTEMPTS
+from .steps import admission_open
+from .recovery_wait import UNRESOLVED, is_unresolved_wait, wait_marker
 from .model_outcome import confirmed_computation_unknown, original_status
 
 
@@ -203,6 +207,8 @@ class IndexJobs:
         content_hash = body_hash(normalized_input(loaded[3]))
         try:
             profile, fingerprint = await self.workers.embeddings.profile()
+        except RecoveryWait:
+            raise
         except AppError as error:
             async with self.database.transaction() as conn:
                 await self._ensure_on(conn, kind, object_id, revision, None, "unavailable", generation, content_hash, error=error.code)
@@ -248,6 +254,8 @@ class IndexJobs:
             await conn.execute("UPDATE memory.index_jobs SET state='running',lease_owner=%s,"
                 "lease_until=now()+%s*interval '1 second',updated_at=now() WHERE index_id=%s", (owner, LEASE_SECONDS, index_id))
         lost = asyncio.Event()
+        suppress_rearm = False
+        leave_lease = False
         heartbeat = asyncio.create_task(self._keep_lease(index_id, owner, asyncio.current_task(), lost, generation))
         try:
             # A confirmed unknown pure computation may get a separate attempt
@@ -256,6 +264,30 @@ class IndexJobs:
             unknown_due = (job["state"] == "observing" and attempt is not None and
                            attempt["status"] == "unknown" and not job["deferred"])
             await self._execute(job, attempt, owner, allow_retry=job["state"] == "retry_wait" or unknown_due)
+        except RecoveryWait as wait:
+            if wait.reason == "recovery_claim_lost":
+                suppress_rearm = leave_lease = True
+                raise
+            if not recovery_wait_retryable(wait):
+                suppress_rearm = True
+                await self._mark_unresolved(index_id,owner,generation,wait)
+                raise
+            try:
+                deferred = await self._defer_wait(index_id,owner,generation,wait)
+            except RecoveryWait as failure:
+                suppress_rearm = True
+                if failure.reason == "recovery_claim_lost":
+                    leave_lease = True
+                elif not recovery_wait_retryable(failure):
+                    await self._mark_unresolved(index_id,owner,generation,failure)
+                raise
+            except Exception as error:
+                if classify_database_failure(error) is not None:
+                    suppress_rearm = True
+                raise
+            if not deferred:
+                suppress_rearm = True
+                raise
         except asyncio.CancelledError:
             if not lost.is_set():
                 await self._finish(index_id, owner, "observing", "index_worker_interrupted", delay=OBSERVE_SECONDS)
@@ -264,15 +296,48 @@ class IndexJobs:
             worker.uncancel()
             if worker.cancelling():
                 raise
+        except Exception as error:
+            if (classify_database_failure(error) is not None or
+                    isinstance(error,AppError) and error.code == "memory_remote_wait_unresolved"):
+                suppress_rearm = True
+            raise
         finally:
             heartbeat.cancel()
             await asyncio.gather(heartbeat, return_exceptions=True)
-            async with self.database.transaction() as conn:
-                await self.memory.jobs.assert_generation_on(conn, generation)
-                released = await (await conn.execute("UPDATE memory.index_jobs SET lease_owner=NULL,lease_until=NULL "
-                    "WHERE index_id=%s AND lease_owner=%s RETURNING *", (index_id, owner))).fetchone()
-                if released:
-                    await self._schedule_on(conn, released)
+            if not leave_lease:
+                async with self.database.transaction() as conn:
+                    await self.memory.jobs.assert_generation_on(conn, generation)
+                    released = await (await conn.execute("UPDATE memory.index_jobs SET lease_owner=NULL,lease_until=NULL "
+                        "WHERE index_id=%s AND lease_owner=%s RETURNING *", (index_id, owner))).fetchone()
+                    if released and not suppress_rearm:
+                        await self._schedule_on(conn, released)
+
+    async def _mark_unresolved(self, index_id, owner, generation, wait):
+        async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn,generation)
+            job = await (await conn.execute("SELECT * FROM memory.index_jobs WHERE index_id=%s AND lease_owner=%s FOR UPDATE",
+                (index_id,owner))).fetchone()
+            if not job:
+                return False
+            attempt = await (await conn.execute("SELECT * FROM memory.index_attempts WHERE index_id=%s AND number=%s",
+                (index_id,job["attempt_count"]))).fetchone()
+            if attempt:
+                await conn.execute("UPDATE memory.model_steps SET error_code='memory_remote_wait_unresolved',updated_at=now() "
+                    "WHERE step_id=%s AND state IN ('prepared','dispatching')", (attempt["step_id"],))
+            await conn.execute("UPDATE memory.index_jobs SET last_error=%s,next_due=NULL,updated_at=now() "
+                "WHERE index_id=%s AND lease_owner=%s", (wait_marker(wait),index_id,owner))
+            return True
+
+    async def _defer_wait(self, index_id, owner, generation, wait):
+        async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn,generation)
+            row = await (await conn.execute("UPDATE memory.index_jobs SET state='retry_wait',next_due=%s,last_error=%s,"
+                "updated_at=now() WHERE index_id=%s AND generation=%s AND lease_owner=%s AND lease_until>now() "
+                "RETURNING *", (wait.retry_at,wait.code,index_id,generation,owner))).fetchone()
+            if not row:
+                return False
+            await self._schedule_on(conn,row)
+            return True
 
     async def _keep_lease(self, index_id, owner, worker, lost, generation):
         try:
@@ -306,6 +371,23 @@ class IndexJobs:
     async def _execute(self, job, attempt, owner, *, allow_retry):
         material = None
         try:
+            if is_unresolved_wait(job.get("last_error")):
+                if attempt is None:
+                    raise AppError("memory_remote_wait_unresolved",status=503)
+                # This first reconciliation is read-only; no material rebuild,
+                # reservation or provider admission is allowed without a receipt.
+                observed = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
+                if observed is None:
+                    raise AppError("memory_remote_wait_unresolved",status=503)
+                if (observed.attempt_id != attempt["model_attempt_id"] or observed.intent_id != attempt["intent_id"]
+                        or observed.data_generation != job["generation"]):
+                    raise AppError("memory_model_result_identity_conflict",status=409)
+                try:
+                    await self.workers.embeddings.steps.recorded(attempt["step_id"])
+                except AppError as error:
+                    if error.code == "memory_model_step_unavailable":
+                        raise AppError("memory_remote_wait_unresolved",status=503) from error
+                    raise
             loaded = await self._material(job["kind"], job["object_id"], job["revision"], job["generation"])
             if loaded is None:
                 return await self._finish(job["index_id"], owner, "obsolete", "memory_index_revision_obsolete")
@@ -360,7 +442,9 @@ class IndexJobs:
                             "event_revision=event_revision+1,updated_at=now() WHERE index_id=%s AND number=%s RETURNING *",
                             (job["index_id"], attempt["number"]))).fetchone()
                         attempt.update(settled)
-            except Exception:
+            except Exception as error:
+                if isinstance(error,RecoveryWait) or classify_database_failure(error) is not None:
+                    raise
                 LOG.exception("memory index physical attempt settlement failed")
                 return await self._finish(job["index_id"], owner, "observing", "memory_index_settlement_unavailable",
                                           delay=OBSERVE_SECONDS)
@@ -369,6 +453,9 @@ class IndexJobs:
             except AppError as error:
                 return await self._finish(job["index_id"], owner, "failed", error.code)
         except Exception as error:
+            if (classify_database_failure(error) is not None or
+                    isinstance(error,AppError) and error.code == "memory_remote_wait_unresolved"):
+                raise
             return await self._failure(job, attempt, owner, error, allow_retry=allow_retry, material=material)
         # Control reads precede the write transaction. The fingerprint checked
         # here is the same configured profile used to select this logical job.
@@ -399,6 +486,8 @@ class IndexJobs:
                      body_hash(normalized_input(content)), Vector(values)))
                 await self._finish_on(conn, job, owner, "succeeded")
                 await self.recovery.record_attempt_on(conn, {**job, "state": "succeeded"}, attempt, actor_id=context.actor_id)
+        except RecoveryWait:
+            raise
         except AppError as error:
             await self._finish(job["index_id"], owner, "revoked" if error.status in {403, 404} else "failed", error.code)
 
@@ -410,57 +499,98 @@ class IndexJobs:
             data_generation=job["generation"])
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn, job["generation"])
+            if not await self.memory.sources.validate_persistence(conn, context, refs):
+                raise AppError("source_unavailable", status=403)
             owned = await (await conn.execute("SELECT index_id FROM memory.index_jobs WHERE index_id=%s "
                 "AND lease_owner=%s AND lease_until>now() AND state='running' AND attempt_count=%s FOR UPDATE",
                 (job["index_id"], owner, attempt["number"]))).fetchone()
             if not owned:
                 return None
-            frozen = await steps.prepare_on(conn, attempt["step_id"], request)
+            if is_unresolved_wait(job.get("last_error")):
+                # Do not create a step or reserve policy capacity while the
+                # prior RPC/local transaction lacks rollback confirmation.
+                frozen = await (await conn.execute("SELECT * FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
+                    (attempt["step_id"],))).fetchone()
+                if not frozen:
+                    raise AppError("memory_remote_wait_unresolved",status=503)
+            else:
+                frozen = await steps.prepare_on(conn, attempt["step_id"], request)
             original = request_from_wire(frozen["request"])
             if original.attempt_id != attempt["model_attempt_id"]:
                 raise AppError("memory_model_step_identity_conflict", status=409)
-            if not await self.recovery.reserve_on(conn, job, attempt, original, content):
+            if not is_unresolved_wait(job.get("last_error")) and not await self.recovery.reserve_on(conn, job, attempt, original, content):
                 await conn.execute("UPDATE memory.index_jobs SET state='retry_wait',next_due=now()+interval '30 seconds',"
                     "last_error='memory_index_recovery_wait',updated_at=now() WHERE index_id=%s AND lease_owner=%s",
                     (job["index_id"], owner))
                 return None
+        unresolved = frozen.get("error_code") == UNRESOLVED or is_unresolved_wait(job.get("last_error"))
         try:
-            receipt = await models.status(original.attempt_id)
+            # Only a prepared step uses pre-submit lookup. An inconclusive
+            # dispatching lookup permits same-ID admission, never a new attempt.
+            receipt = (await models.status(original.attempt_id, phase="pre_submit")
+                       if frozen["state"] == "prepared" and not unresolved else await models.status(original.attempt_id))
         except Exception as error:
+            if isinstance(error, RecoveryWait) or classify_database_failure(error) is not None:
+                raise
             if isinstance(error, AppError) and error.status in {401, 403}:
                 raise
             await self._finish(job["index_id"], owner, "observing", "model_status_unavailable", delay=OBSERVE_SECONDS)
             return None
         if receipt is None:
+            if (unresolved or frozen["state"] not in {"prepared", "dispatching"}
+                    or attempt["status"] not in {"prepared", "observing"} or not admission_open(original)):
+                error = ((job.get("last_error") if is_unresolved_wait(job.get("last_error")) else UNRESOLVED)
+                         if unresolved else "model_status_unavailable")
+                await self._finish(job["index_id"], owner, "observing", error, delay=OBSERVE_SECONDS)
+                return None
             async with self.database.transaction() as conn:
                 await self.memory.jobs.assert_generation_on(conn, job["generation"])
                 if not await self.memory.sources.validate_persistence(conn, context, refs):
                     raise AppError("source_unavailable", status=403)
+                fresh_material = await self._load_on(conn, job["kind"], job["object_id"], job["revision"], lock=True)
+                if fresh_material is None or fresh_material[2] != refs or fresh_material[3] != content:
+                    await self._finish_on(conn, job, owner, "obsolete", "memory_index_revision_obsolete")
+                    return None
                 owned = await (await conn.execute("SELECT index_id FROM memory.index_jobs WHERE index_id=%s "
                     "AND lease_owner=%s AND lease_until>now() AND state='running' AND attempt_count=%s FOR UPDATE",
                     (job["index_id"], owner, attempt["number"]))).fetchone()
                 if not owned:
                     return None
-                await conn.execute("UPDATE memory.model_steps SET state='dispatching',updated_at=now() "
-                                   "WHERE step_id=%s AND state NOT IN ('source_revoked','succeeded','failed','cancelled')",
-                                   (attempt["step_id"],))
+                current_attempt = await (await conn.execute("SELECT status FROM memory.index_attempts "
+                    "WHERE index_id=%s AND number=%s FOR UPDATE", (job["index_id"], attempt["number"]))).fetchone()
+                current_step = await (await conn.execute("SELECT state,request FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
+                    (attempt["step_id"],))).fetchone()
+                if (not current_attempt or current_attempt["status"] not in {"prepared", "observing"} or not current_step
+                        or current_step["state"] != frozen["state"] or current_step["request"] != frozen["request"]):
+                    await conn.execute("UPDATE memory.index_jobs SET state='observing',next_due=now()+interval '30 seconds',"
+                        "last_error='model_status_unavailable',updated_at=now() WHERE index_id=%s AND lease_owner=%s",
+                        (job["index_id"], owner))
+                    return None
+                if current_step["state"] == "prepared":
+                    await conn.execute("UPDATE memory.model_steps SET state='dispatching',updated_at=now() WHERE step_id=%s",
+                        (attempt["step_id"],))
             completion = JobSpec("memory.index_retry", "memory-index-result:" + original.attempt_id,
                 {"index_id": job["index_id"], "completed_attempt_id": original.attempt_id,
                  "generation": job["generation"]}, ServiceClass.ELASTIC, data_generation=job["generation"])
             try:
                 receipt = await models.submit(original, completion=completion)
             except Exception as error:
+                if isinstance(error, RecoveryWait) or classify_database_failure(error) is not None:
+                    raise
                 if isinstance(error, AppError):
                     if error.status < 500 and error.status not in {408, 429}:
                         raise
                     if "not_configured" in error.code or "configuration" in error.code:
                         raise
-                # Submission may already have reached Models. Preserve this
-                # exact attempt; a later status read or idempotent submit settles it.
+                # Keep the exact unconfirmed request for same-ID admission;
+                # an existing Broker receipt is only observed on later wakes.
                 await self._finish(job["index_id"], owner, "observing", "model_submit_unconfirmed", delay=OBSERVE_SECONDS)
                 return None
-        if receipt.attempt_id != original.attempt_id or receipt.intent_id != original.intent_id:
+        if (receipt.attempt_id != original.attempt_id or receipt.intent_id != original.intent_id
+                or receipt.data_generation != original.data_generation):
             raise AppError("memory_model_result_identity_conflict", status=409)
+        if unresolved and self.recovery.policy is not None and not attempt.get("recovery_reserved"):
+            raise AppError("memory_remote_wait_unresolved",status=503)
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn, job["generation"])
             await conn.execute("UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() "
@@ -479,8 +609,13 @@ class IndexJobs:
                 status=503, details={"status": receipt.status, "receipt_error_code": receipt.error_code,
                     "cancellation_reason": getattr(receipt, "cancellation_reason", None)})
         try:
-            result = await models.result(original.attempt_id, context=context)
+            result = await models.reusable_result(original.attempt_id, context=context,
+                expected_data_generation=job["generation"])
         except Exception as error:
+            if isinstance(error, RecoveryWait) or classify_database_failure(error) is not None:
+                raise
+            if isinstance(error, AppError) and error.code == "model_attempt_cancelled":
+                raise AppError("explicit_cancel", status=409, details={"status": "cancelled"}) from error
             if isinstance(error, AppError) and error.status in {401, 403}:
                 raise
             await self._finish(job["index_id"], owner, "observing", "model_result_unavailable", delay=OBSERVE_SECONDS)
@@ -488,7 +623,8 @@ class IndexJobs:
         if result is None:
             await self._finish(job["index_id"], owner, "observing", "model_result_unavailable", delay=OBSERVE_SECONDS)
             return None
-        if result.receipt.attempt_id != original.attempt_id or result.receipt.intent_id != original.intent_id:
+        if (result.receipt.attempt_id != original.attempt_id or result.receipt.intent_id != original.intent_id
+                or result.receipt.data_generation != original.data_generation):
             raise AppError("memory_model_result_identity_conflict", status=409)
         if result.receipt.status != "succeeded":
             await self._finish(job["index_id"], owner, "observing", "model_result_not_settled", delay=OBSERVE_SECONDS)
@@ -530,6 +666,8 @@ class IndexJobs:
             "WHERE index_id=%s AND lease_owner=%s AND lease_until>now()", (state, error, job["index_id"], owner))
 
     async def _failure(self, job, attempt, owner, error, *, allow_retry, material=None):
+        if isinstance(error, RecoveryWait):
+            raise error
         code = getattr(error, "code", type(error).__name__)
         if getattr(error, "status", None) in {403, 404} or code in {"context_changed", "access_changed"}:
             return await self._finish(job["index_id"], owner, "revoked", code)
@@ -543,11 +681,18 @@ class IndexJobs:
         if attempt.get("status") == "prepared" and status is None:
             try:
                 observed = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
-            except Exception:
+            except Exception as control_error:
+                if isinstance(control_error, RecoveryWait) or classify_database_failure(control_error) is not None:
+                    raise
                 return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
             if observed is None:
-                # Nothing in Models proves a physical call occurred.
-                return await self._finish(job["index_id"], owner, "failed", code)
+                step, _ = await self.workers.embeddings.steps.recorded(attempt["step_id"])
+                if step["state"] != "prepared":
+                    # An unacknowledged dispatch is not proof of non-submission.
+                    return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
+                retry = transient_model_failure(code)
+                return await self._finish(job["index_id"], owner, "retry_wait" if retry else "failed", code,
+                                          delay=retry_delay_seconds(attempt["number"]) if retry else None)
             status = observed.status
             if status == "succeeded":
                 return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
@@ -562,6 +707,8 @@ class IndexJobs:
                     receipt = await original_status(self.workers.embeddings.models, request)
                 else:
                     receipt = await self.workers.embeddings.models.status(attempt["model_attempt_id"])
+            except RecoveryWait:
+                raise
             except AppError as control_error:
                 if control_error.status in {401, 403}:
                     return await self._finish(job["index_id"], owner, "revoked", control_error.code)
@@ -569,7 +716,9 @@ class IndexJobs:
                         "not_configured" in control_error.code or "configuration" in control_error.code):
                     return await self._finish(job["index_id"], owner, "failed", control_error.code)
                 return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
-            except Exception:
+            except Exception as control_error:
+                if classify_database_failure(control_error) is not None:
+                    raise
                 # A control read failure is not proof the original stopped.
                 return await self._finish(job["index_id"], owner, "observing", code, delay=OBSERVE_SECONDS)
             if receipt is None:
@@ -590,10 +739,17 @@ class IndexJobs:
         status = status or "failed"
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn, job["generation"])
+            # A successor can freeze only the same still-valid source closure;
+            # take those locks before the index row and its new model step.
+            material_valid = (await self.memory.sources.validate_persistence(conn, material[0], material[1])
+                              if material is not None else True)
             owned = await (await conn.execute("SELECT * FROM memory.index_jobs WHERE index_id=%s AND lease_owner=%s "
                 "AND lease_until>now() AND attempt_count=%s FOR UPDATE",
                 (job["index_id"], owner, attempt["number"]))).fetchone()
             if not owned:
+                return
+            if not material_valid:
+                await self._finish_on(conn, job, owner, "revoked", "source_unavailable")
                 return
             prior_status = attempt.get("status")
             if prior_status != status or attempt.get("error_code") != (receipt_code if explicit_cancel else code):
@@ -616,6 +772,11 @@ class IndexJobs:
                 if allow_retry and transient_model_failure(code) and attempt["number"] < MAX_ATTEMPTS:
                     claim = (await self.recovery.policy.claim_lineage_due_on(conn, job["recovery_lineage_id"],
                         owner=self.recovery.owner(job), lease_seconds=30)) if self.recovery.policy is not None else True
+                    if claim is None and self.recovery.policy is not None:
+                        wait = await self.recovery.policy.inspect_wait_on(conn, job["recovery_lineage_id"],
+                            owner=self.recovery.owner(job), expected_version=str(job["revision"]))
+                        if wait is not None:
+                            raise wait
                     if claim and material is not None:
                         successor = await self._attempt_on(conn, job, attempt["number"] + 1)
                         context, refs, content = material
@@ -656,6 +817,8 @@ class IndexJobs:
     async def recover(self, generation):
         try:
             profile, fingerprint = await self.workers.embeddings.profile()
+        except RecoveryWait:
+            raise
         except AppError:
             # Still repair keyword documents once. No embedding is dispatched
             # until a real configured profile exists; permanent errors settle

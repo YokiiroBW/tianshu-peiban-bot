@@ -46,9 +46,11 @@ class MemoryWorkers:
             await self.memory.jobs.assert_generation_on(conn,generation)
             rows = await (await conn.execute(
                 "SELECT partition_id FROM memory.consolidation_state WHERE "
-                "(active_batch_id IS NOT NULL OR wake_due_at<=now() OR EXISTS(SELECT 1 "
-                "FROM memory.consolidation_batches b WHERE b.partition_id=memory.consolidation_state.partition_id "
-                "AND b.status='quarantined')) AND "
+                "((active_batch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memory.consolidation_batches a "
+                "WHERE a.batch_id=memory.consolidation_state.active_batch_id AND a.manifest ? 'remote_wait_unresolved')) "
+                "OR wake_due_at<=now() OR EXISTS(SELECT 1 FROM memory.consolidation_batches b "
+                "WHERE b.partition_id=memory.consolidation_state.partition_id AND b.status='quarantined' "
+                "AND NOT (b.manifest ? 'remote_wait_unresolved'))) AND "
                 "(lease_until IS NULL OR lease_until<now()) ORDER BY updated_at LIMIT 64"
             )).fetchall()
         for row in rows:
@@ -58,16 +60,20 @@ class MemoryWorkers:
                 await self.memory.jobs.assert_generation_on(conn,generation)
                 current = await (await conn.execute(
                     "SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s "
-                    "AND (active_batch_id IS NOT NULL OR wake_due_at<=now() OR EXISTS(SELECT 1 "
-                    "FROM memory.consolidation_batches b WHERE b.partition_id=memory.consolidation_state.partition_id "
-                    "AND b.status='quarantined')) AND (lease_until IS NULL OR lease_until<now()) "
+                    "AND ((active_batch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memory.consolidation_batches a "
+                    "WHERE a.batch_id=memory.consolidation_state.active_batch_id AND a.manifest ? 'remote_wait_unresolved')) "
+                    "OR wake_due_at<=now() OR EXISTS(SELECT 1 FROM memory.consolidation_batches b "
+                    "WHERE b.partition_id=memory.consolidation_state.partition_id AND b.status='quarantined' "
+                    "AND NOT (b.manifest ? 'remote_wait_unresolved'))) AND (lease_until IS NULL OR lease_until<now()) "
                     "FOR UPDATE SKIP LOCKED", (row["partition_id"],))).fetchone()
                 if current:
-                    state=await (await conn.execute("SELECT active_batch_id FROM memory.consolidation_state WHERE partition_id=%s",
-                        (row["partition_id"],))).fetchone()
-                    if state["active_batch_id"] is not None:
+                    state=await (await conn.execute("SELECT active_batch_id,EXISTS(SELECT 1 FROM memory.consolidation_batches b "
+                        "WHERE b.batch_id=memory.consolidation_state.active_batch_id "
+                        "AND b.manifest ? 'remote_wait_unresolved') AS active_unresolved "
+                        "FROM memory.consolidation_state WHERE partition_id=%s",(row["partition_id"],))).fetchone()
+                    if state["active_batch_id"] is not None and not state["active_unresolved"]:
                         await self.consolidation._schedule_on(conn,row["partition_id"],datetime.now(UTC),suffix="recover")
-                    else:
+                    elif state["active_batch_id"] is None:
                         await self.consolidation.retries.arm_on(conn,row["partition_id"])
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn,generation)
