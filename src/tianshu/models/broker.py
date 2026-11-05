@@ -17,6 +17,7 @@ import aiohttp
 import psycopg
 
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass, SourceRef
@@ -264,6 +265,11 @@ class ModelBroker:
         from .async_jobs import enqueue_completion, pending_completions
 
         while self.ready:
+            try:
+                await self._wake_due_submissions()
+            except Exception:
+                # The original wait remains durable and will be read again.
+                pass
             if self.jobs is not None:
                 try:
                     after = ""
@@ -288,6 +294,22 @@ class ModelBroker:
                 except Exception:
                     pass
             await asyncio.sleep(1)
+
+    async def _wake_due_submissions(self):
+        await self.ledger.expire_stale_recovery_submissions()
+        after = None
+        while self.ready:
+            pending = await self.ledger.wakeable_submissions(after=after)
+            for saved in pending:
+                try:
+                    request = request_from_wire(saved["request"])
+                    await self._start_driver(request, streaming=saved["streaming"], resume=True)
+                except AppError:
+                    await self.ledger.block_invalid_recovery(saved["attempt_id"])
+            if len(pending) < 100:
+                return
+            last = pending[-1]
+            after = (last["wake_at"], last["attempt_id"])
 
     async def _watch_external(self):
         while self.ready:
@@ -494,14 +516,32 @@ class ModelBroker:
         if not self.ready:
             raise AppError("broker_unavailable", status=503)
         record = completion_record(completion)
-        await self.recheck(request)
+        try:
+            await self.recheck(request)
+        except RecoveryWait as exc:
+            from .recovery_wait import preserve_wait_safety
+
+            try:
+                original = await self.ledger.get(request.attempt_id)
+            except Exception:
+                raise AppError("model_prestart_observation_required", status=503,
+                    details={"attempt_id": request.attempt_id, "action": "observe_original_attempt"}) from None
+            if original and original.get("submission_digest") == submission_digest(request):
+                preserve_wait_safety(original, exc)
+            raise
         existing = await self.ledger.existing_submission(request, record)
         if existing:
             row, recorded_streaming = existing
-            await self.recheck(request)
+            try:
+                await self.recheck(request)
+            except RecoveryWait as exc:
+                from .recovery_wait import preserve_wait_safety
+                preserve_wait_safety(row, exc)
+                raise
             if streaming and not recorded_streaming:
                 raise AppError("model_stream_not_recorded", status=409)
             if row["status"] == "queued":
+                self._raise_prestart_observation(row, allow_due=True)
                 await self._start_driver(request, streaming=recorded_streaming, resume=True)
             return receipt(row)
         future = await self._start_driver(request, streaming=streaming, completion=record)
@@ -558,9 +598,16 @@ class ModelBroker:
                 await finish_cleanup(events.athrow(exc))
             except BaseException:
                 pass
+            if isinstance(exc, RecoveryWait):
+                try:
+                    await finish_cleanup(self.ledger.save_prestart_wait(request.attempt_id, exc))
+                except Exception:
+                    # A previously written checking marker remains observe-only
+                    # if the evidence itself cannot be committed.
+                    pass
             if not accepted.done():
                 accepted.set_exception(exc)
-            if accepted.done() and (resume or not accepted.exception()) and not (
+            if not isinstance(exc, RecoveryWait) and accepted.done() and (resume or not accepted.exception()) and not (
                     isinstance(exc, asyncio.CancelledError) and not self.ready):
                 # Preparation can fail before _events enters its cleanup. The
                 # owner and unstarted state must still match in the same update.
@@ -585,8 +632,17 @@ class ModelBroker:
             row = await self.ledger.get(request.attempt_id)
             if row is None:
                 raise AppError("attempt_not_found", status=404)
-            selected = await check_attempt_context(self, row, request.context)
-            await self.recheck(SimpleNamespace(context=request.context, source_refs=selected))
+            try:
+                selected = await check_attempt_context(self, row, request.context)
+                await self.recheck(SimpleNamespace(context=request.context, source_refs=selected))
+            except RecoveryWait as exc:
+                from .recovery_wait import preserve_wait_safety
+
+                if (row["principal_id"] == request.context.principal_id
+                        and row["context_fingerprint"] == context_fingerprint(request.context)):
+                    preserve_wait_safety(row, exc)
+                raise
+            self._raise_prestart_observation(row)
             if streaming:
                 events = await self.ledger.stream_events(request.attempt_id, cursor)
                 for saved in events:
@@ -601,6 +657,22 @@ class ModelBroker:
                 yield ModelEvent("receipt", receipt=result.receipt, data=result, sequence=cursor + 1 if streaming else None)
                 return
             await asyncio.sleep(0.1)
+
+    def _raise_prestart_observation(self, row, *, allow_due=False):
+        from .recovery_wait import wait_error
+
+        if row.get("status") != "queued":
+            return
+        state = row.get("recovery_state")
+        if state == "checking":
+            driver = self.drivers.get(row["attempt_id"])
+            if row.get("broker_instance") != self.instance_id or not driver or driver[0].done():
+                raise AppError("model_prestart_observation_required", status=503,
+                    details={"attempt_id": row["attempt_id"], "action": "observe_original_attempt"})
+        elif not (allow_due and state == "scheduled" and row.get("recovery_due")):
+            error = wait_error(row)
+            if error:
+                raise error
 
     async def generation_profile(self, request):
         """Read the selected native route without creating an attempt or permit."""
@@ -744,6 +816,8 @@ class ModelBroker:
                 result = ModelResult((), receipt(row))
             yield ModelEvent("receipt", receipt=result.receipt, data=result)
             return
+        if resume:
+            await self.ledger.prestart_check(request.attempt_id, active=False)
         yield ModelEvent("accepted", receipt=receipt(row))
         if request.attempt_id in self.active:
             raise AppError("attempt_already_running", status=409)
@@ -795,6 +869,7 @@ class ModelBroker:
             # after the shared supplier permit has actually been granted.
             request = replace(request, budget=execution_budget(request))
             async with request.budget.timeout():
+                await self.ledger.prestart_check(request.attempt_id, active=True)
                 await self.recheck(request)
                 if not self.ready:
                     raise AppError("broker_stopping", status=503)
@@ -971,6 +1046,11 @@ class ModelBroker:
                 pass
             yield ModelEvent("receipt", receipt=result.receipt, data=result)
         except BaseException as exc:
+            if isinstance(exc, RecoveryWait) and not submitted:
+                if acquired:
+                    await finish_cleanup(self.scheduler.release(plan.quota_group, request.attempt_id, not_started=True))
+                    acquired = False
+                raise
             # A submitted request may have run even if the client saw no output.
             status = (
                 "unknown"

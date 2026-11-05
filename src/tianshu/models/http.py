@@ -105,8 +105,13 @@ def create_broker_app(broker, token, external_keys=()):
                     "lookup_state": "absent", "receipt": None, "cancel_requested": None})
             raise missing_receipt(attempt_id)
         request["model_lookup_state"] = "found"
-        return json_response({"attempt_id": attempt_id, "lookup_phase": phase, "lookup_state": "found",
-                              "receipt": receipt(row), "cancel_requested": row["cancel_requested"]})
+        value = {"attempt_id": attempt_id, "lookup_phase": phase, "lookup_state": "found",
+                 "receipt": receipt(row), "cancel_requested": row["cancel_requested"]}
+        if row["status"] == "queued" and row.get("recovery_state"):
+            saved_wait = row.get("recovery_wait") or {}
+            value["recovery"] = {"state": row["recovery_state"], "due_at": row.get("recovery_due_at"),
+                                 "wait": saved_wait.get("envelope") if isinstance(saved_wait, dict) else None}
+        return json_response(value)
 
     async def cancel(request):
         body = await request.json() if request.can_read_body else {}

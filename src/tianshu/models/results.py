@@ -25,15 +25,25 @@ async def read_result(broker, attempt_id, *, context):
     row = await broker.ledger.get(attempt_id)
     if row is None:
         return None
-    selected = await check_attempt_context(broker, row, context)
+    try:
+        selected = await check_attempt_context(broker, row, context)
+    except RecoveryWait as exc:
+        from .recovery_wait import preserve_wait_safety
+        if row["principal_id"] == context.principal_id and row["context_fingerprint"] == context_fingerprint(context):
+            preserve_wait_safety(row, exc)
+        raise
     try:
         await broker.recheck(SimpleNamespace(context=context, source_refs=selected))
-    except RecoveryWait:
+    except RecoveryWait as exc:
+        from .recovery_wait import preserve_wait_safety
+        preserve_wait_safety(row, exc)
         raise
     except AppError as exc:
         if exc.status not in {401, 403, 409}:
             raise
         return ModelResult((), receipt(row))
+    if row.get("recovery_state"):
+        broker._raise_prestart_observation(row)
     if row["protocol"] == "external" or row["result"] is None or row["status"] not in {"succeeded", "failed"}:
         return ModelResult((), receipt(row))
     return result_from_wire({**row["result"], "receipt": wire(receipt(row))})
@@ -70,8 +80,16 @@ async def read_reusable_result(broker, attempt_id, *, context, expected_request_
     row = await broker.ledger.get(attempt_id)
     if row is None:
         raise missing_receipt(attempt_id)
-    selected = await check_attempt_context(broker, row, context)
-    await broker.recheck(SimpleNamespace(context=context, source_refs=selected))
+    try:
+        selected = await check_attempt_context(broker, row, context)
+        await broker.recheck(SimpleNamespace(context=context, source_refs=selected))
+    except RecoveryWait as exc:
+        from .recovery_wait import preserve_wait_safety
+        if row["principal_id"] == context.principal_id and row["context_fingerprint"] == context_fingerprint(context):
+            preserve_wait_safety(row, exc)
+        raise
+    if row.get("recovery_state"):
+        broker._raise_prestart_observation(row)
     original = receipt(row)
     validate_reusable_receipt(original, attempt_id,
         expected_request_digest=expected_request_digest, expected_data_generation=expected_data_generation)

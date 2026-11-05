@@ -67,19 +67,18 @@ async def test_losing_resumed_driver_cannot_finish_or_modify_winning_receipt(dat
     new = broker_with_fixture_transport(database, plan, post)
     await old.ledger.create(request, plan, {"tokens": 2053}, frozen=request)
     entered_old, entered_new, release_old, release_new = (asyncio.Event() for _ in range(4))
-    old_started, new_started = old.ledger.started, new.ledger.started
+    new_started = new.ledger.started
 
-    async def pause_old(*args, **kwargs):
+    async def pause_old(*_args, **_kwargs):
         entered_old.set()
         await release_old.wait()
-        return await old_started(*args, **kwargs)
 
     async def pause_new(*args, **kwargs):
         entered_new.set()
         await release_new.wait()
         return await new_started(*args, **kwargs)
 
-    old.ledger.started, new.ledger.started = pause_old, pause_new
+    old.scheduler.acquire, new.ledger.started = pause_old, pause_new
     tasks = []
     try:
         retry = replace(request, budget=RequestBudget(datetime.now(UTC) + timedelta(minutes=5)))

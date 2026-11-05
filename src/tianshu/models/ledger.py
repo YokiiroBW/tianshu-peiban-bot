@@ -215,20 +215,86 @@ class AttemptLedger:
             if row is None:
                 raise AppError("attempt_not_found", status=404)
             saved = await (await conn.execute(
-                "SELECT request_digest,request FROM models.submissions WHERE attempt_id=%s",
+                "SELECT request_digest,request,recovery_state,recovery_wait,recovery_due_at,"
+                "(recovery_due_at<=now()) AS recovery_due FROM models.submissions WHERE attempt_id=%s FOR UPDATE",
                 (request.attempt_id,))).fetchone()
             if not saved or saved["request"] is None or saved["request_digest"] != submission_digest(request):
                 raise AppError("attempt_identity_conflict", status=409)
             require_generation(row["data_generation"], current)
             if request.data_generation is not None:
                 require_generation(request.data_generation, generation_id(row["data_generation"]))
+            state = saved["recovery_state"]
+            if state in {"checking", "observe_only"} or (state == "scheduled" and not saved["recovery_due"]):
+                return await self._cancellation(conn, row), False, saved["request"]
+            if state == "scheduled":
+                from .recovery_wait import decode_wait, safely_retryable
+
+                try:
+                    valid_due = decode_wait(saved["recovery_wait"]).retry_at == saved["recovery_due_at"]
+                except (TypeError, ValueError):
+                    valid_due = False
+                if not valid_due or not safely_retryable(saved["recovery_wait"]):
+                    await conn.execute("UPDATE models.submissions SET recovery_state='observe_only' "
+                                       "WHERE attempt_id=%s", (request.attempt_id,))
+                    return await self._cancellation(conn, row), False, saved["request"]
             claimed = await (await conn.execute(
                 "UPDATE models.attempts SET broker_instance=%s,revision=revision+1 "
                 "WHERE attempt_id=%s AND status='queued' AND dispatch='not_started' "
                 "AND NOT cancel_requested AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
                 "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
                 (self.instance_id, request.attempt_id))).fetchone()
+            if claimed is not None:
+                await conn.execute("UPDATE models.submissions SET recovery_state='checking',"
+                                   "recovery_due_at=NULL,recovery_wait=NULL WHERE attempt_id=%s",
+                                   (request.attempt_id,))
             return await self._cancellation(conn, claimed or row), claimed is not None, saved["request"]
+
+    async def prestart_check(self, attempt_id, *, active):
+        """Fence dependency checks before they can leave ambiguous remote evidence."""
+        async with self.database.transaction(control=True) as conn:
+            row = await (await conn.execute(
+                "SELECT status,dispatch,broker_instance,cancel_requested FROM models.attempts "
+                "WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+            if (not row or row["status"] != "queued" or row["dispatch"] != "not_started"
+                    or row["broker_instance"] != self.instance_id or row["cancel_requested"]):
+                raise AppError("attempt_owner_changed", status=409)
+            if active:
+                updated = await (await conn.execute(
+                    "UPDATE models.submissions SET recovery_state='checking' "
+                    "WHERE attempt_id=%s AND recovery_state IS NULL RETURNING attempt_id",
+                    (attempt_id,))).fetchone()
+            else:
+                updated = await (await conn.execute(
+                    "UPDATE models.submissions SET recovery_state=NULL "
+                    "WHERE attempt_id=%s AND recovery_state='checking' RETURNING attempt_id",
+                    (attempt_id,))).fetchone()
+            if updated is None:
+                raise AppError("model_prestart_observation_required", status=503,
+                               details={"attempt_id": attempt_id, "action": "observe_original_attempt"})
+
+    async def save_prestart_wait(self, attempt_id, wait):
+        """Persist a wait only for this owner's original unstarted attempt."""
+        from tianshu.runtime.recovery_policy import recovery_wait_retryable
+        from .recovery_wait import encode_wait
+
+        try:
+            evidence = encode_wait(wait)
+        except (TypeError, ValueError):
+            evidence = None
+        state = "scheduled" if evidence is not None and recovery_wait_retryable(wait) else "observe_only"
+        due = wait.retry_at if evidence is not None else None
+        async with self.database.transaction(control=True) as conn:
+            row = await (await conn.execute(
+                "SELECT status,dispatch,broker_instance,cancel_requested FROM models.attempts "
+                "WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+            if (not row or row["status"] != "queued" or row["dispatch"] != "not_started"
+                    or row["broker_instance"] != self.instance_id or row["cancel_requested"]):
+                return False
+            updated = await (await conn.execute(
+                "UPDATE models.submissions SET recovery_state=%s,recovery_due_at=%s,recovery_wait=%s "
+                "WHERE attempt_id=%s AND (recovery_state IS NULL OR recovery_state='checking') RETURNING attempt_id",
+                (state, due, Jsonb(evidence) if evidence is not None else None, attempt_id))).fetchone()
+            return updated is not None
 
     @staticmethod
     async def _attach_completion(connection, saved, completion):
@@ -247,7 +313,8 @@ class AttemptLedger:
         async with self.database.transaction(control=True) as conn:
             current = await current_generation_on(conn) if completion is not None else None
             saved = await (await conn.execute(
-                "SELECT s.*,a.data_generation FROM models.submissions s JOIN models.attempts a USING(attempt_id) "
+                "SELECT s.*,a.data_generation,(s.recovery_due_at<=now()) AS recovery_due "
+                "FROM models.submissions s JOIN models.attempts a USING(attempt_id) "
                 "WHERE s.attempt_id=%s FOR UPDATE OF s", (request.attempt_id,))).fetchone()
             if not saved:
                 return None
@@ -265,7 +332,9 @@ class AttemptLedger:
             row = {**row, "submission_digest": saved["request_digest"],
                    "completion_digest": saved["completion_digest"],
                    "completion_state": saved["completion_state"],
-                   "completion_error_code": saved["completion_error_code"]}
+                   "completion_error_code": saved["completion_error_code"],
+                   "recovery_state": saved["recovery_state"], "recovery_wait": saved["recovery_wait"],
+                   "recovery_due_at": saved["recovery_due_at"], "recovery_due": saved["recovery_due"]}
             return await self._cancellation(conn, row), saved["streaming"]
 
     async def pending_submissions(self):
@@ -273,8 +342,48 @@ class AttemptLedger:
             return await (await conn.execute(
                 "SELECT s.request,s.streaming,a.queued_at FROM models.submissions s "
                 "JOIN models.attempts a USING(attempt_id) "
-                "WHERE a.status='queued' AND NOT a.cancel_requested AND s.request IS NOT NULL "
+                "WHERE a.status='queued' AND a.dispatch='not_started' AND NOT a.cancel_requested AND s.request IS NOT NULL "
+                "AND (s.recovery_state IS NULL OR (s.recovery_state='scheduled' AND s.recovery_due_at<=now())) "
                 "ORDER BY a.queued_at,a.attempt_id")).fetchall()
+
+    async def wakeable_submissions(self, *, after=None, limit=100):
+        async with self.database.transaction(control=True, read_only=True) as conn:
+            return await (await conn.execute(
+                "SELECT s.attempt_id,s.request,s.streaming,COALESCE(s.recovery_due_at,a.queued_at) AS wake_at "
+                "FROM models.submissions s "
+                "JOIN models.attempts a USING(attempt_id) WHERE a.status='queued' AND a.dispatch='not_started' "
+                "AND NOT a.cancel_requested AND s.request IS NOT NULL AND "
+                "((s.recovery_state='scheduled' AND s.recovery_due_at<=now()) OR "
+                "(s.recovery_state IS NULL AND a.broker_instance IS DISTINCT FROM %s)) "
+                "AND (%s::timestamptz IS NULL OR "
+                "(COALESCE(s.recovery_due_at,a.queued_at),s.attempt_id)>(%s::timestamptz,%s)) "
+                "ORDER BY COALESCE(s.recovery_due_at,a.queued_at),s.attempt_id LIMIT %s",
+                (self.instance_id, after[0] if after else None, after[0] if after else None,
+                 after[1] if after else "", limit))).fetchall()
+
+    async def expire_stale_recovery_submissions(self):
+        """A scheduled old-generation request cannot be resumed after a cutover."""
+        async with self.database.transaction(control=True) as conn:
+            current = await current_generation_on(conn)
+            rows = await (await conn.execute(
+                "UPDATE models.attempts a SET status='cancelled',finished_at=now(),revision=revision+1,"
+                "error_code='data_generation_expired' FROM models.submissions s "
+                "WHERE s.attempt_id=a.attempt_id AND s.recovery_state='scheduled' "
+                "AND a.status='queued' AND a.dispatch='not_started' "
+                "AND NOT a.cancel_requested AND NOT EXISTS (SELECT 1 FROM models.cancellations c "
+                "WHERE c.attempt_id=a.attempt_id) "
+                "AND a.data_generation IS DISTINCT FROM %s RETURNING a.*", (current,))).fetchall()
+            for row in rows:
+                await self._record_statistics(conn, row)
+
+    async def block_invalid_recovery(self, attempt_id):
+        async with self.database.transaction(control=True) as conn:
+            row = await (await conn.execute("SELECT status,dispatch FROM models.attempts "
+                "WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+            if not row or row["status"] != "queued" or row["dispatch"] != "not_started":
+                return
+            await conn.execute("UPDATE models.submissions SET recovery_state='observe_only' "
+                "WHERE attempt_id=%s AND (recovery_state IS NULL OR recovery_state='scheduled')", (attempt_id,))
 
     async def append_event(self, attempt_id, event, *, validate):
         async with self.database.transaction(control=True) as conn:
@@ -337,6 +446,8 @@ class AttemptLedger:
     async def get(self, attempt_id):
         async with self.database.transaction(control=True, read_only=True) as conn:
             cursor = await conn.execute("SELECT a.*,c.reason AS cancellation_reason,s.streaming,s.stream_truncated,"
+                                        "s.recovery_state,s.recovery_due_at,s.recovery_wait,"
+                                        "(s.recovery_due_at<=now()) AS recovery_due,"
                                         "s.request_digest AS submission_digest,s.completion_digest,"
                                         "s.completion_state,s.completion_error_code,"
                                         "(SELECT count(*) FROM models.stream_events e WHERE e.attempt_id=a.attempt_id) AS recorded_events "
@@ -392,6 +503,12 @@ class AttemptLedger:
             require_generation(original["data_generation"], current)
             if original["broker_instance"] != self.instance_id:
                 raise AppError("attempt_owner_changed", status=409)
+            submission = await (await conn.execute(
+                "SELECT recovery_state FROM models.submissions WHERE attempt_id=%s FOR UPDATE",
+                (attempt_id,))).fetchone()
+            if submission and submission["recovery_state"] in {"scheduled", "observe_only"}:
+                raise AppError("model_prestart_observation_required", status=503,
+                               details={"attempt_id": attempt_id, "action": "observe_original_attempt"})
             cursor = await conn.execute(
                 "UPDATE models.attempts SET status='running',dispatch='submitted',started_at=now(),"
                 "execution_started_at=CASE WHEN execution_start='admitted' THEN COALESCE(execution_started_at,now()) ELSE execution_started_at END,"
@@ -408,6 +525,9 @@ class AttemptLedger:
             row = await cursor.fetchone()
             if not row:
                 raise AppError("attempt_cancelled_before_start", status=409)
+            if submission and submission["recovery_state"] == "checking":
+                await conn.execute("UPDATE models.submissions SET recovery_state=NULL WHERE attempt_id=%s",
+                                   (attempt_id,))
             await self._record_statistics(conn, row)
             return row
 
