@@ -140,7 +140,9 @@ async def test_unconfirmed_control_status_cannot_authorize_successor(database, p
     await growth.organize('actor', scope, 1, GENERATION)
     original = models.submitted[0][0]
     models.results[original.attempt_id] = unknown_result(original)
+    jobs_before_failure = len(growth.jobs.items)
     failure = await growth.organize('actor', scope, 1, GENERATION)
+    jobs_after_failure = len(growth.jobs.items)
     if failure['state'] == 'retry_waiting':
         await make_due(database)
         await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
@@ -150,7 +152,12 @@ async def test_unconfirmed_control_status_cannot_authorize_successor(database, p
     assert len(models.submitted) == 1
     assert attempts == [{'attempt_id': original.attempt_id, 'status': 'unknown'}]
     assert recorded['n'] == (0 if phase == 'record' else 1)
-    assert (await retry_row(database))['state'] == ('blocked' if failure_mode == 'explicit_cancel' else 'waiting')
+    row = await retry_row(database)
+    assert row['state'] == ('blocked' if failure_mode == 'explicit_cancel' else 'waiting')
+    if failure_mode == 'explicit_cancel':
+        assert row['last_error'] == 'explicit_cancel' and row['due_at'] is None
+        cancelled_at = jobs_before_failure if phase == 'record' else jobs_after_failure
+        assert all(job.task != 'companion.growth.retry' for job in growth.jobs.items[cancelled_at:])
 
 
 @pytest.mark.asyncio
@@ -310,26 +317,53 @@ async def test_late_original_settles_only_itself_after_unknown_successor_selecte
         await original_task
 
 
+async def assert_original_observation_wait(database, growth, models, scope, original, failure, code):
+    await make_due(database)
+    before = await retry_row(database)
+    original_result = models.results[original.attempt_id]
+    jobs_before = len(growth.jobs.items)
+    started = datetime.now(UTC)
+    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+    finished = datetime.now(UTC)
+
+    row = await retry_row(database)
+    assert outcome['state'] == 'waiting_original' and outcome['error_code'] == code
+    assert row['state'] == 'waiting' and row['waiting_on_original'] and row['last_error'] == code
+    assert row['retry_key'] == failure['retry_key'] and row['current_material_key'] == original.intent_id
+    assert row['attempt_number'] == 1 and row['history'] == before['history']
+    assert started + timedelta(minutes=5) <= row['due_at'] <= finished + timedelta(minutes=5)
+    assert (await state(database))['active_batch'] is None
+    assert len(models.submitted) == 1 and models.submitted[0][0].attempt_id == original.attempt_id
+    assert models.results[original.attempt_id] is original_result and original_result.receipt.status == 'unknown'
+    async with database.transaction(read_only=True) as connection:
+        attempts = await (await connection.execute(
+            'SELECT attempt_id,status,error_code FROM runtime.recovery_attempts ORDER BY attempt_number')).fetchall()
+        lineage = await (await connection.execute(
+            'SELECT attempts,cancelled,source_withdrawn FROM runtime.recovery_lineages')).fetchone()
+    assert attempts == [{'attempt_id': original.attempt_id, 'status': 'unknown', 'error_code': 'transport_unknown'}]
+    assert lineage == {'attempts': 1, 'cancelled': False, 'source_withdrawn': False}
+    observation_jobs = growth.jobs.items[jobs_before:]
+    assert len(observation_jobs) == 1 and observation_jobs[0].task == 'companion.growth.retry'
+    assert observation_jobs[0].scheduled_at == row['due_at']
+    assert observation_jobs[0].payload == {'actor_id': 'actor', 'scope_key': scope,
+                                          'retry_key': failure['retry_key'], 'generation': GENERATION}
+
+
 @pytest.mark.asyncio
 async def test_revoked_source_prevents_unknown_successor(database):
     growth, _context, _memory, models, scope, original, failure = await start_unknown(database)
     async def revoked(*_args):
         return False
     growth.companion.sources.validate_persistence = revoked
-    await make_due(database)
-    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
-    assert outcome['state'] == 'retry_blocked' and outcome['error_code'] == 'source_unavailable'
-    assert len(models.submitted) == 1 and models.submitted[0][0].attempt_id == original.attempt_id
+    await assert_original_observation_wait(database, growth, models, scope, original, failure, 'source_unavailable')
 
 
 @pytest.mark.asyncio
 async def test_revised_original_episode_prevents_unknown_successor(database):
     growth, _context, memory, models, scope, original, failure = await start_unknown(database)
     memory.episodes = (replace(memory.episode, revision=2),)
-    await make_due(database)
-    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
-    assert outcome['state'] == 'retry_blocked' and outcome['error_code'] == 'reflection_episode_unavailable'
-    assert len(models.submitted) == 1 and models.submitted[0][0].attempt_id == original.attempt_id
+    await assert_original_observation_wait(database, growth, models, scope, original, failure,
+                                           'reflection_episode_unavailable')
 
 
 @pytest.mark.asyncio
@@ -339,7 +373,4 @@ async def test_lost_authorization_prevents_unknown_successor(database):
         raise AppError('access_changed', status=403)
     growth.companion.identity.check = denied
     growth.companion.identity.refresh_scheduled_context = denied
-    await make_due(database)
-    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
-    assert outcome['state'] == 'retry_blocked' and outcome['error_code'] == 'access_changed'
-    assert len(models.submitted) == 1 and models.submitted[0][0].attempt_id == original.attempt_id
+    await assert_original_observation_wait(database, growth, models, scope, original, failure, 'access_changed')
