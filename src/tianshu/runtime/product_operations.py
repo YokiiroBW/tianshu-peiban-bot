@@ -30,7 +30,21 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
     async def diagnostic_context():
         return await authority.identity.system_context(principal_id, permission="config.publish")
 
+    async def reconcile_transport(domain, callback):
+        key = "operations.transport." + domain
+        try:
+            result = await callback(limit=32)
+        except Exception as error:
+            runtime.module_status[key] = {"state": "unavailable", "error": type(error).__name__}
+            return
+        runtime.module_status[key] = {
+            "state": "ready", "inspected": result["inspected"],
+            "scheduled": result["scheduled"], "ineligible": result["ineligible"],
+            "changes": len(result["changes"]),
+        }
+
     async def plan_progress():
+        await reconcile_transport("life", plan_recovery.reconcile_transport_waits)
         observed = await plan_recovery.observe_due_retirements(limit=32)
         runtime.module_status["operations.plan_retirements"] = {
             "state": "unavailable" if observed["unavailable"] else "ready",
@@ -43,6 +57,14 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
             if fact.get("business_blocked") is not False
         )
 
+    async def memory_progress():
+        await reconcile_transport("memory", memory.consolidation.reconcile_transport_waits)
+        return await memory.recovery_candidates(limit=32)
+
+    async def growth_progress():
+        await reconcile_transport("growth", growth.retries.reconcile_transport_waits)
+        return await growth.operations.progress(limit=32)
+
     async def progress():
         readers = []
         if life_worker is not None:
@@ -53,9 +75,9 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
         if index_jobs is not None:
             readers.append(("memory_index", index_jobs.recovery_candidates(limit=32)))
         if memory is not None:
-            readers.append(("memory_consolidation", memory.recovery_candidates(limit=32)))
+            readers.append(("memory_consolidation", memory_progress()))
         if growth is not None:
-            readers.append(("growth", growth.operations.progress(limit=32)))
+            readers.append(("growth", growth_progress()))
         values = await asyncio.gather(*(reader for _, reader in readers), return_exceptions=True)
         facts = []
         for (domain, _), value in zip(readers, values):

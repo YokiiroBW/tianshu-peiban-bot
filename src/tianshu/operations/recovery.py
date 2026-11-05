@@ -268,10 +268,15 @@ class RecoveryExecutor:
                 if not previous or previous["status"] != facts["original_state"]:
                     raise AppError("domain_recovery_not_eligible", status=409)
                 if previous["status"] == "failed":
-                    if lineage["attempts"] >= lineage["max_attempts"] or lineage["due_at"] is None:
+                    budget = await self.policy.computation_budget_on(
+                        conn, lineage_id, owner=lineage["owner"],
+                        expected_version=str(facts["version"]),
+                    )
+                    if not budget["can_retry"] or lineage["due_at"] is None:
                         raise AppError("domain_recovery_not_eligible", status=409)
-                    if lineage["due_at"] > lineage["observed_now"]:
-                        raise AppError("domain_recovery_not_due", status=409, details={"due_at": lineage["due_at"]})
+                    due_at = budget["retry_at"] or lineage["due_at"]
+                    if due_at > lineage["observed_now"]:
+                        raise AppError("domain_recovery_not_due", status=409, details={"due_at": due_at})
                 elif previous["status"] != "succeeded":
                     raise AppError("domain_recovery_not_eligible", status=409)
         identity = json.dumps([generation, facts.get("policy_domain") or action.name, facts["material_id"]],

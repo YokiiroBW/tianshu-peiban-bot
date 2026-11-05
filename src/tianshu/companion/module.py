@@ -64,5 +64,6 @@ def create_module(service, growth, identity):
         migrations=(Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),
             Migration("0034_companion_growth_batches", files("tianshu.companion").joinpath("growth_batches.sql").read_text()),
             Migration("0037_companion_growth_retry", files("tianshu.companion").joinpath("growth_retry.sql").read_text()),
+            Migration("rbh_growth_transport", files("tianshu.companion").joinpath("rbh_growth_transport.sql").read_text(encoding="utf-8")),
             Migration("0039_companion_learning", files("tianshu.companion").joinpath("habit_revisions.sql").read_text()),
             Migration("0040_companion_remove_legacy_growth", files("tianshu.companion").joinpath("growth_remove_legacy.sql").read_text())),)
