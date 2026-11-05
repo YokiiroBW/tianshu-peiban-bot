@@ -18,7 +18,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-runtime/tianshu-peiban-bot",
       "branch": "codex/rbf-runtime-20261105",
-      "status": "ready_for_integration",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/runtime/database.py",
         "src/tianshu/runtime/jobs.py",
@@ -36,7 +36,11 @@
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "9403778a",
+        "e24b8aef"
+      ]
     },
     {
       "id": "RBF-02",
@@ -103,7 +107,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-sources/tianshu-peiban-bot",
       "branch": "codex/rbf-sources-20261105",
-      "status": "ready_for_integration",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/sources/",
         "src/tianshu/identity/",
@@ -120,7 +124,12 @@
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "46d1615c",
+        "e3665de1",
+        "b88221d6"
+      ]
     },
     {
       "id": "RBF-06",
@@ -158,13 +167,16 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-growth/tianshu-peiban-bot",
       "branch": "codex/rbf-growth-20261105",
-      "status": "implementing",
+      "status": "ready_for_integration",
       "allowed_paths": [
         "src/tianshu/companion/",
         "tests/companion/test_rbf_*.py",
         "tests/companion/test_rb_growth_async.py"
       ],
-      "commits": [],
+      "commits": [
+        "3452fca7a1fe85dc59f8f0ee711cfabe976607b6",
+        "c349a3334ab568f495e2234a1756b71a07c16d4d"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -178,7 +190,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-observability/tianshu-peiban-bot",
       "branch": "codex/rbf-observability-20261105",
-      "status": "implementing",
+      "status": "ready_for_integration_rpc_followup_active",
       "allowed_paths": [
         "src/tianshu/operations/",
         "src/tianshu/runtime/api.py",
@@ -193,7 +205,10 @@
         "src/tianshu/channels/ingress.py",
         "src/tianshu/channels/delivery.py"
       ],
-      "commits": [],
+      "commits": [
+        "0ec7059f512db6001dce882edef3f28a1451afcd",
+        "89be0a1d20197a002c03b38d0aad59539f8b5404"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -229,5 +244,19 @@
     "553cf173",
     "a53c95c2"
   ],
-  "next_step": "collect implementation commits, integrate serially, run centralized relevant checks"
+  "next_step": "collect implementation commits, integrate serially, run centralized relevant checks",
+  "validation_state": "not_run_waiting_for_all_implementations",
+  "validation_database": {
+    "host": "192.168.31.230",
+    "port": 25019,
+    "container": "tianshu-rbf-test-pg-20261105",
+    "private_admin_record": ".runtime/rbf-execution-20261105/validation-pg.private.json",
+    "purpose": "isolated RBF verification only"
+  },
+  "pending_followups": [
+    "runtime typed wait RPC evidence",
+    "models owner CAS cleanup and typed wait RPC",
+    "observability typed wait envelope",
+    "Life and Conversation domain migrations"
+  ]
 }

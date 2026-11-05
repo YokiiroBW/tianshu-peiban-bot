@@ -33,3 +33,12 @@
 - Models request标记model_attempt_id/model_lookup_phase/model_lookup_state；事件字段映射attempt_id/lookup_phase/lookup_state。只有明确pre_submit+absent+200正常，不全局降级404。
 - `models.reusable_result(attempt_id,context=...,expected_request_digest=None,expected_data_generation=None)` 只复用原成功持久正文，拒绝明确取消、无正文、来源/身份失效及摘要/代际不符；不发新请求，不替代域提交时CAS。
 - 根rb_logs_query的去敏metadata白名单加入lookup_phase/lookup_state/pool_name/failure_phase；RBF-08维护api/events/logging和Operations消费。等待事件按明确状态表达，不计模型失败。
+
+## 完整链路补充确认
+
+- RPC等待位于error.recovery_wait，仅真实RecoveryWait序列化。Runtime提供recovery_wait_to_wire/from_wire，严格结构kind=recovery_wait/version=1/reason/retry_at/dependency/rollback_confirmed；Models客户端仅HTTP409且code/reason一致时还原，无效包协议错误。远端否定证据独立保存，本地回滚不能洗成可自动重试；API仅安全证据true记deferred。
+- Catalog.on_ready(context,capability_ids)只表示已知语义恢复current，批量机械唤醒；根绑定life.planning_ready，它仅唤醒reason=planner_capabilities_refresh的当前actor工作，不改语义指纹并保留5秒到期兜底。on_change仍只真实语义变化。
+- 幂等补准入：本地claimed/dispatch_started不证明Broker已登记。尚未确认登记时，可在同场景/来源/代际/期限及领域CAS有效前提下用存档完整同一request、attempt_id与completion幂等补准入，不能创建新ID或延长预算；Models driver合并、唯一键及queued→running CAS约束物理外发。已确认登记缺失及已有unknown只观察。
+- Models出现跨owner启动CAS输者错误收尾覆盖赢家的具体窄缺口，RBF-06追加本人queued/not_started+broker_instance条件的原子收尾修复；不得改已有running/unknown/终态及赢家诊断。
+- content.read result.recovery为字符串resume_material_read/resume_commit/observe_original_attempt/none；同级phase/outcome/retry_at/attempt_number/max_attempts。outcome=wait且attempt_number=0不代表已读取失败。原Action/原材料全部读取方式共用5次物理预算，提交续接不重新读取。Actions.resume携原attempt/receipt/result_revision CAS及可选活动recovery_guard；pending才路由切换，terminal阶段恢复。历史缺少可验证检查点不伪造恢复。
+- Conversation公共GenerationRequests的确认字段用于其run/claim路径；Life直接submit的本域确认字段是独立消费者的单调观察证据，均不构成第二个模型执行权威。

@@ -253,6 +253,7 @@ async def build_product(runtime):
             await life.signal(context, "capability-observation:" + caps.catalog.observation_digest(context))
 
     caps.catalog.on_change = capabilities_changed
+    caps.catalog.on_ready = life.planning_ready
     await caps.prepare()
     reading = ReadingService(life, caps.reading)
     writing.bind_completion(life.writing_completed, prepare=life.prepare_writing_completed)
