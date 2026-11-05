@@ -92,10 +92,10 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.generation_control",generation_control.work,retryable=True)
         queue.register("life.activate",clock.activate,retryable=True)
         queue.register("life.clock",clock.tick,retryable=True)
-        queue.register("life.plan", worker.plan, retryable=False)
-        queue.register("life.activity_step", worker.activity_step, retryable=False)
+        queue.register("life.plan", worker.plan, retryable=False, resource_recovery=True)
+        queue.register("life.activity_step", worker.activity_step, retryable=False, resource_recovery=True)
         queue.register("life.activity_cancel", worker.cancel_activity, retryable=False)
-        queue.register("life.activity_reconcile", worker.reconcile_activity, retryable=False)
+        queue.register("life.activity_reconcile", worker.reconcile_activity, retryable=False, resource_recovery=True)
         queue.register("life.recovery_observe_activity", worker.recovery_observe_activity, retryable=False)
         queue.register("life.statistics_replay", worker.statistics_replay, retryable=False)
         queue.register("life.statistics_backfill", worker.statistics_backfill, retryable=False)
@@ -103,14 +103,14 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.commitment_reconcile", worker.reconcile_commitment, retryable=False)
         queue.register("life.contact_due", worker.contact_due, retryable=False)
         queue.register("life.contact_reconcile", worker.reconcile_contact, retryable=False)
-        queue.register("life.diary_review", diaries.review_day, retryable=False)
+        queue.register("life.diary_review", diaries.review_day, retryable=False, resource_recovery=True)
         queue.register("life.diary_episode_changed", diaries.consume_episode_change,
             retryable=True, execution_lane=ExecutionLane.DIARY)
         queue.register("life.experience_statistics_backfill", generation_control.backfill_statistics,
             retryable=True, execution_lane=ExecutionLane.DIARY)
-        queue.register("life.diary_collect", diaries.collect, retryable=False)
-        queue.register("life.diary_generate", diaries.generate, retryable=False)
-        queue.register("life.chapter_generate", writing.generate, retryable=False)
+        queue.register("life.diary_collect", diaries.collect, retryable=False, resource_recovery=True)
+        queue.register("life.diary_generate", diaries.generate, retryable=False, resource_recovery=True)
+        queue.register("life.chapter_generate", writing.generate, retryable=False, resource_recovery=True)
 
     async def start(_runtime):
         if _runtime.role != "bot-background":
@@ -129,4 +129,5 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
             Migration("0035_life_planning_recovery", files("tianshu.life").joinpath("planning_recovery.sql").read_text()),
             Migration("0038_life_computation_retry", files("tianshu.life").joinpath("0038_life_computation_retry.sql").read_text()),
             Migration("0040_life_execution", files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),
+            Migration("rbf_life_planning_wake", files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text()),
         ))

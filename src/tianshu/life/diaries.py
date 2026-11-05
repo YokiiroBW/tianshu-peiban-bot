@@ -22,7 +22,8 @@ from .diary_automation import DiaryAutomation, automatic_view, diary_experience
 from .diary_materials import assemble_diary_material, episode_versions, frozen_recipe
 from .computation_retry import freeze_recipe
 from .diary_retry import DiaryRetry
-from .generation_control import GenerationRecovery, backfill_saved_statistics, frozen_data_generation, record_saved_on, submit_frozen
+from .generation_control import (GenerationRecovery, backfill_saved_statistics, defer_generation,
+    frozen_data_generation, observe_original, record_saved_on, submit_frozen)
 
 
 class DiaryService:
@@ -329,7 +330,7 @@ class DiaryService:
                     # Full audit originals retain their withdrawal dependencies;
                     # the model's selected sources remain explicit in its intent.
                     audit_refs = unique_refs(refs, frozen.source_refs)
-                    await freeze_recipe(self.life,connection,"diary",diary_id,generation_id,context,recipe,audit_refs)
+                    await freeze_recipe(self.life,connection,"diary",diary_id,generation_id,context,recipe,audit_refs,known_prepared=True)
                     await connection.execute("UPDATE life.diaries SET context=%s,generation_recipe=%s,source_refs=%s WHERE id=%s AND generation_id=%s",
                         (document(frozen.context),document(recipe),document(audit_refs),diary_id,generation_id))
             else:
@@ -338,13 +339,15 @@ class DiaryService:
                 async with self.life.database.transaction() as connection:
                     await self.life.jobs.assert_generation_on(connection,data_generation)
                     await freeze_recipe(self.life,connection,"diary",diary_id,generation_id,context,recipe,refs)
-            result = await self.generations.read(generation_id,frozen.context,observer=context)
             try:
-                receipt = await self.models.status(generation_id)
-            except Exception:
+                receipt, pre_submit = await observe_original(self.life,self.models,generation_id,data_generation)
+            except Exception as error:
+                from tianshu.runtime.recovery_policy import RecoveryWait
+                if isinstance(error,RecoveryWait) or getattr(error,"database_failure",None) is not None or getattr(error,"code",None)=="recovery_claim_lost":
+                    raise
                 await self._observe_later(diary_id,generation_id,context.actor_id,data_generation=data_generation)
                 return {"state":row["state"],"attempt_id":generation_id,"reason":"model_observation_unavailable"}
-            if result is None and receipt is None and row["state"] == "generating" and not row["generation_cancel_requested"]:
+            if receipt is None and pre_submit and row["state"] == "generating" and not row["generation_cancel_requested"]:
                 if frozen.context.access_epoch != context.access_epoch:
                     await self._generation_state(diary_id,generation_id,"failed","diary_original_authorization_changed",settle=True,data_generation=data_generation)
                     return {"state":"failed","attempt_id":generation_id,"reason":"diary_original_authorization_changed"}
@@ -353,11 +356,16 @@ class DiaryService:
                 receipt = await submit_frozen(self.life,self.models,self.generations,"diary:"+generation_id,
                     frozen,guard=current_generation,completion=completion,kind="diary",item_id=diary_id,
                     recovery=self.recovery)
-                if receipt.status == "succeeded":
-                    result = await self.generations.read(generation_id,frozen.context,observer=context)
-            if result is None and receipt is not None and receipt.status in {"queued", "running", "succeeded"}:
+            if receipt is None or receipt.status in {"queued", "running"}:
                 await self._observe_later(diary_id,generation_id,context.actor_id,data_generation=data_generation)
                 return {"state":"generating","attempt_id":generation_id}
+            if receipt.cancellation_reason == "explicit_cancel":
+                await self._generation_state(diary_id,generation_id,"cancelled","explicit_cancel",settle=True,data_generation=data_generation)
+                return {"state":"cancelled","attempt_id":generation_id}
+            if receipt.status == "succeeded":
+                reader = self.generations.observer_context(frozen.context,context)
+                result = await self.models.reusable_result(generation_id,context=reader,
+                    expected_request_digest=receipt.request_digest,expected_data_generation=data_generation)
             if result is None:
                 return await self.retry.failed(row,context,frozen=frozen)
             observed_state = result.receipt.status
@@ -375,6 +383,12 @@ class DiaryService:
             if observed_state != "succeeded" or not generated_text(result).strip():
                 raise AppError(generation_error(result,"diary_generation_failed"))
             latest=await self.models.status(generation_id)
+            if latest is None or latest.attempt_id != generation_id or latest.status != "succeeded":
+                if latest and getattr(latest,"cancellation_reason",None)=="explicit_cancel":
+                    await self._generation_state(diary_id,generation_id,"cancelled","explicit_cancel",settle=True,data_generation=data_generation)
+                    return {"state":"cancelled","attempt_id":generation_id}
+                await self._observe_later(diary_id,generation_id,context.actor_id,data_generation=data_generation)
+                return {"state":row["state"],"attempt_id":generation_id,"reason":"model_observation_unavailable"}
             if latest and getattr(latest,"cancellation_reason",None)=="explicit_cancel":
                 await self._generation_state(diary_id,generation_id,"cancelled","explicit_cancel",settle=True,data_generation=data_generation)
                 return {"state":"cancelled","attempt_id":generation_id}
@@ -382,14 +396,18 @@ class DiaryService:
             saved = await self.save_generated(context,diary_id,generation_id,recipe,result,refs)
             return {"state":"draft" if saved else "stale","attempt_id":generation_id}
         except BaseException as error:
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            if isinstance(error, RecoveryWait):
+                return await defer_generation(self.life,"diary",diary_id,generation_id,context.actor_id,data_generation,error)
+            if getattr(error,"database_failure",None) is not None:
+                raise
             code = getattr(error,"code",type(error).__name__)
+            if code == "recovery_claim_lost":
+                raise
             if code in {"job_generation_expired","job_generation_missing"}:
                 raise
             if code == "generation_no_longer_current":
                 return {"state":"changed_since_generation","attempt_id":generation_id}
-            if code in {"recovery_not_due", "recovery_dependency_cooling", "recovery_dependency_probe_in_progress", "recovery_claim_lost"}:
-                await self._observe_later(diary_id,generation_id,context.actor_id,data_generation=data_generation)
-                return {"state":"generating","attempt_id":generation_id,"reason":code}
             if code == "recovery_attempt_not_dispatchable":
                 return await self.retry.failed(row,context,error=error,frozen=frozen)
             from tianshu.models.retry import transient_model_failure

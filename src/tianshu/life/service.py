@@ -316,6 +316,23 @@ class LifeService:
                 raise AppError("invalid_activity_transition", status=409)
             if target == "running" and not explicit and not background_work(row["checkpoint_data"]) and row["protected_until"] and row["protected_until"] > datetime.now(UTC):
                 raise AppError("activity_protected", status=409, details={"until": row["protected_until"].isoformat()})
+            pending_recovery = row["checkpoint_data"].get("capability_recovery") or {}
+            if (target == "running" and explicit and row["state"] == "paused" and row["action_id"]
+                    and pending_recovery.get("action_id") == row["action_id"] and pending_recovery.get("receipt_id") == row["last_receipt_id"]
+                    and pending_recovery.get("result_revision") == row["last_result_revision"]):
+                due = timestamp(pending_recovery.get("due_at"),optional=True) or datetime.now(UTC)
+                next_revision = row["revision"]+1
+                await connection.execute("UPDATE life.activities SET state='dormant',revision=%s,waiting_reason='capability_recovery',"
+                    "resume_condition='original_action_recovery',next_due_at=%s,updated_at=now() WHERE id=%s",
+                    (next_revision,due,activity_id))
+                await connection.execute("UPDATE life.day_slots SET state='waiting_result',revision=revision+1 "
+                    "WHERE activity_id=%s AND state='paused'",(activity_id,))
+                await self.jobs.enqueue(connection,JobSpec("life.activity_reconcile",f"activity-resume-recovery:{activity_id}:{next_revision}",
+                    {"activity_id":activity_id,"context":self._context(context),"sequence":0},
+                    scheduled_at=max(due,datetime.now(UTC)),subject_id=context.actor_id))
+                await self.signal(context,f"activity-user:{activity_id}:{next_revision}",connection=connection)
+                return CommandResult(body["client_request_id"],{"id":activity_id,"revision":next_revision,
+                    "state":"dormant","action_id":row["action_id"]},next_revision)
             if target == "running" and not action_resolved(row):
                 raise AppError("outcome_unknown", status=409, details={"action_id": row["action_id"]})
             if target=='running' and row['waiting_reason']=='follow_up_available':
@@ -551,6 +568,13 @@ class LifeService:
         await self.validate_persistence(connection,context)
         return await signal(connection,self.jobs,context,watermark,change=change)
 
+    async def planning_ready(self, context, capability_ids):
+        from .planning import planning_ready
+        await self.identity.check(context)
+        async with self.database.transaction() as connection:
+            await self.validate_persistence(connection,context)
+            return await planning_ready(connection,self.jobs,context,capability_ids)
+
     async def received(self, context, *, input_id, occurred_at, connection):
         from .events import wake
         await self.validate_persistence(connection, context)
@@ -570,6 +594,10 @@ class LifeService:
         else:
             await wake(self, context, kind=kind, subject_id=subject_id, event_id=event_id, connection=connection)
 
-    async def writing_completed(self,context,chapter,refs,connection):
+    async def prepare_writing_completed(self,context,chapter_id):
+        from .writing_progress import prepare_completed
+        return await prepare_completed(self,context,chapter_id)
+
+    async def writing_completed(self,context,chapter,refs,connection,*,prepared=None):
         from .writing_progress import completed
-        return await completed(self,context,chapter,refs,connection)
+        return await completed(self,context,chapter,refs,connection,prepared=prepared)

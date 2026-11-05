@@ -19,7 +19,7 @@ from .attention import contact_expiry
 from .salience import evaluate, fingerprint, similarity, interest_fit
 from .imagined import record_completed_imagined
 from .continuation import (READ_CAPABILITIES, action_resolved, automatic_step, completed_target, discovery_progress, execution_window, failed_read_checkpoint,
-    failed_target, known_read_failure, options, remaining_actions, resumed_checkpoint, submitted_checkpoint, unread_coverage)
+    failed_target, known_read_failure, options, recoverable_action, remaining_actions, resumed_checkpoint, submitted_checkpoint, unread_coverage)
 from .types import ContactCandidate, PreparedContact
 from .eligibility import background_work, evaluate as activity_eligibility
 from . import planner
@@ -36,6 +36,27 @@ def future_occurrence(row, now):
         if candidate > current and (row["recurrence"] == "daily" or candidate.weekday() in row["weekdays"]):
             return candidate.astimezone(UTC)
     return None
+
+
+def capability_recovery_due(result, activity):
+    """A saved business deadline remains a bound on the original Action."""
+    now = datetime.now(UTC)
+    raw = result.result.get("retry_at")
+    try:
+        due = datetime.fromisoformat(raw) if isinstance(raw, str) else raw
+        if due is not None and (not isinstance(due, datetime) or due.utcoffset() is None):
+            due = None
+    except ValueError:
+        due = None
+    due = max(now, due) if due else now + timedelta(seconds=5)
+    raw_deadline = (activity.get("checkpoint_data", {}).get("frozen_action") or {}).get("deadline_at")
+    try:
+        deadline = datetime.fromisoformat(raw_deadline) if isinstance(raw_deadline, str) else raw_deadline
+    except ValueError:
+        return None
+    if deadline is not None and (not isinstance(deadline, datetime) or deadline.utcoffset() is None or due >= deadline):
+        return None
+    return due
 
 
 class LifeWorker:
@@ -56,10 +77,21 @@ class LifeWorker:
 
     async def plan(self, actor_id, revision, context, data_generation):
         from .planning_engine import PlanningEngine
+        from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
         execution_generation = current_execution_generation()
         if execution_generation is not None and execution_generation != data_generation:
             raise AppError("job_generation_expired", status=409)
-        return await PlanningEngine(self, data_generation=data_generation).run(actor_id, revision, context)
+        engine = PlanningEngine(self, data_generation=data_generation)
+        try:
+            return await engine.run(actor_id, revision, context)
+        except RecoveryWait as wait:
+            if wait.code == "recovery_claim_lost" or not recovery_wait_retryable(wait):
+                raise
+            return await engine.defer_recovery(actor_id, wait)
+        except AppError as error:
+            if error.code != "planner_preparation_changed":
+                raise
+            return await engine.defer_material_change(actor_id)
 
     async def recovery_candidates(self, limit=32):
         from .operations_recovery import LifeOperationsRecovery
@@ -423,9 +455,14 @@ class LifeWorker:
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,activity_id))
                 await self.life.days.result(connection,activity_id,state='unknown')
             return
+        result = receipt(actual["receipt"])
+        if (result and row["state"] == "dormant" and row["waiting_reason"] == "capability_recovery"
+                and row["last_result_revision"] == actual["result_revision"]
+                and row["last_receipt_id"] == result.receipt_id
+                and recoverable_action(actual["action"]["capability_id"], result)):
+            return await self.resume_capability(context, row, actual, result, sequence)
         if actual["receipt"]:
             await self.capability_result(context, actual["receipt"])
-        result = receipt(actual["receipt"])
         unknown = result and (result.execution == "unknown" or result.effect == "unknown")
         if unknown or (result and result.execution in {"pending", "running"} and (row["next_due_at"] is None or row["next_due_at"] > datetime.now(UTC))):
             async with self.life.database.transaction() as connection:
@@ -435,6 +472,95 @@ class LifeWorker:
                 await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='outcome_unknown',resume_condition='reconcile_original_action',revision=revision+1,updated_at=now() WHERE id=%s AND action_id=%s", (activity_id, row["action_id"]))
                 await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,activity_id))
                 await self.life.days.result(connection,activity_id,state='unknown')
+
+    async def defer_capability_recovery(self, context, row, result, result_revision, sequence, when):
+        async with self.life.database.transaction() as connection:
+            current = await (await connection.execute(
+                "UPDATE life.activities SET next_due_at=%s,checkpoint_data=checkpoint_data||%s,revision=revision+1,updated_at=now() "
+                "WHERE id=%s AND actor_id=%s AND revision=%s AND state='dormant' "
+                "AND action_id=%s AND last_result_revision=%s AND last_receipt_id=%s "
+                "AND waiting_reason='capability_recovery' RETURNING id",
+                (when,document({"capability_recovery":{"action_id":result.action_id,"receipt_id":result.receipt_id,
+                    "result_revision":result_revision,"due_at":when.isoformat()}}),
+                 row["id"],context.actor_id,row["revision"],result.action_id,result_revision,result.receipt_id))).fetchone()
+            if current:
+                await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile",
+                    f"activity-recovery:{result.action_id}:{result.receipt_id}:{sequence+1}",
+                    {"activity_id":row["id"],"context":wire(context),"sequence":sequence+1},
+                    scheduled_at=when,subject_id=context.actor_id))
+
+    async def resume_capability(self, context, row, actual, result, sequence):
+        """Resume the original Action only under both Life and Action CAS fences."""
+        from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+        due = capability_recovery_due(result, row)
+        if due is None:
+            # The original deadline expired while waiting: resolve the known
+            # failed receipt, never issue a fresh read beyond that deadline.
+            await self._activity_result(context,result,actual["result_revision"],actual["result_observed_at"],
+                actual["action"]["capability_id"],recovery_deadline_expired=True)
+            return
+        if row["next_due_at"] and row["next_due_at"] > datetime.now(UTC):
+            await self.defer_capability_recovery(context,row,result,actual["result_revision"],sequence,row["next_due_at"])
+            return
+
+        async def still_current(connection, activity_id, expected_revision):
+            activity = await (await connection.execute(
+                "SELECT revision,state,action_id,last_result_revision,last_receipt_id,waiting_reason "
+                "FROM life.activities WHERE id=%s AND actor_id=%s FOR UPDATE",(activity_id,context.actor_id))).fetchone()
+            return bool(activity and activity["revision"] == int(expected_revision) and activity["state"] == "dormant"
+                and activity["waiting_reason"] == "capability_recovery" and activity["action_id"] == result.action_id
+                and activity["last_result_revision"] == actual["result_revision"] and activity["last_receipt_id"] == result.receipt_id)
+
+        try:
+            resumed = receipt(await self.actions.resume(result.action_id,context,
+                client_request_id=f"life-recovery:{row['id']}:{result.attempt_id}:{result.receipt_id}:{actual['result_revision']}",
+                expected_attempt_id=result.attempt_id,expected_receipt_id=result.receipt_id,
+                expected_revision=actual["result_revision"],recovery_guard=(still_current,row["id"],str(row["revision"]))))
+        except RecoveryWait as wait:
+            if wait.code == "recovery_claim_lost" or not recovery_wait_retryable(wait):
+                raise
+            raw_deadline = (row["checkpoint_data"].get("frozen_action") or {}).get("deadline_at")
+            deadline = datetime.fromisoformat(raw_deadline) if isinstance(raw_deadline,str) else raw_deadline
+            when = min(wait.retry_at,deadline) if deadline is not None else wait.retry_at
+            await self.defer_capability_recovery(context,row,result,actual["result_revision"],sequence,when)
+            return
+        except AppError as error:
+            if error.code == "recovery_guard_rejected":
+                return
+            if error.code in {"video_checkpoint_unavailable", "read_checkpoint_unavailable"}:
+                async with self.life.database.transaction() as connection:
+                    await connection.execute("UPDATE life.activities SET waiting_reason=%s,resume_condition='review_failure',"
+                        "next_due_at=NULL,revision=revision+1,updated_at=now() WHERE id=%s AND actor_id=%s AND revision=%s "
+                        "AND action_id=%s AND last_result_revision=%s AND last_receipt_id=%s AND state='dormant'",
+                        (error.code,row["id"],context.actor_id,row["revision"],result.action_id,actual["result_revision"],result.receipt_id))
+                return
+            if error.code not in {"attempt_changed","revision_conflict","read_recovery_changed"}:
+                raise
+            latest = await self.actions.get(result.action_id,context)
+            if latest["receipt"]:
+                await self.capability_result(context,latest["receipt"])
+                await self.queue_action_observation(context,row,latest,sequence)
+            return
+        if resumed is None or resumed.action_id != result.action_id or not resumed.attempt_id:
+            raise AppError("action_receipt_identity_mismatch",status=409)
+        latest = await self.actions.get(result.action_id,context)
+        latest_receipt = receipt(latest["receipt"])
+        if latest_receipt:
+            if latest.get("attempt", {}).get("attempt_id") != latest_receipt.attempt_id:
+                raise AppError("action_receipt_identity_mismatch",status=409)
+            # A faster execution may already have advanced beyond the returned
+            # pending receipt; consume the actual head rather than inventing it.
+            await self.capability_result(context,latest_receipt)
+            await self.queue_action_observation(context,row,latest,sequence)
+
+    async def queue_action_observation(self, context, row, snapshot, sequence):
+        current = receipt(snapshot["receipt"])
+        if current and current.execution in {"pending","running","unknown"}:
+            async with self.life.database.transaction() as connection:
+                await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile",
+                    f"activity-resume:{current.action_id}:{current.attempt_id}:{sequence+1}",
+                    {"activity_id":row["id"],"context":wire(context),"sequence":sequence+1},
+                    scheduled_at=datetime.now(UTC)+timedelta(seconds=15),subject_id=context.actor_id))
 
     async def recovery_observe_activity(self, activity_id, expected_revision, context, attempt_id, owner_token):
         """A fenced Operations request observes only the original Action ledger."""
@@ -483,7 +609,7 @@ class LifeWorker:
             support_refs=refs, connection=connection)
         return unique_refs(refs, original)
 
-    async def _activity_result(self, context, result, result_revision, observed_at, capability_id, *, recovery_fence=None):
+    async def _activity_result(self, context, result, result_revision, observed_at, capability_id, *, recovery_fence=None, recovery_deadline_expired=False):
         await self.life.identity.check(context)
         async with self.life.database.transaction(read_only=True) as probe:
             snapshot = await (await probe.execute("SELECT * FROM life.activities WHERE action_id=%s AND actor_id=%s", (result.action_id, context.actor_id))).fetchone()
@@ -504,7 +630,8 @@ class LifeWorker:
                     raise AppError("recovery_target_changed", status=409)
             if result_revision <= row["last_result_revision"]:
                 if (result_revision == row["last_result_revision"] and row["state"] == "dormant"
-                        and row["resume_condition"] == "review_failure" and not action_resolved(row)
+                        and (row["resume_condition"] == "review_failure" and row["waiting_reason"] not in {"video_checkpoint_unavailable", "read_checkpoint_unavailable"}
+                             or recovery_deadline_expired and row["waiting_reason"] == "capability_recovery") and not action_resolved(row)
                         and known_read_failure(capability_id, result)):
                     refs = unique_refs(source_refs(row["source_refs"]), result_sources(result))
                     await self.life.validate_persistence(connection, context, refs)
@@ -518,9 +645,31 @@ class LifeWorker:
             refs = unique_refs(source_refs(row["source_refs"]), result_sources(result))
             await self.life.validate_persistence(connection, context, refs)
             await connection.execute("UPDATE life.activities SET last_result_revision=%s,last_receipt_id=%s,updated_at=now() WHERE id=%s", (result_revision, result.receipt_id, row["id"]))
+            recoverable = recoverable_action(capability_id,result)
+            due = capability_recovery_due(result,row) if recoverable else None
+            if recoverable and due is not None and row["state"] == "paused":
+                await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s,revision=revision+1 WHERE id=%s",
+                    (document({"capability_recovery":{"action_id":result.action_id,"receipt_id":result.receipt_id,
+                        "result_revision":result_revision,"due_at":due.isoformat()}}),row["id"]))
+                return True
+            if recoverable and due is not None and row["state"] not in {"paused","cancelled","completed"}:
+                await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_recovery',"
+                    "resume_condition='original_action_recovery',next_due_at=%s,checkpoint_data=checkpoint_data||%s,revision=revision+1 WHERE id=%s",
+                    (due,document({"capability_recovery":{"action_id":result.action_id,"receipt_id":result.receipt_id,
+                        "result_revision":result_revision,"due_at":due.isoformat()}}),row["id"]))
+                await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,row["id"]))
+                await self.life.days.result(connection,row["id"],state="waiting_result")
+                await self.life.jobs.enqueue(connection, JobSpec("life.activity_reconcile",
+                    f"activity-recovery:{result.action_id}:{result.receipt_id}:0",
+                    {"activity_id":row["id"],"context":wire(context),"sequence":0},scheduled_at=due,subject_id=context.actor_id))
+                return True
             if result.execution in {"pending", "running"}:
                 if row["state"] not in {"completed", "cancelled", "paused"}:
-                    await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_running',resume_condition='original_action_result',revision=revision+1 WHERE id=%s", (row["id"],))
+                    deadline = (row["checkpoint_data"].get("frozen_action") or {}).get("deadline_at")
+                    await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason='capability_running',resume_condition='original_action_result',"
+                        "next_due_at=CASE WHEN waiting_reason='capability_recovery' THEN %s ELSE next_due_at END,"
+                        "checkpoint_data=CASE WHEN waiting_reason='capability_recovery' THEN checkpoint_data-'capability_recovery' ELSE checkpoint_data END,"
+                        "revision=revision+1 WHERE id=%s", (deadline,row["id"]))
                     await connection.execute("UPDATE life.actor_state SET activity_id=NULL,revision=revision+1 WHERE actor_id=%s AND activity_id=%s",(context.actor_id,row["id"]))
                     await self.life.days.result(connection,row["id"],state="waiting_result")
                 return True
@@ -559,7 +708,7 @@ class LifeWorker:
                     continuing=next_position is not None or continuation is not None
                     confirmed = not consumption or consumption.get("analysis_completed") is True
                     step = 0 if row["checkpoint_data"].get("completed_action_id") == result.action_id else 1
-                    await connection.execute("UPDATE life.activities SET state=%s,waiting_reason=%s,resume_condition=%s,next_due_at=NULL,checkpoint_step=checkpoint_step+%s,checkpoint_data=checkpoint_data||%s,revision=revision+1 WHERE id=%s", (
+                    await connection.execute("UPDATE life.activities SET state=%s,waiting_reason=%s,resume_condition=%s,next_due_at=NULL,checkpoint_step=checkpoint_step+%s,checkpoint_data=(checkpoint_data-'capability_recovery')||%s,revision=revision+1 WHERE id=%s", (
                         "paused" if row["state"] == "paused" else "dormant" if continuing or follow_up or not confirmed else "completed",
                         "paused_by_user" if row["state"] == "paused" else "analysis_unconfirmed" if not confirmed else "continuation_available" if continuing else "follow_up_available" if follow_up else None,
                         "review_original_result" if not confirmed else "continue_from_checkpoint" if continuing else "plan_later_check" if follow_up else None, step,
@@ -569,7 +718,7 @@ class LifeWorker:
                                   "last_execution":"succeeded","result_summary":str(result.result.get("summary") or row["title"])[:1200],
                                   "completion_basis":"discovery_metadata" if result.result.get("read_basis")=="discovery_metadata" else "partial_source_read" if continuing else "requested_window_ended" if consumption else "actual_result",
                                   "coverage": wire(result.coverage)}), row["id"]))
-                elif known_read_failure(capability_id, result) and row["state"] not in {"paused", "completed"}:
+                elif known_read_failure(capability_id, result) and row["state"] != "completed":
                     continuing = await self._close_read_failure(connection, row, result, result_revision)
                 else:
                     await connection.execute("UPDATE life.activities SET state='dormant',waiting_reason=%s,resume_condition='review_failure',revision=revision+1 WHERE id=%s", (result.error_code or result.execution, row["id"]))

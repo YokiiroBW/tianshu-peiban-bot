@@ -117,7 +117,11 @@ class GenerationRecovery:
                 raise AppError("recovery_original_not_failed", status=409)
             claimed = await self.policy.claim_lineage_due_on(connection,identity,owner=owner)
             if not claimed:
-                raise AppError("recovery_not_due", status=409)
+                from tianshu.runtime.recovery_policy import RecoveryWait
+                wait = await self.policy.inspect_wait_on(connection,identity,owner=owner,expected_version=version)
+                # A racing claim may disappear between these reads. It still
+                # does not grant a reservation; observe the same request again.
+                raise wait or RecoveryWait("recovery_claim_observe",datetime.now(UTC)+timedelta(seconds=5))
             claim = claimed["claim_token"]
             original_state = "failed"
             if model_receipt is not None:
@@ -305,6 +309,49 @@ async def backfill_saved_statistics(life, statistics, kind, *, limit=128, data_g
     return {"complete":remaining==0,"processed":processed,"pending":remaining}
 
 
+async def remember_submission(life, attempt_id, receipt, data_generation):
+    if receipt is None or receipt.attempt_id != attempt_id:
+        raise AppError("generation_receipt_identity_mismatch", status=502)
+    async with life.database.transaction() as connection:
+        await life.jobs.assert_generation_on(connection,data_generation)
+        await connection.execute("UPDATE life.generation_recipes SET model_submission_confirmed=true WHERE generation_id=%s", (attempt_id,))
+
+
+async def observe_original(life, models, attempt_id, data_generation):
+    async with life.database.transaction(read_only=True) as connection:
+        row = await (await connection.execute(
+            "SELECT model_submission_confirmed FROM life.generation_recipes WHERE generation_id=%s", (attempt_id,))).fetchone()
+    if not row:
+        raise AppError("generation_recipe_missing", status=409)
+    pre_submit = row["model_submission_confirmed"] is False
+    receipt = await models.status(attempt_id, phase="pre_submit") if pre_submit else await models.status(attempt_id)
+    if receipt is not None:
+        await remember_submission(life,attempt_id,receipt,data_generation)
+    return receipt, pre_submit
+
+
+async def defer_generation(life, kind, item_id, attempt_id, actor_id, data_generation, wait):
+    """Persist a dependency wait with the domain's still-current generation."""
+    from tianshu.runtime.recovery_policy import recovery_wait_retryable
+    if wait.code == "recovery_claim_lost" or not recovery_wait_retryable(wait):
+        raise wait
+    table = "life.diaries" if kind == "diary" else "life.chapters"
+    task = "life.diary_generate" if kind == "diary" else "life.chapter_generate"
+    identifier = "diary_id" if kind == "diary" else "chapter_id"
+    async with life.database.transaction() as connection:
+        await life.jobs.assert_generation_on(connection,data_generation)
+        row = await (await connection.execute(f"SELECT generation_id,state FROM {table} WHERE id=%s FOR UPDATE", (item_id,))).fetchone()
+        if not row or row["generation_id"] != attempt_id or row["state"] not in {"generating", "unknown", "cancelling"}:
+            return {"state":"changed_since_generation","attempt_id":attempt_id}
+        await connection.execute(f"UPDATE {table} SET reason=%s,generation_retry_due_at=%s WHERE id=%s AND generation_id=%s",
+            (wait.reason,wait.retry_at,item_id,attempt_id))
+        await life.jobs.enqueue(connection,JobSpec(task,f"{kind}-dependency:{attempt_id}:{uuid4()}",
+            {identifier:item_id,"generation_id":attempt_id,"data_generation":data_generation},
+            scheduled_at=wait.retry_at,subject_id=actor_id,data_generation=data_generation),
+            queueing_lock=f"{kind}-generate:{attempt_id}")
+    return {"state":row["state"],"attempt_id":attempt_id,"reason":wait.reason,"retry_due_at":wait.retry_at}
+
+
 async def submit_frozen(life, models, generations, material_key, request, *, guard, completion, kind, item_id, recovery):
     """Admit the saved intent and release the domain worker after acceptance."""
     if recovery is None:
@@ -329,8 +376,7 @@ async def submit_frozen(life, models, generations, material_key, request, *, gua
             "UPDATE conversation.generation_requests SET state='claimed',claimed_at=coalesce(claimed_at,now()) "
             "WHERE material_key=%s AND state='prepared'", (material_key,))
     receipt = await models.submit(request, completion=completion)
-    if receipt is None or receipt.attempt_id != request.attempt_id:
-        raise AppError("generation_receipt_identity_mismatch", status=502)
+    await remember_submission(life,request.attempt_id,receipt,completion.data_generation)
     table = "life.diaries" if kind == "diary" else "life.chapters"
     async with life.database.transaction(read_only=True) as connection:
         row = await (await connection.execute(

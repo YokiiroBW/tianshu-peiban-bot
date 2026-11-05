@@ -65,10 +65,15 @@ class DayPlans:
             (context.actor_id, list(context.scope_ids)))).fetchall()
         return slots, unfinished
 
-    async def decision_state(self, connection, context, day):
+    async def decision_state(self, connection, context, day, *, locked_refs=None):
         # A newly accepted plan/receipt may have source originals visible only to
         # this transaction. Its reviewed fingerprint must describe that state.
         slots, unfinished = await self._activities(connection, context, day)
+        if locked_refs is not None:
+            allowed = {signature(ref) for ref in locked_refs}
+            if any(signature(ref) not in allowed for row in (*slots,*unfinished)
+                    for ref in source_refs(row["source_refs"] or ())):
+                raise AppError("planner_preparation_changed",status=409)
         async def authorized(rows):
             return [row for row in rows if await self.life.sources.validate_persistence(connection, context, source_refs(row["source_refs"] or ()))]
         return {"day_plan": await authorized(slots), "unfinished": await authorized(unfinished)}

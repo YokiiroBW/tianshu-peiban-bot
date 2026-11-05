@@ -19,8 +19,9 @@ async def recover(worker):
     async with life.database.transaction(read_only=True) as connection:
         generation = await life.jobs.current_generation_on(connection)
         plans = await (await connection.execute(
-            "SELECT p.*,c.context FROM life.plan_watermarks p JOIN life.routines c USING(actor_id) "
-            "WHERE c.enabled AND (p.planned_watermark<>p.change_watermark OR (p.generation_key IS NOT NULL AND NOT p.generation_consumed) "
+            "SELECT p.*,coalesce(c.context,p.wake_context,g.context) AS recovery_context FROM life.plan_watermarks p "
+            "LEFT JOIN life.routines c USING(actor_id) LEFT JOIN life.plan_generations g ON g.generation_key=p.generation_key "
+            "WHERE (c.actor_id IS NULL OR c.enabled) AND (p.planned_watermark<>p.change_watermark OR (p.generation_key IS NOT NULL AND NOT p.generation_consumed) "
             "OR p.repair_due_at IS NOT NULL OR p.review_after IS NOT NULL "
             "OR (p.decision_fingerprint IS NOT NULL AND p.last_error IS NULL AND p.next_due_at IS NOT NULL))")).fetchall()
         work = []
@@ -33,7 +34,9 @@ async def recover(worker):
             work.extend((table, row) for row in rows)
     for row in plans:
         try:
-            context = await scheduled_context(life, row["context"])
+            if row["recovery_context"] is None:
+                continue
+            context = await scheduled_context(life, row["recovery_context"])
             await life.identity.check(context)
             pending = row["planned_watermark"] != row["change_watermark"] or (row["generation_key"] and not row["generation_consumed"])
             from .planning_engine import PlanningEngine, decision_review_at
@@ -48,6 +51,8 @@ async def recover(worker):
             context = await scheduled_context(life, row["context"])
             await life.identity.check(context, source_refs(row["source_refs"]))
             if table == "activities":
+                if row["waiting_reason"] in {"video_checkpoint_unavailable", "read_checkpoint_unavailable"}:
+                    continue
                 if not action_resolved(row):
                     task, payload, due = "life.activity_reconcile", {"activity_id": row["id"], "context": wire(context), "sequence": 0}, None
                 elif row["state"] in {"planned", "running"}:

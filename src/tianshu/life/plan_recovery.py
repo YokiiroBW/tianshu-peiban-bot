@@ -57,7 +57,13 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
                 (dependency, previous["generation_key"]))
         if state in {"failed", "unknown"}:
             claim = await policy.claim_lineage_due_on(connection, lineage_id, owner=owner, lease_seconds=30)
-            if not claim or claim["current_version"] != previous["recovery_version"]:
+            if not claim:
+                wait = await policy.inspect_wait_on(connection, lineage_id, owner=owner,
+                    expected_version=previous["recovery_version"])
+                if wait is not None:
+                    raise wait
+                return {"state": "waiting"}
+            if claim["current_version"] != previous["recovery_version"]:
                 return {"state": "waiting"}
             original_state = state
         else:

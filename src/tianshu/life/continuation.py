@@ -17,6 +17,27 @@ def known_read_failure(capability_id, result):
     return read_failure_status(capability_id, result.execution, result.effect, result.delivery, result.error_code)
 
 
+def recoverable_action(capability_id, result):
+    """Use the handler's explicit recovery phase, never infer it from error text."""
+    if (not result.action_id or not result.attempt_id or not result.receipt_id or not known_read_failure(capability_id, result)
+            or result.result.get("outcome") not in {"failed", "wait"}):
+        return None
+    recovery = result.result.get("recovery")
+    if (capability_id == "video.observe" and result.execution == "failed" and result.result.get("phase") == "model"
+            and result.result.get("outcome") == "wait" and recovery == "resume_model"):
+        return recovery
+    if capability_id != "content.read":
+        return None
+    if recovery == "resume_commit" and result.result.get("phase") == "commit" and result.execution == "failed":
+        return recovery
+    material = result.result.get("material_read") or {}
+    if (recovery == "resume_material_read" and result.result.get("phase") == "acquisition"
+            and material.get("phase") == "acquisition" and material.get("method") in {"http", "browser"}
+            and isinstance(material.get("url"), str) and material["url"]):
+        return recovery
+    return None
+
+
 def resolved_read_failure(activity):
     data = activity["checkpoint_data"]
     return bool(activity.get("action_id") and data.get("resolved_action_id") == activity["action_id"]
@@ -116,6 +137,7 @@ def failed_read_checkpoint(activity, result, result_revision, capability_id):
         coverage=wire(coverage), completion_basis="confirmed_read_failure_skipped",
         result_summary="读取未完成，已跳过该未读候选。", continuation_stop_reason=None)
     data.pop("continuation_result", None)
+    data.pop("capability_recovery", None)
     return data
 
 

@@ -19,7 +19,8 @@ from .computation_retry import finished_unknown, freeze_recipe, outcome
 from tianshu.models.retry import transient_model_failure
 from tianshu.conversation.types import InputPart
 from tianshu.conversation.generation import GenerationRequests
-from .generation_control import GenerationRecovery, backfill_saved_statistics, frozen_data_generation, record_saved_on, submit_frozen
+from .generation_control import (GenerationRecovery, backfill_saved_statistics, defer_generation,
+    frozen_data_generation, observe_original, record_saved_on, submit_frozen)
 
 
 def can_edit(context):
@@ -42,6 +43,7 @@ class WritingService:
         self.life, self.models, self.assembler = life, models, assembler
         self.generations = GenerationRequests(life.database, life.sources, models)
         self.on_completed = None
+        self.prepare_completion = None
         self.recovery = None
         self.statistics = None
 
@@ -52,8 +54,9 @@ class WritingService:
     async def backfill_statistics(self, *, limit=128, data_generation):
         return await backfill_saved_statistics(self.life,self.statistics,"chapter",limit=limit,data_generation=data_generation)
 
-    def bind_completion(self, callback):
+    def bind_completion(self, callback, *, prepare=None):
         self.on_completed = callback
+        self.prepare_completion = prepare
 
     async def list(self, context, *, cursor=None, limit=30):
         await self.life.identity.check(context)
@@ -273,18 +276,20 @@ class WritingService:
                     protocol=profile["protocol"])
                 async with self.life.database.transaction() as connection:
                     frozen=await self.generations.prepare("chapter:"+generation_id,request,connection=connection,guard=current_generation)
-                    await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs)
+                    await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs,known_prepared=True)
             else:
                 async with self.life.database.transaction() as connection:
                     await self.life.jobs.assert_generation_on(connection,data_generation)
                     await freeze_recipe(self.life,connection,"chapter",chapter_id,generation_id,context,recipe,refs)
-            result=await self.generations.read(generation_id,frozen.context,observer=context)
             try:
-                receipt=await self.models.status(generation_id)
-            except Exception:
+                receipt,pre_submit=await observe_original(self.life,self.models,generation_id,data_generation)
+            except Exception as error:
+                from tianshu.runtime.recovery_policy import RecoveryWait
+                if isinstance(error,RecoveryWait) or getattr(error,"database_failure",None) is not None or getattr(error,"code",None)=="recovery_claim_lost":
+                    raise
                 await self._observe_later(chapter_id,generation_id,context.actor_id,data_generation)
                 return {"state":chapter["state"],"attempt_id":generation_id,"reason":"model_observation_unavailable"}
-            if result is None and receipt is None and chapter["state"] == "generating" and not chapter["generation_cancel_requested"]:
+            if receipt is None and pre_submit and chapter["state"] == "generating" and not chapter["generation_cancel_requested"]:
                 if frozen.context.access_epoch != context.access_epoch:
                     raise AppError("writing_original_authorization_changed",status=409)
                 completion = JobSpec("life.chapter_generate", "chapter-complete:"+generation_id,
@@ -292,8 +297,15 @@ class WritingService:
                 receipt = await submit_frozen(self.life,self.models,self.generations,"chapter:"+generation_id,
                     frozen,guard=current_generation,completion=completion,kind="chapter",item_id=chapter_id,
                     recovery=self.recovery)
-                if receipt.status == "succeeded":
-                    result = await self.generations.read(generation_id,frozen.context,observer=context)
+            if receipt is None or receipt.status in {"queued", "running"}:
+                await self._observe_later(chapter_id,generation_id,context.actor_id,data_generation)
+                return {"state":"generating","attempt_id":generation_id}
+            if receipt.cancellation_reason == "explicit_cancel":
+                return await self._failed_generation(chapter,context,error="explicit_cancel",frozen=frozen)
+            if receipt.status == "succeeded":
+                reader=self.generations.observer_context(frozen.context,context)
+                result=await self.models.reusable_result(generation_id,context=reader,
+                    expected_request_digest=receipt.request_digest,expected_data_generation=data_generation)
             if result is None:
                 return await self._failed_generation(chapter,context,frozen=frozen)
             refs = frozen.source_refs
@@ -308,12 +320,16 @@ class WritingService:
                     return await self._failed_generation(chapter,context,result=result,frozen=frozen)
                 raise AppError(generation_error(result, "chapter_generation_failed"), details={"dispatch": result.receipt.dispatch})
         except BaseException as error:
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            if isinstance(error, RecoveryWait):
+                return await defer_generation(self.life,"chapter",chapter_id,generation_id,context.actor_id,data_generation,error)
+            if getattr(error,"database_failure",None) is not None:
+                raise
             code=getattr(error,"code",type(error).__name__)
+            if code == "recovery_claim_lost":
+                raise
             if code in {"job_generation_expired","job_generation_missing"}:
                 raise
-            if code in {"recovery_not_due", "recovery_dependency_cooling", "recovery_dependency_probe_in_progress", "recovery_claim_lost"}:
-                await self._observe_later(chapter_id,generation_id,context.actor_id,data_generation)
-                return {"state":"generating","attempt_id":generation_id,"reason":code}
             if code == "recovery_attempt_not_dispatchable":
                 return await self._failed_generation(chapter,context,error=error,frozen=frozen)
             if transient_model_failure(code) or not isinstance(error,Exception):
@@ -327,9 +343,20 @@ class WritingService:
                     (code,chapter_id,generation_id))
             raise
         latest=await self.models.status(generation_id)
+        if latest is None or latest.attempt_id != generation_id or latest.status != "succeeded":
+            if latest and getattr(latest,"cancellation_reason",None)=="explicit_cancel":
+                return await self._failed_generation(chapter,context,result=result,error="explicit_cancel",frozen=frozen)
+            await self._observe_later(chapter_id,generation_id,context.actor_id,data_generation)
+            return {"state":chapter["state"],"attempt_id":generation_id,"reason":"model_observation_unavailable"}
         if latest and getattr(latest,"cancellation_reason",None)=="explicit_cancel":
             return await self._failed_generation(chapter,context,result=result,error="explicit_cancel",frozen=frozen)
-        await self.save_generated(context, chapter_id, generation_id, recipe, result, refs)
+        try:
+            await self.save_generated(context, chapter_id, generation_id, recipe, result, refs)
+        except AppError as error:
+            if error.code != "writing_preparation_changed":
+                raise
+            await self._observe_later(chapter_id,generation_id,context.actor_id,data_generation)
+            return {"state":"generating","attempt_id":generation_id,"reason":error.code}
 
     async def _failed_generation(self,chapter,context,*,result=None,error=None,frozen=None):
         data_generation=frozen_data_generation(chapter["generation_recipe"])
@@ -440,14 +467,41 @@ class WritingService:
         content = generated_text(result)
         if result.receipt.status != "succeeded" or not content.strip():
             raise AppError(generation_error(result, "chapter_generation_failed"))
+        prepared = await self.prepare_completion(context,chapter_id) if self.prepare_completion is not None else None
+        if prepared is None:
+            async with self.life.database.transaction(read_only=True) as connection:
+                snapshot = await (await connection.execute("SELECT * FROM life.chapters WHERE id=%s",(chapter_id,))).fetchone()
+            if not snapshot:
+                raise AppError("chapter_not_found",status=404)
+        else:
+            snapshot = prepared["chapter"]
+        version = snapshot["current_revision"]+1
+        saved = {"chapter_id":chapter_id,"work_id":snapshot["work_id"],"content_revision":version,
+            "generation_id":generation_id,"model_attempt_id":result.receipt.attempt_id,
+            "content_signature":signature(content),"character_count":len(content),"representation":"saved_chapter_revision"}
+        event = {"producer":"life.chapter.generated","event_id":chapter_id,"revision":version,
+            "parts":(InputPart("text",json.dumps(saved,ensure_ascii=False)),),"support_refs":refs}
         async with self.life.database.transaction() as connection:
             data_generation=frozen_data_generation(recipe)
             await self.life.jobs.assert_generation_on(connection,data_generation)
+            dependencies=unique_refs(refs,prepared["refs"] if prepared else ())
+            await self.life.sources.prepare_event_writes(connection,context,(event,),additional_refs=dependencies)
+            await self.life.validate_persistence(connection,context,dependencies)
             target=await (await connection.execute("SELECT work_id FROM life.chapters WHERE id=%s",(chapter_id,))).fetchone()
             if not target:
                 raise AppError("chapter_not_found",status=404)
+            if prepared is not None:
+                locked_work=await (await connection.execute("SELECT * FROM life.works WHERE id=%s FOR UPDATE",(target["work_id"],))).fetchone()
+                locked_chapter=await (await connection.execute("SELECT * FROM life.chapters WHERE id=%s FOR UPDATE",(chapter_id,))).fetchone()
+                if (not locked_work or not locked_chapter or locked_work["revision"] != snapshot["work_snapshot_revision"]
+                        or locked_work["source_refs"] != snapshot["work_source_refs"]
+                        or locked_chapter["revision"] != snapshot["revision"]
+                        or locked_chapter["source_refs"] != snapshot["source_refs"]):
+                    raise AppError("writing_preparation_changed",status=409)
             work=await self._work(context,target["work_id"],connection,lock=True)
             fresh = await self._chapter(context, chapter_id, connection, lock=True, additional_refs=refs)
+            if not fresh or fresh["current_revision"] != snapshot["current_revision"] or fresh["work_id"] != snapshot["work_id"]:
+                raise AppError("writing_preparation_changed",status=409)
             if fresh["generation_id"] != generation_id or fresh["generation_cancel_requested"] or fresh["state"] not in {"generating", "unknown"}:
                 return
             if self.recovery is None:
@@ -460,16 +514,11 @@ class WritingService:
                     or not await self._previous_current(connection,fresh["work_id"],recipe)):
                 await connection.execute("UPDATE life.chapters SET state='failed',generation_retry_due_at=NULL,reason='writing_material_changed',revision=revision+1 WHERE id=%s",(chapter_id,))
                 return
-            version = fresh["current_revision"]+1
-            saved = {"chapter_id": chapter_id, "work_id": fresh["work_id"],
-                "content_revision": version, "generation_id": generation_id,
-                "model_attempt_id": result.receipt.attempt_id, "content_signature": signature(content),
-                "character_count": len(content), "representation": "saved_chapter_revision"}
             originals = await self.life.sources.record_event(context, producer="life.chapter.generated",
                 event_id=chapter_id, revision=version, occurred_at=datetime.now(UTC),
                 # The immutable chapter remains Writing's authority. Its save receipt
                 # proves progress without disclosing an unpublished draft via Sources.
-                parts=(InputPart("text", json.dumps(saved, ensure_ascii=False)),), origin_kind=OriginKind.ACTOR,
+                parts=event["parts"], origin_kind=OriginKind.ACTOR,
                 support_refs=refs, connection=connection)
             refs = unique_refs(refs, originals)
             created_at = datetime.now(UTC)
@@ -478,9 +527,13 @@ class WritingService:
             await record_saved_on(self.life,connection,self.statistics,kind="chapter",item_id=chapter_id,
                 content_revision=version,actor_id=context.actor_id,created_at=created_at,route_id=result.receipt.route_id,data_generation=data_generation)
             if self.on_completed is not None:
-                await self.on_completed(context, {**fresh, "current_revision": version,
+                completed={**fresh, "current_revision": version,
                     "revision": fresh["revision"]+1, "state": "draft", "generation_id": generation_id,
-                    "model_attempt_id": result.receipt.attempt_id, "completion_source_refs": originals}, refs, connection)
+                    "model_attempt_id": result.receipt.attempt_id, "completion_source_refs": originals}
+                if prepared is None:
+                    await self.on_completed(context,completed,refs,connection)
+                else:
+                    await self.on_completed(context,completed,refs,connection,prepared=prepared)
 
     async def revise(self, context, body):
         await self.life.identity.check(context)

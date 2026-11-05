@@ -30,13 +30,25 @@ async def outcome(models, attempt_id, *, error=None):
     return status, code, transient_model_failure(code), receipt
 
 
-async def freeze_recipe(life, connection, kind, item_id, generation_id, context, recipe, refs, *, previous=None):
+async def freeze_recipe(life, connection, kind, item_id, generation_id, context, recipe, refs, *, previous=None, known_prepared=False):
     present = await (await connection.execute("SELECT generation_id FROM life.generation_recipes WHERE generation_id=%s",
         (generation_id,))).fetchone()
     if present:
+        if known_prepared:
+            # A retry recipe can predate preparation of its own new request.
+            # Promote only the request just prepared while the local domain
+            # state has not advanced. Models still owns admission evidence.
+            await connection.execute("UPDATE life.generation_recipes AS recipe SET model_submission_confirmed=false "
+                "FROM conversation.generation_requests AS request WHERE recipe.generation_id=%s "
+                "AND recipe.model_submission_confirmed IS NULL AND request.attempt_id=recipe.generation_id "
+                "AND request.state='prepared'",
+                (generation_id,))
         return
     if not await life.sources.validate_persistence(connection, context, refs):
         raise AppError("source_unavailable", status=409)
-    await connection.execute("INSERT INTO life.generation_recipes(generation_id,kind,item_id,previous_generation_id,context,recipe,source_refs) "
-        "VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
-        (generation_id, kind, item_id, previous, document(context), document(recipe), document(refs)))
+    request = await (await connection.execute(
+        "SELECT state FROM conversation.generation_requests WHERE attempt_id=%s", (generation_id,))).fetchone()
+    unsubmitted = False if request and request["state"] == "prepared" else None
+    await connection.execute("INSERT INTO life.generation_recipes(generation_id,kind,item_id,previous_generation_id,context,recipe,source_refs,model_submission_confirmed) "
+        "VALUES(%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+        (generation_id, kind, item_id, previous, document(context), document(recipe), document(refs),unsubmitted))

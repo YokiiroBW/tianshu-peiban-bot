@@ -135,16 +135,54 @@ ROLLING_SCHEDULE = (
 )
 
 
+def planning_capability(definition):
+    return bool((definition.model_tool or definition.public_command)
+        and not is_administrative(definition)
+        and not (definition.id.startswith("memory.") and definition.effect != "read")
+        and definition.id not in {"life.commitment", "life.goal", "life.day-plan", "life.availability"})
+
+
 def eligible_capabilities(choices):
     return [
         item["definition"]
         for item in choices
         if item.get("can_execute") is True
-        and (item["definition"].model_tool or item["definition"].public_command)
-        and not is_administrative(item["definition"])
-        and not (item["definition"].id.startswith("memory.") and item["definition"].effect != "read")
-        and item["definition"].id not in {"life.commitment", "life.goal", "life.day-plan", "life.availability"}
+        and planning_capability(item["definition"])
     ]
+
+
+def capability_semantics(choices):
+    """Stable known meaning, separate from whether a cached probe is fresh."""
+    result = []
+    for item in choices:
+        definition = item["definition"]
+        if not planning_capability(definition):
+            continue
+        if "semantic_availability" in item:
+            availability = item["semantic_availability"]
+        else:
+            # Non-cached catalog implementations and test ports report an
+            # actual observation directly, without the observation DTO.
+            availability = item.get("availability") if item.get("freshness") in {None, "current", "declaration"} else None
+        semantic = wire(availability) if availability is not None else None
+        if isinstance(semantic, dict):
+            semantic = {key: value for key, value in semantic.items() if key != "verified_at"}
+        result.append({"id": definition.id, "title": definition.title, "description": definition.description[:500],
+            "version": definition.version, "effect": definition.effect, "permissions": sorted(definition.permissions),
+            "input_schema": definition.input_schema, "output_schema": definition.output_schema,
+            "model_tool": definition.model_tool, "public_command": definition.public_command,
+            "availability": semantic})
+    return sorted(result, key=lambda row: row["id"])
+
+
+def needs_capability_refresh(choices):
+    """A pending first/expired observation is not proof of an empty catalog."""
+    if eligible_capabilities(choices):
+        return False
+    return any(planning_capability(item["definition"]) and
+        (item.get("freshness") == "expired" or
+         (item.get("freshness") == "unknown" and item.get("observed_at") is None))
+        for item in choices)
 
 
 def capability_material(choices):
