@@ -99,7 +99,7 @@ def recovery_wait_from_wire(document):
 
 
 def _probe_recheck_at(row):
-    """An expired probe is a reason to re-observe, never proof of completion."""
+    """Re-observe a live lease without inferring the physical attempt outcome."""
     now = row["now"]
     limit = now + timedelta(seconds=30)
     expiry = row.get("probe_expires_at")
@@ -257,21 +257,15 @@ class RecoveryPolicy:
         if row["due_at"] and row["due_at"] > row["now"]:
             return RecoveryWait("recovery_not_due", row["due_at"], dependency=row["dependency"])
         dependency = await (await connection.execute(
-            "SELECT d.*,now() AS now,EXISTS(SELECT 1 FROM runtime.recovery_attempts a "
-            "WHERE a.attempt_id=d.probe_token AND a.status IN ('reserved','unknown') "
-            "AND NOT EXISTS(SELECT 1 FROM runtime.recovery_attempts newer "
-            "WHERE newer.supersedes_attempt_id=a.attempt_id) "
-            "AND NOT (a.lineage_id=%s AND a.attempt_number=%s AND a.status='unknown' AND a.version=%s "
-            "AND %s='pure_computation' AND EXISTS(SELECT 1 FROM runtime.recovery_computation_unknowns u "
-            "WHERE u.attempt_id=a.attempt_id))) AS probe_active "
-            "FROM runtime.recovery_dependencies d WHERE d.data_generation=%s AND d.dependency=%s",
-            (identity, row["attempts"], expected_version, row["recovery_kind"],
-             row["data_generation"], row["dependency"]))).fetchone()
-        if dependency and dependency["cooldown_until"]:
-            if dependency["cooldown_until"] > dependency["now"]:
+            "SELECT d.*,clock_timestamp() AS now FROM runtime.recovery_dependencies d "
+            "WHERE d.data_generation=%s AND d.dependency=%s",
+            (row["data_generation"], row["dependency"]))).fetchone()
+        if dependency:
+            if dependency["cooldown_until"] and dependency["cooldown_until"] > dependency["now"]:
                 return RecoveryWait("recovery_dependency_cooling", dependency["cooldown_until"],
                                     dependency=row["dependency"])
-            if dependency["probe_active"]:
+            if (dependency["probe_token"] and dependency["probe_expires_at"] is not None
+                    and dependency["probe_expires_at"] > dependency["now"]):
                 return RecoveryWait("recovery_dependency_probe_in_progress", _probe_recheck_at(dependency),
                                     dependency=row["dependency"])
         return None
@@ -599,22 +593,17 @@ class RecoveryPolicy:
         await connection.execute("INSERT INTO runtime.recovery_dependencies(data_generation,dependency) VALUES(%s,%s) ON CONFLICT DO NOTHING",
                                  (row["data_generation"], row["dependency"]))
         dependency = await (await connection.execute(
-            "SELECT *,now() AS now FROM runtime.recovery_dependencies WHERE data_generation=%s AND dependency=%s FOR UPDATE",
+            "SELECT *,clock_timestamp() AS now FROM runtime.recovery_dependencies WHERE data_generation=%s AND dependency=%s FOR UPDATE",
             (row["data_generation"], row["dependency"]))).fetchone()
         probe = None
-        if dependency["cooldown_until"] is not None:
-            if dependency["cooldown_until"] > dependency["now"]:
-                raise RecoveryWait("recovery_dependency_cooling", dependency["cooldown_until"],
-                                   dependency=row["dependency"])
-            if dependency["probe_token"]:
-                outstanding = await (await connection.execute(
-                    "SELECT 1 FROM runtime.recovery_attempts a WHERE a.attempt_id=%s "
-                    "AND a.status IN ('reserved','unknown') AND NOT EXISTS "
-                    "(SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id)",
-                    (dependency["probe_token"],))).fetchone()
-                if outstanding and not (original_state == "unknown" and dependency["probe_token"] == previous["attempt_id"]):
-                    raise RecoveryWait("recovery_dependency_probe_in_progress", _probe_recheck_at(dependency),
-                                       dependency=row["dependency"])
+        if dependency["cooldown_until"] and dependency["cooldown_until"] > dependency["now"]:
+            raise RecoveryWait("recovery_dependency_cooling", dependency["cooldown_until"],
+                               dependency=row["dependency"])
+        if (dependency["probe_token"] and dependency["probe_expires_at"] is not None
+                and dependency["probe_expires_at"] > dependency["now"]):
+            raise RecoveryWait("recovery_dependency_probe_in_progress", _probe_recheck_at(dependency),
+                               dependency=row["dependency"])
+        if dependency["cooldown_until"] is not None or dependency["probe_token"]:
             probe = attempt_id
         inserted = await (await connection.execute(
             "INSERT INTO runtime.recovery_attempts(attempt_id,lineage_id,request_digest,route,dependency,version,attempt_number,dependency_probe,continuation_of,continuation_reason,supersedes_attempt_id) "
@@ -626,9 +615,14 @@ class RecoveryPolicy:
         if not inserted:
             raise AppError("recovery_attempt_conflict", status=409)
         if probe:
-            await connection.execute(
-                "UPDATE runtime.recovery_dependencies SET probe_token=%s,probe_expires_at=now()+interval '60 seconds' "
-                "WHERE data_generation=%s AND dependency=%s", (probe, row["data_generation"], row["dependency"]))
+            updated = await (await connection.execute(
+                "UPDATE runtime.recovery_dependencies SET probe_token=%s,probe_expires_at=clock_timestamp()+interval '60 seconds' "
+                "WHERE data_generation=%s AND dependency=%s AND probe_token IS NOT DISTINCT FROM %s "
+                "AND probe_expires_at IS NOT DISTINCT FROM %s RETURNING dependency",
+                (probe, row["data_generation"], row["dependency"], dependency["probe_token"],
+                 dependency["probe_expires_at"]))).fetchone()
+            if not updated:
+                raise AppError("recovery_dependency_changed", status=409)
         await connection.execute("UPDATE runtime.recovery_lineages SET attempts=attempts+1,due_at=NULL,claim_token=NULL,claim_expires_at=NULL,continuation_attempt_id=NULL,continuation_reason=NULL WHERE lineage_id=%s",
                                  (identity,))
         return AttemptReservation(attempt_id, identity, row["attempts"] + 1, "reserved", probe, row["dependency"])
@@ -654,7 +648,7 @@ class RecoveryPolicy:
             ("unknown" if category == FailureCategory.UNKNOWN_EFFECT else "failed", code, attempt_id))).fetchone()
         if not attempt:
             raise AppError("recovery_attempt_not_active", status=409)
-        probe_token = probe_token or (attempt_id if attempt["dependency_probe"] else None)
+        probe_token = attempt_id if attempt["dependency_probe"] else None
         await connection.execute(
             "INSERT INTO runtime.recovery_attempt_observations(attempt_id,status,error_code,observation_ref) "
             "VALUES(%s,%s,%s,%s)", (attempt_id, attempt["status"], code, attempt["observation_ref"]))
@@ -677,8 +671,16 @@ class RecoveryPolicy:
                 "UPDATE runtime.recovery_dependencies SET cooldown_until=GREATEST(cooldown_until,%s),"
                 "probe_token=CASE WHEN probe_token=%s THEN NULL ELSE probe_token END,"
                 "probe_expires_at=CASE WHEN probe_token=%s THEN NULL ELSE probe_expires_at END "
-                "WHERE data_generation=%s AND dependency=%s",
-                (until, probe_token, probe_token, row["data_generation"], attempt["dependency"]))
+                "WHERE data_generation=%s AND dependency=%s AND (NOT %s OR probe_token=%s)",
+                (until, probe_token, probe_token, row["data_generation"], attempt["dependency"],
+                 attempt["dependency_probe"], attempt_id))
+        elif attempt["dependency_probe"] and category != FailureCategory.UNKNOWN_EFFECT:
+            # A definitive non-transport failure releases only this probe lease;
+            # it does not erase a separately recorded dependency cooldown.
+            await connection.execute(
+                "UPDATE runtime.recovery_dependencies SET probe_token=NULL,probe_expires_at=NULL "
+                "WHERE data_generation=%s AND dependency=%s AND probe_token=%s",
+                (row["data_generation"], attempt["dependency"], attempt_id))
         return due
 
     async def succeed_attempt_on(self, connection, attempt_id, *, probe_token=None):
@@ -693,7 +695,7 @@ class RecoveryPolicy:
             "WHERE attempt_id=%s AND status='reserved' RETURNING lineage_id,dependency_probe,observation_ref,dependency", (attempt_id,))).fetchone()
         if not attempt:
             raise AppError("recovery_attempt_not_active", status=409)
-        probe_token = probe_token or (attempt_id if attempt["dependency_probe"] else None)
+        probe_token = attempt_id if attempt["dependency_probe"] else None
         await connection.execute(
             "INSERT INTO runtime.recovery_attempt_observations(attempt_id,status,observation_ref) VALUES(%s,'succeeded',%s)",
             (attempt_id, attempt["observation_ref"]))

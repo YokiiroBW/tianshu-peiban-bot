@@ -13,6 +13,7 @@
 
 - `tianshu.runtime.recovery_policy.RecoveryWait` 继承 `AppError`，保留原 `code`，提供 `reason`、UTC `retry_at` 和 `dependency`。依赖冷却、正在探测、其他 claim 占用或已失效、明确尚未到期均表达为可复查等待；未预留新模型 attempt、不调用失败记账、不消耗模型预算。
 - `await policy.inspect_wait_on(conn, lineage_id, owner=..., expected_version=...)` 只观察当前 due、claim 与依赖状态，不取得 claim 或预留 attempt。返回 `None` 不等于新 attempt 已获授权。探测持有者未知时有界延后复查；探测时间到期不等于原结果已确定。
+- 共享 dependency 的 probe 是有限租约：真实 cooldown/Retry-After 先行，`probe_token` 有效且 `probe_expires_at` 未到时保持单 owner；已过期或没有 expiry 时在原依赖行锁内以旧 token/expiry CAS 接管一个新租约。确定终态按原 token 释放，unknown 不改；旧 probe 迟到的成功或失败不得覆盖新 token、expiry 或 cooldown。接管不改变旧 attempt，也不授权重放同一未知效果或绕过原 lineage/Models 回执。
 - `recovery_claim_lost` 不赋予旧 owner 写权限。领域须从持久状态重新取得 claim 并通过来源、权限、版本、代际和自己的 CAS 检查，才能写入或继续。
 - `RecoveryWait('source_lock_set_changed', retry_at, dependency='sources:lock_set')` 可用于 Sources 锁集合变化。必须先让该异常穿过整个当前事务并回滚，不能在已有部分写入的事务内捕获并提交。经 `Database` 事务退出时，异常的 `transaction_rollback_confirmed` 表明回滚是否已确认；同一 task 嵌套本 `Database` 的事务时需逐层回滚，明确为 `False` 不会被 Jobs 自动重排。事务外产生等待时，领域必须保证既有提交可从原持久状态安全恢复。
 - RPC 显式类型合同：`recovery_wait_to_wire(wait)` 仅接受 `RecoveryWait`，输出六个字段 `kind='recovery_wait'`、`version=1`、`reason`、UTC ISO-8601 `retry_at`、`dependency`、布尔值 `rollback_confirmed`。发送端本地事务确认回滚且没有先前远端否定证据时才输出 `true`；未确认一律为 `false`。`recovery_wait_from_wire(document)` 严格验证字段集合、类型、版本、内容与时区，非法 envelope 抛 `ValueError`，普通 AppError/503 不隐式升级为等待。
@@ -46,13 +47,17 @@
 
 补充 `tests/runtime/test_rbf_conversation_prepare_routing.py`：覆盖 producer-only 动态 lane 拒绝猜测、显式 lane 观测及消费者 resolver 选择现有队列。
 
+补充 `tests/runtime/test_rbf_probe_leases.py`：覆盖有效租约、真实冷却、过期或缺失 expiry 后并发 CAS 单一接管、迟到成功/失败 fencing，以及同材料 unknown 仍须原回执和预算。
+
 建议协调者在完成 RBF-08 事件装配及领域接线后，用本批隔离 PG 驱动先运行：
 
 ```text
-files tests/runtime/test_rbf_recovery_wait.py tests/runtime/test_rbf_recovery_wait_rpc.py tests/runtime/test_rbf_conversation_prepare_routing.py tests/runtime/test_rbf_database_jobs.py tests/runtime/test_rb_recovery_policy.py tests/runtime/test_rb_jobs.py tests/runtime/test_execution_lanes.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_rb_roles.py
+files tests/runtime/test_rbf_recovery_wait.py tests/runtime/test_rbf_recovery_wait_rpc.py tests/runtime/test_rbf_conversation_prepare_routing.py tests/runtime/test_rbf_database_jobs.py tests/runtime/test_rbf_probe_leases.py tests/runtime/test_rb_recovery_policy.py tests/runtime/test_rb_jobs.py tests/runtime/test_execution_lanes.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_rb_roles.py
 ```
 
 再按各领域交付运行 Memory/Life/Growth 对应的定向用例，检查资源等待不会写 terminal 或重发模型/外部动作，以及原业务记录和唤醒在事务内一致。
+
+集成时还需更新旧 `test_rb_recovery_policy.py` 中 `test_unknown_probe_retry_respects_cooldown_and_transfers_probe` 和 `test_confirmed_pure_unknown_can_change_route_without_resetting_budget`：旧用例假设仍有效的自身/已 supersede probe 可立即接管；新合同须先断言等待、再让原 probe 租约过期，不改变原回执及预算断言。
 
 ## 实际验证和限制
 
