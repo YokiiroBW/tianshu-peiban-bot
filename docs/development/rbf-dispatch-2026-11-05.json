@@ -1,0 +1,177 @@
+{
+  "schema_version": 1,
+  "batch": "RBF-20261105",
+  "state": "implementation_dispatched",
+  "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "model": "gpt-6.1-terra",
+  "reasoning_effort": "max",
+  "service_tier": "default",
+  "baseline_source": "33e5282f60fe4c803c3b16d498d1d924621ed1b9",
+  "integration_root": "C:/Users/Administrator/.codex/worktrees/rb-integration/tianshu-peiban-bot",
+  "evidence_root": "C:/YOKI/Codex/tianshu-peiban-bot/.runtime/rb-execution-20261105",
+  "tasks": [
+    {
+      "id": "RBF-01",
+      "key": "runtime",
+      "title": "运行时等待协议与数据库资源",
+      "thread_id": "01a1a772-e95a-7922-a72f-1beb061dd287",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-runtime/tianshu-peiban-bot",
+      "branch": "codex/rbf-runtime-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/runtime/database.py",
+        "src/tianshu/runtime/jobs.py",
+        "src/tianshu/runtime/execution.py",
+        "src/tianshu/runtime/process.py",
+        "src/tianshu/runtime/recovery_policy.py",
+        "src/tianshu/runtime/rbf_*.py",
+        "src/tianshu/runtime/rbf_*.sql",
+        "tests/runtime/test_rbf_*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-02",
+      "key": "life",
+      "title": "Life语义触发与原子规划续接",
+      "thread_id": "01a1a772-e80b-7fa0-95d3-d32d50649745",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
+      "branch": "codex/rbf-life-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/life/",
+        "tests/life/test_rbf_*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-03",
+      "key": "memory",
+      "title": "Memory等待恢复与材料重复归因",
+      "thread_id": "01a1a772-e983-7ad0-b572-61409937e393",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-memory/tianshu-peiban-bot",
+      "branch": "codex/rbf-memory-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/memory/",
+        "tests/memory/test_rbf_*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-04",
+      "key": "capabilities",
+      "title": "能力观测语义与媒体阶段恢复",
+      "thread_id": "01a1a772-e975-77c3-a3e9-849d1b71eb20",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
+      "branch": "codex/rbf-capabilities-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/capabilities/",
+        "tests/capabilities/test_rbf_*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-05",
+      "key": "sources",
+      "title": "来源与领域提交锁顺序",
+      "thread_id": "01a1a772-e813-76e3-9869-be43c2a4834c",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-sources/tianshu-peiban-bot",
+      "branch": "codex/rbf-sources-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/sources/",
+        "src/tianshu/identity/",
+        "src/tianshu/conversation/persistence.py",
+        "tests/sources/test_rbf_*.py",
+        "tests/identity/test_rbf_*.py",
+        "tests/conversation/test_rbf_persistence*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-06",
+      "key": "models",
+      "title": "Models状态查询与原回执语义",
+      "thread_id": "01a1a772-e93b-73d0-9b3f-33cd579098da",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-models/tianshu-peiban-bot",
+      "branch": "codex/rbf-models-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/models/",
+        "tests/models/test_rbf_*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-07",
+      "key": "growth",
+      "title": "Growth临时资源失败与恢复一致性",
+      "thread_id": "01a1a772-e96f-7600-a841-94ca8dd26ab6",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-growth/tianshu-peiban-bot",
+      "branch": "codex/rbf-growth-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/companion/",
+        "tests/companion/test_rbf_*.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBF-08",
+      "key": "observability",
+      "title": "统计覆盖、事件归因与巡检摘要",
+      "thread_id": "01a1a772-e81f-7a10-8a21-5221bed680f8",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-observability/tianshu-peiban-bot",
+      "branch": "codex/rbf-observability-20261105",
+      "status": "dispatched",
+      "allowed_paths": [
+        "src/tianshu/operations/",
+        "src/tianshu/runtime/api.py",
+        "src/tianshu/runtime/events.py",
+        "src/tianshu/runtime/logging.py",
+        "src/tianshu/channels/observability.py",
+        "tests/operations/test_rbf_*.py",
+        "tests/runtime/test_rbf_events*.py",
+        "tests/channels/test_rbf_statistics*.py",
+        "scripts/ops/rbf_monitor_summary.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    }
+  ],
+  "integration_branch": "codex/rbf-integration-20261105",
+  "dispatched_at": "2026-11-05T02:24:09.670928+00:00"
+}
