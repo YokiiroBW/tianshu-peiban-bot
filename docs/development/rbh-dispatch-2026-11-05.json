@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBH-20261105",
-  "state": "integrated_followup_pending",
+  "state": "central_validation",
   "baseline_source": "ab471c58b70eab0a2807b900b2eebda114b53330",
   "production_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
   "parent_thread": "01a1ac04-8013-7620-8d29-a2f2656d850b",
@@ -83,7 +83,7 @@
         "tests/companion/test_rb_growth_async.py",
         "tests/companion/test_*growth*.py"
       ],
-      "status": "integrated_followup_pending",
+      "status": "integrated_pending_central_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -91,7 +91,8 @@
       "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
       "source_commit": "4cee60d2335ea55a866b2502ec63c77dbfda2a13",
       "integration_commit": "0a167f85",
-      "handoff_commit": "282391b5d2d7bb51137b67fd261e15b53ca52217"
+      "handoff_commit": "282391b5d2d7bb51137b67fd261e15b53ca52217",
+      "followup_commit": "b6bb6d33dc5f435754dfb7fad0cd951663939f55"
     },
     {
       "id": "RBH-04",
