@@ -10,9 +10,11 @@ import pytest
 from tianshu.runtime.database import DatabaseFailure
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryWait
+from tianshu.types import SourceRef
 from test_growth_output import note, state
 from test_growth_retry import current_retry_setup, observed_result, retry_row
 from test_rb_growth_async import GENERATION, setup_growth
+from test_rb_growth_pure_retry import unknown_result
 from test_rbf_growth_recovery import force_retry_due, known_failed_attempt
 
 
@@ -65,12 +67,16 @@ async def test_frozen_request_wait_keeps_original_attempt_for_runtime(database, 
     assert raised.value is wait
     request = models.submit.await_args.args[0]
     current = await state(database)
-    assert current['active_batch']['material_key'] == request.intent_id
     assert current['last_error'] is None and current['blocked_material'] is None
     assert (await growth.generations.request(request.attempt_id, context)).attempt_id == request.attempt_id
     if confirmed is False:
+        retry = await retry_row(database)
+        assert current['active_batch'] is None and retry['waiting_on_original']
+        assert retry['current_material_key'] == request.intent_id
+        assert retry['batch']['control_observation']['remote_rollback_confirmed'] is False
         models.status.assert_awaited_once_with(request.attempt_id)
     else:
+        assert current['active_batch']['material_key'] == request.intent_id
         models.status.assert_not_awaited()
         models.submit = submit
         result = await growth.organize('actor', scope, current['revision'], GENERATION)
@@ -212,12 +218,15 @@ async def test_activated_retry_wait_resumes_same_batch_without_stale_cas(databas
     assert raised.value is wait
     request = models.submit.await_args.args[0]
     current, retry = await state(database), await retry_row(database)
-    assert current['active_batch']['material_key'] == request.intent_id
-    assert retry['state'] == 'active' and retry['current_material_key'] == request.intent_id
+    assert retry['current_material_key'] == request.intent_id
     assert request.attempt_id != original.attempt_id
     if confirmed is False:
+        assert current['active_batch'] is None
+        assert retry['state'] == 'waiting' and retry['waiting_on_original']
+        assert retry['batch']['control_observation']['remote_rollback_confirmed'] is False
         models.status.assert_awaited_once_with(request.attempt_id)
     else:
+        assert current['active_batch']['material_key'] == request.intent_id and retry['state'] == 'active'
         models.status.assert_not_awaited()
         models.submit = submit
         result = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
@@ -239,6 +248,193 @@ async def test_second_result_read_does_not_erase_unconfirmed_wait(database):
         await growth.organize('actor', scope, before['revision'], GENERATION)
 
     assert raised.value is wait
-    assert await state(database) == before and len(growth.jobs.items) == jobs_before
+    assert (await state(database))['active_batch'] is None
+    retry = await retry_row(database)
+    assert retry['current_material_key'] == original.intent_id and retry['waiting_on_original']
+    assert len(growth.jobs.items) > jobs_before
     models.status.assert_awaited_once_with(original.attempt_id)
     assert len(models.submitted) == 1
+
+
+
+@pytest.mark.asyncio
+async def test_control_unknown_yields_new_material_and_applies_late_original_historically(database):
+    growth, context, memory, models, scope = await current_retry_setup(database)
+    wait = remote_wait(False)
+    submit = models.submit
+    failed_submit = models.submit = AsyncMock(side_effect=wait)
+    with pytest.raises(RecoveryWait) as raised:
+        await growth.organize('actor', scope, 1, GENERATION)
+    assert raised.value is wait
+    original = failed_submit.await_args.args[0]
+    models.submit = submit
+
+    retry = await retry_row(database)
+    assert retry['waiting_on_original'] and retry['batch']['control_observation']['remote_rollback_confirmed'] is False
+    async with database.transaction(read_only=True) as connection:
+        physical = await (await connection.execute(
+            'SELECT status,error_code FROM runtime.recovery_attempts WHERE attempt_id=%s',
+            (original.attempt_id,))).fetchone()
+        observations = await (await connection.execute(
+            'SELECT count(*) AS n FROM runtime.recovery_attempt_observations WHERE attempt_id=%s',
+            (original.attempt_id,))).fetchone()
+    assert physical == {'status': 'reserved', 'error_code': None} and observations['n'] == 0
+
+    # Even an authoritative finished unknown stays an observation of this ID;
+    # it does not authorize a successor for this control-uncertain batch.
+    models.results[original.attempt_id] = unknown_result(original)
+    await force_retry_due(database)
+    assert (await growth.retries.run('actor', scope, retry['retry_key'], GENERATION))['state'] == 'waiting_original'
+    async with database.transaction(read_only=True) as connection:
+        attempts = await (await connection.execute(
+            'SELECT attempt_id,status FROM runtime.recovery_attempts ORDER BY attempt_number')).fetchall()
+    assert attempts == [{'attempt_id': original.attempt_id, 'status': 'reserved'}]
+    assert failed_submit.await_count == 1 and not models.submitted
+
+    later = replace(memory.episode, episode_id='later', event_id='later', sequence=2, cursor='e:2',
+        occurred_at=memory.episode.occurred_at + timedelta(minutes=1), source_refs=(SourceRef('later', 1),))
+    memory.episodes += (later,)
+    await growth.changed(context, 'event:2', episode=later, generation=GENERATION)
+    assert (await growth.organize('actor', scope, (await state(database))['revision'], GENERATION))['state'] == 'waiting'
+    new_request = models.submitted[0][0]
+    assert new_request.attempt_id != original.attempt_id
+    models.results[new_request.attempt_id] = observed_result(new_request, 'succeeded')
+    assert (await growth.organize('actor', scope, (await state(database))['revision'], GENERATION))['state'] == 'reviewed'
+    assert (await state(database))['cursor'] == 'e:2'
+
+    late = observed_result(original, 'succeeded', notes=(note('reflection'),))
+    models.results[original.attempt_id] = replace(
+        late, receipt=replace(late.receipt, data_generation=GENERATION, finished_at=datetime.now(UTC)))
+    await force_retry_due(database)
+    result = await growth.retries.run('actor', scope, retry['retry_key'], GENERATION)
+
+    assert result['state'] == 'reviewed' and (await state(database))['cursor'] == 'e:2'
+    assert (await retry_row(database))['outcome'] == 'historical_only'
+    assert failed_submit.await_count == 1 and len(models.submitted) == 1
+    async with database.transaction(read_only=True) as connection:
+        physical = await (await connection.execute(
+            'SELECT status FROM runtime.recovery_attempts WHERE attempt_id=%s',
+            (original.attempt_id,))).fetchone()
+    assert physical['status'] == 'succeeded'
+
+
+@pytest.mark.asyncio
+async def test_control_unknown_with_local_commit_uncertain_keeps_active_batch(database):
+    growth, _context, _memory, models, _policy, scope = await setup_growth(database)
+    wait = remote_wait(False)
+    wait.transaction_rollback_confirmed = False
+    models.submit = AsyncMock(side_effect=wait)
+    models.status = AsyncMock(return_value=None)
+
+    with pytest.raises(RecoveryWait) as raised:
+        await growth.organize('actor', scope, 1, GENERATION)
+
+    request = models.submit.await_args.args[0]
+    assert raised.value is wait and (await state(database))['active_batch']['material_key'] == request.intent_id
+    assert await retry_row(database) is None
+    models.status.assert_awaited_once_with(request.attempt_id)
+
+
+@pytest.mark.asyncio
+async def test_control_observation_only_blocks_on_real_failure_and_cannot_retry(database):
+    growth, _context, _memory, models, _policy, scope = await setup_growth(database)
+    wait = remote_wait(False)
+    models.submit = AsyncMock(side_effect=wait)
+    with pytest.raises(RecoveryWait):
+        await growth.organize('actor', scope, 1, GENERATION)
+    original = models.submit.await_args.args[0]
+    retry = await retry_row(database)
+    failure = observed_result(original, 'failed', error_code='upstream_http_503')
+    models.results[original.attempt_id] = replace(
+        failure, receipt=replace(failure.receipt, data_generation=GENERATION, finished_at=datetime.now(UTC)))
+    await force_retry_due(database)
+
+    result = await growth.retries.run('actor', scope, retry['retry_key'], GENERATION)
+
+    assert result['state'] == 'retry_blocked'
+    final = await retry_row(database)
+    assert final['state'] == 'blocked' and final['last_error'] == 'upstream_http_503'
+    assert final['history'][-1]['status'] == 'failed'
+    assert models.submit.await_count == 1 and (await state(database))['active_batch'] is None
+    verdict = await growth.operations.inspect(None, {
+        'actor_id': 'actor', 'scope_key': scope, 'retry_key': retry['retry_key']})
+    assert verdict['eligible'] is False
+    async with database.transaction(read_only=True) as connection:
+        attempts = await (await connection.execute(
+            'SELECT attempt_id,status FROM runtime.recovery_attempts ORDER BY attempt_number')).fetchall()
+    assert attempts == [{'attempt_id': original.attempt_id, 'status': 'failed'}]
+
+
+@pytest.mark.asyncio
+async def test_repeated_unconfirmed_control_read_only_reschedules_observation(database):
+    growth, _context, _memory, models, _policy, scope = await setup_growth(database)
+    first = remote_wait(False)
+    models.submit = AsyncMock(side_effect=first)
+    with pytest.raises(RecoveryWait):
+        await growth.organize('actor', scope, 1, GENERATION)
+    original = models.submit.await_args.args[0]
+    retry = await retry_row(database)
+    await force_retry_due(database)
+    second = remote_wait(False)
+    models.result = AsyncMock(side_effect=second)
+    models.status = AsyncMock(return_value=None)
+    jobs_before = len(growth.jobs.items)
+
+    with pytest.raises(RecoveryWait) as raised:
+        await growth.retries.run('actor', scope, retry['retry_key'], GENERATION)
+
+    assert raised.value is second and len(growth.jobs.items) == jobs_before + 1
+    current = await retry_row(database)
+    assert current['waiting_on_original'] and current['due_at'] > datetime.now(UTC)
+    assert current['current_material_key'] == original.intent_id
+    models.status.assert_awaited_once_with(original.attempt_id)
+    assert models.submit.await_count == 1 and (await state(database))['active_batch'] is None
+
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize('local_rollback', [False, True])
+async def test_control_isolation_requires_safe_local_transaction(database, local_rollback):
+    growth, _context, _memory, models, _policy, scope = await setup_growth(database)
+    wait = remote_wait(False)
+    wait.transaction_rollback_confirmed = local_rollback
+    models.submit = AsyncMock(side_effect=wait)
+    models.status = AsyncMock(return_value=None)
+
+    with pytest.raises(RecoveryWait) as raised:
+        await growth.organize('actor', scope, 1, GENERATION)
+
+    request = models.submit.await_args.args[0]
+    current = await state(database)
+    assert raised.value is wait
+    if local_rollback:
+        retry = await retry_row(database)
+        assert current['active_batch'] is None and retry['waiting_on_original']
+        assert retry['batch']['control_observation']['transaction_rollback_confirmed'] is True
+    else:
+        assert current['active_batch']['material_key'] == request.intent_id
+        assert await retry_row(database) is None
+    models.status.assert_awaited_once_with(request.attempt_id)
+
+
+@pytest.mark.asyncio
+async def test_uncertain_isolation_commit_reads_actual_owner_and_preserves_wait(database):
+    growth, _context, _memory, models, _policy, scope = await setup_growth(database)
+    wait = remote_wait(False)
+    models.submit = AsyncMock(side_effect=wait)
+    models.status = AsyncMock(return_value=None)
+    error = OperationalError('connection lost during isolation commit')
+    error.database_failure = DatabaseFailure('database_commit_unknown', 'commit', 'business', 'bot-background',
+                                             None, False, False, True, None)
+    growth.retries.defer = AsyncMock(side_effect=error)
+    growth.retries.observe_control_owner = AsyncMock(wraps=growth.retries.observe_control_owner)
+
+    with pytest.raises(RecoveryWait) as raised:
+        await growth.organize('actor', scope, 1, GENERATION)
+
+    request = models.submit.await_args.args[0]
+    assert raised.value is wait and raised.value.__cause__ is error
+    assert growth.retries.observe_control_owner.await_count == 2
+    assert (await state(database))['active_batch']['material_key'] == request.intent_id
+    assert await retry_row(database) is None
+    models.status.assert_awaited_once_with(request.attempt_id)

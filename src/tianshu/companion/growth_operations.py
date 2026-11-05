@@ -101,7 +101,7 @@ class GrowthOperations:
 
     async def inspect(self, _incident_or_recovery, target):
         row = await self._row(target)
-        if not row or row['waiting_on_original']:
+        if not row or row['waiting_on_original'] or row['batch'].get('control_observation'):
             return {'eligible': False, 'reason': 'growth_retry_not_available'}
         if row['state'] == 'waiting':
             async with self.growth.companion.database.transaction(read_only=True) as connection:

@@ -90,6 +90,36 @@ class GrowthRetries:
             pass
         raise wait
 
+    async def observe_control_owner(self, actor_id, scope_key, generation):
+        # A read only; in particular this does not interpret an active pointer
+        # as proof that a transaction with unknown commit outcome rolled back.
+        async with self.database.transaction(read_only=True) as connection:
+            await self.growth.jobs.assert_generation_on(connection, generation)
+            return await (await connection.execute(
+                "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s",
+                (actor_id, scope_key))).fetchone()
+
+    async def isolate_control_wait(self, actor_id, scope_key, material_key, generation, wait):
+        current = await self.observe_control_owner(actor_id, scope_key, generation)
+        # None means no local transaction unwound; True means its rollback was
+        # confirmed. False is an unknown local outcome, even if the pointer is
+        # still visible, and cannot authorize releasing the partition.
+        if getattr(wait, 'transaction_rollback_confirmed', None) is False:
+            return None
+        batch = current['active_batch'] if current and current['runtime_generation'] == generation else None
+        if not batch or batch.get('material_key') != material_key:
+            return None
+        original = context_from_record(batch['context'])
+        request = await self.growth.generations.request(attempt_for(material_key), original)
+        if not request or request.intent_id != material_key or request.data_generation != generation:
+            return None
+        observation = {'reason': wait.reason, 'dependency': wait.dependency,
+            'retry_at': wait.retry_at.isoformat(),
+            'remote_rollback_confirmed': getattr(wait, 'remote_rollback_confirmed', None),
+            'transaction_rollback_confirmed': getattr(wait, 'transaction_rollback_confirmed', None)}
+        return await self.defer(current, batch, 'growth_model_control_unconfirmed',
+                                control_observation=observation)
+
     async def wait_dependency(self, row, wait):
         if not recovery_wait_retryable(wait):
             await self.propagate_unconfirmed_wait(wait, attempt_for(row['current_material_key']))
@@ -97,6 +127,66 @@ class GrowthRetries:
             raise wait
         return await self.postpone(row, code=wait.reason, waiting_on_original=row['waiting_on_original'],
                                    retry_at=wait.retry_at)
+
+    async def settle_control_receipt(self, row, request, result, generation):
+        # The remote wait was not a physical outcome. Only the original Models
+        # receipt can settle that attempt, and it never permits a successor.
+        receipt = getattr(result, 'receipt', None)
+        if (not isinstance(receipt, ModelReceipt) or receipt.attempt_id != request.attempt_id
+                or receipt.intent_id != request.intent_id or receipt.data_generation != generation
+                or receipt.status not in {'succeeded', 'failed', 'cancelled'}):
+            return None
+        async with self.database.transaction() as connection:
+            await self.growth.jobs.assert_generation_on(connection, generation)
+            current = await (await connection.execute(
+                "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s "
+                "AND retry_key=%s FOR UPDATE",
+                (row['actor_id'], row['scope_key'], row['retry_key']))).fetchone()
+            if (not current or current['state'] != 'waiting' or not current['waiting_on_original']
+                    or current['revision'] != row['revision']
+                    or current['current_material_key'] != request.intent_id
+                    or not current['batch'].get('control_observation')):
+                return {'state': 'changed_since_original_result_read'}
+            attempt = await (await connection.execute(
+                "SELECT status,lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s",
+                (request.attempt_id,))).fetchone()
+            if not attempt or attempt['lineage_id'] != current['batch'].get('lineage_id'):
+                return None
+            status = attempt['status']
+            success = receipt.status == 'succeeded'
+            if (success and status not in {'reserved', 'unknown', 'succeeded'}
+                    or not success and status not in {'reserved', 'unknown', 'failed'}):
+                return None
+            code = ('explicit_cancel' if receipt.cancellation_reason == 'explicit_cancel'
+                    else receipt.error_code or 'reflection_generation_' + receipt.status)
+            batch = current['batch']
+            if status == 'unknown':
+                from tianshu.runtime.recovery_policy import classify_failure
+                await self.growth.recovery_policy.resolve_unknown_on(connection, request.attempt_id,
+                    observation_ref='models:'+request.attempt_id, state='succeeded' if success else 'failed',
+                    code=None if success else code, category=None if success else classify_failure(code),
+                    probe_token=batch.get('probe_token'))
+                if success:
+                    batch = {**batch, 'recovery_succeeded_attempt_id': request.attempt_id}
+            elif success and status == 'succeeded':
+                batch = {**batch, 'recovery_succeeded_attempt_id': request.attempt_id}
+            elif not success and status == 'reserved':
+                await fail_recovery(self.growth.recovery_policy, connection, batch, request.attempt_id, code)
+            if success:
+                updated = await (await connection.execute(
+                    "UPDATE companion.growth_retry_batches SET batch=%s,waiting_on_original=false,"
+                    "revision=revision+1,updated_at=now() WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
+                    (document(batch), row['actor_id'], row['scope_key'], row['retry_key']))).fetchone()
+            else:
+                updated = await (await connection.execute(
+                    "UPDATE companion.growth_retry_batches SET state='blocked',due_at=NULL,last_error=%s,"
+                    "waiting_on_original=false,history=%s,revision=revision+1,updated_at=now() "
+                    "WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
+                    (code, document(with_history(current['history'], history_entry(batch, code, result))),
+                     row['actor_id'], row['scope_key'], row['retry_key']))).fetchone()
+            await self.growth.observations.emit_on(connection, self.growth.observations.review_event(updated),
+                                                    generation=generation)
+            return updated if success else {'state': 'retry_blocked', 'error_code': code}
 
     async def settle_superseded(self, state, batch, attempt_id, generation):
         """A late original receipt can settle its attempt, never its successor."""
@@ -170,7 +260,7 @@ class GrowthRetries:
             await self.growth.observations.emit_on(connection, self.growth.observations.review_event(current), generation=generation)
         return current, candidate
 
-    async def defer(self, state, batch, code, result=None, *, diagnostic=None):
+    async def defer(self, state, batch, code, result=None, *, diagnostic=None, control_observation=None):
         """One CAS moves this owner to the tail; later input never joins its batch."""
         key = batch.get("retry_key", batch["material_key"])
         number = batch.get("attempt_number", 1)
@@ -181,13 +271,23 @@ class GrowthRetries:
                           and correction_available(batch, code))
         # Without an original Models receipt, even a source/authorization error
         # does not establish what happened to the physical attempt.
-        uncertain = result is None or result.receipt.status == 'unknown'
+        uncertain = (result is None or result.receipt.status == 'unknown'
+                     or bool(batch.get('control_observation') and result.receipt.status in {'queued', 'running'}))
+        if control_observation is None and uncertain and not explicit_cancel:
+            control_observation = batch.get('control_observation')
+        observing_control = control_observation is not None
         retryable = correcting or transient_model_failure(code, cancelled=explicit_cancel)
+        if batch.get('control_observation') and not observing_control:
+            # This original may be read or applied; it may never spawn a
+            # correction/successor merely because control was uncertain.
+            retryable = False
         if number >= MAX_ATTEMPTS and not uncertain:
             retryable = False
-        delay = 0 if correcting else retry_delay_seconds(number)
+        delay = 30 if observing_control else 0 if correcting else retry_delay_seconds(number)
+        retryable = retryable or observing_control
         due = datetime.now(UTC) + timedelta(seconds=delay) if retryable else None
-        status = await self.current_status(attempt_for(batch['material_key'])) if uncertain and retryable else None
+        status = (await self.current_status(attempt_for(batch['material_key']))
+                  if uncertain and retryable and not observing_control else None)
         if status and status.cancellation_reason == 'explicit_cancel':
             code, retryable, due = 'explicit_cancel', False, None
         async with self.database.transaction() as connection:
@@ -198,7 +298,10 @@ class GrowthRetries:
             if (not current or not current["active_batch"]
                     or current["active_batch"]["material_key"] != batch["material_key"]):
                 return {"state": "changed_since_original_result_read"}
-            if result is not None and result.receipt.status == 'succeeded':
+            if observing_control:
+                # A control-plane wait is not a Models physical outcome.
+                pass
+            elif result is not None and result.receipt.status == 'succeeded':
                 # A malformed domain result does not change the physical
                 # Models receipt; a correction is a bounded continuation.
                 await succeed_recovery(self.growth.recovery_policy, connection, batch, attempt_for(batch['material_key']))
@@ -222,7 +325,9 @@ class GrowthRetries:
             if row["state"] == "completed" or row["current_material_key"] != batch["material_key"]:
                 return {"state": "changed_since_original_result_read"}
             reserved = {**batch, "retry_key": key, "attempt_number": number}
-            if correcting:
+            if observing_control:
+                reserved['control_observation'] = control_observation
+            if correcting and not reserved.get('control_observation'):
                 reserved.update(output_repair_count=batch.get("output_repair_count", 0)+1,
                     output_repair={"rejected_material_key": batch["material_key"],
                         "diagnostic": output_diagnostic(code, diagnostic), "attempt_id": result.receipt.attempt_id})
@@ -231,7 +336,8 @@ class GrowthRetries:
                 "waiting_on_original=%s,explicit_retry=false,history=%s,revision=revision+1,updated_at=now() "
                 "WHERE actor_id=%s AND scope_key=%s AND retry_key=%s RETURNING *",
                 (document(reserved), "waiting" if retryable else "blocked", due, code, uncertain,
-                 document(with_history(row["history"], history_entry(reserved, code, result))),
+                 document(row["history"] if observing_control else
+                          with_history(row["history"], history_entry(reserved, code, result))),
                  state["actor_id"], state["scope_key"], key))).fetchone()
             await self.growth.observations.emit_on(connection, self.growth.observations.review_event(row), generation=batch['runtime_generation'])
             for identifier, version in batch["inputs"]:
@@ -329,6 +435,13 @@ class GrowthRetries:
                 return await self.postpone(row, code="growth_generation_changed", blocked=True)
             result = await self.growth.generations.read(request.attempt_id, context)
             unknown_receipt = None
+            if row['waiting_on_original'] and row['batch'].get('control_observation'):
+                observed = await self.settle_control_receipt(row, request, result, generation)
+                if observed is None:
+                    return await self.postpone(row, waiting_on_original=True)
+                if observed.get('state') != 'waiting':
+                    return observed
+                row = observed
             if row['waiting_on_original']:
                 if result is None or result.receipt.status in {'queued', 'running', 'unknown'}:
                     if result and result.receipt.cancellation_reason == 'explicit_cancel':
@@ -421,6 +534,8 @@ class GrowthRetries:
                     manual_output = False
             repeat_rejected_output = pending_repair or manual_output
             successor = result is None or result.receipt.status != "succeeded" or repeat_rejected_output
+            if successor and row['batch'].get('control_observation'):
+                return await self.postpone(row, code='growth_control_observation_requires_review', blocked=True)
             if successor and unknown_receipt is None:
                 # Cancellation is a current Models projection, not an immutable
                 # snapshot of the first failure. Re-read immediately before
@@ -544,9 +659,17 @@ class GrowthRetries:
             return await self.growth.organize(actor_id, scope_key, activated["revision"], generation)
         except RecoveryWait as wait:
             if activated is not None:
-                # Activation already committed; retry the original Runtime job
-                # rather than applying a stale waiting-row CAS.
+                # The nested organizer has already handled its active pointer.
                 raise
+            if row['batch'].get('control_observation') and not recovery_wait_retryable(wait):
+                # Only a read of the original ID is scheduled; the control
+                # wait does not authorize repeating its remote action.
+                if getattr(wait, 'transaction_rollback_confirmed', None) is not False:
+                    try:
+                        await self.postpone(row, code='growth_model_control_unconfirmed', waiting_on_original=True)
+                    except Exception as scheduling_error:
+                        raise wait from scheduling_error
+                await self.propagate_unconfirmed_wait(wait, attempt_for(row['current_material_key']))
             return await self.wait_dependency(row, wait)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             if classify_database_failure(error) is not None:
@@ -579,8 +702,8 @@ class GrowthRetries:
         row = await (await connection.execute(
             "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s AND retry_key=%s FOR UPDATE",
             (current["actor_id"], current["scope_key"], retry_key))).fetchone()
-        if (not row or row["state"] != "blocked" or not manual_retry_allowed(row["last_error"])
-                or not review_available(row["batch"], row["last_error"])):
+        if (not row or row["state"] != "blocked" or row['batch'].get('control_observation')
+                or not manual_retry_allowed(row["last_error"]) or not review_available(row["batch"], row["last_error"])):
             raise AppError("reflection_retry_not_available", status=409)
         if not self.growth.recovery.same_scene(caller, context_from_record(row["batch"]["context"])):
             raise AppError("reflection_recovery_context_mismatch", status=403)
@@ -600,7 +723,8 @@ class GrowthRetries:
         rows = await (await connection.execute(
             "SELECT retry_key,batch->'context' AS context,batch->'output_repair_count' AS output_repair_count,"
             "last_error FROM companion.growth_retry_batches "
-            "WHERE actor_id=%s AND scope_key=%s AND state='blocked' ORDER BY created_at,retry_key",
+            "WHERE actor_id=%s AND scope_key=%s AND state='blocked' "
+            "AND NOT (batch ? 'control_observation') ORDER BY created_at,retry_key",
             (state["actor_id"], state["scope_key"]))).fetchall()
         return next((row["retry_key"] for row in rows if manual_retry_allowed(row["last_error"])
             and review_available({"output_repair_count": row.get("output_repair_count") or 0}, row["last_error"])

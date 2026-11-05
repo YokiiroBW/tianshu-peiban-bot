@@ -158,7 +158,23 @@ class GrowthService:
             return await self._organize(actor_id, scope_key, expected_revision, owner, generation)
         except RecoveryWait as wait:
             if not recovery_wait_retryable(wait) and owner.get('material_key'):
-                await self.retries.propagate_unconfirmed_wait(wait, attempt_for(owner['material_key']))
+                attempt_id = attempt_for(owner['material_key'])
+                try:
+                    await self.retries.isolate_control_wait(actor_id, scope_key, owner['material_key'],
+                                                            generation, wait)
+                except Exception as isolation_error:
+                    # A failed isolation commit can itself be uncertain. Read
+                    # the actual owner before propagating either uncertainty.
+                    try:
+                        await self.retries.observe_control_owner(actor_id, scope_key, generation)
+                    except Exception:
+                        pass
+                    try:
+                        await self.retries.current_status(attempt_id)
+                    except Exception:
+                        pass
+                    raise wait from isolation_error
+                await self.retries.propagate_unconfirmed_wait(wait, attempt_id)
             raise
         except Exception as error:
             failure = classify_database_failure(error)
@@ -470,7 +486,7 @@ class GrowthService:
             code = (result.receipt.error_code or ("reflection_outcome_unknown" if status == "unknown" else
                     "reflection_generation_" + status)) if result else (
                     details.get("result_read_error") or details.get("rpc_error") or "reflection_outcome_unknown")
-            if status not in {"queued", "running"}:
+            if status not in {"queued", "running"} or batch.get('control_observation'):
                 return await self.retries.defer(state, batch, code, result)
             async with self.companion.database.transaction() as connection:
                 await self.jobs.assert_generation_on(connection, generation)
