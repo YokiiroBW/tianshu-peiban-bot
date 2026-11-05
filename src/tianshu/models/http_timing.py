@@ -14,6 +14,8 @@ class HttpTiming:
         self.queued_at = queued_at
         self.points = {}
         self.connection_reused = None
+        self.send_signals_available = False
+        self.http_phase = "unknown"
 
     def mark(self, name):
         self.points.setdefault(name, round((time.monotonic() - self.origin) * 1000, 3))
@@ -35,6 +37,8 @@ class HttpTiming:
 
 def trace_config():
     trace = aiohttp.TraceConfig()
+    send_signals_available = all(getattr(trace, name, None) is not None for name in
+                                 ("on_request_headers_sent", "on_request_chunk_sent"))
 
     def callback(point, *, reuse=None):
         async def record(_session, context, _params):
@@ -43,6 +47,8 @@ def trace_config():
                 return
             if reuse is not None:
                 timing.connection_reused = reuse
+            if point == "connect_start":
+                timing.send_signals_available = send_signals_available
             timing.mark(point)
         return record
 
@@ -62,6 +68,27 @@ def trace_config():
         if event is not None:
             event.append(callback(point, reuse=reuse))
     return trace
+
+
+class TimedResponse:
+    """Distinguish a failed request/body from an error closing its context."""
+
+    def __init__(self, context, timing):
+        self.context, self.timing = context, timing
+
+    async def __aenter__(self):
+        self.timing.http_phase = "request"
+        response = await self.context.__aenter__()
+        self.timing.http_phase = "response"
+        return response
+
+    async def __aexit__(self, exc_type, exc, traceback):
+        try:
+            return await self.context.__aexit__(exc_type, exc, traceback)
+        except BaseException as close_error:
+            if close_error is not exc:
+                self.timing.http_phase = "close"
+            raise
 
 
 def retry_after(value, *, now=None):

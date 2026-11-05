@@ -34,7 +34,8 @@ from .budgets import (
 from .estimation import input_tokens
 from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, waiting_expired, ExternalExecutionClock
 from .transport import validate_provider_session
-from .http_timing import HttpTiming, retry_after, trace_config
+from .http_timing import HttpTiming, TimedResponse, retry_after, trace_config
+from .transport_diagnostic import describe_transport
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -933,14 +934,14 @@ class ModelBroker:
                 await self.recheck_behaviors(request)
                 await self.ledger.assert_generation(request.attempt_id)
                 network_started = True
-                async with http_session.post(
+                async with TimedResponse(http_session.post(
                     call.url,
                     json=call.body,
                     headers=call.headers,
                     allow_redirects=False,
                     timeout=aiohttp.ClientTimeout(total=request.budget.remaining(), sock_connect=30),
                     trace_request_ctx=timing,
-                ) as response:
+                ), timing) as response:
                     timing.mark("response_headers")
                     if response.status >= 300:
                         if response.status in {429, 503}:
@@ -1038,6 +1039,7 @@ class ModelBroker:
                                 len(item.get("embedding", [])) != 1024 for item in vectors
                             ):
                                 raise AppError("embedding_dimension_mismatch", status=502)
+                timing.http_phase = "finished"
             extra = collector.tool_parts()
             for part in extra:
                 yield ModelEvent("part", part=part)
@@ -1119,7 +1121,11 @@ class ModelBroker:
                 }
             ):
                 status = "failed"
-            not_sent = submitted and (not network_started or isinstance(exc, aiohttp.ClientConnectorError))
+            transport = (describe_transport(exc, timing, call.url, output_observed=bool(collector.parts),
+                         provider_handle=row.get("provider_handle"), first_output_ms=row.get("first_output_ms"))
+                         if network_started else None)
+            not_sent = submitted and (not network_started or
+                (transport is not None and transport["evidence"] == "confirmed_not_sent"))
             incomplete = isinstance(exc, AppError) and exc.code in {"incomplete_native_stream", "upstream_response_incomplete"}
             if not_sent or (submitted and read_complete and not incomplete):
                 status = "failed"
@@ -1170,6 +1176,8 @@ class ModelBroker:
                     "part_kinds": sorted({part.kind for part in collector.parts}),
                     "text_bytes": sum(len((part.text or "").encode()) for part in collector.parts if part.kind == "text"),
                     "native_completed": collector.completed, "completion": wire(collector.completion)}
+                if transport is not None:
+                    diagnostic["transport"] = transport
                 if submitted:
                     partial_usage = normalize_usage(plan.protocol, collector.raw_usage, estimate) if collector.raw_usage else None
                     await finish_cleanup(self.ledger.save_observation(request.attempt_id,
