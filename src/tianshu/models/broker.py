@@ -360,7 +360,12 @@ class ModelBroker:
 
         lookup_phase(phase)
         row = await self.ledger.get(attempt_id)
-        return receipt(row) if row else None
+        return self._receipt(row) if row else None
+
+    def _receipt(self, row):
+        driver = self.drivers.get(row["attempt_id"])
+        active = bool(row.get("broker_instance") == self.instance_id and driver and not driver[0].done())
+        return receipt(row, checking_active=active)
 
     async def require_receipt(self, attempt_id):
         from .lookup import missing_receipt
@@ -369,6 +374,14 @@ class ModelBroker:
         if original is None:
             raise missing_receipt(attempt_id)
         return original
+
+    async def reconcile_prestart(self, attempt_id, *, context, expected_version, expected_request_digest,
+                                 expected_data_generation, client_request_id, evidence_ref, decision):
+        from .prestart_reconciliation import reconcile
+
+        return await reconcile(self, attempt_id, context=context, expected_version=expected_version,
+            expected_request_digest=expected_request_digest, expected_data_generation=expected_data_generation,
+            client_request_id=client_request_id, evidence_ref=evidence_ref, decision=decision)
 
     async def result(self, attempt_id, *, context):
         from .results import read_result
@@ -543,7 +556,7 @@ class ModelBroker:
             if row["status"] == "queued":
                 self._raise_prestart_observation(row, allow_due=True)
                 await self._start_driver(request, streaming=recorded_streaming, resume=True)
-            return receipt(row)
+            return self._receipt(row)
         future = await self._start_driver(request, streaming=streaming, completion=record)
         # RPC disconnection is an observer interruption, not a cancellation of
         # the durable attempt. A caller can query the same ID after a lost ACK.
@@ -554,7 +567,7 @@ class ModelBroker:
         row, recorded_streaming = existing
         if streaming and not recorded_streaming:
             raise AppError("model_stream_not_recorded", status=409)
-        return receipt(row)
+        return self._receipt(row)
 
     async def _start_driver(self, request, *, streaming, completion=None, resume=False):
         async with self.driver_lock:
@@ -607,8 +620,7 @@ class ModelBroker:
                     pass
             if not accepted.done():
                 accepted.set_exception(exc)
-            if not isinstance(exc, RecoveryWait) and accepted.done() and (resume or not accepted.exception()) and not (
-                    isinstance(exc, asyncio.CancelledError) and not self.ready):
+            if self.ready and not isinstance(exc, RecoveryWait) and accepted.done() and (resume or not accepted.exception()):
                 # Preparation can fail before _events enters its cleanup. The
                 # owner and unstarted state must still match in the same update.
                 await finish_cleanup(self.ledger.finish_before_start(request.attempt_id, "failed",

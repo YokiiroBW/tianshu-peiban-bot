@@ -16,7 +16,6 @@ from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_to_wire
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 from .codec import context_from_wire, external_from_wire, request_from_wire
-from .ledger import receipt
 from .types import ModelRequest, ModelUsage
 
 
@@ -105,13 +104,8 @@ def create_broker_app(broker, token, external_keys=()):
                     "lookup_state": "absent", "receipt": None, "cancel_requested": None})
             raise missing_receipt(attempt_id)
         request["model_lookup_state"] = "found"
-        value = {"attempt_id": attempt_id, "lookup_phase": phase, "lookup_state": "found",
-                 "receipt": receipt(row), "cancel_requested": row["cancel_requested"]}
-        if row["status"] == "queued" and row.get("recovery_state"):
-            saved_wait = row.get("recovery_wait") or {}
-            value["recovery"] = {"state": row["recovery_state"], "due_at": row.get("recovery_due_at"),
-                                 "wait": saved_wait.get("envelope") if isinstance(saved_wait, dict) else None}
-        return json_response(value)
+        return json_response({"attempt_id": attempt_id, "lookup_phase": phase, "lookup_state": "found",
+            "receipt": broker._receipt(row), "cancel_requested": row["cancel_requested"]})
 
     async def cancel(request):
         body = await request.json() if request.can_read_body else {}
@@ -151,6 +145,20 @@ def create_broker_app(broker, token, external_keys=()):
         else:
             result = await broker.result(attempt_id, context=context)
         return json_response({"result": result})
+
+    async def reconcile_prestart(request):
+        body = await request.json()
+        if not isinstance(body, dict):
+            raise AppError("invalid_prestart_reconciliation")
+        try:
+            context = context_from_wire(body["context"])
+            result = await broker.reconcile_prestart(request.match_info["attempt_id"], context=context,
+                expected_version=body["expected_version"], expected_request_digest=body["expected_request_digest"],
+                expected_data_generation=body["expected_data_generation"], client_request_id=body["client_request_id"],
+                evidence_ref=body["evidence_ref"], decision=body["decision"])
+        except (KeyError, TypeError, ValueError):
+            raise AppError("invalid_prestart_reconciliation") from None
+        return json_response({"receipt": result})
 
     async def external_observation(request):
         body = await request.json()
@@ -372,6 +380,7 @@ def create_broker_app(broker, token, external_keys=()):
     app.router.add_post("/internal/v1/models/generation-profile", generation_profile)
     app.router.add_get("/internal/v1/models/attempts/{attempt_id}", state)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/result", saved_result)
+    app.router.add_post("/internal/v1/models/attempts/{attempt_id}/prestart-reconciliation", reconcile_prestart)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/external-observation", external_observation)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/usage-observation", usage_observation)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/cancel", cancel)

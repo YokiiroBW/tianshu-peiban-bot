@@ -450,8 +450,10 @@ def register_routes(app, services):
         cursor_value = request.query.get("cursor")
         async with services.database.transaction(control=True, read_only=True) as conn:
             cursor = await conn.execute(
-                "SELECT a.*,c.reason AS cancellation_reason FROM models.attempts a "
-                "LEFT JOIN models.cancellations c USING(attempt_id) WHERE principal_id=%s "
+                "SELECT a.*,c.reason AS cancellation_reason,s.recovery_state,s.recovery_version,"
+                "s.recovery_due_at,s.recovery_wait,s.request_digest AS submission_digest "
+                "FROM models.attempts a LEFT JOIN models.cancellations c USING(attempt_id) "
+                "LEFT JOIN models.submissions s USING(attempt_id) WHERE a.principal_id=%s "
                 "AND (%s::text IS NULL OR a.attempt_id<%s) ORDER BY a.attempt_id DESC LIMIT %s",
                 (context.principal_id, cursor_value, cursor_value, limit + 1),
             )
@@ -465,6 +467,49 @@ def register_routes(app, services):
                 Coverage(complete=not more),
             )
         )
+
+    async def attempt_status(request):
+        context = require_context(request)
+        attempt_id = request.match_info["attempt_id"]
+        async with services.database.transaction(control=True, read_only=True) as conn:
+            row = await (await conn.execute("SELECT principal_id FROM models.attempts WHERE attempt_id=%s",
+                                            (attempt_id,))).fetchone()
+        if not row:
+            raise AppError("attempt_not_found", status=404)
+        if row["principal_id"] != context.principal_id and not ({"models.manage", "*"} & context.permissions):
+            raise AppError("forbidden", status=403)
+        result = await services.models.require_receipt(attempt_id)
+        return json_response({"receipt": result})
+
+    async def reconcile_prestart(request):
+        context = require_context(request, "models.manage")
+        body = await command_body(request)
+        try:
+            result = await services.models.reconcile_prestart(request.match_info["attempt_id"], context=context,
+                expected_version=body["expected_version"], expected_request_digest=body["expected_request_digest"],
+                expected_data_generation=body["expected_data_generation"], client_request_id=body["client_request_id"],
+                evidence_ref=body["evidence_ref"], decision=body["decision"])
+        except KeyError:
+            raise AppError("invalid_prestart_reconciliation") from None
+        return json_response(CommandResult(body["client_request_id"], attempt_id=request.match_info["attempt_id"],
+                                           data={"receipt": result}))
+
+    async def prestart_reconciliation_history(request):
+        require_context(request, "models.manage")
+        try:
+            after = int(request.query.get("after", "-1"))
+            limit = min(max(int(request.query.get("limit", "50")), 1), 100)
+        except ValueError:
+            raise AppError("invalid_prestart_reconciliation_cursor") from None
+        if after < -1:
+            raise AppError("invalid_prestart_reconciliation_cursor")
+        async with services.database.transaction(control=True, read_only=True) as connection:
+            rows = await (await connection.execute(
+                "SELECT * FROM models.prestart_reconciliations WHERE attempt_id=%s AND recovery_version>%s "
+                "ORDER BY recovery_version LIMIT %s", (request.match_info["attempt_id"], after, limit + 1))).fetchall()
+        page = rows[:limit]
+        return json_response({"items": [{**row, "data_generation": str(row["data_generation"])} for row in page],
+                              "next_after": page[-1]["recovery_version"] if len(rows) > limit else None})
 
     async def cancel(request):
         context = require_context(request)
@@ -627,8 +672,11 @@ def register_routes(app, services):
         "/api/v1/models/{operation:providers|routes|quota-groups|bindings|embedding-profile}", save
     )
     app.router.add_get("/api/v1/models/attempts", attempts)
+    app.router.add_get("/api/v1/models/attempts/{attempt_id}", attempt_status)
     app.router.add_post("/api/v1/models/attempts/read", read_attempt)
     app.router.add_post("/api/v1/models/attempts/{attempt_id}/cancel", cancel)
+    app.router.add_post("/api/v1/models/attempts/{attempt_id}/prestart-reconciliation", reconcile_prestart)
+    app.router.add_get("/api/v1/models/attempts/{attempt_id}/prestart-reconciliations", prestart_reconciliation_history)
     app.router.add_post("/api/v1/models/routes/{route_id}/probe", probe)
     app.router.add_post("/api/v1/models/providers/{provider_id}/models", enumerate_provider)
     app.router.add_post("/api/v1/models/providers/{provider_id}/models/result", enumeration_result)

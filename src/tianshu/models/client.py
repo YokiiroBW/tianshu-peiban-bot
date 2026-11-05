@@ -257,6 +257,17 @@ class ModelClient:
             raise missing_receipt(attempt_id)
         return original
 
+    async def reconcile_prestart(self, attempt_id, *, context, expected_version, expected_request_digest,
+                                 expected_data_generation, client_request_id, evidence_ref, decision):
+        value = await self._json("/internal/v1/models/attempts/" + attempt_id + "/prestart-reconciliation",
+            control=True, body={"context": context, "expected_version": expected_version,
+                "expected_request_digest": expected_request_digest, "expected_data_generation": expected_data_generation,
+                "client_request_id": client_request_id, "evidence_ref": evidence_ref, "decision": decision})
+        result = receipt_from_wire(value.get("receipt"))
+        if result is None or result.attempt_id != attempt_id:
+            raise AppError("invalid_model_reconciliation_response", status=502)
+        return result
+
     async def result(self, attempt_id, *, context):
         value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/result",
                                  body={"context": context}, control=True)

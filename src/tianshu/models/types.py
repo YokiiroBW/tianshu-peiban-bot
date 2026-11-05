@@ -115,6 +115,7 @@ class ModelReceipt:
     data_generation: str | None = None
     completion_state: Literal["none", "pending", "enqueued", "expired"] | None = None
     completion_error_code: str | None = None
+    recovery: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
