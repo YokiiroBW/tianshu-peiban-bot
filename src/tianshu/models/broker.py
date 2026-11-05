@@ -333,14 +333,32 @@ class ModelBroker:
             return_exceptions=True,
         )
 
-    async def status(self, attempt_id):
+    async def status(self, attempt_id, *, phase="observe"):
+        from .lookup import lookup_phase
+
+        lookup_phase(phase)
         row = await self.ledger.get(attempt_id)
         return receipt(row) if row else None
+
+    async def require_receipt(self, attempt_id):
+        from .lookup import missing_receipt
+
+        original = await self.status(attempt_id, phase="observe")
+        if original is None:
+            raise missing_receipt(attempt_id)
+        return original
 
     async def result(self, attempt_id, *, context):
         from .results import read_result
 
         return await read_result(self, attempt_id, context=context)
+
+    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None,
+                              expected_data_generation=None):
+        from .results import read_reusable_result
+
+        return await read_reusable_result(self, attempt_id, context=context,
+            expected_request_digest=expected_request_digest, expected_data_generation=expected_data_generation)
 
     async def observe_external(self, attempt_id, *, context, provider_handle, state):
         from .results import check_attempt_context

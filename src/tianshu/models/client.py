@@ -115,10 +115,12 @@ class ModelClient:
             return receipt_from_wire(value["receipt"])
         except (TimeoutError, aiohttp.ClientError):
             from .ledger import digest, submission_digest
+            control_error = None
             try:
                 original = await self.status(request.attempt_id)
-            except (AppError, TimeoutError, aiohttp.ClientError):
+            except (AppError, TimeoutError, aiohttp.ClientError) as error:
                 original = None
+                control_error = getattr(error, "code", type(error).__name__)
             if original is not None:
                 if original.request_digest != submission_digest(request):
                     raise AppError("attempt_identity_conflict", status=409) from None
@@ -126,8 +128,11 @@ class ModelClient:
                     raise AppError("model_completion_ack_unknown", status=503,
                         details={"attempt_id": request.attempt_id, "action": "resubmit_same_completion"}) from None
                 return original
-            raise AppError("model_submission_ack_unknown", status=503,
-                details={"attempt_id": request.attempt_id, "action": "observe_original_attempt"}) from None
+            details = {"attempt_id": request.attempt_id, "action": "observe_original_attempt",
+                       "original_observation": "unavailable" if control_error else "missing"}
+            if control_error:
+                details["control_error"] = control_error
+            raise AppError("model_submission_ack_unknown", status=503, details=details) from None
 
     async def stream(self, request):
         timeout = _result_timeout(request)
@@ -183,20 +188,57 @@ class ModelClient:
             # The durable attempt retains its original identity for subsequent status reads.
             pass
 
-    async def status(self, attempt_id):
+    async def status(self, attempt_id, *, phase="observe"):
+        from .lookup import lookup_phase
+
+        lookup_phase(phase)
+        path = "/internal/v1/models/attempts/" + attempt_id
+        if phase == "pre_submit":
+            path += "?" + urlencode({"phase": phase})
         try:
-            value = await self._json("/internal/v1/models/attempts/"+attempt_id,
-                                     control=True, method="GET")
-            return receipt_from_wire(value["receipt"])
+            value = await self._json(path, control=True, method="GET")
         except AppError as exc:
-            if exc.status == 404:
+            if phase == "observe" and exc.status == 404 and exc.code == "attempt_not_found":
                 return None
             raise
+        original = receipt_from_wire(value["receipt"])
+        if phase == "pre_submit":
+            if (value.get("attempt_id") != attempt_id or value.get("lookup_phase") != phase
+                    or value.get("lookup_state") != ("found" if original else "absent")):
+                raise AppError("invalid_model_status_response", status=502)
+        elif original is None:
+            raise AppError("invalid_model_status_response", status=502)
+        if original is not None and original.attempt_id != attempt_id:
+            raise AppError("model_attempt_identity_conflict", status=409,
+                           details={"attempt_id": attempt_id})
+        return original
+
+    async def require_receipt(self, attempt_id):
+        from .lookup import missing_receipt
+
+        original = await self.status(attempt_id, phase="observe")
+        if original is None:
+            raise missing_receipt(attempt_id)
+        return original
 
     async def result(self, attempt_id, *, context):
         value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/result",
                                  body={"context": context}, control=True)
         return result_from_wire(value["result"]) if value["result"] is not None else None
+
+    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None,
+                              expected_data_generation=None):
+        from .results import validate_reusable_receipt
+
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/result",
+            body={"context": context, "reuse": {"request_digest": expected_request_digest,
+                                                "data_generation": expected_data_generation}}, control=True)
+        if value.get("result") is None:
+            raise AppError("model_result_unavailable", status=409, details={"attempt_id": attempt_id})
+        result = result_from_wire(value["result"])
+        validate_reusable_receipt(result.receipt, attempt_id,
+            expected_request_digest=expected_request_digest, expected_data_generation=expected_data_generation)
+        return result
 
     async def cancel(self, attempt_id, *, reason="explicit_cancel"):
         value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/cancel",

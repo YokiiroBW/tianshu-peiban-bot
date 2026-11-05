@@ -82,10 +82,25 @@ def create_broker_app(broker, token, external_keys=()):
         return response
 
     async def state(request):
-        row = await broker.ledger.get(request.match_info["attempt_id"])
+        from .lookup import lookup_phase, missing_receipt
+
+        attempt_id = request.match_info["attempt_id"]
+        phase = lookup_phase(request.query.get("phase", "observe"))
+        # Shared HTTP event middleware can attribute this exact lookup without
+        # classifying unrelated 404s by route or error text alone.
+        request["model_attempt_id"] = attempt_id
+        request["model_lookup_phase"] = phase
+        request["model_lookup_state"] = "unavailable"
+        row = await broker.ledger.get(attempt_id)
         if not row:
-            raise AppError("attempt_not_found", status=404)
-        return json_response({"receipt": receipt(row), "cancel_requested": row["cancel_requested"]})
+            request["model_lookup_state"] = "absent"
+            if phase == "pre_submit":
+                return json_response({"attempt_id": attempt_id, "lookup_phase": phase,
+                    "lookup_state": "absent", "receipt": None, "cancel_requested": None})
+            raise missing_receipt(attempt_id)
+        request["model_lookup_state"] = "found"
+        return json_response({"attempt_id": attempt_id, "lookup_phase": phase, "lookup_state": "found",
+                              "receipt": receipt(row), "cancel_requested": row["cancel_requested"]})
 
     async def cancel(request):
         body = await request.json() if request.can_read_body else {}
@@ -105,9 +120,26 @@ def create_broker_app(broker, token, external_keys=()):
             context = context_from_wire(body["context"])
         except (KeyError, TypeError, ValueError):
             raise AppError("invalid_model_result_context") from None
-        return json_response(
-            {"result": await broker.result(request.match_info["attempt_id"], context=context)}
-        )
+        attempt_id = request.match_info["attempt_id"]
+        if "reuse" in body:
+            options = body["reuse"]
+            if not isinstance(options, dict) or set(options) - {"request_digest", "data_generation"}:
+                raise AppError("invalid_model_result_reuse")
+            request["model_attempt_id"] = attempt_id
+            request["model_lookup_phase"] = "observe"
+            request["model_lookup_state"] = "unavailable"
+            try:
+                result = await broker.reusable_result(attempt_id, context=context,
+                    expected_request_digest=options.get("request_digest"),
+                    expected_data_generation=options.get("data_generation"))
+            except AppError as exc:
+                if exc.code == "attempt_not_found":
+                    request["model_lookup_state"] = "absent"
+                raise
+            request["model_lookup_state"] = "found"
+        else:
+            result = await broker.result(attempt_id, context=context)
+        return json_response({"result": result})
 
     async def external_observation(request):
         body = await request.json()
