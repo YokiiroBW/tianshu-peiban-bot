@@ -24,7 +24,7 @@ from tianshu.types import ServiceClass
 from .database import classify_database_failure, pool_application_name
 from .errors import AppError
 from .execution import ExecutionLane, TASK_LANES, job_observation, role_for_lane
-from .recovery_policy import RecoveryWait
+from .recovery_policy import RecoveryWait, recovery_wait_retryable
 
 DYNAMIC_TASK_LANES = frozenset({"conversation.run", "capabilities.execute", "capabilities.media_job"})
 _execution_generation: ContextVar[str | None] = ContextVar("tianshu_execution_generation", default=None)
@@ -103,13 +103,16 @@ class FairJobManager(JobManager):
 class ResourceRecoveryRetry(BaseRetryStrategy):
     """Reawaken only an explicitly registered durable-state recovery handler."""
 
-    def __init__(self, *, retryable=False):
+    def __init__(self, *, retryable=False, resource_recovery=True):
         self.ordinary = RetryStrategy(max_attempts=3) if retryable else None
+        self.resource_recovery = resource_recovery
 
     def get_retry_decision(self, *, exception, job):
         if isinstance(exception, RecoveryWait):
             return (RetryDecision(retry_at=exception.retry_at)
-                    if getattr(exception, "transaction_rollback_confirmed", None) is not False else None)
+                    if self.resource_recovery and recovery_wait_retryable(exception) else None)
+        if not self.resource_recovery:
+            return self.ordinary.get_retry_decision(exception=exception, job=job) if self.ordinary else None
         failure = classify_database_failure(exception)
         if failure:
             if not failure.retryable:
@@ -320,8 +323,7 @@ class JobQueue:
                     result = await handler(**kwargs)
                 except BaseException as exc:
                     resource_failure = classify_database_failure(exc)
-                    recovery_wait = (exc if resource_recovery and isinstance(exc, RecoveryWait)
-                                     and getattr(exc, "transaction_rollback_confirmed", None) is not False else None)
+                    recovery_wait = exc if resource_recovery and recovery_wait_retryable(exc) else None
                     deferred = bool(resource_recovery and
                                     (recovery_wait or (resource_failure and resource_failure.retryable)))
                     if deferred and job_context.job.queueing_lock:
@@ -366,7 +368,8 @@ class JobQueue:
                 except Exception:
                     pass
 
-        retry = ResourceRecoveryRetry(retryable=retryable) if resource_recovery else 3 if retryable else False
+        retry = (ResourceRecoveryRetry(retryable=retryable, resource_recovery=resource_recovery)
+                 if resource_recovery or retryable else False)
         self.tasks[name] = self.app.task(name=name, retry=retry,
                                          pass_context=True)(execute)
         self.sync_tasks[name] = self.sync_app.task(name=name, retry=retry,

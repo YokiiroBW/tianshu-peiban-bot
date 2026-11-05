@@ -37,9 +37,65 @@ class RecoveryWait(AppError):
             raise ValueError("recovery_wait_timezone_required")
         retry_at = retry_at.astimezone(UTC)
         self.reason, self.retry_at, self.dependency = reason, retry_at, dependency
+        # None denotes a locally created wait with no prior RPC boundary.
+        self.remote_rollback_confirmed = None
         super().__init__(reason, status=409, details={
             "retry_at": retry_at.isoformat(), "dependency": dependency,
         })
+
+
+def recovery_wait_retryable(wait):
+    """Combine local and independent remote evidence without upgrading either."""
+    if not isinstance(wait, RecoveryWait):
+        return False
+    local = getattr(wait, "transaction_rollback_confirmed", None)
+    remote = wait.remote_rollback_confirmed
+    return (local is None or local is True) and (remote is None or remote is True)
+
+
+def _validate_wait_fields(reason, retry_at, dependency):
+    if not isinstance(reason, str) or not re.fullmatch(r"[A-Za-z0-9_.-]{1,96}", reason):
+        raise ValueError("invalid_recovery_wait_envelope")
+    if not isinstance(retry_at, datetime) or retry_at.utcoffset() is None:
+        raise ValueError("invalid_recovery_wait_envelope")
+    if dependency is not None and (not isinstance(dependency, str) or not 1 <= len(dependency) <= 128
+                                   or any(ord(character) < 32 or ord(character) == 127 for character in dependency)):
+        raise ValueError("invalid_recovery_wait_envelope")
+
+
+def recovery_wait_to_wire(wait):
+    """Serialize only an explicit wait and its confirmed rollback evidence.
+
+    An unconfirmed local transaction or any earlier unconfirmed remote boundary
+    stays false, even when a later consumer rolls back successfully.
+    """
+    if not isinstance(wait, RecoveryWait):
+        raise TypeError("recovery_wait_required")
+    _validate_wait_fields(wait.reason, wait.retry_at, wait.dependency)
+    remote = wait.remote_rollback_confirmed
+    confirmed = (getattr(wait, "transaction_rollback_confirmed", None) is True
+                 and (remote is None or remote is True))
+    return {"kind": "recovery_wait", "version": 1, "reason": wait.reason,
+            "retry_at": wait.retry_at.astimezone(UTC).isoformat(), "dependency": wait.dependency,
+            "rollback_confirmed": confirmed}
+
+
+def recovery_wait_from_wire(document):
+    """Strictly decode the versioned typed envelope; generic errors stay errors."""
+    required = {"kind", "version", "reason", "retry_at", "dependency", "rollback_confirmed"}
+    if (not isinstance(document, dict) or set(document) != required or document["kind"] != "recovery_wait"
+            or type(document["version"]) is not int or document["version"] != 1
+            or type(document["rollback_confirmed"]) is not bool
+            or not isinstance(document["retry_at"], str) or len(document["retry_at"]) > 64):
+        raise ValueError("invalid_recovery_wait_envelope")
+    try:
+        retry_at = datetime.fromisoformat(document["retry_at"])
+        _validate_wait_fields(document["reason"], retry_at, document["dependency"])
+        wait = RecoveryWait(document["reason"], retry_at, dependency=document["dependency"])
+    except (ValueError, OverflowError):
+        raise ValueError("invalid_recovery_wait_envelope") from None
+    wait.remote_rollback_confirmed = document["rollback_confirmed"]
+    return wait
 
 
 def _probe_recheck_at(row):

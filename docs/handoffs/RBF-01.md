@@ -15,6 +15,8 @@
 - `await policy.inspect_wait_on(conn, lineage_id, owner=..., expected_version=...)` 只观察当前 due、claim 与依赖状态，不取得 claim 或预留 attempt。返回 `None` 不等于新 attempt 已获授权。探测持有者未知时有界延后复查；探测时间到期不等于原结果已确定。
 - `recovery_claim_lost` 不赋予旧 owner 写权限。领域须从持久状态重新取得 claim 并通过来源、权限、版本、代际和自己的 CAS 检查，才能写入或继续。
 - `RecoveryWait('source_lock_set_changed', retry_at, dependency='sources:lock_set')` 可用于 Sources 锁集合变化。必须先让该异常穿过整个当前事务并回滚，不能在已有部分写入的事务内捕获并提交。经 `Database` 事务退出时，异常的 `transaction_rollback_confirmed` 表明回滚是否已确认；同一 task 嵌套本 `Database` 的事务时需逐层回滚，明确为 `False` 不会被 Jobs 自动重排。事务外产生等待时，领域必须保证既有提交可从原持久状态安全恢复。
+- RPC 显式类型合同：`recovery_wait_to_wire(wait)` 仅接受 `RecoveryWait`，输出六个字段 `kind='recovery_wait'`、`version=1`、`reason`、UTC ISO-8601 `retry_at`、`dependency`、布尔值 `rollback_confirmed`。发送端本地事务确认回滚且没有先前远端否定证据时才输出 `true`；未确认一律为 `false`。`recovery_wait_from_wire(document)` 严格验证字段集合、类型、版本、内容与时区，非法 envelope 抛 `ValueError`，普通 AppError/503 不隐式升级为等待。
+- 接收端的 `remote_rollback_confirmed` 与本地的 `transaction_rollback_confirmed` 是独立证据。`recovery_wait_retryable(wait)` 和 opt-in Jobs 同时检查两者；远端为 `False` 时，本地后续回滚不能改变远端状态或让它自动重试。再次序列化也不能将远端 `False` 升格。既有仅本地等待的行为保持，领域仍须负责 claim/CAS 与持久状态。
 
 ### 资源失败与连接
 
@@ -26,7 +28,7 @@
 
 ### 原 Jobs 安全重唤醒
 
-- `jobs.register(name, handler, ..., resource_recovery=True)` 是显式 opt-in，默认关闭。领域必须保证该 handler 每次从原持久状态、动作及回执恢复，不盲目重复外部效果。已有 `retryable=True` 的普通重试与此设置独立；二者同时启用时，不能将未确认回滚或 commit 未知当作资源重试。
+- `jobs.register(name, handler, ..., resource_recovery=True)` 是显式 opt-in，默认关闭。领域必须保证该 handler 每次从原持久状态、动作及回执恢复，不盲目重复外部效果。已有 `retryable=True` 的普通重试与此设置独立；typed RecoveryWait 不会落入普通三次重试，只有显式 opt-in 且本地/远端证据允许时才会重排；其他普通错误的原重试行为保持。不能将未确认回滚或 commit 未知当作资源重试。
 - 已确认的本地资源争用复用 Procrastinate 原 job、业务 key、payload 和 generation，10 秒起指数退避，单次最多 300 秒；`RecoveryWait` 使用其 `retry_at`。这是同一队列工作重新观察，不新增模型物理请求或 attempt。
 - 当原 doing job 带 todo-only `queueing_lock`，重排前释放该原 job 的合并锁，避免与并发后继 todo 冲突；保留原 job ID、业务去重键、payload 和后继。领域仍负责对象级 CAS 与回执，重复唤醒不能重复应用业务。
 - 等待事件为 `job.deferred` / `deferred`；数据库等待附已知的 `failure_phase`、`pool_name` 和 `dependency_ref=database:<pool>`，不冒充模型失败。**接线要求：**RBF-08 的 `events.py` 必须接收该事件、结果和两个元数据字段，根的 Supervisor 日志白名单需保留字段；在此接线前旧 EventLog 会拒绝该事件，Jobs 会按既有 best-effort 日志约定吞掉记录错误。
@@ -38,10 +40,12 @@
 
 新增 `tests/runtime/test_rbf_database_jobs.py`：覆盖池身份及独立 control、连接复用、池竞争、嵌套事务逐层回滚、SQLSTATE、commit 未知、原 job 重排与队列合并锁、来源等待、取消 SQL 和重复取消同步线程。
 
+补充 `tests/runtime/test_rbf_recovery_wait_rpc.py`：覆盖版本化 typed envelope 的严格校验、跨 RPC 原因与时间、远端未确认回滚、本地逐层回滚和多次转发不能洗白远端否定证据。
+
 建议协调者在完成 RBF-08 事件装配及领域接线后，用本批隔离 PG 驱动先运行：
 
 ```text
-files tests/runtime/test_rbf_recovery_wait.py tests/runtime/test_rbf_database_jobs.py tests/runtime/test_rb_recovery_policy.py tests/runtime/test_rb_jobs.py tests/runtime/test_execution_lanes.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_rb_roles.py
+files tests/runtime/test_rbf_recovery_wait.py tests/runtime/test_rbf_recovery_wait_rpc.py tests/runtime/test_rbf_database_jobs.py tests/runtime/test_rb_recovery_policy.py tests/runtime/test_rb_jobs.py tests/runtime/test_execution_lanes.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_rb_roles.py
 ```
 
 再按各领域交付运行 Memory/Life/Growth 对应的定向用例，检查资源等待不会写 terminal 或重发模型/外部动作，以及原业务记录和唤醒在事务内一致。
