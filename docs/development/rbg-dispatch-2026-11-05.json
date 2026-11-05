@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBG-20261105",
-  "state": "verified_local_not_deployed",
+  "state": "deployed_scoped_recovery_complete",
   "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "baseline_source": "d9016ca7cccb02534498fd512a00a1a8d20e72e6",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
@@ -18,7 +18,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
       "branch": "codex/rbg-life-20261105",
       "card": "docs/development/rbg-work-packages/life.md",
-      "status": "verified_local_not_deployed",
+      "status": "deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -27,7 +27,7 @@
         "a1d8a01bc614566ff70a5092daed53a0f9b03c53"
       ],
       "acknowledged": true,
-      "actual_head": "5cd309ae67c9896feb787ad03cc65272c4884173",
+      "actual_head": "a1d8a01bc614566ff70a5092daed53a0f9b03c53",
       "integrated_commits": [
         "f37cc7a8e017f1347abc261ff33ba8faf59f4ee1",
         "3f721fd1fa96b974a6d458ed8dc0be6778a004b6"
@@ -43,7 +43,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
       "branch": "codex/rbg-conversation-20261105",
       "card": "docs/development/rbg-work-packages/results.md",
-      "status": "verified_local_not_deployed",
+      "status": "deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -54,7 +54,7 @@
         "3717dee45ab85ff109bdfe47d741ee14d53e3efd"
       ],
       "acknowledged": true,
-      "actual_head": "5cd309ae67c9896feb787ad03cc65272c4884173",
+      "actual_head": "3717dee45ab85ff109bdfe47d741ee14d53e3efd",
       "integrated_commits": [
         "06ce91b228f3bb294c9b0ba7d755952e2d1233b8",
         "fc74055439d7d3ab1108508bce19e0ecf8438a92",
@@ -72,7 +72,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
       "branch": "codex/rbg-capabilities-20261105",
       "card": "docs/development/rbg-work-packages/video.md",
-      "status": "verified_local_not_deployed",
+      "status": "deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -82,7 +82,7 @@
         "78835f8eea115e59e8ba98bfdf08a80d03930466"
       ],
       "acknowledged": true,
-      "actual_head": "5cd309ae67c9896feb787ad03cc65272c4884173",
+      "actual_head": "78835f8eea115e59e8ba98bfdf08a80d03930466",
       "integrated_commits": [
         "d927c8bb98979d5f5fd473bba4a46afdb0b3bdb8",
         "3f47b8d4fc26d7bfc979e5a11910c8f29ba8aa73",
@@ -100,7 +100,7 @@
       "branch": "codex/rbg-memory-20261105",
       "seed_commit": "006174f6c32fbb0ea66ecbd48c04188cb5d46e04",
       "card": "docs/development/rbg-work-packages/memory.md",
-      "status": "verified_local_not_deployed",
+      "status": "deployed",
       "acknowledged": true,
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -112,7 +112,8 @@
       "integrated_commits": [
         "1cb1b7cde585cc97242971c45e1157e43a0d13be"
       ],
-      "handoff": "docs/handoffs/RBG-04.md"
+      "handoff": "docs/handoffs/RBG-04.md",
+      "actual_head": "b06c32e6f2c575622e0b2dd87f41a6517c552433"
     }
   ],
   "seed_commit": "5cd309ae67c9896feb787ad03cc65272c4884173",
@@ -131,5 +132,59 @@
     },
     "total_distinct_cases": 332,
     "validated_code_source": "1cb1b7cde585cc97242971c45e1157e43a0d13be"
-  }
+  },
+  "completed_at": "2026-11-05T11:01:13.977698+00:00",
+  "release": {
+    "source": "a41c85d4501702694a5920f31a3e8f30140f7851",
+    "image": "sha256:9dd8a87584eab7fc43f6070291d2db4a811a8a9b5cf70e7e5c795e53e80cd114",
+    "container_id": "c5cb3889f3413fbea2f7584a1fa8572ed3f7f1bc127cc51683608bdeca5d5eda",
+    "generation": "0833be12-8fba-4db7-9e22-2120e8ea13ea",
+    "configuration_preserved": true,
+    "mount_count": 11,
+    "backup": {
+      "path": "/srv/tianshu-rbg-releases-20261105/a41c85d45017/affected-domains.dump",
+      "bytes": 89776974,
+      "sha256": "c13727dbecfb9aba5c88d3679eb1f559aadb325e17f7254a0d517777d106452e"
+    },
+    "source_evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbg-execution-20261105\\release-status.json"
+  },
+  "recovery": {
+    "current_plan_applied": true,
+    "original_plan_retired": true,
+    "original_model_outcome": "unknown",
+    "original_result_consumed": true,
+    "video_actions_succeeded": [
+      "9758dc58-018f-5cb9-82c3-b9dab9ee1f68",
+      "a92eb70a-2ab5-5e32-920d-9faa9045190b"
+    ],
+    "video_original_model_attempts": 2,
+    "video_new_model_calls": 0,
+    "video_requested_completed": false,
+    "evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbg-execution-20261105\\domain-recovery-inspect-20261105T104611Z.json"
+  },
+  "cleanup": {
+    "state": "completed",
+    "evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbg-execution-20261105\\cleanup-result.json"
+  },
+  "automation": {
+    "id": "automation",
+    "kind": "heartbeat",
+    "name": "天枢全链路巡检（普通速度）",
+    "status": "ACTIVE",
+    "rrule": "FREQ=MINUTELY;INTERVAL=30",
+    "target_thread_id": "01a1a772-e809-7d61-82da-427139b602b2",
+    "updated_at": 1793876159484,
+    "prompt_sha256": "83bdfddcdb55cc7ab7aa4ffce18b3ee1d102af9d7e0a9beb8e41df86ec05714b",
+    "probe": ".runtime/rbg-execution-20261105/chain_probe.py",
+    "verified_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
+    "unchanged_notification_behavior": "quiet unless meaningful change"
+  },
+  "remaining_monitoring": [
+    "models_transport_not_sent_memory_and_growth",
+    "growth_retry_transport_not_sent_budget_exhausted",
+    "runtime_background_business_transaction_errors_surge",
+    "operations_incident_model_completion_identity_conflict_unscoped",
+    "original_outcomes_unknown_and_uninstrumented_queue_pool_counters"
+  ],
+  "integration_handoff": "docs/handoffs/RBG-20261105-integration.md"
 }
