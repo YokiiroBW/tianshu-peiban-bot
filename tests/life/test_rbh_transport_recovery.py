@@ -7,20 +7,44 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from historical_support import migrations
 from test_planner_execution import mark
 from test_pure_unknown_recovery import setup_generation
 from test_rbf_planning_recovery import make_life, run_plan
 from tianshu.conversation.generation import attempt_for
 from tianshu.life.rbg_plan_operations import RBGPlanOperationsRecovery
 from tianshu.life.planning_engine import PlanningEngine
+from tianshu.models.http_timing import HttpTiming
 from tianshu.runtime.errors import AppError
 
 
 def not_sent(receipt, *, headers_sent=None):
+    timing = HttpTiming(receipt.queued_at)
+    timing.connection_reused = False
+    timing.mark("connect_start")
+    if headers_sent is not None:
+        timing.points["headers_sent"] = headers_sent
     return replace(receipt,status="failed",dispatch="not_started",error_code="transport_not_sent",
-        finished_at=datetime.now(UTC),diagnostic={"category":"not_sent"},http_timing={"points_ms":{
-            "connect_start":1.0,"connect_end":None,"headers_sent":headers_sent,"body_sent":None,
-            "response_headers":None,"first_body_byte":None,"first_valid_output":None}})
+        finished_at=datetime.now(UTC),diagnostic={"category":"not_sent","part_count":0,
+            "text_bytes":0,"part_kinds":[],"native_completed":False},http_timing=timing.record())
+
+
+def capture_reconciliation(monkeypatch):
+    """Report safe domain reasons if a restored original is not scheduled."""
+    from tianshu.life import rbh_transport_recovery
+
+    original = rbh_transport_recovery._reconcile_one
+    observed = []
+    async def capture(worker,candidate):
+        try:
+            scheduled,reason = await original(worker,candidate)
+        except AppError as error:
+            observed.append((candidate["kind"],error.code))
+            raise
+        observed.append((candidate["kind"],reason))
+        return scheduled,reason
+    monkeypatch.setattr(rbh_transport_recovery,"_reconcile_one",capture)
+    return observed
 
 
 async def advance_retry(database, table, identifier):
@@ -58,7 +82,9 @@ async def test_four_confirmed_plan_connect_failures_keep_the_same_three_computat
         value.broker.receipts[attempt] = not_sent(value.broker.receipts[attempt])
         await run_plan(value)
         current = await mark(database)
-        assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None
+        assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None, {
+            "index":index,"reason":current["reason"],"last_error":current["last_error"],
+            "budget":await budget_for(database,value.worker.life.recovery_policy,attempt)}
         if index < 3:
             await advance_retry(database,"life.plan_watermarks","actor")
     budget = await budget_for(database,value.worker.life.recovery_policy,originals[-1])
@@ -83,7 +109,9 @@ async def test_authored_connect_failures_keep_original_recipe_and_budget(databas
         value.models.receipts[attempt] = not_sent(value.models.receipts[attempt])
         await generate(attempt)
         row = await current()
-        assert row["generation_id"] == attempt and row["generation_retry_due_at"] is not None
+        assert row["generation_id"] == attempt and row["generation_retry_due_at"] is not None, {
+            "kind":kind,"index":index,"state":row["state"],"reason":row["reason"],
+            "budget":await budget_for(database,value.diaries.recovery.policy,attempt)}
         if index < 3:
             await advance_retry(database,table,row["id"])
             await generate(attempt)
@@ -175,6 +203,10 @@ async def test_confirmed_history_reopens_only_the_current_original_and_cancel_st
     monkeypatch.setattr(planning_engine,"awake_window",lambda _routine,now:(now,now+timedelta(hours=6)))
     monkeypatch.setattr(clock,"awake_and_due",lambda _routine,now:(True,now+timedelta(hours=6)))
     value = await make_life(database)
+    # The reconciler scans plan, diary and chapter originals in one query.
+    # Install the same authored-generation columns that the product includes.
+    await migrations(database,diary=True)
+    observations = capture_reconciliation(monkeypatch)
     policy = value.worker.life.recovery_policy
     note = policy.note_not_sent_on
     async def old_budget(connection,attempt_id,*,owner,expected_version,model_receipt):
@@ -199,11 +231,13 @@ async def test_confirmed_history_reopens_only_the_current_original_and_cancel_st
     adapter = RBGPlanOperationsRecovery(value.worker,None)
     value.broker.receipts[attempts[-1]] = replace(value.broker.receipts[attempts[-1]],cancellation_reason="explicit_cancel")
     stopped = await adapter.reconcile_transport_waits(limit=10)
-    assert stopped["scheduled"] == 0 and (await mark(database))["repair_due_at"] is None
+    assert stopped["scheduled"] == 0 and (await mark(database))["repair_due_at"] is None, (stopped,observations)
+    assert ("plan","original_not_retryable") in observations, (stopped,observations)
     value.broker.receipts[attempts[-1]] = replace(value.broker.receipts[attempts[-1]],cancellation_reason=None)
+    observations.clear()
     result = await adapter.reconcile_transport_waits(limit=10,force=True)
     restored = await mark(database)
-    assert result["scheduled"] == 1 and restored["generation_key"] == exhausted["generation_key"]
+    assert result["scheduled"] == 1 and restored["generation_key"] == exhausted["generation_key"], (result,observations)
     assert restored["repair_due_at"] is not None and list(value.broker.requests) == attempts
     budget = await budget_for(database,policy,attempts[-1])
     assert budget["total_attempts"] == budget["connection_attempts"] == 3
@@ -212,6 +246,7 @@ async def test_confirmed_history_reopens_only_the_current_original_and_cancel_st
 
 async def test_history_rebinds_original_diary_only_when_closed_day_is_unchanged(database,monkeypatch):
     value,attempt,generate,current = await setup_generation(database,"diary")
+    observations = capture_reconciliation(monkeypatch)
     policy = value.diaries.recovery.policy
     note = policy.note_not_sent_on
     async def old_budget(connection,attempt_id,*,owner,expected_version,model_receipt):
@@ -238,16 +273,18 @@ async def test_history_rebinds_original_diary_only_when_closed_day_is_unchanged(
     adapter = RBGPlanOperationsRecovery(worker,None)
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.diary_days SET revision=revision+1 WHERE actor_id='actor'")
-    assert (await adapter.reconcile_transport_waits(limit=16))["scheduled"] == 0
-    assert (await current())["state"] == "failed"
+    stopped = await adapter.reconcile_transport_waits(limit=16)
+    assert stopped["scheduled"] == 0 and (await current())["state"] == "failed", (stopped,observations)
+    assert ("diary","diary_material_changed") in observations, (stopped,observations)
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.diary_days SET revision=revision-1 WHERE actor_id='actor'")
+    observations.clear()
     result = await adapter.reconcile_transport_waits(limit=16,force=True)
     resumed = await current()
     async with database.transaction(read_only=True) as connection:
         day = await (await connection.execute("SELECT generation_id,generation_revision,revision FROM life.diary_days "
             "WHERE actor_id='actor'")).fetchone()
-    assert result["scheduled"] == 1 and resumed["generation_id"] == attempts[-1]
+    assert result["scheduled"] == 1 and resumed["generation_id"] == attempts[-1], (result,observations)
     assert resumed["state"] == "unknown" and resumed["generation_retry_due_at"] is not None
     assert day["generation_id"] == attempts[-1] and day["generation_revision"] == day["revision"]
     assert list(value.models.requests) == attempts
