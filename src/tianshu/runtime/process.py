@@ -34,13 +34,14 @@ from .execution import PROCESS_ROLES, TASK_LANES, role_worker_groups
 
 
 class ProcessHeartbeat:
-    def __init__(self, database, role, registration, ready):
+    def __init__(self, database, role, registration, ready, *, jobs=None):
         self.database, self.role, self.registration, self.is_ready = (
             database,
             role,
             registration,
             ready,
         )
+        self.jobs = jobs
         self.instance_id = str(uuid4())
         self.task = None
 
@@ -53,6 +54,13 @@ class ProcessHeartbeat:
         except Exception as exc:
             current = False
             self.registration["readiness_error"] = type(exc).__name__
+        try:
+            resources = self.database.pool_stats()
+            resources["pools"]["queue"] = {"pool": self.jobs.pool_stats() if self.jobs else None}
+            self.registration["database_resources"] = resources
+        except Exception as exc:
+            # Observability must not take down the independent control pool.
+            self.registration["database_resources"] = {"role": self.role, "error": type(exc).__name__}
         async with self.database.transaction(control=True) as conn:
             await conn.execute(
                 "INSERT INTO runtime.processes(instance_id,role,ready,registration) "
@@ -182,7 +190,7 @@ def register_domain_tasks(modules, services):
 async def run(settings, role, *, initialize=False):
     if role not in PROCESS_ROLES:
         raise ValueError("invalid_process_role")
-    database = Database(settings.database(role))
+    database = Database(settings.database(role), role=role)
     worker_settings = settings.document.get("worker", {})
     jobs = JobQueue(
         database.config.dsn, max_connections=worker_settings.get("queue_connections", 8), database=database
@@ -366,7 +374,7 @@ async def run(settings, role, *, initialize=False):
                 return bool(groups) and all(not task.done() for task in workers) and all(
                     item.get("state") == "running" for item in registration["consumers"].values())
 
-            heartbeat = ProcessHeartbeat(database, role, registration, worker_ready)
+            heartbeat = ProcessHeartbeat(database, role, registration, worker_ready, jobs=jobs)
             await heartbeat.start()
             try:
                 await events.emit("runtime.started", "succeeded")
@@ -397,7 +405,7 @@ async def run(settings, role, *, initialize=False):
         await runner.setup()
         stack.push_async_callback(runner.cleanup)
         await start_sites(runner, settings, role)
-        heartbeat = ProcessHeartbeat(database, role, registration, ready)
+        heartbeat = ProcessHeartbeat(database, role, registration, ready, jobs=jobs)
         await heartbeat.start()
         try:
             await events.emit("runtime.started", "succeeded")

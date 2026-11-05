@@ -13,13 +13,18 @@ from typing import Any, Awaitable, Callable, Mapping
 from uuid import uuid4
 
 import procrastinate
+from procrastinate.exceptions import AppNotOpen
 from procrastinate.manager import JobManager
 from procrastinate.jobs import Job
+from procrastinate.retry import BaseRetryStrategy, RetryDecision, RetryStrategy
+from psycopg import Error as PsycopgError
 from psycopg.types.json import Jsonb
 
 from tianshu.types import ServiceClass
+from .database import classify_database_failure, pool_application_name
 from .errors import AppError
 from .execution import ExecutionLane, TASK_LANES, job_observation, role_for_lane
+from .recovery_policy import RecoveryWait
 
 DYNAMIC_TASK_LANES = frozenset({"conversation.run", "capabilities.execute", "capabilities.media_job"})
 _execution_generation: ContextVar[str | None] = ContextVar("tianshu_execution_generation", default=None)
@@ -95,6 +100,31 @@ class FairJobManager(JobManager):
         return Job.from_row(row) if row["id"] is not None else None
 
 
+class ResourceRecoveryRetry(BaseRetryStrategy):
+    """Reawaken only an explicitly registered durable-state recovery handler."""
+
+    def __init__(self, *, retryable=False):
+        self.ordinary = RetryStrategy(max_attempts=3) if retryable else None
+
+    def get_retry_decision(self, *, exception, job):
+        if isinstance(exception, RecoveryWait):
+            return (RetryDecision(retry_at=exception.retry_at)
+                    if getattr(exception, "transaction_rollback_confirmed", None) is not False else None)
+        failure = classify_database_failure(exception)
+        if failure:
+            if not failure.retryable:
+                return None
+            # A resource wait does not consume a Models attempt. Keep the same
+            # native job identity while allowing other jobs to run.
+            delay = min(300, 10 * 2 ** min(job.attempts, 5))
+            return RetryDecision(retry_in={"seconds": delay})
+        if isinstance(exception, PsycopgError):
+            # Without phase/rollback evidence even an ordinary retry would risk
+            # replaying a transaction whose commit outcome is unknown.
+            return None
+        return self.ordinary.get_retry_decision(exception=exception, job=job) if self.ordinary else None
+
+
 def _identity_digest(spec: JobSpec) -> str:
     if type(spec.payload_version) is not int or spec.payload_version < 1:
         raise AppError("invalid_job_payload_version")
@@ -112,7 +142,8 @@ def _identity_digest(spec: JobSpec) -> str:
 class JobQueue:
     def __init__(self, dsn: str, *, max_connections=4, database=None):
         self.app = procrastinate.App(connector=procrastinate.PsycopgConnector(
-            conninfo=dsn, min_size=0, max_size=max_connections))
+            conninfo=dsn, min_size=0, max_size=max_connections,
+            kwargs={"application_name": pool_application_name(getattr(database, "role", None), "queue")}))
         self.app.job_manager = FairJobManager(self.app.connector)
         self.tasks = {}
         # Two native connection adapters, one and the same Procrastinate schema and task set.
@@ -141,6 +172,12 @@ class JobQueue:
 
     async def close(self):
         await self.app.close_async()
+
+    def pool_stats(self):
+        try:
+            return self.app.connector.pool.get_stats()
+        except AppNotOpen:
+            return None
 
     @staticmethod
     async def current_generation_on(connection):
@@ -236,8 +273,15 @@ class JobQueue:
         self.recompute_routes.add(name)
 
     def register(self, name, handler, *, retryable=False, execution_lane=None,
-                 lane_resolver=None):
-        """Only explicitly reentrant computation handlers may retry automatically."""
+                 lane_resolver=None, resource_recovery=False):
+        """Register a handler; resource recovery requires a durable-state owner.
+
+        Opted-in handlers must resume from the original persisted state and
+        receipt, not blindly repeat an external effect. Only confirmed local
+        resource failures are rescheduled; ordinary retry remains independent.
+        """
+        if type(resource_recovery) is not bool:
+            raise ValueError("invalid_resource_recovery_registration")
         if name in self.tasks:
             raise ValueError("duplicate_task_registration")
         if not inspect.iscoroutinefunction(handler):
@@ -275,11 +319,34 @@ class JobQueue:
                 try:
                     result = await handler(**kwargs)
                 except BaseException as exc:
+                    resource_failure = classify_database_failure(exc)
+                    recovery_wait = (exc if resource_recovery and isinstance(exc, RecoveryWait)
+                                     and getattr(exc, "transaction_rollback_confirmed", None) is not False else None)
+                    deferred = bool(resource_recovery and
+                                    (recovery_wait or (resource_failure and resource_failure.retryable)))
+                    if deferred and job_context.job.queueing_lock:
+                        try:
+                            # A concurrent equivalent wake may already occupy the
+                            # todo-only lock. Keep this original job/key/payload
+                            # and the other wake; domain CAS coalesces their work.
+                            await self.app.connector.execute_query_async(
+                                query="UPDATE procrastinate_jobs SET queueing_lock=NULL "
+                                "WHERE id=%(job_id)s AND status='doing'", job_id=job_context.job.id)
+                        except Exception:
+                            pass  # The queue's own retry persistence remains authoritative.
                     if self.events:
                         try:
                             await self.events.emit(
-                                "job.failed", "failed", task_name=name, job_id=job_context.job.id,
-                                error_code=exc.code if isinstance(exc, AppError) else type(exc).__name__,
+                                "job.deferred" if deferred else "job.failed", "deferred" if deferred else "failed",
+                                task_name=name, job_id=job_context.job.id,
+                                error_code=(recovery_wait.reason if recovery_wait else resource_failure.reason
+                                            if resource_failure else exc.code if isinstance(exc, AppError)
+                                            else type(exc).__name__),
+                                dependency_ref=(f"database:{resource_failure.pool_name}" if resource_failure
+                                                and resource_failure.pool_name else recovery_wait.dependency
+                                                if recovery_wait else None),
+                                **({"failure_phase": resource_failure.failure_phase, "pool_name": resource_failure.pool_name}
+                                   if resource_failure else {}),
                             )
                         except Exception:
                             pass
@@ -299,9 +366,10 @@ class JobQueue:
                 except Exception:
                     pass
 
-        self.tasks[name] = self.app.task(name=name, retry=3 if retryable else False,
+        retry = ResourceRecoveryRetry(retryable=retryable) if resource_recovery else 3 if retryable else False
+        self.tasks[name] = self.app.task(name=name, retry=retry,
                                          pass_context=True)(execute)
-        self.sync_tasks[name] = self.sync_app.task(name=name, retry=3 if retryable else False,
+        self.sync_tasks[name] = self.sync_app.task(name=name, retry=retry,
                                                    pass_context=True)(execute)
         return self.tasks[name]
 

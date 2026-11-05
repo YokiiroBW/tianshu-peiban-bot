@@ -24,6 +24,32 @@ from .errors import AppError
 CONTINUATION_REASONS = frozenset({"need_context", "schema_correction", "capacity_repartition"})
 
 
+class RecoveryWait(AppError):
+    """A nonterminal dependency/claim wait, before reserving a new attempt.
+
+    A lost claim never authorizes its former owner to update domain state. The
+    owner must reacquire its claim or pass its own domain CAS before changing
+    a durable wake, even though this exception carries a useful observation.
+    """
+
+    def __init__(self, reason, retry_at, *, dependency=None):
+        if not isinstance(retry_at, datetime) or retry_at.utcoffset() is None:
+            raise ValueError("recovery_wait_timezone_required")
+        retry_at = retry_at.astimezone(UTC)
+        self.reason, self.retry_at, self.dependency = reason, retry_at, dependency
+        super().__init__(reason, status=409, details={
+            "retry_at": retry_at.isoformat(), "dependency": dependency,
+        })
+
+
+def _probe_recheck_at(row):
+    """An expired probe is a reason to re-observe, never proof of completion."""
+    now = row["now"]
+    limit = now + timedelta(seconds=30)
+    expiry = row.get("probe_expires_at")
+    return max(now + timedelta(seconds=5), min(expiry, limit)) if expiry and expiry > now else limit
+
+
 class FailureCategory(StrEnum):
     MISSING_INPUT = "missing_input"
     TRANSPORT = "transport"
@@ -150,6 +176,49 @@ class AttemptReservation:
 
 class RecoveryPolicy:
     """Transactional shared accounting, with a single owner per logical work."""
+
+    async def inspect_wait_on(self, connection, identity, *, owner, expected_version):
+        """Observe a due/claim/dependency wait without claiming or spending budget.
+
+        The snapshot can become stale immediately. ``None`` means only that no
+        wait was observed, not that a fresh attempt is authorized.
+        """
+        row = await (await connection.execute(
+            "SELECT l.*,now() AS now,g.id AS current_generation FROM runtime.recovery_lineages l "
+            "LEFT JOIN runtime.installation_generation g ON g.singleton=true WHERE l.lineage_id=%s",
+            (identity,))).fetchone()
+        if not row or row["owner"] != owner:
+            raise AppError("recovery_owner_mismatch", status=409)
+        if row["current_generation"] != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
+            raise AppError("recovery_version_changed", status=409)
+        if row["attempts"] >= row["max_attempts"]:
+            raise AppError("recovery_budget_exhausted", status=409)
+        if row["claim_token"] and row["claim_expires_at"] and row["claim_expires_at"] > row["now"]:
+            return RecoveryWait("recovery_claim_in_progress", row["claim_expires_at"], dependency=row["dependency"])
+        if row["due_at"] and row["due_at"] > row["now"]:
+            return RecoveryWait("recovery_not_due", row["due_at"], dependency=row["dependency"])
+        dependency = await (await connection.execute(
+            "SELECT d.*,now() AS now,EXISTS(SELECT 1 FROM runtime.recovery_attempts a "
+            "WHERE a.attempt_id=d.probe_token AND a.status IN ('reserved','unknown') "
+            "AND NOT EXISTS(SELECT 1 FROM runtime.recovery_attempts newer "
+            "WHERE newer.supersedes_attempt_id=a.attempt_id) "
+            "AND NOT (a.lineage_id=%s AND a.attempt_number=%s AND a.status='unknown' AND a.version=%s "
+            "AND %s='pure_computation' AND EXISTS(SELECT 1 FROM runtime.recovery_computation_unknowns u "
+            "WHERE u.attempt_id=a.attempt_id))) AS probe_active "
+            "FROM runtime.recovery_dependencies d WHERE d.data_generation=%s AND d.dependency=%s",
+            (identity, row["attempts"], expected_version, row["recovery_kind"],
+             row["data_generation"], row["dependency"]))).fetchone()
+        if dependency and dependency["cooldown_until"]:
+            if dependency["cooldown_until"] > dependency["now"]:
+                return RecoveryWait("recovery_dependency_cooling", dependency["cooldown_until"],
+                                    dependency=row["dependency"])
+            if dependency["probe_active"]:
+                return RecoveryWait("recovery_dependency_probe_in_progress", _probe_recheck_at(dependency),
+                                    dependency=row["dependency"])
+        return None
 
     async def register_on(self, connection, *, domain, subject_id, owner, material_id,
                           material_digest, dependency, current_version, max_attempts, data_generation=None,
@@ -382,11 +451,11 @@ class RecoveryPolicy:
             (identity,))).fetchone()
         if active:
             raise AppError("recovery_original_not_failed", status=409)
-        if row["claim_token"] and row["claim_expires_at"] > row["now"]:
+        if row["claim_token"] and row["claim_expires_at"] and row["claim_expires_at"] > row["now"]:
             if row["continuation_attempt_id"] == prior_attempt_id and row["continuation_reason"] == reason:
                 return {"lineage_id": identity, "claim_token": row["claim_token"],
                         "prior_attempt_id": prior_attempt_id, "reason": reason}
-            raise AppError("recovery_claim_in_progress", status=409)
+            raise RecoveryWait("recovery_claim_in_progress", row["claim_expires_at"], dependency=row["dependency"])
         token = str(uuid4())
         await connection.execute(
             "UPDATE runtime.recovery_lineages SET claim_token=%s,claim_expires_at=now()+(%s*interval '1 second'),"
@@ -428,11 +497,15 @@ class RecoveryPolicy:
             raise AppError("recovery_original_not_failed", status=409)
         if original_state == "unknown" and row["recovery_kind"] != "pure_computation":
             raise AppError("recovery_original_not_failed", status=409)
-        if row["attempts"] and (not claim_token or row["claim_token"] != claim_token
-                                or row["claim_expires_at"] <= row["now"]):
-            raise AppError("recovery_claim_lost", status=409)
         if row["attempts"] >= row["max_attempts"]:
             raise AppError("recovery_budget_exhausted", status=409)
+        if row["attempts"] and (not claim_token or row["claim_token"] != claim_token
+                                or row["claim_expires_at"] is None or row["claim_expires_at"] <= row["now"]):
+            retry_at = (row["claim_expires_at"] if row["claim_token"] and row["claim_expires_at"]
+                        and row["claim_expires_at"] > row["now"]
+                        else row["due_at"] if row["due_at"] and row["due_at"] > row["now"]
+                        else row["now"] + timedelta(seconds=10))
+            raise RecoveryWait("recovery_claim_lost", retry_at, dependency=row["dependency"])
         previous = None
         if row["attempts"]:
             previous = await (await connection.execute(
@@ -449,7 +522,9 @@ class RecoveryPolicy:
                 if previous["version"] != expected_version:
                     raise AppError("recovery_version_changed", status=409)
                 if row["due_at"] is None or row["due_at"] > row["now"]:
-                    raise AppError("recovery_not_due", status=409)
+                    if row["due_at"] is None:
+                        raise AppError("recovery_not_due", status=409)
+                    raise RecoveryWait("recovery_not_due", row["due_at"], dependency=row["dependency"])
                 recorded = await (await connection.execute(
                     "SELECT 1 FROM runtime.recovery_computation_unknowns WHERE attempt_id=%s",
                     (previous["attempt_id"],))).fetchone()
@@ -473,7 +548,8 @@ class RecoveryPolicy:
         probe = None
         if dependency["cooldown_until"] is not None:
             if dependency["cooldown_until"] > dependency["now"]:
-                raise AppError("recovery_dependency_cooling", status=409)
+                raise RecoveryWait("recovery_dependency_cooling", dependency["cooldown_until"],
+                                   dependency=row["dependency"])
             if dependency["probe_token"]:
                 outstanding = await (await connection.execute(
                     "SELECT 1 FROM runtime.recovery_attempts a WHERE a.attempt_id=%s "
@@ -481,7 +557,8 @@ class RecoveryPolicy:
                     "(SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id)",
                     (dependency["probe_token"],))).fetchone()
                 if outstanding and not (original_state == "unknown" and dependency["probe_token"] == previous["attempt_id"]):
-                    raise AppError("recovery_dependency_probe_in_progress", status=409)
+                    raise RecoveryWait("recovery_dependency_probe_in_progress", _probe_recheck_at(dependency),
+                                       dependency=row["dependency"])
             probe = attempt_id
         inserted = await (await connection.execute(
             "INSERT INTO runtime.recovery_attempts(attempt_id,lineage_id,request_digest,route,dependency,version,attempt_number,dependency_probe,continuation_of,continuation_reason,supersedes_attempt_id) "
