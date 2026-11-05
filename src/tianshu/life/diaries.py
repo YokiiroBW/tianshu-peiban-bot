@@ -39,7 +39,7 @@ class DiaryService:
         self.statistics = None
 
     def bind_observability(self, *, recovery_policy, statistics):
-        self.recovery = GenerationRecovery(recovery_policy)
+        self.recovery = GenerationRecovery(recovery_policy,life=self.life)
         self.statistics = statistics
 
     async def backfill_statistics(self, *, limit=128, data_generation):

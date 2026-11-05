@@ -45,12 +45,14 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
     if continuation:
         if not previous or not previous.get("recovery_lineage_id") or previous.get("recovery_owner") != owner:
             raise AppError("planner_recovery_lineage_missing", status=409)
-        if (previous.get("recovery_attempt_number") or 0) >= MAX_ATTEMPTS:
-            return {"state": "exhausted"}
         lineage_id = previous["recovery_lineage_id"]
         state = previous.get("recovery_state")
         if state not in {"failed", "succeeded", "unknown"}:
             return {"state": "waiting"}
+        budget = await policy.computation_budget_on(connection,lineage_id,owner=owner,
+            expected_version=previous["recovery_version"])
+        if not budget["can_retry"]:
+            return {"state":"exhausted","reason":budget["reason"]}
         if state == "unknown":
             if not finished_plan_unknown(model_receipt, attempt_for(previous["generation_key"]), frozen.data_generation):
                 return {"state": "waiting"}

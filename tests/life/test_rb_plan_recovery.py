@@ -23,6 +23,10 @@ def policy():
         reserve_attempt_on=AsyncMock(return_value=SimpleNamespace(number=2, probe_token="probe")),
         claim_lineage_due_on=AsyncMock(return_value={"lineage_id": "lineage", "current_version": "material", "claim_token": "claim"}),
         claim_continuation_on=AsyncMock(return_value={"claim_token": "correction"}),
+        computation_budget_on=AsyncMock(return_value={"total_attempts":1,"computation_attempts":1,
+            "connection_attempts":0,"max_computation_attempts":3,"max_connection_attempts":16,
+            "can_retry":True,"retry_at":None,"dependency":"models:quota:quota","reason":"not_confirmed_not_sent"}),
+        inspect_wait_on=AsyncMock(return_value=None),
         update_dependency_on=AsyncMock(),
     )
 
@@ -67,8 +71,12 @@ async def test_changed_quota_keeps_budget_but_unknown_requires_a_finished_receip
     p.reserve_attempt_on.reset_mock()
     assert (await reserve(p, previous("reserved")))["state"] == "waiting"
     assert (await reserve(p, previous("unknown")))["state"] == "waiting"
+    p.computation_budget_on.return_value = {"can_retry":False,"reason":"recovery_budget_exhausted"}
     assert (await reserve(p, previous("failed", attempts=3)))["state"] == "exhausted"
     p.reserve_attempt_on.assert_not_awaited()
+    p.computation_budget_on.return_value = {"can_retry":True,"reason":"confirmed_not_sent"}
+    await reserve(p, previous("failed", attempts=4))
+    assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "failed"
     original = ModelReceipt(plan_recovery.attempt_for("first"),"intent","unknown","unknown","route",1,
         "provider","model","native","quota",finished_at=datetime.now(UTC),data_generation="installation-generation")
     await reserve(p, previous("unknown"), model_receipt=original)

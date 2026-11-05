@@ -39,6 +39,22 @@ def _retired_material(generation):
 class RBGPlanOperationsRecovery:
     def __init__(self, worker, guard_on):
         self.worker, self.life, self.guard_on = worker, worker.life, guard_on
+        self._transport_cursor = ""
+        self._transport_next_sweep = None
+
+    async def reconcile_transport_waits(self, *, limit=32, force=False):
+        from .rbh_transport_recovery import reconcile_transport_waits
+
+        now = datetime.now(UTC)
+        if force:
+            self._transport_cursor,self._transport_next_sweep = "",None
+        if self._transport_next_sweep and self._transport_next_sweep > now:
+            return {"inspected":0,"scheduled":0,"ineligible":0,"changes":[]}
+        result, self._transport_cursor = await reconcile_transport_waits(
+            self.worker, after=self._transport_cursor, limit=limit)
+        if not self._transport_cursor:
+            self._transport_next_sweep = now+timedelta(minutes=10)
+        return result
 
     async def _snapshot(self, actor_id):
         async with self.life.database.transaction(read_only=True) as connection:

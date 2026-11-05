@@ -48,7 +48,7 @@ class WritingService:
         self.statistics = None
 
     def bind_observability(self, *, recovery_policy, statistics):
-        self.recovery = GenerationRecovery(recovery_policy)
+        self.recovery = GenerationRecovery(recovery_policy,life=self.life)
         self.statistics = statistics
 
     async def backfill_statistics(self, *, limit=128, data_generation):
@@ -370,6 +370,9 @@ class WritingService:
         exhausted = False
         async with self.life.database.transaction() as connection:
             await self.life.jobs.assert_generation_on(connection,data_generation)
+            observation = (await self.recovery.prepare_observation_on(connection,chapter["generation_id"],status,receipt,
+                allow_unknown_retry=code!="explicit_cancel",kind="chapter",item_id=chapter["id"])
+                if self.recovery is not None else None)
             current=await (await connection.execute("SELECT * FROM life.chapters WHERE id=%s FOR UPDATE",(chapter["id"],))).fetchone()
             if (not current or current["generation_id"]!=chapter["generation_id"]
                     or current["state"] not in {"generating","unknown","cancelling"}):
@@ -377,7 +380,7 @@ class WritingService:
             cancel=current["generation_cancel_requested"] or code=="explicit_cancel"
             ledger,due = (await self.recovery.observe_on(connection,chapter["generation_id"],status,code,
                 retry_after=getattr(receipt,"hold_until",None),model_receipt=receipt,
-                allow_unknown_retry=not cancel)
+                allow_unknown_retry=not cancel,observation=observation)
                 if self.recovery is not None else ("unregistered",None))
             if status in {"queued","running"} or (status=="succeeded" and result is None):
                 state,when=("cancelling" if cancel else "generating"),None

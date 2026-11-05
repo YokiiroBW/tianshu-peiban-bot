@@ -29,14 +29,17 @@ class DiaryRetry:
         exhausted = False
         async with self.life.database.transaction() as connection:
             await self.life.jobs.assert_generation_on(connection,data_generation)
+            recovery = self.diaries.recovery
+            observation = (await recovery.prepare_observation_on(connection,generation_id,status,receipt,
+                allow_unknown_retry=code!="explicit_cancel",kind="diary",item_id=row["id"])
+                if recovery is not None else None)
             current=await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(row["id"],))).fetchone()
             if not current or current["generation_id"]!=generation_id:
                 return {"state":"changed_since_generation","attempt_id":generation_id}
-            recovery = self.diaries.recovery
             cancelling = current["generation_cancel_requested"] or code=="explicit_cancel"
             ledger,due = (await recovery.observe_on(connection,generation_id,status,code,
                 retry_after=getattr(receipt,"hold_until",None),model_receipt=receipt,
-                allow_unknown_retry=not cancelling)
+                allow_unknown_retry=not cancelling,observation=observation)
                 if recovery is not None else ("unregistered",None))
             if status in {"queued","running"} or (status=="succeeded" and result is None):
                 state = "cancelling" if cancelling else "generating"

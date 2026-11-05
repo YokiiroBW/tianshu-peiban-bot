@@ -12,8 +12,27 @@ def finished_unknown(receipt, attempt_id, data_generation=None):
     """An actual Models receipt proves that this local pure attempt ended."""
     return bool(isinstance(receipt, ModelReceipt) and receipt.attempt_id == attempt_id and receipt.status == "unknown"
         and isinstance(receipt.finished_at, datetime) and receipt.finished_at.tzinfo is not None
+        and receipt.finished_at.utcoffset() is not None
         and (data_generation is None or receipt.data_generation == data_generation)
         and receipt.cancellation_reason != "explicit_cancel")
+
+
+def validate_original_receipt(frozen, receipt, data_generation):
+    """Bind an authoritative Models receipt to the existing frozen request."""
+    from tianshu.conversation.generation import GenerationRequests
+
+    if frozen is None or not isinstance(receipt,ModelReceipt):
+        raise AppError("recovery_model_receipt_mismatch",status=409)
+    if frozen.data_generation != data_generation or receipt.data_generation != data_generation:
+        raise AppError("job_generation_expired",status=409)
+    if receipt.intent_id != frozen.intent_id:
+        raise AppError("recovery_model_receipt_mismatch",status=409)
+    try:
+        GenerationRequests.validate_observed(frozen,receipt)
+    except AppError as error:
+        if error.code != "attempt_identity_conflict":
+            raise
+        raise AppError("recovery_model_receipt_mismatch",status=409) from error
 
 
 async def outcome(models, attempt_id, *, error=None):

@@ -36,8 +36,59 @@ async def _material_id_on(connection, kind, item_id, row, saved_revision):
 class GenerationRecovery:
     """Bind authored requests to the runtime's single physical-attempt budget."""
 
-    def __init__(self, policy):
-        self.policy = policy
+    def __init__(self, policy, *, life):
+        self.policy, self.life = policy, life
+
+    async def _sources_current_on(self, connection, row, request):
+        from tianshu.conversation.codec import source_refs
+        from tianshu.conversation.generation import GenerationRequests
+        from tianshu.sources.dependencies import unique_refs
+
+        original = context_from_record(row["context"])
+        refs = unique_refs(source_refs(row["source_refs"]),request.source_refs)
+        try:
+            try:
+                await self.life.validate_persistence(connection,original,refs)
+            except AppError as error:
+                if error.code not in {"access_changed","source_unavailable"}:
+                    raise
+                context = await self.life.identity.refresh_scheduled_context(original,permission="life.manage",
+                    connection=connection)
+                GenerationRequests.observer_context(original,context)
+                await self.life.validate_persistence(connection,context,refs)
+        except AppError as error:
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            if isinstance(error,RecoveryWait):
+                raise
+            if error.status in {401,403,410} or error.code in {"source_unavailable","access_changed","forbidden",
+                    "generation_observation_context_mismatch"}:
+                return False
+            raise
+        return True
+
+    async def prepare_observation_on(self, connection, attempt_id, status, model_receipt, *, allow_unknown_retry=True,
+                                     kind=None, item_id=None):
+        """Lock the original source closure before taking domain/recovery locks."""
+        if status != "failed" or model_receipt is None or not allow_unknown_retry:
+            return None
+        from tianshu.models.codec import request_from_wire
+        from tianshu.conversation.generation import GenerationRequests
+        from .computation_retry import validate_original_receipt
+
+        row = await (await connection.execute("SELECT * FROM life.generation_recipes WHERE generation_id=%s",
+            (attempt_id,))).fetchone()
+        if row and ((kind is not None and row["kind"] != kind) or (item_id is not None and row["item_id"] != item_id)):
+            raise AppError("recovery_model_receipt_mismatch",status=409)
+        frozen = await (await connection.execute("SELECT request,state FROM conversation.generation_requests "
+            "WHERE attempt_id=%s",(attempt_id,))).fetchone()
+        if not row or not row.get("recipe") or not frozen or frozen["request"] is None or frozen["state"] == "invalidated":
+            return {"valid":False}
+        request = request_from_wire(frozen["request"])
+        validate_original_receipt(request,model_receipt,frozen_data_generation(row["recipe"]))
+        GenerationRequests.observer_context(request.context,context_from_record(row["context"]))
+        valid = await self._sources_current_on(connection,row,request)
+        return {"valid":valid,"context":row["context"],"source_refs":row["source_refs"],
+            "request_digest":signature(frozen["request"])}
 
     async def inherit_on(self, connection, generation_id, previous):
         row = await (await connection.execute(
@@ -112,8 +163,11 @@ class GenerationRecovery:
             identity = lineage["lineage_id"]
             if previous and previous["recovery_lineage_id"] != identity:
                 raise AppError("recovery_lineage_conflict", status=409)
-            if lineage["attempts"] >= lineage["max_attempts"]:
-                raise AppError("recovery_budget_exhausted", status=409)
+            if lineage["attempts"]:
+                budget = await self.policy.computation_budget_on(connection,identity,owner=owner,
+                    expected_version=lineage["current_version"])
+                if not budget["can_retry"]:
+                    raise AppError(budget["reason"], status=409)
             if lineage["current_version"] != version:
                 if lineage["attempts"] and lineage["due_at"] is None:
                     raise AppError("recovery_original_not_failed", status=409)
@@ -133,8 +187,10 @@ class GenerationRecovery:
         claim = None
         original_state = "none"
         if lineage["attempts"] and not row["recovery_request_digest"]:
-            if lineage["attempts"] >= lineage["max_attempts"]:
-                raise AppError("recovery_budget_exhausted", status=409)
+            budget = await self.policy.computation_budget_on(connection,identity,owner=owner,
+                expected_version=version)
+            if not budget["can_retry"]:
+                raise AppError(budget["reason"], status=409)
             if lineage["due_at"] is None:
                 raise AppError("recovery_original_not_failed", status=409)
             claimed = await self.policy.claim_lineage_due_on(connection,identity,owner=owner)
@@ -162,11 +218,14 @@ class GenerationRecovery:
             (digest, route, reservation.probe_token, request.attempt_id))
 
     async def observe_on(self, connection, attempt_id, status, code=None, *, retry_after=None,
-                         model_receipt=None, allow_unknown_retry=True):
+                         model_receipt=None, allow_unknown_retry=True, observation=None):
         """Record Models' physical receipt, never infer business completion."""
         from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
         from tianshu.models.retry import transient_model_failure
 
+        if status == "failed" and model_receipt is not None and allow_unknown_retry and observation is None:
+            observation = await self.prepare_observation_on(connection,attempt_id,status,model_receipt,
+                allow_unknown_retry=allow_unknown_retry)
         row = await (await connection.execute(
             "SELECT * FROM life.generation_recipes WHERE generation_id=%s FOR UPDATE", (attempt_id,))).fetchone()
         if not row or not row["recovery_request_digest"]:
@@ -211,8 +270,28 @@ class GenerationRecovery:
             elif state == "reserved":
                 due = await self.policy.fail_attempt_on(connection, attempt_id, code=code or status,
                     category=category, retry_after=retry_after, probe_token=probe)
+            elif state == "failed":
+                due = None
             else:
                 return state, None
+            if status == "failed" and model_receipt is not None and allow_unknown_retry:
+                from tianshu.models.codec import request_from_wire
+                from .computation_retry import validate_original_receipt
+                frozen = await (await connection.execute("SELECT request FROM conversation.generation_requests "
+                    "WHERE attempt_id=%s AND state<>'invalidated'",(attempt_id,))).fetchone()
+                if (not observation or not observation["valid"] or not frozen or frozen["request"] is None
+                        or observation["context"] != row["context"] or observation["source_refs"] != row["source_refs"]
+                        or observation["request_digest"] != signature(frozen["request"])):
+                    return "ineligible", None
+                request = request_from_wire(frozen["request"])
+                validate_original_receipt(request,model_receipt,frozen_data_generation(row["recipe"]))
+                budget = await self.policy.note_not_sent_on(connection,attempt_id,
+                    owner=row["recovery_owner"],expected_version=row["recovery_version"],
+                    model_receipt=model_receipt)
+                if not budget["can_retry"]:
+                    return "exhausted", None
+                if transient_model_failure(code) and budget["can_retry"] and budget.get("retry_at") is not None:
+                    due = max(due,budget["retry_at"]) if due is not None else budget["retry_at"]
             return "failed", due
         return state, None
 
