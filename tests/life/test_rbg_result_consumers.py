@@ -15,11 +15,13 @@ from tianshu.conversation.results import ActionResultEvents, ResultConsumer
 from tianshu.conversation.rbg_result_recovery import ResultRecovery
 from tianshu.conversation.service import ConversationService
 from tianshu.runtime.errors import AppError
+from tianshu.operations.agent import OperationsAgent
 from tianshu.runtime.execution import ExecutionLane
+from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
-from tianshu.types import Action, OriginKind, Receipt
+from tianshu.types import Action, OriginKind, Receipt, ServiceClass
 from test_planner_execution import setup
 
 
@@ -245,6 +247,38 @@ async def test_withdrawn_sources_invalidate_unfinished_result_without_side_effec
 
 
 @pytest.mark.asyncio
+async def test_withdrawal_between_head_read_and_queue_does_not_enqueue_new_head(database):
+    value = await fixture(database, turn=False)
+    value.actions.current = replace(value.original, receipt_id="new-receipt", execution="failed")
+    value.actions.revision = 2
+    value.worker.life.sources.validate_persistence = AsyncMock(return_value=False)
+    await value.consumer.consume(value.event())
+    async with database.transaction(read_only=True) as connection:
+        delivery = await (await connection.execute("SELECT state FROM conversation.result_deliveries WHERE receipt_id='original-receipt'")).fetchone()
+        wake = await (await connection.execute("SELECT 1 FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+    assert delivery["state"] == "invalidated" and wake is None
+    value.actions.invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_recovery_rechecks_source_under_lock_before_adding_an_original_event_copy(database):
+    value = await fixture(database, turn=False)
+    value.consumer.identity.sources = value.worker.life.sources
+    async with database.transaction() as connection:
+        await ActionResultEvents(value.jobs).publish(connection, value.event())
+        saved = await (await connection.execute("SELECT original_job_id,data_generation FROM conversation.result_deliveries")).fetchone()
+        await connection.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (saved["original_job_id"],))
+    value.worker.life.sources.validate_persistence = AsyncMock(return_value=False)
+    recovery = ResultRecovery(database, value.jobs, value.consumer.identity)
+    with pytest.raises(AppError, match="source_unavailable"):
+        await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
+            action_id=value.action.action_id, receipt_id=value.original.receipt_id, result_revision=1)
+    async with database.transaction(read_only=True) as connection:
+        count = await (await connection.execute("SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+    assert count["n"] == 1
+
+
+@pytest.mark.asyncio
 async def test_unconfirmed_remote_rollback_stays_blocked_and_is_not_requeued(database):
     value = await fixture(database, turn=False)
     value.consumer.identity.sources = value.worker.life.sources
@@ -290,3 +324,52 @@ async def test_failed_native_result_job_requeues_exact_original_event_without_ca
     assert row["args"]["event"] == original and row["data_generation"] == saved["data_generation"]
     value.actions.invoke.assert_not_awaited()
     value.actions.resume.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_progress_observes_future_retry_other_wake_and_live_consumer_without_false_incident(database):
+    value = await fixture(database, turn=False)
+    value.consumer.identity.sources = value.worker.life.sources
+    future = datetime.now(UTC) + timedelta(hours=1)
+    async with database.transaction() as connection:
+        await ActionResultEvents(value.jobs).publish(connection, value.event())
+        saved = await (await connection.execute("SELECT original_job_id,data_generation FROM conversation.result_deliveries")).fetchone()
+        await connection.execute("UPDATE runtime.job_keys SET created_at=now()-interval '1 hour' WHERE job_id=%s", (saved["original_job_id"],))
+        await connection.execute("UPDATE procrastinate_jobs SET scheduled_at=%s WHERE id=%s", (future, saved["original_job_id"]))
+    recovery = ResultRecovery(database, value.jobs, value.consumer.identity)
+    facts = await recovery.candidates()
+    assert len(facts) == 1 and facts[0]["due_at"] == future and facts[0]["waiting_dependency"]
+    agent = OperationsAgent.__new__(OperationsAgent)
+    agent.progress = AsyncMock(return_value=facts)
+    agent.incidents = SimpleNamespace(ingest=AsyncMock())
+    agent.outbox = SimpleNamespace(enqueue=AsyncMock())
+    await agent.poll_progress()
+    agent.incidents.ingest.assert_not_awaited()
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (saved["original_job_id"],))
+        wake_id = await value.jobs.enqueue(connection, JobSpec("conversation.result", "other-valid-wake",
+            {"event": value.event()}, ServiceClass.INTERACTIVE, scheduled_at=future, subject_id="actor"))
+    facts = await recovery.candidates()
+    assert len(facts) == 1 and facts[0]["target"]["id"] == str(saved["original_job_id"])
+    assert facts[0]["waiting_dependency"] and facts[0]["due_at"] == future
+    agent.progress.return_value = facts
+    await agent.poll_progress()
+    agent.incidents.ingest.assert_not_awaited()
+    async with database.transaction() as connection:
+        worker = await (await connection.execute("INSERT INTO procrastinate_workers DEFAULT VALUES RETURNING id")).fetchone()
+        await connection.execute("UPDATE procrastinate_jobs SET status='doing',worker_id=%s WHERE id=%s", (worker["id"], wake_id))
+    facts = await recovery.candidates()
+    assert facts[0]["executing"] and not facts[0]["waiting_dependency"]
+    agent.progress.return_value = facts
+    await agent.poll_progress()
+    agent.incidents.ingest.assert_not_awaited()
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE procrastinate_jobs SET status='failed',worker_id=NULL WHERE id=%s", (wake_id,))
+        await connection.execute("INSERT INTO conversation.result_consumer_progress(data_generation,receipt_id,consumer,action_id,result_revision,"
+            "disposition,owner_token,lease_until) VALUES (%s,'original-receipt','renderer',%s,1,'running','owner',now()+interval '1 minute')",
+            (saved["data_generation"], value.action.action_id))
+    facts = await recovery.candidates()
+    assert facts[0]["executing"] and not facts[0]["waiting_dependency"]
+    result = await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
+        action_id=value.action.action_id, receipt_id="original-receipt", result_revision=1)
+    assert result == {"state": "accepted", "reason": "consumer_running"}

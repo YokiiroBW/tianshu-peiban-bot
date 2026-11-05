@@ -7,6 +7,7 @@ from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 from tianshu.types import OriginKind, ServiceClass
 from tianshu.capabilities.catalog import is_administrative
+from tianshu.capabilities.actions import result_sources
 from tianshu.capabilities.serialization import action_from
 from tianshu.channels.operations import technical_api
 from .codec import context_from_record, document, receipt, signature, source_refs
@@ -107,6 +108,11 @@ class ResultConsumer:
             raise AppError("result_head_regressed", status=409)
         async with self.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, generation)
+            actual_result = receipt(actual)
+            refs = unique_refs(source_refs(event.get("source_refs", ())), result_sources(receipt(event["receipt"])),
+                               source_refs(current["action"].get("source_refs", ())), result_sources(actual_result))
+            if not await self.conversation.sources.validate_persistence(connection, context, refs):
+                raise AppError("source_unavailable", status=403)
             await ledger.queue_head_on(connection, self.jobs, generation, current)
             await ledger.supersede_on(connection, generation, event["event_id"])
         return current
@@ -124,6 +130,8 @@ class ResultConsumer:
             raise AppError("result_receipt_revision_conflict", status=409)
         if original and original["event"]:
             saved = original["event"]
+            if saved.get("source_invalidated"):
+                return
             if (saved.get("result_revision") != event["result_revision"]
                     or signature(saved.get("receipt")) != signature(event["receipt"])):
                 raise AppError("result_receipt_revision_conflict", status=409)
@@ -137,6 +145,8 @@ class ResultConsumer:
             raise AppError("result_receipt_revision_conflict", status=409)
 
     async def consume(self, event):
+        if event.get("source_invalidated"):
+            return  # The Sources callback has already made this original unusable.
         try:
             return await self._consume(event)
         except AppError as error:
@@ -162,9 +172,7 @@ class ResultConsumer:
         await self.identity.check(context, source_refs(event.get("source_refs", ())))
         current = await self.actions.get(action_id, context)
         action = current["action"]
-        refs = unique_refs(tuple(ref for ref in (
-            *source_refs(action.get("source_refs", ())), *source_refs(result.result.get("source_refs", ())),
-            *(ref for item in result.artifacts for ref in item.source_refs))))
+        refs = unique_refs(source_refs(action.get("source_refs", ())), result_sources(result))
         await self.identity.check(context, refs)
         async with self.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, generation)
