@@ -70,5 +70,9 @@ def create_module(service, identity):
                 "rbf_source_proof_jit",
                 files("tianshu.sources").joinpath("rbf_source_proof_jit.sql").read_text(encoding="utf-8"),
             ),
+            Migration(
+                "rbf_source_proof_reuse",
+                files("tianshu.sources").joinpath("rbf_source_proof_reuse.sql").read_text(encoding="utf-8"),
+            ),
         ),
     )
