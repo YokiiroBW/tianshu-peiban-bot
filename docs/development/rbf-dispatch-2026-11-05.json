@@ -145,7 +145,8 @@
       "status": "implementing",
       "allowed_paths": [
         "src/tianshu/companion/",
-        "tests/companion/test_rbf_*.py"
+        "tests/companion/test_rbf_*.py",
+        "tests/companion/test_rb_growth_async.py"
       ],
       "commits": [],
       "model": "gpt-6.1-terra",
@@ -171,7 +172,10 @@
         "tests/operations/test_rbf_*.py",
         "tests/runtime/test_rbf_events*.py",
         "tests/channels/test_rbf_statistics*.py",
-        "scripts/ops/rbf_monitor_summary.py"
+        "scripts/ops/rbf_monitor_summary.py",
+        "src/tianshu/channels/service.py",
+        "src/tianshu/channels/ingress.py",
+        "src/tianshu/channels/delivery.py"
       ],
       "commits": [],
       "model": "gpt-6.1-terra",
@@ -184,5 +188,10 @@
   "dispatched_at": "2026-11-05T02:24:09.670928+00:00",
   "all_tasks_acknowledged": true,
   "last_updated_at": "2026-11-05T02:34:24.680185+00:00",
-  "interfaces": "docs/development/rbf-interfaces-2026-11-05.md"
+  "interfaces": "docs/development/rbf-interfaces-2026-11-05.md",
+  "coordinator_commits": [
+    "553cf173",
+    "a53c95c2"
+  ],
+  "next_step": "collect implementation commits, integrate serially, run centralized relevant checks"
 }
