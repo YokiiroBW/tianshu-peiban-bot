@@ -1,0 +1,56 @@
+{
+  "schema_version": 1,
+  "batch": "RBG-20261105",
+  "state": "dispatch_prepared",
+  "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "baseline_source": "d9016ca7cccb02534498fd512a00a1a8d20e72e6",
+  "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
+  "integration_branch": "codex/rbg-integration-20261105",
+  "model": "gpt-6.1-terra",
+  "reasoning_effort": "max",
+  "service_tier": "default",
+  "tasks": [
+    {
+      "id": "RBG-01",
+      "key": "life",
+      "thread_id": "01a1a772-e80b-7fa0-95d3-d32d50649745",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
+      "branch": "codex/rbg-life-20261105",
+      "card": "docs/development/rbg-work-packages/life.md",
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default",
+      "commits": []
+    },
+    {
+      "id": "RBG-02",
+      "key": "conversation",
+      "thread_id": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
+      "branch": "codex/rbg-conversation-20261105",
+      "card": "docs/development/rbg-work-packages/results.md",
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default",
+      "commits": []
+    },
+    {
+      "id": "RBG-03",
+      "key": "capabilities",
+      "thread_id": "01a1a772-e975-77c3-a3e9-849d1b71eb20",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
+      "branch": "codex/rbg-capabilities-20261105",
+      "card": "docs/development/rbg-work-packages/video.md",
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default",
+      "commits": []
+    }
+  ]
+}

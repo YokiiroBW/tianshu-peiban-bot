@@ -1,3 +1,11 @@
+# 2026-11-05 RBG 规划终态、结果消费与视频解析恢复
+
+用户在完整方案后明确授权“那就按方案交给对应窗口修复修复”。本批 RBG-01/02/03 复用既有 Life、Conversation、Capabilities 聊天及各自干净工作树，模型统一 gpt-6.1-terra / max / 普通速度。精确边界见 docs/development/rbg-repair-2026-11-05.md 与 rbg-work-packages/ 三张卡。不创建新聊天或子代理，不恢复 Fast。
+
+实现者整块实现、补必要用例和静态审阅后提交，不运行测试、构建、烟测或生产命令。根收齐后集中必要验证、串行集成与保留数据发布、定向正常恢复。Life 的 worker.py 属 RBG-02，规划文件、Models 与 conversation/generation.py 属 RBG-01，视频/Actions 属 RBG-03；全局迁移、types、module.py、已有schema.sql、life/recovery.py及共享装配由根单写。
+
+本批不清库、不清业务文件、不重放未知副作用、不主动发送 QQ。保留配置、业务数据、原 ID/请求/回执、unknown、来源/权限/CAS、data_generation 与原恢复预算。用户已授权跨窗口派发和回执；主协调聊天为 01a1a72e-d357-7ba2-9e01-6373ebb7741e。
+
 # 2026-11-05 RBF 自动巡检根因修复
 
 用户已批准规划语义触发、状态原子续接、数据库事务/资源治理、分阶段恢复方案，并要求“安排对应窗口修复吧”。本批为 RBF-01 至 RBF-09，复用九个既有聊天、独立新工作树，统一 gpt-6.1-terra / max / 普通速度（service_tier=default）。本条覆盖下方旧 Fast 与已完成任务阶段限制。
