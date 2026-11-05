@@ -1,6 +1,7 @@
 """Recheck the semantic rules actually used by one expression."""
 from dataclasses import asdict, is_dataclass
 import json
+from .recovery import raise_resource_wait
 
 
 def unique_behavior_refs(*groups):
@@ -48,7 +49,8 @@ async def behavior_status(resolver, context, refs, *, purpose="conversation"):
     try:
         purpose = {"chat": "conversation", "planning": "life.plan"}.get(purpose, purpose)
         values = await resolver.resolve_behaviors(context, refs, purpose=purpose)
-    except Exception:
+    except Exception as error:
+        raise_resource_wait(error)
         return ("pending" if required else "unavailable"), ()
     rows = [asdict(value) if is_dataclass(value) else dict(value) for value in values]
     for ref in refs:

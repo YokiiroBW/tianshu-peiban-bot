@@ -30,30 +30,32 @@ def create_module(service, expression, identity, result_consumer, renderer):
         route("expression/reconcile", service.reconcile_expression, write=True)
 
     def tasks(queue, _runtime):
-        queue.register("conversation.expression_release",renderer.release,retryable=False)
-        queue.register("conversation.expression_render",renderer.render,retryable=False)
-        queue.register("conversation.render_expire",renderer.expire,retryable=True)
-        queue.register("conversation.expression_result",result_consumer.expression_progress,retryable=True)
+        queue.register("conversation.expression_release",renderer.release,retryable=False,resource_recovery=True)
+        queue.register("conversation.expression_render",renderer.render,retryable=False,resource_recovery=True)
+        queue.register("conversation.render_expire",renderer.expire,retryable=True,resource_recovery=True)
+        queue.register("conversation.expression_result",result_consumer.expression_progress,retryable=True,resource_recovery=True)
         queue.register("conversation.expression_reconcile",service.reconcile_expression_work,retryable=False)
-        queue.register("conversation.participation",service.participation.decide,retryable=False)
+        queue.register("conversation.participation",service.participation.decide,retryable=False,resource_recovery=True)
         queue.register("conversation.run", service.run, retryable=False,
-                       lane_resolver=service.execution_lane_on)
-        queue.register("conversation.seal", service.collector.seal, retryable=False)
+                       lane_resolver=service.execution_lane_on, resource_recovery=True)
+        queue.register("conversation.prepare", service.prepare_turn, retryable=False,
+                       lane_resolver=service.execution_lane_on, resource_recovery=True)
+        queue.register("conversation.seal", service.collector.seal, retryable=False, resource_recovery=True)
         queue.register("conversation.cancel", service.cancel_work, retryable=False)
-        queue.register("conversation.reconcile", service.reconcile, retryable=False)
-        queue.register("conversation.result", result_consumer.consume, retryable=True)
-        queue.register("conversation.expire", service.expire, retryable=True)
-        queue.register("conversation.expression_expire", renderer.expire_delivery, retryable=True)
+        queue.register("conversation.reconcile", service.reconcile, retryable=False, resource_recovery=True)
+        queue.register("conversation.result", result_consumer.consume, retryable=True, resource_recovery=True)
+        queue.register("conversation.expire", service.expire, retryable=True, resource_recovery=True)
+        queue.register("conversation.expression_expire", renderer.expire_delivery, retryable=True, resource_recovery=True)
         queue.register("conversation.supplement_notify", service.supplement_notify, retryable=True,
                        execution_lane=ExecutionLane.CONTROL)
         queue.register("conversation.model_submit", service.model_submit, retryable=False,
-                       execution_lane=ExecutionLane.CONVERSATION)
+                       execution_lane=ExecutionLane.CONVERSATION, resource_recovery=True)
         queue.register("conversation.model_complete", service.model_complete, retryable=False,
-                       execution_lane=ExecutionLane.CONVERSATION)
+                       execution_lane=ExecutionLane.CONVERSATION, resource_recovery=True)
         queue.register("conversation.model_consume_expire", service.model_consume_expire, retryable=True,
-                       execution_lane=ExecutionLane.CONVERSATION)
+                       execution_lane=ExecutionLane.CONVERSATION, resource_recovery=True)
         queue.register("conversation.model_observe_unknown", service.model_observe_unknown, retryable=True,
-                       execution_lane=ExecutionLane.CONVERSATION)
+                       execution_lane=ExecutionLane.CONVERSATION, resource_recovery=True)
         queue.register("conversation.example_usage", service.record_example_usage, retryable=True,
                        execution_lane=ExecutionLane.CONTROL)
         queue.register("conversation.statistics_reconcile", service.reconcile_statistics, retryable=True,
@@ -75,4 +77,5 @@ def create_module(service, expression, identity, result_consumer, renderer):
     return DomainModule("conversation", register, start=start, register_tasks=tasks,
         migrations=(Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
                     Migration("0039_conversation_context_selection", files("tianshu.conversation").joinpath("context_selection.sql").read_text()),
-                    Migration("0040_conversation_input_supplements", files("tianshu.conversation").joinpath("input_supplements.sql").read_text())))
+                    Migration("0040_conversation_input_supplements", files("tianshu.conversation").joinpath("input_supplements.sql").read_text()),
+                    Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))

@@ -51,7 +51,8 @@ class Delivery:
 
 
 async def prepare(database):
-    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
     return TrustedContext("principal", "actor", "person", "web-conversation", ("private",),
                           ("private",), 1, OriginKind.HUMAN, conversation_kind="private",
                           delivery_allowed=True)

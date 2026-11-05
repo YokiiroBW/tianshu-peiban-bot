@@ -329,7 +329,10 @@ async def test_tool_action_and_photo_window_only_inherit_actual_business_expiry(
     async def record_receipt(_context, _result):
         pass
 
-    service.actions = SimpleNamespace(invoke=invoke)
+    async def missing_action(*_args):
+        raise AppError("not_found", status=404)
+
+    service.actions = SimpleNamespace(invoke=invoke, get=missing_action)
     service._tool_receipt = record_receipt
     expiry = datetime.now(UTC)+timedelta(minutes=1 if autonomous else -1)
     async with database.transaction() as connection:

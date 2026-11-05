@@ -21,6 +21,24 @@ class Models:
     def __init__(self):
         self.calls = []
         self.observations = []
+        self.reuses = []
+
+    async def status(self, attempt_id, *, phase="observe"):
+        assert phase == "pre_submit"
+        if not self.calls:
+            return None
+        return ModelReceipt(attempt_id,"original","unknown","unknown",
+            "route",1,"provider","model","responses","quota")
+
+    async def require_receipt(self, attempt_id):
+        value = await self.status(attempt_id, phase="pre_submit")
+        if value is None:
+            raise AppError("attempt_not_found", status=404)
+        return value
+
+    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None, expected_data_generation=None):
+        self.reuses.append((attempt_id, expected_data_generation))
+        return await self.result(attempt_id, context=context)
 
     async def generate(self, request):
         self.calls.append(request)
@@ -33,7 +51,8 @@ class Models:
 
 
 async def prepare(database):
-    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
     return TrustedContext("author","actor","person","conversation",("private",),("person",),1,OriginKind.ACTOR)
 
 
@@ -82,6 +101,10 @@ async def test_withdrawal_clears_frozen_generation_text_without_resubmission(dat
 async def test_confirmed_absence_registers_the_frozen_original_request(database):
     context = await prepare(database)
     class BeforeAdmission(Models):
+        async def status(self, attempt_id, *, phase="observe"):
+            assert phase == "pre_submit"
+            return None
+
         async def result(self, attempt_id, *, context):
             return None
 
@@ -140,7 +163,12 @@ async def test_expired_business_request_observes_unknown_original_without_submis
     context = await prepare(database)
     original = replace(request("expired-observation", context), execution_timeout_seconds=180.0,
         business_deadline_at=datetime.now(UTC)-timedelta(minutes=1))
-    models = Models()
+    class OriginalModels(Models):
+        async def status(self, attempt_id, *, phase="observe"):
+            return ModelReceipt(attempt_id,"original","unknown","unknown",
+                "route",1,"provider","model","responses","quota")
+
+    models = OriginalModels()
     generations = GenerationRequests(database, Sources(), models)
     await generations.prepare(original.intent_id, original)
     async with database.transaction() as connection:
@@ -268,7 +296,8 @@ async def test_stream_returns_only_the_durable_complete_result_not_partial_event
     result = await generations.run(original.intent_id, original, stream=True)
     assert result.parts[0].text == "persisted complete content" and result.completion.state == "complete"
     assert await generations.run(original.intent_id, original, stream=True) == result
-    assert models.calls == [original] and len(models.observations) == 2
+    assert models.calls == [original] and len(models.observations) == 3
+    assert models.reuses == [(original.attempt_id, original.data_generation)]
 
 
 @pytest.mark.asyncio

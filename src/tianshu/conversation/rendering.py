@@ -11,6 +11,7 @@ from .codec import artifacts,context_from_record,document,receipt,signature,sour
 from .types import ExpressionPlan,ExpressionProgress
 from .expression import delivery_state, receipt_advances
 from .behaviors import behavior_status
+from .recovery import can_retry_resource_wait, is_resource_wait, raise_resource_wait
 
 
 def decode_plan(value):
@@ -138,6 +139,7 @@ class ExpressionRenderer:
             try:
                 current=await self.actions.get(action.action_id,context)
             except AppError as error:
+                raise_resource_wait(error)
                 if error.status!=404:
                     raise
                 if row["deadline_at"] is not None and row["deadline_at"]<=datetime.now(UTC):
@@ -153,10 +155,12 @@ class ExpressionRenderer:
                 current=await self.actions.get(action.action_id,context)
             await self.on_action_result(context,receipt(current["receipt"]),current["result_revision"])
         except BaseException as error:
+            raise_resource_wait(error)
             # Pre-ledger rejection is distinct from losing the outcome of a submitted call.
             try:
                 actual=await self.actions.get(action.action_id,context)
             except BaseException as observation_error:
+                raise_resource_wait(observation_error)
                 if getattr(observation_error,"status",None)==404:
                     await self._failed(context,expression_id,getattr(error,"code","render_not_started"))
                 else:
@@ -183,16 +187,29 @@ class ExpressionRenderer:
             fresh=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s FOR UPDATE",(row["expression_id"],))).fetchone()
             steps=fresh["steps"]
             step=next(item for item in steps if item["action_id"]==result.action_id)
-            if result_revision<=step["result_revision"]:
+            resume = result_revision<=step["result_revision"] and fresh["state"] == "delivering"
+            if result_revision<=step["result_revision"] and not resume:
                 return True
-            step.update(state=result.execution,result_revision=result_revision,artifacts=wire(result.artifacts),receipt=wire(result))
-            state="render_unknown" if any(item["state"]=="unknown" for item in steps) else "failed" if any(item["state"] in {"failed","cancelled"} for item in steps) else "delivering" if all(item["state"]=="succeeded" for item in steps) else "waiting_render"
-            if fresh["state"] in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}:
-                state=fresh["state"]
-            await connection.execute("UPDATE conversation.expression_plans SET steps=%s,state=%s,source_refs=%s,reason=%s,revision=revision+1 WHERE expression_id=%s",(document(steps),state,document(refs),result.error_code,row["expression_id"]))
-            if state in {"failed","render_unknown"}:
-                await self._event(connection,context,row["expression_id"],fresh["revision"]+1)
-        if state=="delivering" and fresh["state"] not in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}:
+            if resume:
+                # The render result was committed but delivery preparation may
+                # have rolled back. An existing expression owns any send.
+                if fresh["continuation_unconfirmed"]:
+                    return True
+                existing = await (await connection.execute("SELECT 1 FROM conversation.expressions WHERE expression_id=%s",
+                                                            (row["expression_id"],))).fetchone()
+                if existing:
+                    return True
+                state = "delivering"
+                refs = source_refs(fresh["source_refs"])
+            else:
+                step.update(state=result.execution,result_revision=result_revision,artifacts=wire(result.artifacts),receipt=wire(result))
+                state="render_unknown" if any(item["state"]=="unknown" for item in steps) else "failed" if any(item["state"] in {"failed","cancelled"} for item in steps) else "delivering" if all(item["state"]=="succeeded" for item in steps) else "waiting_render"
+                if fresh["state"] in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}:
+                    state=fresh["state"]
+                await connection.execute("UPDATE conversation.expression_plans SET steps=%s,state=%s,source_refs=%s,reason=%s,revision=revision+1 WHERE expression_id=%s",(document(steps),state,document(refs),result.error_code,row["expression_id"]))
+                if state in {"failed","render_unknown"}:
+                    await self._event(connection,context,row["expression_id"],fresh["revision"]+1)
+        if state=="delivering" and (resume or fresh["state"] not in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}):
             if fresh["deadline_at"] is not None and datetime.now(UTC)>fresh["deadline_at"]:
                 await self._failed(context,fresh["expression_id"],"expression_window_expired")
                 return True
@@ -213,7 +230,17 @@ class ExpressionRenderer:
                     parts.append(part)
                 parts.extend({"kind":"audio","media":wire(item.media)} for item in actual)
                 output.extend(actual)
-            await self._deliver(context,replace(plan,public_parts=tuple(parts),source_refs=refs,artifacts=tuple(output)))
+            try:
+                await self._deliver(context,replace(plan,public_parts=tuple(parts),source_refs=refs,artifacts=tuple(output)))
+            except Exception as error:
+                if is_resource_wait(error) and not can_retry_resource_wait(error):
+                    try:
+                        async with self.database.transaction() as connection:
+                            await connection.execute("UPDATE conversation.expression_plans SET continuation_unconfirmed=true "
+                                "WHERE expression_id=%s AND state='delivering'", (plan.expression_id,))
+                    except BaseException as observation_error:
+                        raise error from observation_error
+                raise
         return True
 
     async def _deliver(self,context,plan):
@@ -277,7 +304,17 @@ class ExpressionRenderer:
                         updated = await (await connection.execute(
                             "SELECT * FROM conversation.expression_plans WHERE expression_id=%s", (expression_id,))).fetchone()
                 return progress(updated)
-        result=await self.delivery.send(context,plan)
+        try:
+            result=await self.delivery.send(context,plan)
+        except Exception as error:
+            if can_retry_resource_wait(error):
+                async with self.database.transaction() as connection:
+                    existing=await (await connection.execute("SELECT state FROM conversation.expressions WHERE expression_id=%s",
+                                                             (expression_id,))).fetchone()
+                    if existing is None or existing["state"] == "prepared":
+                        await connection.execute("UPDATE conversation.expression_plans SET state='ready' "
+                            "WHERE expression_id=%s AND state='delivering' AND revision=%s", (expression_id, fresh["revision"]))
+            raise
         state = "cancelled" if result.execution == "cancelled" and result.result.get("contact_preflight") else delivery_state(result)
         if state == "unknown":
             state = "delivery_unknown"

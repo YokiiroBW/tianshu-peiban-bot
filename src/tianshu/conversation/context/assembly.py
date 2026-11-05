@@ -16,6 +16,7 @@ from tianshu.sources.dependencies import unique_refs
 from tianshu.memory.retrieval import contributions as evidence_contributions
 from tianshu.memory.types import RecordRef
 from tianshu.conversation.behaviors import behavior_status, matching_behavior, material_behavior_refs, unique_behavior_refs
+from tianshu.conversation.recovery import raise_resource_wait
 
 
 AUTHORITY = (
@@ -252,6 +253,7 @@ class ContextAssembler:
             results = await asyncio.gather(*readers, return_exceptions=True)
             for name, result in zip(names, results, strict=True):
                 if isinstance(result, BaseException):
+                    raise_resource_wait(result)
                     if isinstance(result, asyncio.CancelledError):
                         raise result
                     logging.getLogger(__name__).warning(name, extra={"error_type": type(result).__name__})
@@ -319,6 +321,7 @@ class ContextAssembler:
                 current = {item.content_revision: item for item in evidence_contributions(refreshed)}
                 missing.extend(unavailable)
             except Exception as exc:
+                raise_resource_wait(exc)
                 logging.getLogger(__name__).warning("memory_context_revalidation_unavailable",
                     extra={"error_type": type(exc).__name__})
                 current = {}

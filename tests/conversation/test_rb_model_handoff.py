@@ -8,14 +8,15 @@ import pytest
 
 from tianshu.conversation.codec import document
 from tianshu.conversation.service import ConversationService
-from tianshu.models.types import ModelMessage, ModelPart, ModelRequest
+from tianshu.models.types import ModelMessage, ModelPart, ModelReceipt, ModelRequest
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 
 
 @pytest.mark.asyncio
 async def test_model_request_is_frozen_and_enqueued_without_waiting_for_provider(database):
-    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
     context = TrustedContext("p", "a", "person", "chat", ("s",), ("s",), 1,
                              OriginKind.HUMAN, conversation_kind="private", delivery_allowed=True)
     now = datetime.now(UTC)
@@ -52,10 +53,10 @@ async def test_model_request_is_frozen_and_enqueued_without_waiting_for_provider
 
 
 @pytest.mark.asyncio
-async def test_observed_absence_resubmits_only_the_same_original_attempt(database):
-    # After a lost submit acknowledgement, observation is the only route to a
-    # new submit job. No second request identity is invented.
-    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+@pytest.mark.parametrize("confirmed", [False, True])
+async def test_missing_observation_keeps_confirmed_receipt_on_observe_only_path(database, confirmed):
+    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
     context = TrustedContext("p", "a", "person", "chat", ("s",), ("s",), 1,
                              OriginKind.HUMAN, conversation_kind="private", delivery_allowed=True)
     now = datetime.now(UTC)
@@ -66,11 +67,15 @@ async def test_observed_absence_resubmits_only_the_same_original_attempt(databas
             "'waiting_external','tianshu',true,'attempt',%s,%s,%s)", (document(context), now, now, now+timedelta(minutes=10)))
         await conn.execute("INSERT INTO conversation.context_selections(attempt_id,turn_id,round,request_digest,selection,"
             "token_usage,source_refs,round_snapshot) VALUES('attempt','turn',0,'digest','[]','{}','[]','{}')")
+        if confirmed:
+            prior = ModelReceipt("attempt", "intent", "unknown", "unknown", "route", 1,
+                                 "provider", "model", "responses", "quota")
+            await conn.execute("UPDATE conversation.context_selections SET model_receipt=%s WHERE attempt_id='attempt'", (document(prior),))
     models = SimpleNamespace(result=AsyncMock(return_value=None), submit=AsyncMock())
     service = ConversationService(database, None, None, None, None, None, None, None, None, None,
                                   models, None, None, None, None)
     service._schedule_model_observation = AsyncMock()
     await service.model_complete("turn", "attempt")
     scheduled = service._schedule_model_observation.await_args
-    assert scheduled.args[1] == "attempt" and scheduled.kwargs == {"submit": True}
+    assert scheduled.args[1] == "attempt" and scheduled.kwargs == {"submit": not confirmed}
     models.submit.assert_not_awaited()

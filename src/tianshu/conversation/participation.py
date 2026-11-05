@@ -13,6 +13,7 @@ from tianshu.types import ContextContribution, RequestBudget, ServiceClass
 from .codec import context_from_record, document, signature, source_refs
 from .generation import GenerationRequests, attempt_for
 from .persistence import lock_material_row
+from .recovery import can_retry_resource_wait, is_resource_wait, raise_resource_wait
 
 
 PARTICIPATION_OUTPUT_TOKENS = 256
@@ -147,6 +148,17 @@ class GroupParticipation:
             ))
 
     async def decide(self, turn_id):
+        try:
+            return await self._decide(turn_id)
+        except Exception as error:
+            if is_resource_wait(error) and not can_retry_resource_wait(error):
+                try:
+                    await self._finish(turn_id, "unknown", "recovery_unconfirmed")
+                except BaseException as observation_error:
+                    raise error from observation_error
+            raise
+
+    async def _decide(self, turn_id):
         async with self.service.database.transaction(read_only=True) as connection:
             row = await (await connection.execute(
                 "SELECT * FROM conversation.turns WHERE turn_id=%s", (turn_id,)
@@ -157,6 +169,15 @@ class GroupParticipation:
         refs = source_refs(row["source_refs"])
         if row["participation_deadline"] <= datetime.now(UTC):
             await self._finish(turn_id, "skipped", "live_participation_window_expired")
+            return
+        if row["participation_state"] == "unknown" and row["participation_reason"] == "recovery_unconfirmed":
+            material_key = "participation:" + turn_id + ":" + str(row["participation_policy_revision"])
+            try:
+                await self.service.models.require_receipt(attempt_for(material_key))
+            except AppError as error:
+                raise_resource_wait(error)
+                if error.code != "attempt_not_found":
+                    raise
             return
         context = await self.service.identity.for_participation(original, source_refs=refs)
         if context is None:
@@ -208,6 +229,7 @@ class GroupParticipation:
         try:
             result = await self.generations.run(material_key, frozen)
         except AppError as error:
+            raise_resource_wait(error)
             await self._finish(turn_id, "unknown" if error.code != "generation_request_expired" else "skipped", error.code)
             return
         if result.receipt.status != "succeeded":

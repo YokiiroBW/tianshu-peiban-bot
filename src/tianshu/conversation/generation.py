@@ -1,17 +1,20 @@
 """Frozen requests for authored output and autonomous decisions.
 
 This owns the frozen intent. Models remains the sole execution/result ledger.
-A registered attempt is only observed; authoritative absence permits original-ID
-first admission before its business expiry (or a legacy request's absolute budget).
+A known receipt is only observed. An unconfirmed claim may retry the same
+frozen admission identity; Models owns its atomic attempt and dispatch ledger.
 """
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid5
 
 from tianshu.models.codec import request_from_wire
+from tianshu.models.ledger import submission_digest
 from tianshu.models.timing import waiting_budget
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait
 from .codec import document, signature, source_refs
+from .recovery import can_retry_resource_wait, is_resource_wait
 
 
 def attempt_for(material_key):
@@ -28,12 +31,17 @@ class GenerationRequests:
             async with self.database.transaction() as transaction:
                 return await self.prepare(material_key, request, connection=transaction, guard=guard)
         context = request.context
-        await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", ("generation:"+material_key,))
         original = await (await connection.execute(
             "SELECT * FROM conversation.generation_requests WHERE material_key=%s", (material_key,))).fetchone()
         refs = source_refs(original["source_refs"]) if original else request.source_refs
         if not await self.sources.validate_persistence(connection, context, refs):
             raise AppError("source_unavailable", status=409)
+        await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))", ("generation:"+material_key,))
+        current = await (await connection.execute(
+            "SELECT * FROM conversation.generation_requests WHERE material_key=%s", (material_key,))).fetchone()
+        if (current is None) != (original is None) or (current and current["source_refs"] != original["source_refs"]):
+            raise RecoveryWait("source_lock_set_changed", datetime.now(UTC) + timedelta(seconds=5),
+                               dependency="conversation:generation_sources")
         if guard is not None and not await guard(connection):
             raise AppError("generation_no_longer_current", status=409)
         await connection.execute(
@@ -64,33 +72,28 @@ class GenerationRequests:
             if row["material_key"] != material_key:
                 raise AppError("generation_identity_conflict", status=409)
             return await self.read(request.attempt_id, request.context, observer=observer)
+        try:
+            return await self._run_owned(material_key, request, guard=guard, stream=stream)
+        except Exception as error:
+            if is_resource_wait(error) and not can_retry_resource_wait(error):
+                try:
+                    async with self.database.transaction() as connection:
+                        await connection.execute("UPDATE conversation.generation_requests SET recovery_unconfirmed=true "
+                            "WHERE material_key=%s AND context_key=%s AND state IN ('prepared','claimed')",
+                            (material_key, self.context_key(request.context)))
+                except BaseException as observation_error:
+                    raise error from observation_error
+            raise
+
+    async def _run_owned(self, material_key, request, *, guard=None, stream=False):
         context = request.context
-        async with self.database.transaction() as connection:
-            await self.prepare(material_key, request, connection=connection, guard=guard)
-            row = await (await connection.execute(
-                "SELECT * FROM conversation.generation_requests WHERE material_key=%s FOR UPDATE", (material_key,))).fetchone()
-            submit = row["state"] == "prepared"
-            if submit:
-                await connection.execute(
-                    "UPDATE conversation.generation_requests SET state='claimed',claimed_at=now() WHERE material_key=%s", (material_key,))
-        frozen = request_from_wire(row["request"])
+        frozen, submit = await self.claim(material_key, request, guard=guard)
         if not submit:
-            result = await self.models.result(row["attempt_id"], context=context)
-            if result is not None:
-                return result
-            # A successful None is the Broker's authoritative absence result.
-            # Same frozen payload/attempt admission is atomic even if an original
-            # RPC is still preparing or arrives late. Observation errors propagate.
-        admission = waiting_budget(frozen)
-        if admission is not None and admission.deadline_at <= datetime.now(UTC):
-            actual = await self.models.result(row["attempt_id"], context=context)
-            if actual is not None:
-                return actual
-            async with self.database.transaction() as connection:
-                await connection.execute("UPDATE conversation.generation_requests SET state='expired' WHERE material_key=%s AND state='claimed'",(material_key,))
-            raise AppError("generation_request_expired", status=409)
+            return await self.observe_result(frozen, context)
         if not stream:
-            return await self.models.generate(frozen)
+            result = await self.models.generate(frozen)
+            await self.confirm(frozen.attempt_id)
+            return result
         # Partial text/native events are transport observations, never authored
         # output. Only the result persisted under this original attempt can be
         # returned to the domain for validation and its single atomic commit.
@@ -103,7 +106,102 @@ class GenerationRequests:
             await events.aclose()
         if not received:
             raise AppError("generation_stream_interrupted", status=502)
+        await self.confirm(frozen.attempt_id)
         return await self.models.result(frozen.attempt_id, context=context)
+
+    async def claim(self, material_key, request, *, guard=None):
+        """Claim first admission once, after a pre-submit lookup outside the transaction."""
+        async with self.database.transaction() as connection:
+            frozen = await self.prepare(material_key, request, connection=connection, guard=guard)
+            row = await (await connection.execute(
+                "SELECT state,submission_confirmed,recovery_unconfirmed FROM conversation.generation_requests WHERE material_key=%s", (material_key,))).fetchone()
+        if row["recovery_unconfirmed"]:
+            await self.models.require_receipt(frozen.attempt_id)
+            raise AppError("generation_recovery_unconfirmed", status=409,
+                           details={"attempt_id": frozen.attempt_id, "action": "observe_original_attempt"})
+        if row["state"] == "claimed":
+            if row["submission_confirmed"]:
+                original = await self.models.require_receipt(frozen.attempt_id)
+                self.validate_observed(frozen, original)
+                return frozen, False
+            original = await self.models.status(frozen.attempt_id, phase="pre_submit")
+            if original is not None:
+                self.validate_observed(frozen, original)
+                await self.confirm(frozen.attempt_id)
+                return frozen, False
+            admission = waiting_budget(frozen)
+            if admission is not None and admission.deadline_at <= datetime.now(UTC):
+                await self.models.require_receipt(frozen.attempt_id)
+                return frozen, False
+            # The claim can precede a crashed or delayed RPC. This is the same
+            # frozen admission, not evidence that the earlier RPC was unsent.
+            async with self.database.transaction() as connection:
+                frozen = await self.prepare(material_key, frozen, connection=connection, guard=guard)
+                current = await (await connection.execute(
+                    "SELECT state,submission_confirmed,recovery_unconfirmed FROM conversation.generation_requests "
+                    "WHERE material_key=%s FOR UPDATE", (material_key,))).fetchone()
+                if current["recovery_unconfirmed"]:
+                    raise AppError("generation_recovery_unconfirmed", status=409,
+                                   details={"attempt_id": frozen.attempt_id, "action": "observe_original_attempt"})
+                return frozen, (current["state"] == "claimed" and not current["submission_confirmed"]
+                                and not current["recovery_unconfirmed"])
+        if row["state"] != "prepared":
+            return frozen, False
+        original = await self.models.status(frozen.attempt_id, phase="pre_submit")
+        if original is not None:
+            self.validate_observed(frozen, original)
+        admission = waiting_budget(frozen)
+        expired = original is None and admission is not None and admission.deadline_at <= datetime.now(UTC)
+        async with self.database.transaction() as connection:
+            frozen = await self.prepare(material_key, frozen, connection=connection, guard=guard)
+            row = await (await connection.execute(
+                "SELECT state,submission_confirmed,recovery_unconfirmed FROM conversation.generation_requests WHERE material_key=%s FOR UPDATE", (material_key,))).fetchone()
+            if row["recovery_unconfirmed"]:
+                raise AppError("generation_recovery_unconfirmed", status=409,
+                               details={"attempt_id": frozen.attempt_id, "action": "observe_original_attempt"})
+            if row["state"] != "prepared":
+                # Another owner may have committed the claim but not reached
+                # Models yet. The same frozen admission is deduplicated there.
+                return frozen, (row["state"] == "claimed" and not row["submission_confirmed"] and not row["recovery_unconfirmed"]
+                                and original is None and not expired)
+            if expired:
+                await connection.execute("UPDATE conversation.generation_requests SET state='expired' WHERE material_key=%s", (material_key,))
+            else:
+                await connection.execute("UPDATE conversation.generation_requests SET state='claimed',claimed_at=now(),submission_confirmed=%s WHERE material_key=%s", (original is not None, material_key))
+        if expired:
+            raise AppError("generation_request_expired", status=409)
+        return frozen, original is None
+
+    async def observe_result(self, frozen, context):
+        result = await self.models.result(frozen.attempt_id, context=context)
+        if result is None:
+            await self.models.require_receipt(frozen.attempt_id)
+            result = await self.models.result(frozen.attempt_id, context=context)
+            if result is None:
+                raise AppError("model_result_unavailable", status=409, details={"attempt_id": frozen.attempt_id})
+        self.validate_observed(frozen, result.receipt)
+        await self.confirm(frozen.attempt_id)
+        if result.receipt.status == "succeeded":
+            return await self.models.reusable_result(frozen.attempt_id, context=context,
+                                                     expected_request_digest=submission_digest(frozen),
+                                                     expected_data_generation=frozen.data_generation)
+        return result
+
+    @staticmethod
+    def validate_observed(frozen, original):
+        if (original.attempt_id != frozen.attempt_id
+                or (original.request_digest is not None and original.request_digest != submission_digest(frozen))
+                or (frozen.data_generation is not None and original.data_generation is not None
+                    and original.data_generation != frozen.data_generation)):
+            raise AppError("attempt_identity_conflict", status=409, details={"attempt_id": frozen.attempt_id})
+
+    async def confirm(self, attempt_id, *, connection=None):
+        if connection is None:
+            async with self.database.transaction() as transaction:
+                await self.confirm(attempt_id, connection=transaction)
+            return
+        await connection.execute("UPDATE conversation.generation_requests SET submission_confirmed=true "
+                                 "WHERE attempt_id=%s AND state='claimed'", (attempt_id,))
 
     async def read(self, attempt_id, context, *, observer=None):
         if observer is None:

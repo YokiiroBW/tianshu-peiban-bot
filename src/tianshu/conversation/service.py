@@ -9,10 +9,12 @@ from datetime import UTC, datetime, timedelta
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
+from tianshu.models.ledger import submission_digest
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest, ToolSpec
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.serialization import wire
 from tianshu.types import Action, ContextContribution, Coverage, OriginKind, RequestBudget, ServiceClass
@@ -25,6 +27,7 @@ from .participation import GroupParticipation
 from .expression import expression_turn_state
 from .context.assembly import ContextMessage
 from .generation import GenerationRequests
+from .recovery import can_retry_resource_wait, is_resource_wait, raise_resource_wait
 
 
 CHAT_EXECUTION_SECONDS = 15 * 60
@@ -119,7 +122,11 @@ class ConversationService:
             message = replace(message, occurred_at=previous["occurred_at"])
         else:
             options = ({"connection": connection, "generation": message.deployment_generation}
-                       if connection is not None and message.deployment_generation is not None else {})
+                       if connection is not None else {})
+            if connection is not None:
+                await self.sources.prepare_event_write(connection, context, producer=message.producer,
+                    event_id=message.event_id, revision=message.revision, parts=message.parts,
+                    additional_refs=message.source_refs)
             refs = await self.sources.record_event(context, producer=message.producer, event_id=message.event_id,
                 revision=message.revision, occurred_at=message.occurred_at, parts=message.parts, origin_kind=context.origin_kind,
                 **options)
@@ -160,7 +167,8 @@ class ConversationService:
             if not row:
                 raise AppError("turn_not_found", status=404)
             parts, refs = input_parts(row["original_parts"]), source_refs(row["original_source_refs"])
-            await self.identity.check_on(connection, context, refs)
+            if not await self.sources.validate_persistence(connection, context, refs):
+                raise AppError("source_unavailable", status=409)
             await self.contacts.received(context, row["occurred_at"], input_id=turn_id, connection=connection)
             # Coverage describes accepted input parts, not whether attached media was understood.
             unavailable = tuple(
@@ -521,7 +529,21 @@ class ConversationService:
                                                occurred_at=row["started_at"])
                 if self.statistics is not None and not recorded:
                     await self._schedule_statistics_repair(connection)
+            await self.jobs.enqueue(connection, JobSpec("conversation.prepare", f"turn-prepare:{turn_id}:{attempt_id}",
+                {"turn_id": turn_id, "attempt_id": attempt_id},
+                ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
+                subject_id=row["actor_id"], data_generation=row["deployment_generation"]))
+
+    async def prepare_turn(self, turn_id, attempt_id):
+        """Resume preparation for the exact attempt claimed by the durable turn."""
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT * FROM conversation.turns WHERE turn_id=%s AND model_attempt_id=%s AND state='running'",
+                (turn_id, attempt_id))).fetchone()
+        if not row:
+            return
         context = context_from_record(row["context"])
+        deferred = False
         try:
             try:
                 await self.identity.check(context, source_refs(row["source_refs"]))
@@ -530,12 +552,16 @@ class ConversationService:
                     raise AppError("actor_disabled", status=409)
                 choices = await self.catalog.discover(context)
             except AppError as error:
+                raise_resource_wait(error)
                 raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
             if row["command"] and row["round"] == 0:
                 await self._command(context, row, choices)
             else:
                 await self._model_turn(context, row, attempt_id, choices)
         except BaseException as error:
+            if is_resource_wait(error):
+                deferred = True
+                raise
             if isinstance(error, asyncio.CancelledError):
                 await self.models.cancel(attempt_id, reason="consumer_interrupted")
             code = getattr(error, "code", "turn_outcome_unknown")
@@ -547,7 +573,8 @@ class ConversationService:
             if isinstance(error, asyncio.CancelledError):
                 raise
         finally:
-            await self._next(row["actor_id"], row["conversation_id"])
+            if not deferred:
+                await self._next(row["actor_id"], row["conversation_id"])
 
     async def _context_history(self, context, row, query):
         """Read complete original messages; selection determines their direct dependencies."""
@@ -637,7 +664,8 @@ class ConversationService:
                     await self.memory.record_group_term_usage(context, row["event_id"],
                         tuple((value.claim_id, value.revision) for value in values),
                         outcome="matched" if values else "no_match")
-            except Exception:
+            except Exception as error:
+                raise_resource_wait(error)
                 # Usage accounting cannot turn an available term into a failed read.
                 pass
             return tuple(ContextContribution("group_term_meaning", json.dumps(wire(value), ensure_ascii=False),
@@ -650,6 +678,7 @@ class ConversationService:
                 async with asyncio.timeout(min(2.0, max(budget.remaining() - 0.1, 0.01))):
                     return await reader(), None
             except Exception as error:
+                raise_resource_wait(error)
                 return (), type(error).__name__
 
         life_result, growth_result, terms_result, recent = await asyncio.gather(
@@ -761,10 +790,12 @@ class ConversationService:
                             execution_lane=ExecutionLane.CONVERSATION, data_generation=generation))
                     break
                 except AppError as error:
+                    raise_resource_wait(error)
                     if retry == 0 and error.code in {"source_unavailable", "revision_conflict"}:
                         continue
                     raise
         except AppError as error:
+            raise_resource_wait(error)
             if error.code == "context_behavior_pending":
                 async with self.database.transaction() as connection:
                     if row["deployment_generation"] is not None:
@@ -799,6 +830,9 @@ class ConversationService:
                 "SELECT * FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
         if not row or not frozen or frozen["consumed_at"] is not None:
             return
+        if frozen["consumption_state"] == "unconfirmed":
+            await self.models.require_receipt(attempt_id)
+            return
         context = context_from_record(row["context"])
         async with self.database.transaction() as connection:
             if frozen["deployment_generation"] is not None:
@@ -825,6 +859,34 @@ class ConversationService:
         if request is None:
             raise AppError("generation_request_not_found", status=404)
         await self.identity.check(context, request.source_refs)
+        if frozen["model_receipt"] is not None:
+            await self._schedule_model_observation(row, attempt_id)
+            return
+        async def current_turn(connection):
+            if frozen["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+            current = await (await connection.execute(
+                "SELECT state,model_attempt_id,round,source_refs,deployment_generation FROM conversation.turns "
+                "WHERE turn_id=%s FOR UPDATE", (turn_id,))).fetchone()
+            selected = await (await connection.execute(
+                "SELECT consumption_state,consumed_at FROM conversation.context_selections WHERE attempt_id=%s FOR UPDATE",
+                (attempt_id,))).fetchone()
+            return bool(current and current["state"] == "waiting_external"
+                and current["model_attempt_id"] == attempt_id and current["round"] == row["round"]
+                and current["deployment_generation"] == row["deployment_generation"]
+                and source_refs(current["source_refs"]) == tuple(request.source_refs)
+                and selected and selected["consumption_state"] == "idle" and selected["consumed_at"] is None)
+        try:
+            request, submit = await self.generation.claim(f"turn:{turn_id}:{row['round']}", request, guard=current_turn)
+        except Exception as error:
+            await self._raise_model_resource(error, attempt_id, frozen["deployment_generation"])
+            if not isinstance(error, AppError) or error.code != "attempt_not_found":
+                raise
+            await self._schedule_model_observation(row, attempt_id)
+            return
+        if not submit:
+            await self._schedule_model_observation(row, attempt_id)
+            return
         completion = JobSpec("conversation.model_complete", "model-complete:"+attempt_id,
             {"turn_id": turn_id, "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
             subject_id=context.actor_id, execution_lane=ExecutionLane.CONVERSATION,
@@ -837,12 +899,14 @@ class ConversationService:
                 await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s "
                                          "WHERE attempt_id=%s AND model_receipt IS NULL",
                                          (document(accepted), attempt_id))
+                await self.generation.confirm(attempt_id, connection=connection)
                 if accepted.dispatch == "submitted":
                     await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
                                                       actor_id=row["actor_id"], outcome="selected")
-        except Exception:
+        except Exception as error:
+            await self._raise_model_resource(error, attempt_id, frozen["deployment_generation"])
             # Submission may have reached Models. The next job observes the same
-            # attempt first; only an authoritative absence re-admits this exact ID.
+            # attempt and can only re-admit the same unconfirmed frozen identity.
             await self._schedule_model_observation(row, attempt_id)
 
     async def _schedule_model_observation(self, row, attempt_id, *, submit=False):
@@ -854,6 +918,20 @@ class ConversationService:
                 {"turn_id": row["turn_id"], "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
                 datetime.now(UTC)+timedelta(seconds=10), row["actor_id"],
                 execution_lane=ExecutionLane.CONVERSATION, data_generation=row["deployment_generation"]))
+
+    async def _raise_model_resource(self, error, attempt_id, generation):
+        if not is_resource_wait(error):
+            return
+        if not can_retry_resource_wait(error):
+            try:
+                async with self.database.transaction() as connection:
+                    if generation is not None:
+                        await self.jobs.assert_generation_on(connection, generation)
+                    await connection.execute("UPDATE conversation.context_selections SET consumption_state='unconfirmed' "
+                        "WHERE attempt_id=%s AND consumed_at IS NULL", (attempt_id,))
+            except BaseException as observation_error:
+                raise error from observation_error
+        raise error
 
     async def _enqueue_example_usage(self, connection, *, attempt_id, turn_id, actor_id, outcome, expression_id=None):
         await self.jobs.enqueue(connection, JobSpec("conversation.example_usage",
@@ -895,18 +973,62 @@ class ConversationService:
                 (turn_id, attempt_id))).fetchone()
             frozen = await (await connection.execute(
                 "SELECT * FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
+            generation = await (await connection.execute(
+                "SELECT submission_confirmed FROM conversation.generation_requests WHERE attempt_id=%s", (attempt_id,))).fetchone()
         if not row or not frozen or frozen["consumed_at"] is not None:
+            return
+        if frozen["consumption_state"] == "unconfirmed":
+            await self.models.require_receipt(attempt_id)
             return
         context = context_from_record(row["context"])
         try:
             result = await self.models.result(attempt_id, context=context)
-        except Exception:
+        except Exception as error:
+            await self._raise_model_resource(error, attempt_id, frozen["deployment_generation"])
             await self._schedule_model_observation(row, attempt_id)
             return
         if result is None:
-            # Broker's successful absence permits the same immutable admission.
-            await self._schedule_model_observation(row, attempt_id, submit=True)
+            # Missing observation is never a not-started receipt. Only an
+            # unconfirmed intent can re-enter Models' idempotent admission.
+            confirmed = frozen["model_receipt"] is not None or (generation and generation["submission_confirmed"])
+            await self._schedule_model_observation(row, attempt_id, submit=not confirmed)
             return
+        async with self.database.transaction() as connection:
+            if frozen["deployment_generation"] is not None:
+                await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+            await self.generation.confirm(attempt_id, connection=connection)
+        if result.receipt.status == "succeeded":
+            try:
+                original_request = await self.generation.request(attempt_id, context)
+                if original_request is None:
+                    raise AppError("generation_request_not_found", status=404)
+                result = await self.models.reusable_result(attempt_id, context=context,
+                    expected_request_digest=submission_digest(original_request),
+                    expected_data_generation=frozen["deployment_generation"])
+            except Exception as error:
+                await self._raise_model_resource(error, attempt_id, frozen["deployment_generation"])
+                if not isinstance(error, AppError):
+                    await self._schedule_model_observation(row, attempt_id)
+                    return
+                if error.status not in {401, 403} and error.code not in {
+                    "source_unavailable", "result_source_unavailable", "model_attempt_cancelled"
+                }:
+                    await self._schedule_model_observation(row, attempt_id)
+                    return
+                async with self.database.transaction() as connection:
+                    if frozen["deployment_generation"] is not None:
+                        await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                    changed = await (await connection.execute(
+                        "UPDATE conversation.turns SET state=%s,error_code=%s,completed_at=now() "
+                        "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external' RETURNING turn_id",
+                        ("cancelled" if error.code == "model_attempt_cancelled" else "failed", error.code,
+                         turn_id, attempt_id))).fetchone()
+                    if changed:
+                        await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,consumed_at=now(),consumption_state='done' WHERE attempt_id=%s",
+                                                 (document(result.receipt), attempt_id))
+                if changed:
+                    await self._next(row["actor_id"], row["conversation_id"])
+                return
         if result.receipt.status not in {"succeeded", "failed", "cancelled"}:
             async with self.database.transaction() as connection:
                 if frozen["deployment_generation"] is not None:
@@ -950,7 +1072,7 @@ class ConversationService:
                     await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
                 await connection.execute("UPDATE conversation.turns SET state='failed',error_code='behavior_invalid',completed_at=now() "
                     "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
-                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumed_at=now() WHERE attempt_id=%s",
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumed_at=now(),consumption_state='done' WHERE attempt_id=%s",
                     (document(result.receipt), document(result), attempt_id))
                 if result.receipt.dispatch == "submitted":
                     await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
@@ -965,16 +1087,24 @@ class ConversationService:
                 source_invalid = True
                 await connection.execute("UPDATE conversation.turns SET state='failed',error_code='source_unavailable',completed_at=now() "
                     "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external'", (turn_id, attempt_id))
-                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,consumed_at=now() WHERE attempt_id=%s",
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,consumed_at=now(),consumption_state='done' WHERE attempt_id=%s",
                                          (document(result.receipt), attempt_id))
             else:
+                current = await (await connection.execute(
+                    "SELECT state,model_attempt_id FROM conversation.turns WHERE turn_id=%s FOR UPDATE", (turn_id,))).fetchone()
+                selected = await (await connection.execute(
+                    "SELECT consumption_state,consumed_at FROM conversation.context_selections WHERE attempt_id=%s FOR UPDATE",
+                    (attempt_id,))).fetchone()
+                if (not current or current["state"] != "waiting_external" or current["model_attempt_id"] != attempt_id
+                        or not selected or selected["consumed_at"] is not None or selected["consumption_state"] != "idle"):
+                    return
                 claimed = await (await connection.execute(
                     "UPDATE conversation.turns SET state='running',error_code=NULL,lease_until=now()+interval '5 minutes' "
                     "WHERE turn_id=%s AND model_attempt_id=%s AND state='waiting_external' RETURNING *",
                     (turn_id, attempt_id))).fetchone()
                 if not claimed:
                     return
-                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s WHERE attempt_id=%s",
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumption_state='running' WHERE attempt_id=%s",
                                          (document(result.receipt), document(result), attempt_id))
                 if result.receipt.dispatch == "submitted":
                     await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
@@ -992,12 +1122,25 @@ class ConversationService:
         claimed.update(ordered_parts=snapshot["ordered_parts"], continuation=snapshot["continuation"],
                        artifacts=snapshot["artifacts"])
         consumed = False
+        deferred = False
         try:
             choices = await self.catalog.discover(context)
             _, tool_map = self._tools(choices)
             await self._consume_model_result(context, claimed, attempt_id, pack, tool_map, result)
             consumed = True
         except Exception as error:
+            if is_resource_wait(error):
+                deferred = True
+                if can_retry_resource_wait(error):
+                    async with self.database.transaction() as connection:
+                        if frozen["deployment_generation"] is not None:
+                            await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
+                        reset = await (await connection.execute("UPDATE conversation.turns SET state='waiting_external',error_code=NULL,lease_until=NULL "
+                            "WHERE turn_id=%s AND model_attempt_id=%s AND state='running' RETURNING turn_id", (turn_id, attempt_id))).fetchone()
+                        if reset:
+                            await connection.execute("UPDATE conversation.context_selections SET consumption_state='idle' "
+                                "WHERE attempt_id=%s AND consumed_at IS NULL", (attempt_id,))
+                raise
             async with self.database.transaction() as connection:
                 if frozen["deployment_generation"] is not None:
                     await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
@@ -1011,22 +1154,41 @@ class ConversationService:
                 async with self.database.transaction() as connection:
                     if frozen["deployment_generation"] is not None:
                         await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
-                    await connection.execute("UPDATE conversation.context_selections SET consumed_at=now() WHERE attempt_id=%s", (attempt_id,))
-            await self._next(row["actor_id"], row["conversation_id"])
+                    await connection.execute("UPDATE conversation.context_selections SET consumed_at=now(),consumption_state='done' WHERE attempt_id=%s", (attempt_id,))
+            if not deferred:
+                await self._next(row["actor_id"], row["conversation_id"])
 
     async def model_consume_expire(self, turn_id, attempt_id):
         async with self.database.transaction() as connection:
             selected = await (await connection.execute(
-                "SELECT deployment_generation FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
+                "SELECT deployment_generation,consumption_state FROM conversation.context_selections WHERE attempt_id=%s", (attempt_id,))).fetchone()
             if not selected:
                 return
             if selected["deployment_generation"] is not None:
                 await self.jobs.assert_generation_on(connection, selected["deployment_generation"])
-            row = await (await connection.execute(
-                "UPDATE conversation.turns SET state='waiting_external' WHERE turn_id=%s AND model_attempt_id=%s "
-                "AND state='running' AND lease_until<=now() RETURNING *", (turn_id, attempt_id))).fetchone()
+            candidate = await (await connection.execute(
+                "SELECT * FROM conversation.turns WHERE turn_id=%s AND model_attempt_id=%s "
+                "AND state='running' AND lease_until<=now() FOR UPDATE", (turn_id, attempt_id))).fetchone()
+            if not candidate:
+                return
+            selected = await (await connection.execute(
+                "SELECT consumption_state FROM conversation.context_selections WHERE attempt_id=%s FOR UPDATE",
+                (attempt_id,))).fetchone()
+            row, uncertain = None, None
+            if selected and selected["consumption_state"] in {"running", "unconfirmed"}:
+                await connection.execute("UPDATE conversation.context_selections SET consumption_state='unconfirmed' "
+                                         "WHERE attempt_id=%s AND consumed_at IS NULL", (attempt_id,))
+                uncertain = candidate
+            elif selected and selected["consumption_state"] == "idle":
+                row = await (await connection.execute(
+                    "UPDATE conversation.turns SET state='waiting_external' WHERE turn_id=%s AND model_attempt_id=%s "
+                    "AND state='running' AND lease_until<=now() RETURNING *", (turn_id, attempt_id))).fetchone()
         if row:
             await self._schedule_model_observation(row, attempt_id)
+        elif uncertain:
+            # A lost consumer may have crossed an external boundary. Observe
+            # its original model receipt; do not restart actions or delivery.
+            await self.models.require_receipt(attempt_id)
 
     async def model_observe_unknown(self, turn_id, attempt_id):
         """Observe the original uncertain attempt without initiating an old reply."""
@@ -1040,7 +1202,8 @@ class ConversationService:
         context = context_from_record(row["context"])
         try:
             result = await self.models.result(attempt_id, context=context)
-        except Exception:
+        except Exception as error:
+            raise_resource_wait(error)
             result = None
         terminal = result is not None and result.receipt.status in {"succeeded", "failed", "cancelled"}
         async with self.database.transaction() as connection:
@@ -1049,7 +1212,7 @@ class ConversationService:
             if terminal:
                 if not await self.sources.validate_persistence(connection, context, source_refs(frozen["source_refs"])):
                     return
-                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumed_at=now() WHERE attempt_id=%s",
+                await connection.execute("UPDATE conversation.context_selections SET model_receipt=%s,model_result=%s,consumed_at=now(),consumption_state='done' WHERE attempt_id=%s",
                                          (document(result.receipt), document(result), attempt_id))
                 if result.receipt.dispatch == "submitted":
                     await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
@@ -1078,6 +1241,7 @@ class ConversationService:
                     return
                 await connection.execute("UPDATE conversation.turns SET model_parts=%s,model_native=%s,source_refs=%s,missing=%s WHERE turn_id=%s", (document(result_parts), document(result.native_response), document(pack.source_refs), list(pack.missing), row["turn_id"]))
         except AppError as error:
+            raise_resource_wait(error)
             # A local refusal to persist does not change the model's actual execution receipt.
             raise TurnRejected(error.code, error.message, status=error.status, details=error.details) from error
         if result.receipt.status != "succeeded":
@@ -1230,14 +1394,31 @@ class ConversationService:
                 raise AppError("original_action_unresolved", status=409, details={"action_id": unresolved["action_id"]})
             tool_name = definition.model_tool["name"] if definition.model_tool else "declared_command"
             await connection.execute("INSERT INTO conversation.tool_links(turn_id,call_id,action_id,capability_id,tool_name,provider_call_id,arguments_hash,background,state) VALUES (%s,%s,%s,%s,%s,%s,%s,%s,'queued') ON CONFLICT DO NOTHING", (row["turn_id"], call_id, action_id, definition.id, tool_name, provider_call_id, signature(arguments),definition.long_running))
+            original = await (await connection.execute(
+                "SELECT action_id,capability_id,arguments_hash FROM conversation.tool_links WHERE turn_id=%s AND call_id=%s",
+                (row["turn_id"], call_id))).fetchone()
+            if not original or (original["action_id"], original["capability_id"], original["arguments_hash"]) != (action_id, definition.id, signature(arguments)):
+                raise AppError("action_identity_conflict", status=409)
         current_input_refs=() if row.get("autonomous") else await self._input_refs(context,row["turn_id"])
         action = Action(action_id, f"turn:{row['turn_id']}:{call_id}", definition.id, context.actor_id, context,
             arguments, context.origin_kind, refs, expression_id="turn:"+row["turn_id"], deadline_at=business_deadline,
             current_input_refs=current_input_refs)
-        # Background work releases the dialogue lane; the persisted action owns its actual completion.
-        result = receipt(await self.actions.invoke(action, background=True,
-            service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
-            behavior_refs=tuple(behavior_refs), behavior_purpose="conversation"))
+        # Observe an already registered action, including an unknown result. Only
+        # a missing local ledger entry permits registration of this same action.
+        try:
+            current = await self.actions.get(action_id, context)
+        except AppError as error:
+            raise_resource_wait(error)
+            if error.status != 404:
+                raise
+            result = receipt(await self.actions.invoke(action, background=True,
+                service_class=ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE,
+                behavior_refs=tuple(behavior_refs), behavior_purpose="conversation"))
+        else:
+            result = receipt(current["receipt"])
+        if result is None:
+            raise RecoveryWait("action_receipt_pending", datetime.now(UTC)+timedelta(seconds=5),
+                               dependency="action:"+action_id)
         await self._tool_receipt(context, result)
 
     async def _command(self, context, row, choices):
@@ -1254,7 +1435,10 @@ class ConversationService:
         async with self.database.transaction() as connection:
             if not await self.sources.validate_persistence(connection,context,source_refs(row["source_refs"])):
                 raise TurnRejected("source_unavailable",status=409)
-            continuation = list(row["continuation"])+[{"role": "assistant", "parts": [wire(ModelPart("tool_call", call_id="command", name=tool_name, arguments=arguments))]}]
+            continuation = list(row["continuation"])
+            if not any(part.get("kind") == "tool_call" and part.get("call_id") == "command"
+                       for message in continuation for part in message.get("parts", ())):
+                continuation.append({"role": "assistant", "parts": [wire(ModelPart("tool_call", call_id="command", name=tool_name, arguments=arguments))]})
             await connection.execute("UPDATE conversation.turns SET continuation=%s,ordered_parts=%s,tool_dispatch_complete=false WHERE turn_id=%s", (document(continuation), document([{"kind": "tool_slot", "call_id": "0:command"}]), row["turn_id"]))
         await self._invoke(context, row, "command", definition, arguments, source_refs(row["source_refs"]))
         async with self.database.transaction() as connection:
@@ -1386,7 +1570,8 @@ class ConversationService:
             # observes its original attempt, including after a worker restart.
             try:
                 original = await self.models.result(attempt_id, context=context_from_record(pending["context"]))
-            except Exception:
+            except Exception as error:
+                raise_resource_wait(error)
                 postpone = True
             else:
                 postpone = original is not None and original.receipt.status in {"queued", "running"}
@@ -1417,10 +1602,19 @@ class ConversationService:
 
     async def recover(self):
         async with self.database.transaction() as connection:
-            rows = await (await connection.execute("SELECT turn_id,actor_id,model_attempt_id,lease_until FROM conversation.turns WHERE state='running'")).fetchall()
+            rows = await (await connection.execute(
+                "SELECT t.turn_id,t.actor_id,t.model_attempt_id,t.lease_until,t.autonomous,t.deployment_generation,"
+                "EXISTS(SELECT 1 FROM conversation.context_selections s WHERE s.attempt_id=t.model_attempt_id) AS model_frozen "
+                "FROM conversation.turns t WHERE t.state='running'")).fetchall()
             for row in rows:
                 await self.jobs.enqueue(connection, JobSpec("conversation.expire", f"turn-recover:{row['turn_id']}:{row['model_attempt_id']}:{uuid4()}",
                     {"turn_id": row["turn_id"], "attempt_id": row["model_attempt_id"]}, ServiceClass.INTERACTIVE, row["lease_until"], row["actor_id"]))
+                if row["model_attempt_id"] and not row["model_frozen"]:
+                    await self.jobs.enqueue(connection, JobSpec("conversation.prepare",
+                        f"turn-prepare:{row['turn_id']}:{row['model_attempt_id']}",
+                        {"turn_id": row["turn_id"], "attempt_id": row["model_attempt_id"]},
+                        ServiceClass.ELASTIC if row["autonomous"] else ServiceClass.INTERACTIVE,
+                        subject_id=row["actor_id"], data_generation=row["deployment_generation"]))
             collectors = await (await connection.execute("SELECT turn_id,actor_id,collection_revision,seal_at FROM conversation.turns WHERE state='collecting'")).fetchall()
             for row in collectors:
                 await self.jobs.enqueue(connection, JobSpec("conversation.seal", f"collector-recover:{row['turn_id']}:{row['collection_revision']}:{uuid4()}",

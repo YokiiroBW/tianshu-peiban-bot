@@ -45,6 +45,15 @@ class Models:
         return ModelResult((), ModelReceipt(request.attempt_id, request.intent_id, "unknown", "unknown",
                                            "route", 1, "provider", "model", "responses", "quota"))
 
+    async def status(self, attempt_id, *, phase="observe"):
+        return (ModelReceipt(attempt_id, "original", "unknown", "unknown",
+                             "route", 1, "provider", "model", "responses", "quota") if self.calls else None)
+
+    async def require_receipt(self, attempt_id):
+        original = await self.status(attempt_id)
+        assert original is not None
+        return original
+
     async def result(self, attempt_id, *, context):
         self.reads.append(attempt_id)
         return ModelResult((), ModelReceipt(attempt_id, "original", "unknown", "unknown",
@@ -52,7 +61,8 @@ class Models:
 
 
 async def prepare(database, *, authorized=True):
-    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+    await migrate(database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
     ctx = context()
     refs = (SourceRef("original", 1),)
     now = datetime.now(UTC)

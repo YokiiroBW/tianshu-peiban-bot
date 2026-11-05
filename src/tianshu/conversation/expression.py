@@ -12,6 +12,7 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.types import Receipt, ServiceClass
 from .codec import document, receipt, signature, source_refs, artifacts, context_from_record
 from .types import ExpressionPlan
+from .recovery import can_retry_resource_wait, is_resource_wait, raise_resource_wait
 
 
 def delivery_state(result: Receipt) -> str:
@@ -103,8 +104,21 @@ class ExpressionService:
                 {"expression_id": plan.expression_id}, ServiceClass.INTERACTIVE, lease, context.actor_id))
         try:
             await self.identity.check(context, plan.source_refs)
+        except Exception as error:
+            if is_resource_wait(error):
+                if can_retry_resource_wait(error):
+                    # No call to Channels has begun. Release only this preflight
+                    # claim so the same expression can resume after the wait.
+                    async with self.database.transaction() as connection:
+                        await connection.execute("UPDATE conversation.expressions SET state='prepared',lease_until=NULL "
+                            "WHERE expression_id=%s AND state='sending' AND receipt IS NULL", (plan.expression_id,))
+                raise
+            result = self._unknown(plan.expression_id, getattr(error, "code", "delivery_outcome_unknown"))
+            return await self._finish(context, plan, result)
+        try:
             result = receipt(await self.channels.deliver(context, plan))
         except (asyncio.CancelledError, Exception) as error:
+            raise_resource_wait(error)
             result = self._unknown(plan.expression_id, getattr(error, "code", "delivery_outcome_unknown"))
             result = await self._finish(context, plan, result)
             if isinstance(error, asyncio.CancelledError):
@@ -220,7 +234,8 @@ class ExpressionService:
         result = None
         try:
             observed = receipt(await self.channels.reconcile(context, expression_id))
-        except Exception:
+        except Exception as error:
+            raise_resource_wait(error)
             pending = True
         else:
             if observed is None:
