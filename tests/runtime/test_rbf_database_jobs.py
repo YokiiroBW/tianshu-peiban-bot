@@ -5,16 +5,19 @@ from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 import threading
 from types import SimpleNamespace
+from unittest.mock import AsyncMock
 
 import pytest
 from psycopg import OperationalError
 from psycopg.errors import DeadlockDetected, LockNotAvailable, QueryCanceled
 from psycopg.pq import TransactionStatus
 from psycopg_pool import PoolTimeout
+from procrastinate.exceptions import ConnectorException
 
 from tianshu.runtime.database import Database, DatabaseConfig, classify_database_failure
 from tianshu.runtime.execution import ExecutionLane
-from tianshu.runtime.jobs import JobQueue, JobSpec
+from tianshu.runtime.errors import AppError
+from tianshu.runtime.jobs import JobQueue, JobSpec, current_execution_generation
 from tianshu.runtime.recovery_policy import RecoveryWait
 
 
@@ -187,6 +190,124 @@ async def test_explicit_retry_keeps_original_job_and_never_replays_unknown_commi
         assert task.retry_strategy.get_retry_decision(exception=unconfirmed_wait, job=context.job) is None
     finally:
         await jobs.close()
+
+
+@pytest.mark.parametrize("wrapped", [False, True])
+async def test_generation_lookup_pool_wait_preserves_original_job_without_calling_handler(database, monkeypatch, wrapped):
+    events, calls = [], []
+
+    class Events:
+        async def emit(self, event, outcome, **kwargs):
+            events.append((event, outcome, kwargs))
+
+    jobs = JobQueue(database.config.dsn, database=database)
+    jobs.events = Events()
+
+    async def handle(input_id):
+        calls.append((input_id, current_execution_generation()))
+
+    task = jobs.register("fixture.generation_wait", handle, execution_lane=ExecutionLane.MAINTENANCE,
+                         resource_recovery=True)
+    async with database.transaction() as connection:
+        generation = await jobs.current_generation_on(connection)
+        job_id = await jobs.enqueue(connection, JobSpec("fixture.generation_wait", "original-generation-wait",
+            {"input_id": "frozen"}, data_generation=generation), queueing_lock="generation-wake")
+        await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
+        successor = await jobs.enqueue(connection, JobSpec("fixture.generation_wait", "pending-generation-wake",
+            {"input_id": "frozen"}, data_generation=generation), queueing_lock="generation-wake")
+    await jobs.open()
+    try:
+        timeout = PoolTimeout("fixture queue acquire")
+        error = ConnectorException() if wrapped else timeout
+        if wrapped:
+            error.__cause__ = timeout
+        original_lookup = jobs.app.connector.execute_query_one_async
+        monkeypatch.setattr(jobs.app.connector, "execute_query_one_async", AsyncMock(side_effect=error))
+        context = SimpleNamespace(job=SimpleNamespace(id=job_id, queueing_lock="generation-wake", attempts=0))
+        with pytest.raises(type(error)) as captured:
+            await task(context, input_id="frozen")
+        assert not calls and not events
+        failure = classify_database_failure(captured.value)
+        assert failure.reason == "database_pool_timeout" and failure.failure_phase == "connection_acquire"
+        assert failure.pool_name == "queue" and failure.role == database.role
+        assert failure.rollback_confirmed and failure.retryable and not failure.receipt_required
+        decision = task.retry_strategy.get_retry_decision(exception=captured.value, job=context.job)
+        assert decision is not None and decision.retry_at > datetime.now(UTC)
+        # This is the real native queue write; the failed lookup itself did not
+        # claim a retry had already been persisted.
+        await jobs.app.job_manager.retry_job(context.job, retry_at=decision.retry_at)
+        async with database.transaction(read_only=True) as connection:
+            saved = await (await connection.execute(
+                "SELECT j.id,j.status,j.args,j.queueing_lock,k.key,k.data_generation FROM procrastinate_jobs j "
+                "JOIN runtime.job_keys k ON k.job_id=j.id WHERE k.key='original-generation-wait'")).fetchone()
+            pending = await (await connection.execute("SELECT status FROM procrastinate_jobs WHERE id=%s",
+                                                       (successor,))).fetchone()
+        assert saved == {"id": job_id, "status": "todo", "args": {"input_id": "frozen"},
+                         "queueing_lock": None, "key": "original-generation-wait", "data_generation": generation}
+        assert pending["status"] == "todo"
+        monkeypatch.setattr(jobs.app.connector, "execute_query_one_async", original_lookup)
+        await task(context, input_id="frozen")
+        assert calls == [("frozen", generation)]
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE runtime.installation_generation SET id='new-generation' WHERE singleton=true")
+        with pytest.raises(AppError, match="job_generation_expired"):
+            await task(context, input_id="frozen")
+        assert calls == [("frozen", generation)]
+    finally:
+        await jobs.close()
+
+
+async def test_generation_lookup_other_connector_errors_do_not_get_resource_retry(database, monkeypatch):
+    jobs = JobQueue(database.config.dsn, database=database)
+
+    async def handle(**_kwargs):
+        raise AssertionError("handler must not run")
+
+    task = jobs.register("fixture.generation_error", handle, execution_lane=ExecutionLane.MAINTENANCE,
+                         retryable=True, resource_recovery=True)
+    error = ConnectorException()
+    error.__cause__ = OperationalError("fixture SQL error")
+    monkeypatch.setattr(jobs.app.connector, "execute_query_one_async", AsyncMock(side_effect=error))
+    context = SimpleNamespace(job=SimpleNamespace(id=1, queueing_lock=None, attempts=0))
+    with pytest.raises(ConnectorException) as captured:
+        await task(context)
+    assert classify_database_failure(captured.value) is None
+    assert task.retry_strategy.get_retry_decision(exception=captured.value, job=context.job) is None
+
+
+async def test_generation_lookup_queue_outage_does_not_claim_retry_was_persisted(database, monkeypatch):
+    events = []
+
+    class Events:
+        async def emit(self, event, outcome, **kwargs):
+            events.append((event, outcome, kwargs))
+
+    jobs = JobQueue(database.config.dsn, database=database)
+    jobs.events = Events()
+
+    async def handle(**_kwargs):
+        raise AssertionError("handler must not run")
+
+    task = jobs.register("fixture.queue_outage", handle, execution_lane=ExecutionLane.MAINTENANCE,
+                         resource_recovery=True)
+    async with database.transaction() as connection:
+        job_id = await jobs.enqueue(connection, JobSpec("fixture.queue_outage", "outage-original", {}),
+                                    queueing_lock="outage-wake")
+        await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
+    error = ConnectorException()
+    error.__cause__ = PoolTimeout("fixture queue unavailable")
+    monkeypatch.setattr(jobs.app.connector, "execute_query_one_async", AsyncMock(side_effect=error))
+    monkeypatch.setattr(jobs.app.connector, "execute_query_async", AsyncMock(side_effect=ConnectorException()))
+    context = SimpleNamespace(job=SimpleNamespace(id=job_id, queueing_lock="outage-wake", attempts=0))
+    with pytest.raises(ConnectorException) as captured:
+        await task(context)
+    decision = task.retry_strategy.get_retry_decision(exception=captured.value, job=context.job)
+    assert decision is not None and not events
+    with pytest.raises(ConnectorException):
+        await jobs.app.job_manager.retry_job(context.job, retry_at=decision.retry_at)
+    async with database.transaction(read_only=True) as connection:
+        saved = await (await connection.execute("SELECT status FROM procrastinate_jobs WHERE id=%s", (job_id,))).fetchone()
+    assert saved["status"] == "doing" and not events
 
 
 async def test_source_wait_must_leave_rolled_back_transaction_before_resuming(database):

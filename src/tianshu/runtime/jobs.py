@@ -13,12 +13,13 @@ from typing import Any, Awaitable, Callable, Mapping
 from uuid import uuid4
 
 import procrastinate
-from procrastinate.exceptions import AppNotOpen
+from procrastinate.exceptions import AppNotOpen, ConnectorException
 from procrastinate.manager import JobManager
 from procrastinate.jobs import Job
 from procrastinate.retry import BaseRetryStrategy, RetryDecision, RetryStrategy
 from psycopg import Error as PsycopgError
 from psycopg.types.json import Jsonb
+from psycopg_pool import PoolTimeout
 
 from tianshu.types import ServiceClass
 from .database import classify_database_failure, pool_application_name
@@ -123,7 +124,7 @@ class ResourceRecoveryRetry(BaseRetryStrategy):
             # native job identity while allowing other jobs to run.
             delay = min(300, 10 * 2 ** min(job.attempts, 5))
             return RetryDecision(retry_in={"seconds": delay})
-        if isinstance(exception, PsycopgError):
+        if isinstance(exception, (PsycopgError, ConnectorException)):
             # Without phase/rollback evidence even an ordinary retry would risk
             # replaying a transaction whose commit outcome is unknown.
             return None
@@ -142,6 +143,26 @@ def _identity_digest(spec: JobSpec) -> str:
     except (TypeError, ValueError):
         raise AppError("invalid_job_payload") from None
     return hashlib.sha256(document.encode("utf-8")).hexdigest()
+
+
+def _mark_generation_lookup_pool_wait(error, *, role):
+    """Mark only the queue acquisition failure before a handler has started."""
+    if isinstance(error, PoolTimeout):
+        original = error
+    elif isinstance(error, ConnectorException) and isinstance(error.__cause__, PoolTimeout):
+        original = error.__cause__
+    else:
+        return False
+    failure = classify_database_failure(original, phase="connection_acquire", rollback_confirmed=True)
+    if failure is None:
+        return False
+    error.failure_phase = "connection_acquire"
+    error.pool_name = "queue"
+    error.database_role = role
+    error.rollback_confirmed = True
+    error.receipt_required = False
+    error.database_failure = replace(failure, pool_name="queue", role=role)
+    return True
 
 
 class JobQueue:
@@ -183,6 +204,17 @@ class JobQueue:
             return self.app.connector.pool.get_stats()
         except AppNotOpen:
             return None
+
+    async def _release_retry_queue_lock(self, job):
+        if not getattr(job, "queueing_lock", None):
+            return
+        try:
+            # Keep the original job/key/payload and a concurrent pending wake.
+            await self.app.connector.execute_query_async(
+                query="UPDATE procrastinate_jobs SET queueing_lock=NULL "
+                "WHERE id=%(job_id)s AND status='doing'", job_id=job.id)
+        except Exception:
+            pass  # Native retry persistence, not this attempt, determines whether it was scheduled.
 
     @staticmethod
     async def current_generation_on(connection):
@@ -308,11 +340,20 @@ class JobQueue:
         async def execute(job_context, **kwargs):
             generation_token = None
             try:
-                row = await self.app.connector.execute_query_one_async(
-                    query="SELECT (SELECT k.data_generation FROM runtime.job_keys k "
-                    "JOIN runtime.installation_generation g ON g.singleton=true AND k.data_generation=g.id "
-                    "WHERE k.job_id=%(job_id)s AND k.cancelled_at IS NULL LIMIT 1) AS data_generation",
-                    job_id=job_context.job.id)
+                try:
+                    row = await self.app.connector.execute_query_one_async(
+                        query="SELECT (SELECT k.data_generation FROM runtime.job_keys k "
+                        "JOIN runtime.installation_generation g ON g.singleton=true AND k.data_generation=g.id "
+                        "WHERE k.job_id=%(job_id)s AND k.cancelled_at IS NULL LIMIT 1) AS data_generation",
+                        job_id=job_context.job.id)
+                except (PoolTimeout, ConnectorException) as error:
+                    marked = _mark_generation_lookup_pool_wait(
+                        error, role=getattr(self.database, "role", "unassigned"))
+                    if marked and resource_recovery:
+                        await self._release_retry_queue_lock(job_context.job)
+                    # Do not claim it was deferred: the native queue still has to
+                    # persist the retry after capacity becomes available.
+                    raise
                 if row["data_generation"] is None:
                     raise AppError("job_generation_expired", status=409)
                 generation_token = _execution_generation.set(row["data_generation"])
@@ -328,16 +369,8 @@ class JobQueue:
                     recovery_wait = exc if resource_recovery and recovery_wait_retryable(exc) else None
                     deferred = bool(resource_recovery and
                                     (recovery_wait or (resource_failure and resource_failure.retryable)))
-                    if deferred and job_context.job.queueing_lock:
-                        try:
-                            # A concurrent equivalent wake may already occupy the
-                            # todo-only lock. Keep this original job/key/payload
-                            # and the other wake; domain CAS coalesces their work.
-                            await self.app.connector.execute_query_async(
-                                query="UPDATE procrastinate_jobs SET queueing_lock=NULL "
-                                "WHERE id=%(job_id)s AND status='doing'", job_id=job_context.job.id)
-                        except Exception:
-                            pass  # The queue's own retry persistence remains authoritative.
+                    if deferred:
+                        await self._release_retry_queue_lock(job_context.job)
                     if self.events:
                         try:
                             await self.events.emit(

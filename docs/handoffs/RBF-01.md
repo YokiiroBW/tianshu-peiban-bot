@@ -30,6 +30,7 @@
 
 - `jobs.register(name, handler, ..., resource_recovery=True)` 是显式 opt-in，默认关闭。领域必须保证该 handler 每次从原持久状态、动作及回执恢复，不盲目重复外部效果。已有 `retryable=True` 的普通重试与此设置独立；typed RecoveryWait 不会落入普通三次重试，只有显式 opt-in 且本地/远端证据允许时才会重排；其他普通错误的原重试行为保持。不能将未确认回滚或 commit 未知当作资源重试。
 - 已确认的本地资源争用复用 Procrastinate 原 job、业务 key、payload 和 generation，10 秒起指数退避，单次最多 300 秒；`RecoveryWait` 使用其 `retry_at`。这是同一队列工作重新观察，不新增模型物理请求或 attempt。
+- handler 尚未调用时，首次读取 generation 的队列连接若发生 `PoolTimeout`（包括 Procrastinate 以 `ConnectorException` 直接包装的情况），标注 `pool_name=queue`、`failure_phase=connection_acquire` 和本地事务未开始；opt-in 任务可按原 job 续跑，并在下一次重新校验 generation。其他队列 SQL 异常不因此获得资源重试资格。该路径不会提前声称已延后，只有原生队列实际写入后的状态才是回执。
 - 当原 doing job 带 todo-only `queueing_lock`，重排前释放该原 job 的合并锁，避免与并发后继 todo 冲突；保留原 job ID、业务去重键、payload 和后继。领域仍负责对象级 CAS 与回执，重复唤醒不能重复应用业务。
 - 等待事件为 `job.deferred` / `deferred`；数据库等待附已知的 `failure_phase`、`pool_name` 和 `dependency_ref=database:<pool>`，不冒充模型失败。**接线要求：**RBF-08 的 `events.py` 必须接收该事件、结果和两个元数据字段，根的 Supervisor 日志白名单需保留字段；在此接线前旧 EventLog 会拒绝该事件，Jobs 会按既有 best-effort 日志约定吞掉记录错误。
 - 若队列本身不可用，不能声称已经成功延后：原生 worker/队列状态与后续进程恢复仍是权威。提交不明时先用原 `CommandStore.find`/`replay` 或领域原始动作/模型回执对账；仅确认本地事务回滚后重做该本地阶段，不能重放发送、下载等不明副作用。
@@ -39,7 +40,7 @@
 
 新增 `tests/runtime/test_rbf_recovery_wait.py`：覆盖冷却、探针占用、claim 丢失、到期、预算耗尽与未创建新 attempt。
 
-新增 `tests/runtime/test_rbf_database_jobs.py`：覆盖池身份及独立 control、连接复用、池竞争、嵌套事务逐层回滚、SQLSTATE、commit 未知、原 job 重排与队列合并锁、来源等待、取消 SQL 和重复取消同步线程。
+新增 `tests/runtime/test_rbf_database_jobs.py`：覆盖池身份及独立 control、连接复用、池竞争、嵌套事务逐层回滚、SQLSTATE、commit 未知、首次 generation 查询的队列池等待、原 job 重排与队列合并锁、来源等待、取消 SQL 和重复取消同步线程。
 
 补充 `tests/runtime/test_rbf_recovery_wait_rpc.py`：覆盖版本化 typed envelope 的严格校验、跨 RPC 原因与时间、远端未确认回滚、本地逐层回滚和多次转发不能洗白远端否定证据。
 
