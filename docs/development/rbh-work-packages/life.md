@@ -28,3 +28,9 @@
 - `src/tianshu/life/generation_control.py`
 - `tests/life/test_computation_retry.py`
 - `tests/life/test_rbf_generation_recovery.py`
+
+追加 `src/tianshu/life/diaries.py` 与 `src/tianshu/life/writing.py` 的薄装配：给 GenerationRecovery 注入现有 Life/Sources 事务内持久化校验，不改其他业务流程。
+
+追加 `src/tianshu/life/diary_retry.py` 的失败归档入口：按既有 Sources→领域行锁序执行同事务校验，来源失效保留原失败，不触发新分类或后继。
+
+允许仅适配 `tests/life/test_rb_plan_recovery.py`、`tests/life/test_rbf_planning_recovery.py` 中受新公共接口影响的旧替身；原行为断言保持。

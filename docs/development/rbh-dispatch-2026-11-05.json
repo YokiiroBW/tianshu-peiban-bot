@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBH-20261105",
-  "state": "implementing",
+  "state": "integrated_followup_pending",
   "baseline_source": "ab471c58b70eab0a2807b900b2eebda114b53330",
   "production_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
   "parent_thread": "01a1ac04-8013-7620-8d29-a2f2656d850b",
@@ -27,12 +27,16 @@
         "tests/runtime/test_database.py",
         "docs/handoffs/RBH-01.md"
       ],
-      "status": "dispatched",
+      "status": "integrated_pending_central_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "f92b0c436ac40d8f4e92757f25a13344c1ca23c9",
-      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+      "source_commit": "ab2c007f2a3517401565aefd57be00a362bea2ee",
+      "integration_commit": "6060c9c5",
+      "followup_commit": "47dbb703d9b38c7b0490333e9929818b768740b1",
+      "followup_integration_commit": "f128942e"
     },
     {
       "id": "RBH-02",
@@ -48,12 +52,14 @@
         "tests/models/",
         "docs/handoffs/RBH-02.md"
       ],
-      "status": "dispatched",
+      "status": "integrated_pending_central_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "1240d5e2757e6e1b050a55168ff934e6f84a0631",
-      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+      "source_commit": "ee9e752c58067833023af2130b8eea8076a5f449",
+      "integration_commit": "5a9a8e18"
     },
     {
       "id": "RBH-03",
@@ -77,12 +83,15 @@
         "tests/companion/test_rb_growth_async.py",
         "tests/companion/test_*growth*.py"
       ],
-      "status": "dispatched",
+      "status": "integrated_followup_pending",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "c63d2fc87e2b8f24bac6ddac11df87e9a5ed3af8",
-      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+      "source_commit": "4cee60d2335ea55a866b2502ec63c77dbfda2a13",
+      "integration_commit": "0a167f85",
+      "handoff_commit": "282391b5d2d7bb51137b67fd261e15b53ca52217"
     },
     {
       "id": "RBH-04",
@@ -111,12 +120,16 @@
         "tests/memory/test_operations_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py"
       ],
-      "status": "dispatched",
+      "status": "integrated_pending_central_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "b06c32e6f2c575622e0b2dd87f41a6517c552433",
-      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+      "source_commit": "9ac79841a5b83134ad80c18dbea4d11dc0ebe043",
+      "integration_commit": "6f967bb6",
+      "followup_commit": "3c69f454b377dcf80c7000be2e714d3e6054f1ce",
+      "followup_integration_commit": "0c373677"
     },
     {
       "id": "RBH-05",
@@ -141,14 +154,21 @@
         "docs/handoffs/RBH-05.md",
         "src/tianshu/life/generation_control.py",
         "tests/life/test_computation_retry.py",
-        "tests/life/test_rbf_generation_recovery.py"
+        "tests/life/test_rbf_generation_recovery.py",
+        "src/tianshu/life/diaries.py",
+        "src/tianshu/life/writing.py",
+        "src/tianshu/life/diary_retry.py",
+        "tests/life/test_rb_plan_recovery.py",
+        "tests/life/test_rbf_planning_recovery.py"
       ],
-      "status": "dispatched",
+      "status": "integrated_pending_central_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "a1d8a01bc614566ff70a5092daed53a0f9b03c53",
-      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+      "source_commit": "00b2b5c8b0f96dbf5efaf0528b5648c258e4eed1",
+      "integration_commit": "651abbf6"
     },
     {
       "id": "RBH-06",
@@ -167,12 +187,14 @@
         "tests/core/test_rbh_*.py",
         "docs/handoffs/RBH-06.md"
       ],
-      "status": "dispatched",
+      "status": "integrated_pending_central_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "3717dee45ab85ff109bdfe47d741ee14d53e3efd",
-      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+      "source_commit": "f0abb1b22556d1627e6de58950c03430ee2da0cd",
+      "integration_commit": "566b858b"
     }
   ],
   "invariants": [
@@ -186,5 +208,11 @@
   "previous_parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "resumed_at": "2026-11-05T14:04:49.101579+00:00",
   "takeover_reason": "User explicitly requested continuation in this chat; previous coordinator idle after model capacity errors; prepared branches verified clean.",
-  "dispatched_at": "2026-11-05T14:05:12.651984+00:00"
+  "dispatched_at": "2026-11-05T14:05:12.651984+00:00",
+  "shared_assembly_commit": "4a545e35",
+  "expected_migrations": [
+    "rbh_not_sent",
+    "rbh_growth_transport",
+    "rbh_transport_recovery"
+  ]
 }

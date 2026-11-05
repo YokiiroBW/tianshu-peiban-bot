@@ -47,6 +47,9 @@ await policy.computation_budget_on(connection, lineage_id, *, owner, expected_ve
 
 `retry_at` 为仍有效的 lineage due、依赖 cooldown、probe 租约到期及 claim 到期中的最大时间，即全部时间门同时放行的最早持久时间。`can_retry` 仍只表达预算和 lineage 条件，不表示依赖门或来源/权限已准入。重复历史分类不得给后继尝试回拨 due。正常 fail 归档后分类，非合格证据不得导致原归档回滚。
 
+
+精确 reason：未分类为 `not_confirmed_not_sent`，已确认并可继续为 `confirmed_not_sent`，计算/连接预算耗尽分别为 `recovery_budget_exhausted` / `recovery_connection_budget_exhausted`。严格未发送证据只用于预算分类；是否自动重试仍服从原 failure_category，只有 TRANSPORT/INFRASTRUCTURE 可恢复 due。不能仅凭 connector/TLS 类型推断必须人工修配置而新增永久阻断；服务端修复仍可走同一有界连接恢复。既有明确永久/配置错误、暂停/取消/来源撤回和 unknown 语义保持。
+
 ## Growth / Memory / Life 消费（RBH-03/04/05）
 
 在已有 fail/observe 原回执边界调用 note；判断最大次数时消费公共预算，领域 attempt_number 继续作为序号。不能因依赖冷却提前把行改永久失败，不能在每个调用点实现自己的预算扣减。
@@ -70,3 +73,5 @@ Memory 可把已有分区等待合并到最早持久 due，不能让旧隔离批
 ContextAssembler 对齐真实 MemoryService.projection，无 `reflection_limit` 伪兼容。原反思历史与当前行为表达的消费职责保持；用真实 service 方法联合用例覆盖，不能以接受任意 kwargs 的 fake 验收合同。
 
 保留现有 transaction_errors 的累计含义，新增清楚的等待/事务冲突/数据库故障等可区分计数及有限安全异常分类；不把任意异常说成 SQL 故障。不往日志写真实内容或凭据。根负责迁移注册、Product 装配和巡检消费新指标。
+
+请求绑定沿用领域原冻结 request 的 attempt_id/intent_id/代际校验；非空 Models request_digest 用既有 submission_digest(request) 验证。Runtime request_digest 的归一化语义不同，不直接跨值比较；旧回执缺摘要不伪造，仍按本合同完整历史证据保守判证，不能声称摘要已核验。
