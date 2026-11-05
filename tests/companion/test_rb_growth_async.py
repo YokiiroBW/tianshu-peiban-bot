@@ -49,16 +49,23 @@ class Jobs:
 
 
 class Memory:
-    def __init__(self, episode):
-        self.episode, self.indexed = episode, []
+    def __init__(self, episode, sources):
+        self.episode, self.indexed, self.sources = episode, [], sources
 
     async def episodes_by_refs(self, _context, refs, *, connection=None):
         found = tuple(self.episode for identifier, version in refs
                       if (identifier, version) == (self.episode.episode_id, self.episode.revision))
         return EpisodePage(found, None, Coverage(len(found) == len(refs)), self.episode.cursor)
 
-    async def lock_episodes(self, context, refs, *, connection):
-        return await self.episodes_by_refs(context, refs, connection=connection)
+    async def lock_episodes(self, context, refs, *, connection, extra_source_refs=()):
+        page = await self.episodes_by_refs(context, refs, connection=connection)
+        if len(page.items) != len(refs):
+            return page
+        closure = tuple(extra_source_refs) + tuple(ref for episode in page.items
+            for ref in (*episode.source_refs, *episode.supplement_refs))
+        if not await self.sources.validate_persistence(connection, context, closure):
+            return EpisodePage((), None, Coverage(False, missing=('unavailable_sources',)), 'e:0')
+        return page
 
     async def relationship(self, *_args):
         return {'frozen': False}
@@ -128,7 +135,8 @@ async def setup_growth(database):
     episode = Episode('episode', 'event', 1, 'actor', OriginKind.HUMAN, datetime.now(UTC),
         '以后不要使用这个称呼', (SourceRef('original', 1),), ('scope',), None, Coverage(True), 1, 'e:1',
         person_id='person', speaker_id='person', conversation_id='chat')
-    authority, memory, jobs, models = Authority(), Memory(episode), Jobs(), Models()
+    authority = Authority()
+    memory, jobs, models = Memory(episode, authority), Jobs(), Models()
     companion = CompanionService(database, CommandStore(database), authority, memory,
         actor_registry=None, actor_changed=None, sources=authority, actor_activated=None)
     async def projection_changed(*_args, **_kwargs):

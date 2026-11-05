@@ -11,7 +11,9 @@ from tianshu.models.retry import retry_delay_seconds, transient_model_failure
 from tianshu.memory.types import EpisodePage
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
@@ -113,13 +115,15 @@ class GrowthService:
             (context.actor_id, scope_key, episode.episode_id, episode.revision))
         row = await (await connection.execute(
             "UPDATE companion.organize_state SET watermark=%s,context=CASE WHEN last_error=%s THEN context ELSE %s END,revision=revision+%s,updated_at=now() "
-            "WHERE actor_id=%s AND scope_key=%s RETURNING revision,last_error",
+            "WHERE actor_id=%s AND scope_key=%s RETURNING revision,last_error,blocked_material",
             (watermark, AUTHORIZATION_BLOCKED, document(context), 0 if created else 1, context.actor_id, scope_key))).fetchone()
         if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}:
-            await self.jobs.enqueue(connection, JobSpec("companion.organize", f"organize:{generation}:{context.actor_id}:{scope_key}:{row['revision']}",
-                {"actor_id": context.actor_id, "scope_key": scope_key, "expected_revision": row["revision"], 'generation': generation},
-                scheduled_at=datetime.now(UTC)+timedelta(seconds=30), subject_id=context.actor_id,
-                data_generation=generation))
+            due = datetime.now(UTC) + timedelta(seconds=30)
+            blocked = row['blocked_material'] or {}
+            if blocked.get('recovery') == 'dependency_wait':
+                due = max(due, timestamp(blocked['retry_at']))
+            await self._enqueue(connection, context.actor_id, scope_key, row['revision'], 'episode-changed',
+                                generation=generation, scheduled_at=due)
 
     async def _register_input(self, connection, context, scope_key, episode, generation):
         registered = await (await connection.execute(
@@ -152,7 +156,24 @@ class GrowthService:
         owner = {}
         try:
             return await self._organize(actor_id, scope_key, expected_revision, owner, generation)
-        except (AppError, TimeoutError, aiohttp.ClientError) as error:
+        except Exception as error:
+            failure = classify_database_failure(error)
+            if failure is not None:
+                if failure.receipt_required:
+                    try:
+                        reconciled = await self.recovery.reconcile_commit(
+                            actor_id, scope_key, owner.get('material_key'), owner.get('inputs', ()), generation)
+                    except Exception:
+                        raise error
+                    if reconciled is not None:
+                        return reconciled
+                raise
+            if not isinstance(error, (AppError, TimeoutError, aiohttp.ClientError)):
+                raise
+            if owner.get('result_succeeded') and isinstance(error, (TimeoutError, aiohttp.ClientError)):
+                # A later local or dependency error cannot turn a known model
+                # success into an unknown physical attempt.
+                raise
             code = error_code(error)
             if not transient_model_failure(code):
                 raise
@@ -185,8 +206,23 @@ class GrowthService:
         batch = state["active_batch"]
         if batch:
             owner["material_key"] = batch["material_key"]
+            owner['inputs'] = batch.get('inputs', ())
         if not batch and state["revision"] != expected_revision:
             return
+        blocked = state['blocked_material'] or {}
+        if not batch and blocked.get('recovery') == 'dependency_wait':
+            due = timestamp(blocked['retry_at'])
+            if due > datetime.now(UTC):
+                async with self.companion.database.transaction() as connection:
+                    await self.jobs.assert_generation_on(connection, generation)
+                    current = await (await connection.execute(
+                        'SELECT revision,active_batch,blocked_material FROM companion.organize_state '
+                        'WHERE actor_id=%s AND scope_key=%s FOR UPDATE', (actor_id, scope_key))).fetchone()
+                    if (current and current['revision'] == state['revision'] and not current['active_batch']
+                            and current['blocked_material'] == blocked):
+                        await self._enqueue(connection, actor_id, scope_key, current['revision'], 'dependency-wait',
+                                            generation=generation, scheduled_at=due)
+                return {'state': 'waiting_dependency', 'reason': blocked['reason'], 'retry_at': due}
         original_context = context_from_record(batch["context"] if batch else state["context"])
         context = original_context
         observe_only = (self.recovery.observes_original(batch, state["blocked_material"])
@@ -283,6 +319,7 @@ class GrowthService:
                      "material_at": max(item.occurred_at for item in episodes).isoformat(),
                      "reflection_identity_protocol": IDENTITY_PROTOCOL, "reflection_output_protocol": OUTPUT_PROTOCOL,
                      "episode_refs": {"e"+str(index+1): item.episode_id for index, item in enumerate(episodes)}}
+            owner['inputs'] = batch['inputs']
             request = ModelRequest(material_key, attempt_for(material_key), "reflect", ServiceClass.ELASTIC,
                 context, budget, tuple(pack.messages), system=pack.system, max_output_tokens=OUTPUT_TOKEN_BUDGET,
                 estimated_input_tokens=pack.token_usage.estimated_tokens, source_refs=tuple(pack.source_refs),
@@ -292,6 +329,8 @@ class GrowthService:
                 if not profile.get('quota_group') or not profile.get('route_id') or not profile.get('route_revision'):
                     raise AppError('growth_model_quota_unavailable', status=503)
             except (AppError, TimeoutError, aiohttp.ClientError) as error:
+                if classify_database_failure(error) is not None:
+                    raise
                 if isinstance(error, AppError) and authorization_error(error):
                     return await self.recovery.block(state, error)
                 failed = AppError('growth_model_profile_unavailable', status=503, details={
@@ -353,7 +392,13 @@ class GrowthService:
                                     'recovery': 'observe_original_attempt'}
                     else:
                         result = await self.generations.read(request.attempt_id, context)
+        except RecoveryWait as wait:
+            if wait.reason == 'recovery_claim_lost':
+                raise
+            return await self.recovery.wait_dependency(state, batch, wait)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
+            if classify_database_failure(error) is not None:
+                raise
             if isinstance(error, AppError) and error.code == "generation_no_longer_current":
                 return
             if authorization_error(error):
@@ -376,6 +421,8 @@ class GrowthService:
                 try:
                     result = await self.generations.read(request.attempt_id, context)
                 except (AppError, TimeoutError, aiohttp.ClientError) as failure:
+                    if classify_database_failure(failure) is not None:
+                        raise
                     if authorization_error(failure):
                         return await self.retries.defer({**state, "active_batch": batch}, batch, failure.code)
                     read_error = failure.code if isinstance(failure, AppError) else type(failure).__name__
@@ -416,6 +463,7 @@ class GrowthService:
                     await self._enqueue(connection, actor_id, scope_key, state["revision"], "observe:" + material_key, generation=generation, delay=30)
             return {"state": "waiting", "error_code": code, "attempt_id": request.attempt_id,
                     "recovery": "observe_original_attempt"}
+        owner['result_succeeded'] = True
         state = {**state, "active_batch": batch}
         async with self.companion.database.transaction(read_only=True) as connection:
             current_owner = await (await connection.execute(
@@ -467,8 +515,13 @@ class GrowthService:
             relationship = (await self.companion.memory.relationship(context, context.person_id)
                             if context.person_id and any(item.proposal.kind == "style" for item in prepared) else None)
             changed = bool(prepared)
+            additional_refs = unique_refs(
+                *(item.proposal.source_refs for item in prepared),
+                *(item.affect.source_refs for item in prepared if item.affect is not None),
+                *(relation['source_refs'] for relations in examples.values() for relation in relations))
             async with self.companion.database.transaction() as connection:
-                await self._validate_material(connection, context, episodes, generated_refs, generation=generation)
+                await self._validate_material(connection, context, episodes, generated_refs,
+                                              generation=generation, additional_refs=additional_refs)
                 current = await (await connection.execute(
                     "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE", (actor_id, scope_key))).fetchone()
                 if not current or not current["active_batch"] or current["active_batch"]["material_key"] != material_key:
@@ -736,12 +789,15 @@ class GrowthService:
                     (list(missing), state["actor_id"], state["scope_key"], identifier, version))
         return True
 
-    async def _validate_material(self, connection, context, episodes, generated_refs, *, generation):
+    async def _validate_material(self, connection, context, episodes, generated_refs, *, generation, additional_refs=()):
         await self.jobs.assert_generation_on(connection, generation)
-        closure = unique_refs(generated_refs, *(item.source_refs for item in episodes.values()))
-        await self.companion.validate_persistence(connection, context, closure)
         versions = tuple((item.episode_id, item.revision) for item in episodes.values())
-        readable = await self.companion.memory.lock_episodes(context, versions, connection=connection)
+        # Memory adds the current episode and supplement refs to this complete
+        # caller set before taking any source locks or locking episode heads.
+        closure = unique_refs(generated_refs, additional_refs,
+                              *(item.source_refs for item in episodes.values()))
+        readable = await self.companion.memory.lock_episodes(
+            context, versions, connection=connection, extra_source_refs=closure)
         if set(versions) != {(item.episode_id, item.revision) for item in readable.items}:
             if "unavailable_sources" in readable.coverage.missing:
                 raise AppError("source_unavailable", status=403)
@@ -886,8 +942,10 @@ class GrowthService:
             # Startup only schedules each current batch or pending material.
             async with self.companion.database.transaction() as connection:
                 await self.jobs.assert_generation_on(connection, row['runtime_generation'])
-                await self.jobs.enqueue(connection,JobSpec("companion.organize",f"organize-recover:{row['runtime_generation']}:{row['actor_id']}:{row['scope_key']}:{row['revision']}:{datetime.now(UTC).isoformat()}",
-                    {"actor_id":row["actor_id"],"scope_key":row["scope_key"],"expected_revision":row["revision"], 'generation':row['runtime_generation']},subject_id=row["actor_id"],data_generation=row['runtime_generation']))
+                blocked = row['blocked_material'] or {}
+                due = timestamp(blocked['retry_at']) if blocked.get('recovery') == 'dependency_wait' else None
+                await self._enqueue(connection, row['actor_id'], row['scope_key'], row['revision'], 'recover',
+                                    generation=row['runtime_generation'], scheduled_at=due)
 
     async def _rejected(self, actor_id, scope_key, material_key, code, *, result=None):
         async with self.companion.database.transaction(read_only=True) as connection:
@@ -896,7 +954,7 @@ class GrowthService:
         if current and current["active_batch"] and current["active_batch"]["material_key"] == material_key:
             return await self.retries.defer(current, current["active_batch"], code, result)
 
-    async def _enqueue(self, connection, actor_id, scope_key, revision, reason, *, generation, delay=0):
+    async def _enqueue(self, connection, actor_id, scope_key, revision, reason, *, generation, delay=0, scheduled_at=None):
         await self.jobs.assert_generation_on(connection, generation)
         state = await (await connection.execute(
             'SELECT runtime_generation FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s',
@@ -906,8 +964,9 @@ class GrowthService:
         await self.jobs.enqueue(connection, JobSpec("companion.organize",
             f"organize:{generation}:{actor_id}:{scope_key}:{revision}:{reason}:{datetime.now(UTC).isoformat()}",
             {"actor_id": actor_id, "scope_key": scope_key, "expected_revision": revision, 'generation':generation},
-            scheduled_at=datetime.now(UTC) + timedelta(seconds=delay), subject_id=actor_id,
-            data_generation=generation))
+            scheduled_at=scheduled_at or datetime.now(UTC) + timedelta(seconds=delay), subject_id=actor_id,
+            data_generation=generation),
+            queueing_lock=f"growth-organize:{actor_id}:{scope_key}:{revision}")
 
     async def _finish(self, connection, current, batch, changed):
         await self.jobs.assert_generation_on(connection, current['runtime_generation'])

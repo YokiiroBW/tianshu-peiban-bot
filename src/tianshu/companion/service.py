@@ -200,7 +200,8 @@ class CompanionService:
                 yield opened
 
     async def apply_affect(self, context, update: AffectUpdate, *, connection=None):
-        await self.identity.check(context, update.source_refs)
+        if connection is None:
+            await self.identity.check(context, update.source_refs)
         values = (update.valence, update.arousal, update.stress, update.social_need, update.confidence)
         if any(not math.isfinite(value) for value in values) or not -1 <= values[0] <= 1 or any(not 0 <= value <= 1 for value in values[1:]):
             raise AppError("invalid_affect")
@@ -209,6 +210,9 @@ class CompanionService:
         if not -1 <= update.goal_relevance <= 1 or not 0 <= update.control <= 1 or update.attribution not in {"self", "other", "situation", "unknown"}:
             raise AppError("invalid_appraisal")
         async with self.connection(connection) as connection:
+            # An existing caller transaction already owns its source locks.
+            # Revalidate on that connection instead of opening a second
+            # control transaction that can wait behind a concurrent revocation.
             await self.validate_persistence(connection, context, update.source_refs)
             changed = await (await connection.execute(
                 "INSERT INTO companion.affect_events(actor_id,event_id,event_revision,scope_ids,appraisal,valence,arousal,stress,social_need,confidence,half_life_seconds,occurred_at,source_refs,goal_id,goal_relevance,attribution,control) "

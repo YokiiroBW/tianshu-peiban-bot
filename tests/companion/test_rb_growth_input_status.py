@@ -52,7 +52,7 @@ class Memory:
             raise AppError('episode_unavailable', status=404)
         return self.episodes[episode_id]
 
-    async def lock_episodes(self, _context, refs, *, connection):
+    async def lock_episodes(self, _context, refs, *, connection, extra_source_refs=()):
         items = tuple(self.episodes[identifier] for identifier, revision in refs
                       if identifier in self.episodes and self.episodes[identifier].revision == revision)
         return SimpleNamespace(items=items)

@@ -50,10 +50,10 @@ def create_module(service, growth, identity):
               cursor=body.get('cursor'), limit=body.get('limit', 40)))
 
     def tasks(queue, _runtime):
-        queue.register("companion.organize", growth.organize, retryable=False)
-        queue.register("companion.growth.retry", growth.retries.run, retryable=False)
-        queue.register("companion.growth.input_retry", growth.retry_input, retryable=True)
-        queue.register("companion.episode_changed", growth.consume_episode_change, retryable=True)
+        queue.register("companion.organize", growth.organize, retryable=False, resource_recovery=True)
+        queue.register("companion.growth.retry", growth.retries.run, retryable=False, resource_recovery=True)
+        queue.register("companion.growth.input_retry", growth.retry_input, retryable=True, resource_recovery=True)
+        queue.register("companion.episode_changed", growth.consume_episode_change, retryable=True, resource_recovery=True)
         queue.register("companion.growth.statistics", growth.observations.replay, retryable=False)
 
     async def start(runtime):
