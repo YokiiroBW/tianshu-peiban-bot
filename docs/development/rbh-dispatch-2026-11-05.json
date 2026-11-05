@@ -1,0 +1,162 @@
+{
+  "schema_version": 1,
+  "batch": "RBH-20261105",
+  "state": "prepared",
+  "baseline_source": "ab471c58b70eab0a2807b900b2eebda114b53330",
+  "production_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
+  "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
+  "integration_branch": "codex/rbh-integration-20261105",
+  "tasks": [
+    {
+      "id": "RBH-01",
+      "key": "runtime",
+      "title": "共享恢复预算、探针与分类指标",
+      "thread_id": "01a1a772-e95a-7922-a72f-1beb061dd287",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-runtime/tianshu-peiban-bot",
+      "branch": "codex/rbh-runtime-20261105",
+      "card": "docs/development/rbh-work-packages/runtime.md",
+      "allowed_paths": [
+        "src/tianshu/runtime/recovery_policy.py",
+        "src/tianshu/runtime/database.py",
+        "src/tianshu/runtime/rbh_*.py",
+        "src/tianshu/runtime/rbh_*.sql",
+        "tests/runtime/test_rbh_*.py",
+        "tests/runtime/test_recovery_policy.py",
+        "tests/runtime/test_database.py",
+        "docs/handoffs/RBH-01.md"
+      ],
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBH-02",
+      "key": "models",
+      "title": "模型连接证据与安全诊断",
+      "thread_id": "01a1a772-e93b-73d0-9b3f-33cd579098da",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-models/tianshu-peiban-bot",
+      "branch": "codex/rbh-models-20261105",
+      "card": "docs/development/rbh-work-packages/models.md",
+      "allowed_paths": [
+        "src/tianshu/models/",
+        "tests/models/",
+        "docs/handoffs/RBH-02.md"
+      ],
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBH-03",
+      "key": "growth",
+      "title": "成长原批恢复与有效预算",
+      "thread_id": "01a1a772-e96f-7600-a841-94ca8dd26ab6",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-growth/tianshu-peiban-bot",
+      "branch": "codex/rbh-growth-20261105",
+      "card": "docs/development/rbh-work-packages/growth.md",
+      "allowed_paths": [
+        "src/tianshu/companion/growth.py",
+        "src/tianshu/companion/growth_retry.py",
+        "src/tianshu/companion/growth_policy.py",
+        "src/tianshu/companion/growth_operations.py",
+        "src/tianshu/companion/rbh_*.py",
+        "src/tianshu/companion/rbh_*.sql",
+        "tests/companion/test_rbh_*.py",
+        "tests/companion/test_growth_retry.py",
+        "docs/handoffs/RBH-03.md"
+      ],
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBH-04",
+      "key": "memory",
+      "title": "记忆恢复分类与汇总等待",
+      "thread_id": "01a1a772-e983-7ad0-b572-61409937e393",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-memory/tianshu-peiban-bot",
+      "branch": "codex/rbh-memory-20261105",
+      "card": "docs/development/rbh-work-packages/memory.md",
+      "allowed_paths": [
+        "src/tianshu/memory/consolidation.py",
+        "src/tianshu/memory/consolidation_retry.py",
+        "src/tianshu/memory/consolidation_wait.py",
+        "src/tianshu/memory/recovery_wait.py",
+        "src/tianshu/memory/recovery_policy.py",
+        "src/tianshu/memory/consolidation_operations.py",
+        "src/tianshu/memory/rbh_*.py",
+        "src/tianshu/memory/rbh_*.sql",
+        "tests/memory/test_rbh_*.py",
+        "tests/memory/test_consolidation_retry.py",
+        "docs/handoffs/RBH-04.md"
+      ],
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBH-05",
+      "key": "life",
+      "title": "规划提前唤醒重排与连接恢复",
+      "thread_id": "01a1a772-e80b-7fa0-95d3-d32d50649745",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
+      "branch": "codex/rbh-life-20261105",
+      "card": "docs/development/rbh-work-packages/life.md",
+      "allowed_paths": [
+        "src/tianshu/life/planning.py",
+        "src/tianshu/life/planning_engine.py",
+        "src/tianshu/life/plan_recovery.py",
+        "src/tianshu/life/computation_retry.py",
+        "src/tianshu/life/rbg_plan_operations.py",
+        "src/tianshu/life/rbh_*.py",
+        "src/tianshu/life/rbh_*.sql",
+        "tests/life/test_rbh_*.py",
+        "tests/life/test_planning.py",
+        "tests/life/test_rbg_plan_retirement.py",
+        "docs/handoffs/RBH-05.md"
+      ],
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    },
+    {
+      "id": "RBH-06",
+      "key": "conversation",
+      "title": "结构化记忆真实接口接入",
+      "thread_id": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
+      "branch": "codex/rbh-conversation-20261105",
+      "card": "docs/development/rbh-work-packages/conversation.md",
+      "allowed_paths": [
+        "src/tianshu/conversation/context/assembly.py",
+        "src/tianshu/conversation/context/",
+        "tests/conversation/test_rbh_*.py",
+        "tests/conversation/test_context.py",
+        "tests/core/test_rbh_*.py",
+        "docs/handoffs/RBH-06.md"
+      ],
+      "status": "prepared",
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default"
+    }
+  ],
+  "invariants": [
+    "preserve_config_business_data_original_ids_receipts_unknown",
+    "total_attempts_monotonic",
+    "root_only_production_writer"
+  ],
+  "validation_policy": "workers_write_tests_static_review_only_coordinator_affected_validation_once"
+}

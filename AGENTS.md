@@ -1,3 +1,11 @@
+# 2026-11-05 RBH 连接恢复与完整唤醒修复
+
+用户已批准连接恢复预算分离、依赖恢复后原批次续接、规划完整唤醒、记忆接口和诊断指标方案，并要求“安排对应窗口修复吧”。本批RBH-01至06复用对应六个既有窗口、独立工作树/新分支，统一gpt-6.1-terra/max普通速度；覆盖下方旧阶段/角色范围，不续写旧完成卡。
+
+以docs/development/rbh-repair-2026-11-05.md、rbh-interfaces-2026-11-05.md和本号卡为准。Runtime是恢复预算/证据校验唯一实现归属，Models提供权威回执；Growth/Memory/Life消费冻结接口，Conversation修真实Memory投影调用。各窗口禁止跨写共享入口，root单写module.py、迁移注册、product、types、配置/依赖、共享记录及生产。
+
+各窗口整块实现并写必要用例、静态审阅后提交，不运行测试、构建、烟测或生产命令；根收齐集中必要验证、保留数据串行部署和原批次正常恢复。未变验证直接复用。保留原总attempt序号、请求/回执/unknown、来源/权限/版本/CAS/代际，不清库或覆盖配置，不发QQ测试。用户已明确授权这些窗口互相派发和回执；主协调chat为01a1a72e-d357-7ba2-9e01-6373ebb7741e。
+
 # 2026-11-05 RBG 规划终态、结果消费与视频解析恢复
 
 集中验证确认结果消费链中的既有材料误分类：真实 UTF-8 天气 JSON 已完整读入，却仅因存在媒体副本被 Memory 标为 media_without_confirmed_analysis。本批追加 RBG-04，交既有 Memory 窗口，限定 memory/material_media.py、materials.py 及对应定向用例，见 rbg-work-packages/memory.md。它是本次结果消费链的收口，不扩大为 Memory 架构重构或历史数据批量重算；其余窗口不得并写这两处。
