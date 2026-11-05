@@ -220,7 +220,7 @@ class ContextAssembler:
             async with asyncio.timeout(min(float(self.settings.get("structured_seconds", 1.0)),
                                            max(budget.remaining() - 0.1, 0.01))):
                 projection = await self.memory.projection(context, context.person_id,
-                    claim_limit=6, matter_limit=8, reflection_limit=4)
+                    claim_limit=6, matter_limit=8)
                 items.extend(evidence_contributions(projection["evidence_units"]))
                 if not projection["coverage"].complete:
                     unavailable.append("structured_memory_partial")
@@ -232,7 +232,7 @@ class ContextAssembler:
                               for ref in relationship["source_refs"]), context.scope_ids, 70))
                 if context.conversation_kind == "group":
                     group = await self.memory.projection(context, group_id=context.conversation_id,
-                        claim_limit=12, matter_limit=6, reflection_limit=8)
+                        claim_limit=12, matter_limit=6)
                     items.extend(evidence_contributions(group["evidence_units"]))
                     if not group["coverage"].complete:
                         unavailable.append("group_memory_partial")
