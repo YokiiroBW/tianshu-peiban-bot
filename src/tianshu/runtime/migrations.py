@@ -32,6 +32,8 @@ def product_migrations():
             files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text(encoding="utf-8")),
         Migration("rbf_life_planning_wake",
             files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text(encoding="utf-8")),
+        Migration("rbf_source_proof_jit",
+            files("tianshu.sources").joinpath("rbf_source_proof_jit.sql").read_text(encoding="utf-8")),
     )
 
 
