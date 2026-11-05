@@ -32,3 +32,9 @@
 
   涉及 PostgreSQL 的用例沿用 `tests/conftest.py` 的隔离测试库要求；未配置明确的临时测试 PostgreSQL 管理 DSN 时会跳过，跳过不是通过。
 - 入站资源等待保留原任务和原来源身份；业务是否最终完成、Models 真实回执状态和渠道真实送达仍需协调者在最终集成后按正常领域入口验证。不得用统计覆盖、容器健康或空队列代替实际业务证据，也不得直接清理源表或盲目重放未知外部副作用。
+
+## HTTP 类型化等待补充
+
+- 在本交接后的窄提交中，`runtime/api.py` 复用 Runtime 的 `recovery_wait_to_wire`，仅对真实 `RecoveryWait` 在 `error.recovery_wait` 放置版本化 envelope，保留既有 `error.code/message/details/request_id` 和 HTTP 409；Models 端负责按固定合同严格解码。普通 409、503 和相同错误码的普通 `AppError` 均不会得到此 envelope。
+- 仅当 envelope 的 `rollback_confirmed` 明确为 true 时，HTTP 事件标记为 `deferred`；false 或证据不足仍标记为 `failed`，不伪称业务成功。无法序列化的无效等待元数据返回内部错误而非可重试包。Models lookup 与池归因字段沿用原有接线。
+- `tests/runtime/test_rbf_events.py` 增加本地/远端回滚证据组合、普通错误与无效等待元数据的回归。该补充同样只做静态审阅与 AST 解析，测试留给协调者在 Runtime/Models 合同集成后执行。

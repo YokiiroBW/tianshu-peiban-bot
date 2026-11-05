@@ -1,9 +1,11 @@
 import json
 import logging
+from datetime import UTC, datetime
 from types import SimpleNamespace
 
 from aiohttp import web
 from aiohttp.test_utils import make_mocked_request
+import pytest
 
 from tianshu.operations.agent import incident_from_log
 from tianshu.operations.incidents import safe_summary
@@ -12,6 +14,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.logging import StructuredFormatter, TaskMetadata
 from tianshu.runtime.rb_logs_output import output_record
 from tianshu.runtime.rb_logs_query import LogQuery
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_from_wire
 
 
 class Events:
@@ -20,6 +23,75 @@ class Events:
 
     async def emit(self, event, outcome, **fields):
         self.values.append({"event": event, "outcome": outcome, **fields})
+
+
+@pytest.mark.parametrize(("local", "remote", "expected"), (
+    (True, None, True), (True, True, True), (False, True, False),
+    (True, False, False), (None, None, False),
+))
+async def test_http_wait_preserves_independent_rollback_evidence(local, remote, expected):
+    retry_at = datetime(2026, 11, 5, 12, 0, tzinfo=UTC)
+    wait = RecoveryWait("source_lock_set_changed", retry_at, dependency="sources:lock_set")
+    if local is not None:
+        wait.transaction_rollback_confirmed = local
+    wait.remote_rollback_confirmed = remote
+    events = Events()
+    app = web.Application()
+    app["event_log"] = events
+    request = make_mocked_request("POST", "/internal/v1/models/completions", app=app)
+
+    async def handler(request):
+        request["model_attempt_id"] = "original-attempt"
+        request["model_lookup_phase"] = "observe"
+        request["model_lookup_state"] = "unavailable"
+        raise wait
+
+    response = await error_middleware(request, handler)
+    error = json.loads(response.body)["error"]
+    assert response.status == 409
+    assert error["code"] == error["message"] == "source_lock_set_changed" and error["request_id"]
+    assert error["details"] == {"retry_at": retry_at.isoformat(), "dependency": "sources:lock_set"}
+    assert error["recovery_wait"] == {"kind": "recovery_wait", "version": 1,
+        "reason": "source_lock_set_changed", "retry_at": retry_at.isoformat(),
+        "dependency": "sources:lock_set", "rollback_confirmed": expected}
+    restored = recovery_wait_from_wire(error["recovery_wait"])
+    assert restored.remote_rollback_confirmed is expected
+    assert restored.retry_at == retry_at
+    finished = {**events.values[-1], "event_id": "wait-1", "role": "model-broker", "level": "INFO"}
+    assert finished["outcome"] == ("deferred" if expected else "failed")
+    assert finished["attempt_id"] == "original-attempt"
+    assert finished["lookup_phase"] == "observe" and finished["lookup_state"] == "unavailable"
+    assert (incident_from_log(finished) is None) is expected
+
+
+@pytest.mark.parametrize("status", (409, 503))
+async def test_ordinary_error_is_not_a_typed_wait_even_with_same_code(status):
+    events = Events()
+    app = web.Application()
+    app["event_log"] = events
+    request = make_mocked_request("POST", "/internal/v1/models/completions", app=app)
+
+    async def handler(request):
+        raise AppError("source_lock_set_changed", status=status,
+                       details={"retry_at": "2026-11-05T12:00:00+00:00"})
+
+    response = await error_middleware(request, handler)
+    error = json.loads(response.body)["error"]
+    assert response.status == status and error["code"] == "source_lock_set_changed"
+    assert "recovery_wait" not in error
+    assert events.values[-1]["outcome"] == "failed"
+
+
+async def test_invalid_wait_metadata_does_not_emit_retryable_envelope():
+    request = make_mocked_request("POST", "/internal/v1/models/completions", app=web.Application())
+
+    async def handler(request):
+        raise RecoveryWait("invalid reason!", datetime(2026, 11, 5, 12, 0, tzinfo=UTC))
+
+    response = await error_middleware(request, handler)
+    error = json.loads(response.body)["error"]
+    assert response.status == 500 and error["code"] == "invalid_recovery_wait_envelope"
+    assert "recovery_wait" not in error
 
 
 async def test_models_lookup_phases_preserve_expected_absence_and_original_id():

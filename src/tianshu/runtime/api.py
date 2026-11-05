@@ -14,6 +14,7 @@ from aiohttp import web
 
 from tianshu.types import Coverage, Receipt, TrustedContext
 from .errors import AppError
+from .recovery_policy import RecoveryWait, recovery_wait_to_wire
 from .serialization import wire
 
 LOG = logging.getLogger(__name__)
@@ -102,6 +103,7 @@ async def error_middleware(request, handler):
     resource = request.match_info.route.resource
     route_name = getattr(resource, "canonical", None)
     error_metadata = {}
+    confirmed_wait = False
 
     def capture_error_metadata(exc):
         # Read structured owner facts; never guess a pool from exception text.
@@ -133,8 +135,20 @@ async def error_middleware(request, handler):
     except AppError as exc:
         capture_error_metadata(exc)
         request["error_code"] = exc.code
-        response = json_response({"error": {"code": exc.code, "message": exc.message,
-            "details": exc.details, "request_id": request_id}}, status=exc.status)
+        error = {"code": exc.code, "message": exc.message,
+                 "details": exc.details, "request_id": request_id}
+        status = exc.status
+        if isinstance(exc, RecoveryWait):
+            try:
+                error["recovery_wait"] = recovery_wait_to_wire(exc)
+                confirmed_wait = error["recovery_wait"]["rollback_confirmed"] is True
+            except (TypeError, ValueError):
+                # Invalid internal metadata must not become a retryable wait.
+                request["error_code"] = "invalid_recovery_wait_envelope"
+                error = {"code": request["error_code"], "message": "请求未完成",
+                         "details": None, "request_id": request_id}
+                status = 500
+        response = json_response({"error": error}, status=status)
     except (TimeoutError, asyncio.TimeoutError) as exc:
         capture_error_metadata(exc)
         request["error_code"] = "deadline_exceeded"
@@ -158,7 +172,8 @@ async def error_middleware(request, handler):
         try:
             lookup_phase = request.get("model_lookup_phase")
             lookup_state = request.get("model_lookup_state")
-            await event_log.emit("http.finished", "succeeded" if response.status < 400 else "failed",
+            outcome = "deferred" if confirmed_wait else "succeeded" if response.status < 400 else "failed"
+            await event_log.emit("http.finished", outcome,
                 correlation_id=request_id, duration_ms=(time.monotonic()-started)*1000,
                 route=route_name, method=request.method, status=response.status,
                 error_code=request.get("error_code"), attempt_id=request.get("model_attempt_id"),
