@@ -130,4 +130,5 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
             Migration("0038_life_computation_retry", files("tianshu.life").joinpath("0038_life_computation_retry.sql").read_text()),
             Migration("0040_life_execution", files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),
             Migration("rbf_life_planning_wake", files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text()),
+            Migration("rbg_plan_retirement", files("tianshu.life").joinpath("rbg_plan_retirement.sql").read_text()),
         ))

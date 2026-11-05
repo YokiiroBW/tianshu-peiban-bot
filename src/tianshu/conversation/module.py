@@ -78,4 +78,5 @@ def create_module(service, expression, identity, result_consumer, renderer):
         migrations=(Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
                     Migration("0039_conversation_context_selection", files("tianshu.conversation").joinpath("context_selection.sql").read_text()),
                     Migration("0040_conversation_input_supplements", files("tianshu.conversation").joinpath("input_supplements.sql").read_text()),
-                    Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text())))
+                    Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text()),
+                    Migration("rbg_result_consumption", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text())))

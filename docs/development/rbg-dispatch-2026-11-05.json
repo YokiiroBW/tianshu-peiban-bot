@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBG-20261105",
-  "state": "dispatch_prepared",
+  "state": "integrated_validation_pending",
   "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "baseline_source": "d9016ca7cccb02534498fd512a00a1a8d20e72e6",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
@@ -18,11 +18,19 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
       "branch": "codex/rbg-life-20261105",
       "card": "docs/development/rbg-work-packages/life.md",
-      "status": "prepared",
+      "status": "integrated_not_verified",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "commits": []
+      "commits": [
+        "d7af96148f0af138727e4ad6ab2f2b4cd88615bc"
+      ],
+      "acknowledged": true,
+      "actual_head": "5cd309ae67c9896feb787ad03cc65272c4884173",
+      "integrated_commits": [
+        "f37cc7a8e017f1347abc261ff33ba8faf59f4ee1"
+      ],
+      "handoff": "docs/handoffs/RBG-01.md"
     },
     {
       "id": "RBG-02",
@@ -32,11 +40,21 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
       "branch": "codex/rbg-conversation-20261105",
       "card": "docs/development/rbg-work-packages/results.md",
-      "status": "prepared",
+      "status": "integrated_not_verified",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "commits": []
+      "commits": [
+        "a2c15b53ab30184458bede41d27859d1567043d1",
+        "3e42b6265d947d933cb5ca2063648c3f1687405f"
+      ],
+      "acknowledged": true,
+      "actual_head": "5cd309ae67c9896feb787ad03cc65272c4884173",
+      "integrated_commits": [
+        "06ce91b228f3bb294c9b0ba7d755952e2d1233b8",
+        "fc74055439d7d3ab1108508bce19e0ecf8438a92"
+      ],
+      "handoff": "docs/handoffs/RBG-02.md"
     },
     {
       "id": "RBG-03",
@@ -46,11 +64,24 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
       "branch": "codex/rbg-capabilities-20261105",
       "card": "docs/development/rbg-work-packages/video.md",
-      "status": "prepared",
+      "status": "integrated_not_verified",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "commits": []
+      "commits": [
+        "343ca7f296e5b668979804da800263d919d93a13",
+        "e26b2d9aeb274a68cdfccbaf58048c0e0da72e92"
+      ],
+      "acknowledged": true,
+      "actual_head": "5cd309ae67c9896feb787ad03cc65272c4884173",
+      "integrated_commits": [
+        "d927c8bb98979d5f5fd473bba4a46afdb0b3bdb8",
+        "3f47b8d4fc26d7bfc979e5a11910c8f29ba8aa73"
+      ],
+      "handoff": "docs/handoffs/RBG-03.md",
+      "validation": "static_checks_only_by_implementer; central_checks_pending"
     }
-  ]
+  ],
+  "seed_commit": "5cd309ae67c9896feb787ad03cc65272c4884173",
+  "dispatched_at": "2026-11-05T08:43:16.237686+00:00"
 }

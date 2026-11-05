@@ -16,14 +16,40 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
                       memory=None, growth=None, infrastructure=None):
     settings = runtime.settings.get("operations", {})
     principal_id = settings.get("principal_id")
+    from tianshu.conversation.rbg_result_recovery import ResultRecovery
+
+    result_recovery = ResultRecovery(
+        runtime.database, runtime.jobs, authority.identity, RecoveryExecutor.guard_on
+    )
+    plan_recovery = None
+    if life_worker is not None:
+        from tianshu.life.rbg_plan_operations import RBGPlanOperationsRecovery
+
+        plan_recovery = RBGPlanOperationsRecovery(life_worker, RecoveryExecutor.guard_on)
 
     async def diagnostic_context():
         return await authority.identity.system_context(principal_id, permission="config.publish")
+
+    async def plan_progress():
+        observed = await plan_recovery.observe_due_retirements(limit=32)
+        runtime.module_status["operations.plan_retirements"] = {
+            "state": "unavailable" if observed["unavailable"] else "ready",
+            "observed": observed["observed"],
+            "unavailable": observed["unavailable"],
+            "changes": len(observed["changes"]),
+        }
+        return tuple(
+            fact for fact in await plan_recovery.candidates(limit=32)
+            if fact.get("business_blocked") is not False
+        )
 
     async def progress():
         readers = []
         if life_worker is not None:
             readers.append(("life", life_worker.recovery_candidates(limit=32)))
+        if plan_recovery is not None:
+            readers.append(("life_plan", plan_progress()))
+        readers.append(("conversation_result", result_recovery.candidates(limit=32)))
         if index_jobs is not None:
             readers.append(("memory_index", index_jobs.recovery_candidates(limit=32)))
         if memory is not None:
@@ -42,10 +68,12 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
                 facts.extend(value)
         return tuple(facts)
 
-    recovery_actions = ()
+    recovery_actions = (result_recovery.registration(),)
+    if plan_recovery is not None:
+        recovery_actions += (plan_recovery.registration(),)
     if memory is not None:
         memory.set_operations_guard(RecoveryExecutor.guard_on)
-        recovery_actions = (RecoveryAction(
+        recovery_actions += (RecoveryAction(
             "memory.consolidation.resume", frozenset({"memory_consolidation_failed"}),
             memory.operations.inspect, memory.operations.invoke, memory.operations.observe,
             observation_only=True, domain_managed=True,

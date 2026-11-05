@@ -247,6 +247,7 @@ async def build_product(runtime):
     caps.actions.bind_behavior_validator(behavior_validator)
     caps.bind_statistics(statistics)
     caps.bind_recovery_policy(policy)
+    caps.perception.recovery_policy = policy
 
     async def capabilities_changed(context, capability_ids):
         if context.actor_id:

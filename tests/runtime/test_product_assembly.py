@@ -49,9 +49,13 @@ async def test_actual_product_has_one_artifact_owner_and_complete_registrations(
             assert names == {"operations"}
             assert not jobs.tasks
             assert product.capabilities is None and product.channels is None
-            assert {"memory.consolidation.resume", "memory.index.rebuild", "growth.retry.resume"} <= product.operations.executor.actions.keys()
+            assert {
+                "memory.consolidation.resume", "memory.index.rebuild", "growth.retry.resume",
+                "life.plan.reconcile", "conversation.result.recover",
+            } <= product.operations.executor.actions.keys()
             return
         assert product.capabilities.artifacts is product.authority.artifacts
+        assert product.capabilities.perception.recovery_policy is product.capabilities.recovery_policy
         assert product.capabilities.reading.reading is not None
         assert product.capabilities.prepared and not product.capabilities.initialized
         if role == "independent":

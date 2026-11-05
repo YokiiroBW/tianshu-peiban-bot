@@ -30,8 +30,12 @@ def product_migrations():
         *model_recovery_migrations(),
         Migration("0041_conversation_submission_confirmation",
             files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text(encoding="utf-8")),
+        Migration("rbg_result_consumption",
+            files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text(encoding="utf-8")),
         Migration("rbf_life_planning_wake",
             files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text(encoding="utf-8")),
+        Migration("rbg_plan_retirement",
+            files("tianshu.life").joinpath("rbg_plan_retirement.sql").read_text(encoding="utf-8")),
         Migration("rbf_source_proof_jit",
             files("tianshu.sources").joinpath("rbf_source_proof_jit.sql").read_text(encoding="utf-8")),
         Migration("rbf_source_proof_reuse",
@@ -45,6 +49,8 @@ def model_recovery_migrations():
             files("tianshu.models").joinpath("recovery_wait.sql").read_text(encoding="utf-8")),
         Migration("models_prestart_reconciliation",
             files("tianshu.models").joinpath("prestart_reconciliation.sql").read_text(encoding="utf-8")),
+        Migration("rbg_admission_retirement",
+            files("tianshu.models").joinpath("rbg_admission_retirement.sql").read_text(encoding="utf-8")),
     )
 
 
