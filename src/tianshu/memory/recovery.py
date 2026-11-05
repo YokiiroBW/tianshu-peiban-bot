@@ -339,9 +339,13 @@ class ConsolidationRecovery:
                     or lineage["material_digest"] != body_hash(root_row["manifest"]["frozen"])
                     or lineage["current_version"] != recovery["version"] or lineage["paused"]
                     or lineage["cancelled"] or lineage.get("source_withdrawn")
-                    or lineage["attempts"] >= lineage["max_attempts"] or not last or last["status"] != "succeeded"
+                    or not last or last["status"] != "succeeded"
                     or lineage["claim_token"] and lineage["claim_expires_at"]
                         and lineage["claim_expires_at"] > datetime.now(UTC)):
+                return False
+            budget=await self.memory.recovery_policy.computation_budget_on(conn,recovery["lineage_id"],
+                owner=recovery["owner"],expected_version=recovery["version"])
+            if not budget["can_retry"]:
                 return False
             if failure.get("stage") == "model_output":
                 original=await (await conn.execute("SELECT model_attempt_id FROM memory.consolidation_attempts "

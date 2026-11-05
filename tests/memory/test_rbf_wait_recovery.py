@@ -100,10 +100,14 @@ async def test_prepared_wait_keeps_batch_and_lets_later_input_run(core, ordinary
                                            (first.episode_id,))).fetchone()
         state = await (await conn.execute("SELECT active_batch_id,wake_due_at FROM memory.consolidation_state WHERE partition_id=%s",
                                          (partition,))).fetchone()
-        wake = await (await conn.execute("SELECT 1 FROM runtime.job_keys k JOIN procrastinate_jobs j ON j.id=k.job_id "
-            "WHERE k.task='memory.consolidate' AND j.args->>'batch_id'=%s", (batch_id,))).fetchone()
+        generation = await core.memory.jobs.current_generation_on(conn)
+        wakes = await (await conn.execute("SELECT id,args,scheduled_at FROM procrastinate_jobs "
+            "WHERE task_name='memory.consolidate' AND status='todo' AND queueing_lock=%s",
+            ("memory-consolidate:"+partition+":generation:"+generation,))).fetchall()
     assert episode["extraction_state"] == "consolidation_waiting"
-    assert state["active_batch_id"] is None and state["wake_due_at"] is None and wake
+    assert state["active_batch_id"] is None and state["wake_due_at"] is None
+    assert len(wakes) == 1 and wakes[0]["args"] == {"partition_id":partition}
+    assert wakes[0]["scheduled_at"] is None or wakes[0]["scheduled_at"] <= waiting["retry_due_at"]
 
     second = await examples.episode(core, alice, "rbf-wait-second")
     await core.workers.consolidate(partition)

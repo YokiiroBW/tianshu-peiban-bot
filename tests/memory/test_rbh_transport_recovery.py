@@ -1,0 +1,356 @@
+"""RBH Memory stories; the coordinator runs these with the integrated Runtime."""
+
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta
+from importlib.util import module_from_spec, spec_from_file_location
+from pathlib import Path
+
+import pytest
+
+from tianshu.models.ledger import submission_digest
+from tianshu.models.http_timing import HttpTiming
+from tianshu.models.types import ModelReceipt, ModelResult
+from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryPolicy, RecoveryWait
+
+
+spec = spec_from_file_location("_rbh_wait_fixtures",Path(__file__).with_name("test_rbf_wait_recovery.py"))
+waits = module_from_spec(spec)
+spec.loader.exec_module(waits)
+core, ordinary_users, examples = waits.core, waits.ordinary_users, waits.examples
+rpc_examples = waits.load_helper("_rbh_rpc_examples",Path(__file__).parents[1]/"core"/"test_memory_rpc_recovery.py")
+
+
+class LegacyFailure(waits.Model):
+    def __init__(self, *, failures=1):
+        super().__init__()
+        self.failures = failures
+
+    async def submit(self, request, *, completion):
+        if len(self.submissions) < self.failures:
+            self.submissions.append((request,completion))
+            timing = HttpTiming(None)
+            timing.connection_reused = False
+            timing.mark("connect_start")
+            receipt = ModelReceipt(request.attempt_id,request.intent_id,"failed","not_started","fixture",1,
+                "fixture","fixture","openai.chat","fixture",error_code="transport_not_sent",
+                finished_at=datetime.now(UTC),data_generation=request.data_generation,
+                request_digest=submission_digest(request),diagnostic={"category":"not_sent","part_count":0,
+                    "part_kinds":[],"text_bytes":0,"native_completed":False},http_timing=timing.record())
+            self.results[request.attempt_id] = ModelResult((),receipt)
+            return receipt
+        return await super().submit(request,completion=completion)
+
+
+async def historical_failure(core, context, monkeypatch, name, *, failures=1):
+    model, policy = LegacyFailure(failures=failures), RecoveryPolicy()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=policy)
+    note = policy.note_not_sent_on
+
+    async def old_unclassified(*args, **kwargs):
+        return {"reason":"not_confirmed_not_sent","can_retry":True}
+
+    monkeypatch.setattr(policy,"note_not_sent_on",old_unclassified)
+    item = await examples.episode(core,context,name)
+    partition, _ = await waits.batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, batch = await waits.batch_for_episode(core,item.episode_id)
+    for _ in range(failures-1):
+        await mature(core,batch)
+        await core.workers.consolidate(partition)
+        _, batch = await waits.batch_for_episode(core,item.episode_id)
+    assert batch["status"] == "quarantined" and len(model.submissions) == failures
+    monkeypatch.setattr(policy,"note_not_sent_on",note)
+    lineage = batch["manifest"]["recovery"]["lineage_id"]
+    async with core.database.transaction() as conn:
+        # Recreate an exhausted historical lineage in the disposable fixture.
+        await conn.execute("UPDATE runtime.recovery_lineages SET max_attempts=1,due_at=NULL WHERE lineage_id=%s",(lineage,))
+        await conn.execute("UPDATE memory.consolidation_batches SET status='failed',error_code='recovery_budget_exhausted',"
+            "retry_due_at=NULL WHERE batch_id=%s",(batch["batch_id"],))
+        await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_failed' WHERE episode_id=%s",
+            (item.episode_id,))
+        steps = await (await conn.execute("SELECT step_id,request FROM memory.model_steps WHERE step_id=ANY(%s::text[])",
+            (batch["step_ids"],))).fetchall()
+    return model,policy,item,partition,batch,lineage,steps
+
+
+async def mature(core, batch):
+    lineage = batch["manifest"]["recovery"]["lineage_id"]
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=now()-interval '1 second' WHERE batch_id=%s",
+            (batch["batch_id"],))
+        await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",(lineage,))
+        await conn.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=now()-interval '1 second',"
+            "probe_token=NULL,probe_expires_at=NULL WHERE (data_generation,dependency) IN "
+            "(SELECT data_generation,dependency FROM runtime.recovery_lineages WHERE lineage_id=%s)",(lineage,))
+
+
+async def test_historical_connection_reconciliation_is_bounded_and_keeps_original(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model,policy,item,partition,batch,lineage,original_steps = await historical_failure(
+        core,alice,monkeypatch,"rbh-legacy-original")
+    before_receipt = model.results[model.submissions[0][0].attempt_id].receipt
+    first = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert first["inspected"] == 1 and first["scheduled"] == 0
+    assert first["changes"][0]["reason"] == "confirmed_not_sent"
+    second = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert second["inspected"] == 1 and second["scheduled"] == 1
+    assert (await core.memory.consolidation.reconcile_transport_waits(limit=1))["scheduled"] == 0
+    assert len(model.submissions) == 1 and model.results[before_receipt.attempt_id].receipt == before_receipt
+    async with core.database.transaction(read_only=True) as conn:
+        current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+            (batch["batch_id"],))).fetchone()
+        steps = await (await conn.execute("SELECT step_id,request FROM memory.model_steps WHERE step_id=ANY(%s::text[])",
+            (batch["step_ids"],))).fetchall()
+        ledger = await (await conn.execute("SELECT attempt_id,attempt_number,status FROM runtime.recovery_attempts "
+            "WHERE lineage_id=%s ORDER BY attempt_number",(lineage,))).fetchall()
+        budget = await policy.computation_budget_on(conn,lineage,owner="memory",
+            expected_version=batch["manifest"]["recovery"]["version"])
+    assert steps == original_steps and current["step_ids"] == batch["step_ids"]
+    assert current["manifest"]["local_wait"]["recovered_from"]["error_code"] == "recovery_budget_exhausted"
+    assert [(row["attempt_id"],row["attempt_number"],row["status"]) for row in ledger] == [
+        (before_receipt.attempt_id,1,"failed")]
+    assert budget["total_attempts"] == 1 and budget["computation_attempts"] == 0 and budget["connection_attempts"] == 1
+
+    # Recovery observes the original before allocating a different attempt.
+    await mature(core,current)
+    await core.workers.consolidate(partition)
+    await mature(core,current)
+    await core.workers.consolidate(partition)
+    async with core.database.transaction(read_only=True) as conn:
+        applied = await (await conn.execute("SELECT status,step_ids,commit_refs FROM memory.consolidation_batches "
+            "WHERE batch_id=%s",(batch["batch_id"],))).fetchone()
+        ledger = await (await conn.execute("SELECT attempt_id,attempt_number,status FROM runtime.recovery_attempts "
+            "WHERE lineage_id=%s ORDER BY attempt_number",(lineage,))).fetchall()
+    assert applied["status"] == "applied" and len(applied["step_ids"]) == 2
+    assert [row["attempt_number"] for row in ledger] == [1,2]
+    assert ledger[0]["attempt_id"] == before_receipt.attempt_id and ledger[0]["status"] == "failed"
+    assert len(model.submissions) == 2 and model.submissions[1][0].attempt_id != before_receipt.attempt_id
+    await core.workers.consolidate(partition)
+    assert len(model.submissions) == 2
+
+
+async def test_older_credit_restores_latest_failed_attempt_due(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model,policy,_,_,batch,lineage,_ = await historical_failure(
+        core,alice,monkeypatch,"rbh-older-credit",failures=2)
+    latest = model.submissions[-1][0].attempt_id
+    async with core.database.transaction() as conn:
+        result = await policy.note_not_sent_on(conn,latest,owner="memory",
+            expected_version=batch["manifest"]["recovery"]["version"],
+            model_receipt=model.results[latest].receipt)
+        row = await (await conn.execute("SELECT due_at FROM runtime.recovery_lineages WHERE lineage_id=%s",(lineage,))).fetchone()
+    assert not result["can_retry"] and row["due_at"] is None
+    first = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert first["scheduled"] == 0
+    second = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert second["scheduled"] == 0
+    third = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert third["scheduled"] == 1
+    async with core.database.transaction(read_only=True) as conn:
+        current = await (await conn.execute("SELECT status,step_ids FROM memory.consolidation_batches WHERE batch_id=%s",
+            (batch["batch_id"],))).fetchone()
+        row = await (await conn.execute("SELECT attempts,due_at FROM runtime.recovery_lineages WHERE lineage_id=%s",
+            (lineage,))).fetchone()
+    assert current["status"] == "quarantined" and current["step_ids"] == batch["step_ids"]
+    assert row["attempts"] == 2 and row["due_at"] is not None and len(model.submissions) == 2
+
+
+@pytest.mark.parametrize("condition",["paused","withdrawn","unknown","stale","bad_digest"])
+async def test_reconciliation_keeps_ineligible_originals(core, ordinary_users, monkeypatch, condition):
+    alice, _ = ordinary_users
+    model,_,item,_,batch,lineage,steps = await historical_failure(core,alice,monkeypatch,"rbh-ineligible-"+condition)
+    attempt_id = model.submissions[0][0].attempt_id
+    if condition in {"unknown","bad_digest"}:
+        result = model.results[attempt_id]
+        receipt = replace(result.receipt,**({"status":"unknown"} if condition == "unknown" else {"request_digest":"wrong"}))
+        model.results[attempt_id] = replace(result,receipt=receipt)
+    async with core.database.transaction() as conn:
+        if condition == "paused":
+            await conn.execute("UPDATE runtime.recovery_lineages SET paused=true WHERE lineage_id=%s",(lineage,))
+        elif condition == "withdrawn":
+            await conn.execute("UPDATE runtime.recovery_lineages SET source_withdrawn=true WHERE lineage_id=%s",(lineage,))
+        elif condition == "stale":
+            await conn.execute("UPDATE memory.episodes SET revision=revision+1 WHERE episode_id=%s",(item.episode_id,))
+    if condition == "bad_digest":
+        with pytest.raises(AppError,match="memory_model_result_identity_conflict"):
+            await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    else:
+        result = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+        assert result["scheduled"] == 0
+        if condition == "unknown":
+            assert result["changes"][0]["reason"] == "original_unknown"
+        if condition == "stale":
+            assert result["changes"][0]["reason"] == "memory_consolidation_episode_changed"
+    async with core.database.transaction(read_only=True) as conn:
+        current = await (await conn.execute("SELECT status,step_ids FROM memory.consolidation_batches WHERE batch_id=%s",
+            (batch["batch_id"],))).fetchone()
+        after = await (await conn.execute("SELECT step_id,request FROM memory.model_steps WHERE step_id=ANY(%s::text[])",
+            (batch["step_ids"],))).fetchall()
+    assert current["status"] == "failed" and current["step_ids"] == batch["step_ids"] and after == steps
+    assert len(model.submissions) == 1
+
+
+async def test_dependency_waits_share_one_partition_wake_and_do_not_block_new_material(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model,policy = waits.Model(),RecoveryPolicy()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=policy)
+    reserve = policy.reserve_attempt_on
+    left = 3
+
+    async def block_first(*args, **kwargs):
+        nonlocal left
+        if left:
+            left -= 1
+            raise RecoveryWait("recovery_dependency_probe_in_progress",datetime.now(UTC)+timedelta(minutes=5),
+                dependency="models:fixture")
+        return await reserve(*args, **kwargs)
+
+    monkeypatch.setattr(policy,"reserve_attempt_on",block_first)
+    batch_ids = []
+    for index in range(3):
+        item = await examples.episode(core,alice,"rbh-wait-"+str(index))
+        partition, _ = await waits.batch_for_episode(core,item.episode_id)
+        await core.workers.consolidate(partition)
+        _, batch = await waits.batch_for_episode(core,item.episode_id)
+        assert batch["status"] == "quarantined" and batch["manifest"]["local_wait"]
+        batch_ids.append(batch["batch_id"])
+    later = await examples.episode(core,alice,"rbh-wait-independent")
+    await core.workers.consolidate(partition)
+    _, applied = await waits.batch_for_episode(core,later.episode_id)
+    assert applied["status"] == "applied" and applied["batch_id"] not in batch_ids
+    assert len(model.submissions) == 1
+    async with core.database.transaction(read_only=True) as conn:
+        generation = await core.memory.jobs.current_generation_on(conn)
+        rows = await (await conn.execute("SELECT args,queueing_lock FROM procrastinate_jobs WHERE task_name='memory.consolidate' "
+            "AND status='todo' AND (queueing_lock=%s OR args->>'batch_id'=ANY(%s::text[]))",
+            ("memory-consolidate:"+partition+":generation:"+generation,batch_ids))).fetchall()
+        waiting = await (await conn.execute("SELECT batch_id,status,manifest FROM memory.consolidation_batches "
+            "WHERE batch_id=ANY(%s::text[])",(batch_ids,))).fetchall()
+    assert len(rows) == 1 and rows[0]["args"] == {"partition_id":partition}
+    assert len(waiting) == 3 and all(row["status"] == "quarantined" and row["manifest"]["local_wait"] for row in waiting)
+
+
+async def test_shared_dependency_allows_only_one_live_probe(core, ordinary_users):
+    class PendingProbe(LegacyFailure):
+        async def submit(self,request,*,completion):
+            if len(self.submissions) == 1:
+                receipt = await waits.Model.submit(self,request,completion=completion)
+                receipt = replace(receipt,status="queued",dispatch="submitted")
+                self.results[request.attempt_id] = replace(self.results[request.attempt_id],receipt=receipt,parts=())
+                return receipt
+            return await super().submit(request,completion=completion)
+
+    alice, _ = ordinary_users
+    model = PendingProbe()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    first = await examples.episode(core,alice,"rbh-probe-original")
+    partition, _ = await waits.batch_for_episode(core,first.episode_id)
+    await core.workers.consolidate(partition)
+    _, held = await waits.batch_for_episode(core,first.episode_id)
+    await mature(core,held)
+    await core.workers.consolidate(partition)
+    assert len(model.submissions) == 2
+    for index in range(2):
+        item = await examples.episode(core,alice,"rbh-probe-waiter-"+str(index))
+        await core.workers.consolidate(partition)
+        _, batch = await waits.batch_for_episode(core,item.episode_id)
+        assert batch["status"] == "quarantined"
+        assert batch["manifest"]["local_wait"]["reason"] == "recovery_dependency_probe_in_progress"
+    async with core.database.transaction(read_only=True) as conn:
+        dependency = await (await conn.execute("SELECT d.probe_token,d.probe_expires_at FROM runtime.recovery_dependencies d "
+            "JOIN runtime.recovery_lineages l ON (l.data_generation,l.dependency)=(d.data_generation,d.dependency) "
+            "WHERE l.lineage_id=%s",(held["manifest"]["recovery"]["lineage_id"],))).fetchone()
+        probes = await (await conn.execute("SELECT attempt_id FROM runtime.recovery_attempts "
+            "WHERE dependency='models:fixture' AND dependency_probe AND status='reserved'")).fetchall()
+    assert dependency["probe_token"] == model.submissions[1][0].attempt_id
+    assert dependency["probe_expires_at"] > datetime.now(UTC)
+    assert [probe["attempt_id"] for probe in probes] == [dependency["probe_token"]]
+    assert len(model.submissions) == 2
+
+
+async def test_unknown_original_success_is_observed_once_before_future_retry_due(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = rpc_examples.RpcModels()
+    rpc_examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    item = await examples.episode(core,alice,"rbh-original-arrives")
+    partition, _ = await waits.batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, held = await waits.batch_for_episode(core,item.episode_id)
+    assert held["status"] == "quarantined" and held["retry_due_at"] > datetime.now(UTC)
+    model.release()
+    await core.workers.consolidate(partition)
+    _, applied = await waits.batch_for_episode(core,item.episode_id)
+    assert applied["status"] == "applied" and applied["step_ids"] == held["step_ids"]
+    await core.workers.consolidate(partition)
+    assert len(model.requests) == 1
+
+
+async def test_runtime_budget_exhaustion_keeps_original_without_auto_requeue(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model,policy = LegacyFailure(),RecoveryPolicy()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=policy)
+
+    async def exhausted(*args, **kwargs):
+        return {"can_retry":False,"retry_at":None,"reason":"recovery_connection_budget_exhausted"}
+
+    monkeypatch.setattr(policy,"note_not_sent_on",exhausted)
+    monkeypatch.setattr(policy,"computation_budget_on",exhausted)
+    item = await examples.episode(core,alice,"rbh-connection-budget-exhausted")
+    partition, _ = await waits.batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, batch = await waits.batch_for_episode(core,item.episode_id)
+    assert batch["status"] == "quarantined" and batch["retry_due_at"] is None
+    assert batch["manifest"]["recovery_budget_blocked"]["reason"] == "recovery_connection_budget_exhausted"
+    assert len(model.submissions) == 1
+    async with core.database.transaction() as conn:
+        generation = await core.memory.jobs.current_generation_on(conn)
+        before = await (await conn.execute("SELECT count(*) AS n FROM procrastinate_jobs "
+            "WHERE status='todo' AND queueing_lock=%s",
+            ("memory-consolidate:"+partition+":generation:"+generation,))).fetchone()
+        await core.memory.consolidation.retries.arm_on(conn,partition)
+        after = await (await conn.execute("SELECT count(*) AS n FROM procrastinate_jobs "
+            "WHERE status='todo' AND queueing_lock=%s",
+            ("memory-consolidate:"+partition+":generation:"+generation,))).fetchone()
+    assert before == after and len(model.submissions) == 1
+
+
+async def test_explicit_historical_resume_keeps_targeted_wake(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model,policy = waits.Model(),RecoveryPolicy()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=policy)
+    freeze = core.memory.consolidation._freeze_compilation
+    blocked = True
+
+    async def wait_once(*args, **kwargs):
+        nonlocal blocked
+        if blocked:
+            blocked = False
+            raise RecoveryWait("recovery_dependency_probe_in_progress",datetime.now(UTC)+timedelta(minutes=5),
+                dependency="models:fixture")
+        return await freeze(*args, **kwargs)
+
+    monkeypatch.setattr(core.memory.consolidation,"_freeze_compilation",wait_once)
+    item = await examples.episode(core,alice,"rbh-explicit-target")
+    partition, _ = await waits.batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, batch = await waits.batch_for_episode(core,item.episode_id)
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.consolidation_batches SET status='failed',"
+            "error_code='recovery_dependency_probe_in_progress',manifest=manifest-'local_wait',retry_due_at=NULL "
+            "WHERE batch_id=%s",(batch["batch_id"],))
+        await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_failed' WHERE episode_id=%s",
+            (item.episode_id,))
+        result = await core.workers.recovery.resume_on(conn,alice,{"episode_id":item.episode_id,
+            "expected_revision":item.revision,"client_request_id":"rbh-explicit-target"})
+        generation = await core.memory.jobs.current_generation_on(conn)
+        jobs = await (await conn.execute("SELECT args FROM procrastinate_jobs WHERE status='todo' AND queueing_lock=%s",
+            ("memory-consolidate-batch:"+partition+":"+batch["batch_id"]+":generation:"+generation,))).fetchall()
+    assert result.data["queued"] and result.data["action"] == "resume_original_batch"
+    assert len(jobs) == 1 and jobs[0]["args"] == {"partition_id":partition,"batch_id":batch["batch_id"]}

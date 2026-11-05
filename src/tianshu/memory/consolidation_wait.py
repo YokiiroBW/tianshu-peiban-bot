@@ -332,7 +332,6 @@ class ConsolidationWait:
                         raise AppError("memory_consolidation_episode_changed", status=409)
                 await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=%s,updated_at=now() "
                     "WHERE partition_id=%s AND active_batch_id=%s", (wait.code,partition_id,batch_id))
-            await self.consolidation._schedule_on(conn,partition_id,due,suffix="local-wait",target_batch_id=batch_id)
             pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
                 "AND active AND extraction_state='pending' LIMIT 1", (partition_id,))).fetchone()
             if pending and state["active_batch_id"] in {None,batch_id}:
@@ -343,12 +342,20 @@ class ConsolidationWait:
             elif not pending and state["active_batch_id"] in {None,batch_id}:
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=NULL,first_pending_at=NULL "
                     "WHERE partition_id=%s", (partition_id,))
+            # Dependency waits share the existing partition wake. Its due time
+            # is derived from all persisted waits and pending material; explicit
+            # batch-targeted recovery keeps its separate task identity.
+            await self.consolidation.retries.arm_on(conn,partition_id)
         return True
 
-    async def reopen_failed_on(self, conn, batch, context, request_id):
+    async def reopen_failed_on(self, conn, batch, context, request_id, *, transport=False, due=None):
         """Reopen only a previously misclassified dependency wait, with its original ledger."""
-        if (batch["status"] != "failed" or batch.get("error_code") not in {
-                "recovery_dependency_cooling", "recovery_dependency_probe_in_progress", "recovery_claim_in_progress"}):
+        allowed = {"recovery_dependency_cooling", "recovery_dependency_probe_in_progress", "recovery_claim_in_progress"}
+        if transport:
+            # This mode is reachable only after the caller has reconciled the
+            # original Models receipts and consulted the Runtime budget.
+            allowed |= {"recovery_budget_exhausted", "recovery_connection_budget_exhausted", "transport_not_sent"}
+        if batch["status"] != "failed" or batch.get("error_code") not in allowed:
             return False
         manifest = deepcopy(batch["manifest"])
         recovery = manifest.get("recovery")
@@ -391,19 +398,26 @@ class ConsolidationWait:
                     or episode.get("content_digest") is not None and row["content_hash"] != episode["content_digest"]):
                 raise AppError("memory_consolidation_episode_changed",status=409)
         previous = {"status":batch["status"], "error_code":batch["error_code"], "request_id":request_id}
+        due = due or datetime.now(UTC)
+        if transport:
+            manifest.pop("recovery_budget_blocked",None)
+            manifest.pop("rbh_claim_budget",None)
         manifest["local_wait"] = {"reason":batch["error_code"], "code":batch["error_code"],
-            "retry_at":wire(datetime.now(UTC)), "dependency":lineage["dependency"],
+            "retry_at":wire(due), "dependency":lineage["dependency"],
             "resume_status":"ready" if batch.get("selected_step_id") else "waiting_model",
             "recovered_from":previous}
         await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined',manifest=%s,"
-            "retry_due_at=now(),retry_requested=false,updated_at=now() WHERE batch_id=%s",
-            (Jsonb(manifest),batch["batch_id"]))
+            "retry_due_at=%s,retry_requested=false,updated_at=now() WHERE batch_id=%s",
+            (Jsonb(manifest),due,batch["batch_id"]))
         for episode in manifest["episodes"]:
             await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_waiting',"
                 "extraction_started_at=NULL WHERE episode_id=%s AND revision=%s AND sequence=%s",
                 (episode["episode_id"],episode["revision"],episode["sequence"]))
-        await self.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
-            suffix="restore-original:"+request_id,target_batch_id=batch["batch_id"])
+        if transport:
+            await self.consolidation.retries.arm_on(conn,batch["partition_id"])
+        else:
+            await self.consolidation._schedule_on(conn,batch["partition_id"],due,
+                suffix="restore-original:"+request_id,target_batch_id=batch["batch_id"])
         return True
 
     async def reactivate(self, batch_id, *, owner):

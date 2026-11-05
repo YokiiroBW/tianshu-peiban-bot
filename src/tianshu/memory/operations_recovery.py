@@ -64,10 +64,7 @@ class ConsolidationOperations:
         recovery = batch["manifest"].get("recovery")
         if self.memory.recovery_policy is None or not recovery:
             return {"eligible":False,"reason":"memory_recovery_lineage_unavailable"}
-        lineage = await (await conn.execute("SELECT l.*,d.cooldown_until,d.probe_token,p.status AS probe_status "
-            "FROM runtime.recovery_lineages l LEFT JOIN runtime.recovery_dependencies d "
-            "ON d.data_generation=l.data_generation AND d.dependency=l.dependency "
-            "LEFT JOIN runtime.recovery_attempts p ON p.attempt_id=d.probe_token "
+        lineage = await (await conn.execute("SELECT l.* FROM runtime.recovery_lineages l "
             "WHERE l.lineage_id=%s FOR UPDATE OF l",(recovery["lineage_id"],))).fetchone()
         if (not lineage or lineage["owner"] != "memory" or lineage["domain"] != "memory"
                 or lineage["current_version"] != recovery["version"]
@@ -109,10 +106,13 @@ class ConsolidationOperations:
         if mode is None:
             return {"eligible":False,"reason":"memory_original_not_recoverable"}
         if mode != "observe_original":
-            if lineage["attempts"] >= lineage["max_attempts"]:
-                return {"eligible":False,"reason":"memory_recovery_budget_exhausted"}
-            if (lineage["cooldown_until"] and lineage["cooldown_until"] > now
-                    or lineage["probe_token"] and lineage["probe_status"] in {"reserved","unknown"}):
+            budget = await self.memory.recovery_policy.computation_budget_on(conn,lineage["lineage_id"],
+                owner=recovery["owner"],expected_version=recovery["version"])
+            if not budget["can_retry"]:
+                return {"eligible":False,"reason":budget["reason"]}
+            waiting = await self.memory.recovery_policy.inspect_wait_on(conn,lineage["lineage_id"],
+                owner=recovery["owner"],expected_version=recovery["version"])
+            if waiting is not None:
                 return {"eligible":False,"reason":"memory_recovery_dependency_wait"}
             if root_id != batch["batch_id"]:
                 remainder = await (await conn.execute("SELECT retry_remaining FROM memory.consolidation_reorganizations "

@@ -237,10 +237,12 @@ class Consolidation:
                 "b.manifest->'recovery'->>'lineage_id' AS lineage_id FROM memory.consolidation_batches b "
                 "JOIN runtime.recovery_lineages l ON l.lineage_id=b.manifest->'recovery'->>'lineage_id' "
                 "AND l.owner='memory' AND l.data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
-                "WHERE b.status='quarantined' AND NOT (b.manifest ? 'remote_wait_unresolved') "
+                "WHERE b.status='quarantined' AND NOT (b.manifest ? 'remote_wait_unresolved' "
+                "OR b.manifest ? 'original_observation_only' OR b.manifest ? 'recovery_budget_blocked' "
+                "OR b.manifest ? 'rbh_claim_budget') "
                 "AND (b.retry_due_at IS NULL OR b.retry_due_at<=now()) "
                 "AND l.due_at<=now() AND NOT l.paused AND NOT l.cancelled AND NOT l.source_withdrawn "
-                "AND l.attempts<l.max_attempts AND (l.claim_token IS NULL OR l.claim_expires_at<=now()) "
+                "AND (l.claim_token IS NULL OR l.claim_expires_at<=now()) "
                 "AND b.manifest->>'data_generation'=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
                 "ORDER BY l.due_at,b.batch_id LIMIT 64")).fetchall()
         seen = set()
@@ -257,8 +259,31 @@ class Consolidation:
                     (candidate["batch_id"],))).fetchone()
                 if (not state or not batch or batch["status"] != "quarantined"
                         or batch["manifest"].get("remote_wait_unresolved")
+                        or batch["manifest"].get("original_observation_only")
+                        or batch["manifest"].get("recovery_budget_blocked")
+                        or batch["manifest"].get("rbh_claim_budget")
                         or batch["manifest"].get("recovery",{}).get("lineage_id") != candidate["lineage_id"]
                         or batch.get("retry_due_at") and batch["retry_due_at"] > datetime.now(UTC)):
+                    continue
+                recovery = batch["manifest"]["recovery"]
+                budget = await policy.computation_budget_on(conn,candidate["lineage_id"],
+                    owner=recovery["owner"],expected_version=recovery["version"])
+                if not budget["can_retry"]:
+                    # Exclude this lineage from later claim scans so exhausted
+                    # histories cannot starve other candidates. This does not
+                    # suppress ordinary observation of an unknown original.
+                    marker = {"reason":budget["reason"],"version":recovery["version"]}
+                    await conn.execute("UPDATE memory.consolidation_batches SET manifest=jsonb_set(manifest,"
+                        "'{rbh_claim_budget}',%s,true) WHERE batch_id=%s",(Jsonb(marker),batch["batch_id"]))
+                    continue
+                if budget.get("retry_at") is not None and budget["retry_at"] > datetime.now(UTC):
+                    due = max(value for value in (batch.get("retry_due_at"),budget["retry_at"]) if value is not None)
+                    manifest = deepcopy(batch["manifest"])
+                    if manifest.get("local_wait"):
+                        manifest["local_wait"]["retry_at"] = wire(due)
+                    await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,retry_due_at=%s "
+                        "WHERE batch_id=%s",(Jsonb(manifest),due,batch["batch_id"]))
+                    await self.retries.arm_on(conn,batch["partition_id"])
                     continue
                 claim = await policy.claim_lineage_due_on(conn,candidate["lineage_id"],owner="memory",lease_seconds=30)
                 if not claim:
@@ -270,30 +295,76 @@ class Consolidation:
                 await self._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
                     suffix="recovery-claim:"+batch["batch_id"])
 
-    async def _policy_outcome(self, batch_id, step_id, *, status, code=None, observation_ref=None, retry_after=None):
+    async def reconcile_transport_waits(self, *, limit=32):
+        """Classify bounded historical receipts and schedule the native recovery path."""
+        from .rbh_transport import reconcile_transport_waits
+        return await reconcile_transport_waits(self,limit=limit)
+
+    async def _policy_outcome(self, batch_id, step_id, *, status, code=None, observation_ref=None,
+                              retry_after=None, model_receipt=None):
         policy = self.memory.recovery_policy
         if policy is None:
             return
         from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
-        receipt = None
+        receipt = model_receipt
+        if status in {"failed", "unknown"}:
+            # Read the original Models authority outside the domain transaction.
+            # An absent control result does not create not-sent evidence.
+            from .model_outcome import original_status
+            recorded, original = await self.steps.recorded(step_id)
+            if receipt is None:
+                receipt = await original_status(self.steps.models, original)
+            if receipt is not None:
+                from .rbh_transport import validate_original_receipt
+                validate_original_receipt(original,receipt)
+        if receipt is not None and receipt.status != status:
+            # A newer original observation supersedes the earlier exception.
+            return
         if status == "unknown":
-            from .model_outcome import confirmed_computation_unknown, original_status
-            _, original = await self.steps.recorded(step_id)
-            receipt = await original_status(self.steps.models, original)
+            from .model_outcome import confirmed_computation_unknown
             if not confirmed_computation_unknown(receipt):
                 return
         async with self.database.transaction() as conn:
-            batch = await (await conn.execute("SELECT manifest FROM memory.consolidation_batches WHERE batch_id=%s",
+            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+                (batch_id,))).fetchone()
+            if not batch:
+                return
+            await self._assert_batch_generation_on(conn, batch)
+            await self._lock_owned_partition(conn,batch["partition_id"],None)
+            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
                 (batch_id,))).fetchone()
             if not batch:
                 return
             await self._assert_batch_generation_on(conn, batch)
             row = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s "
                 "AND step_id=%s FOR UPDATE", (batch_id,step_id))).fetchone()
-            if not row or not row.get("recovery_lineage_id") or row.get("recovery_policy_state") in {"succeeded","failed","cancelled"}:
+            if not row or not row.get("recovery_lineage_id"):
                 return
             attempt_id = row["model_attempt_id"]
             previous = row.get("recovery_policy_state")
+            recovery = batch["manifest"].get("recovery")
+            if not recovery or recovery["lineage_id"] != row["recovery_lineage_id"]:
+                raise AppError("memory_recovery_lineage_changed",status=409)
+            if previous in {"succeeded","cancelled"}:
+                return
+            if status in {"failed","unknown"} and receipt is not None:
+                step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
+                    (step_id,))).fetchone()
+                if not step or step["state"] == "source_revoked" or step["request"] != recorded["request"]:
+                    raise AppError("memory_consolidation_attempt_changed",status=409)
+                from .rbh_transport import validate_frozen_attempt_on
+                await validate_frozen_attempt_on(conn,attempt_id,recovery,step["request"])
+            if previous == "failed":
+                # Historical and duplicate failure observations may add only
+                # Runtime-validated evidence to the existing failed attempt.
+                if status == "failed" and receipt is not None:
+                    result = await policy.note_not_sent_on(conn,attempt_id,owner=recovery["owner"],
+                        expected_version=recovery["version"],model_receipt=receipt)
+                    if result["can_retry"]:
+                        await conn.execute("UPDATE memory.consolidation_batches SET manifest=manifest-'rbh_claim_budget' "
+                            "WHERE batch_id=%s",(batch_id,))
+                    return result
+                return
             if status == "succeeded":
                 if previous == "unknown":
                     await policy.resolve_unknown_on(conn,attempt_id,observation_ref=observation_ref or "models:"+attempt_id,
@@ -315,7 +386,6 @@ class Consolidation:
                         category=category,retry_after=retry_after)
                 settled = status
             elif status == "unknown" and previous != "unknown":
-                recovery = batch["manifest"]["recovery"]
                 await policy.record_computation_unknown_on(conn,attempt_id,owner=recovery["owner"],
                     expected_version=recovery["version"],model_receipt=receipt,retry_after=retry_after)
                 settled = "unknown"
@@ -323,6 +393,13 @@ class Consolidation:
                 return
             await conn.execute("UPDATE memory.consolidation_attempts SET recovery_policy_state=%s "
                 "WHERE batch_id=%s AND step_id=%s",(settled,batch_id,step_id))
+            if status in {"failed", "unknown"} and receipt is not None:
+                result = await policy.note_not_sent_on(conn,attempt_id,owner=recovery["owner"],
+                    expected_version=recovery["version"],model_receipt=receipt)
+                if result["can_retry"]:
+                    await conn.execute("UPDATE memory.consolidation_batches SET manifest=manifest-'rbh_claim_budget' "
+                        "WHERE batch_id=%s",(batch_id,))
+                return result
 
     async def _assert_attempt_applicable_on(self, conn, batch, step_id):
         recovery = batch["manifest"].get("recovery")
@@ -407,14 +484,20 @@ class Consolidation:
                 raise AppError("memory_remote_wait_unresolved", status=503)
             if state["lease_until"] and state["lease_until"] > now:
                 return
-            held = await (await conn.execute("SELECT batch_id FROM memory.consolidation_batches "
-                "WHERE partition_id=%s AND status='quarantined' AND manifest->>'data_generation'=%s "
-                "AND (NOT (manifest ? 'local_wait') OR retry_due_at<=now()) "
-                "AND (NOT (manifest ? 'remote_wait_unresolved' OR manifest ? 'original_observation_only') "
-                "OR %s::text IS NOT NULL AND batch_id=%s) "
-                "AND (%s::text IS NULL OR batch_id=%s) "
-                "ORDER BY COALESCE(retry_due_at,updated_at),batch_id LIMIT 1",
-                (partition_id,run_generation,target_batch_id,target_batch_id,target_batch_id,target_batch_id))).fetchone()
+            held = await (await conn.execute("SELECT b.batch_id FROM memory.consolidation_batches b "
+                "WHERE b.partition_id=%s AND b.status='quarantined' AND b.manifest->>'data_generation'=%s "
+                "AND (NOT (b.manifest ? 'local_wait') OR b.retry_due_at<=now()) "
+                "AND (NOT (b.manifest ? 'recovery_budget_blocked') OR %s::text IS NOT NULL) "
+                "AND (%s::text IS NOT NULL OR b.retry_due_at IS NULL OR b.retry_due_at<=now() "
+                "OR EXISTS (SELECT 1 FROM memory.consolidation_attempts a "
+                "WHERE a.batch_id=b.batch_id AND a.step_id=b.step_ids[cardinality(b.step_ids)] "
+                "AND a.status IN ('unknown','observing','queued','running','succeeded'))) "
+                "AND (NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only') "
+                "OR %s::text IS NOT NULL AND b.batch_id=%s) "
+                "AND (%s::text IS NULL OR b.batch_id=%s) "
+                "ORDER BY COALESCE(b.retry_due_at,b.updated_at),b.batch_id LIMIT 1",
+                (partition_id,run_generation,target_batch_id,target_batch_id,target_batch_id,target_batch_id,
+                 target_batch_id,target_batch_id))).fetchone()
             if target_batch_id is not None:
                 if not held:
                     return

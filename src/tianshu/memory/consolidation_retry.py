@@ -108,7 +108,7 @@ class ConsolidationRetries:
                 "SET retry_due_at=now()+%s::double precision*interval '1 second',error_code=COALESCE(%s,error_code),updated_at=now() "
                 "WHERE batch_id=%s AND status='quarantined' RETURNING retry_due_at", (delay, code, batch["batch_id"]))).fetchone()
             if fresh:
-                await self.consolidation._schedule_on(conn, batch["partition_id"], fresh["retry_due_at"], suffix="retry")
+                await self.arm_on(conn,batch["partition_id"])
 
     async def choose(self, batch, context, *, owner=None):
         """Consume known original success before allocating any new attempt."""
@@ -130,7 +130,7 @@ class ConsolidationRetries:
             if outcome.receipt and outcome.status in {"failed","cancelled","succeeded","unknown"}:
                 await self.consolidation._policy_outcome(batch["batch_id"],current["step_id"],
                     status=outcome.status,code=outcome.receipt.error_code,
-                    observation_ref="models:"+request.attempt_id)
+                    observation_ref="models:"+request.attempt_id,model_receipt=outcome.receipt)
             if outcome.explicit_cancel:
                 raise AppError("explicit_cancel", status=409, details={"status": "cancelled"})
         # Rejected semantic outputs and attempts superseded by a successor
@@ -284,6 +284,7 @@ class ConsolidationRetries:
                                 due=fresh.get("retry_due_at"))
             await self.consolidation._track_policy_on(conn,batch["batch_id"],step_id,recovery)
             manifest = deepcopy(fresh["manifest"])
+            manifest.pop("rbh_claim_budget",None)
             manifest["steps"][step_id] = deepcopy(manifest["steps"][previous["step_id"]])
             await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,step_ids=array_append(step_ids,%s),"
                 "retry_due_at=NULL,retry_requested=false,error_code=NULL,updated_at=now() WHERE batch_id=%s",
@@ -338,6 +339,17 @@ class ConsolidationRetries:
             manifest = deepcopy(fresh["manifest"])
             manifest.setdefault("quarantine", {"attempt_id": original.attempt_id, **failure, "action": "retry_computation"})
             due = datetime.now(UTC) + timedelta(seconds=delay)
+            recovery = fresh["manifest"].get("recovery")
+            policy = self.consolidation.memory.recovery_policy
+            if status == "failed" and receipt is not None and recovery and policy is not None:
+                budget = await policy.computation_budget_on(conn,recovery["lineage_id"],
+                    owner=recovery["owner"],expected_version=recovery["version"])
+                if not budget["can_retry"]:
+                    manifest["recovery_budget_blocked"] = {"reason":budget["reason"],
+                        "version":recovery["version"]}
+                    due = None
+                elif budget.get("retry_at") is not None:
+                    due = max(due,budget["retry_at"])
             await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined',manifest=%s,error_code=%s,"
                 "retry_due_at=%s,updated_at=now() WHERE batch_id=%s", (Jsonb(manifest), code, due, batch_id))
             for episode in fresh["manifest"]["episodes"]:
@@ -351,7 +363,7 @@ class ConsolidationRetries:
             wake = datetime.now(UTC) if pending else None
             await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=%s WHERE partition_id=%s",
                                (wake, wake, batch["partition_id"]))
-            await self.consolidation._schedule_on(conn, batch["partition_id"], wake or due, suffix="retry")
+            await self.arm_on(conn,batch["partition_id"])
         return True
 
     async def arm_on(self, conn, partition_id):
@@ -360,7 +372,8 @@ class ConsolidationRetries:
                                          (partition_id,))).fetchone()
         held = await (await conn.execute("SELECT min(COALESCE(retry_due_at,now())) AS due FROM memory.consolidation_batches "
             "WHERE partition_id=%s AND status='quarantined' "
-            "AND NOT (manifest ? 'remote_wait_unresolved' OR manifest ? 'original_observation_only') "
+            "AND NOT (manifest ? 'remote_wait_unresolved' OR manifest ? 'original_observation_only' "
+            "OR manifest ? 'recovery_budget_blocked') "
             "AND manifest->>'data_generation'=(SELECT id FROM runtime.installation_generation WHERE singleton=true)",
             (partition_id,))).fetchone()
         values = [value for value in (state["wake_due_at"], held["due"]) if value is not None]
