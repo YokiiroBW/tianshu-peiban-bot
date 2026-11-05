@@ -26,3 +26,10 @@
 - 原活动夹具未指定 `execution_mode`，而种子中的 `background_work` 将带能力且未显式 `focus` 的活动视为后台工作；仅对上述要求角色活动窗口的场景显式选用 `focus`。图片场景使用现有 `Images.definition` 与产品相同的 model-tool 注册和合法图片参数，期限、窗口截止禁止执行和 `day_finished` 断言均保留。
 - 天气整理夹具按 Models 当前公共接口提供同 attempt 的 `status(phase)`、`submit(completion)`、`result`、`reusable_result`，校验请求摘要和数据代次，并根据输入协议返回合法空变更提案；保留原天气数据到提取材料、完成状态和无媒体缺项断言，另核对一次提交及原 attempt 的观察/复用。
 - 此返修没有运行测试、构建或烟测；仅静态源码对照与 diff 检查，待根对受影响用例集中补验。
+
+## 天气整理缺项静态归因
+
+- 根的 `central-2` 对四个相关测试文件复验为 44 passed、1 failed；唯一失败是天气用例的 `completed` 断言，实际为 `completed_with_missing`。本窗口没有自行运行测试。
+- 天气服务以 `application/json` 捕获实际响应；Sources 的 `capture` 同时保存 UTF-8 文本和原文件，`read_many` 同时返回 `content` 和 `media`。Memory 的 `read_view` 保留该文本，但只把受支持图片放入模型媒体视图。`MaterialBuilder.build` 对所有有原 `media` 而无模型图片的来源要求 `consumption.analysis_completed`，因而静态上会将天气 JSON 判为 `media_without_confirmed_analysis`；该缺项进入 episode manifest，并由整理应用阶段写为 `completed_with_missing`。天气结果没有消费分析回执，不能通过测试夹具伪造此回执。
+- 此判断在种子 `5cd309ae67c9896feb787ad03cc65272c4884173` 已存在，属于 Memory 的既有问题，并非本卡改写引入。根已收到单例采样请求，以确认最终 missing 集合及是否有其他缺项；尚未取得采样结果，不能将静态推断记作实测事实。
+- 建议由 Memory 归属修复：按 Sources 的 MIME/实际解码内容及模型视图辨别已读取的文本原件；继续保留无法解码的文件、未分析音视频和不可用图片的缺项，以及现有分页 cursor 和来源范围。`tests/core/test_episode_semantics.py` 的原完成及无缺项断言保留，Memory 材料测试应覆盖文本、JSON、未解码文件、不可用媒体和分页。本卡未修改 Memory 产品代码。
