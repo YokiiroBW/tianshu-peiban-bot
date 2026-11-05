@@ -38,3 +38,8 @@
 - 在本交接后的窄提交中，`runtime/api.py` 复用 Runtime 的 `recovery_wait_to_wire`，仅对真实 `RecoveryWait` 在 `error.recovery_wait` 放置版本化 envelope，保留既有 `error.code/message/details/request_id` 和 HTTP 409；Models 端负责按固定合同严格解码。普通 409、503 和相同错误码的普通 `AppError` 均不会得到此 envelope。
 - 仅当 envelope 的 `rollback_confirmed` 明确为 true 时，HTTP 事件标记为 `deferred`；false 或证据不足仍标记为 `failed`，不伪称业务成功。无法序列化的无效等待元数据返回内部错误而非可重试包。Models lookup 与池归因字段沿用原有接线。
 - `tests/runtime/test_rbf_events.py` 增加本地/远端回滚证据组合、普通错误与无效等待元数据的回归。该补充同样只做静态审阅与 AST 解析，测试留给协调者在 Runtime/Models 合同集成后执行。
+
+## 集中验收返修：Windows 文件标识
+
+- 集中验收的三个 `test_rbf_monitor_summary.py` 失败来自同一处：Windows 的 `st_dev` 或 `st_ino` 超过 SQLite 有符号 64 位整数范围，`_ingest` 写入派生索引时抛出 `OverflowError`。本次使用带 `id:` 前缀的十进制文本保存文件标识；前缀使旧表的 INTEGER affinity 也不会将超长数字转换成有损 REAL。既有可表示的小整数缓存仍按数值匹配，成功更新后自然转为文本，不误报轮转或丢失游标；原 JSONL 不作修改。
+- 新增覆盖大整数、相邻文件标识、旧 INTEGER 列与既有整数缓存续读的定向回归。建议集成后仅重跑 `python -m pytest tests/operations/test_rbf_monitor_summary.py -q`；本窗口遵循集中验收约定，仅静态审阅和 AST 解析，未运行测试、构建或生产操作。

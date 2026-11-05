@@ -23,7 +23,7 @@ MAX_LINE = 8 * 1024 * 1024
 IDENTIFIER = re.compile(r"^[A-Za-z0-9_.:/-]{1,200}$")
 SCHEMA = """
 CREATE TABLE IF NOT EXISTS sources (
-  name TEXT PRIMARY KEY, path TEXT NOT NULL, device INTEGER, inode INTEGER,
+  name TEXT PRIMARY KEY, path TEXT NOT NULL, device TEXT, inode TEXT,
   offset INTEGER NOT NULL DEFAULT 0, tail_hash TEXT, resets INTEGER NOT NULL DEFAULT 0,
   partial INTEGER NOT NULL DEFAULT 0, error TEXT
 );
@@ -135,6 +135,17 @@ def _insert_bad(conn, source, digest, reason):
                  (source + ":" + digest, source, reason))
 
 
+def _file_id(value):
+    # The prefix prevents SQLite's INTEGER affinity in existing indexes from
+    # coercing a large decimal string to an imprecise REAL value.
+    return "id:" + str(value)
+
+
+def _same_file_id(stored, current):
+    # Previously created indexes stored in-range identifiers as integers.
+    return stored == _file_id(current) or (type(stored) is int and stored == current)
+
+
 def _ingest(conn, name, path):
     path = Path(path).resolve()
     old = conn.execute("SELECT * FROM sources WHERE name=?", (name,)).fetchone()
@@ -149,7 +160,8 @@ def _ingest(conn, name, path):
         stat = os.fstat(stream.fileno())
         offset = old["offset"] if old else 0
         resets = old["resets"] if old else 0
-        if old and old["device"] is not None and (old["path"] != str(path) or old["device"] != stat.st_dev or old["inode"] != stat.st_ino
+        if old and old["device"] is not None and (old["path"] != str(path)
+                    or not _same_file_id(old["device"], stat.st_dev) or not _same_file_id(old["inode"], stat.st_ino)
                     or stat.st_size < offset or old["tail_hash"] != _tail_hash(stream, offset)):
             offset, resets = 0, resets + 1
         stream.seek(offset)
@@ -206,7 +218,8 @@ def _ingest(conn, name, path):
                      "VALUES(?,?,?,?,?,?,?,?,NULL) ON CONFLICT(name) DO UPDATE SET path=excluded.path,"
                      "device=excluded.device,inode=excluded.inode,offset=excluded.offset,tail_hash=excluded.tail_hash,"
                      "resets=excluded.resets,partial=excluded.partial,error=NULL",
-                     (name, str(path), stat.st_dev, stat.st_ino, offset, tail_hash, resets, int(partial)))
+                     (name, str(path), _file_id(stat.st_dev), _file_id(stat.st_ino),
+                      offset, tail_hash, resets, int(partial)))
         return {"read": inserted, "duplicates": duplicates, "invalid": invalid,
                 "new_fingerprints": sorted(fingerprints)}
 
