@@ -337,16 +337,30 @@ async def test_control_unknown_with_local_commit_uncertain_keeps_active_batch(da
 
 @pytest.mark.asyncio
 async def test_control_observation_only_blocks_on_real_failure_and_cannot_retry(database):
-    growth, _context, _memory, models, _policy, scope = await setup_growth(database)
+    growth, context, _memory, models, scope = await current_retry_setup(database)
     wait = remote_wait(False)
     models.submit = AsyncMock(side_effect=wait)
     with pytest.raises(RecoveryWait):
         await growth.organize('actor', scope, 1, GENERATION)
     original = models.submit.await_args.args[0]
     retry = await retry_row(database)
+    frozen = await growth.generations.request(original.attempt_id, context)
+    assert frozen is not None
+    assert frozen.attempt_id == original.attempt_id and frozen.intent_id == original.intent_id
+    assert frozen.data_generation == original.data_generation == GENERATION
+    async with database.transaction(read_only=True) as connection:
+        attempt = await (await connection.execute(
+            'SELECT a.status,a.lineage_id,l.data_generation FROM runtime.recovery_attempts a '
+            'JOIN runtime.recovery_lineages l ON l.lineage_id=a.lineage_id WHERE a.attempt_id=%s',
+            (original.attempt_id,))).fetchone()
+    assert attempt == {'status': 'reserved', 'lineage_id': retry['batch']['lineage_id'],
+                       'data_generation': GENERATION}
     failure = observed_result(original, 'failed', error_code='upstream_http_503')
     models.results[original.attempt_id] = replace(
         failure, receipt=replace(failure.receipt, data_generation=GENERATION, finished_at=datetime.now(UTC)))
+    receipt = models.results[original.attempt_id].receipt
+    assert (receipt.attempt_id, receipt.intent_id, receipt.data_generation, receipt.status) == (
+        frozen.attempt_id, frozen.intent_id, GENERATION, 'failed')
     await force_retry_due(database)
 
     result = await growth.retries.run('actor', scope, retry['retry_key'], GENERATION)
