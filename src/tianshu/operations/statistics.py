@@ -18,16 +18,28 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 
 
-FAMILIES = frozenset({"messages", "models", "memory", "growth", "life", "media", "recovery"})
+FAMILIES = frozenset({"channels", "messages", "models", "memory", "growth", "life", "media", "recovery"})
 PRODUCERS = frozenset({"channels", "conversation", "models", "memory", "growth", "life", "media", "operations", "capabilities"})
 REQUIRED_PRODUCERS = {
-    "channels": ("channels",), "conversation.messages": ("conversation.messages",),
+    "channels.ingress": ("channels.ingress",), "channels.outbound": ("channels.outbound",),
+    "channels.media": ("channels.media",), "conversation.messages": ("conversation.messages",),
     "conversation.delivery": ("conversation.delivery",), "models": ("models",),
     "memory": ("memory",), "growth": ("growth",),
     "life.planning": ("life.planning", "life.plan"), "life.experience": ("life.experience",),
     "media": ("capabilities.media.jobs", "media"), "operations": ("operations",),
 }
+PRODUCER_SOURCES = {
+    "channels.ingress": "channels.events",
+    "channels.outbound": "channels.calls",
+    "channels.media": "channels.media_supplements",
+    "conversation.messages": "conversation.turns",
+    "conversation.delivery": "conversation.expressions",
+    "life.planning": "life.plan_generations",
+}
 METRICS = frozenset({
+    "channel_ingress_accepted", "channel_ingress_processed", "channel_ingress_withdrawn",
+    "channel_calls_total", "channel_calls_inflight", "channel_calls_confirmed",
+    "channel_calls_rejected", "channel_calls_unknown",
     "received", "processed", "reply_required", "delivered", "withdrawn",
     "physical_attempts", "business_success", "input_tokens", "output_tokens",
     "estimated_input_tokens", "estimated_output_tokens",
@@ -175,6 +187,34 @@ class StatisticsProjection:
             "complete=excluded.complete,detail=excluded.detail,last_seen=now()",
             (producer, Jsonb(wire(watermark)), complete, Jsonb(wire(detail))))
 
+    @staticmethod
+    async def register_live_producer_on(conn, producer, *, source):
+        """Register a live source without changing an existing backfill result."""
+        if (not isinstance(producer, str) or len(producer) > 120
+                or not any(producer == name or producer.startswith(name + ".") for name in PRODUCERS)):
+            raise AppError("invalid_statistic_producer")
+        detail = {"source": source, "mode": "live", "backfill": {"state": "not_started"}}
+        row = await (await conn.execute(
+            "INSERT INTO operations.statistic_producers(producer,watermark,complete,detail) "
+            "VALUES(%s,NULL,false,%s) ON CONFLICT(producer) DO NOTHING RETURNING producer",
+            (producer, Jsonb(detail)))).fetchone()
+        return row is not None
+
+    @staticmethod
+    async def lock_producer_on(conn, producer, *, source):
+        """Serialize a coverage check against concurrent failed live projections."""
+        await StatisticsProjection.register_live_producer_on(conn, producer, source=source)
+        return await (await conn.execute(
+            "SELECT * FROM operations.statistic_producers WHERE producer=%s FOR UPDATE",
+            (producer,))).fetchone()
+
+    @staticmethod
+    def matches_projection(value, stored):
+        if not stored:
+            return False
+        event = _event(value)
+        return stored.get("revision") == event["revision"] and stored.get("digest") == _digest(event)
+
     async def rebuild(self):
         async with self.database.transaction(control=True) as conn:
             await conn.execute("SELECT pg_advisory_xact_lock(hashtextextended('operations.statistics',0))")
@@ -256,16 +296,102 @@ class StatisticsProjection:
                          "rate": verified/evaluated if not missing_evaluation and evaluated and verified is not None
                          and verified <= evaluated else None, "scope": "observed_evaluated_events",
                          "missing_evaluated": missing_evaluation}
+        scopes = _producer_scopes(present)
+        outcomes = _outcome_summary(rows, breakdowns, scopes)
         return {"range": {"start": start, "end": end, "timezone": str(zone), "resolution": "minute"},
                 "overview": overview, "cumulative": {row["metric"]: _metric(row) for row in cumulative},
                 "series": [{"time": key, "metrics": val} for key, val in series.items()],
                 "breakdowns": breakdowns, "resources": resources, "recovery_rate": recovery_rate,
+                "outcomes": outcomes,
                 "freshness": {"source_watermarks": {row["producer"]: row["watermark"] for row in producers},
                               "source_last_seen": {row["producer"]: row["last_seen"] for row in producers}},
                 "coverage": {"complete": not missing and not incomplete, "missing": missing,
                              "incomplete": incomplete, "producers": producers,
+                             "producer_scopes": scopes,
                              "percentiles": "unavailable_without_distribution"},
                 "as_of": datetime.now(UTC)}
+
+
+def _producer_scopes(present):
+    scopes = {}
+    for name, aliases in REQUIRED_PRODUCERS.items():
+        actual = next((alias for alias in aliases if alias in present), None)
+        if actual is None:
+            scopes[name] = {"producer": None, "source": PRODUCER_SOURCES.get(name),
+                            "status": "not_registered", "complete": False,
+                            "mode": "unknown", "backfill": {"state": "unknown"}}
+            continue
+        row = present[actual]
+        detail = row.get("detail") if isinstance(row.get("detail"), dict) else {}
+        reason = detail.get("reason")
+        mode = detail.get("mode") if detail.get("mode") in {"live", "batch"} else (
+            "live" if reason == "live_producer" else "unknown")
+        backfill = detail.get("backfill")
+        if not isinstance(backfill, dict):
+            if row["complete"]:
+                state = "complete"
+            elif reason == "live_producer":
+                # The old producer exhausted a live scan but supplied neither a
+                # finite boundary nor proof that failed writes were replayed.
+                state = "scanned_unverified"
+            elif reason in {"scan_in_progress", "plan_event_pending_replay"}:
+                state = "pending"
+            elif reason in {"replay_failed", "projection_failed"}:
+                state = "failed"
+            else:
+                state = "unknown"
+            backfill = {"state": state, "reason": reason}
+        else:
+            backfill = dict(backfill)
+            if backfill.get("state") not in {"complete", "pending", "failed", "not_started", "scanned_unverified", "unknown"}:
+                backfill["state"] = "unknown"
+            if backfill["state"] == "complete" and not row["complete"]:
+                backfill["state"] = "scanned_unverified"
+        scopes[name] = {"producer": actual, "source": detail.get("source") or PRODUCER_SOURCES.get(name),
+                        "status": "complete" if row["complete"] else "partial",
+                        "complete": bool(row["complete"]), "mode": mode, "backfill": backfill,
+                        "watermark": row.get("watermark"), "last_seen": row.get("last_seen")}
+    return scopes
+
+
+def _availability(metric):
+    if metric is None:
+        return {"total": None, "samples": 0, "unknown": 0, "knowledge": "not_observed"}
+    known, unknown = metric["samples"], metric["unknown"]
+    knowledge = "partial" if known and unknown else "known" if known else "unknown" if unknown else "not_observed"
+    return {**metric, "knowledge": knowledge}
+
+
+def _outcome_summary(rows, breakdowns, scopes):
+    families = breakdowns.get("family", {})
+    status_counts = {}
+    for row in rows:
+        if row["family"] == "models" and row["metric"] == "physical_attempts":
+            state = row["state"] or "unknown"
+            status_counts[state] = status_counts.get(state, 0) + int(row["samples"]) + int(row["unknown"])
+    model_complete = scopes["models"]["complete"]
+    model_metrics = families.get("models", {})
+    business_families = ("messages", "memory", "growth", "life", "media")
+    business_scopes = ("channels.ingress", "channels.outbound", "channels.media",
+                       "conversation.messages", "conversation.delivery", "memory", "growth",
+                       "life.planning", "life.experience", "media")
+    return {
+        "business": {"basis": "domain_projections", "complete": all(scopes[name]["complete"] for name in business_scopes),
+                     "families": {name: families[name] for name in business_families if name in families}},
+        "channel_transport": {"basis": "channels_event_and_call_ledgers",
+                              "metrics": families.get("channels", {}),
+                              "delivery": "not_proven_by_call_confirmation"},
+        "recovery": {"basis": "domain_verified_recovery_observations",
+                     "metrics": families.get("recovery", {}), "coverage": "see_producer_scopes"},
+        "original_model_attempts": {"basis": "models_attempt_ledger_projection", "complete": model_complete,
+                                    "total": sum(status_counts.values()) if status_counts or model_complete else None,
+                                    "states": status_counts},
+        "billing": {"basis": "models_attempt_ledger_projection", "currency": "unknown",
+                    "input_tokens": _availability(model_metrics.get("input_tokens")),
+                    "output_tokens": _availability(model_metrics.get("output_tokens")),
+                    "actual_cost": _availability(model_metrics.get("actual_cost")),
+                    "estimated_cost": _availability(model_metrics.get("estimated_cost"))},
+    }
 
 
 def _parse_time(value):

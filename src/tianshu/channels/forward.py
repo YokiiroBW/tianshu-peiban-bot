@@ -7,6 +7,7 @@ from dataclasses import replace
 from tianshu.capabilities.contracts import canonical
 from tianshu.conversation.types import InputPart
 from tianshu.runtime.serialization import wire
+from tianshu.runtime.recovery_policy import RecoveryWait
 from .contracts import ChannelError
 from .onebot.messages import input_parts, segments
 from .text import database_value
@@ -62,6 +63,8 @@ async def expand_forward(service, context, connection, part, call_api, event_id,
             raise ChannelError("forward_empty_body", 502)
     except asyncio.CancelledError:
         raise
+    except RecoveryWait:
+        raise
     except Exception as error:
         return [_unavailable(part, getattr(error, "code", "forward_lookup_failed"), source=source)], refs
 
@@ -110,6 +113,8 @@ async def expand_forward(service, context, connection, part, call_api, event_id,
                     if media_source:
                         refs.append(media_source)
                 except asyncio.CancelledError:
+                    raise
+                except RecoveryWait:
                     raise
                 except Exception as error:
                     reason = getattr(error, "code", "channel_media_unavailable")

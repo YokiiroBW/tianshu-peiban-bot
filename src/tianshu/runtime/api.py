@@ -101,6 +101,23 @@ async def error_middleware(request, handler):
     started = time.monotonic()
     resource = request.match_info.route.resource
     route_name = getattr(resource, "canonical", None)
+    error_metadata = {}
+
+    def capture_error_metadata(exc):
+        # Read structured owner facts; never guess a pool from exception text.
+        details = exc.details if isinstance(exc, AppError) and isinstance(exc.details, dict) else {}
+        database_failure = getattr(exc, "database_failure", None)
+        for name in ("dependency_ref", "failure_phase", "pool_name"):
+            value = getattr(exc, name, None)
+            if value is None and database_failure is not None:
+                value = getattr(database_failure, name, None)
+            if value is None:
+                value = details.get(name)
+            if isinstance(value, str):
+                error_metadata[name] = value
+        if database_failure is not None and error_metadata.get("pool_name") in {"business", "control", "sync"}:
+            error_metadata.setdefault("dependency_ref", "postgresql")
+
     try:
         generation = request.app.get("data_generation")
         supplied_generation = request.headers.get(GENERATION_HEADER) or request.query.get("data_generation")
@@ -114,17 +131,22 @@ async def error_middleware(request, handler):
                                  route=route_name, method=request.method)
         response = await handler(request)
     except AppError as exc:
+        capture_error_metadata(exc)
         request["error_code"] = exc.code
         response = json_response({"error": {"code": exc.code, "message": exc.message,
             "details": exc.details, "request_id": request_id}}, status=exc.status)
-    except (TimeoutError, asyncio.TimeoutError):
+    except (TimeoutError, asyncio.TimeoutError) as exc:
+        capture_error_metadata(exc)
         request["error_code"] = "deadline_exceeded"
         response = json_response({"error": {"code": "deadline_exceeded",
             "message": "请求已超时", "details": None, "request_id": request_id}}, status=504)
     except web.HTTPException as exc:
+        capture_error_metadata(exc)
+        request["error_code"] = "http_" + str(exc.status)
         response = json_response({"error": {"code": "http_" + str(exc.status),
             "message": exc.reason, "details": None, "request_id": request_id}}, status=exc.status)
     except Exception as exc:
+        capture_error_metadata(exc)
         request["error_code"] = type(exc).__name__
         LOG.error("request_failed type=%s request_id=%s", type(exc).__name__, request_id)
         response = json_response({"error": {"code": "internal_error",
@@ -134,10 +156,19 @@ async def error_middleware(request, handler):
         response.headers[GENERATION_HEADER] = request.app["data_generation"]
     if event_log and not request.path.startswith("/health/"):
         try:
+            lookup_phase = request.get("model_lookup_phase")
+            lookup_state = request.get("model_lookup_state")
             await event_log.emit("http.finished", "succeeded" if response.status < 400 else "failed",
                 correlation_id=request_id, duration_ms=(time.monotonic()-started)*1000,
                 route=route_name, method=request.method, status=response.status,
-                error_code=request.get("error_code"))
+                error_code=request.get("error_code"), attempt_id=request.get("model_attempt_id"),
+                lookup_phase=lookup_phase, lookup_state=lookup_state,
+                dependency_ref=error_metadata.get("dependency_ref") or (
+                    "model-broker" if lookup_phase in ("pre_submit", "observe") else None),
+                failure_phase=error_metadata.get("failure_phase") or (
+                    "model_status_lookup" if response.status >= 400 and
+                    lookup_phase in ("pre_submit", "observe") else None),
+                pool_name=error_metadata.get("pool_name"))
         except AppError:
             pass  # Never rewrite an already-committed business outcome because logging failed.
     return response

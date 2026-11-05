@@ -7,6 +7,7 @@ from uuid import uuid5, NAMESPACE_URL
 from tianshu.types import Action, OriginKind, ServiceClass, SourceRef
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.capabilities.contracts import canonical, digest
 from tianshu.capabilities.serialization import receipt_from
@@ -113,11 +114,13 @@ async def accept_event(service, connection_id, raw, *, ownership=None):
                     "duplicate": False, "ignored": "before_data_generation"}
         row = await (
             await conn.execute(
-                "INSERT INTO channels.events(id,connection_id,producer,event_id,revision,payload,original_digest,deployment_generation) VALUES(%s,%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING RETURNING id",
+                "INSERT INTO channels.events(id,connection_id,producer,event_id,revision,payload,original_digest,deployment_generation) VALUES(%s,%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING RETURNING id,state,created_at",
                 (key, connection_id, producer, identifier, revision, payload, original_digest, canonical(wire(generation))),
             )
         ).fetchone()
         if row:
+            from .observability import record_ledger_on
+            await record_ledger_on(service, conn, scope="ingress", row=row)
             await service.runtime.jobs.enqueue(
                 conn,
                 JobSpec(
@@ -143,6 +146,8 @@ async def accept_event(service, connection_id, raw, *, ownership=None):
 async def process_event(service, event_key):
     try:
         return await _process_event(service, event_key)
+    except RecoveryWait:
+        raise
     except AppError as error:
         # A recall can clear this event while media/admission is awaiting I/O.
         # Sources still rejects the revoked input; only the channel job's already
@@ -302,6 +307,8 @@ async def _process_event(service, event_key):
                                     "quoted_parts_complete": quote_complete,
                                 },
                             )
+                        except RecoveryWait:
+                            raise
                         except Exception as error:
                             part = replace(
                                 part,
@@ -411,16 +418,22 @@ async def _process_event(service, event_key):
             await conn.execute("UPDATE channels.events SET actor_id=%s WHERE id=%s AND state<>'withdrawn'",
                                (decision.context.actor_id, event_key))
         if refs and not await service.sources.validate_persistence(conn, context, refs):
-            await conn.execute(
-                "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=%s",
+            changed = await (await conn.execute(
+                "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=%s RETURNING id,state,created_at",
                 (event_key,),
-            )
+            )).fetchone()
+            from .observability import record_ledger_on
+            await record_ledger_on(service, conn, scope="ingress", row=changed)
+            from .observability import withdraw_media_on
+            await withdraw_media_on(service, conn, [event_key])
             return
         await service.repository.bind_event_sources(conn, event_key, refs)
-        await conn.execute(
-            "UPDATE channels.events SET state='consumed',payload=NULL,outcome=%s::jsonb WHERE id=%s AND state<>'withdrawn'",
+        changed = await (await conn.execute(
+            "UPDATE channels.events SET state='consumed',payload=NULL,outcome=%s::jsonb WHERE id=%s AND state<>'withdrawn' RETURNING id,state,created_at",
             (canonical(outcome), event_key),
-        )
+        )).fetchone()
+        from .observability import record_ledger_on
+        await record_ledger_on(service, conn, scope="ingress", row=changed)
 
 
 async def operational_event(service, connection, raw, event):

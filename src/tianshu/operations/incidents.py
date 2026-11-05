@@ -19,7 +19,8 @@ from tianshu.runtime.serialization import wire
 _NAME = re.compile(r"^[a-zA-Z0-9_.:/-]{1,200}$")
 _SEVERITY = {"info": 0, "warning": 1, "error": 2, "critical": 3}
 _SUMMARY_FIELDS = frozenset({"event", "role", "error_code", "task_name", "version", "job_id", "material_id", "failure_id",
-                             "attempt_id", "status", "duration_ms", "stack_frames", "receipt", "progress"})
+                             "attempt_id", "status", "duration_ms", "lookup_phase", "lookup_state",
+                             "failure_phase", "pool_name", "stack_frames", "receipt", "progress"})
 
 
 def identifier(value, *, fallback=None):
@@ -30,8 +31,11 @@ def identifier(value, *, fallback=None):
     raise AppError("invalid_operations_identifier")
 
 
-def fingerprint(dependency, family, version):
-    raw = json.dumps([dependency, family, version], ensure_ascii=False, separators=(",", ":"))
+def fingerprint(dependency, family, version, *, attribution=None):
+    parts = [dependency, family, version]
+    if attribution is not None:
+        parts.append(attribution)
+    raw = json.dumps(parts, ensure_ascii=False, separators=(",", ":"))
     return hashlib.sha256(raw.encode()).hexdigest()
 
 
@@ -137,7 +141,14 @@ class IncidentStore:
         target = event.get("recovery_target") or (
             {"material_id": material} if isinstance(material, str) and _NAME.fullmatch(material) else {})
         target = recovery_target(target)
-        key = fingerprint(dependency, family, version)
+        pool = event.get("pool_name")
+        attribution = None
+        if isinstance(pool, str) and _NAME.fullmatch(pool):
+            # Known pools on different roles are different resource failures.
+            # Keep the old fingerprint for events without this evidence.
+            attribution = {"role": identifier(event.get("role"), fallback="unknown"), "pool_name": pool,
+                           "failure_phase": identifier(event.get("failure_phase"), fallback="unknown")}
+        key = fingerprint(dependency, family, version, attribution=attribution)
         incident_id = "incident_" + key
         async with self.database.transaction(control=True) as conn:
             await conn.execute(

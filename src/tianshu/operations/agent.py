@@ -13,6 +13,39 @@ from tianshu.runtime.errors import AppError
 from .incidents import identifier
 
 
+def incident_from_log(event):
+    """Map only an actual failed observation to an incident with its source identity."""
+    if not isinstance(event, dict) or event.get("role") == "operations":
+        return None
+    if event.get("outcome") not in {"failed", "degraded"} and event.get("level") not in {"ERROR", "CRITICAL", "FATAL"}:
+        return None
+    try:
+        event_id = identifier(event.get("event_id"))
+    except AppError:
+        return None
+    dependency = identifier(event.get("dependency_ref") or event.get("task_name") or event.get("role"), fallback="runtime")
+    family = identifier(event.get("error_family") or event.get("error_code"), fallback="unknown")
+    role = identifier(event.get("role"), fallback="runtime")
+    result = {**event, "event_id": event_id, "dependency": dependency, "error_family": family,
+              "version": identifier(event.get("version"), fallback="unknown"), "affected": [role],
+              "severity": "critical" if event.get("level") in {"CRITICAL", "FATAL"} else "error"}
+    if (event.get("event") == "http.finished" and role == "model-broker"
+            and event.get("lookup_phase") == "observe" and event.get("lookup_state") == "absent"
+            and event.get("status") == 404 and event.get("error_code") == "attempt_not_found"):
+        # The phase is asserted by Models, not inferred from an arbitrary 404.
+        # The original attempt remains unknown and is only a recovery target;
+        # this never authorizes a new submission or claims a known outcome.
+        try:
+            attempt_id = identifier(event.get("attempt_id"))
+        except AppError:
+            pass
+        else:
+            result["material_id"] = attempt_id
+            result["failure_id"] = attempt_id
+            result["recovery_target"] = {"material_id": attempt_id, "kind": "model_attempt"}
+    return result
+
+
 class OperationsAgent:
     def __init__(self, database, diagnostics, incidents, executor, diagnosis, outbox, *, progress=None, host_spool=None):
         self.database, self.diagnostics, self.incidents = database, diagnostics, incidents
@@ -29,20 +62,10 @@ class OperationsAgent:
         checkpoint = row["checkpoint"] if row else None
         page = await self.diagnostics.log_changes(checkpoint=checkpoint, limit=500)
         for event in page.get("entries", ()):
-            if not isinstance(event, dict) or event.get("role") == "operations":
+            incident_event = incident_from_log(event)
+            if incident_event is None:
                 continue
-            if event.get("outcome") not in {"failed", "degraded"} and event.get("level") not in {"ERROR", "CRITICAL", "FATAL"}:
-                continue
-            try:
-                event_id = identifier(event.get("event_id"))
-            except AppError:
-                continue
-            dependency = identifier(event.get("dependency_ref") or event.get("task_name") or event.get("role"), fallback="runtime")
-            family = identifier(event.get("error_family") or event.get("error_code"), fallback="unknown")
-            role = identifier(event.get("role"), fallback="runtime")
-            incident = await self.incidents.ingest({**event, "event_id": event_id, "dependency": dependency,
-                                         "error_family": family, "version": identifier(event.get("version"), fallback="unknown"),
-                                         "affected": [role], "severity": "critical" if event.get("level") in {"CRITICAL", "FATAL"} else "error"})
+            incident = await self.incidents.ingest(incident_event)
             await self.outbox.enqueue(incident, "opened")
             if incident["state"] == "escalated" or incident.get("severity_increased"):
                 await self.outbox.enqueue(incident, "escalated")

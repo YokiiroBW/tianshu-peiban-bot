@@ -203,8 +203,8 @@ class Repository:
                 conn, action.context, action.source_refs
             ):
                 raise ChannelError("source_revoked", 410)
-            await conn.execute(
-                "INSERT INTO channels.calls(id,action_id,attempt_id,connection_id,expression_id,api_name,payload,expected_count,control,deployment_generation) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING",
+            created = await (await conn.execute(
+                "INSERT INTO channels.calls(id,action_id,attempt_id,connection_id,expression_id,api_name,payload,expected_count,control,deployment_generation) VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s::jsonb) ON CONFLICT DO NOTHING RETURNING id,state,created_at",
                 (
                     identifier,
                     action.action_id,
@@ -217,7 +217,9 @@ class Repository:
                     control,
                     canonical(wire(generation)),
                 ),
-            )
+            )).fetchone()
+            from .observability import record_ledger_on
+            await record_ledger_on(self, conn, scope="outbound", row=created)
             if action.source_refs:
                 await conn.execute(
                     "INSERT INTO channels.source_dependencies(call_id,source_id,source_revision,refs) SELECT %s,item->>'source_id',(item->>'revision')::bigint,jsonb_agg(item) FROM jsonb_array_elements(%s::jsonb) item GROUP BY item->>'source_id',item->>'revision' ON CONFLICT(call_id,source_id,source_revision) DO UPDATE SET refs=channels.source_dependencies.refs||excluded.refs",
@@ -256,10 +258,12 @@ class Repository:
                 public["error_code"] = "source_revoked"
             else:
                 sealed = self.seal(result.raw, identifier + ":response")
-            await conn.execute(
-                "UPDATE channels.calls SET state=%s,response=%s,result=%s::jsonb,completed_at=CASE WHEN %s IN ('confirmed','rejected') THEN now() ELSE completed_at END WHERE id=%s",
+            changed = await (await conn.execute(
+                "UPDATE channels.calls SET state=%s,response=%s,result=%s::jsonb,completed_at=CASE WHEN %s IN ('confirmed','rejected') THEN now() ELSE completed_at END WHERE id=%s RETURNING id,state,created_at",
                 (result.state, sealed, canonical(public), result.state, identifier),
-            )
+            )).fetchone()
+            from .observability import record_ledger_on
+            await record_ledger_on(self, conn, scope="outbound", row=changed)
 
     def outcome(self, row, *, include_data=False):
         value = row.get("result") or {}
@@ -335,12 +339,16 @@ class Repository:
         identifiers = sorted(
             {row["call_id"] for row in rows if intersects(row["refs"], changes, reason)}
         )
-        await conn.execute(
+        changed_calls = await (await conn.execute(
             "UPDATE channels.calls SET payload=NULL,response=NULL,result=CASE WHEN state='prepared' "
             "THEN coalesce(result,'{}'::jsonb)||jsonb_build_object('state','rejected','error_code','source_revoked') "
-            "ELSE result END,state=CASE WHEN state='prepared' THEN 'rejected' ELSE state END WHERE id=ANY(%s)",
+            "ELSE result END,state=CASE WHEN state='prepared' THEN 'rejected' ELSE state END WHERE id=ANY(%s) "
+            "RETURNING id,state,created_at",
             (identifiers,),
-        )
+        )).fetchall()
+        from .observability import record_ledger_on
+        for changed in changed_calls:
+            await record_ledger_on(self, conn, scope="outbound", row=changed)
         events = await (
             await conn.execute(
                 "SELECT d.event_key,d.refs FROM channels.event_sources d JOIN channels.events e ON e.id=d.event_key "
@@ -355,13 +363,17 @@ class Repository:
             {row["event_key"] for row in events if intersects(row["refs"], changes, reason)}
         )
         if event_keys:
-            await conn.execute(
-                "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=ANY(%s)",
+            changed_events = await (await conn.execute(
+                "UPDATE channels.events SET state='withdrawn',payload=NULL,outcome=NULL WHERE id=ANY(%s) RETURNING id,state,created_at",
                 (event_keys,),
-            )
+            )).fetchall()
+            for changed in changed_events:
+                await record_ledger_on(self, conn, scope="ingress", row=changed)
             await conn.execute(
                 "UPDATE channels.media_supplements SET state='withdrawn',payload=NULL,lease_until=NULL "
                 "WHERE event_key=ANY(%s) AND state<>'complete'", (event_keys,))
+            from .observability import withdraw_media_on
+            await withdraw_media_on(self, conn, event_keys)
         for identifier in identifiers:
             await self.runtime.jobs.enqueue(
                 conn,

@@ -18,9 +18,9 @@ from .errors import AppError
 EVENTS = frozenset({"runtime.starting", "runtime.started", "runtime.stopping", "runtime.stopped",
     "runtime.failed", "http.started", "http.finished", "http.failed", "model.queued",
     "model.submitted", "model.finished", "model.cancelled", "resource.queued", "resource.submitted",
-    "resource.finished", "job.started", "job.finished", "job.failed", "job.routing_blocked", "config.changed",
+    "resource.finished", "job.started", "job.finished", "job.failed", "job.deferred", "job.routing_blocked", "config.changed",
     "capability.failed"})
-OUTCOMES = frozenset({"started", "succeeded", "failed", "cancelled", "unknown", "rejected", "degraded"})
+OUTCOMES = frozenset({"started", "succeeded", "failed", "cancelled", "unknown", "rejected", "degraded", "deferred"})
 
 
 def _identity(value, limit=128):
@@ -135,7 +135,8 @@ class EventLog:
     async def emit(self, event, outcome, *, correlation_id=None, attempt_id=None,
                    duration_ms=None, error_code=None, route=None, method=None, status=None,
                    task_name=None, job_id=None, level=None, module=None, trace_id=None,
-                   error_family=None, dependency_ref=None, material_id=None, failure_id=None):
+                   error_family=None, dependency_ref=None, material_id=None, failure_id=None,
+                   lookup_phase=None, lookup_state=None, failure_phase=None, pool_name=None):
         if event not in EVENTS or outcome not in OUTCOMES:
             raise ValueError("unregistered_runtime_event")
         if error_code is not None:
@@ -158,6 +159,9 @@ class EventLog:
             "error_code": error_code, "error_family": _identity(error_family or error_code, 96),
             "dependency_ref": _identity(dependency_ref),
             "material_id": _reference_id(material_id), "failure_id": _reference_id(failure_id),
+            "lookup_phase": lookup_phase if isinstance(lookup_phase, str) and lookup_phase in {"pre_submit", "observe"} else None,
+            "lookup_state": lookup_state if isinstance(lookup_state, str) and lookup_state in {"found", "absent", "unavailable"} else None,
+            "failure_phase": _reference_id(failure_phase), "pool_name": _reference_id(pool_name),
             "route": route[:256] if isinstance(route, str) else None,
             "method": method if method in {"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS", "HEAD"} else None,
             "status": status if type(status) is int else None,

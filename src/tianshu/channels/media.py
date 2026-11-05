@@ -9,6 +9,7 @@ from urllib.parse import urlsplit
 import aiohttp
 from tianshu.types import MediaRef, SourceRef, OriginKind
 from tianshu.runtime.serialization import wire
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.conversation.types import InputPart
 from .contracts import ChannelError
 
@@ -216,12 +217,16 @@ class Media:
                         )
                     except asyncio.CancelledError:
                         raise
+                    except RecoveryWait:
+                        raise
                     except Exception as error:
                         metadata["analysis_unavailable"] = getattr(
                             error, "code", "audio_transcode_unavailable"
                         )
             return replace(part, media=media, metadata=metadata), source
         except asyncio.CancelledError:
+            raise
+        except RecoveryWait:
             raise
         except Exception as error:
             native = metadata.pop("segment", None)

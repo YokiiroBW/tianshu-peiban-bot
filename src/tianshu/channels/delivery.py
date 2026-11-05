@@ -246,10 +246,12 @@ class DeliveryHandler:
                     raise ChannelError("source_revoked", 410)
                 claimed = await (
                     await conn.execute(
-                        "UPDATE channels.calls SET state='sending',submitted_at=now() WHERE id=%s AND state='prepared' RETURNING id",
+                        "UPDATE channels.calls SET state='sending',submitted_at=now() WHERE id=%s AND state='prepared' RETURNING id,state,created_at",
                         (identifier,),
                     )
                 ).fetchone()
+                from .observability import record_ledger_on
+                await record_ledger_on(self.service, conn, scope="outbound", row=claimed)
             if not claimed:
                 return await self.reconcile(action, attempt)
             await self.service.actions.submitted(attempt, identifier)

@@ -91,14 +91,20 @@ class Channels:
         from .observability import backfill_media
         return await backfill_media(self, after_id=after_id, limit=limit)
 
-    async def reconcile_media_statistics(self, after_id=""):
+    async def reconcile_media_statistics(self, after_id="", scope="media"):
         if self.statistics is None:
             return
-        result = await self.backfill_media_statistics(after_id=after_id)
+        if scope == "media":
+            result = await self.backfill_media_statistics(after_id=after_id)
+        elif scope in {"ingress", "outbound"}:
+            from .observability import backfill_ledger
+            result = await backfill_ledger(self, scope=scope, after_id=after_id)
+        else:
+            raise ValueError("invalid_channel_statistics_scope")
         if not result["complete"]:
             from .observability import schedule_repair
             async with self.runtime.database.transaction() as conn:
-                await schedule_repair(self, conn, after_id=result["next_cursor"])
+                await schedule_repair(self, conn, after_id=result["next_cursor"], scope=scope)
 
     async def defer_delivery(self, action_id):
         from tianshu.runtime.execution import ExecutionLane
@@ -216,7 +222,8 @@ class Channels:
         if self.statistics is not None:
             from .observability import schedule_repair
             async with self.runtime.database.transaction() as conn:
-                await schedule_repair(self, conn)
+                for scope in ("media", "ingress", "outbound"):
+                    await schedule_repair(self, conn, scope=scope)
 
     async def acquire_owner(self):
         async with self.runtime.database.transaction(control=True) as conn:
@@ -233,10 +240,13 @@ class Channels:
         # A previous socket owner may have submitted before it crashed. Keep every
         # original identity unknown; never replay the sealed request automatically.
         async with self.runtime.database.transaction(control=True) as conn:
-            await conn.execute(
-                "UPDATE channels.calls SET state='unknown',result=jsonb_build_object('state','unknown','error_code','owner_restarted') WHERE state='sending' AND owner_id IS DISTINCT FROM %s",
+            changed = await (await conn.execute(
+                "UPDATE channels.calls SET state='unknown',result=jsonb_build_object('state','unknown','error_code','owner_restarted') WHERE state='sending' AND owner_id IS DISTINCT FROM %s RETURNING id,state,created_at",
                 (self.owner_id,),
-            )
+            )).fetchall()
+            from .observability import record_ledger_on
+            for row in changed:
+                await record_ledger_on(self, conn, scope="outbound", row=row)
 
     async def maintain_owner(self):
         try:
@@ -376,10 +386,12 @@ class Channels:
                 raise ChannelError("source_revoked", 410)
             claimed = await (
                 await conn.execute(
-                    "UPDATE channels.calls SET state='sending',owner_id=%s WHERE id=%s AND state='prepared' RETURNING id",
+                    "UPDATE channels.calls SET state='sending',owner_id=%s WHERE id=%s AND state='prepared' RETURNING id,state,created_at",
                     (self.owner_id, identifier),
                 )
             ).fetchone()
+            from .observability import record_ledger_on
+            await record_ledger_on(self, conn, scope="outbound", row=claimed)
         if not claimed:
             return self.repository.outcome(await self.repository.call(identifier))
 
@@ -654,7 +666,9 @@ class Channels:
         async def ingest(**payload):
             return await process_event(self, **payload)
 
-        self.runtime.jobs.register("channels.ingest", ingest)
+        # The original event key, admission, input and read receipts are stable
+        # across a dependency wait; no outbound send is replayed here.
+        self.runtime.jobs.register("channels.ingest", ingest, resource_recovery=True)
 
         async def media_supplement(supplement_id):
             await retry(self, supplement_id)

@@ -18,6 +18,15 @@ class TaskMetadata(logging.Filter):
             task_name = getattr(record, "task_name", None)
             stack = ""
             if record.exc_info:
+                failure = getattr(record.exc_info[1], "database_failure", None)
+                if failure is not None:
+                    record.error_family = record.exc_info[0].__name__
+                    for name in ("failure_phase", "pool_name"):
+                        value = getattr(failure, name, None)
+                        if isinstance(value, str):
+                            setattr(record, name, value)
+                    if getattr(failure, "pool_name", None) in {"business", "control", "sync"}:
+                        record.dependency_ref = "postgresql"
                 stack = "\n" + "".join(traceback.format_tb(record.exc_info[2]))
                 stack += record.exc_info[0].__name__
             record.msg = "queue event=%s job_id=%s task=%s%s"
@@ -41,7 +50,7 @@ class StructuredFormatter(logging.Formatter):
             message = "[invalid diagnostic message]"
         value = {"level": record.levelname, "module": record.name,
                  "message": redact_text(message, self.secrets)}
-        for field in SAFE_FIELDS:
+        for field in (*SAFE_FIELDS, "lookup_phase", "lookup_state", "failure_phase", "pool_name"):
             item = getattr(record, field, None)
             if item is not None and isinstance(item, (str, int, float, bool)):
                 value[field] = redact_text(item, self.secrets) if isinstance(item, str) else item
@@ -53,6 +62,14 @@ class StructuredFormatter(logging.Formatter):
             # contain input bodies, prompts, URLs or provider credentials.
             value["stack"] = redact_text("".join(traceback.format_tb(record.exc_info[2])), self.secrets)
             value["error_family"] = record.exc_info[0].__name__
+            failure = getattr(record.exc_info[1], "database_failure", None)
+            if failure is not None:
+                for name in ("failure_phase", "pool_name"):
+                    item = getattr(failure, name, None)
+                    if isinstance(item, str):
+                        value[name] = redact_text(item, self.secrets)
+                if getattr(failure, "pool_name", None) in {"business", "control", "sync"}:
+                    value["dependency_ref"] = "postgresql"
         return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
 
 
