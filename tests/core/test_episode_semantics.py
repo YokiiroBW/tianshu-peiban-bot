@@ -21,7 +21,10 @@ from tianshu.conversation.results import ResultConsumer
 from tianshu.conversation.service import ConversationService
 from tianshu.conversation.types import InputMessage, InputPart
 from tianshu.memory.extraction_contract import consolidation_example
+from tianshu.models.ledger import submission_digest
+from tianshu.models.results import validate_reusable_receipt
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.serialization import wire
 from tianshu.types import Action, Attempt, Coverage, MediaRef, OriginKind, Receipt
@@ -334,6 +337,11 @@ class WeatherModels:
 class EmptyConsolidator:
     def __init__(self):
         self.requests = []
+        self.submissions = []
+        self.results = {}
+        self.frozen_requests = {}
+        self.status_lookups = []
+        self.reuses = []
 
     async def generation_profile(self, request):
         return {"route_id":"fixture","route_revision":1,"protocol":"openai.chat","model":"fixture",
@@ -342,9 +350,14 @@ class EmptyConsolidator:
     async def generate(self, request):
         self.requests.append(request)
         material = json.loads(request.messages[0].parts[0].text)
-        proposal = consolidation_example({"batch_id": material["batch_id"], "targets": {
-            target["subject_id"]: target for target in material["targets"]}})
-        return ModelResult(
+        if material.get("model_protocol") == "memory.proposal.v2":
+            proposal = {"targets": [{"subject_id": target["subject_id"], "status": "no_change",
+                "operations": [], "unresolved": [], "reason": "没有新增事实"}
+                for target in material["targets"]], "needs_context": []}
+        else:
+            proposal = consolidation_example({"batch_id": material["batch_id"], "targets": {
+                target["subject_id"]: target for target in material["targets"]}})
+        result = ModelResult(
             (ModelPart("text", text=json.dumps(proposal)),),
             ModelReceipt(
                 request.attempt_id,
@@ -357,9 +370,48 @@ class EmptyConsolidator:
                 "fixture",
                 "openai.chat",
                 "fixture",
+                finished_at=datetime.now(UTC),
+                request_digest=submission_digest(request),
+                data_generation=request.data_generation,
             ),
             completion=ModelCompletion("complete", ("stop",)),
         )
+        self.frozen_requests[request.attempt_id] = request
+        self.results[request.attempt_id] = result
+        return result
+
+    async def submit(self, request, *, completion=None):
+        previous = self.frozen_requests.get(request.attempt_id)
+        if previous is not None:
+            assert submission_digest(previous) == submission_digest(request)
+            return self.results[request.attempt_id].receipt
+        assert completion is not None and completion.task == "memory.consolidate"
+        assert completion.data_generation == request.data_generation
+        self.submissions.append((request, completion))
+        return (await self.generate(request)).receipt
+
+    async def status(self, attempt_id, *, phase="observe"):
+        assert phase in {"pre_submit", "observe"}
+        self.status_lookups.append((attempt_id, phase))
+        result = self.results.get(attempt_id)
+        return result.receipt if result is not None else None
+
+    async def result(self, attempt_id, *, context):
+        request = self.frozen_requests.get(attempt_id)
+        if request is None:
+            return None
+        assert context == request.context
+        return self.results[attempt_id]
+
+    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None,
+                              expected_data_generation=None):
+        result = await self.result(attempt_id, context=context)
+        if result is None:
+            raise AppError("model_result_unavailable", status=409)
+        validate_reusable_receipt(result.receipt, attempt_id,
+            expected_request_digest=expected_request_digest, expected_data_generation=expected_data_generation)
+        self.reuses.append((attempt_id, expected_data_generation))
+        return result
 
 
 async def test_weather_actual_json_receipt_reaches_extraction_without_media_missing(
@@ -450,6 +502,9 @@ async def test_weather_actual_json_receipt_reaches_extraction_without_media_miss
     assert current.extraction_state == "completed"
     assert current.extraction_coverage.missing == ()
     assert len(models.requests) == 1
+    assert len(models.submissions) == 1 and models.submissions[0][0] == models.requests[0]
+    assert (models.requests[0].attempt_id, "pre_submit") in models.status_lookups
+    assert (models.requests[0].attempt_id, models.requests[0].data_generation) in models.reuses
     material = json.loads(models.requests[0].messages[0].parts[0].text)
     originals = [item for item in material["materials"] if item["role"] == "new"]
     assert len(originals) == 1

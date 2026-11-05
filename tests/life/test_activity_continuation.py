@@ -8,6 +8,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from tianshu.capabilities.images.service import Images
 from tianshu.conversation import generation
 from tianshu.conversation.codec import document, signature
 from tianshu.life import day_plan, planning_engine, service, worker
@@ -39,7 +40,7 @@ def fixed_time(monkeypatch):
         monkeypatch.setattr(module, "datetime", FixedTime)
 
 
-async def fixture(database, *, state="planned", old=False):
+async def fixture(database, *, state="planned", old=False, execution_mode=None):
     value = await setup(database, REST)
     discover = ReadPage()
     discover.definition = replace(discover.definition, id="content.discover", input_schema={
@@ -54,6 +55,8 @@ async def fixture(database, *, state="planned", old=False):
     value.worker.life.memory = SimpleNamespace(observe_episode=AsyncMock())
     data = {"capability_id": "content.discover", "arguments": {"query": "actual topic", "mode": "research"},
         "duration_minutes": 30, "autonomous": True}
+    if execution_mode is not None:
+        data["execution_mode"] = execution_mode
     if not old:
         data = execution_window(data, NOW, NOW+timedelta(minutes=30))
     if state == "dormant":
@@ -74,6 +77,14 @@ async def fixture(database, *, state="planned", old=False):
     return value
 
 
+def register_image_capability(value):
+    # Match the live image input contract and its model-tool registration.
+    handler = ReadPage()
+    handler.definition = replace(Images.definition, model_tool={"name": "images_generate"}, long_running=True)
+    value.worker.catalog.register(handler)
+    return {"prompt": "a quiet landscape", "purpose": "creation", "delivery_kind": "create_only"}
+
+
 async def activity(database):
     async with database.transaction(read_only=True) as connection:
         return await (await connection.execute("SELECT * FROM life.activities WHERE id='research'")).fetchone()
@@ -91,7 +102,7 @@ async def future_slot(database, value, *, starts=None):
 
 @pytest.mark.asyncio
 async def test_discovery_receipt_queues_exact_read_despite_a_future_slot_and_duplicate_jobs(database):
-    value = await fixture(database)
+    value = await fixture(database, execution_mode="focus")
     await future_slot(database, value)
     await value.worker.activity_step("research", 1, wire(value.context))
     original = value.actions.calls[0][0]
@@ -133,15 +144,14 @@ async def test_discovery_receipt_queues_exact_read_despite_a_future_slot_and_dup
 @pytest.mark.asyncio
 @pytest.mark.parametrize("capability_id", ["content.discover", "images.generate"])
 async def test_new_action_business_deadline_is_the_accepted_slot_not_a_fixed_execution_timer(database, capability_id):
-    value = await fixture(database)
+    value = await fixture(database, execution_mode="focus")
+    arguments = {"query": "actual topic", "mode": "research"}
     if capability_id == "images.generate":
-        handler = ReadPage()
-        handler.definition = replace(handler.definition, id=capability_id)
-        value.worker.catalog.register(handler)
+        arguments = register_image_capability(value)
     ends = NOW+timedelta(minutes=60)
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id='research'",
-            (document({"capability_id": capability_id,
+            (document({"capability_id": capability_id, "arguments": arguments,
                 "execution_window": {"starts_at": NOW.isoformat(), "ends_at": ends.isoformat(), "steps": 0, "seen_steps": []}}),))
         await connection.execute("UPDATE life.day_slots SET ends_at=%s WHERE id='research-slot'", (ends,))
     await value.worker.activity_step("research", 1, wire(value.context))
@@ -152,13 +162,11 @@ async def test_new_action_business_deadline_is_the_accepted_slot_not_a_fixed_exe
 
 @pytest.mark.asyncio
 async def test_an_expired_nonreading_activity_cannot_start_a_new_action(database):
-    value = await fixture(database)
-    handler = ReadPage()
-    handler.definition = replace(handler.definition, id="images.generate")
-    value.worker.catalog.register(handler)
+    value = await fixture(database, execution_mode="focus")
+    arguments = register_image_capability(value)
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id='research'",
-            (document({"capability_id": "images.generate", "execution_window": {
+            (document({"capability_id": "images.generate", "arguments": arguments, "execution_window": {
                 "starts_at": (NOW-timedelta(hours=1)).isoformat(), "ends_at": (NOW-timedelta(seconds=1)).isoformat(),
                 "steps": 0, "seen_steps": []}}),))
     await value.worker.activity_step("research", 1, wire(value.context))
