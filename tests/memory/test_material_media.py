@@ -456,3 +456,134 @@ async def test_candidate_diagnostic_reserve_protects_limit_sized_original_text_a
     assert payload["coverage"]["record_omitted"]==2
     assert len(payload["coverage"]["record_candidates_missing"])==CANDIDATE_GAP_CODES
     assert sum(part.kind=="image" for message in request.messages for part in message.parts)==1
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("mime", "text"), [
+    ("text/plain", "实际文本内容"),
+    ("text/html; charset=utf-8", "<p>实际内容</p>"),
+    ("application/json", '{"value":22}'),
+    ("application/xml", "<value>22</value>"),
+    ("application/problem+json", '{"title":"示例"}'),
+    ("application/soap+xml; charset=UTF-8", "<Envelope/>"),
+    ("text/plain", ""),
+])
+async def test_decoded_media_original_is_consumed_as_its_exact_text(mime, text):
+    source = original("captured_text", text=text, mime=mime)
+    source["locator"] = {"kind":"captured_result", "event_id":"fixture"}
+    source["media"]["size_bytes"] = len(text.encode("utf-8"))
+    selected = builder((source,))
+    frozen = await selected.build(CONTEXT, [episode(1, [source])], "batch_captured_text")
+    stored = frozen["episodes"][0]
+    material = frozen["materials"][stored["material_ids"][0]]
+    assert stored["complete"] and not stored["missing"]
+    assert material["text"] == text and material["media"] is None
+    assert material["source_refs"] == wire((SourceRef(source["source_ref"].source_id,
+        source["source_ref"].revision, {"start":0, "end":len(text)}),))
+    assert has_new_material(frozen) is bool(text.strip())
+    messages = model_messages(frozen, selected.policy)
+    assert all(part.kind != "image" for part in messages[0].parts)
+    if text:
+        assert json.loads(messages[0].parts[0].text)["materials"][0]["text"] == text
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(("mime", "content", "part_kind", "locator_kind", "missing"), [
+    ("audio/mpeg", "音频标题", "audio", None, "media_without_confirmed_analysis"),
+    ("video/mp4", "视频字幕", "video", None, "media_without_confirmed_analysis"),
+    ("text/plain", "语音字幕", "audio", None, "media_without_confirmed_analysis"),
+    ("text/plain", "文件标题", "file", None, "media_without_confirmed_analysis"),
+    ("application/json", '{"kind":"reply","metadata":{}}', "reply", None,
+        "media_without_confirmed_analysis"),
+    ("application/json", '{"kind":"mention","metadata":{}}', "mention", None,
+        "media_without_confirmed_analysis"),
+    ("application/json", '{"kind":"file","metadata":{"name":"a"}}', "file", None,
+        "media_without_confirmed_analysis"),
+    ("application/json", '{"segments":[{"type":"file"}]}', None, "channel_transport_original",
+        "media_without_confirmed_analysis"),
+    ("application/json", '{"messages":[{"type":"file"}]}', None, "channel_forward",
+        "media_without_confirmed_analysis"),
+    ("application/json", None, None, "captured_result", "media_without_confirmed_analysis"),
+    ("application/octet-stream", None, None, "captured_result", "media_without_confirmed_analysis"),
+    ("image/svg+xml", "<svg/>", "image", None, "image_mime_unsupported"),
+    (None, '{"kind":"image","metadata":{"original_pending":true}}', "image", None,
+        "image_original_unavailable"),
+])
+async def test_other_media_keeps_its_original_missing_reason(mime, content, part_kind, locator_kind, missing):
+    source = original("other_media", text=content, mime=mime, part_kind=part_kind)
+    if locator_kind is not None:
+        source["locator"] = {"kind":locator_kind, "event_id":"fixture"}
+    selected = builder((source,))
+    frozen = await selected.build(CONTEXT, [episode(1, [source])], "batch_other_media")
+    assert missing in frozen["episodes"][0]["missing"]
+    if mime in {"audio/mpeg", "video/mp4"}:
+        assert frozen["materials"]["m1"]["text"] == content
+
+
+@pytest.mark.asyncio
+async def test_decoded_text_media_preserves_page_cursor_and_source_ranges():
+    text = '{"items":"' + "x"*140 + '"}'
+    source = original("paged_json", text=text, mime="application/json")
+    source["locator"] = {"kind":"captured_result", "event_id":"paged"}
+    selected = builder((source,))
+    first = episode(1, [source])
+    head = await selected.build(CONTEXT, [first], "batch_paged_head", text_ceiling=64)
+    head_episode = head["episodes"][0]
+    assert not head_episode["complete"] and not head_episode["missing"]
+    assert head_episode["after"]["source_index"] == 0 and head_episode["after"]["position"] == 64
+    head_material = head["materials"]["m1"]
+    assert head_material["text"] == text[:64]
+    assert head_material["source_refs"][0]["locator"] == {"start":0, "end":64}
+    following = deepcopy(first)
+    following["extraction_cursor"] = deepcopy(head_episode["after"])
+    following["extraction_sources"] = deepcopy(head_episode["source_refs"])
+    tail = await selected.build(CONTEXT, [following], "batch_paged_tail", text_ceiling=512)
+    tail_episode = tail["episodes"][0]
+    assert tail_episode["complete"] and not tail_episode["missing"]
+    assert tail_episode["before"] == head_episode["after"]
+    assert tail_episode["after"]["source_index"] == 1 and tail_episode["after"]["position"] is None
+    assert tail["materials"]["m1"]["text"] == text[64:]
+    assert tail["materials"]["m1"]["source_refs"][0]["locator"] == {"start":64, "end":len(text)}
+    assert selected.sources.calls[1][2]["position"] == 64
+
+
+@pytest.mark.asyncio
+async def test_paged_file_wrapper_keeps_media_missing_on_every_page():
+    wrapper = '{"kind":"file","metadata":{"name":"' + "x"*120 + '"}}'
+    source = original("paged_file_wrapper", text=wrapper, mime="application/json", part_kind="file")
+    selected = builder((source,))
+    first = episode(1, [source])
+    head = await selected.build(CONTEXT, [first], "batch_file_head", text_ceiling=32)
+    assert not head["episodes"][0]["complete"] and head["episodes"][0]["after"]["position"] == 32
+    assert "media_without_confirmed_analysis" in head["episodes"][0]["missing"]
+    following = deepcopy(first)
+    following["extraction_cursor"] = deepcopy(head["episodes"][0]["after"])
+    following["extraction_sources"] = deepcopy(head["episodes"][0]["source_refs"])
+    following["extraction_missing"] = list(head["episodes"][0]["missing"])
+    tail = await selected.build(CONTEXT, [following], "batch_file_tail", text_ceiling=512)
+    assert tail["episodes"][0]["complete"]
+    assert "media_without_confirmed_analysis" in tail["episodes"][0]["missing"]
+    assert selected.sources.calls[1][2]["position"] == 32
+
+
+@pytest.mark.asyncio
+async def test_text_media_keeps_source_missing_coverage_and_original_authority_checks():
+    source = original("text_with_missing", text="可读原文", mime="text/plain")
+    source["locator"] = {"kind":"captured_result", "event_id":"coverage"}
+    selected = builder((source,))
+    read = selected.sources.read
+    async def partial(context, ref, requested):
+        result = await read(context, ref, requested)
+        result["coverage"] = replace(result["coverage"], complete=False, missing=("original_range_withheld",))
+        return result
+    selected.sources.read = partial
+    frozen = await selected.build(CONTEXT, [episode(1, [source])], "batch_source_missing")
+    assert frozen["episodes"][0]["missing"] == ["original_range_withheld"]
+    assert frozen["materials"]["m1"]["coverage_missing"] == ["original_range_withheld"]
+    assert selected.sources.calls[0][0] == CONTEXT and selected.sources.calls[0][1] == source["source_ref"]
+
+    async def forbidden(context, ref, requested):
+        raise AppError("source_unavailable", status=403)
+    selected.sources.read = forbidden
+    with pytest.raises(AppError, match="source_unavailable"):
+        await selected.build(CONTEXT, [episode(1, [source])], "batch_forbidden")

@@ -23,7 +23,7 @@ from .domain_utils import lexical
 from .extraction_contract import SCHEMA_VERSION
 from .evidence import build_evidence_unit
 from .material_media import (
-    evidence_kind, image_aliases, image_key, image_media, material_relations, read_view,
+    evidence_kind, image_aliases, image_key, image_media, material_relations, read_text_media_original, read_view,
     reply_event_ids as _reply_event_ids, source_speaker, visible_media,
 )
 from .preparation import PreparationMetrics, candidate_coverage_view
@@ -613,7 +613,7 @@ class MaterialBuilder:
                             "actual_result": row["actual_result"], "scope_ids": original.get("scope_ids",row["scope_ids"]),
                             "conversation_id": row.get("conversation_id",context.conversation_id)}))
                         used += len(content)
-                if original["media"] and not view["media"]:
+                if original["media"] and not view["media"] and not read_text_media_original(original, view):
                     actual=row["actual_result"] or {}
                     consumption=actual.get("consumption") if isinstance(actual,dict) else None
                     if not consumption or consumption.get("analysis_completed") is not True:

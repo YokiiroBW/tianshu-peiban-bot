@@ -9,6 +9,12 @@ from tianshu.types import MediaRef
 
 IMAGE_MIME_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
 STRUCTURAL_PARTS = frozenset({"reply", "mention", "mention_all", "reference"})
+TRANSPORT_SOURCES = frozenset({"channel_forward", "channel_transport_original"})
+
+
+def _media_mime(media):
+    value = wire(media) if media else {}
+    return (value.get("mime_type") or "").partition(";")[0].strip().lower()
 
 
 def evidence_kind(text, media):
@@ -35,7 +41,7 @@ def read_view(read):
     missing = set(getattr(read.get("coverage"), "missing", ()))
     media = read.get("media")
     media = wire(media) if media else None
-    mime = (media or {}).get("mime_type", "").partition(";")[0].strip().lower()
+    mime = _media_mime(media)
     image = media if mime in IMAGE_MIME_TYPES else None
     if mime.startswith("image/") and mime not in IMAGE_MIME_TYPES:
         missing.add("image_mime_unsupported")
@@ -58,6 +64,31 @@ def read_view(read):
         content = ""
     return {"text": content, "media": image, "evidence_kind": evidence_kind(content,image),
         "coverage_missing": sorted(missing)}
+
+
+def read_text_media_original(read, view):
+    """Recognize a Source's decoded original, not a caption or transport part.
+
+    Sources.capture retains the exact decoded UTF-8 text alongside its media
+    copy. Event parts instead carry independent text and media fields, so their
+    text alone does not establish that the attached file was read.
+    """
+    media = read.get("media")
+    if not media:
+        return False
+    mime = _media_mime(media)
+    if not (mime.startswith("text/") or mime in {"application/json", "application/xml"}
+            or mime.startswith("application/") and mime.endswith(("+json", "+xml"))):
+        return False
+    locator = read.get("locator") or {}
+    event_part = (locator.get("part_kind") is not None
+        or all(name in locator for name in ("producer", "event_id", "part")))
+    if event_part or locator.get("kind") in TRANSPORT_SOURCES:
+        return False
+    coverage = read.get("coverage")
+    content = read.get("content")
+    return (getattr(coverage, "representation", None) == "text" and isinstance(content, str)
+        and view.get("text") == content)
 
 
 def image_media(material):
