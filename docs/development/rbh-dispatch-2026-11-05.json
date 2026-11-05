@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBH-20261105",
-  "state": "verified_pending_release",
+  "state": "verified_deployed_original_batches_recovered",
   "baseline_source": "ab471c58b70eab0a2807b900b2eebda114b53330",
   "production_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
   "parent_thread": "01a1ac04-8013-7620-8d29-a2f2656d850b",
@@ -27,7 +27,7 @@
         "tests/runtime/test_database.py",
         "docs/handoffs/RBH-01.md"
       ],
-      "status": "verified_pending_release",
+      "status": "verified_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -52,7 +52,7 @@
         "tests/models/",
         "docs/handoffs/RBH-02.md"
       ],
-      "status": "verified_pending_release",
+      "status": "verified_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -83,7 +83,7 @@
         "tests/companion/test_rb_growth_async.py",
         "tests/companion/test_*growth*.py"
       ],
-      "status": "verified_pending_release",
+      "status": "verified_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -123,7 +123,7 @@
         "tests/memory/test_operations_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py"
       ],
-      "status": "verified_pending_release",
+      "status": "verified_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -166,7 +166,7 @@
         "tests/life/test_rb_plan_recovery.py",
         "tests/life/test_rbf_planning_recovery.py"
       ],
-      "status": "verified_pending_release",
+      "status": "verified_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -194,7 +194,7 @@
         "tests/core/test_rbh_*.py",
         "docs/handoffs/RBH-06.md"
       ],
-      "status": "verified_pending_release",
+      "status": "verified_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -225,7 +225,7 @@
   "verified_at": "2026-11-05T15:27:33.976371+00:00",
   "validation": {
     "state": "passed_with_existing_failures",
-    "source": "d136d54f9f2100f81d2e5b2aee5a2038f27c8ab0",
+    "source": "aa5662b74e172facf2cda62294adfeb23a15a178",
     "counts": {
       "passed": 487,
       "failed": 38,
@@ -234,5 +234,26 @@
     },
     "total_distinct_cases": 525,
     "existing_failure_count": 38
+  },
+  "completed_at": "2026-11-05T15:43:16.381643+00:00",
+  "deployed_source": "aa5662b74e172facf2cda62294adfeb23a15a178",
+  "image": "sha256:c10784a4919ebaefce6460396e1b94813ab80f0140c1ab36af15eeef43cee303",
+  "container_id": "b93e66ec137c9743eacbe361b66eb5e08f345d84384cb9e4ccb0c1e430c1c34b",
+  "business": {
+    "observed_at": "2026-11-05T15:36:09.880764+00:00",
+    "source": "aa5662b74e172facf2cda62294adfeb23a15a178",
+    "original_batches_completed": 15,
+    "original_input_versions_reviewed": 71,
+    "original_attempts_preserved": 60,
+    "classification_count": 60,
+    "original_ids_request_digests_failure_receipts_unchanged": true,
+    "generation": "0833be12-8fba-4db7-9e22-2120e8ea13ea",
+    "other_blocked": [
+      {
+        "last_error": "invalid_upstream_response",
+        "batches": 1
+      }
+    ],
+    "recovery": "automatic existing Operations scan and original domain queues; no manual model probes or direct business-row updates"
   }
 }
