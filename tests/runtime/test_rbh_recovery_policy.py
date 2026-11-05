@@ -323,3 +323,64 @@ async def test_generation_and_attempt_version_are_independent_fences(database, r
         with pytest.raises(AppError, match="job_generation_expired"):
             await rbh_policy.note_not_sent_on(conn, "generation-1", owner="memory", expected_version="v2", model_receipt=original)
         assert await rbh_policy.claim_due_on(conn, owner="memory") == ()
+
+
+async def test_repeated_latest_receipt_wakes_after_older_out_of_order_credits(database, rbh_policy):
+    async with database.transaction() as conn:
+        row = await register(rbh_policy, conn, "reordered", max_attempts=4)
+        identity = row["lineage_id"]
+        receipts = []
+        # Synthetic legacy state: six physical attempts were already archived
+        # before their individual connection failures could be classified.
+        for number in range(1, 7):
+            attempt_id = f"reordered-{number}"
+            await conn.execute(
+                "INSERT INTO runtime.recovery_attempts(attempt_id,lineage_id,request_digest,route,dependency,"
+                "version,attempt_number,status,error_code,finished_at) "
+                "VALUES(%s,%s,%s,'route','shared-provider','v1',%s,'failed','transport_not_sent',now())",
+                (attempt_id, identity, attempt_id, number))
+            receipts.append(receipt(attempt_id, row["data_generation"]))
+        await conn.execute("UPDATE runtime.recovery_lineages SET attempts=6,failure_category='transport',due_at=NULL "
+                           "WHERE lineage_id=%s", (identity,))
+        await conn.execute("INSERT INTO runtime.recovery_dependencies "
+                           "(data_generation,dependency,cooldown_until,probe_token,probe_expires_at) "
+                           "VALUES(%s,'shared-provider',now()+interval '5 minutes','other-probe',"
+                           "now()+interval '10 minutes')", (row["data_generation"],))
+        before_probe = await (await conn.execute(
+            "SELECT cooldown_until,probe_token,probe_expires_at FROM runtime.recovery_dependencies "
+            "WHERE data_generation=%s AND dependency='shared-provider'", (row["data_generation"],))).fetchone()
+
+        latest = receipts[-1]
+        first = await rbh_policy.note_not_sent_on(conn, latest.attempt_id, owner="memory", expected_version="v1",
+                                                 model_receipt=latest)
+        assert (first["total_attempts"], first["computation_attempts"], first["connection_attempts"]) == (6, 5, 1)
+        assert not first["can_retry"] and first["retry_at"] is None
+        for index, older in enumerate(receipts[:2]):
+            credited = await rbh_policy.note_not_sent_on(conn, older.attempt_id, owner="memory", expected_version="v1",
+                                                        model_receipt=older)
+            assert credited["retry_at"] is None
+            assert credited["can_retry"] == (index == 1)
+            state = await (await conn.execute(
+                "SELECT due_at,claim_token FROM runtime.recovery_lineages WHERE lineage_id=%s", (identity,))).fetchone()
+            assert state == {"due_at": None, "claim_token": None}
+
+        recovered = await rbh_policy.note_not_sent_on(conn, latest.attempt_id, owner="memory", expected_version="v1",
+                                                     model_receipt=latest)
+        assert (recovered["total_attempts"], recovered["computation_attempts"], recovered["connection_attempts"]) == (6, 3, 3)
+        assert recovered["can_retry"] and recovered["retry_at"] >= before_probe["probe_expires_at"]
+        state = await (await conn.execute(
+            "SELECT due_at,claim_token FROM runtime.recovery_lineages WHERE lineage_id=%s", (identity,))).fetchone()
+        assert state["due_at"] == recovered["retry_at"] and state["claim_token"] is None
+        repeated = await rbh_policy.note_not_sent_on(conn, latest.attempt_id, owner="memory", expected_version="v1",
+                                                     model_receipt=latest)
+        assert repeated == recovered
+        assert await (await conn.execute(
+            "SELECT due_at,claim_token FROM runtime.recovery_lineages WHERE lineage_id=%s", (identity,))).fetchone() == state
+        assert await (await conn.execute(
+            "SELECT cooldown_until,probe_token,probe_expires_at FROM runtime.recovery_dependencies "
+            "WHERE data_generation=%s AND dependency='shared-provider'", (row["data_generation"],))).fetchone() == before_probe
+        attempts = await (await conn.execute(
+            "SELECT attempt_number,status FROM runtime.recovery_attempts WHERE lineage_id=%s ORDER BY attempt_number",
+            (identity,))).fetchall()
+        assert [(attempt["attempt_number"], attempt["status"]) for attempt in attempts] == [
+            (number, "failed") for number in range(1, 7)]

@@ -389,8 +389,10 @@ class RecoveryPolicy:
             if saved["evidence_kind"] != evidence or saved["models_finished_at"] != model_receipt.finished_at:
                 raise AppError("recovery_model_receipt_mismatch", status=409)
         result = await _budget_mapping_on(connection, row)
-        if inserted:
-            row, result = await _restore_failed_due_on(connection, row, attempt, result)
+        # An earlier observation may have been budget-exhausted until older
+        # evidence arrived. Rechecking the latest receipt must then restore
+        # its due, without moving an existing due or a successor's schedule.
+        row, result = await _restore_failed_due_on(connection, row, attempt, result)
         if result["can_retry"]:
             result["reason"] = "confirmed_not_sent"
         return result
