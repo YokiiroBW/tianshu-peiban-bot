@@ -487,7 +487,7 @@ class GrowthService:
                     "reflection_generation_" + status)) if result else (
                     details.get("result_read_error") or details.get("rpc_error") or "reflection_outcome_unknown")
             if status not in {"queued", "running"} or batch.get('control_observation'):
-                return await self.retries.defer(state, batch, code, result)
+                return await self.retries.defer(state, batch, code, result, frozen_request=request)
             async with self.companion.database.transaction() as connection:
                 await self.jobs.assert_generation_on(connection, generation)
                 await connection.execute(

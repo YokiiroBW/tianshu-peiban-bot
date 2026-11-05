@@ -1,6 +1,8 @@
 """Use the shared recovery lineage for actual Growth model attempts."""
 
 from tianshu.conversation.codec import signature
+from tianshu.models.ledger import submission_digest
+from tianshu.models.types import ModelReceipt
 from tianshu.runtime.errors import AppError
 
 
@@ -39,6 +41,32 @@ async def fail(policy, connection, batch, attempt_id, code, *, unknown=False):
     category = classify_failure(code, external_outcome_unknown=unknown)
     return await policy.fail_attempt_on(connection, attempt_id, code=code, category=category,
                                         probe_token=batch.get('probe_token'))
+
+
+def bind_receipt(request, receipt):
+    """Bind a Models receipt to the frozen domain request, not a local budget guess."""
+    if (request is None or not isinstance(receipt, ModelReceipt)
+            or receipt.attempt_id != request.attempt_id or receipt.intent_id != request.intent_id
+            or receipt.data_generation != request.data_generation):
+        raise AppError('growth_recovery_receipt_mismatch', status=409)
+    if receipt.request_digest is not None and (
+            not isinstance(receipt.request_digest, str) or not receipt.request_digest
+            or receipt.request_digest != submission_digest(request)):
+        raise AppError('growth_recovery_receipt_mismatch', status=409)
+
+
+async def budget_on(policy, connection, batch):
+    if policy is None or not batch.get('lineage_id'):
+        raise AppError('growth_recovery_lineage_missing', status=503)
+    return await policy.computation_budget_on(connection, batch['lineage_id'], owner=OWNER,
+                                              expected_version=batch['recovery_version'])
+
+
+async def note_receipt_on(policy, connection, batch, attempt_id, receipt):
+    if policy is None or not batch.get('lineage_id'):
+        raise AppError('growth_recovery_lineage_missing', status=503)
+    return await policy.note_not_sent_on(connection, attempt_id, owner=OWNER,
+                                        expected_version=batch['recovery_version'], model_receipt=receipt)
 
 
 async def succeed(policy, connection, batch, attempt_id):

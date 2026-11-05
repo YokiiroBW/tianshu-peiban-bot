@@ -109,6 +109,16 @@ class RecoveryPolicy:
         return SimpleNamespace(lineage_id=lineage_id, attempt_id=kwargs['attempt_id'],
                                number=1, status='reserved', probe_token=None)
 
+    async def computation_budget_on(self, _connection, _lineage_id, **_kwargs):
+        count = len(self.reservations)
+        return {'total_attempts': count, 'computation_attempts': count, 'connection_attempts': 0,
+                'max_computation_attempts': 4, 'max_connection_attempts': 16,
+                'can_retry': count < 4, 'retry_at': None, 'dependency': 'models:quota:quota',
+                'reason': 'not_confirmed_not_sent' if count < 4 else 'recovery_budget_exhausted'}
+
+    async def note_not_sent_on(self, connection, _attempt_id, **_kwargs):
+        return await self.computation_budget_on(connection, 'lineage')
+
     async def succeed_attempt_on(self, _connection, _attempt_id, **_kwargs):
         self.successes.append(_attempt_id)
 

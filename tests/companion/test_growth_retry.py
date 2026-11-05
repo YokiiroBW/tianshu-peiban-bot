@@ -37,7 +37,7 @@ class ScriptedModels:
         result = ModelResult((ModelPart("text", text=json.dumps({"notes": notes})),) if status == "succeeded" else (),
             ModelReceipt(request.attempt_id, request.intent_id, status,
                 "unknown" if status == "unknown" else "submitted", "route", 1, "provider", "model", "openai.chat", "quota",
-                error_code=spec.get("error_code")),
+                error_code=spec.get("error_code"), data_generation=request.data_generation),
             completion=ModelCompletion("complete", ("stop",)) if status == "succeeded" else ModelCompletion())
         self.results[request.attempt_id] = result
         if spec.get("rpc_error"):
@@ -91,7 +91,7 @@ def observed_result(request, status, *, error_code=None, notes=()):
     parts = (ModelPart('text', text=json.dumps(payload, ensure_ascii=False)),) if status == 'succeeded' else ()
     receipt = ModelReceipt(request.attempt_id, request.intent_id, status,
         'unknown' if status == 'unknown' else 'submitted', 'route', 1, 'provider', 'model', 'openai.chat', 'quota',
-        error_code=error_code)
+        error_code=error_code, data_generation=request.data_generation)
     return ModelResult(parts, receipt, completion=ModelCompletion('complete', ('stop',)) if parts else ModelCompletion())
 
 
@@ -406,7 +406,7 @@ async def test_existing_active_unknown_is_adopted_by_normal_recover_then_release
     growth, memory, jobs, context, _ = await prepare(database, models)
     scope = signature(sorted(context.scope_ids))
 
-    async def old_unknown(state_value, batch, code, result=None):
+    async def old_unknown(state_value, batch, code, result=None, *, frozen_request=None):
         async with database.transaction() as connection:
             await connection.execute("UPDATE companion.organize_state SET last_error=%s", (code,))
         return {"state": "waiting"}

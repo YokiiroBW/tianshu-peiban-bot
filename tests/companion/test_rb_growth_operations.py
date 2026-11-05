@@ -23,6 +23,7 @@ def waiting(**changes):
         'expected_version': 'source-version', 'rejected_material_key': None,
         'executing': False, 'lineage_id': 'lineage', 'dependency': 'models:quota:main',
         'current_version': 'source-version', 'attempts': 1, 'max_attempts': 4,
+        'budget': {'can_retry': True, 'retry_at': None},
         'lineage_due_at': NOW - timedelta(minutes=3), 'paused': False,
         'cancelled': False, 'claimed': False, 'cooldown_until': None,
         'probe_token': None, 'probe_status': None,
@@ -39,12 +40,15 @@ def waiting(**changes):
     {'cancelled': True},
     {'claimed': True},
     {'current_version': 'changed'},
-    {'attempts': 4},
+    {'budget': {'can_retry': False, 'retry_at': None}},
+    {'budget': {'can_retry': True, 'retry_at': NOW + timedelta(minutes=1)}},
     {'attempt_status': 'unknown'},
     {'attempt_id': 'different-original'},
     {'lineage_due_at': NOW + timedelta(minutes=1)},
-    {'cooldown_until': NOW + timedelta(minutes=1)},
-    {'cooldown_until': NOW - timedelta(minutes=1), 'probe_token': 'probe', 'probe_status': 'unknown'},
+    {'cooldown_until': NOW + timedelta(minutes=1),
+     'budget': {'can_retry': True, 'retry_at': NOW + timedelta(minutes=1)}},
+    {'cooldown_until': NOW - timedelta(minutes=1), 'probe_token': 'probe', 'probe_status': 'unknown',
+     'budget': {'can_retry': True, 'retry_at': NOW + timedelta(seconds=30)}},
 ])
 def test_waiting_retry_not_eligible_when_original_or_policy_preconditions_fail(changes):
     assert not GrowthOperations._waiting_ready(waiting(**changes), NOW)[0]
@@ -52,6 +56,11 @@ def test_waiting_retry_not_eligible_when_original_or_policy_preconditions_fail(c
 
 def test_failed_retry_and_schema_continuation_are_distinct_due_cases():
     assert GrowthOperations._waiting_ready(waiting(), NOW)[0]
+    # Total sequence may exceed four while Runtime's effective budget allows it.
+    assert GrowthOperations._waiting_ready(waiting(attempts=5), NOW)[0]
+    expired_probe = waiting(cooldown_until=NOW-timedelta(minutes=1), probe_token='old-probe',
+        probe_status='unknown', budget={'can_retry': True, 'retry_at': NOW-timedelta(seconds=1)})
+    assert GrowthOperations._waiting_ready(expired_probe, NOW)[0]
     corrected = waiting(attempt_status='succeeded', lineage_due_at=None,
                         rejected_material_key='material')
     assert GrowthOperations._waiting_ready(corrected, NOW)[0]

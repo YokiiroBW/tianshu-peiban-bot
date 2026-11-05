@@ -8,6 +8,7 @@ from tianshu.conversation.codec import context_from_record, signature
 from tianshu.conversation.generation import attempt_for
 from tianshu.runtime.errors import AppError
 from .growth_output_repair import review_available
+from .growth_policy import bind_receipt, budget_on as recovery_budget_on
 from .growth_retry import manual_retry_allowed
 from .reflection_output import frozen_episodes
 
@@ -21,7 +22,7 @@ class GrowthOperations:
         """Read only mechanical recovery state, never return stored batch text."""
         generation = await self.growth.jobs.current_generation_on(connection)
         target = target or {}
-        return await (await connection.execute(
+        rows = await (await connection.execute(
             "SELECT r.actor_id,r.scope_key,r.retry_key,r.current_material_key,r.revision,r.due_at,"
             "r.waiting_on_original,r.batch->>'recovery_version' AS expected_version,"
             "r.batch->'output_repair'->>'rejected_material_key' AS rejected_material_key,"
@@ -40,10 +41,9 @@ class GrowthOperations:
             "WHERE r.state='waiting' AND r.last_error IS NOT NULL AND r.batch->>'runtime_generation'=%s "
             "AND s.runtime_generation=%s AND r.due_at<=now() AND NOT r.waiting_on_original "
             "AND s.active_batch IS NULL AND l.lineage_id IS NOT NULL AND NOT l.paused AND NOT l.cancelled "
-            "AND l.current_version=r.batch->>'recovery_version' AND l.attempts<l.max_attempts "
+            "AND NOT l.source_withdrawn "
+            "AND l.current_version=r.batch->>'recovery_version' "
             "AND (l.claim_token IS NULL OR l.claim_expires_at<=now()) "
-            "AND (d.cooldown_until IS NULL OR (d.cooldown_until<=now() AND "
-            "(d.probe_token IS NULL OR p.status IS NULL OR p.status NOT IN ('reserved','unknown')))) "
             "AND ((a.status='failed' AND l.due_at<=now()) OR "
             "(a.status='succeeded' AND r.batch->'output_repair'->>'rejected_material_key'=r.current_material_key)) "
             "AND (%s::text IS NULL OR r.actor_id=%s) "
@@ -51,18 +51,27 @@ class GrowthOperations:
             "ORDER BY r.due_at NULLS LAST,r.actor_id,r.scope_key,r.retry_key LIMIT %s",
             (generation, generation, generation, target.get('actor_id'), target.get('actor_id'),
              target.get('scope_key'), target.get('scope_key'), target.get('retry_key'), target.get('retry_key'), limit))).fetchall()
+        for row in rows:
+            try:
+                row['budget'] = await recovery_budget_on(self.growth.recovery_policy, connection, {
+                    'lineage_id': row['lineage_id'], 'recovery_version': row['expected_version']})
+            except AppError as error:
+                # A racing revoke/version change makes this row ineligible and
+                # remains visible to Operations; it must not hide other rows.
+                row['budget'] = {'can_retry': False, 'retry_at': None, 'reason': error.code}
+        return rows
 
     @staticmethod
     def _waiting_ready(row, now):
-        waiting_dependency = bool(row['cooldown_until'] and (
-            row['cooldown_until'] > now or row['probe_token'] and row['probe_status'] in {'reserved', 'unknown'}))
+        budget = row['budget']
+        waiting_dependency = bool(budget.get('retry_at') and budget['retry_at'] > now)
         previous_ready = (row['attempt_status'] == 'failed' and row['lineage_due_at'] is not None
                           and row['lineage_due_at'] <= now) or (
             row['attempt_status'] == 'succeeded' and row['rejected_material_key'] == row['current_material_key'])
         eligible = bool(row['lineage_id'] and row['due_at'] and row['due_at'] <= now
             and not row['waiting_on_original'] and not row['executing'] and not waiting_dependency
             and not row['paused'] and not row['cancelled'] and not row['claimed']
-            and row['current_version'] == row['expected_version'] and row['attempts'] < row['max_attempts']
+            and row['current_version'] == row['expected_version'] and budget['can_retry']
             and row['attempt_id'] == attempt_for(row['current_material_key']) and previous_ready)
         return eligible, waiting_dependency
 
@@ -87,7 +96,8 @@ class GrowthOperations:
                 'target': target, 'dependency': row['dependency'], 'due_at': row['due_at'],
                 'eligible': eligible, 'version': str(row['revision']), 'error_family': 'growth_retry_stalled',
                 'paused': bool(row['paused']), 'cancelled': bool(row['cancelled']),
-                'executing': bool(row['executing'] or row['claimed']), 'waiting_dependency': waiting_dependency})
+                'executing': bool(row['executing'] or row['claimed']), 'waiting_dependency': waiting_dependency,
+                'budget_reason': row['budget'].get('reason')})
         return tuple(facts)
 
     async def _row(self, target):
@@ -108,10 +118,19 @@ class GrowthOperations:
                 candidates = await self._waiting_rows_on(connection, limit=1, target=target)
             if (not candidates or candidates[0]['revision'] != row['revision']
                     or not self._waiting_ready(candidates[0], datetime.now(UTC))[0]):
-                return {'eligible': False, 'reason': 'growth_retry_not_due'}
+                budget = candidates[0]['budget'] if candidates else None
+                reason = budget.get('reason') if budget and not budget['can_retry'] else None
+                return {'eligible': False, 'reason': reason or 'growth_retry_not_due'}
         elif (row['state'] != 'blocked' or not manual_retry_allowed(row['last_error'])
               or not review_available(row['batch'], row['last_error'])):
             return {'eligible': False, 'reason': 'growth_retry_not_available'}
+        if row['state'] == 'blocked':
+            async with self.growth.companion.database.transaction(read_only=True) as connection:
+                budget = await recovery_budget_on(self.growth.recovery_policy, connection, row['batch'])
+            if not budget['can_retry']:
+                return {'eligible': False, 'reason': budget.get('reason') or 'growth_retry_not_available'}
+            if budget.get('retry_at') and budget['retry_at'] > datetime.now(UTC):
+                return {'eligible': False, 'reason': 'growth_retry_not_due'}
         original = context_from_record(row['batch']['context'])
         current = await self.growth.recovery.reader(original)
         request = await self.growth.generations.observe_request(attempt_for(row['current_material_key']), observer=current)
@@ -122,6 +141,7 @@ class GrowthOperations:
             return {'eligible': False, 'reason': 'original_attempt_unresolved', 'original_state': 'unknown'}
         if getattr(result.receipt, 'cancellation_reason', None) == 'explicit_cancel':
             return {'eligible': False, 'reason': 'explicit_cancel', 'cancelled': True}
+        bind_receipt(request, result.receipt)
         versions = frozen_episodes(request)
         async with self.growth.companion.database.transaction() as connection:
             await self.growth._validate_material(connection, current, versions, request.source_refs,
