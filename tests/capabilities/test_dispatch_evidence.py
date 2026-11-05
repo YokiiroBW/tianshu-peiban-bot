@@ -62,10 +62,15 @@ class DispatchEvidence(unittest.IsolatedAsyncioTestCase):
             submitted=AsyncMock(), owners=SimpleNamespace(check_attempt=AsyncMock())
         )
         receipt = SimpleNamespace(dispatch="submitted", provider_handle="native-handle")
+
+        async def status(attempt_id, *, phase="observe"):
+            self.assertEqual((attempt_id, phase), ("model-attempt", "observe"))
+            return receipt
+
         broker = TrackedBroker(
             SimpleNamespace(
                 generate=AsyncMock(side_effect=asyncio.CancelledError()),
-                status=AsyncMock(return_value=receipt),
+                status=AsyncMock(side_effect=status),
             )
         )
         attempt = object()
@@ -77,4 +82,5 @@ class DispatchEvidence(unittest.IsolatedAsyncioTestCase):
         finally:
             CURRENT_EXECUTION.reset(token)
         owner.submitted.assert_awaited_once_with(attempt, "native-handle", "submitted")
+        broker.broker.status.assert_awaited_once_with("model-attempt", phase="observe")
         self.assertTrue(state["submitted"])
