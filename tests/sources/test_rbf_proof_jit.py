@@ -46,10 +46,14 @@ async def test_proof_jit_is_function_local_and_preserves_authority(core, ordinar
 
     async with core.database.transaction() as conn:
         await conn.execute("SET LOCAL jit = on")
+        # Domain fixtures apply current migrations; reconstruct the deployed
+        # pre-migration function setting to exercise the actual upgrade.
+        await conn.execute("ALTER FUNCTION sources.check_groups(jsonb, text[]) RESET jit")
         before = await (await conn.execute(
-            "SELECT oid,prosrc,proowner,proacl,prosecdef,provolatile,proparallel,proisstrict "
+            "SELECT oid,prosrc,proowner,proacl,prosecdef,provolatile,proparallel,proisstrict,proconfig "
             "FROM pg_proc WHERE oid='sources.check_groups(jsonb,text[])'::regprocedure"
         )).fetchone()
+        assert not any(value.startswith("jit=") for value in (before["proconfig"] or ()))
         assert await core.sources.check_many_on(conn, alice, groups) == expected
         assert await core.sources.check_many_on(conn, bob, ((safe,),)) == (False,)
 
@@ -58,8 +62,10 @@ async def test_proof_jit_is_function_local_and_preserves_authority(core, ordinar
             "SELECT oid,prosrc,proowner,proacl,prosecdef,provolatile,proparallel,proisstrict,proconfig "
             "FROM pg_proc WHERE oid='sources.check_groups(jsonb,text[])'::regprocedure"
         )).fetchone()
-        assert {key: after[key] for key in before} == before
-        assert "jit=off" in after["proconfig"]
+        assert {key: after[key] for key in before if key != "proconfig"} == {
+            key: value for key, value in before.items() if key != "proconfig"
+        }
+        assert set(after["proconfig"]) == set(before["proconfig"] or ()) | {"jit=off"}
         assert await core.sources.check_many_on(conn, alice, groups) == expected
         assert await core.sources.check_many_on(conn, bob, ((safe,),)) == (False,)
         assert (await (await conn.execute("SHOW jit")).fetchone())["jit"] == "on"
