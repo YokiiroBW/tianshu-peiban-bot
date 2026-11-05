@@ -13,7 +13,7 @@ from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.jobs import JobSpec
-from tianshu.runtime.recovery_policy import RecoveryWait
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, RequestBudget, ServiceClass
 from tianshu.conversation.codec import context_from_record, document, signature, source_refs
@@ -156,6 +156,10 @@ class GrowthService:
         owner = {}
         try:
             return await self._organize(actor_id, scope_key, expected_revision, owner, generation)
+        except RecoveryWait as wait:
+            if not recovery_wait_retryable(wait) and owner.get('material_key'):
+                await self.retries.propagate_unconfirmed_wait(wait, attempt_for(owner['material_key']))
+            raise
         except Exception as error:
             failure = classify_database_failure(error)
             if failure is not None:
@@ -163,6 +167,9 @@ class GrowthService:
                     try:
                         reconciled = await self.recovery.reconcile_commit(
                             actor_id, scope_key, owner.get('material_key'), owner.get('inputs', ()), generation)
+                    except RecoveryWait:
+                        # Keep the remote rollback evidence from the original-ID read.
+                        raise
                     except Exception:
                         raise error
                     if reconciled is not None:
@@ -303,6 +310,8 @@ class GrowthService:
                 episodes, pack, end_cursor, has_more = await select_batch(
                     self.assembler, context, page, persona.prompt_text if persona else "", budget, expected_revision,
                     rules=rules, examples=examples)
+            except RecoveryWait:
+                raise
             except AppError as error:
                 if error.code not in {"reflection_material_budget_exceeded", "reflection_material_source_required"}:
                     raise
@@ -328,6 +337,10 @@ class GrowthService:
                 profile = await self.models.generation_profile(request)
                 if not profile.get('quota_group') or not profile.get('route_id') or not profile.get('route_revision'):
                     raise AppError('growth_model_quota_unavailable', status=503)
+            except RecoveryWait as wait:
+                if wait.reason == 'recovery_claim_lost' or not recovery_wait_retryable(wait):
+                    raise
+                return await self.recovery.wait_dependency(state, batch, wait)
             except (AppError, TimeoutError, aiohttp.ClientError) as error:
                 if classify_database_failure(error) is not None:
                     raise
@@ -393,7 +406,10 @@ class GrowthService:
                     else:
                         result = await self.generations.read(request.attempt_id, context)
         except RecoveryWait as wait:
-            if wait.reason == 'recovery_claim_lost':
+            if (wait.reason == 'recovery_claim_lost' or not recovery_wait_retryable(wait)
+                    or batch.get('lineage_id')):
+                # A frozen batch is resumed by the original Runtime job. It is
+                # no longer eligible for the pre-admission domain wait path.
                 raise
             return await self.recovery.wait_dependency(state, batch, wait)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
@@ -420,6 +436,8 @@ class GrowthService:
             if not observe_only:
                 try:
                     result = await self.generations.read(request.attempt_id, context)
+                except RecoveryWait:
+                    raise
                 except (AppError, TimeoutError, aiohttp.ClientError) as failure:
                     if classify_database_failure(failure) is not None:
                         raise
@@ -561,6 +579,8 @@ class GrowthService:
                 await self._finish(connection, current, batch, changed)
                 if changed:
                     await self.on_projection_changed(context, f"growth:{scope_key}:{batch['end_cursor']}", connection=connection)
+        except RecoveryWait:
+            raise
         except AppError as error:
             if error.code == "generation_no_longer_current":
                 await self.retries.settle_superseded(state, batch, request.attempt_id, generation)

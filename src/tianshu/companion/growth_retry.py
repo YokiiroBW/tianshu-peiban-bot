@@ -12,7 +12,7 @@ from tianshu.models.types import ModelReceipt
 from tianshu.runtime.database import classify_database_failure
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
-from tianshu.runtime.recovery_policy import RecoveryWait
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from .growth_recovery import authorization_error, sequence
@@ -75,9 +75,28 @@ class GrowthRetries:
         # to repeat an attempt. Do not make this HTTP read in a transaction.
         try:
             receipt = await self.growth.models.status(attempt_id)
+        except RecoveryWait:
+            raise
         except Exception:
             return None
         return receipt if isinstance(receipt, ModelReceipt) and receipt.attempt_id == attempt_id else None
+
+    async def propagate_unconfirmed_wait(self, wait, attempt_id):
+        # Status is a read of the original ID, never a fresh submission. Even a
+        # receipt cannot establish that the RPC transaction rolled back.
+        try:
+            await self.current_status(attempt_id)
+        except Exception:
+            pass
+        raise wait
+
+    async def wait_dependency(self, row, wait):
+        if not recovery_wait_retryable(wait):
+            await self.propagate_unconfirmed_wait(wait, attempt_for(row['current_material_key']))
+        if wait.reason == 'recovery_claim_lost':
+            raise wait
+        return await self.postpone(row, code=wait.reason, waiting_on_original=row['waiting_on_original'],
+                                   retry_at=wait.retry_at)
 
     async def settle_superseded(self, state, batch, attempt_id, generation):
         """A late original receipt can settle its attempt, never its successor."""
@@ -106,6 +125,8 @@ class GrowthRetries:
                     observation_ref='models:'+attempt_id, state=observed_state,
                     code=None if observed_state == 'succeeded' else code,
                     category=None if observed_state == 'succeeded' else classify_failure(code))
+        except RecoveryWait:
+            raise
         except AppError as error:
             # Another observer may already have settled this exact attempt.
             if error.code != 'recovery_attempt_not_unknown':
@@ -292,6 +313,7 @@ class GrowthRetries:
             return
         original = context_from_record(row["batch"]["context"])
         dependency_wait = None
+        activated = None
         try:
             try:
                 await self.growth.companion.identity.check(original)
@@ -389,6 +411,8 @@ class GrowthRetries:
             if manual_output and result and result.receipt.status == "succeeded":
                 try:
                     prepare_reflections(result, context, episodes, request.source_refs, request=request)
+                except RecoveryWait:
+                    raise
                 except AppError as error:
                     output_error = error
                 else:
@@ -448,7 +472,6 @@ class GrowthRetries:
                 if not finished_unknown(status, request.attempt_id, generation):
                     return await self.postpone(row)
                 unknown_receipt = status
-            activated = None
             async def claim(connection):
                 nonlocal activated, dependency_wait
                 current = await (await connection.execute(
@@ -516,24 +539,21 @@ class GrowthRetries:
                     await claim(connection)
             if activated is None:
                 if dependency_wait is not None:
-                    return await self.postpone(row, code=dependency_wait.reason,
-                        waiting_on_original=row['waiting_on_original'], retry_at=dependency_wait.retry_at)
+                    raise dependency_wait
                 return await self.postpone(row, waiting_on_original=row['waiting_on_original'])
             return await self.growth.organize(actor_id, scope_key, activated["revision"], generation)
         except RecoveryWait as wait:
-            if wait.reason == 'recovery_claim_lost':
-                # The old claim is not a domain write permit. Runtime retries
-                # the original wake; the next handler must claim and CAS again.
+            if activated is not None:
+                # Activation already committed; retry the original Runtime job
+                # rather than applying a stale waiting-row CAS.
                 raise
-            return await self.postpone(row, code=wait.reason, waiting_on_original=row['waiting_on_original'],
-                                       retry_at=wait.retry_at)
+            return await self.wait_dependency(row, wait)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             if classify_database_failure(error) is not None:
                 raise
             if isinstance(error, AppError) and error.code == "generation_no_longer_current":
                 if dependency_wait is not None:
-                    return await self.postpone(row, code=dependency_wait.reason,
-                        waiting_on_original=row['waiting_on_original'], retry_at=dependency_wait.retry_at)
+                    return await self.wait_dependency(row, dependency_wait)
                 return await self.postpone(row, waiting_on_original=row['waiting_on_original'])
             code = error_code(error)
             return await self.postpone(row, code=code, blocked=not transient_model_failure(code))

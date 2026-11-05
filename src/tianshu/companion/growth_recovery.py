@@ -6,6 +6,7 @@ from tianshu.conversation.codec import context_from_record, document
 from tianshu.conversation.generation import attempt_for
 from tianshu.models.types import ModelResult
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 
 
 AUTHORIZATION_BLOCKED = "reflection_recovery_authorization_required"
@@ -13,9 +14,10 @@ IDENTITY_BLOCKED = "reflection_identity_conflict"
 
 
 def authorization_error(error):
-    return isinstance(error, AppError) and (error.status in {401, 403} or error.code in {
-        "access_changed", "delivery_access_changed", "actor_disabled", "source_unavailable",
-    })
+    return (isinstance(error, AppError) and not isinstance(error, RecoveryWait)
+            and (error.status in {401, 403} or error.code in {
+                "access_changed", "delivery_access_changed", "actor_disabled", "source_unavailable",
+            }))
 
 
 def recovery_permission(context):
@@ -80,6 +82,8 @@ class GrowthRecovery:
 
     async def wait_dependency(self, state, batch, wait):
         """Persist a pre-admission dependency wait and its wake atomically."""
+        if not recovery_wait_retryable(wait) or wait.reason == 'recovery_claim_lost':
+            raise wait
         async with self.companion.database.transaction() as connection:
             await self.growth.jobs.assert_generation_on(connection, state['runtime_generation'])
             current = await (await connection.execute(
@@ -132,6 +136,12 @@ class GrowthRecovery:
         try:
             result = await self.growth.models.reusable_result(
                 attempt_id, context=original, expected_data_generation=generation)
+        except RecoveryWait as wait:
+            if not recovery_wait_retryable(wait):
+                raise
+            # An unrelated local commit is still uncertain; a safe RPC wait is
+            # not evidence that this original result was committed or reusable.
+            return None
         except (AppError, TimeoutError, aiohttp.ClientError):
             return None
         if (not isinstance(result, ModelResult) or result.receipt.attempt_id != attempt_id
