@@ -7,7 +7,7 @@ import json
 
 import pytest
 
-from tianshu.models.types import ModelPart, ModelReceipt
+from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.models.codec import request_from_wire
 from tianshu.runtime.database import DatabaseFailure
 from tianshu.runtime.errors import AppError
@@ -167,6 +167,93 @@ async def test_resume_historical_failed_wait_checks_original_ledger_and_episode(
                                           (lineage,))).fetchall()
     assert batch["step_ids"] == [step] and len(ledger) == 1 and len(model.submissions) == 1
     assert batch["status"] == ("failed" if stale_episode else "applied")
+
+
+async def test_resume_historical_wait_reconciles_queued_domain_attempt_with_failed_original_receipt(core, ordinary_users):
+    class NotSentTwice(Model):
+        async def submit(self,request,*,completion):
+            if len(self.submissions) < 2:
+                self.submissions.append((request,completion))
+                receipt = ModelReceipt(request.attempt_id,request.intent_id,"failed","not_started","fixture",1,
+                    "fixture","fixture","openai.chat","fixture",error_code="transport_not_sent",
+                    finished_at=datetime.now(UTC),data_generation=request.data_generation)
+                self.results[request.attempt_id] = ModelResult((),receipt)
+                return receipt
+            return await super().submit(request,completion=completion)
+
+    async def mature_retry(batch):
+        lineage = batch["manifest"]["recovery"]["lineage_id"]
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=now()-interval '1 second' "
+                "WHERE batch_id=%s",(batch["batch_id"],))
+            await conn.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' "
+                "WHERE lineage_id=%s",(lineage,))
+            await conn.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=now()-interval '1 second',"
+                "probe_token=NULL,probe_expires_at=NULL WHERE (data_generation,dependency) IN "
+                "(SELECT data_generation,dependency FROM runtime.recovery_lineages WHERE lineage_id=%s)",(lineage,))
+
+    alice, _ = ordinary_users
+    model, policy = NotSentTwice(), RecoveryPolicy()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=policy)
+    first = await examples.episode(core,alice,"rbf-original-two-failures-a")
+    second = await examples.episode(core,alice,"rbf-original-two-failures-b")
+    partition, _ = await batch_for_episode(core,first.episode_id)
+    await core.workers.consolidate(partition)
+    _, held = await batch_for_episode(core,first.episode_id)
+    await mature_retry(held)
+    await core.workers.consolidate(partition)
+    _, held = await batch_for_episode(core,first.episode_id)
+    assert held["status"] == "quarantined" and len(held["step_ids"]) == 2 and len(model.submissions) == 2
+    assert {item["episode_id"] for item in held["manifest"]["episodes"]} == {first.episode_id,second.episode_id}
+    lineage = held["manifest"]["recovery"]["lineage_id"]
+    async with core.database.transaction() as conn:
+        original_steps = await (await conn.execute("SELECT step_id,request FROM memory.model_steps "
+            "WHERE step_id=ANY(%s::text[]) ORDER BY step_id",(held["step_ids"],))).fetchall()
+        original_ledger = await (await conn.execute("SELECT attempt_id,status FROM runtime.recovery_attempts "
+            "WHERE lineage_id=%s ORDER BY attempt_number",(lineage,))).fetchall()
+        budget = await (await conn.execute("SELECT attempts,max_attempts FROM runtime.recovery_lineages WHERE lineage_id=%s",
+                                         (lineage,))).fetchone()
+        # Recreate the historical wrapper misclassification in this disposable
+        # fixture: Models and policy retain two failed originals; only the
+        # domain's last observed status was still queued.
+        await conn.execute("UPDATE memory.consolidation_batches SET status='failed',error_code=%s,retry_due_at=NULL "
+            "WHERE batch_id=%s",("recovery_dependency_probe_in_progress",held["batch_id"]))
+        await conn.execute("UPDATE memory.consolidation_attempts SET status='queued',error_code=NULL "
+            "WHERE step_id=%s",(held["step_ids"][-1],))
+        await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_failed' "
+            "WHERE episode_id=ANY(%s::text[])",([first.episode_id,second.episode_id],))
+    assert [item["status"] for item in original_ledger] == ["failed","failed"] and budget["attempts"] == 2
+    async with core.database.transaction() as conn:
+        result = await core.workers.recovery.resume_on(conn,alice,{"episode_id":first.episode_id,
+            "expected_revision":first.revision,"client_request_id":"historical-two-failures"})
+    assert result.data["action"] == "resume_original_batch" and result.data["batch_id"] == held["batch_id"]
+    await core.workers.consolidate(partition,batch_id=held["batch_id"])
+    async with core.database.transaction(read_only=True) as conn:
+        current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+                                          (held["batch_id"],))).fetchone()
+        attempts = await (await conn.execute("SELECT status,recovery_policy_state FROM memory.consolidation_attempts "
+            "WHERE batch_id=%s ORDER BY number",(held["batch_id"],))).fetchall()
+    assert current["status"] == "quarantined" and current["step_ids"] == held["step_ids"]
+    assert attempts[-1]["status"] == attempts[-1]["recovery_policy_state"] == "failed"
+    assert len(model.submissions) == 2
+    await mature_retry(current)
+    await core.workers.consolidate(partition)
+    async with core.database.transaction(read_only=True) as conn:
+        applied = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+                                          (held["batch_id"],))).fetchone()
+        steps = await (await conn.execute("SELECT step_id,request FROM memory.model_steps "
+            "WHERE step_id=ANY(%s::text[]) ORDER BY step_id",(held["step_ids"],))).fetchall()
+        ledger = await (await conn.execute("SELECT attempt_id,status FROM runtime.recovery_attempts "
+            "WHERE lineage_id=%s ORDER BY attempt_number",(lineage,))).fetchall()
+        final_budget = await (await conn.execute("SELECT attempts,max_attempts FROM runtime.recovery_lineages WHERE lineage_id=%s",
+                                               (lineage,))).fetchone()
+        episodes = await (await conn.execute("SELECT episode_id,extraction_state FROM memory.episodes "
+            "WHERE episode_id=ANY(%s::text[])",([first.episode_id,second.episode_id],))).fetchall()
+    assert applied["status"] == "applied" and len(model.submissions) == 3
+    assert steps == original_steps and ledger[:2] == original_ledger and ledger[-1]["status"] == "succeeded"
+    assert final_budget == {"attempts":3,"max_attempts":budget["max_attempts"]}
+    assert len(episodes) == 2 and all(episode["extraction_state"] == "completed" for episode in episodes)
 
 
 async def test_lost_claim_leaves_original_batch_to_queue_owner(core, ordinary_users, monkeypatch):
@@ -413,7 +500,9 @@ async def test_unconfirmed_local_commit_keeps_slot_until_selected_compilation_re
                                             (batch["batch_id"],))).fetchone()
         episode = await (await conn.execute("SELECT extraction_cursor FROM memory.episodes WHERE episode_id=%s",
                                            (item.episode_id,))).fetchone()
-    assert state["active_batch_id"] == batch["batch_id"] and selected and episode["extraction_cursor"] is None
+    original_cursor = batch["manifest"]["episodes"][0]["before"]
+    assert state["active_batch_id"] == batch["batch_id"] and selected
+    assert episode["extraction_cursor"] == original_cursor
     assert len(model.submissions) == 1
     await core.workers.consolidate(partition)
     _, applied = await batch_for_episode(core,item.episode_id)
@@ -525,6 +614,64 @@ async def test_changed_episode_during_wait_cannot_spend_model_attempt(core, ordi
                                             (batch["batch_id"],))).fetchone()
         count = await (await conn.execute("SELECT count(*) AS n FROM runtime.recovery_attempts")).fetchone()
     assert current["status"] == "stale" and count["n"] == 0 and not model.submissions
+
+
+@pytest.mark.parametrize("with_policy",[False,True])
+async def test_control_unavailable_before_admission_keeps_frozen_attempt_for_reobservation(core, ordinary_users, with_policy):
+    class OfflineBeforeAdmission(Model):
+        def __init__(self):
+            super().__init__()
+            self.offline = True
+
+        async def status(self,attempt_id,*,phase="observe"):
+            if self.offline and phase == "pre_submit":
+                raise AppError("internal_error",status=500)
+            return await super().status(attempt_id,phase=phase)
+
+    alice, _ = ordinary_users
+    model = OfflineBeforeAdmission()
+    examples.configure(core,model)
+    if with_policy:
+        core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    item = await examples.episode(core,alice,"rbf-control-before-admission")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, held = await batch_for_episode(core,item.episode_id)
+    assert held["status"] == "quarantined" and not model.submissions
+    step_id = held["step_ids"][0]
+    async with core.database.transaction(read_only=True) as conn:
+        step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s",(step_id,))).fetchone()
+        attempts = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s",
+                                           (held["batch_id"],))).fetchall()
+    assert step["state"] == "prepared" and len(attempts) == 1
+    assert attempts[0]["first_failure"]["rpc_failure"]["error_code"] == "internal_error"
+    await force_batch_due(core,held["batch_id"])
+    await core.workers.consolidate(partition)
+    assert not model.submissions
+    model.offline = False
+    await force_batch_due(core,held["batch_id"])
+    await core.workers.consolidate(partition)
+    _, applied = await batch_for_episode(core,item.episode_id)
+    assert applied["status"] == "applied" and applied["step_ids"] == [step_id]
+    assert len(model.submissions) == 1 and model.submissions[0][0].attempt_id == step["request"]["attempt_id"]
+
+
+async def test_permanent_pre_admission_control_error_stays_terminal(core, ordinary_users):
+    class MisconfiguredModel(Model):
+        async def status(self,attempt_id,*,phase="observe"):
+            if phase == "pre_submit":
+                raise AppError("model_function_not_configured",status=503)
+            return await super().status(attempt_id,phase=phase)
+
+    alice, _ = ordinary_users
+    model = MisconfiguredModel()
+    examples.configure(core,model)
+    item = await examples.episode(core,alice,"rbf-control-permanent")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, failed = await batch_for_episode(core,item.episode_id)
+    assert failed["status"] == "failed" and failed["error_code"] == "model_function_not_configured"
+    assert not model.submissions
 
 
 def remote_unconfirmed_wait():
@@ -702,7 +849,8 @@ async def test_late_original_result_cannot_overwrite_changed_episode(core, ordin
     assert after["status"] == "stale" and after["commit_refs"] == {}
     assert after["manifest"]["remote_wait_unresolved"]["remote_rollback_confirmed"] is False
     assert episode["revision"] == item.revision+1 and episode["extraction_state"] == "pending"
-    assert episode["extraction_cursor"] is None and len(original_admissions(model)) == 1
+    assert episode["extraction_cursor"] == batch["manifest"]["episodes"][0]["before"]
+    assert len(original_admissions(model)) == 1
 
 
 class UnconfirmedIndexModel(IndexModel):

@@ -87,6 +87,9 @@ class RpcModels:
 
     async def status(self,attempt_id,*,phase="observe"):
         self.status_reads.append(attempt_id)
+        # These scenarios lose control access after the initial admission.
+        if phase=="pre_submit" and attempt_id not in self.receipts:
+            return None
         if self.control=="unavailable":
             raise AppError("internal_error",status=500)
         return None if self.control=="missing" else self.receipts.get(attempt_id)

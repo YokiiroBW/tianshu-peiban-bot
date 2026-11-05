@@ -14,7 +14,7 @@ from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 from .authority import request_identity
-from .model_outcome import needs_rpc_observation, observe_original
+from .model_outcome import needs_rpc_observation, observe_original, rpc_failure
 
 
 def admission_open(request):
@@ -170,8 +170,18 @@ class ModelSteps:
             # Only a genuinely prepared step uses the pre-submit lookup. An
             # absent observe result after dispatch is inconclusive, but Broker
             # can idempotently admit this exact frozen request and completion.
-            existing = (await self.models.status(original.attempt_id, phase="pre_submit")
-                        if recorded["state"] == "prepared" else await self.models.status(original.attempt_id))
+            try:
+                existing = (await self.models.status(original.attempt_id, phase="pre_submit")
+                            if recorded["state"] == "prepared" else await self.models.status(original.attempt_id))
+            except Exception as error:
+                if (isinstance(error,RecoveryWait) or classify_database_failure(error) is not None
+                        or not needs_rpc_observation(error)):
+                    raise
+                # Control unavailability before admission is not an attempt
+                # failure and is not permission to submit without a receipt.
+                raise AppError("model_control_unavailable",status=503,details={
+                    "attempt_id":original.attempt_id,"status":"observing","action":"observe_original_attempt",
+                    "original_observation":"unavailable","rpc_failure":rpc_failure(error)}) from error
             if existing and (existing.attempt_id != original.attempt_id or existing.intent_id != original.intent_id
                     or existing.data_generation != original.data_generation):
                 raise AppError("memory_model_result_identity_conflict", status=409)

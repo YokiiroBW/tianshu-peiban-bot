@@ -1635,7 +1635,8 @@ class Consolidation:
                     code=details.get("receipt_error_code") or code,
                     observation_ref="models:"+str(details.get("attempt_id") or "unknown"),
                     retry_after=details.get("retry_after"))
-        if batch_id and (transient_model_failure(code) or details.get("status") in {"queued","running","succeeded"}):
+        if batch_id and (transient_model_failure(code) or details.get("status") in {"queued","running","succeeded"}
+                or details.get("original_observation") in {"confirmed","missing","unavailable"}):
             if await self.retries.defer(batch_id,exc,owner=owner):
                 return
         revoked = code in {"source_unavailable","access_changed","delivery_access_changed","actor_forbidden","conversation_forbidden"}

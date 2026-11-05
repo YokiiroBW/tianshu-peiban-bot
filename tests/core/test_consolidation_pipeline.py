@@ -47,7 +47,8 @@ class FixedConsolidator:
                         'polarity':True,'conditions':{},'valid_from':None,'valid_until':None},
                     'support_groups':[[material['id']]],'context_refs':[],'reads':[],'reason':'原件明确支持'})
             results.append({'subject_id':target['subject_id'],'status':'changed' if op_ids else 'no_change',
-                'processed_material_ids':target['new_material_ids'],'operation_ids':op_ids})
+                'processed_material_ids':target['new_material_ids'],'operation_ids':op_ids,
+                'reason':'原件明确支持' if op_ids else '没有新增事实'})
         if self.invalid:
             results=[]
         output={'schema_version':SCHEMA_VERSION,'batch_id':value['batch_id'],'target_results':results,
@@ -56,7 +57,7 @@ class FixedConsolidator:
             output={'targets':[{'subject_id':target['subject_id'],'status':target['status'],
                 'operations':[{key:item for key,item in operation.items() if key not in {'op_id','subject_id'}}
                     for operation in operations if operation['op_id'] in target['operation_ids']],
-                'unresolved':[]} for target in results], 'needs_context':[]}
+                'unresolved':[],'reason':target['reason']} for target in results], 'needs_context':[]}
         receipt=ModelReceipt(request.attempt_id,request.intent_id,'succeeded','submitted','fixture',1,
             'fixture','fixture','openai.chat','fixture',data_generation=request.data_generation)
         return ModelResult((ModelPart('text',text=json.dumps(output,ensure_ascii=False)),),receipt,
@@ -1423,8 +1424,10 @@ async def test_expired_owner_does_not_settle_a_batch_already_taken_over(core,ord
 async def _wake_rows(core, partition):
     async with core.database.transaction(read_only=True) as conn:
         return await (await conn.execute("SELECT j.*,k.key,k.cancelled_at FROM procrastinate_jobs j "
-            "LEFT JOIN runtime.job_keys k ON k.job_id=j.id WHERE j.task_name='memory.consolidate' "
-            "AND j.args=%s ORDER BY j.id", (Jsonb({'partition_id':partition}),))).fetchall()
+            "LEFT JOIN LATERAL (SELECT key,cancelled_at FROM runtime.job_keys WHERE job_id=j.id "
+            "ORDER BY (cancelled_at IS NOT NULL),created_at,key LIMIT 1) k ON true "
+            "WHERE j.task_name='memory.consolidate' AND j.args=%s ORDER BY j.id",
+            (Jsonb({'partition_id':partition}),))).fetchall()
 
 
 async def _start_wake(core, partition):
