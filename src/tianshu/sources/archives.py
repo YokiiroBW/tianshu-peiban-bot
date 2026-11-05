@@ -1,11 +1,13 @@
 """Explicit current-conversation archive intake and stable native-message suppression."""
 
 from dataclasses import replace
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from itertools import groupby
 import math
 
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.types import Coverage, OriginKind, SourceRef
 
 
@@ -78,9 +80,21 @@ async def bind_event(conn, key, refs):
         )
 
 
-async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=()):
-    rows = await (
-        await conn.execute(
+def _lock_set_changed():
+    return RecoveryWait(
+        "source_lock_set_changed", datetime.now(UTC) + timedelta(seconds=5),
+        dependency="sources:lock_set",
+    )
+
+
+async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=(), write_ids=()):
+    """Lock selected roots in ID order, using exclusive mode only for writers.
+
+    write_ids are roots that will be changed; their directly bound aliases can
+    be invalidated too. Other selected sources remain shared dependencies.
+    """
+    async def selected():
+        rows = await (await conn.execute(
             "WITH RECURSIVE edges(source_id,revision,target_id,target_revision) AS NOT MATERIALIZED ("
             "SELECT source_id,revision,support_source_id,support_revision FROM sources.supports UNION ALL "
             "SELECT a.source_id,a.revision,b.source_id,b.revision FROM sources.source_aliases a "
@@ -96,28 +110,71 @@ async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=()):
                 list(extra),
                 list(aliases),
             ),
-        )
-    ).fetchall()
-    identifiers = sorted({row["source_id"] for row in rows} | set(extra))
-    if exclusive:
-        keys = await (
-            await conn.execute(
-                "SELECT DISTINCT alias_key FROM sources.source_aliases "
-                "WHERE source_id=ANY(%s) ORDER BY alias_key",
-                (identifiers,),
-            )
-        ).fetchall()
-        keys = sorted({row["alias_key"] for row in keys} | set(aliases))
+        )).fetchall()
+        return {row["source_id"] for row in rows} | set(extra)
+
+    async def writable(identifiers):
+        if exclusive:
+            return set(identifiers)
+        targets = set(write_ids)
+        if targets or aliases:
+            rows = await (await conn.execute(
+                "SELECT DISTINCT b.source_id FROM sources.source_aliases b WHERE b.alias_key=ANY(%s) "
+                "OR b.alias_key IN (SELECT alias_key FROM sources.source_aliases WHERE source_id=ANY(%s))",
+                (list(aliases), list(targets)),
+            )).fetchall()
+            targets.update(row["source_id"] for row in rows)
+        return targets
+
+    async def alias_keys(targets):
+        rows = await (await conn.execute(
+            "SELECT DISTINCT alias_key FROM sources.source_aliases "
+            "WHERE source_id=ANY(%s) ORDER BY alias_key",
+            (sorted(targets),),
+        )).fetchall()
+        return {row["alias_key"] for row in rows} | set(aliases)
+
+    identifiers = await selected()
+    targets = await writable(identifiers)
+    identifiers |= targets
+    keys = await alias_keys(targets) if exclusive or targets or aliases else set()
+    if keys:
         await conn.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended('sources:alias:'||value,0)) "
             "FROM unnest(%s::text[]) value ORDER BY value",
-            (keys,),
+            (sorted(keys),),
         )
-    await conn.execute(
-        "SELECT source_id FROM sources.originals WHERE source_id=ANY(%s) "
-        "ORDER BY source_id " + ("FOR UPDATE" if exclusive else "FOR SHARE"),
-        (identifiers,),
-    )
+        # A concurrent alias binding may have committed while these locks were
+        # awaited. Never extend a partially held alias set out of order.
+        identifiers = await selected()
+        targets = await writable(identifiers)
+        identifiers |= targets
+        if not (await alias_keys(targets)) <= keys:
+            raise _lock_set_changed()
+    if targets:
+        # A row lock cannot protect a root that has not been inserted yet.
+        # Coordinate those identities as well, in the same order for all writers.
+        await conn.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('sources:root:'||value,0)) "
+            "FROM unnest(%s::text[]) value ORDER BY value",
+            (sorted(targets),),
+        )
+    for write, group in groupby(sorted(identifiers), key=lambda item: item in targets):
+        selected_ids = list(group)
+        await conn.execute(
+            "SELECT source_id FROM sources.originals WHERE source_id=ANY(%s) "
+            "ORDER BY source_id " + ("FOR UPDATE" if write else "FOR SHARE"),
+            (selected_ids,),
+        )
+
+    # The closure can also change before a row lock is obtained. Abort the
+    # transaction instead of acquiring a newly discovered, unordered lock.
+    current = await selected()
+    current_targets = await writable(current)
+    if not current <= identifiers or not current_targets <= targets:
+        raise _lock_set_changed()
+    if (exclusive or current_targets or aliases) and not (await alias_keys(current_targets)) <= keys:
+        raise _lock_set_changed()
 
 
 async def invalidate_related(conn, source, kind):

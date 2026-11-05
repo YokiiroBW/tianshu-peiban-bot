@@ -12,7 +12,9 @@ class IdentityPort(Protocol):
     async def scene_authority_on(
         self, connection, context: TrustedContext
     ) -> SceneAuthority: ...
-    async def lock_context_on(self, connection, context: TrustedContext) -> TrustedContext: ...
+    async def lock_context_on(
+        self, connection, context: TrustedContext, *, exclusive_scope_ids: tuple[str, ...] = ()
+    ) -> TrustedContext: ...
     async def system_context(
         self, principal_id: str, *, permission: str, actor_id: str | None = None,
         connection=None

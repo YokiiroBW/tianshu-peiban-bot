@@ -307,14 +307,25 @@ class IdentityService:
         async with self.database.transaction(control=True, read_only=True) as conn:
             return await check(conn)
 
-    async def lock_context_on(self, connection, context):
+    async def lock_context_on(self, connection, context, *, exclusive_scope_ids=()):
         """Hold the current grant authorities while a dependent write commits."""
         if context.actor_id:
             await connection.execute(
                 "SELECT actor_id FROM identity.actors WHERE actor_id=%s FOR SHARE",
                 (context.actor_id,),
             )
-        if context.scope_ids:
+        if exclusive_scope_ids:
+            # A publication can update a scope already present in this context.
+            # Acquire its final mode in the same scope order, avoiding two
+            # publishers both upgrading a shared lock on that scope.
+            exclusive = set(exclusive_scope_ids)
+            for scope_id in sorted(set(context.scope_ids) | exclusive):
+                mode = "FOR UPDATE" if scope_id in exclusive else "FOR SHARE"
+                await connection.execute(
+                    "SELECT scope_id FROM identity.scopes WHERE scope_id=%s " + mode,
+                    (scope_id,),
+                )
+        elif context.scope_ids:
             await connection.execute(
                 "SELECT scope_id FROM identity.scopes WHERE scope_id=ANY(%s) "
                 "ORDER BY scope_id FOR SHARE", (list(context.scope_ids),),
@@ -350,10 +361,10 @@ class IdentityService:
     async def publication_scope(
         self, context, stable_id, reader_ids, conversation_ids, *, connection
     ):
-        await self.lock_context_on(connection, context)
         if len(reader_ids) > 256 or len(conversation_ids) > 256:
             raise AppError("invalid_publication_audience")
         if not context.actor_id:
+            await self.lock_context_on(connection, context)
             # Independent projects disclose only into an already authorized system
             # scope.  This path never creates grants or widens the saved audience.
             require_permission(context.permissions, "memory.share")
@@ -376,6 +387,7 @@ class IdentityService:
                 (context.principal_id + ":" + context.actor_id + ":" + stable_id).encode()
             ).hexdigest()[:40]
         )
+        await self.lock_context_on(connection, context, exclusive_scope_ids=(scope_id,))
         readers = set(reader_ids) | {context.principal_id}
         actual = await (
             await connection.execute(

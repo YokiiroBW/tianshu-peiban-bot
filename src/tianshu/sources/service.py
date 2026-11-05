@@ -12,6 +12,7 @@ from tianshu.runtime.api import CommandResult
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.types import Coverage, MediaRef, OriginKind, ServiceClass, SourceRef
@@ -102,19 +103,22 @@ class SourceService:
             await self.identity.lock_context_on(conn, context)
             await self._lock_selected(conn, source_refs)
             return (await self.check_many_on(conn, context, (source_refs,)))[0]
+        except RecoveryWait:
+            raise
         except AppError as exc:
             if exc.status in {401, 403, 409}:
                 return False
             raise
 
     async def _lock_selected(
-        self, conn, source_refs, *, extra=(), exclusive=False, extra_aliases=()
+        self, conn, source_refs, *, extra=(), exclusive=False, extra_aliases=(), write_ids=()
     ):
-        if source_refs or extra or extra_aliases:
+        if source_refs or extra or extra_aliases or write_ids:
             from .archives import lock_selected
 
             await lock_selected(
-                conn, source_refs, extra=extra, exclusive=exclusive, aliases=extra_aliases
+                conn, source_refs, extra=extra, exclusive=exclusive, aliases=extra_aliases,
+                write_ids=write_ids,
             )
 
     async def register_archive(self, context, *, mapping_id, channel, records, explicit_request):
@@ -149,6 +153,87 @@ class SourceService:
         ).fetchall()
         return tuple(rows)
 
+    async def prepare_event_write(
+        self, connection, context, *, producer, event_id, revision, parts,
+        support_refs=(), additional_refs=(),
+    ):
+        """Prepare one event before taking source or domain row locks."""
+        aliases = await self.prepare_event_writes(connection, context, ({
+            "producer": producer, "event_id": event_id, "revision": revision,
+            "parts": parts, "support_refs": support_refs,
+        },), additional_refs=additional_refs)
+        return aliases[0]
+
+    async def prepare_event_writes(self, connection, context, events, *, additional_refs=()):
+        """Lock a complete batch of event roots and inputs in the caller's transaction.
+
+        Prepare before any domain or source locks. Subsequent record_event calls
+        must use the same event identities, revisions, parts and support refs.
+        """
+        events = tuple(events)
+        required = [SourceRef(**ref) if isinstance(ref, dict) else ref for ref in additional_refs]
+        dependencies, source_ids, prepared = [], [], []
+        for event in events:
+            producer, event_id, revision = event["producer"], event["event_id"], event["revision"]
+            if type(revision) is not int or revision < 1:
+                raise AppError("invalid_source_event")
+            original_parts = event["parts"]
+            parts = wire(original_parts)
+            if len(parts) > 256:
+                raise AppError("source_parts_too_many")
+            required.extend(SourceRef(**ref) if isinstance(ref, dict) else ref
+                            for ref in event.get("support_refs", ()))
+            for position, part in enumerate(parts):
+                if not isinstance(part, dict):
+                    raise AppError("invalid_source_part")
+                locator = {"producer": producer, "event_id": event_id, "part": position}
+                key = body_hash({"principal": context.principal_id,
+                                 "actor": context.actor_id, "locator": locator})
+                source_ids.append("source_" + key[:48])
+                media = part.get("media")
+                if media:
+                    original = original_parts[position]
+                    candidate = (original.get("media") if isinstance(original, dict)
+                                 else getattr(original, "media", None))
+                    if not self.files.was_written(candidate):
+                        pieces = media.get("media_id", "").split(":")
+                        if len(pieces) != 3 or pieces[0] != "source" or not pieces[2].isdigit():
+                            raise AppError("source_media_not_authorized", status=403)
+                        dependencies.append(SourceRef(pieces[1], int(pieces[2]), {}))
+            # Match the persisted evidence_unit used by the older-part query.
+            event_key = body_hash({"principal": context.principal_id, "actor": context.actor_id,
+                                   "evidence_unit": f"{producer}:{event_id}"})
+            prepared.append((event_key, producer, event_id, revision))
+
+        await self.identity.lock_context_on(connection, context)
+        # One event key serializes revisions of that event, never unrelated actors/events.
+        await connection.execute(
+            "SELECT pg_advisory_xact_lock(hashtextextended('sources:event:'||value,0)) "
+            "FROM unnest(%s::text[]) value ORDER BY value",
+            (sorted({item[0] for item in prepared}),),
+        )
+        from .archives import event_alias
+
+        aliases = []
+        for _, producer, event_id, revision in prepared:
+            aliases.append(await event_alias(self, connection, context, producer, event_id))
+            previous = await (await connection.execute(
+                "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN sources.versions v "
+                "ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.owner_id=%s "
+                "AND o.actor_id IS NOT DISTINCT FROM %s AND v.evidence_unit=%s "
+                "AND o.head_revision<%s AND o.state='active' ORDER BY o.source_id",
+                (context.principal_id, context.actor_id, f"{producer}:{event_id}", revision),
+            )).fetchall()
+            dependencies.extend(SourceRef(row["source_id"], row["head_revision"], {}) for row in previous)
+            source_ids.extend(row["source_id"] for row in previous)
+        await self._lock_selected(
+            connection, tuple((*required, *dependencies)), extra=tuple(source_ids),
+            extra_aliases=tuple(alias for alias in aliases if alias), write_ids=tuple(source_ids),
+        )
+        if required and not (await self.check_many_on(connection, context, (tuple(required),)))[0]:
+            raise AppError("source_support_unavailable", status=403)
+        return tuple(aliases)
+
     async def record_event(
         self, context, *, producer, event_id, revision, occurred_at, parts, origin_kind,
         connection=None, support_refs=(), generation=None,
@@ -172,11 +257,13 @@ class SourceService:
                 if origin_kind == OriginKind.HUMAN
                 else None
             )
-            from .archives import event_alias, bind_event
+            from .archives import bind_event
 
-            native_alias = await event_alias(self, conn, context, producer, event_id)
+            native_alias = await self.prepare_event_write(
+                conn, context, producer=producer, event_id=event_id, revision=revision,
+                parts=original_parts, support_refs=support_refs,
+            )
             if native_alias:
-                await self._lock_selected(conn, (), exclusive=True, extra_aliases=(native_alias,))
                 if await (
                     await conn.execute(
                         "SELECT 1 FROM sources.alias_suppression WHERE alias_key=%s",
@@ -253,6 +340,7 @@ class SourceService:
                         Coverage(True),
                         (tuple(support_refs),) if support_refs else (),
                         speaker_id=author if part_origin == OriginKind.HUMAN else None,
+                        locks_prepared=True,
                     )
                 )
             removed = await (
@@ -260,7 +348,7 @@ class SourceService:
                     "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN "
                     "sources.versions v ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.owner_id=%s "
                     "AND o.actor_id IS NOT DISTINCT FROM %s AND v.evidence_unit=%s AND o.head_revision<%s "
-                    "AND o.state='active' FOR UPDATE OF o",
+                    "AND o.state='active' ORDER BY o.source_id FOR UPDATE OF o",
                     (context.principal_id, context.actor_id, f"{producer}:{event_id}", revision),
                 )
             ).fetchall()
@@ -311,6 +399,7 @@ class SourceService:
         disclosure=False,
         support_context=None,
         speaker_id=None,
+        locks_prepared=False,
     ):
         if not context.scope_ids:
             raise AppError("source_scope_required", status=403)
@@ -320,7 +409,8 @@ class SourceService:
             for group in support_groups
             for ref in group
         )
-        await self._lock_selected(conn, dependencies, extra=(source_id,), exclusive=True)
+        if not locks_prepared:
+            await self._lock_selected(conn, dependencies, extra=(source_id,), write_ids=(source_id,))
         await conn.execute(
             "INSERT INTO sources.originals(source_id,source_key,owner_id,person_id,actor_id,head_revision) "
             "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
@@ -472,15 +562,16 @@ class SourceService:
             key = body_hash(
                 {"principal": context.principal_id, "actor": context.actor_id, "locator": locator}
             )
-            await self._lock_selected(
-                conn, tuple(source_refs), extra=("source_" + key[:48],), exclusive=True
-            )
-            if not await self.validate_persistence(conn, context, tuple(source_refs)):
-                raise AppError("source_unavailable", status=403)
             stable_id = producer + ":" + event_id
             scopes, epochs = await self.identity.publication_scope(
                 context, stable_id, reader_ids, conversation_ids, connection=conn
             )
+            await self._lock_selected(
+                conn, tuple(source_refs), extra=("source_" + key[:48],),
+                write_ids=("source_" + key[:48],),
+            )
+            if not (await self.check_many_on(conn, context, (tuple(source_refs),)))[0]:
+                raise AppError("source_unavailable", status=403)
             target = replace(context, scope_ids=scopes, audience=scopes)
             return await self._register(
                 conn,
@@ -498,10 +589,14 @@ class SourceService:
                 (tuple(source_refs),) if source_refs else (),
                 disclosure=True,
                 support_context=context,
+                locks_prepared=True,
             )
 
         if connection is not None:
-            return await publish(connection)
+            # The audience is prepared before source locks; a failed proof or
+            # source write must not leave audience changes in the caller's tx.
+            async with connection.transaction():
+                return await publish(connection)
         async with self.database.transaction() as conn:
             return await publish(conn)
 
@@ -510,9 +605,11 @@ class SourceService:
         key = body_hash(
             {"principal": context.principal_id, "actor": context.actor_id, "locator": locator}
         )
-        # Select all source locks before a domain callback can lock a claim or matter.
+        # Select all authority/source locks before a domain callback locks a claim.
+        await self.identity.lock_context_on(conn, context)
         await self._lock_selected(
-            conn, tuple(source_refs), extra=("source_" + key[:48],), exclusive=True
+            conn, tuple(source_refs), extra=("source_" + key[:48],),
+            write_ids=("source_" + key[:48],),
         )
         row = await (
             await conn.execute(
@@ -531,7 +628,8 @@ class SourceService:
         conn = connection
         if source_ref.locator:
             raise AppError("publication_whole_reference_required")
-        await self._lock_selected(conn, (source_ref,), exclusive=True)
+        await self.identity.lock_context_on(conn, context)
+        await self._lock_selected(conn, (source_ref,), write_ids=(source_ref.source_id,))
         row = await (
             await conn.execute(
                 "SELECT o.*,v.disclosure FROM sources.originals o JOIN sources.versions v ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.source_id=%s",
@@ -585,10 +683,12 @@ class SourceService:
             key = body_hash(
                 {"principal": context.principal_id, "actor": context.actor_id, "locator": locator}
             )
+            await self.identity.lock_context_on(conn, context)
             await self._lock_selected(
-                conn, tuple(source_refs), extra=("source_" + key[:48],), exclusive=True
+                conn, tuple(source_refs), extra=("source_" + key[:48],),
+                write_ids=("source_" + key[:48],),
             )
-            if not await self.validate_persistence(conn, context, tuple(source_refs)):
+            if not (await self.check_many_on(conn, context, (tuple(source_refs),)))[0]:
                 raise AppError("source_unavailable", status=403)
             scope_id = await self.identity.public_scope(context, connection=conn)
             epochs = await self.identity.support_epochs((scope_id,), connection=conn)
@@ -609,6 +709,7 @@ class SourceService:
                 (tuple(source_refs),),
                 disclosure=True,
                 support_context=context,
+                locks_prepared=True,
             )
 
         if connection is not None:
@@ -685,10 +786,12 @@ class SourceService:
         digest = body_hash({"locator": locator, "revision": supplement_revision, "media": media})
         async with self._event_connection(connection) as conn:
             await self.jobs.assert_generation_on(conn, generation)
+            await self.identity.lock_context_on(conn, context)
             await self._lock_selected(
-                conn, (original_ref,), extra=("source_" + key[:48],), exclusive=True,
+                conn, (original_ref,), extra=("source_" + key[:48],),
+                write_ids=("source_" + key[:48],),
             )
-            if not await self.validate_persistence(conn, context, (original_ref,)):
+            if not (await self.check_many_on(conn, context, ((original_ref,),)))[0]:
                 raise AppError("source_unavailable", status=403)
             original = await (await conn.execute(
                 "SELECT o.owner_id,o.person_id,o.actor_id,v.scope_ids,v.locator,"
@@ -714,6 +817,7 @@ class SourceService:
                 wire(media), f"supplement:{producer}:{event_id}:{event_revision}:{part_index}",
                 Coverage(True), ((original_ref,),), support_context=context,
                 speaker_id=original["speaker_id"],
+                locks_prepared=True,
             )
             await conn.execute(
                 "INSERT INTO sources.media_supplements(source_id,revision,request_digest) "
@@ -726,7 +830,7 @@ class SourceService:
             )).fetchone()
             if row["request_digest"] != digest:
                 raise AppError("source_revision_conflict", status=409)
-            if not await self.validate_persistence(conn, context, (ref,)):
+            if not (await self.check_many_on(conn, context, ((ref,),)))[0]:
                 raise AppError("source_unavailable", status=403)
             return ref
 
@@ -812,6 +916,7 @@ class SourceService:
         async with self.database.transaction() as conn:
             await self.jobs.assert_generation_on(conn, generation)
             if actor_shared:
+                await self.identity.lock_context_on(conn, context)
                 scope = await self.identity.public_scope(context, connection=conn)
                 intake = (scope,)
                 epochs = await self.identity.support_epochs(intake, connection=conn)
@@ -1059,6 +1164,7 @@ class SourceService:
         ):
             raise AppError("verified_channel_event_required", status=403)
         async with self.database.transaction() as conn:
+            await self.identity.lock_context_on(conn, context)
             if not await self.identity.verify_channel_producer(conn, context, producer):
                 raise AppError("channel_producer_forbidden", status=403)
             rows = await (
@@ -1079,7 +1185,7 @@ class SourceService:
             await self._lock_selected(
                 conn,
                 tuple(SourceRef(row["source_id"], row["head_revision"], {}) for row in rows),
-                exclusive=True,
+                write_ids=tuple(row["source_id"] for row in rows),
             )
             for row in rows:
                 changed = await (
@@ -1100,8 +1206,8 @@ class SourceService:
         source = SourceRef(body["source_id"], body["expected_revision"], {})
 
         async def apply(conn):
-            await self.identity.check_context(context, connection=conn)
-            await self._lock_selected(conn, (source,), exclusive=True)
+            await self.identity.lock_context_on(conn, context)
+            await self._lock_selected(conn, (source,), write_ids=(source.source_id,))
             row = await (
                 await conn.execute(
                     "SELECT * FROM sources.originals WHERE source_id=%s FOR UPDATE",
@@ -1158,8 +1264,8 @@ class SourceService:
             raise AppError("invalid_source_fragment")
 
         async def apply(conn):
-            await self.identity.check_context(context, connection=conn)
-            await self._lock_selected(conn, (source,), exclusive=True)
+            await self.identity.lock_context_on(conn, context)
+            await self._lock_selected(conn, (source,), write_ids=(source.source_id,))
             row = await (
                 await conn.execute(
                     "SELECT o.owner_id,o.person_id,o.actor_id,o.source_key,o.head_revision,length(v.content) AS length FROM sources.originals o "
@@ -1239,7 +1345,7 @@ class SourceService:
             candidates = tuple(
                 SourceRef(row["source_id"], row["revision"], {}) for row in rows[:512]
             )
-            await self._lock_selected(conn, candidates, exclusive=True)
+            await self._lock_selected(conn, candidates, write_ids=tuple(ref.source_id for ref in candidates))
             invalid = await (
                 await conn.execute(
                     "SELECT v.source_id,v.revision FROM sources.versions v "

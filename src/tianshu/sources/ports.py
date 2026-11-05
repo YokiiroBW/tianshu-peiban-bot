@@ -62,6 +62,15 @@ class SourcePort(Protocol):
     async def check_many_on(
         self, connection, context: TrustedContext, refs_groups: tuple[tuple[SourceRef, ...], ...]
     ) -> tuple[bool, ...]: ...
+    async def prepare_event_write(
+        self, connection, context: TrustedContext, *, producer: str, event_id: str,
+        revision: int, parts: tuple[InputPart, ...], support_refs: tuple[SourceRef, ...] = (),
+        additional_refs: tuple[SourceRef, ...] = (),
+    ) -> str | None: ...
+    async def prepare_event_writes(
+        self, connection, context: TrustedContext, events: tuple[dict, ...], *,
+        additional_refs: tuple[SourceRef, ...] = (),
+    ) -> tuple[str | None, ...]: ...
     async def record_event(
         self,
         context: TrustedContext,
