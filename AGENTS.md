@@ -1,5 +1,7 @@
 # 2026-11-05 RBG 规划终态、结果消费与视频解析恢复
 
+集中验证确认结果消费链中的既有材料误分类：真实 UTF-8 天气 JSON 已完整读入，却仅因存在媒体副本被 Memory 标为 media_without_confirmed_analysis。本批追加 RBG-04，交既有 Memory 窗口，限定 memory/material_media.py、materials.py 及对应定向用例，见 rbg-work-packages/memory.md。它是本次结果消费链的收口，不扩大为 Memory 架构重构或历史数据批量重算；其余窗口不得并写这两处。
+
 用户在完整方案后明确授权“那就按方案交给对应窗口修复修复”。本批 RBG-01/02/03 复用既有 Life、Conversation、Capabilities 聊天及各自干净工作树，模型统一 gpt-6.1-terra / max / 普通速度。精确边界见 docs/development/rbg-repair-2026-11-05.md 与 rbg-work-packages/ 三张卡。不创建新聊天或子代理，不恢复 Fast。
 
 实现者整块实现、补必要用例和静态审阅后提交，不运行测试、构建、烟测或生产命令。根收齐后集中必要验证、串行集成与保留数据发布、定向正常恢复。Life 的 worker.py 属 RBG-02，规划文件、Models 与 conversation/generation.py 属 RBG-01，视频/Actions 属 RBG-03；全局迁移、types、module.py、已有schema.sql、life/recovery.py及共享装配由根单写。

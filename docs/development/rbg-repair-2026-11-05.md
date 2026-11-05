@@ -2,6 +2,8 @@
 
 用户已批准完整方案并要求交给对应窗口修复。本批承接 RBF，不重做空库安装。产品基线 d9016ca7cccb02534498fd512a00a1a8d20e72e6，包含应用 79c52228 与 Sources 函数 54855325；三卡从随本计划派发的种子提交开始。
 
+集中验证追加 [RBG-04](rbg-work-packages/memory.md)：真实结构化原文已读、媒体副本导致错误缺项。这是结果消费链实际剩余失败，限定两处Memory材料分类实现和定向用例，不开展Memory重构或历史全量重算。
+
 ## 确认的问题
 
 - 旧规划是本轮数据代际中的请求，04:37 UTC 创建、04:39 superseded，recovery_state=cancelled，但 watermark 仍指向它且 generation_consumed=false。submission_confirmed/admission_started 均 NULL，Models attempts/submissions 无原 ID。08:03 UTC 仍每30秒 observation_unavailable，角色 last_planned_at 停在03:36。can_replace 缺少历史终态退出当前指针的安全出口。缺回执不能推断未收费或盲重发。
