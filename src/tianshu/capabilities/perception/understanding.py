@@ -56,9 +56,9 @@ def interval(item, start, end):
     left, right = item.get("start", start), item.get("end", end)
     if (type(left) not in (int, float) or type(right) not in (int, float)
             or not math.isfinite(left) or not math.isfinite(right)
-            or left < start - .05 or right > end + .05 or left >= right):
+            or left < start or right > end or left >= right):
         raise Fault("video_evidence_range_invalid", 502)
-    return max(start, left), min(end, right)
+    return left, right
 
 
 def covered(ranges, start, end):

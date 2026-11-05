@@ -15,15 +15,27 @@ class TrackedBroker:
     def __getattr__(self, name):
         return getattr(self.broker, name)
 
-    async def _dispatch(self, request, receipt=None):
+    async def _dispatch(self, request, receipt=None, *, error=None):
         current = CURRENT_EXECUTION.get()
         if not current:
             return
+        if error is not None:
+            from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+            if isinstance(error, RecoveryWait) and recovery_wait_retryable(error):
+                return
         if receipt is None:
             try:
-                receipt = await self.broker.status(request.attempt_id)
+                receipt = await self.broker.status(request.attempt_id, phase="observe")
             except Exception:
                 # A broken control connection cannot prove that generation was unsubmitted.
+                if (getattr(error, "details", None) or {}).get("dispatch") == "not_started":
+                    return
+                await current["owner"].submitted(current["attempt"], dispatch="unknown")
+                current["submitted"] = True
+                return
+            if receipt is None:
+                if (getattr(error, "details", None) or {}).get("dispatch") == "not_started":
+                    return
                 await current["owner"].submitted(current["attempt"], dispatch="unknown")
                 current["submitted"] = True
                 return
@@ -57,8 +69,8 @@ class TrackedBroker:
                                   behavior_purpose=current.get("behavior_purpose", "conversation"))
         try:
             result = await self.broker.generate(request)
-        except BaseException:
-            await asyncio.shield(self._dispatch(request))
+        except BaseException as error:
+            await asyncio.shield(self._dispatch(request, error=error))
             raise
         await self._dispatch(request, result.receipt)
         return result

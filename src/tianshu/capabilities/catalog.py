@@ -66,6 +66,7 @@ class Catalog:
         self.refresher = None
         self.configuration = None
         self.on_change = None
+        self.on_ready = None
         from .catalog_observations import CatalogObservations
         self.observations = CatalogObservations(self)
 
@@ -130,10 +131,18 @@ class Catalog:
             row.setdefault("freshness", "declaration")
             row.setdefault("observed_at", None)
             row.setdefault("expires_at", None)
+            if "semantic_availability" not in row:
+                from .catalog_observations import semantic_availability
+                row["semantic_availability"] = semantic_availability(row["availability"])
+            row.setdefault("observation_error", None)
         return rows
 
     async def close(self):
         await self.observations.close()
+
+    def observation_digest(self, context):
+        """Stable semantic watermark of already-observed handler results."""
+        return self.observations.semantic_digest(context)
 
     async def availability(self, context, handler):
         availability = await handler.availability(context)

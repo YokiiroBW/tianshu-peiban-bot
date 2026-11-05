@@ -455,20 +455,32 @@ class Actions:
             await asyncio.shield(self.save(receipt, attempt))
             raise
         except Exception as error:
-            persisted = (await self._load(action_id))[1]
-            submitted = state["submitted"] or persisted.dispatch in {"submitted", "unknown"}
-            unknown = getattr(error, "effect", None) == "unknown" or (
-                submitted and not hasattr(error, "effect")
-            )
-            receipt = Receipt(
-                str(uuid4()),
-                action_id,
-                attempt.attempt_id,
-                "unknown" if unknown else "failed",
-                "unknown" if unknown else "none",
-                "not_requested",
-                error_code=getattr(error, "code", "capability_failed"),
-            )
+            from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+            if isinstance(error, RecoveryWait) and not recovery_wait_retryable(error):
+                receipt = Receipt(str(uuid4()), action_id, attempt.attempt_id, "unknown", "unknown", "not_requested",
+                    error_code=error.code, result={"outcome": "wait", "recovery": "observe_original_attempt"})
+                await self.save(receipt, attempt)
+                raise
+            if (isinstance(error, RecoveryWait) and action.capability_id == "video.observe"
+                    and recovery_wait_retryable(error)):
+                receipt = Receipt(str(uuid4()), action_id, attempt.attempt_id, "failed", "none", "not_requested",
+                    error_code=error.code, result={"phase": "model", "outcome": "wait", "recovery": "resume_model",
+                                                  "retry_at": error.retry_at.isoformat()})
+            else:
+                persisted = (await self._load(action_id))[1]
+                submitted = state["submitted"] or persisted.dispatch in {"submitted", "unknown"}
+                unknown = getattr(error, "effect", None) == "unknown" or (
+                    submitted and not hasattr(error, "effect")
+                )
+                receipt = Receipt(
+                    str(uuid4()),
+                    action_id,
+                    attempt.attempt_id,
+                    "unknown" if unknown else "failed",
+                    "unknown" if unknown else "none",
+                    "not_requested",
+                    error_code=getattr(error, "code", "capability_failed"),
+                )
         finally:
             watcher.cancel()
             await asyncio.gather(watcher, return_exceptions=True)
@@ -500,6 +512,12 @@ class Actions:
                 result={**receipt.result, "provider_cancel_attempted": True},
                 error_code=receipt.error_code or code,
             )
+        details = getattr(handler, "interruption_details", None)
+        if callable(details):
+            phase = details(explicit=explicit, unknown=receipt.effect == "unknown")
+            if phase.get("recovery") == "observe_original_attempt":
+                receipt = replace(receipt, execution="unknown", effect="unknown")
+            receipt = replace(receipt, result={**receipt.result, **phase})
         return receipt
 
     async def recover_orphan(self, action_id, attempt_id, previous_owner):
@@ -646,9 +664,20 @@ class Actions:
             revision = old["result_revision"] + int(changed)
             observed_at = datetime.now(UTC) if changed else old["result_observed_at"]
             await depend(conn, "action", receipt.action_id, refs)
+            document = json.loads(old["document"])
+            if (original.capability_id in {"content.read", "video.observe"}
+                    and previous_receipt.execution == "unknown" and receipt.execution != "unknown"
+                    and not source_invalid):
+                document.setdefault("prior_unknown_receipts", {}).setdefault(
+                    attempt.attempt_id, wire(previous_receipt))
+            if original.capability_id == "content.read" and (receipt.execution == "succeeded" or source_invalid):
+                document.pop("content_read", None)
+                document.pop("content_read_resume", None)
+            if source_invalid:
+                document.pop("prior_unknown_receipts", None)
             await conn.execute(
-                "UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,result_revision=%s,result_observed_at=%s,execution_owner=NULL WHERE id=%s",
-                (encoded(receipt), encoded(attempt), revision, observed_at, receipt.action_id),
+                "UPDATE capabilities.actions SET receipt=%s::jsonb,attempt=%s::jsonb,result_revision=%s,result_observed_at=%s,execution_owner=NULL,document=%s WHERE id=%s",
+                (encoded(receipt), encoded(attempt), revision, observed_at, canonical(document), receipt.action_id),
             )
             await conn.execute(
                 "INSERT INTO capabilities.attempts(id,action_id,attempt,receipt) VALUES(%s,%s,%s::jsonb,%s::jsonb) ON CONFLICT(id) DO UPDATE SET attempt=excluded.attempt,receipt=excluded.receipt",
@@ -676,7 +705,8 @@ class Actions:
                         "receipt": wire(receipt),
                     },
                 )
-        if changed and receipt.execution in {"failed", "unknown"}:
+        if (changed and receipt.execution in {"failed", "unknown"}
+                and receipt.result.get("outcome") != "wait"):
             log = getattr(self.jobs, "events", None)
             if log is not None:
                 try:
@@ -828,35 +858,58 @@ class Actions:
         return receipt
 
     async def resume(self, action_id, context, *, client_request_id,
-                     expected_attempt_id=None, expected_job_id=None):
+                     expected_attempt_id=None, expected_job_id=None,
+                     expected_receipt_id=None, expected_revision=None, recovery_guard=None):
         if not client_request_id:
             raise Fault("client_request_id_required", 400)
         await self.get(action_id, context)
         action, old, current = await self._load(action_id)
         generation = await self.saved_generation(action, old)
-        if current.execution == "pending" or expected_job_id is not None or expected_attempt_id is not None:
+        if expected_revision is not None and type(expected_revision) is not int:
+            raise Fault("recovery_revision_required", 400)
+        key = digest([context.principal_id, action_id, "resume", client_request_id])
+        control_digest = digest([expected_attempt_id, expected_receipt_id, expected_revision])
+        async with self.database.transaction(read_only=True) as conn:
+            replay = await (await conn.execute(
+                "SELECT coalesce(t.receipt,a.receipt) AS receipt,a.document FROM capabilities.action_controls c "
+                "JOIN capabilities.actions a ON a.id=c.action_id "
+                "LEFT JOIN capabilities.attempts t ON t.id=c.attempt_id WHERE c.id=%s", (key,))).fetchone()
+        if replay:
+            recorded = json.loads(replay["document"]).get("resume_controls", {}).get(key)
+            if recorded is not None:
+                if recorded != control_digest:
+                    raise Fault("idempotency_conflict", 409)
+                receipt = receipt_from(replay["receipt"])
+                await self.authority.check(context, result_sources(receipt))
+                return receipt
+        if current.execution == "pending":
+            if expected_receipt_id is not None and current.receipt_id != expected_receipt_id:
+                raise Fault("attempt_changed", 409)
             return await self.reroute_pending(
                 action_id, context, client_request_id=client_request_id,
                 expected_attempt_id=expected_attempt_id, expected_job_id=expected_job_id,
+                expected_revision=expected_revision,
+                recovery_guard=recovery_guard,
             )
+        if expected_job_id is not None:
+            raise Fault("pending_reroute_only", 409)
+        if ((expected_attempt_id is not None and expected_attempt_id != old.attempt_id)
+                or (expected_receipt_id is not None and expected_receipt_id != current.receipt_id)):
+            raise Fault("attempt_changed", 409)
         handler = await self.handler(action)
         if not hasattr(handler, "resume"):
             raise Fault("resume_unavailable", 409)
         service_class = execution_service_class(context)
         lane = execution_lane(action.capability_id)
-        key = digest([context.principal_id, action_id, "resume", client_request_id])
         preflight = getattr(handler, "resume_preflight", None)
         if preflight is not None:
             # A completed control remains an idempotent read, even when the new
             # head no longer qualifies for the original domain recovery proof.
-            async with self.database.transaction(read_only=True) as conn:
-                replay = await (await conn.execute(
-                    "SELECT coalesce(t.receipt,a.receipt) AS receipt FROM capabilities.action_controls c "
-                    "JOIN capabilities.actions a ON a.id=c.action_id "
-                    "LEFT JOIN capabilities.attempts t ON t.id=c.attempt_id WHERE c.id=%s",
-                    (key,),
-                )).fetchone()
             if replay:
+                recorded = json.loads(replay["document"]).get("resume_controls", {}).get(key)
+                if recorded != control_digest and (recorded is not None or
+                        any(value is not None for value in (expected_attempt_id, expected_receipt_id, expected_revision))):
+                    raise Fault("idempotency_conflict", 409)
                 receipt = receipt_from(replay["receipt"])
                 await self.authority.check(context, result_sources(receipt))
                 return receipt
@@ -871,6 +924,12 @@ class Actions:
                 )
             ).fetchone()
             if prior:
+                control = await (await conn.execute(
+                    "SELECT document FROM capabilities.actions WHERE id=%s", (action_id,))).fetchone()
+                recorded = json.loads(control["document"]).get("resume_controls", {}).get(key)
+                if recorded != control_digest and (recorded is not None or
+                        any(value is not None for value in (expected_attempt_id, expected_receipt_id, expected_revision))):
+                    raise Fault("idempotency_conflict", 409)
                 row = await (
                     await conn.execute(
                         "SELECT receipt FROM capabilities.attempts WHERE id=%s",
@@ -887,9 +946,30 @@ class Actions:
                 return receipt_from(row["receipt"])
             if current.execution not in {"unknown", "failed", "cancelled"}:
                 raise Fault("resume_state_invalid", 409)
+            attempt = Attempt(str(uuid4()), action_id)
             if preflight is not None:
                 await handler.validate_resume_on(conn, action, old, current, proof)
-            attempt = Attempt(str(uuid4()), action_id)
+            head = await (await conn.execute(
+                "SELECT attempt,receipt,result_revision,document FROM capabilities.actions WHERE id=%s FOR UPDATE",
+                (action_id,))).fetchone()
+            if (not head or head["attempt"]["attempt_id"] != old.attempt_id
+                    or head["receipt"]["receipt_id"] != current.receipt_id
+                    or expected_attempt_id is not None and expected_attempt_id != old.attempt_id
+                    or expected_receipt_id is not None and expected_receipt_id != current.receipt_id):
+                raise Fault("attempt_changed", 409)
+            if expected_revision is not None and head["result_revision"] != expected_revision:
+                raise Fault("revision_conflict", 409)
+            if recovery_guard is not None:
+                guard_on, recovery_attempt_id, owner_token = recovery_guard
+                if not callable(guard_on) or not recovery_attempt_id or not owner_token:
+                    raise Fault("recovery_guard_required", 400)
+                if await guard_on(conn, recovery_attempt_id, owner_token) is False:
+                    raise Fault("recovery_guard_rejected", 409)
+            prepare = getattr(handler, "prepare_resume_on", None)
+            if prepare is not None:
+                await prepare(conn, action, old, current, attempt, proof)
+            controls = json.loads(head["document"]).get("resume_controls", {})
+            controls[key] = control_digest
             receipt = Receipt(
                 str(uuid4()), action_id, attempt.attempt_id, "pending", "none", "not_requested"
             )
@@ -900,7 +980,8 @@ class Actions:
                     "result_revision=result_revision+1,result_observed_at=now() WHERE id=%s "
                     "AND attempt->>'attempt_id'=%s AND NOT coalesce((document::jsonb->>'source_revoked')::boolean,false) RETURNING id",
                     (encoded(attempt), encoded(receipt), canonical({"service_class": service_class.value,
-                     "execution_lane": lane.value, "job_key": action_id + ":resume:" + attempt.attempt_id}),
+                     "execution_lane": lane.value, "job_key": action_id + ":resume:" + attempt.attempt_id,
+                     "resume_controls": controls}),
                      action_id, old.attempt_id),
                 )
             ).fetchone()

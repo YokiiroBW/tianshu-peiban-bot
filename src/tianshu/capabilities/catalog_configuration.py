@@ -88,10 +88,17 @@ class CatalogConfiguration:
             )
             row.update(
                 availability=availability,
-                can_execute=availability.can_execute,
+                can_execute=row.get("can_execute", True) and availability.can_execute,
                 enabled=enabled,
                 source_ids=[],
             )
+            semantic = row.get("semantic_availability")
+            if semantic is not None:
+                row["semantic_availability"] = replace(
+                    semantic,
+                    enabled=semantic.enabled and enabled,
+                    reason="capability_disabled" if not enabled else semantic.reason,
+                )
         for source in sources:
             for item in source.get("entries", []):
                 identifier = item["id"]

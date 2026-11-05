@@ -203,6 +203,8 @@ class WebPlugins:
                     body["id"], session, client_request_id=body["client_request_id"],
                     expected_attempt_id=body.get("expected_attempt_id"),
                     expected_job_id=body.get("expected_job_id"),
+                    expected_receipt_id=body.get("expected_receipt_id"),
+                    expected_revision=body.get("expected_revision"),
                 )
                 if operation == "resume"
                 else await self.service.actions.reconcile(body["id"], session)

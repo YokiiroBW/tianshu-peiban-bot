@@ -356,6 +356,7 @@ class Capabilities:
                 self.settings.get("content", {}).get("browser", {}),
             ),
         )
+        self.content.recovery_policy = self.recovery_policy
         self.projects.bind_content(self.content)
         plugin_settings = settings
         try:
@@ -921,6 +922,8 @@ class Capabilities:
 
     def bind_recovery_policy(self, policy):
         self.recovery_policy = policy
+        if self.content is not None:
+            self.content.recovery_policy = policy
 
     async def _start_media_statistics(self):
         from tianshu.runtime.jobs import JobSpec

@@ -12,15 +12,51 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import Coverage, MediaRef, Receipt, RequestBudget, SourceRef
 
-from ..contracts import Fault, canonical
+from ..contracts import Fault, canonical, digest
 from ..dto import ConsumptionReceipt
 from ..external import ProviderError, execution_service_class
 from ..local_work import settled
+from ..execution_context import CURRENT_EXECUTION, current_generation
 from .decode import _audio, _video
 from .understanding import OBSERVATION_INSTRUCTION, covered, observation
+from .. import action_checkpoint as checkpoint
+
+
+class VideoParseFailure(Fault):
+    def __init__(self, error, model, inputs, source, start, end):
+        super().__init__(error.code, error.status)
+        self.model, self.inputs, self.source = model, inputs, source
+        self.start, self.end = start, end
+
+    def receipt(self, action, attempt):
+        return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "failed", "none", "not_requested",
+            error_code=self.code, result={"phase": "parse", "outcome": "failed",
+                "recovery": "invalid_model_output", "model_receipt": wire(self.model.receipt),
+                "model_attempt_id": self.model.receipt.attempt_id,
+                "input": self.inputs, "input_range": {"start": self.start, "end": self.end},
+                "source_refs": [wire(self.source)]})
 
 
 class VideoObservation:
+    def _frozen_request(self, request):
+        """Freeze the same trusted generation and behavior inputs as TrackedBroker."""
+        current = CURRENT_EXECUTION.get()
+        if not current:
+            return request
+        values = {}
+        if current.get("data_generation"):
+            values["data_generation"] = current["data_generation"]
+        if current.get("behavior_refs"):
+            values["behavior_refs"] = tuple(current["behavior_refs"])
+            values["behavior_purpose"] = current.get("behavior_purpose", "conversation")
+        return replace(request, **values)
+
+    def _check_original_admission_time(self, request):
+        from tianshu.models.timing import waiting_budget
+        budget = waiting_budget(request)
+        if budget is not None and budget.remaining() <= 0:
+            raise Fault("video_original_request_expired", 409)
+
     async def _history(self, action, source):
         identifier = (action.arguments.get("reading_state") or {}).get("consumption_id")
         if not identifier:
@@ -61,6 +97,9 @@ class VideoObservation:
 
     async def _video_result(self, request):
         result = await self.broker.generate(request)
+        return self._checked_video_result(result)
+
+    def _checked_video_result(self, result):
         text = "".join(part.text or "" for part in result.parts
                        if part.kind == "text" and not part.native.get("thought"))
         if (result.receipt.status != "succeeded" or content_completion(result).state != "complete"
@@ -68,6 +107,60 @@ class VideoObservation:
             raise ProviderError("video_analysis_incomplete", 502,
                 effect="none" if result.receipt.status in {"succeeded", "failed", "cancelled"} else "unknown")
         return result, text
+
+    async def _frozen_model_result(self, action, attempt, source, saved, key):
+        from tianshu.models.codec import request_from_wire
+
+        segments = dict(saved["segments"])
+        previous = dict(segments[key])
+        request = request_from_wire(previous["request"])
+        confirmed = previous.get("registration_confirmed", False) or bool(previous.get("model_receipt"))
+        try:
+            receipt = await self.broker.status(request.attempt_id, phase="observe" if confirmed else "pre_submit")
+        except AppError as error:
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            if isinstance(error, RecoveryWait):
+                raise
+            raise ProviderError("video_original_model_unresolved", 503, effect="unknown") from error
+        if receipt is None:
+            if confirmed:
+                raise ProviderError("video_original_model_unresolved", 503, effect="unknown")
+            self._check_original_admission_time(request)
+            previous["dispatch_started"] = True
+            segments[key] = previous
+            await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                                  {"segments": segments}, (source,))
+            model, text = await self._video_result(request)
+            previous.update(registration_confirmed=True, model_receipt=wire(model.receipt))
+            segments[key] = previous
+            await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                                  {"segments": segments}, (source,))
+            return model, text
+        if receipt.status != "succeeded":
+            raise ProviderError("video_original_model_unresolved", 503, effect="unknown")
+        model = await self.broker.reusable_result(request.attempt_id, context=action.context,
+                                                   expected_data_generation=current_generation())
+        return self._checked_video_result(model)
+
+    async def _synthesis_result(self, action, attempt, source, request):
+        saved = await checkpoint.load(self.database, action)
+        segments = dict(saved.get("segments", {}))
+        previous = segments.get("synthesis")
+        if previous:
+            return await self._frozen_model_result(action, attempt, source, saved, "synthesis")
+        request = self._frozen_request(request)
+        previous = {"request": wire(request), "dispatch_started": False, "registration_confirmed": False}
+        segments["synthesis"] = previous
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "synthesis", "segments": segments}, (source,))
+        previous["dispatch_started"] = True
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "synthesis", "segments": segments}, (source,))
+        model, text = await self._video_result(request)
+        previous.update(registration_confirmed=True, model_receipt=wire(model.receipt))
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "synthesis", "segments": segments}, (source,))
+        return model, text
 
     async def _video_parts(self, action, attempt, media, source, decoded, start, end, *, dense=False):
         text = (action.arguments.get("question") or "Understand this actual interval in temporal order.")
@@ -125,6 +218,22 @@ class VideoObservation:
             "audio_ranges": decoded.get("audio_ranges", [])}
 
     async def _observe_segment(self, action, attempt, media, source, start, end, *, suffix="", dense=False):
+        saved = await checkpoint.load(self.database, action)
+        segment_key = suffix or "main"
+        previous = saved.get("segments", {}).get(segment_key)
+        if previous:
+            if (previous["source"] != wire(source) or previous["media"] != wire(media)
+                    or previous["requested"] != {"start": start, "end": end}):
+                raise Fault("video_checkpoint_changed", 409)
+            decoded, inputs = previous["decoded"], previous["input"]
+            model_start, model_end = previous["model_range"]["start"], previous["model_range"]["end"]
+            model, text = await self._frozen_model_result(action, attempt, source, saved, segment_key)
+            available = [*inputs["modalities"], *(("subtitle",) if decoded.get("subtitle_ranges") and not inputs.get("protocol") else ())]
+            try:
+                understanding = observation(text, model_start, model_end, available)
+            except Fault as error:
+                raise VideoParseFailure(error, model, inputs, source, model_start, model_end) from error
+            return decoded, inputs, model, understanding
         decoded = await self._decode_video(action, media, start, end, dense=dense)
         actual = decoded["coverage"]
         input_ranges = [actual, *decoded.get("audio_ranges", [])]
@@ -158,19 +267,54 @@ class VideoObservation:
                         + ". The decoder description only describes source representations; omitted modalities were not provided to this model."))
                     request = self._video_request(action, attempt, parts, (source,), suffix=suffix)
                 request = replace(request, route_revision=route.revision, protocol=route.protocol)
+        request = self._frozen_request(request)
+        segment = {"source": wire(source), "media": wire(media), "requested": {"start": start, "end": end},
+                   "model_range": {"start": model_start, "end": model_end}, "request": wire(request),
+                   "decoded": {key: value for key, value in decoded.items() if key != "representations"},
+                   "input": inputs, "dispatch_started": False, "registration_confirmed": False}
+        segments = {**saved.get("segments", {}), segment_key: segment}
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "model", "segments": segments,
+                               "original_attempt_id": saved.get("original_attempt_id", attempt.attempt_id)}, (source,))
+        segment["dispatch_started"] = True
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "model", "segments": segments}, (source,))
         model, text = await self._video_result(request)
+        segment.update(registration_confirmed=True, model_receipt=wire(model.receipt))
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "parse", "segments": segments}, (source,))
         available = [*inputs["modalities"], *(("subtitle",) if decoded.get("subtitle_ranges") and not inputs.get("protocol") else ())]
-        understanding = observation(text, model_start, model_end, available)
+        try:
+            understanding = observation(text, model_start, model_end, available)
+        except Fault as error:
+            raise VideoParseFailure(error, model, inputs, source, model_start, model_end) from error
         return decoded, inputs, model, understanding
 
     async def execute(self, action, attempt):
         args = dict(action.arguments)
         await self.authority.check(action.context, action.source_refs)
+        saved = await checkpoint.load(self.database, action)
+        recovering = bool(saved.get("original_attempt_id") and saved["original_attempt_id"] != attempt.attempt_id)
+        if saved.get("original_attempt_id"):
+            async with self.database.transaction(read_only=True) as conn:
+                existing = await (await conn.execute(
+                    "SELECT body FROM capabilities.consumptions WHERE action_id=%s AND id=%s",
+                    (action.action_id, saved["original_attempt_id"]))).fetchone()
+            if existing:
+                await self.authority.check(action.context, (SourceRef(**existing["body"]["source"]),))
+                return await self._receipt_from_body(action, attempt, existing["body"])
+        if saved.get("acquired"):
+            args.update(saved["acquired"])
         if args.get("url"):
-            if not getattr(self, "video_originals", None):
-                raise Fault("video_acquisition_unavailable", 503)
-            artifact, source = await self.video_originals.acquire(action)
-            args.update(media=wire(artifact.media), source=wire(source))
+            if not saved.get("acquired"):
+                if not getattr(self, "video_originals", None):
+                    raise Fault("video_acquisition_unavailable", 503)
+                artifact, source = await self.video_originals.acquire(action)
+                acquired = {"media": wire(artifact.media), "source": wire(source)}
+                await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                                      {"phase": "acquired", "acquired": acquired,
+                                       "original_attempt_id": attempt.attempt_id}, (source,))
+                args.update(acquired)
         media, source = MediaRef(**args["media"]), SourceRef(**args["source"])
         if not media.mime_type.startswith(("video/", "audio/")):
             raise Fault("media_not_supported", 415)
@@ -205,8 +349,11 @@ class VideoObservation:
             position = history.get("next_position")
             if not position or abs(float(position["start"]) - start) > .05 or abs(float(position["end"]) - requested_end) > .05:
                 raise Fault("video_checkpoint_position_changed", 409)
-        decoded, inputs, model, understood = await self._observe_segment(
-            action, attempt, media, source, start, min(requested_end, start + 30))
+        try:
+            decoded, inputs, model, understood = await self._observe_segment(
+                action, attempt, media, source, start, min(requested_end, start + 30))
+        except VideoParseFailure as error:
+            return error.receipt(action, attempt)
         interval = decoded["coverage"]
         evidence = [{"kind": "segment", "range": interval, "model_receipt": wire(model.receipt),
                      "observations": understood["observations"], "input": inputs}]
@@ -217,6 +364,9 @@ class VideoObservation:
             unresolved.remove(question)
             left, right = question["start"], min(question["end"], question["start"] + 8)
             try:
+                prior_revisit = saved.get("segments", {}).get(":revisit")
+                if recovering and (not prior_revisit or prior_revisit.get("dispatch_started") is False):
+                    raise Fault("video_recovery_revisit_not_started", 409)
                 revisit_action = replace(action, arguments={**args, "question": question["question"]})
                 second, second_inputs, second_model, reread = await self._observe_segment(
                     revisit_action, attempt, media, source, left, right, suffix=":revisit", dense=True)
@@ -228,9 +378,14 @@ class VideoObservation:
                 if not reread["structured"]:
                     unresolved.append({**question, "revisited": True})
             except (Fault, AppError) as error:
+                from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+                if isinstance(error, RecoveryWait) and not recovery_wait_retryable(error):
+                    raise
                 unresolved.append({**question, "revisited": True})
                 evidence.append({"kind": "revisit_unavailable", "code": error.code,
-                                 "range": {"start": left, "end": right}})
+                                 "range": {"start": left, "end": right},
+                                 "model_attempt_id": (error.model.receipt.attempt_id if isinstance(error, VideoParseFailure)
+                                     else saved.get("segments", {}).get(":revisit", {}).get("request", {}).get("attempt_id"))})
         segments = [*history.get("processed_segments", []), {"unit": "seconds", **interval,
             "analysis_attempt_id": model.receipt.attempt_id, "modalities": inputs["modalities"],
             "model_input_modalities": inputs["model_input_modalities"], "frame_times": inputs["frame_times"],
@@ -247,7 +402,10 @@ class VideoObservation:
         synthesized = False
         if len(segments) > 1 and (complete or len(segments) % 8 == 0):
             try:
-                summary_model, synthesis = await self._video_result(self._video_request(action, attempt,
+                prior_synthesis = saved.get("segments", {}).get("synthesis")
+                if recovering and (not prior_synthesis or prior_synthesis.get("dispatch_started") is False):
+                    raise Fault("video_recovery_synthesis_not_started", 409)
+                summary_model, synthesis = await self._synthesis_result(action, attempt, source, self._video_request(action, attempt,
                     [ModelPart("text", text=canonical({"previous_synthesis": synthesis,
                         "segments": summaries, "unresolved_questions": unresolved,
                         "instruction": "Synthesize the observed timeline; preserve uncertainties and modality gaps. These summaries are derivative evidence, not new observations. Do not claim full detail understanding."}))],
@@ -257,11 +415,17 @@ class VideoObservation:
                 summaries = []
                 synthesized = True
             except (Fault, AppError) as error:
-                evidence.append({"kind": "synthesis_unavailable", "code": error.code})
+                from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+                if isinstance(error, RecoveryWait) and not recovery_wait_retryable(error):
+                    raise
+                evidence.append({"kind": "synthesis_unavailable", "code": error.code,
+                                 "model_attempt_id": saved.get("segments", {}).get("synthesis", {}).get("request", {}).get("attempt_id")})
         text = synthesis if synthesized else understood["summary"] + (
             "\nEarlier segment synthesis (before this interval): " + synthesis if synthesis else "")
         if reread:
             text += "\nRevisited interval: " + reread["summary"]
+        await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                              {"phase": "commit"}, (source,))
         analysis = await self.artifacts.put(action.context, text.encode(), "text/plain", source_refs=(source,),
             metadata={"kind": "video_analysis", "model_attempt_id": model.receipt.attempt_id})
         stop = "requested_window_processed" if complete else "checkpoint"
@@ -287,7 +451,9 @@ class VideoObservation:
                 next_part = {"capability_id": "video.observe", "arguments": {
                     **acquisition, "url": original_metadata["url"], "cid": int(part["cid"]), "start": 0,
                     "question": args.get("question", ""), "content_key": args.get("content_key", "")}}
-        state = {"consumption_id": attempt.attempt_id, "segment_summaries": summaries,
+        saved = await checkpoint.load(self.database, action)
+        consumption_id = saved.get("original_attempt_id", attempt.attempt_id)
+        state = {"consumption_id": consumption_id, "segment_summaries": summaries,
                  "synthesis": synthesis, "next_part": next_part,
                  "full_part": full_part, "acquisition": acquisition,
                  "budget": {"segments_processed": len(segments), "step_seconds": 30,
@@ -295,12 +461,38 @@ class VideoObservation:
         body = {**wire(receipt), "reading_state": state}
         async with self.database.transaction() as conn:
             from ..withdrawal import validate_sources
+            from tianshu.sources.dependencies import unique_refs
 
-            if not await validate_sources(conn, action.context, (source,), self.artifacts.sources):
+            if not await validate_sources(conn, action.context, unique_refs(action.source_refs, (source,)), self.artifacts.sources):
                 raise Fault("source_revoked", 410)
-            await conn.execute("INSERT INTO capabilities.consumptions(id,action_id,source_id,source_revision,body) "
-                "VALUES(%s,%s,%s,%s,%s::jsonb) ON CONFLICT(id) DO NOTHING",
-                (attempt.attempt_id, action.action_id, source.source_id, source.revision, canonical(body)))
+            from ..execution_context import CURRENT_EXECUTION
+            execution = CURRENT_EXECUTION.get()
+            existing = None
+            if execution is not None:
+                row = await (await conn.execute(
+                    "SELECT document,attempt,receipt,execution_owner,EXISTS(SELECT 1 FROM capabilities.execution_owners o "
+                    "WHERE o.id=capabilities.actions.execution_owner AND o.expires_at>now() AND o.stopped_at IS NULL) AS owner_live "
+                    "FROM capabilities.actions WHERE id=%s FOR UPDATE",
+                    (action.action_id,))).fetchone()
+                import json
+                document = json.loads(row["document"]) if row else {}
+                if (not row or row["attempt"]["attempt_id"] != attempt.attempt_id
+                        or row["receipt"]["execution"] != "running"
+                        or not row["owner_live"]
+                        or row["execution_owner"] != execution["owner"].owners.id
+                        or document.get("source_revoked") or document.get("cancel_requested")):
+                    raise Fault("video_checkpoint_owner_changed", 409)
+                await execution["owner"].jobs.assert_generation_on(conn, document.get("data_generation"))
+                existing = await (await conn.execute(
+                    "SELECT action_id,body FROM capabilities.consumptions WHERE id=%s", (consumption_id,))).fetchone()
+                if existing and existing["action_id"] != action.action_id:
+                    raise Fault("video_checkpoint_changed", 409)
+            if not existing:
+                await conn.execute("INSERT INTO capabilities.consumptions(id,action_id,source_id,source_revision,body) "
+                    "VALUES(%s,%s,%s,%s,%s::jsonb) ON CONFLICT(id) DO NOTHING",
+                    (consumption_id, action.action_id, source.source_id, source.revision, canonical(body)))
+        if existing:
+            return await self._receipt_from_body(action, attempt, existing["body"])
         return self._consumption_receipt(action, attempt, receipt=wire(receipt), artifact=analysis,
                                          text=text, state=state)
 
@@ -310,6 +502,7 @@ class VideoObservation:
         result = {"analysis": text, "consumption": receipt, "reading_state": state,
                   "source_refs": [receipt["source"]], "read_basis": "actual_media_model_input",
                   "content_key": action.arguments.get("content_key"),
+                  "phase": "completed", "outcome": "completed" if receipt.get("requested_completed") else "continue",
                   "exploration": {"budget": state.get("budget", {})}}
         following = continuation_arguments("video.observe", action.arguments, result)
         result["continuation"] = {"capability_id": "video.observe", "arguments": following} if following else state.get("next_part")
@@ -318,19 +511,109 @@ class VideoObservation:
                 ranges=tuple(receipt["ranges"]), representation=receipt["sampling"]), result=result)
 
     async def reconcile(self, action, attempt):
+        saved = await checkpoint.load(self.database, action, force=True)
+        consumption_id = saved.get("original_attempt_id", attempt.attempt_id)
         async with self.database.transaction(read_only=True) as conn:
             row = await (await conn.execute("SELECT body FROM capabilities.consumptions WHERE action_id=%s AND id=%s",
-                (action.action_id, attempt.attempt_id))).fetchone()
+                (action.action_id, consumption_id))).fetchone()
         if not row:
-            return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "unknown", "none", "not_requested",
+            from ..serialization import receipt_from
+            async with self.database.transaction(read_only=True) as conn:
+                current = await (await conn.execute(
+                    "SELECT attempt,receipt FROM capabilities.actions WHERE id=%s", (action.action_id,))).fetchone()
+            if (current and current["attempt"]["attempt_id"] == attempt.attempt_id
+                    and current["receipt"]["execution"] == "unknown"):
+                return receipt_from(current["receipt"])
+            return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "unknown", "unknown", "not_requested",
                            error_code="analysis_result_unknown")
-        body = row["body"]
+        return await self._receipt_from_body(action, attempt, row["body"])
+
+    async def _receipt_from_body(self, action, attempt, body):
         artifact = await self.artifacts.reference(action.context, "artifact:" + body["analysis_artifact_id"])
         raw, mime = await self.artifacts.get(action.context, artifact.media.media_id)
         if not mime.startswith("text/") or artifact.metadata.get("model_attempt_id") != body["model_attempt_id"]:
             raise Fault("analysis_artifact_mismatch", 409)
         return self._consumption_receipt(action, attempt, receipt={key: value for key, value in body.items() if key != "reading_state"},
             artifact=artifact, text=raw.decode("utf-8"), state=body["reading_state"])
+
+    async def resume_preflight(self, action, attempt, current):
+        if (current.effect not in {"none", "unknown"} or current.delivery != "not_requested"
+                or current.execution == "cancelled" and current.error_code != "capability_timeout"
+                or current.result.get("phase") == "parse"):
+            raise Fault("video_recovery_not_eligible", 409)
+        saved = await checkpoint.load(self.database, action, force=True)
+        segments = saved.get("segments", {})
+        if not segments or "main" not in segments:
+            raise Fault("video_checkpoint_unavailable", 409)
+        from tianshu.sources.dependencies import unique_refs
+        refs = unique_refs(action.source_refs,
+                           tuple(SourceRef(**item["source"]) for item in segments.values() if item.get("source")))
+        await self.authority.check(action.context, refs)
+        generation = await self._saved_generation(action, attempt)
+        for key, item in segments.items():
+            request = item.get("request") or {}
+            if not request.get("attempt_id"):
+                raise Fault("video_checkpoint_changed", 409)
+            confirmed = (item.get("registration_confirmed", False) or bool(item.get("model_receipt"))
+                         or key == "main" and attempt.dispatch == "submitted")
+            try:
+                original = await self.broker.status(request["attempt_id"], phase="observe" if confirmed else "pre_submit")
+            except AppError as error:
+                from tianshu.runtime.recovery_policy import RecoveryWait
+                if isinstance(error, RecoveryWait):
+                    raise
+                if key != "main":
+                    continue
+                raise Fault("video_original_model_unresolved", 409) from error
+            if original is None and confirmed:
+                if key != "main":
+                    continue
+                raise Fault("video_original_model_unresolved", 409)
+            if original is None:
+                from tianshu.models.codec import request_from_wire
+                self._check_original_admission_time(request_from_wire(request))
+            if original is not None and original.status != "succeeded":
+                if key != "main":
+                    continue
+                raise Fault("video_original_model_unresolved", 409)
+            if original is not None:
+                try:
+                    await self.broker.reusable_result(request["attempt_id"], context=action.context,
+                                                      expected_data_generation=generation)
+                except AppError as error:
+                    from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+                    if isinstance(error, RecoveryWait) and not recovery_wait_retryable(error):
+                        raise
+                    if key == "main":
+                        raise
+        return {"checkpoint_digest": digest(saved), "source_refs": refs}
+
+    async def _saved_generation(self, action, attempt):
+        async with self.database.transaction(read_only=True) as conn:
+            row = await (await conn.execute(
+                "SELECT document,attempt FROM capabilities.actions WHERE id=%s", (action.action_id,))).fetchone()
+        import json
+        if not row or row["attempt"]["attempt_id"] != attempt.attempt_id:
+            raise Fault("attempt_changed", 409)
+        return json.loads(row["document"]).get("data_generation")
+
+    async def validate_resume_on(self, conn, action, attempt, current, proof):
+        import json
+        from ..withdrawal import validate_sources
+
+        if not await validate_sources(conn, action.context, proof["source_refs"], self.artifacts.sources):
+            raise Fault("source_revoked", 410)
+        row = await (await conn.execute(
+            "SELECT attempt,receipt,document FROM capabilities.actions WHERE id=%s FOR UPDATE", (action.action_id,))).fetchone()
+        document = json.loads(row["document"]) if row else {}
+        if (not row or row["attempt"]["attempt_id"] != attempt.attempt_id
+                or row["receipt"]["receipt_id"] != current.receipt_id
+                or document.get("source_revoked") or document.get("cancel_requested")
+                or digest(document.get("video_observation", {})) != proof["checkpoint_digest"]):
+            raise Fault("video_checkpoint_changed", 409)
+
+    async def resume(self, action, attempt):
+        return await self.execute(action, attempt)
 
     async def cancel(self, action, attempt):
         return await self.reconcile(action, attempt)

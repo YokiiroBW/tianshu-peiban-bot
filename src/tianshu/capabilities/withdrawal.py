@@ -198,6 +198,10 @@ async def withdraw(owner, connection, refs, reason="source_revoked", *, selected
             receipt = replace(receipt, execution="cancelled", effect="none")
         receipt = replace(receipt, receipt_id=str(uuid4()))
         document = {**json.loads(row["document"]), "source_revoked": True, "cancel_requested": True}
+        document.pop("video_observation", None)
+        document.pop("content_read_resume", None)
+        document.pop("content_read", None)
+        document.pop("prior_unknown_receipts", None)
         action = {**row["action"], "arguments": {}}
         observed = datetime.now(UTC)
         await connection.execute(
