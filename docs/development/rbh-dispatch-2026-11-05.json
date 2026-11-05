@@ -1,10 +1,10 @@
 {
   "schema_version": 1,
   "batch": "RBH-20261105",
-  "state": "prepared",
+  "state": "implementing",
   "baseline_source": "ab471c58b70eab0a2807b900b2eebda114b53330",
   "production_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
-  "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "parent_thread": "01a1ac04-8013-7620-8d29-a2f2656d850b",
   "integration_root": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
   "integration_branch": "codex/rbh-integration-20261105",
   "tasks": [
@@ -27,10 +27,12 @@
         "tests/runtime/test_database.py",
         "docs/handoffs/RBH-01.md"
       ],
-      "status": "prepared",
+      "status": "dispatched",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "previous_head": "f92b0c436ac40d8f4e92757f25a13344c1ca23c9",
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
     },
     {
       "id": "RBH-02",
@@ -46,10 +48,12 @@
         "tests/models/",
         "docs/handoffs/RBH-02.md"
       ],
-      "status": "prepared",
+      "status": "dispatched",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "previous_head": "1240d5e2757e6e1b050a55168ff934e6f84a0631",
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
     },
     {
       "id": "RBH-03",
@@ -71,10 +75,12 @@
         "tests/companion/test_growth_retry.py",
         "docs/handoffs/RBH-03.md"
       ],
-      "status": "prepared",
+      "status": "dispatched",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "previous_head": "c63d2fc87e2b8f24bac6ddac11df87e9a5ed3af8",
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
     },
     {
       "id": "RBH-04",
@@ -98,10 +104,12 @@
         "tests/memory/test_consolidation_retry.py",
         "docs/handoffs/RBH-04.md"
       ],
-      "status": "prepared",
+      "status": "dispatched",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "previous_head": "b06c32e6f2c575622e0b2dd87f41a6517c552433",
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
     },
     {
       "id": "RBH-05",
@@ -125,10 +133,12 @@
         "tests/life/test_rbg_plan_retirement.py",
         "docs/handoffs/RBH-05.md"
       ],
-      "status": "prepared",
+      "status": "dispatched",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "previous_head": "a1d8a01bc614566ff70a5092daed53a0f9b03c53",
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
     },
     {
       "id": "RBH-06",
@@ -147,10 +157,12 @@
         "tests/core/test_rbh_*.py",
         "docs/handoffs/RBH-06.md"
       ],
-      "status": "prepared",
+      "status": "dispatched",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "previous_head": "3717dee45ab85ff109bdfe47d741ee14d53e3efd",
+      "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4"
     }
   ],
   "invariants": [
@@ -158,5 +170,11 @@
     "total_attempts_monotonic",
     "root_only_production_writer"
   ],
-  "validation_policy": "workers_write_tests_static_review_only_coordinator_affected_validation_once"
+  "validation_policy": "workers_write_tests_static_review_only_coordinator_affected_validation_once",
+  "seed_commit": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
+  "prepared_at": "2026-11-05T13:56:40.981594+00:00",
+  "previous_parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
+  "resumed_at": "2026-11-05T14:04:49.101579+00:00",
+  "takeover_reason": "User explicitly requested continuation in this chat; previous coordinator idle after model capacity errors; prepared branches verified clean.",
+  "dispatched_at": "2026-11-05T14:05:12.651984+00:00"
 }
