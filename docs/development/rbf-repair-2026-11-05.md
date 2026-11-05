@@ -33,3 +33,4 @@ Runtime先发布明确等待/本地资源失败处置合同；Life/Memory/Growth
 - [RBF-06 Models状态查询与原回执语义](rbf-work-packages/models.md)
 - [RBF-07 Growth临时资源失败与恢复一致性](rbf-work-packages/growth.md)
 - [RBF-08 统计覆盖、事件归因与巡检摘要](rbf-work-packages/observability.md)
+- [RBF-09 前台对话公共恢复合同接线](rbf-work-packages/conversation.md)：共享恢复/来源/模型合同的直接调用方适配，保留原turn及送达身份。

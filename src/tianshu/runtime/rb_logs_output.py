@@ -9,7 +9,8 @@ from uuid import uuid4
 
 LEVELS = {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL", "UNCLASSIFIED"}
 SAFE_FIELDS = ("trace_id", "correlation_id", "job_id", "attempt_id", "error_code",
-               "error_family", "dependency_ref", "task_name", "connection_id", "stack")
+               "error_family", "dependency_ref", "task_name", "connection_id", "stack",
+               "lookup_phase", "lookup_state", "failure_phase", "pool_name")
 _SENSITIVE_KEY = re.compile(
     r"(?i)([\"']?(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|"
     r"password|passwd|secret|credential|prompt|messages|body|payload|content|"

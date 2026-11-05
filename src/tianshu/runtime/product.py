@@ -255,7 +255,7 @@ async def build_product(runtime):
     caps.catalog.on_change = capabilities_changed
     await caps.prepare()
     reading = ReadingService(life, caps.reading)
-    writing.bind_completion(life.writing_completed)
+    writing.bind_completion(life.writing_completed, prepare=life.prepare_writing_completed)
     if dialogue:
         renderer = ExpressionRenderer(
             db, jobs, identity, sources, caps.actions, caps.speech, delivery=expression

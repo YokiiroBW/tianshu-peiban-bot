@@ -18,7 +18,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-runtime/tianshu-peiban-bot",
       "branch": "codex/rbf-runtime-20261105",
-      "status": "implementing",
+      "status": "ready_for_integration",
       "allowed_paths": [
         "src/tianshu/runtime/database.py",
         "src/tianshu/runtime/jobs.py",
@@ -29,7 +29,10 @@
         "src/tianshu/runtime/rbf_*.sql",
         "tests/runtime/test_rbf_*.py"
       ],
-      "commits": [],
+      "commits": [
+        "36c88b8adffb21badb7d23dbaac1f0a96abeffb2",
+        "b44e8f7f07f98128b65a24cd0195179d3f357f56"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -100,7 +103,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-sources/tianshu-peiban-bot",
       "branch": "codex/rbf-sources-20261105",
-      "status": "implementing",
+      "status": "ready_for_integration",
       "allowed_paths": [
         "src/tianshu/sources/",
         "src/tianshu/identity/",
@@ -109,7 +112,11 @@
         "tests/identity/test_rbf_*.py",
         "tests/conversation/test_rbf_persistence*.py"
       ],
-      "commits": [],
+      "commits": [
+        "539754b0a89015ddf1236283eb86d08ca1eb91d8",
+        "754fc8d3203cc640c020076424c263a114141dc2",
+        "71ef3ea75bb669bf19f7716418641aad7534610a"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -123,16 +130,25 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-models/tianshu-peiban-bot",
       "branch": "codex/rbf-models-20261105",
-      "status": "implementing",
+      "status": "integrated_pending_central_validation",
       "allowed_paths": [
         "src/tianshu/models/",
         "tests/models/test_rbf_*.py"
       ],
-      "commits": [],
+      "commits": [
+        "171b432bdcaacee2969a265cae3ecde9cd41b78d",
+        "e078ea7b1373a308782ef24cc6fca39bf2bee588",
+        "d4fe9ccdbfa20d1d134f7e2aa4211247c53d7d03"
+      ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
-      "acknowledged": true
+      "acknowledged": true,
+      "integrated_commits": [
+        "d0d3f1a8",
+        "134fdf57",
+        "6db3646d"
+      ]
     },
     {
       "id": "RBF-07",
@@ -176,6 +192,26 @@
         "src/tianshu/channels/service.py",
         "src/tianshu/channels/ingress.py",
         "src/tianshu/channels/delivery.py"
+      ],
+      "commits": [],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default",
+      "acknowledged": true
+    },
+    {
+      "id": "RBF-09",
+      "key": "conversation",
+      "title": "前台对话公共恢复合同接线",
+      "thread_id": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
+      "branch": "codex/rbf-conversation-20261105",
+      "status": "implementing",
+      "allowed_paths": [
+        "src/tianshu/conversation/ except persistence.py",
+        "tests/conversation/",
+        "docs/handoffs/RBF-09.md"
       ],
       "commits": [],
       "model": "gpt-6.1-terra",
