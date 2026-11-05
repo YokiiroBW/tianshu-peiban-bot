@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBF-20261105",
-  "state": "all_implementation_integrated",
+  "state": "deployed_with_source_perf_followup_active",
   "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "model": "gpt-6.1-terra",
   "reasoning_effort": "max",
@@ -65,7 +65,8 @@
       ],
       "commits": [
         "8f3a251f6fa065400f3fc965656b1bf7c3a760dd",
-        "fca004a096752b72b834d038541de21997410ed5"
+        "fca004a096752b72b834d038541de21997410ed5",
+        "e19fb383f446b794f23effef7866760381d0ae2d"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -73,7 +74,8 @@
       "acknowledged": true,
       "integrated_commits": [
         "e58e32a728379cab85cd9440f260bde7defc483b",
-        "39fc1e78c2166eb063bef24662eb5eb0ec2ab0b2"
+        "39fc1e78c2166eb063bef24662eb5eb0ec2ab0b2",
+        "79c522282715ac5e909728776a340f30b61aed38"
       ]
     },
     {
@@ -91,7 +93,8 @@
       ],
       "commits": [
         "e66893d02ca57da7526f24780e50492a44895e1c",
-        "385ce5c18f37514224b58e9ce899c5cd19338be1"
+        "385ce5c18f37514224b58e9ce899c5cd19338be1",
+        "93dbeaccca19f2b654ebbf3ded21acf8461184db"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -99,7 +102,8 @@
       "acknowledged": true,
       "integrated_commits": [
         "0ae65df1362ccc853be0e3447cf05c0657db12db",
-        "f2912e62241a39e4fc70d9d8e80f4b4c695c3414"
+        "f2912e62241a39e4fc70d9d8e80f4b4c695c3414",
+        "1c41a03df49f509742156a00a4e32ace0bcfa795"
       ]
     },
     {
@@ -136,7 +140,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-sources/tianshu-peiban-bot",
       "branch": "codex/rbf-sources-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "followup_active",
       "allowed_paths": [
         "src/tianshu/sources/",
         "src/tianshu/identity/",
@@ -148,7 +152,10 @@
       "commits": [
         "539754b0a89015ddf1236283eb86d08ca1eb91d8",
         "754fc8d3203cc640c020076424c263a114141dc2",
-        "71ef3ea75bb669bf19f7716418641aad7534610a"
+        "71ef3ea75bb669bf19f7716418641aad7534610a",
+        "c18525a76c75237f61703ddd4399043f2c910946",
+        "956a73ba381cdcc91911ff61a69d7b31fbd076ee",
+        "d71568393bf12bba3e4588a0ff03968b7d1c07b9"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -157,8 +164,12 @@
       "integrated_commits": [
         "46d1615c4fed17c35bcaf63b6940c468a6491fd1",
         "e3665de1a22c0517a5efd337927dc6b3e972e3c9",
-        "b88221d648eee98837f325f05a510a44e43a080d"
-      ]
+        "b88221d648eee98837f325f05a510a44e43a080d",
+        "fed6d70679cacf80633a88cc8db141b13f3c867e",
+        "27b4c0f468f7f9c56d516de9f5a37cb19169252d",
+        "a84af7af562a0ad430548d1b11fa735bd22702cb"
+      ],
+      "pending": "shared_DAG_proof_cost_proven_live_awaiting_bounded_optimization"
     },
     {
       "id": "RBF-06",
@@ -214,7 +225,8 @@
         "1fc6bac83099c732db1cb2868d70d118ed8b7362",
         "8e46fd530bf57dab761db504fc292cddb24ad83d",
         "272a72b31832a1e6a9d08268195d60944d6ba0f7",
-        "c1b3b6ae62ccc13c9d15eb531c69d58e986ebd79"
+        "c1b3b6ae62ccc13c9d15eb531c69d58e986ebd79",
+        "c63d2fc87e2b8f24bac6ddac11df87e9a5ed3af8"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -226,7 +238,8 @@
         "0597982b6f9fd8c9394758a7a7c238c401d5338e",
         "2b00b91e4ea727a293d8aef3c0dd1c20c1cc3ba3",
         "5a801dfffd685c40a0c6dcf57dcedf08cf5d780f",
-        "425e5e1c2b72efcac06b7e31d01ff4590fde2b81"
+        "425e5e1c2b72efcac06b7e31d01ff4590fde2b81",
+        "2bfb388afc67cbb0c472c4111d514e5628387f6c"
       ]
     },
     {
@@ -255,7 +268,8 @@
       "commits": [
         "0ec7059f512db6001dce882edef3f28a1451afcd",
         "89be0a1d20197a002c03b38d0aad59539f8b5404",
-        "50ce55981ceabf54c1f52eb8fd99b0bed8310a85"
+        "50ce55981ceabf54c1f52eb8fd99b0bed8310a85",
+        "064b8fd930247a7406175d9aa718c499ad629757"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -264,7 +278,8 @@
       "integrated_commits": [
         "f64a7cc0e440895bd51b040fbf089af3b933e28a",
         "7cafc4607e9529452e7685bad84cd11eec56f65d",
-        "590c9e98dc5fe3d16b464c7c35279b9777efe082"
+        "590c9e98dc5fe3d16b464c7c35279b9777efe082",
+        "3265f0cb39c7b7f611d5729ef6ddcee3171d95f8"
       ]
     },
     {
@@ -296,14 +311,14 @@
   "integration_branch": "codex/rbf-integration-20261105",
   "dispatched_at": "2026-11-05T02:24:09.670928+00:00",
   "all_tasks_acknowledged": true,
-  "last_updated_at": "2026-11-05T04:09:57.863571+00:00",
+  "last_updated_at": "2026-11-05T05:16:49.822364+00:00",
   "interfaces": "docs/development/rbf-interfaces-2026-11-05.md",
   "coordinator_commits": [
     "553cf173",
     "a53c95c2"
   ],
   "next_step": "collect implementation commits, integrate serially, run centralized relevant checks",
-  "validation_state": "ready_for_central_validation",
+  "validation_state": "598_passed_0_failed_0_skipped_before_live_shared_DAG_followup",
   "validation_database": {
     "host": "192.168.31.230",
     "port": 25019,
@@ -311,13 +326,24 @@
     "private_admin_record": ".runtime/rbf-execution-20261105/validation-pg.private.json",
     "purpose": "isolated RBF verification only"
   },
-  "pending_followups": [],
+  "pending_followups": [
+    {
+      "key": "sources",
+      "task": "shared_DAG_proof_cost_proven_live_awaiting_bounded_optimization"
+    }
+  ],
   "shared_migrations_registered": [
     "models_recovery_wait",
     "models_prestart_reconciliation",
     "0041_conversation_submission_confirmation",
-    "rbf_life_planning_wake"
+    "rbf_life_planning_wake",
+    "rbf_source_proof_jit"
   ],
-  "integration_head": "39fc1e78c2166eb063bef24662eb5eb0ec2ab0b2",
-  "production_changed": false
+  "integration_head": "680662a1e53e70893db47f4559447411b1415ca9",
+  "production_changed": true,
+  "application_source": "79c522282715ac5e909728776a340f30b61aed38",
+  "database_migration_source": "680662a1e53e70893db47f4559447411b1415ca9",
+  "data_generation": "0833be12-8fba-4db7-9e22-2120e8ea13ea",
+  "original_memory_recovery": "original_5480_batch_applied_both_episodes_completed",
+  "automation": "existing_automation_active_30_minutes_terra_max_normal_read_only"
 }
