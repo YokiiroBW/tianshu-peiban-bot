@@ -26,7 +26,9 @@ from .errors import AppError
 from .execution import ExecutionLane, TASK_LANES, job_observation, role_for_lane
 from .recovery_policy import RecoveryWait, recovery_wait_retryable
 
-DYNAMIC_TASK_LANES = frozenset({"conversation.run", "capabilities.execute", "capabilities.media_job"})
+DYNAMIC_TASK_LANES = frozenset({
+    "conversation.run", "conversation.prepare", "capabilities.execute", "capabilities.media_job",
+})
 _execution_generation: ContextVar[str | None] = ContextVar("tianshu_execution_generation", default=None)
 
 

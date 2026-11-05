@@ -33,6 +33,7 @@
 - 当原 doing job 带 todo-only `queueing_lock`，重排前释放该原 job 的合并锁，避免与并发后继 todo 冲突；保留原 job ID、业务去重键、payload 和后继。领域仍负责对象级 CAS 与回执，重复唤醒不能重复应用业务。
 - 等待事件为 `job.deferred` / `deferred`；数据库等待附已知的 `failure_phase`、`pool_name` 和 `dependency_ref=database:<pool>`，不冒充模型失败。**接线要求：**RBF-08 的 `events.py` 必须接收该事件、结果和两个元数据字段，根的 Supervisor 日志白名单需保留字段；在此接线前旧 EventLog 会拒绝该事件，Jobs 会按既有 best-effort 日志约定吞掉记录错误。
 - 若队列本身不可用，不能声称已经成功延后：原生 worker/队列状态与后续进程恢复仍是权威。提交不明时先用原 `CommandStore.find`/`replay` 或领域原始动作/模型回执对账；仅确认本地事务回滚后重做该本地阶段，不能重放发送、下载等不明副作用。
+- `conversation.prepare` 已加入现有 `TASK_LANES`，默认归属 `CONVERSATION`，并与 `conversation.run` 一样属于动态路由。Conversation 消费者须为它注册同一 lane_resolver；仅注册 producer 路由时须显式指定实际 lane，未指定会拒绝猜测。普通与自主准备分别复用现有 conversation/proactive 队列和并发预算。
 
 ## 回归用例与集中验证
 
@@ -42,10 +43,12 @@
 
 补充 `tests/runtime/test_rbf_recovery_wait_rpc.py`：覆盖版本化 typed envelope 的严格校验、跨 RPC 原因与时间、远端未确认回滚、本地逐层回滚和多次转发不能洗白远端否定证据。
 
+补充 `tests/runtime/test_rbf_conversation_prepare_routing.py`：覆盖 producer-only 动态 lane 拒绝猜测、显式 lane 观测及消费者 resolver 选择现有队列。
+
 建议协调者在完成 RBF-08 事件装配及领域接线后，用本批隔离 PG 驱动先运行：
 
 ```text
-files tests/runtime/test_rbf_recovery_wait.py tests/runtime/test_rbf_recovery_wait_rpc.py tests/runtime/test_rbf_database_jobs.py tests/runtime/test_rb_recovery_policy.py tests/runtime/test_rb_jobs.py tests/runtime/test_execution_lanes.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_rb_roles.py
+files tests/runtime/test_rbf_recovery_wait.py tests/runtime/test_rbf_recovery_wait_rpc.py tests/runtime/test_rbf_conversation_prepare_routing.py tests/runtime/test_rbf_database_jobs.py tests/runtime/test_rb_recovery_policy.py tests/runtime/test_rb_jobs.py tests/runtime/test_execution_lanes.py tests/runtime/test_transactions.py tests/runtime/test_events.py tests/runtime/test_rb_roles.py
 ```
 
 再按各领域交付运行 Memory/Life/Growth 对应的定向用例，检查资源等待不会写 terminal 或重发模型/外部动作，以及原业务记录和唤醒在事务内一致。

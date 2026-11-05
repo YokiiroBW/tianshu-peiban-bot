@@ -63,6 +63,7 @@ TASK_LANES = {
     "channels.media_supplement_expire": ExecutionLane.CONVERSATION,
     "channels.resume_delivery": ExecutionLane.CONVERSATION,
     "conversation.run": ExecutionLane.CONVERSATION,
+    "conversation.prepare": ExecutionLane.CONVERSATION,
     "conversation.model_complete": ExecutionLane.CONVERSATION,
     "conversation.statistics_reconcile": ExecutionLane.CONTROL,
     "conversation.supplement_notify": ExecutionLane.CONTROL,
