@@ -41,3 +41,13 @@
 - 由主协调者在共享 `product_migrations()` 新增独立命名迁移 `rbf_source_proof_jit`，读取 `files('tianshu.sources').joinpath('rbf_source_proof_jit.sql').read_text(encoding='utf-8')`；不能更改已部署历史迁移或仅修改 baseline。升级前记录该函数原有 `proconfig`，如需回滚按原状态恢复，仅在原来无对应设置时使用 `ALTER FUNCTION ... RESET jit`。
 - 定向用例 `tests/sources/test_rbf_proof_jit.py` 在隔离事务中先重建无函数级 JIT 设置的升级前状态，再核验迁移后内层确实关闭 JIT、调用结束后恢复、函数主体/所有者/权限/属性不变，且安全片段、已遗忘片段、无效来源、不同用户和 AND 结果不变。域注册使常用 core fixture 在新设置下执行；建议主协调者同时复用 `tests/sources/test_rb_proof_batches.py::test_large_groups_preserve_results_ranges_and_global_locks` 和 `tests/sources/test_rb_authority.py::test_same_transaction_evidence_proof_and_and_or_generation` 覆盖大批、撤回、片段与替代组语义。
 - 本窗口只做静态审阅及 `git diff --cached --check`，未运行上述测试、构建、生产 SQL 或发布。正式集成后由协调者确认迁移落地，按同样本对照检查授权结果与时延，再比较控制池新增 timeout 增量、在途证明及原业务任务进度；历史累计 timeout 不能当作上线后新增故障数。
+
+## 后续：同一证明内复用共享支持子图
+
+- JIT 迁移已由主协调者在线落地，小样本明显改善，但随后控制池和业务池仍产生新增 acquire timeout，活动 `check_groups` 查询实测持续数秒且无 blocker；不能将已部署 JIT 窄修等同于整体解决。
+- 协调者对真实支持图做只读拓扑聚合：91 个可达节点、910 条边，子 locator 均为 `{}`，无环、最大深度 18；最大根全部分支的递归访问上界约 33.9 万，不是实际执行次数。该当前有效根在保留 JIT-off 的原实现下单次证明超过 5 秒被取消，未获得真假结果。另一条 124 引用的真实请求闭包全为叶子、证明约 18 毫秒；它不能代表上述高复用根，也不能证明当时活动 SQL 的参数。
+- 代码提交 `f4bf445a03fbdf39485c42284bdef3fb13f7316f` 新增 `rbf_source_proof_reuse.sql` 和 Sources 域同名迁移。保留原始闭包构建、8192 节点预算及 `valid_reference` 权威；仅在支持边 locator 全为空对象、有实际共享节点且无环、最长路径不超过 64 时，按拓扑顺序为每个节点计算并复用需访问/不需访问两种结果。每个节点的本地权限/遗忘仍调用原 `valid_reference`，disclosure 决定子图访问要求；仅在当前函数调用内持有中间结果，不跨语句或事务缓存。
+- 顶层引用按原次序、原 locator 和原短路规则处理；有范围的顶层引用先调用原函数验证自身，再组合支持条件，不能将空 locator 因局部遗忘失败的完整结果用于安全子范围。任意非空支持 locator、环、超深或无法得到完整拓扑时整批回退原递归；因此未访问的非法 locator、溢出或超深分支不会被提前求值。首次事实读取、身份/来源验证及后续 CAS 仍按原事务规则执行。
+- 主协调者须在共享 `product_migrations()` 中、`rbf_source_proof_jit` 之后注册 `Migration('rbf_source_proof_reuse', files('tianshu.sources').joinpath('rbf_source_proof_reuse.sql').read_text(encoding='utf-8'))`；不要改历史 migration 或 baseline。SQL 用 `CREATE OR REPLACE` 保留原函数身份与 ACL，并保留 `jit=off`；升级前保存 `pg_get_functiondef`/`proconfig` 和迁移记录，回退按协调者的既有迁移流程恢复实际旧定义，不能盲删业务状态。
+- 新增 `tests/sources/test_rbf_proof_reuse.py`：直接验证可复用图、64 层可用/65 层回退、非空支持 locator/环回退；并与旧函数同语句对比 AND/OR、disclosure、其他用户权限、顶部安全范围及遗忘片段、数字 locator 文字、短路下的溢出、真实溢出/深度异常、撤回后下一语句重新校验，以及增量升级的 owner/ACL/JIT。建议集中执行 `python -m pytest -q tests/sources/test_rbf_proof_reuse.py tests/sources/test_rbf_proof_jit.py tests/sources/test_rb_authority.py tests/sources/test_rb_proof_batches.py`，使用明确隔离的 PostgreSQL+pgvector。
+- 执行者只完成静态审阅和 diff 空白检查，未运行测试、构建或生产 SQL；无证据声称上述用例或真实来源复测已通过。协调者验证后应以同一真实根、相同 scope、受控超时复测真假结果和时长，再比较控制池超时新增量与实际业务进展；已知样本并非截获的活动 SQL 参数，不能将所有历史长查询归为同一根因。
