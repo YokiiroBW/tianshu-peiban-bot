@@ -205,6 +205,31 @@ class AttemptLedger:
                 raise AppError("attempt_identity_conflict", status=409)
             return await self._cancellation(conn, row), False
 
+    async def claim_queued_submission(self, request):
+        """Transfer only an unstarted frozen submission to this broker instance."""
+        async with self.database.transaction(control=True) as conn:
+            current = await current_generation_on(conn)
+            row = await (await conn.execute(
+                "SELECT * FROM models.attempts WHERE attempt_id=%s FOR UPDATE",
+                (request.attempt_id,))).fetchone()
+            if row is None:
+                raise AppError("attempt_not_found", status=404)
+            saved = await (await conn.execute(
+                "SELECT request_digest,request FROM models.submissions WHERE attempt_id=%s",
+                (request.attempt_id,))).fetchone()
+            if not saved or saved["request"] is None or saved["request_digest"] != submission_digest(request):
+                raise AppError("attempt_identity_conflict", status=409)
+            require_generation(row["data_generation"], current)
+            if request.data_generation is not None:
+                require_generation(request.data_generation, generation_id(row["data_generation"]))
+            claimed = await (await conn.execute(
+                "UPDATE models.attempts SET broker_instance=%s,revision=revision+1 "
+                "WHERE attempt_id=%s AND status='queued' AND dispatch='not_started' "
+                "AND NOT cancel_requested AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
+                "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
+                (self.instance_id, request.attempt_id))).fetchone()
+            return await self._cancellation(conn, claimed or row), claimed is not None, saved["request"]
+
     @staticmethod
     async def _attach_completion(connection, saved, completion):
         if completion is None:
@@ -303,9 +328,9 @@ class AttemptLedger:
         async with self.database.transaction(control=True) as conn:
             row = await (await conn.execute(
                 "UPDATE models.attempts SET wire_digest=%s,route_selection=COALESCE(route_selection,%s),"
-                "revision=revision+1 WHERE attempt_id=%s AND status='queued' "
+                "revision=revision+1 WHERE attempt_id=%s AND status='queued' AND broker_instance=%s "
                 "AND (wire_digest IS NULL OR wire_digest=%s) RETURNING attempt_id",
-                (wire_digest, Jsonb(selection), attempt_id, wire_digest))).fetchone()
+                (wire_digest, Jsonb(selection), attempt_id, self.instance_id, wire_digest))).fetchone()
             if not row:
                 raise AppError("model_wire_changed_before_execution", status=409)
 
@@ -360,11 +385,13 @@ class AttemptLedger:
     async def started(self, attempt_id, hold_seconds, *, deadline_at=None):
         async with self.database.transaction(control=True) as conn:
             current = await current_generation_on(conn)
-            original = await (await conn.execute("SELECT data_generation FROM models.attempts "
+            original = await (await conn.execute("SELECT data_generation,broker_instance FROM models.attempts "
                 "WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
             if not original:
                 raise AppError("attempt_cancelled_before_start", status=409)
             require_generation(original["data_generation"], current)
+            if original["broker_instance"] != self.instance_id:
+                raise AppError("attempt_owner_changed", status=409)
             cursor = await conn.execute(
                 "UPDATE models.attempts SET status='running',dispatch='submitted',started_at=now(),"
                 "execution_started_at=CASE WHEN execution_start='admitted' THEN COALESCE(execution_started_at,now()) ELSE execution_started_at END,"
@@ -372,12 +399,12 @@ class AttemptLedger:
                 "hold_until=CASE WHEN %s::double precision IS NULL THEN NULL ELSE "
                 "GREATEST(COALESCE(%s,deadline_at),now()+(%s*interval '1 second')) END,"
                 "charged_tokens=estimated_tokens,revision=revision+1 "
-                "WHERE attempt_id=%s AND status='queued' AND NOT cancel_requested "
+                "WHERE attempt_id=%s AND broker_instance=%s AND status='queued' AND NOT cancel_requested "
                 "AND (COALESCE(%s,deadline_at)>now() OR (execution_start='provider_running' "
                 "AND deadline_at IS NULL AND (business_deadline_at IS NULL OR business_deadline_at>now()))) "
                 "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
                 "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
-                (deadline_at, hold_seconds, deadline_at, hold_seconds, attempt_id, deadline_at))
+                (deadline_at, hold_seconds, deadline_at, hold_seconds, attempt_id, self.instance_id, deadline_at))
             row = await cursor.fetchone()
             if not row:
                 raise AppError("attempt_cancelled_before_start", status=409)
@@ -471,10 +498,34 @@ class AttemptLedger:
                 await self._record_statistics(conn, row)
             return await self._cancellation(conn, row)
 
-    async def request_cancel(self, attempt_id, *, reason="explicit_cancel"):
+    async def finish_before_start(self, attempt_id, status, *, error_code=None, timing=None, diagnostic=None):
+        """Settle preparation failure only while this broker still owns the queue."""
+        if status not in {"failed", "cancelled"}:
+            raise ValueError("invalid_prestart_status")
+        async with self.database.transaction(control=True) as conn:
+            row = await (await conn.execute(
+                "UPDATE models.attempts SET status=%s,finished_at=now(),error_code=%s,"
+                "http_timing=COALESCE(%s,http_timing),diagnostic=COALESCE(%s,diagnostic),revision=revision+1 "
+                "WHERE attempt_id=%s AND broker_instance=%s AND status='queued' AND dispatch='not_started' "
+                "AND (NOT cancel_requested OR %s='cancelled') RETURNING *",
+                (status, error_code, Jsonb(timing) if timing is not None else None,
+                 Jsonb(diagnostic) if diagnostic is not None else None,
+                 attempt_id, self.instance_id, status))).fetchone()
+            if row is None:
+                return None
+            await self._record_statistics(conn, row)
+            return await self._cancellation(conn, row)
+
+    async def request_cancel(self, attempt_id, *, reason="explicit_cancel", expected_owner=None):
         if reason not in {"explicit_cancel", "consumer_interrupted"}:
             raise AppError("invalid_model_cancellation_reason")
         async with self.database.transaction(control=True) as conn:
+            # Lock in the same order for explicit and owner-scoped cancellation.
+            owner = await (await conn.execute(
+                "SELECT broker_instance FROM models.attempts WHERE attempt_id=%s FOR UPDATE",
+                (attempt_id,))).fetchone()
+            if expected_owner is not None and (owner is None or owner["broker_instance"] != expected_owner):
+                return None
             await conn.execute("INSERT INTO models.cancellations AS c(attempt_id,reason) VALUES(%s,%s) "
                 "ON CONFLICT(attempt_id) DO UPDATE SET reason=CASE WHEN c.reason='explicit_cancel' "
                 "THEN c.reason ELSE excluded.reason END", (attempt_id, reason))

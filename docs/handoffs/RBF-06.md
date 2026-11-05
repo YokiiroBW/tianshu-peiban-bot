@@ -30,3 +30,12 @@
 - 本窗口按授权未运行测试、构建、烟测，也未操作生产、真实模型或 QQ。已做完整 diff 静态审阅、`git diff --cached --check` 和 6 个变更 Python 文件的 AST 静态解析；不将这些描述为业务验收。
 - 新增 `tests/models/test_rbf_model_receipts.py`，覆盖按阶段区分 200/404、事件元数据、其他 404 与服务不可用、原回执身份、提交 ACK 丢失、queued/running/unknown/succeeded、成功结果读取与模拟业务提交回滚后复用、身份/来源/摘要/代际/明确取消、原正文缺失和未知 usage。建议集中运行此文件，以及相关既有 `tests/models/test_result_recovery.py`、`tests/models/test_rb_stream.py`、`tests/runtime/test_rb_recovery_policy.py` 和域接线受影响测试。
 - 无新 DDL、模型绑定或配置变更。跨域接线、最终集中验证、部署和真实业务恢复均由协调者确认；此提交不宣称这些工作已完成。
+
+## 2026-11-05 启动所有权竞态与等待信号补充
+
+- 经源码追踪，旧 Broker 的独立 PostgreSQL owner 连接失效后，advisory lock 立即释放，但旧进程要等 owner watcher 才停驱动；新 Broker 因此可能与旧驱动同时恢复同一 queued attempt。原先 `started` CAS 的败者在 `_events` 中无条件写 observation 和 `finish(failed)`，可覆盖胜者 running；`_drive` 的先读 queued 再 finish 也有同类竞态。
+- 使用既有 `models.attempts.broker_instance`：恢复前在账本事务中核对原冻结请求摘要、当前代际与 queued/not_started，并领取归属；重新执行读取已保存的原始请求，避免同摘要重投改变未纳入摘要的 budget/trace/cancellation 身份。`record_wire` 和 `started` 校验归属；败者的排队失败状态、诊断和 timing 在单条带归属和状态约束的更新内写入，失败者不得写胜者结果或发出虚假的 finished 事件。consumer_interrupted 取消墓碑也按归属约束，显式取消仍可操作原 attempt。无新 schema。
+- `results.read_result` 对 `RecoveryWait` 先透传，不把来源校验等待变成空的成功正文。Models 客户端采用 Runtime `recovery_wait_from_wire`，只从可信 Models 响应中的显式 409 `error.recovery_wait`（reason 与 error.code 一致）恢复类型；无效结构返回 `broker_protocol_error`，普通 409 仍为原 AppError。内部 NDJSON 流在已发送 HTTP header 后使用同一 envelope；外部 native 流不改。丢失提交 ACK 后的观察仍保持原有 unknown 保护。
+- 集成依赖：必须先集成 Runtime 的 `RecoveryWait`、`recovery_wait_to_wire` / `recovery_wait_from_wire`、远端和本地回滚证据合取，以及通用 HTTP 错误序列化；本分支基线早于这些共享实现，单独检出此提交不能直接导入 Models。`rollback_confirmed=false` 不能被调用方事务成功回滚洗成可自动续跑。
+- 本批新写 `tests/models/test_rbf_start_ownership.py` 和 `tests/models/test_rbf_recovery_wait_transport.py`，供协调者集中运行；覆盖新所有者 queued/running 两个交错、原始 budget、旧 owner 取消与写入限制、正常排队失败、typed/普通/畸形 409、远端回滚布尔值、来源读取及内部流。仅做 diff 静态审阅、格式检查及 AST 解析，未运行测试/构建/烟测/生产。
+- 未覆盖的独立边界已告知协调者：后台 `_drive` / `_events` 在 accepted 之后如果再遇到 `RecoveryWait`，现有通用异常路径可能把它落成失败；若仅将其保留 queued，观察方又可能一直等待，且远端回滚未确认时不能在 Broker 重启后自动当作安全重试。本卡没有擅自引入持久等待调度或改 Runtime schema；此问题需要协调 Runtime 的持久证据、唤醒及原 attempt 语义。`started` 的数据库提交确认丢失时也不能推定未发送；本修改不会把已变为 running 的原回执写成 failed，后续应按原回执与恢复机制处理。

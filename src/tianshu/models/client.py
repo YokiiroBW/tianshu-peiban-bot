@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 import aiohttp
 
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_from_wire
 from tianshu.runtime.serialization import wire
 from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.types import RequestBudget, ServiceClass
@@ -37,6 +38,23 @@ def _known_wait_expiry(receipt):
         return AppError(receipt.error_code, status=408,
                         details={"status": "cancelled", "dispatch": "not_started"})
     return None
+
+
+def _recovery_wait(error, status):
+    """Decode only an explicitly typed Models transport error."""
+    if not isinstance(error, dict):
+        raise AppError("broker_protocol_error", status=502)
+    if "recovery_wait" not in error:
+        return None
+    if status != 409:
+        raise AppError("broker_protocol_error", status=502)
+    try:
+        waiting = recovery_wait_from_wire(error["recovery_wait"])
+    except (TypeError, ValueError):
+        raise AppError("broker_protocol_error", status=502) from None
+    if error.get("code") != waiting.reason:
+        raise AppError("broker_protocol_error", status=502)
+    return waiting
 
 
 class ModelClient:
@@ -93,7 +111,16 @@ class ModelClient:
                 (5 if control else 120) if timeout is _DEFAULT_TIMEOUT else timeout), sock_connect=5)) as response:
             value = await response.json()
             if response.status >= 400:
+                if not isinstance(value, dict):
+                    raise AppError("broker_protocol_error", status=502)
                 error = value.get("error", {})
+                models_path = (path.startswith("/internal/v1/models/") or path == "/internal/v1/resources"
+                               or path.startswith("/internal/v1/resources/"))
+                if isinstance(error, dict) and "recovery_wait" in error and not models_path:
+                    raise AppError("broker_protocol_error", status=502)
+                waiting = _recovery_wait(error, response.status)
+                if waiting is not None:
+                    raise waiting
                 raise AppError(error.get("code", "broker_error"), error.get("message", ""),
                                status=response.status, details=error.get("details"))
             return value
@@ -143,7 +170,13 @@ class ModelClient:
                 timeout=aiohttp.ClientTimeout(total=timeout, sock_connect=5)) as response:
                 if response.status >= 400:
                     value = await response.json()
-                    raise AppError(value.get("error", {}).get("code", "broker_error"), status=response.status)
+                    if not isinstance(value, dict):
+                        raise AppError("broker_protocol_error", status=502)
+                    error = value.get("error", {})
+                    waiting = _recovery_wait(error, response.status)
+                    if waiting is not None:
+                        raise waiting
+                    raise AppError(error.get("code", "broker_error"), status=response.status)
                 async for line in response.content:
                     if len(line) > 8*1024*1024:
                         raise AppError("broker_event_too_large", status=502)
@@ -151,6 +184,9 @@ class ModelClient:
                     if value.get("kind") == "error":
                         complete = True
                         failure = value["error"]
+                        waiting = _recovery_wait(failure, failure.get("status", 502) if isinstance(failure, dict) else 502)
+                        if waiting is not None:
+                            raise waiting
                         raise await self._stream_failure(request.attempt_id, failure["code"],
                             status=failure.get("status", 502), fallback=receipt_from_wire(failure.get("receipt")))
                     event = event_from_wire(value)
@@ -294,6 +330,8 @@ class ModelClient:
                 if admitted.deadline_at is not None:
                     request = replace(request, budget=RequestBudget(admitted.deadline_at,
                         cancellation_id=request.budget.cancellation_id, trace_id=request.budget.trace_id))
+        except RecoveryWait:
+            raise
         except AppError as exc:
             # A definite duplicate identifies another owner of this original attempt.
             # It grants no new permit and must never cancel that owner's real work.

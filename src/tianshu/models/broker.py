@@ -562,12 +562,10 @@ class ModelBroker:
                 accepted.set_exception(exc)
             if accepted.done() and (resume or not accepted.exception()) and not (
                     isinstance(exc, asyncio.CancelledError) and not self.ready):
-                # Preparation on restart can fail before _events enters its
-                # execution cleanup. Settle only a still-unstarted attempt.
-                row = await finish_cleanup(self.ledger.get(request.attempt_id))
-                if row and row["status"] == "queued":
-                    await finish_cleanup(self.ledger.finish(request.attempt_id, "failed",
-                        error_code=exc.code if isinstance(exc, AppError) else "model_preparation_failed"))
+                # Preparation can fail before _events enters its cleanup. The
+                # owner and unstarted state must still match in the same update.
+                await finish_cleanup(self.ledger.finish_before_start(request.attempt_id, "failed",
+                    error_code=exc.code if isinstance(exc, AppError) else "model_preparation_failed"))
         finally:
             await finish_cleanup(events.aclose())
             async with self.driver_lock:
@@ -624,6 +622,16 @@ class ModelBroker:
         frozen = request
         if not self.ready:
             raise AppError("broker_unavailable", status=503)
+        if resume:
+            row, claimed, saved_request = await self.ledger.claim_queued_submission(frozen)
+            if not claimed:
+                result = ModelResult((), receipt(row))
+                yield ModelEvent("receipt", receipt=result.receipt, data=result)
+                return
+            # The retry digest intentionally excludes the duration contract's
+            # caller budget, so execute the saved original rather than the retry body.
+            frozen = request_from_wire(saved_request)
+            request = frozen
         waiting_timeout(request)
         validate_provider_session(request.provider_session_scope,
             parameters=request.parameters, native_payload=request.native_payload)
@@ -1023,7 +1031,7 @@ class ModelBroker:
                     code = "broker_stopping"
                 else:
                     cancelled = await finish_cleanup(self.ledger.request_cancel(
-                        request.attempt_id, reason="consumer_interrupted"))
+                        request.attempt_id, reason="consumer_interrupted", expected_owner=self.ledger.instance_id))
                     code = ("cancelled_unknown" if submitted else "cancelled_before_start") if (
                         cancelled and cancelled.get("cancellation_reason") == "explicit_cancel") else "consumer_interrupted"
                     if not submitted and request.business_deadline_at is not None and request.business_deadline_at <= datetime.now(UTC):
@@ -1036,18 +1044,22 @@ class ModelBroker:
             if not terminal and not (not self.ready and not submitted):
                 category = ("not_sent" if not_sent else "incomplete_output" if incomplete else "known_invalid" if read_complete else
                     "incomplete_output" if collector.parts else "upstream_unknown" if submitted else "not_started")
-                partial_usage = normalize_usage(plan.protocol, collector.raw_usage, estimate) if collector.raw_usage else None
-                await finish_cleanup(self.ledger.save_observation(request.attempt_id, timing=timing.record(),
-                    diagnostic={"category": category, "part_count": len(collector.parts),
-                        "part_kinds": sorted({part.kind for part in collector.parts}),
-                        "text_bytes": sum(len((part.text or "").encode()) for part in collector.parts if part.kind == "text"),
-                        "native_completed": collector.completed,
-                        "completion": wire(collector.completion)}))
-                row = await finish_cleanup(
-                    self.ledger.finish(request.attempt_id, status, error_code=code, usage=partial_usage,
-                        dispatch="not_started" if not_sent else None,
-                        charged_units={"tokens": 0} if not_sent else None)
-                )
+                diagnostic = {"category": category, "part_count": len(collector.parts),
+                    "part_kinds": sorted({part.kind for part in collector.parts}),
+                    "text_bytes": sum(len((part.text or "").encode()) for part in collector.parts if part.kind == "text"),
+                    "native_completed": collector.completed, "completion": wire(collector.completion)}
+                if submitted:
+                    partial_usage = normalize_usage(plan.protocol, collector.raw_usage, estimate) if collector.raw_usage else None
+                    await finish_cleanup(self.ledger.save_observation(request.attempt_id,
+                        timing=timing.record(), diagnostic=diagnostic))
+                    row = await finish_cleanup(
+                        self.ledger.finish(request.attempt_id, status, error_code=code, usage=partial_usage,
+                            dispatch="not_started" if not_sent else None,
+                            charged_units={"tokens": 0} if not_sent else None)
+                    )
+                else:
+                    row = await finish_cleanup(self.ledger.finish_before_start(request.attempt_id, status,
+                        error_code=code, timing=timing.record(), diagnostic=diagnostic))
                 if acquired:
                     await finish_cleanup(
                         self.scheduler.release(
@@ -1057,10 +1069,11 @@ class ModelBroker:
                         )
                     )
                     acquired = False
-                try:
-                    await finish_cleanup(self.event("model.finished", status, request.attempt_id))
-                except AppError:
-                    pass
+                if row is not None:
+                    try:
+                        await finish_cleanup(self.event("model.finished", status, request.attempt_id))
+                    except AppError:
+                        pass
             elif acquired:
                 await finish_cleanup(self.scheduler.release(plan.quota_group, request.attempt_id, not_started=True))
             raise

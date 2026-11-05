@@ -12,6 +12,7 @@ from aiohttp import web
 
 from tianshu.runtime.api import error_middleware, json_response
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_to_wire
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
 from .codec import context_from_wire, external_from_wire, request_from_wire
@@ -55,6 +56,11 @@ def create_broker_app(broker, token, external_keys=()):
         payload = {"code":error.code if isinstance(error, AppError) else "model_stream_interrupted",
             "status":error.status if isinstance(error, AppError) else 502,
             "attempt_id":model_request.attempt_id,"receipt":wire(original)}
+        if not native and isinstance(error, RecoveryWait):
+            try:
+                payload["recovery_wait"] = recovery_wait_to_wire(error)
+            except (TypeError, ValueError):
+                payload.update(code="broker_protocol_error", status=502)
         frame = {"error":payload} if native else {"kind":"error","error":payload}
         encoded = json.dumps(frame, ensure_ascii=False).encode()
         await response.write(b"event: error\ndata: " + encoded + b"\n\n" if native else encoded + b"\n")

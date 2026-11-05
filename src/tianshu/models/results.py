@@ -3,6 +3,7 @@
 from types import SimpleNamespace
 
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
 from .codec import result_from_wire
@@ -27,6 +28,8 @@ async def read_result(broker, attempt_id, *, context):
     selected = await check_attempt_context(broker, row, context)
     try:
         await broker.recheck(SimpleNamespace(context=context, source_refs=selected))
+    except RecoveryWait:
+        raise
     except AppError as exc:
         if exc.status not in {401, 403, 409}:
             raise
