@@ -27,6 +27,7 @@ class Broker:
         self.receipts = {}
         self.results = {}
         self.completions = {}
+        self.admission_retirements = {}
         self.selected_route = "fixture-route"
         self.quota_groups = {"fixture-route":"fixture-quota", "backup-route":"backup-quota"}
 
@@ -36,6 +37,8 @@ class Broker:
             "route_revision":request.route_revision or 1,"quota_group":self.quota_groups[route]}
 
     async def submit(self, request, *, completion=None):
+        if request.attempt_id in self.admission_retirements and request.attempt_id not in self.requests:
+            raise AppError("model_admission_retired",status=409)
         if request.attempt_id in self.requests:
             assert self.requests[request.attempt_id] == request
             return self.receipts[request.attempt_id]
@@ -51,6 +54,34 @@ class Broker:
     async def status(self, attempt_id, *, phase="observe"):
         assert phase in {"pre_submit", "observe"}
         return self.receipts.get(attempt_id)
+
+    async def inspect_admission_retirement(self, attempt_id, *, lineage_id, data_generation, context, original_context):
+        old = self.receipts.get(attempt_id)
+        retired = self.admission_retirements.get(attempt_id)
+        return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":data_generation,
+            "state":"sealed" if retired else "unsealed","reason":retired,
+            "explicit_cancel":bool(old and old.cancellation_reason == "explicit_cancel"),
+            "status":old.status if old else None,"dispatch":old.dispatch if old else None,
+            "error_code":old.error_code if old else None}
+
+    async def seal_admission(self, attempt_id, *, lineage_id, data_generation, context, original_context, reason,
+                             expected_status=None):
+        old = self.receipts.get(attempt_id)
+        explicit = bool(old and old.cancellation_reason == "explicit_cancel")
+        if (attempt_id not in self.admission_retirements and not explicit and expected_status is not None
+                and expected_status != (old.status if old else "absent")):
+            return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":data_generation,
+                "state":"observation_changed","reason":reason,"status":old.status if old else None,
+                "dispatch":old.dispatch if old else None,"explicit_cancel":False}
+        self.admission_retirements.setdefault(attempt_id,reason)
+        if old and old.status == "queued" and old.dispatch == "not_started" and not explicit:
+            old = replace(old,status="cancelled",error_code="plan_"+reason,finished_at=datetime.now(UTC))
+            self.receipts[attempt_id] = old
+        return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":data_generation,
+            "state":"explicit_cancelled" if explicit else "sealed_absent" if old is None else
+                "sealed_queued" if old.status == "cancelled" and old.error_code == "plan_"+reason else "sealed_existing",
+            "reason":self.admission_retirements[attempt_id],"status":old.status if old else None,
+            "dispatch":old.dispatch if old else None,"explicit_cancel":explicit}
 
     async def result(self, attempt_id, *, context):
         result = self.results.get(attempt_id)

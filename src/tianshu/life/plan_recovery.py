@@ -23,6 +23,13 @@ def policy_for(life):
     return policy
 
 
+def finished_plan_unknown(receipt, attempt_id, data_generation):
+    from .computation_retry import finished_unknown
+
+    return (finished_unknown(receipt, attempt_id, data_generation)
+        and receipt.finished_at.utcoffset() is not None)
+
+
 async def reserve_on(life, connection, *, context, scene, material, key, frozen, profile, previous,
                      continuation, model_receipt=None):
     policy = policy_for(life)
@@ -45,8 +52,7 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
         if state not in {"failed", "succeeded", "unknown"}:
             return {"state": "waiting"}
         if state == "unknown":
-            from .computation_retry import finished_unknown
-            if not finished_unknown(model_receipt, attempt_for(previous["generation_key"]), frozen.data_generation):
+            if not finished_plan_unknown(model_receipt, attempt_for(previous["generation_key"]), frozen.data_generation):
                 return {"state": "waiting"}
         current_dependency = previous.get("recovery_current_dependency") or previous.get("recovery_dependency")
         if current_dependency != dependency:

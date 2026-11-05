@@ -119,6 +119,31 @@ def create_broker_app(broker, token, external_keys=()):
             raise AppError("attempt_not_found", status=404)
         return json_response({"receipt": result})
 
+    async def seal_admission(request):
+        body = await request.json()
+        try:
+            context = context_from_wire(body["context"])
+            original_context = context_from_wire(body["original_context"])
+            result = await broker.seal_admission(request.match_info["attempt_id"],
+                lineage_id=body["lineage_id"],data_generation=body["data_generation"],
+                context=context,original_context=original_context,reason=body["reason"],
+                expected_status=body.get("expected_status"))
+        except (KeyError,TypeError,ValueError):
+            raise AppError("invalid_model_admission_retirement") from None
+        return json_response(result)
+
+    async def inspect_admission_retirement(request):
+        body = await request.json()
+        try:
+            context = context_from_wire(body["context"])
+            original_context = context_from_wire(body["original_context"])
+            result = await broker.inspect_admission_retirement(request.match_info["attempt_id"],
+                lineage_id=body["lineage_id"],data_generation=body["data_generation"],context=context,
+                original_context=original_context)
+        except (KeyError,TypeError,ValueError):
+            raise AppError("invalid_model_admission_retirement") from None
+        return json_response(result)
+
     async def saved_result(request):
         body = await request.json()
         try:
@@ -384,6 +409,8 @@ def create_broker_app(broker, token, external_keys=()):
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/external-observation", external_observation)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/usage-observation", usage_observation)
     app.router.add_post("/internal/v1/models/attempts/{attempt_id}/cancel", cancel)
+    app.router.add_post("/internal/v1/models/attempts/{attempt_id}/seal-admission", seal_admission)
+    app.router.add_post("/internal/v1/models/attempts/{attempt_id}/admission-retirement", inspect_admission_retirement)
     app.router.add_post("/internal/v1/resources", external_begin)
     app.router.add_post("/internal/v1/resources/{attempt_id}/{operation}", external_update)
     app.router.add_get("/health/live", health)

@@ -257,6 +257,32 @@ class ModelClient:
             raise missing_receipt(attempt_id)
         return original
 
+    async def inspect_admission_retirement(self, attempt_id, *, lineage_id, data_generation, context, original_context):
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/admission-retirement",
+            body={"lineage_id":lineage_id,"data_generation":data_generation,"context":context,
+                "original_context":original_context},control=True)
+        if (not isinstance(value,dict) or value.get("attempt_id") != attempt_id
+                or value.get("lineage_id") != lineage_id or value.get("data_generation") != str(data_generation)
+                or value.get("state") not in {"sealed","unsealed"}
+                or value.get("status") not in {None,"queued","running","succeeded","failed","cancelled","unknown"}
+                or type(value.get("explicit_cancel")) is not bool):
+            raise AppError("invalid_model_admission_retirement_response",status=502)
+        return value
+
+    async def seal_admission(self, attempt_id, *, lineage_id, data_generation, context, original_context, reason,
+                             expected_status=None):
+        value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/seal-admission",
+            body={"lineage_id":lineage_id,"data_generation":data_generation,"context":context,
+                "original_context":original_context,"reason":reason,"expected_status":expected_status},control=True)
+        if (not isinstance(value,dict) or value.get("attempt_id") != attempt_id
+                or value.get("lineage_id") != lineage_id or value.get("data_generation") != str(data_generation)
+                or value.get("state") not in {"sealed_absent","sealed_queued","sealed_existing","explicit_cancelled","observation_changed"}
+                or value.get("reason") not in {"superseded","expired"}
+                or value.get("status") not in {None,"queued","running","succeeded","failed","cancelled","unknown"}
+                or type(value.get("explicit_cancel")) is not bool):
+            raise AppError("invalid_model_admission_retirement_response",status=502)
+        return value
+
     async def reconcile_prestart(self, attempt_id, *, context, expected_version, expected_request_digest,
                                  expected_data_generation, client_request_id, evidence_ref, decision):
         value = await self._json("/internal/v1/models/attempts/" + attempt_id + "/prestart-reconciliation",

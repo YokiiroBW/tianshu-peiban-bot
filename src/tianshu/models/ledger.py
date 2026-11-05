@@ -154,6 +154,8 @@ class AttemptLedger:
         queued_budget = waiting_budget(request)
         async with self.database.transaction(queued_budget) as conn:
             current_generation = await current_generation_on(conn)
+            from .rbg_admission import lock_admission_on
+            await lock_admission_on(conn,request.attempt_id)
             completion_generation = generation_id(completion.get("data_generation")) if completion is not None else None
             request_generation = generation_id(request_generation) if request_generation is not None else None
             expected_generation = (generation_id(data_generation) if data_generation is not None
@@ -163,6 +165,19 @@ class AttemptLedger:
             if completion_generation is not None:
                 require_generation(completion_generation, expected_generation)
             require_generation(expected_generation, current_generation)
+            retired = await (await conn.execute(
+                "SELECT data_generation,actor_id,principal_id FROM models.admission_retirements WHERE attempt_id=%s",
+                (request.attempt_id,))).fetchone()
+            if retired:
+                if (generation_id(retired["data_generation"]) != expected_generation
+                        or retired["actor_id"] != request.context.actor_id
+                        or retired["principal_id"] != request.context.principal_id):
+                    raise AppError("attempt_identity_conflict", status=409)
+                existing = await (await conn.execute(
+                    "SELECT 1 FROM models.attempts WHERE attempt_id=%s",(request.attempt_id,))).fetchone()
+                if not existing:
+                    raise AppError("model_admission_retired",status=409,
+                        details={"attempt_id":request.attempt_id})
             cursor = await conn.execute(
                 "INSERT INTO models.attempts(attempt_id,intent_id,principal_id,actor_id,"
                 "conversation_id,function,service_class,route_id,route_revision,provider_id,"
@@ -254,7 +269,8 @@ class AttemptLedger:
                 "UPDATE models.attempts SET broker_instance=%s,revision=revision+1 "
                 "WHERE attempt_id=%s AND status='queued' AND dispatch='not_started' AND started_at IS NULL "
                 "AND NOT cancel_requested AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
-                "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
+                "WHERE c.attempt_id=models.attempts.attempt_id) AND NOT EXISTS "
+                "(SELECT 1 FROM models.admission_retirements r WHERE r.attempt_id=models.attempts.attempt_id) RETURNING *",
                 (self.instance_id, request.attempt_id))).fetchone()
             if claimed is not None:
                 await conn.execute("UPDATE models.submissions SET recovery_state='checking',"
@@ -506,7 +522,8 @@ class AttemptLedger:
                 "WHERE attempt_id=%s AND status='queued' AND NOT cancel_requested "
                 "AND deadline_at IS NULL AND execution_timeout_seconds IS NOT NULL AND %s>now() "
                 "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
-                "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
+                "WHERE c.attempt_id=models.attempts.attempt_id) AND NOT EXISTS "
+                "(SELECT 1 FROM models.admission_retirements r WHERE r.attempt_id=models.attempts.attempt_id) RETURNING *",
                 (deadline_at, attempt_id, deadline_at))).fetchone()
         if not row:
             raise AppError("attempt_cancelled_before_start", status=409)
@@ -539,7 +556,8 @@ class AttemptLedger:
                 "AND (COALESCE(%s,deadline_at)>now() OR (execution_start='provider_running' "
                 "AND deadline_at IS NULL AND (business_deadline_at IS NULL OR business_deadline_at>now()))) "
                 "AND NOT EXISTS(SELECT 1 FROM models.cancellations c "
-                "WHERE c.attempt_id=models.attempts.attempt_id) RETURNING *",
+                "WHERE c.attempt_id=models.attempts.attempt_id) AND NOT EXISTS "
+                "(SELECT 1 FROM models.admission_retirements r WHERE r.attempt_id=models.attempts.attempt_id) RETURNING *",
                 (deadline_at, hold_seconds, deadline_at, hold_seconds, attempt_id, self.instance_id, deadline_at))
             row = await cursor.fetchone()
             if not row:
@@ -657,10 +675,117 @@ class AttemptLedger:
             await self._record_statistics(conn, row)
             return await self._cancellation(conn, row)
 
+    @staticmethod
+    async def _admission_authority_on(conn, attempt_id, lineage_id, actor_id, owner, expected_generation):
+        authority = await (await conn.execute(
+            "SELECT l.lineage_id,l.subject_id,l.domain,l.owner,l.data_generation "
+            "FROM runtime.recovery_attempts a JOIN runtime.recovery_lineages l ON l.lineage_id=a.lineage_id "
+            "WHERE a.attempt_id=%s",(attempt_id,))).fetchone()
+        if (not authority or authority["lineage_id"] != lineage_id or authority["subject_id"] != actor_id
+                or authority["domain"] != "life" or authority["owner"] != owner):
+            raise AppError("model_admission_owner_unproven",status=403)
+        require_generation(authority["data_generation"],expected_generation)
+
+    async def inspect_admission_retirement(self, attempt_id, *, lineage_id, data_generation, actor_id, principal_id, owner):
+        """Read the original fence under the same owner and installation identity."""
+        from .rbg_admission import lock_admission_on
+
+        if (not isinstance(attempt_id,str) or not attempt_id or not isinstance(lineage_id,str)
+                or not lineage_id or not isinstance(actor_id,str) or not actor_id
+                or not isinstance(principal_id,str) or not principal_id):
+            raise AppError("invalid_model_admission_retirement",status=400)
+        expected_generation = generation_id(data_generation)
+        async with self.database.transaction(control=True) as conn:
+            require_generation(expected_generation,await current_generation_on(conn))
+            await lock_admission_on(conn,attempt_id)
+            await self._admission_authority_on(conn,attempt_id,lineage_id,actor_id,owner,expected_generation)
+            retired = await (await conn.execute(
+                "SELECT * FROM models.admission_retirements WHERE attempt_id=%s",(attempt_id,))).fetchone()
+            if retired and (retired["actor_id"] != actor_id or retired["principal_id"] != principal_id
+                    or retired["lineage_id"] != lineage_id
+                    or generation_id(retired["data_generation"]) != expected_generation):
+                raise AppError("attempt_identity_conflict",status=409)
+            cancelled = await (await conn.execute(
+                "SELECT reason FROM models.cancellations WHERE attempt_id=%s",(attempt_id,))).fetchone()
+            original = await (await conn.execute(
+                "SELECT actor_id,principal_id,data_generation,status,dispatch,error_code FROM models.attempts WHERE attempt_id=%s",
+                (attempt_id,))).fetchone()
+            if original and (original["actor_id"] != actor_id or original["principal_id"] != principal_id
+                    or generation_id(original["data_generation"]) != expected_generation):
+                raise AppError("model_admission_owner_unproven",status=403)
+            return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":str(expected_generation),
+                "state":"sealed" if retired else "unsealed", "reason":retired["reason"] if retired else None,
+                "explicit_cancel":bool(cancelled and cancelled["reason"] == "explicit_cancel"),
+                "status":original["status"] if original else None,"dispatch":original["dispatch"] if original else None,
+                "error_code":original["error_code"] if original else None}
+
+    async def seal_admission(self, attempt_id, *, lineage_id, data_generation, actor_id, principal_id, owner, reason,
+                             expected_status=None):
+        """Fence an obsolete Life request without asserting its past outcome."""
+        from .rbg_admission import lock_admission_on
+
+        if (not isinstance(attempt_id,str) or not attempt_id or not isinstance(lineage_id,str)
+                or not lineage_id or not isinstance(actor_id,str) or not actor_id
+                or not isinstance(principal_id,str) or not principal_id
+                or reason not in {"superseded","expired"}
+                or expected_status not in {None,"absent","queued","running","succeeded","failed","cancelled","unknown"}):
+            raise AppError("invalid_model_admission_retirement",status=400)
+        expected_generation = generation_id(data_generation)
+        async with self.database.transaction(control=True) as conn:
+            current_generation = await current_generation_on(conn)
+            require_generation(expected_generation,current_generation)
+            await lock_admission_on(conn,attempt_id)
+            await self._admission_authority_on(conn,attempt_id,lineage_id,actor_id,owner,expected_generation)
+            original = await (await conn.execute(
+                "SELECT * FROM models.attempts WHERE attempt_id=%s FOR UPDATE",(attempt_id,))).fetchone()
+            if original:
+                if original["actor_id"] != actor_id or original["principal_id"] != principal_id:
+                    raise AppError("model_admission_owner_unproven",status=403)
+                require_generation(original["data_generation"],expected_generation)
+            existing_retirement = await (await conn.execute(
+                "SELECT * FROM models.admission_retirements WHERE attempt_id=%s",(attempt_id,))).fetchone()
+            cancelled = await (await conn.execute(
+                "SELECT reason FROM models.cancellations WHERE attempt_id=%s",(attempt_id,))).fetchone()
+            explicit = bool(cancelled and cancelled["reason"] == "explicit_cancel")
+            observed_status = original["status"] if original else "absent"
+            if (not existing_retirement and not explicit and expected_status is not None
+                    and observed_status != expected_status):
+                return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":str(expected_generation),
+                    "state":"observation_changed","reason":reason,"status":original["status"] if original else None,
+                    "dispatch":original["dispatch"] if original else None,"explicit_cancel":False}
+            await conn.execute(
+                "INSERT INTO models.admission_retirements(attempt_id,data_generation,actor_id,principal_id,lineage_id,reason) "
+                "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT(attempt_id) DO NOTHING",
+                (attempt_id,expected_generation,actor_id,principal_id,lineage_id,reason))
+            retired = await (await conn.execute(
+                "SELECT * FROM models.admission_retirements WHERE attempt_id=%s FOR UPDATE",(attempt_id,))).fetchone()
+            if (retired["actor_id"] != actor_id or retired["principal_id"] != principal_id or retired["lineage_id"] != lineage_id
+                    or generation_id(retired["data_generation"]) != expected_generation):
+                raise AppError("attempt_identity_conflict",status=409)
+            stopped = False
+            if (original and original["status"] == "queued" and original["dispatch"] == "not_started"
+                    and original["started_at"] is None):
+                original = await (await conn.execute(
+                    "UPDATE models.attempts SET status='cancelled',cancel_requested=true,finished_at=now(),"
+                    "error_code=%s,revision=revision+1 WHERE attempt_id=%s AND status='queued' "
+                    "AND dispatch='not_started' AND started_at IS NULL RETURNING *",
+                    ("cancelled_before_start" if explicit else "plan_"+retired["reason"],attempt_id))).fetchone()
+                if original:
+                    stopped = True
+                    await self._record_statistics(conn,original)
+            state = ("explicit_cancelled" if explicit else "sealed_absent" if original is None else
+                "sealed_queued" if stopped or (original["status"] == "cancelled" and
+                    original.get("error_code") in {"plan_superseded","plan_expired"}) else "sealed_existing")
+            return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":str(expected_generation),
+                "state":state,"reason":retired["reason"],"status":original["status"] if original else None,
+                "dispatch":original["dispatch"] if original else None,"explicit_cancel":explicit}
+
     async def request_cancel(self, attempt_id, *, reason="explicit_cancel", expected_owner=None):
         if reason not in {"explicit_cancel", "consumer_interrupted"}:
             raise AppError("invalid_model_cancellation_reason")
         async with self.database.transaction(control=True) as conn:
+            from .rbg_admission import lock_admission_on
+            await lock_admission_on(conn,attempt_id)
             # Lock in the same order for explicit and owner-scoped cancellation.
             owner = await (await conn.execute(
                 "SELECT broker_instance FROM models.attempts WHERE attempt_id=%s FOR UPDATE",

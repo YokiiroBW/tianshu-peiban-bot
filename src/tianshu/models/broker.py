@@ -375,6 +375,36 @@ class ModelBroker:
             raise missing_receipt(attempt_id)
         return original
 
+    async def _authorize_plan_admission(self, context, original_context):
+        if (not context.actor_id or context.actor_id != original_context.actor_id
+                or context.principal_id != original_context.principal_id
+                or not ({"*","life.manage"} & context.permissions)):
+            raise AppError("forbidden",status=403)
+        if self.validate_submission is None:
+            raise AppError("model_authority_unavailable",status=503)
+        # Retiring an admission exposes no frozen body. Validate the current
+        # management identity, not withdrawn or expired original sources.
+        await self.validate_submission(context,())
+
+    async def inspect_admission_retirement(self, attempt_id, *, lineage_id, data_generation, context, original_context):
+        from .rbg_admission import plan_owner
+        await self._authorize_plan_admission(context,original_context)
+        return await self.ledger.inspect_admission_retirement(attempt_id,lineage_id=lineage_id,
+            data_generation=data_generation,actor_id=context.actor_id,principal_id=context.principal_id,
+            owner=plan_owner(original_context))
+
+    async def seal_admission(self, attempt_id, *, lineage_id, data_generation, context, original_context, reason,
+                             expected_status=None):
+        """Retire a Life plan admission using current actor-management authority."""
+        from .rbg_admission import plan_owner
+        await self._authorize_plan_admission(context,original_context)
+        result = await self.ledger.seal_admission(attempt_id,lineage_id=lineage_id,
+            data_generation=data_generation,actor_id=context.actor_id,principal_id=context.principal_id,
+            owner=plan_owner(original_context),reason=reason,expected_status=expected_status)
+        if result["status"] == "cancelled" and self.scheduler is not None:
+            await self.scheduler.cancel(attempt_id)
+        return result
+
     async def reconcile_prestart(self, attempt_id, *, context, expected_version, expected_request_digest,
                                  expected_data_generation, client_request_id, evidence_ref, decision):
         from .prestart_reconciliation import reconcile

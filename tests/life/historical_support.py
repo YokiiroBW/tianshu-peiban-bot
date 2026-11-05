@@ -14,7 +14,9 @@ from tianshu.runtime.recovery_policy import RecoveryPolicy
 
 async def migrations(database, *, diary=False):
     await migrate(database, (Migration("0040_life_execution",
-        files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),))
+        files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),
+        Migration("rbg_life_plan_retirement_test",
+        files("tianshu.life").joinpath("rbg_plan_retirement.sql").read_text())))
     async with database.transaction(read_only=True) as connection:
         runtime = await (await connection.execute("SELECT to_regclass('runtime.recovery_lineages') AS name")).fetchone()
         column = await (await connection.execute(
@@ -52,6 +54,8 @@ def adapt_models(models):
         return result
 
     async def submit(request, *, completion=None):
+        if request.attempt_id in retirements and request.attempt_id not in saved:
+            raise AppError("model_admission_retired",status=409)
         if request.attempt_id in saved:
             assert saved[request.attempt_id][0] == request
             return saved[request.attempt_id][1].receipt
@@ -103,6 +107,30 @@ def adapt_models(models):
 
     models.submit, models.status, models.result = submit, status, result
     models.reusable_result = reusable_result
+    retirements = {}
+    async def inspect_admission_retirement(attempt_id, *, lineage_id, data_generation, context, original_context):
+        receipt = await status(attempt_id)
+        return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":data_generation,
+            "state":"sealed" if attempt_id in retirements else "unsealed","reason":retirements.get(attempt_id),
+            "explicit_cancel":bool(receipt and receipt.cancellation_reason == "explicit_cancel"),
+            "status":receipt.status if receipt else None,"dispatch":receipt.dispatch if receipt else None,
+            "error_code":receipt.error_code if receipt else None}
+    async def seal_admission(attempt_id, *, lineage_id, data_generation, context, original_context, reason,
+                             expected_status=None):
+        current = await status(attempt_id)
+        explicit = bool(current and current.cancellation_reason == "explicit_cancel")
+        if (attempt_id not in retirements and not explicit and expected_status is not None
+                and expected_status != (current.status if current else "absent")):
+            return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":data_generation,
+                "state":"observation_changed","reason":reason,"status":current.status if current else None,
+                "dispatch":current.dispatch if current else None,"explicit_cancel":False}
+        retirements.setdefault(attempt_id,reason)
+        return {"attempt_id":attempt_id,"lineage_id":lineage_id,"data_generation":data_generation,
+            "state":"explicit_cancelled" if explicit else "sealed_existing" if current else "sealed_absent",
+            "reason":retirements[attempt_id],"status":current.status if current else None,
+            "dispatch":current.dispatch if current else None,"explicit_cancel":explicit}
+    models.inspect_admission_retirement = inspect_admission_retirement
+    models.seal_admission = seal_admission
     models.completions = completion_jobs
     models._life_port_adapted = True
     return models
