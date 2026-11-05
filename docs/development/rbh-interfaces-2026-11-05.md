@@ -40,6 +40,13 @@ await policy.computation_budget_on(connection, lineage_id, *, owner, expected_ve
 
 证据校验、分类审计和有效预算由 Runtime 拥有，可用新 `rbh_*.sql` 增量扩展现有账本；不直接读取 Models 表，由领域从 Models 正常查询获得原 ModelReceipt。不要用修改 attempts/max_attempts 或重置原失败实现恢复。
 
+
+### 已确认的判证返回与时间语义
+
+身份合法的任意权威回执都可传给 `note_not_sent_on`。普通已发送失败、unknown、缺失或矛盾的发送证据返回同一预算 Mapping 和未分类 `reason`，原预算保持；领域不复制证据规则，也不吞掉真实身份错误。不存在 attempt 报 `recovery_attempt_not_active`，回执 attempt 不符报 `recovery_model_receipt_mismatch`，owner 不符报 `recovery_owner_mismatch`，代际不符报 `job_generation_expired`，当前/attempt 版本及暂停、取消、撤回校验失败报 `recovery_version_changed`。
+
+`retry_at` 为仍有效的 lineage due、依赖 cooldown、probe 租约到期及 claim 到期中的最大时间，即全部时间门同时放行的最早持久时间。`can_retry` 仍只表达预算和 lineage 条件，不表示依赖门或来源/权限已准入。重复历史分类不得给后继尝试回拨 due。正常 fail 归档后分类，非合格证据不得导致原归档回滚。
+
 ## Growth / Memory / Life 消费（RBH-03/04/05）
 
 在已有 fail/observe 原回执边界调用 note；判断最大次数时消费公共预算，领域 attempt_number 继续作为序号。不能因依赖冷却提前把行改永久失败，不能在每个调用点实现自己的预算扣减。

@@ -21,3 +21,13 @@
 先读 ../rbh-repair-2026-11-05.md 与 ../rbh-interfaces-2026-11-05.md。只读跨域定义，产品写入限本卡；全部 module.py、已有 schema.sql、runtime/product*.py、migrations.py、types、配置/依赖/部署归根。域新SQL交根注册。
 
 整块实现+必要回归用例+静态审阅后提交；本窗口不运行测试/构建/烟测，不操作生产或真实模型/QQ。实际集中验证由根执行。完成写 docs/handoffs/RBH-04.md，回报SHA、接口/迁移/根装配、必要用例和未验证项。用户已授权对应既有窗口派遣和回执，模型GPT-6.1 Terra/max普通速度。
+
+协调补充：基线实际运维入口为 operations_recovery.py，闭合组件续接在 recovery.py；允许修改这两处及相关既有用例以完整消费统一有效预算。优先扩展真实现有组件，不为卡内候选名 consolidation_operations.py 新建平行入口。本卡只覆盖整理/闭合组件生成恢复，向量索引 index_recovery.py/index_jobs.py 不属本次连接生成问题范围。
+
+追加允许写入：
+- `src/tianshu/memory/operations_recovery.py`
+- `src/tianshu/memory/recovery.py`
+- `tests/memory/test_recovery.py`
+- `tests/memory/test_operations_recovery.py`
+
+追加 `tests/memory/test_rbf_wait_recovery.py`：普通等待检查分区合并唤醒及原批/材料/回执保留，显式恢复仍定向。

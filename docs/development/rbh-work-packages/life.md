@@ -21,3 +21,10 @@
 先读 ../rbh-repair-2026-11-05.md 与 ../rbh-interfaces-2026-11-05.md。只读跨域定义，产品写入限本卡；全部 module.py、已有 schema.sql、runtime/product*.py、migrations.py、types、配置/依赖/部署归根。域新SQL交根注册。
 
 整块实现+必要回归用例+静态审阅后提交；本窗口不运行测试/构建/烟测，不操作生产或真实模型/QQ。实际集中验证由根执行。完成写 docs/handoffs/RBH-05.md，回报SHA、接口/迁移/根装配、必要用例和未验证项。用户已授权对应既有窗口派遣和回执，模型GPT-6.1 Terra/max普通速度。
+
+协调补充：允许修改 generation_control.py 及相关既有恢复用例，完成规划、日记、写作共用恢复预算的真实消费；沿用现有生成语义，不扩大产品功能。
+
+追加允许写入：
+- `src/tianshu/life/generation_control.py`
+- `tests/life/test_computation_retry.py`
+- `tests/life/test_rbf_generation_recovery.py`

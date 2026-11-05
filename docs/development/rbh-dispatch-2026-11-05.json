@@ -73,7 +73,9 @@
         "src/tianshu/companion/rbh_*.sql",
         "tests/companion/test_rbh_*.py",
         "tests/companion/test_growth_retry.py",
-        "docs/handoffs/RBH-03.md"
+        "docs/handoffs/RBH-03.md",
+        "tests/companion/test_rb_growth_async.py",
+        "tests/companion/test_*growth*.py"
       ],
       "status": "dispatched",
       "model": "gpt-6.1-terra",
@@ -102,7 +104,12 @@
         "src/tianshu/memory/rbh_*.sql",
         "tests/memory/test_rbh_*.py",
         "tests/memory/test_consolidation_retry.py",
-        "docs/handoffs/RBH-04.md"
+        "docs/handoffs/RBH-04.md",
+        "src/tianshu/memory/operations_recovery.py",
+        "src/tianshu/memory/recovery.py",
+        "tests/memory/test_recovery.py",
+        "tests/memory/test_operations_recovery.py",
+        "tests/memory/test_rbf_wait_recovery.py"
       ],
       "status": "dispatched",
       "model": "gpt-6.1-terra",
@@ -131,7 +138,10 @@
         "tests/life/test_rbh_*.py",
         "tests/life/test_planning.py",
         "tests/life/test_rbg_plan_retirement.py",
-        "docs/handoffs/RBH-05.md"
+        "docs/handoffs/RBH-05.md",
+        "src/tianshu/life/generation_control.py",
+        "tests/life/test_computation_retry.py",
+        "tests/life/test_rbf_generation_recovery.py"
       ],
       "status": "dispatched",
       "model": "gpt-6.1-terra",
