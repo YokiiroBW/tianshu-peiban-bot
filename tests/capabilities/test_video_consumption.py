@@ -19,7 +19,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import Action, ArtifactRef, Attempt, MediaRef, OriginKind, SourceRef, TrustedContext
 
 
-def result(attempt_id="attempt", text="Observed actual input"):
+def result(attempt_id="attempt", text='{"summary":"Observed actual input","observations":[],"unresolved_questions":[]}'):
     return ModelResult((ModelPart("text", text=text),), ModelReceipt(
         attempt_id, "action", "succeeded", "submitted", "synthetic", 1, "fixture",
         "fixture", "gemini.generate", "fixture"), completion=ModelCompletion("complete", ("STOP",)))
@@ -77,7 +77,7 @@ class ActualVideoInputs(IsolatedAsyncioTestCase):
             MediaRef("source:audio:1", "controlled", "audio/wav"), source, 0, 2)
         request = owner.broker.generate.await_args.args[0]
         self.assertEqual(request.required_capabilities, frozenset({"audio"}))
-        self.assertEqual([part.kind for part in request.messages[0].parts], ["text", "audio"])
+        self.assertEqual([part.kind for part in request.messages[0].parts], ["text", "text", "audio"])
         self.assertEqual(inputs["audio_ranges"], [{"unit": "seconds", "start": 0.0, "end": 2.0}])
         with wave.open(BytesIO(stored[0][0]), "rb") as audio:
             self.assertEqual(audio.getnframes(), 32000)

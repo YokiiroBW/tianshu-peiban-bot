@@ -18,26 +18,72 @@ from ..external import ProviderError, execution_service_class
 from ..local_work import settled
 from ..execution_context import CURRENT_EXECUTION, current_generation
 from .decode import _audio, _video
-from .understanding import OBSERVATION_INSTRUCTION, covered, observation
+from .understanding import OBSERVATION_INSTRUCTION, PARSER_VERSION, covered, observation
+from .evidence import catalog as evidence_catalog
 from .. import action_checkpoint as checkpoint
 
 
 class VideoParseFailure(Fault):
-    def __init__(self, error, model, inputs, source, start, end):
+    def __init__(self, error, model, inputs, source, start, end, *, segment="main", recovery="resume_parse"):
         super().__init__(error.code, error.status)
         self.model, self.inputs, self.source = model, inputs, source
         self.start, self.end = start, end
+        self.segment, self.recovery = segment, recovery
 
     def receipt(self, action, attempt):
         return Receipt(str(uuid4()), action.action_id, attempt.attempt_id, "failed", "none", "not_requested",
             error_code=self.code, result={"phase": "parse", "outcome": "failed",
-                "recovery": "invalid_model_output", "model_receipt": wire(self.model.receipt),
+                "recovery": self.recovery, "parser_version": PARSER_VERSION, "segment": self.segment,
+                "model_receipt": wire(self.model.receipt),
                 "model_attempt_id": self.model.receipt.attempt_id,
                 "input": self.inputs, "input_range": {"start": self.start, "end": self.end},
                 "source_refs": [wire(self.source)]})
 
 
 class VideoObservation:
+    def _catalog_for_segment(self, source, media, segment):
+        from tianshu.models.codec import request_from_wire
+
+        try:
+            request = request_from_wire(segment["request"])
+            parts = tuple(part for message in request.messages if message.role == "user" for part in message.parts)
+            bounds = segment["model_range"]
+            computed = evidence_catalog(source, media, parts, segment["input"], segment["decoded"],
+                                        bounds["start"], bounds["end"])
+        except (AttributeError, KeyError, TypeError, ValueError) as error:
+            raise Fault("video_checkpoint_incomplete", 409) from error
+        existing = segment.get("evidence_catalog")
+        if existing is not None and existing != computed:
+            raise Fault("video_checkpoint_changed", 409)
+        return computed
+
+    async def _parse_segment(self, action, attempt, source, segment_key, saved, model, text, items, *, legacy,
+                             recovery="resume_parse"):
+        segment = saved["segments"][segment_key]
+        bounds, inputs = segment["model_range"], segment["input"]
+        available = [*inputs["modalities"], *(("subtitle",) if segment["decoded"].get("subtitle_ranges")
+                                               and not inputs.get("protocol") else ())]
+        error = None
+        try:
+            parsed = observation(text, bounds["start"], bounds["end"], available,
+                                 evidence_items=items, legacy=legacy)
+        except Fault as caught:
+            error = caught
+        event = {"parser_version": PARSER_VERSION, "segment": segment_key,
+                 "model_attempt_id": model.receipt.attempt_id, "action_attempt_id": attempt.attempt_id,
+                 "output_digest": digest(text), "evidence_digest": digest(items),
+                 "state": "failed" if error else "succeeded", "error_code": error.code if error else None}
+        latest = await checkpoint.load(self.database, action)
+        history = list(latest.get("parse_history", ()))
+        if event not in history:
+            history.append(event)
+            await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
+                                  {"parse_history": history}, (source,))
+        if error:
+            raise VideoParseFailure(error, model, inputs, source, bounds["start"], bounds["end"],
+                                    segment=segment_key, recovery=recovery) from error
+        return parsed
+
     def _frozen_request(self, request):
         """Freeze the same trusted generation and behavior inputs as TrackedBroker."""
         current = CURRENT_EXECUTION.get()
@@ -225,14 +271,28 @@ class VideoObservation:
             if (previous["source"] != wire(source) or previous["media"] != wire(media)
                     or previous["requested"] != {"start": start, "end": end}):
                 raise Fault("video_checkpoint_changed", 409)
-            decoded, inputs = previous["decoded"], previous["input"]
-            model_start, model_end = previous["model_range"]["start"], previous["model_range"]["end"]
+            decoded, inputs = previous["decoded"], dict(previous["input"])
+            items = self._catalog_for_segment(source, media, previous)
+            native_audio = next((item for item in items if item["kind"] == "native_audio"), None)
+            if native_audio:
+                inputs["audio_ranges"] = [{"unit": "seconds", "start": native_audio["start"], "end": native_audio["end"],
+                                           "basis": "native_media_input_requested_window"}]
             model, text = await self._frozen_model_result(action, attempt, source, saved, segment_key)
-            available = [*inputs["modalities"], *(("subtitle",) if decoded.get("subtitle_ranges") and not inputs.get("protocol") else ())]
             try:
-                understanding = observation(text, model_start, model_end, available)
-            except Fault as error:
-                raise VideoParseFailure(error, model, inputs, source, model_start, model_end) from error
+                understanding = await self._parse_segment(action, attempt, source, segment_key, saved, model, text,
+                                                          items, legacy=previous.get("evidence_version", 1) < 2)
+            except VideoParseFailure:
+                latest = await checkpoint.load(self.database, action)
+                intent = latest.get("resume_intent", {})
+                if (intent.get("mode") != "bounded_correction" or intent.get("segment") != segment_key
+                        or intent.get("attempt_id") != attempt.attempt_id and not latest.get("correction")):
+                    raise
+                from .correction import correct
+                model, text = await correct(self, action, attempt, source, segment_key, model, text, items)
+                latest = await checkpoint.load(self.database, action)
+                understanding = await self._parse_segment(action, attempt, source, segment_key, latest, model, text,
+                                                          items, legacy=False, recovery="none")
+            inputs["evidence_items"] = items
             return decoded, inputs, model, understanding
         decoded = await self._decode_video(action, media, start, end, dense=dense)
         actual = decoded["coverage"]
@@ -267,11 +327,23 @@ class VideoObservation:
                         + ". The decoder description only describes source representations; omitted modalities were not provided to this model."))
                     request = self._video_request(action, attempt, parts, (source,), suffix=suffix)
                 request = replace(request, route_revision=route.revision, protocol=route.protocol)
+        items = evidence_catalog(source, media, request.messages[0].parts, inputs, decoded, model_start, model_end)
+        native_audio = next((item for item in items if item["kind"] == "native_audio"), None)
+        if native_audio:
+            inputs = {**inputs, "audio_ranges": [{"unit": "seconds", "start": native_audio["start"],
+                                                   "end": native_audio["end"],
+                                                   "basis": "native_media_input_requested_window"}]}
+        inputs = {**inputs, "evidence_items": items}
+        catalog_part = ModelPart("text", text="Authoritative evidence catalog (IDs and exact source seconds; "
+                                 "six-decimal display boundaries may be rounded): "
+                                 + canonical(items))
+        request = replace(request, messages=(ModelMessage("user", (catalog_part, *request.messages[0].parts)),))
         request = self._frozen_request(request)
         segment = {"source": wire(source), "media": wire(media), "requested": {"start": start, "end": end},
                    "model_range": {"start": model_start, "end": model_end}, "request": wire(request),
                    "decoded": {key: value for key, value in decoded.items() if key != "representations"},
-                   "input": inputs, "dispatch_started": False, "registration_confirmed": False}
+                   "input": inputs, "evidence_catalog": items, "evidence_version": 2,
+                   "dispatch_started": False, "registration_confirmed": False}
         segments = {**saved.get("segments", {}), segment_key: segment}
         await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
                               {"phase": "model", "segments": segments,
@@ -283,11 +355,8 @@ class VideoObservation:
         segment.update(registration_confirmed=True, model_receipt=wire(model.receipt))
         await checkpoint.save(self.database, getattr(self.artifacts, "sources", None), action, attempt,
                               {"phase": "parse", "segments": segments}, (source,))
-        available = [*inputs["modalities"], *(("subtitle",) if decoded.get("subtitle_ranges") and not inputs.get("protocol") else ())]
-        try:
-            understanding = observation(text, model_start, model_end, available)
-        except Fault as error:
-            raise VideoParseFailure(error, model, inputs, source, model_start, model_end) from error
+        saved = {**saved, "segments": segments}
+        understanding = await self._parse_segment(action, attempt, source, segment_key, saved, model, text, items, legacy=False)
         return decoded, inputs, model, understanding
 
     async def execute(self, action, attempt):
@@ -356,7 +425,9 @@ class VideoObservation:
             return error.receipt(action, attempt)
         interval = decoded["coverage"]
         evidence = [{"kind": "segment", "range": interval, "model_receipt": wire(model.receipt),
-                     "observations": understood["observations"], "input": inputs}]
+                     "observations": understood["observations"], "input": inputs,
+                     "parser_version": understood.get("parser_version"),
+                     "semantic_validation": understood.get("semantic_validation")}]
         unresolved = [*history.get("unresolved_questions", []), *understood["unresolved_questions"]]
         reread = None
         question = next((item for item in unresolved if not item.get("revisited")), None)
@@ -372,13 +443,17 @@ class VideoObservation:
                     revisit_action, attempt, media, source, left, right, suffix=":revisit", dense=True)
                 evidence.append({"kind": "revisit", "range": second["coverage"],
                     "model_receipt": wire(second_model.receipt), "input": second_inputs,
-                    "observations": reread["observations"], "question": question["question"]})
+                    "observations": reread["observations"], "question": question["question"],
+                    "parser_version": reread.get("parser_version"),
+                    "semantic_validation": reread.get("semantic_validation")})
                 # A successful call alone does not prove the question was resolved.
                 unresolved.extend({**item, "revisited": True} for item in reread["unresolved_questions"])
                 if not reread["structured"]:
                     unresolved.append({**question, "revisited": True})
             except (Fault, AppError) as error:
                 from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
+                if isinstance(error, VideoParseFailure):
+                    return error.receipt(action, attempt)
                 if isinstance(error, RecoveryWait) and not recovery_wait_retryable(error):
                     raise
                 unresolved.append({**question, "revisited": True})
@@ -457,7 +532,8 @@ class VideoObservation:
                  "synthesis": synthesis, "next_part": next_part,
                  "full_part": full_part, "acquisition": acquisition,
                  "budget": {"segments_processed": len(segments), "step_seconds": 30,
-                     "max_revisits_per_step": 1, "model_calls_this_step": len(evidence)}}
+                     "max_revisits_per_step": 1,
+                     "model_calls_this_step": len(evidence) + int(bool(saved.get("correction")))}}
         body = {**wire(receipt), "reading_state": state}
         async with self.database.transaction() as conn:
             from ..withdrawal import validate_sources
@@ -483,6 +559,15 @@ class VideoObservation:
                         or document.get("source_revoked") or document.get("cancel_requested")):
                     raise Fault("video_checkpoint_owner_changed", 409)
                 await execution["owner"].jobs.assert_generation_on(conn, document.get("data_generation"))
+                correction = document.get("video_observation", {}).get("correction")
+                used_models = {entry.get("model_receipt", {}).get("attempt_id") for entry in evidence}
+                if correction and correction.get("attempt_id") in used_models:
+                    policy = getattr(self, "recovery_policy", None)
+                    if policy is None:
+                        raise Fault("video_correction_policy_unavailable", 503)
+                    from .correction import OWNER
+                    await policy.assert_attempt_applicable_on(conn, correction["attempt_id"], owner=OWNER,
+                                                              expected_version=correction["version"])
                 existing = await (await conn.execute(
                     "SELECT action_id,body FROM capabilities.consumptions WHERE id=%s", (consumption_id,))).fetchone()
                 if existing and existing["action_id"] != action.action_id:
@@ -538,18 +623,27 @@ class VideoObservation:
 
     async def resume_preflight(self, action, attempt, current):
         if (current.effect not in {"none", "unknown"} or current.delivery != "not_requested"
-                or current.execution == "cancelled" and current.error_code != "capability_timeout"
-                or current.result.get("phase") == "parse"):
+                or current.execution == "cancelled" and current.error_code != "capability_timeout"):
             raise Fault("video_recovery_not_eligible", 409)
         saved = await checkpoint.load(self.database, action, force=True)
         segments = saved.get("segments", {})
         if not segments or "main" not in segments:
             raise Fault("video_checkpoint_unavailable", 409)
+        parse_resume = current.result.get("phase") == "parse"
+        segment_key = current.result.get("segment", "main")
+        if parse_resume:
+            if (current.execution != "failed" or current.effect != "none"
+                    or current.result.get("recovery") not in {"resume_parse", "invalid_model_output"}
+                    or segment_key not in segments
+                    or (segments[segment_key].get("request") or {}).get("attempt_id")
+                       != current.result.get("model_attempt_id")):
+                raise Fault("video_recovery_not_eligible", 409)
         from tianshu.sources.dependencies import unique_refs
         refs = unique_refs(action.source_refs,
                            tuple(SourceRef(**item["source"]) for item in segments.values() if item.get("source")))
         await self.authority.check(action.context, refs)
-        generation = await self._saved_generation(action, attempt)
+        generation = await self._saved_generation(action, attempt, current)
+        parse_result = None
         for key, item in segments.items():
             request = item.get("request") or {}
             if not request.get("attempt_id"):
@@ -578,24 +672,73 @@ class VideoObservation:
                 raise Fault("video_original_model_unresolved", 409)
             if original is not None:
                 try:
-                    await self.broker.reusable_result(request["attempt_id"], context=action.context,
-                                                      expected_data_generation=generation)
+                    reusable = await self.broker.reusable_result(request["attempt_id"], context=action.context,
+                                                                 expected_data_generation=generation)
+                    if parse_resume and key == segment_key:
+                        parse_result = reusable
                 except AppError as error:
                     from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
                     if isinstance(error, RecoveryWait) and not recovery_wait_retryable(error):
                         raise
                     if key == "main":
                         raise
-        return {"checkpoint_digest": digest(saved), "source_refs": refs}
+        proof = {"checkpoint_digest": digest(saved), "source_refs": refs}
+        if parse_resume:
+            if parse_result is None:
+                raise Fault("video_original_model_unresolved", 409)
+            segment = segments[segment_key]
+            try:
+                source, media = SourceRef(**segment["source"]), MediaRef(**segment["media"])
+            except (KeyError, TypeError, ValueError) as error:
+                raise Fault("video_checkpoint_incomplete", 409) from error
+            items = self._catalog_for_segment(source, media, segment)
+            _, text = self._checked_video_result(parse_result)
+            bounds = segment["model_range"]
+            try:
+                observation(text, bounds["start"], bounds["end"], segment["input"]["modalities"],
+                            evidence_items=items, legacy=segment.get("evidence_version", 1) < 2)
+                mode = "local_parse"
+            except Fault:
+                mode = "bounded_correction"
+                from .correction import inspect_budget
+                await inspect_budget(self, action, saved, generation, segment_key)
+            proof.update(parse_mode=mode, segment=segment_key, model_attempt_id=parse_result.receipt.attempt_id,
+                         parser_version=PARSER_VERSION)
+        return proof
 
-    async def _saved_generation(self, action, attempt):
+    async def inspect_parse_recovery(self, action, attempt, current):
+        """Classify one original parse failure without writes or model submission."""
+        if current.result.get("phase") != "parse":
+            return {"eligible": False, "reason": "not_parse_failure", "parser_version": PARSER_VERSION}
+        try:
+            proof = await self.resume_preflight(action, attempt, current)
+        except AppError as error:
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            if isinstance(error, RecoveryWait):
+                raise
+            return {"eligible": False, "reason": error.code, "parser_version": PARSER_VERSION}
+        return {"eligible": True, "reason": None, "operation": "resume_parse", "mode": proof["parse_mode"],
+                "segment": proof["segment"], "model_attempt_id": proof["model_attempt_id"],
+                "parser_version": proof["parser_version"]}
+
+    async def _saved_generation(self, action, attempt, current=None):
         async with self.database.transaction(read_only=True) as conn:
             row = await (await conn.execute(
-                "SELECT document,attempt FROM capabilities.actions WHERE id=%s", (action.action_id,))).fetchone()
+                "SELECT document,attempt,receipt,(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
+                "AS current_generation FROM capabilities.actions WHERE id=%s", (action.action_id,))).fetchone()
         import json
-        if not row or row["attempt"]["attempt_id"] != attempt.attempt_id:
+        if (not row or row["attempt"]["attempt_id"] != attempt.attempt_id
+                or current is not None and row["receipt"]["receipt_id"] != current.receipt_id):
             raise Fault("attempt_changed", 409)
-        return json.loads(row["document"]).get("data_generation")
+        document = json.loads(row["document"])
+        if document.get("source_revoked") or document.get("cancel_requested"):
+            raise Fault("video_recovery_not_eligible", 409)
+        generation = document.get("data_generation")
+        if not generation:
+            raise Fault("action_generation_unavailable", 503)
+        if generation != row["current_generation"]:
+            raise Fault("job_generation_expired", 409)
+        return generation
 
     async def validate_resume_on(self, conn, action, attempt, current, proof):
         import json
@@ -611,6 +754,22 @@ class VideoObservation:
                 or document.get("source_revoked") or document.get("cancel_requested")
                 or digest(document.get("video_observation", {})) != proof["checkpoint_digest"]):
             raise Fault("video_checkpoint_changed", 409)
+
+    async def prepare_resume_on(self, conn, action, old, current, attempt, proof):
+        if "parse_mode" not in proof:
+            return
+        import json
+
+        row = await (await conn.execute(
+            "SELECT document FROM capabilities.actions WHERE id=%s FOR UPDATE", (action.action_id,))).fetchone()
+        document = json.loads(row["document"])
+        state = document.get("video_observation", {})
+        state["resume_intent"] = {"attempt_id": attempt.attempt_id, "from_attempt_id": old.attempt_id,
+                                  "from_receipt_id": current.receipt_id, "mode": proof["parse_mode"],
+                                  "segment": proof["segment"], "model_attempt_id": proof["model_attempt_id"],
+                                  "parser_version": proof["parser_version"]}
+        document["video_observation"] = state
+        await conn.execute("UPDATE capabilities.actions SET document=%s WHERE id=%s", (canonical(document), action.action_id))
 
     async def resume(self, action, attempt):
         return await self.execute(action, attempt)

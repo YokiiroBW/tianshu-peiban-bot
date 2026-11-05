@@ -279,6 +279,20 @@ class Actions:
         """Inspect only the canonical Action, attempt, receipt and queue identity."""
         return await self.get(action_id, context)
 
+    async def inspect_video_parse_recovery(self, action_id, context, *, expected_attempt_id=None):
+        """Classify the original video parse failure without dispatching work."""
+        snapshot = await self.get(action_id, context)
+        action, attempt, current = (action_from(snapshot["action"]), attempt_from(snapshot["attempt"]),
+                                    receipt_from(snapshot["receipt"]))
+        if action.capability_id != "video.observe":
+            raise Fault("video_recovery_not_eligible", 409)
+        if expected_attempt_id is not None and attempt.attempt_id != expected_attempt_id:
+            raise Fault("attempt_changed", 409)
+        handler = await self.handler(action)
+        details = await handler.inspect_parse_recovery(action, attempt, current)
+        return {**details, "action_id": action_id, "attempt_id": attempt.attempt_id,
+                "receipt_id": current.receipt_id, "result_revision": snapshot["result_revision"]}
+
     async def context_for_action(self, action_id):
         """Trusted recovery code can refresh only the Action's original grant.
 
