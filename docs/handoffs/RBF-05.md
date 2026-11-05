@@ -32,3 +32,12 @@
 - 本工作树只完成完整 diff 静态审阅和 `git diff --cached --check`，后者无输出且退出码为 0；未执行以上测试，也未验证真实 PostgreSQL 并发或业务链。
 - 历史日志中的连接池超时、锁等待与死锁有事实记录，但此前没有完整数据库服务端锁链；本卡修复的是源码可确认的锁次序/扩锁问题，不可宣称已证明全部历史死锁的具体成因或已经恢复真实业务。
 - 集成后正常恢复应由协调者按领域原有调度和明确授权执行：确认旧事务已回滚，按原材料与原请求重读来源、权限和 CAS，观察已记录的模型/外部回执；只对已确认可重试的本地计算恢复，不伪造成功或盲重放未知外部效果。
+
+## 后续：来源证明的函数级 JIT 窄修
+
+- 在线部署版本 `79c522282715ac5e909728776a340f30b61aed38` 的 `src/tianshu/sources/` 与本工作树本次变更前的内容一致。协调者的去敏只读证据显示多条 `sources.check_groups` 活跃查询没有 blocker，也未显示锁等待；控制池存在超时，不能把它们都归因于锁。
+- 同一真实请求的 3 个来源、2 个 scope，首次 default JIT / `SET LOCAL jit=off` 为 1.240 / 0.174 秒；反序 off / default 为 0.017 / 0.118 秒，证明结果均为 `[true]`。外层 `EXPLAIN` 总成本 26、无顶层 JIT 节点、执行约 109 毫秒。这支持函数内 JIT 是该样本的一项开销，但首轮还可能受到缓存和并发负载影响；不能据此断定所有请求或控制池超时的成因。
+- 代码提交 `c18525a76c75237f61703ddd4399043f2c910946` 和 `956a73ba381cdcc91911ff61a69d7b31fbd076ee` 新增 `src/tianshu/sources/rbf_source_proof_jit.sql`，仅执行 `ALTER FUNCTION sources.check_groups(jsonb, text[]) SET jit = off`，并在 Sources 域的 `module.migrations` 注册同名迁移。该设置适用于所有角色对这一个函数的调用，函数退出后恢复调用方设置；没有更改递归、AND/OR、片段、权限、循环或预算逻辑，也没有修改全局 PostgreSQL JIT/连接池设置。较大证明批次可能有不同性能，应实测而非假定全量收益。
+- 由主协调者在共享 `product_migrations()` 新增独立命名迁移 `rbf_source_proof_jit`，读取 `files('tianshu.sources').joinpath('rbf_source_proof_jit.sql').read_text(encoding='utf-8')`；不能更改已部署历史迁移或仅修改 baseline。升级前记录该函数原有 `proconfig`，如需回滚按原状态恢复，仅在原来无对应设置时使用 `ALTER FUNCTION ... RESET jit`。
+- 定向用例 `tests/sources/test_rbf_proof_jit.py` 在隔离事务中先重建无函数级 JIT 设置的升级前状态，再核验迁移后内层确实关闭 JIT、调用结束后恢复、函数主体/所有者/权限/属性不变，且安全片段、已遗忘片段、无效来源、不同用户和 AND 结果不变。域注册使常用 core fixture 在新设置下执行；建议主协调者同时复用 `tests/sources/test_rb_proof_batches.py::test_large_groups_preserve_results_ranges_and_global_locks` 和 `tests/sources/test_rb_authority.py::test_same_transaction_evidence_proof_and_and_or_generation` 覆盖大批、撤回、片段与替代组语义。
+- 本窗口只做静态审阅及 `git diff --cached --check`，未运行上述测试、构建、生产 SQL 或发布。正式集成后由协调者确认迁移落地，按同样本对照检查授权结果与时延，再比较控制池新增 timeout 增量、在途证明及原业务任务进度；历史累计 timeout 不能当作上线后新增故障数。
