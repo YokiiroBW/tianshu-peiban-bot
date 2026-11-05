@@ -16,3 +16,11 @@
 新增 `test_rbg_video_evidence.py`、`test_rbg_video_recovery.py`，并适配既有视频定向夹具，覆盖半微秒及真实越界、非有限/反向、实际音轨、采样帧/原生视频、证据 ID、字幕/推断/未知、无效正文、旧结果零调用重解析、来源/检查点变化、预算身份与跨片段限制、原纠正尝试复用、迟到结果及消费提交中断后的复用。
 
 静态审阅及 `git diff --cached --check` 已完成，修改的 Python 文件已作 AST 语法解析。按本批约定，本窗口不运行测试、构建、烟测、模型、生产或真实数据恢复；协调者集成后集中执行必要验证，并单独判断现场两条 Action 的可恢复分类及业务结果。结构检查与用例代码不构成已通过的测试或线上验收。
+
+## Action 持久回执身份补充
+
+`Actions.save` 先完成来源撤回、取消标记和现有终态保护，再比较不含 `receipt_id` 的语义：内容相同时沿用当前 ID、结果版本和观察时间，不发布新事件；内容变化时，若调用者复用当前或本补充已记录的旧 ID，生成新的后继 ID，以该 ID 发布 `capability.result`，不更换原 Action、attempt、provider handle 或其他副作用身份。已提交语义变更的旧 ID、attempt ID、版本、执行/效果/投递状态、旧回执摘要和后继 ID 写入 `document.receipt_lineage`，不复制正文或来源内容；既有 `prior_unknown_receipts` 的保留和撤回清除逻辑不变。本补充不声称补回此前已不存在的历史原文。
+
+本合同覆盖持久回执、事件和消费身份。`enqueue_control` 在排队后返回的 `reconcile_requested`/`cancel_requested` 临时确认仍沿用原公开响应，未持久化，也未纳入本补充；将控制确认从回执拆出属于后续接口协调。
+
+新增 `test_rbg_action_receipt_identity.py`，使用实际 `Actions.save`、结果事件入队与 `ResultConsumer` 消费路径的隔离 PostgreSQL 夹具，覆盖同 ID 语义变化、事件与消费去重、重复保存、历史 ID 再用、来源撤回、取消标记及旧 unknown 回执；只编写用例，未运行测试。

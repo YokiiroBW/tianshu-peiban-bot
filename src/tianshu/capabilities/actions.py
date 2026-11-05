@@ -634,15 +634,16 @@ class Actions:
             ).fetchone()
             if not old or old["attempt"]["attempt_id"] != attempt.attempt_id:
                 raise Fault("attempt_changed", 409)
-            await self.jobs.assert_generation_on(conn, json.loads(old["document"]).get("data_generation"))
+            document = json.loads(old["document"])
+            await self.jobs.assert_generation_on(conn, document.get("data_generation"))
             previous_receipt = receipt_from(old["receipt"])
             source_invalid = not valid
-            if not valid or json.loads(old["document"]).get("source_revoked"):
+            if not valid or document.get("source_revoked"):
                 from .withdrawal import redacted
 
                 receipt = redacted(receipt)
                 source_invalid = True
-            cancel_requested = json.loads(old["document"]).get("cancel_requested")
+            cancel_requested = document.get("cancel_requested")
             if (
                 previous_receipt.execution in {"succeeded", "failed", "cancelled"}
                 and previous_receipt.effect != "unknown"
@@ -659,7 +660,7 @@ class Actions:
                 if receipt.execution not in {"pending", "running"}
                 else None,
             )
-            if json.loads(old["document"]).get("cancel_requested"):
+            if cancel_requested:
                 receipt = replace(
                     receipt,
                     result={
@@ -674,11 +675,36 @@ class Actions:
                 k: v for k, v in current.items() if k != "receipt_id"
             }:
                 receipt = replace(receipt, receipt_id=previous["receipt_id"])
+            else:
+                # The ID also keys result events and consumer deduplication. A
+                # stale producer may submit either the current ID or an older
+                # ID again; neither can identify different persisted content.
+                history = document.get("receipt_lineage", {})
+                used = {*history, previous["receipt_id"]}
+                if receipt.receipt_id in used:
+                    successor = str(uuid4())
+                    while successor in used:
+                        successor = str(uuid4())
+                    receipt = replace(receipt, receipt_id=successor)
+                observed = old["result_observed_at"]
+                history[previous["receipt_id"]] = {
+                    "receipt_id": previous["receipt_id"],
+                    "attempt_id": previous.get("attempt_id"),
+                    "result_revision": old["result_revision"],
+                    "execution": previous.get("execution"),
+                    "effect": previous.get("effect"),
+                    "delivery": previous.get("delivery"),
+                    "receipt_digest": digest(previous),
+                    "result_observed_at": observed.isoformat() if observed else None,
+                    "successor_receipt_id": receipt.receipt_id,
+                }
+                # History deliberately excludes receipt content and source data:
+                # source withdrawal scrubs receipts but preserves this audit.
+                document["receipt_lineage"] = history
             changed = old["receipt"] != wire(receipt)
             revision = old["result_revision"] + int(changed)
             observed_at = datetime.now(UTC) if changed else old["result_observed_at"]
             await depend(conn, "action", receipt.action_id, refs)
-            document = json.loads(old["document"])
             if (original.capability_id in {"content.read", "video.observe"}
                     and previous_receipt.execution == "unknown" and receipt.execution != "unknown"
                     and not source_invalid):
