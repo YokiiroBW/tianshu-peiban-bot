@@ -20,6 +20,9 @@ from uuid import uuid4
 from tianshu.models.types import ModelReceipt
 
 from .errors import AppError
+from .rbh_evidence import confirmed_not_sent
+
+MAX_CONNECTION_ATTEMPTS = 16
 
 CONTINUATION_REASONS = frozenset({"need_context", "schema_correction", "capacity_repartition"})
 
@@ -220,6 +223,82 @@ def _require_model_unknown(receipt, *, attempt_id, generation):
         raise AppError("recovery_model_unknown_unconfirmed", status=409)
 
 
+async def _connection_budget_on(connection, row):
+    result = await (await connection.execute(
+        "SELECT count(*) AS total FROM runtime.recovery_not_sent WHERE lineage_id=%s",
+        (row["lineage_id"],))).fetchone()
+    return result["total"]
+
+
+def _budget_reason(row, connection_attempts):
+    if connection_attempts >= MAX_CONNECTION_ATTEMPTS:
+        return "recovery_connection_budget_exhausted"
+    if row["attempts"] - connection_attempts >= row["max_attempts"]:
+        return "recovery_budget_exhausted"
+    return None
+
+
+async def _budget_reason_on(connection, row):
+    return _budget_reason(row, await _connection_budget_on(connection, row))
+
+
+async def _require_budget_on(connection, row):
+    reason = await _budget_reason_on(connection, row)
+    if reason:
+        raise AppError(reason, status=409)
+
+
+def _budget_mapping(row, count, dependency):
+    reason = _budget_reason(row, count)
+    deadlines = [row["due_at"]] if row["due_at"] is not None else []
+    if deadlines and row["claim_token"] and row["claim_expires_at"] and row["claim_expires_at"] > row["now"]:
+        deadlines.append(row["claim_expires_at"])
+    if deadlines and dependency:
+        cooldown = dependency["cooldown_until"]
+        if cooldown and cooldown > row["now"]:
+            deadlines.append(cooldown)
+        expiry = dependency["probe_expires_at"]
+        if dependency["probe_token"] and expiry and expiry > row["now"]:
+            deadlines.append(expiry)
+    return {"total_attempts": row["attempts"], "computation_attempts": row["attempts"] - count,
+            "connection_attempts": count, "max_computation_attempts": row["max_attempts"],
+            "max_connection_attempts": MAX_CONNECTION_ATTEMPTS, "can_retry": reason is None,
+            "retry_at": max(deadlines) if deadlines and reason is None else None,
+            "dependency": row["dependency"], "reason": reason or "available"}
+
+
+async def _budget_mapping_on(connection, row):
+    count = await _connection_budget_on(connection, row)
+    dependency = await (await connection.execute(
+        "SELECT cooldown_until,probe_token,probe_expires_at FROM runtime.recovery_dependencies "
+        "WHERE data_generation=%s AND dependency=%s", (row["data_generation"], row["dependency"]))).fetchone()
+    return _budget_mapping(row, count, dependency)
+
+
+async def _restore_failed_due_on(connection, row, attempt, result):
+    """Wake only this latest failed attempt when restored credits permit it."""
+    if (not result["can_retry"] or not result["connection_attempts"]
+            or attempt["attempt_number"] != row["attempts"] or row["due_at"] is not None
+            or row["claim_token"] or attempt["status"] != "failed"
+            or row["failure_category"] not in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}):
+        return row, result
+    # fail_attempt_on established Retry-After even if the old budget was
+    # exhausted. Keep both the dependency cooldown and any live probe lease.
+    due = retry_due(row["attempts"], now=row["now"])
+    dependency = await (await connection.execute(
+        "SELECT cooldown_until,probe_token,probe_expires_at FROM runtime.recovery_dependencies "
+        "WHERE data_generation=%s AND dependency=%s", (row["data_generation"], row["dependency"]))).fetchone()
+    if dependency:
+        if dependency["cooldown_until"]:
+            due = max(due, dependency["cooldown_until"])
+        if dependency["probe_token"] and dependency["probe_expires_at"]:
+            due = max(due, dependency["probe_expires_at"])
+    row = await (await connection.execute(
+        "UPDATE runtime.recovery_lineages SET due_at=%s WHERE lineage_id=%s RETURNING *,now() AS now",
+        (due, row["lineage_id"]))).fetchone()
+    return row, await _budget_mapping_on(connection, row)
+
+
 @dataclass(frozen=True, slots=True)
 class AttemptReservation:
     attempt_id: str
@@ -232,6 +311,89 @@ class AttemptReservation:
 
 class RecoveryPolicy:
     """Transactional shared accounting, with a single owner per logical work."""
+
+    async def computation_budget_on(self, connection, lineage_id, *, owner, expected_version):
+        """Read the shared budget; external source and dependency gates still apply."""
+        # One statement keeps the lineage and classifications in one MVCC
+        # snapshot, even when a concurrent transaction archives a new attempt.
+        row = await (await connection.execute(
+            "SELECT l.*,now() AS now,g.id AS current_generation,b.total AS connection_total, "
+            "d.cooldown_until,d.probe_token,d.probe_expires_at "
+            "FROM runtime.recovery_lineages l "
+            "LEFT JOIN runtime.installation_generation g ON g.singleton=true "
+            "LEFT JOIN runtime.recovery_dependencies d ON d.data_generation=l.data_generation AND d.dependency=l.dependency "
+            "LEFT JOIN LATERAL (SELECT count(*) AS total FROM runtime.recovery_not_sent n "
+            "WHERE n.lineage_id=l.lineage_id) b ON true WHERE l.lineage_id=%s",
+            (lineage_id,))).fetchone()
+        if not row or row["owner"] != owner:
+            raise AppError("recovery_owner_mismatch", status=409)
+        if row["current_generation"] != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
+                or row["source_withdrawn"]):
+            raise AppError("recovery_version_changed", status=409)
+        return _budget_mapping(row, row["connection_total"], row)
+
+    async def note_not_sent_on(self, connection, attempt_id, *, owner, expected_version, model_receipt):
+        """Record proven connection failures after normal failure archival, once.
+
+        An older result can add evidence but cannot move a successor's schedule,
+        claim or shared probe. Insufficient evidence never grants budget credit;
+        an independently proven earlier credit may restore a latest failure's due.
+        """
+        original = await (await connection.execute(
+            "SELECT lineage_id FROM runtime.recovery_attempts WHERE attempt_id=%s", (attempt_id,))).fetchone()
+        if not original:
+            raise AppError("recovery_attempt_not_active", status=409)
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        row = await (await connection.execute(
+            "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
+            (original["lineage_id"],))).fetchone()
+        if not row or row["owner"] != owner:
+            raise AppError("recovery_owner_mismatch", status=409)
+        if not generation or generation["id"] != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        attempt = await (await connection.execute(
+            "SELECT * FROM runtime.recovery_attempts WHERE attempt_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+        if not attempt or attempt["lineage_id"] != row["lineage_id"]:
+            raise AppError("recovery_attempt_not_active", status=409)
+        if (row["current_version"] != expected_version or attempt["version"] != expected_version
+                or row["paused"] or row["cancelled"] or row["source_withdrawn"]):
+            raise AppError("recovery_version_changed", status=409)
+        if not isinstance(model_receipt, ModelReceipt) or model_receipt.attempt_id != attempt_id:
+            raise AppError("recovery_model_receipt_mismatch", status=409)
+        if model_receipt.data_generation != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        evidence = confirmed_not_sent(model_receipt) if attempt["status"] == "failed" else None
+        if evidence is None:
+            result = await _budget_mapping_on(connection, row)
+            # Historical credits may have made the latest ordinary failed
+            # attempt eligible again. Its own definitive receipt and existing
+            # failure category are still required; unknown never authorizes it.
+            if (model_receipt.status == "failed" and model_receipt.cancellation_reason is None
+                    and isinstance(model_receipt.finished_at, datetime) and model_receipt.finished_at.utcoffset() is not None
+                    and isinstance(model_receipt.error_code, str) and classify_failure(model_receipt.error_code) in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}):
+                row, result = await _restore_failed_due_on(connection, row, attempt, result)
+            if result["can_retry"]:
+                result["reason"] = "not_confirmed_not_sent"
+            return result
+        inserted = await (await connection.execute(
+            "INSERT INTO runtime.recovery_not_sent(attempt_id,lineage_id,evidence_kind,models_finished_at) "
+            "VALUES(%s,%s,%s,%s) ON CONFLICT(attempt_id) DO NOTHING RETURNING attempt_id",
+            (attempt_id, row["lineage_id"], evidence, model_receipt.finished_at))).fetchone()
+        if not inserted:
+            saved = await (await connection.execute(
+                "SELECT evidence_kind,models_finished_at FROM runtime.recovery_not_sent "
+                "WHERE attempt_id=%s", (attempt_id,))).fetchone()
+            if saved["evidence_kind"] != evidence or saved["models_finished_at"] != model_receipt.finished_at:
+                raise AppError("recovery_model_receipt_mismatch", status=409)
+        result = await _budget_mapping_on(connection, row)
+        if inserted:
+            row, result = await _restore_failed_due_on(connection, row, attempt, result)
+        if result["can_retry"]:
+            result["reason"] = "confirmed_not_sent"
+        return result
 
     async def inspect_wait_on(self, connection, identity, *, owner, expected_version):
         """Observe a due/claim/dependency wait without claiming or spending budget.
@@ -250,8 +412,7 @@ class RecoveryPolicy:
         if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
                 or row["source_withdrawn"]):
             raise AppError("recovery_version_changed", status=409)
-        if row["attempts"] >= row["max_attempts"]:
-            raise AppError("recovery_budget_exhausted", status=409)
+        await _require_budget_on(connection, row)
         if row["claim_token"] and row["claim_expires_at"] and row["claim_expires_at"] > row["now"]:
             return RecoveryWait("recovery_claim_in_progress", row["claim_expires_at"], dependency=row["dependency"])
         if row["due_at"] and row["due_at"] > row["now"]:
@@ -337,7 +498,7 @@ class RecoveryPolicy:
         if attempt["status"] == "reserved":
             await self.fail_attempt_on(connection, attempt_id, code=model_receipt.error_code or "model_outcome_unknown",
                                        category=FailureCategory.UNKNOWN_EFFECT)
-        if row["attempts"] >= row["max_attempts"]:
+        if await _budget_reason_on(connection, row):
             return None
         recorded = await (await connection.execute(
             "SELECT due_at FROM runtime.recovery_computation_unknowns WHERE attempt_id=%s", (attempt_id,))).fetchone()
@@ -457,7 +618,7 @@ class RecoveryPolicy:
                 (identity,))).fetchone()
             if (row["paused"] or row["cancelled"] or row["source_withdrawn"]
                     or paused is True or cancelled is True or source_withdrawn is True
-                    or row["attempts"] >= row["max_attempts"] or not latest
+                    or await _budget_reason_on(connection, row) or not latest
                     or latest["status"] != "failed" or active):
                 raise AppError("recovery_resume_not_eligible", status=409)
         return await (await connection.execute(
@@ -488,8 +649,7 @@ class RecoveryPolicy:
         if (row["current_version"] != expected_version or row["paused"] or row["cancelled"]
                 or row["source_withdrawn"]):
             raise AppError("recovery_version_changed", status=409)
-        if row["attempts"] >= row["max_attempts"]:
-            raise AppError("recovery_budget_exhausted", status=409)
+        await _require_budget_on(connection, row)
         previous = await (await connection.execute(
             "SELECT attempt_id,status FROM runtime.recovery_attempts WHERE lineage_id=%s "
             "ORDER BY attempt_number DESC LIMIT 1", (identity,))).fetchone()
@@ -518,12 +678,12 @@ class RecoveryPolicy:
                                  model_receipt=None):
         if not all(isinstance(value, str) and value for value in (attempt_id, request_digest, route)):
             raise ValueError("invalid_recovery_attempt")
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
         row = await (await connection.execute(
             "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE", (identity,))).fetchone()
         if not row or row["owner"] != owner:
             raise AppError("recovery_owner_mismatch", status=409)
-        generation = await (await connection.execute(
-            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
         if not generation or generation["id"] != row["data_generation"]:
             raise AppError("job_generation_expired", status=409)
         existing = await (await connection.execute(
@@ -547,8 +707,7 @@ class RecoveryPolicy:
             raise AppError("recovery_original_not_failed", status=409)
         if original_state == "unknown" and row["recovery_kind"] != "pure_computation":
             raise AppError("recovery_original_not_failed", status=409)
-        if row["attempts"] >= row["max_attempts"]:
-            raise AppError("recovery_budget_exhausted", status=409)
+        await _require_budget_on(connection, row)
         if row["attempts"] and (not claim_token or row["claim_token"] != claim_token
                                 or row["claim_expires_at"] is None or row["claim_expires_at"] <= row["now"]):
             retry_at = (row["claim_expires_at"] if row["claim_token"] and row["claim_expires_at"]
@@ -653,7 +812,8 @@ class RecoveryPolicy:
             "INSERT INTO runtime.recovery_attempt_observations(attempt_id,status,error_code,observation_ref) "
             "VALUES(%s,%s,%s,%s)", (attempt_id, attempt["status"], code, attempt["observation_ref"]))
         can_retry = (category in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}
-                     and row["attempts"] < row["max_attempts"] and not row["paused"]
+                     and not await _budget_reason_on(connection, row)
+                     and not row["paused"]
                      and not row["cancelled"] and not row["source_withdrawn"]
                      and row["current_version"] == attempt["version"])
         due = retry_due(row["attempts"], retry_after=retry_after, now=row["now"], random_value=random_value) if can_retry else None
@@ -749,10 +909,17 @@ class RecoveryPolicy:
         """Round-robin domains/subjects among due lineages, with short fenced claims."""
         if type(limit) is not int or not 1 <= limit <= 512 or not 1 <= lease_seconds <= 3600:
             raise ValueError("invalid_recovery_claim")
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        if not generation:
+            return ()
         rows = await (await connection.execute(
-            "WITH eligible AS (SELECT lineage_id,domain,subject_id,due_at FROM runtime.recovery_lineages l "
-            "WHERE owner=%s AND data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
-            "AND due_at<=now() AND NOT paused AND NOT cancelled AND NOT source_withdrawn AND attempts<max_attempts "
+            "WITH eligible AS (SELECT l.lineage_id,l.domain,l.subject_id,l.due_at FROM runtime.recovery_lineages l "
+            "JOIN LATERAL (SELECT count(*) AS amount FROM runtime.recovery_not_sent e "
+            "WHERE e.lineage_id=l.lineage_id) n ON true "
+            "WHERE l.owner=%s AND l.data_generation=(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
+            "AND l.due_at<=now() AND NOT l.paused AND NOT l.cancelled AND NOT l.source_withdrawn "
+            "AND l.attempts-n.amount<l.max_attempts AND n.amount<%s "
             "AND NOT EXISTS (SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=l.lineage_id "
             "AND a.attempt_number=l.attempts AND a.status='unknown' AND a.version<>l.current_version) "
             "AND (claim_token IS NULL OR claim_expires_at<=now())), "
@@ -762,9 +929,13 @@ class RecoveryPolicy:
             "FROM eligible e) SELECT l.* FROM runtime.recovery_lineages l JOIN ranked r USING(lineage_id) "
             "JOIN subject_rank s ON s.domain=r.domain AND s.subject_id=r.subject_id "
             "ORDER BY r.item_position,s.position,r.due_at,l.lineage_id LIMIT %s FOR UPDATE OF l SKIP LOCKED",
-            (owner, limit))).fetchall()
+            (owner, MAX_CONNECTION_ATTEMPTS, limit))).fetchall()
         claimed = []
         for row in rows:
+            # Recheck after obtaining the lineage lock: a concurrent receipt
+            # classification can exhaust the connection budget while we wait.
+            if await _budget_reason_on(connection, row):
+                continue
             token = str(uuid4())
             updated = await (await connection.execute(
                 "UPDATE runtime.recovery_lineages SET claim_token=%s,claim_expires_at=now()+(%s * interval '1 second') "
@@ -787,7 +958,7 @@ class RecoveryPolicy:
         if not generation or generation["id"] != row["data_generation"]:
             raise AppError("job_generation_expired", status=409)
         if (row["paused"] or row["cancelled"] or row["source_withdrawn"]
-                or row["attempts"] >= row["max_attempts"]
+                or await _budget_reason_on(connection, row)
                 or row["due_at"] is None or row["due_at"] > row["now"]
                 or (row["claim_token"] and row["claim_expires_at"] > row["now"])):
             return None

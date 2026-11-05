@@ -251,13 +251,29 @@ class Database:
         self._transaction_scopes = {}
         self._metrics = {name: {"acquire_waiting": 0, "in_transaction": 0,
             "acquire_count": 0, "acquire_wait_ms": 0, "acquire_timeouts": 0,
-            "transaction_errors": 0, "commit_errors": 0, "sync_slot_waiting": 0, "sync_slot_active": 0}
+            "transaction_errors": 0, "commit_errors": 0, "sync_slot_waiting": 0, "sync_slot_active": 0,
+            "recovery_waits": 0, "transaction_conflicts": 0, "sql_errors": 0, "commit_unknowns": 0}
             for name in ("business", "control", "sync")}
 
     def _metrics_add(self, pool_name, **values):
         with self._metrics_lock:
             for key, value in values.items():
                 self._metrics[pool_name][key] += value
+
+    def _count_failure(self, pool_name, error, *, phase):
+        """Bounded classifications alongside the preexisting per-scope counts."""
+        from .recovery_policy import RecoveryWait
+
+        failure = classify_database_failure(error, phase=phase, rollback_confirmed=False)
+        if isinstance(error, RecoveryWait):
+            self._metrics_add(pool_name, recovery_waits=1)
+        elif failure and failure.receipt_required:
+            self._metrics_add(pool_name, commit_unknowns=1)
+        elif failure and failure.reason in {"database_lock_unavailable", "database_deadlock", "database_serialization"}:
+            self._metrics_add(pool_name, transaction_conflicts=1)
+        elif isinstance(error, PsycopgError) and error.sqlstate and not (
+                error.sqlstate.startswith("08") or error.sqlstate == "57014"):
+            self._metrics_add(pool_name, sql_errors=1)
 
     def _scope_depth(self, key):
         with self._metrics_lock:
@@ -347,6 +363,7 @@ class Database:
                     self._metrics_add("sync", **{phase + "_errors": 1})
                     _annotate_failure(error, phase=phase, pool_name="sync", role=self.role,
                                       rollback_confirmed=_rolled_back(connection), remaining_outer=outer_depth)
+                    self._count_failure("sync", error, phase=phase)
                     raise
                 finally:
                     self._leave_scope(scope_key)
@@ -449,6 +466,7 @@ class Database:
                     self._metrics_add(pool_name, **{phase + "_errors": 1})
                     _annotate_failure(error, phase=phase, pool_name=pool_name, role=self.role,
                                       rollback_confirmed=_rolled_back(connection), remaining_outer=outer_depth)
+                    self._count_failure(pool_name, error, phase=phase)
                     raise
                 finally:
                     self._leave_scope(scope_key)
