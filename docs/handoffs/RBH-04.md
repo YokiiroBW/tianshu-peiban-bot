@@ -5,6 +5,7 @@
 - 基线 `ec245f9e30f935f7bcadbc441373a45c9f9d07a4`，分支 `codex/rbh-memory-20261105`。
 - 接入 Runtime 的 `note_not_sent_on`、`computation_budget_on`，实际未发送判证、计算及连接预算均归 Runtime；Memory 使用 Models 正常状态查询和既有原始请求校验，不直读 Models 表。
 - Memory 的原回执在交 Runtime 前绑定原 `attempt_id`、`intent_id`、安装代际及非空 Models `submission_digest`，并检查冻结请求与 Runtime 原预约的 Memory 摘要一致。它们不是同一种摘要，不互相比较。
+- 实时失败归档前按 Sources/Identity → 分区 → 批次的顺序复核当前来源与权限，并在锁内核对批次冻结身份。来源或权限失效时仍提交原失败归档，同事务关闭原恢复分支，不记录未发送证据或安排后继；批次身份变化则不处理新批次。
 - 移除整理恢复、Operations 和重组恢复中的原总尝试数上限判断；保留来源/权限、版本/代际、原回执、读集、批次和 episode CAS。Operations 的依赖等待复用 Runtime `inspect_wait_on`。
 - 自动依赖等待通过已有分区级 `memory.consolidate` 队列锁汇总最早持久到期时间；显式恢复旧依赖失败仍按批次定向排队。已确认预算耗尽的失败批次保留原状态并停止自动排队；未决原尝试仍走原观察路径，新材料继续按已有分区路径处理。
 
@@ -22,5 +23,6 @@ await core.memory.consolidation.reconcile_transport_waits(limit=32)
 ## 回归与未验证项
 
 - 新增 `tests/memory/test_rbh_transport_recovery.py`，覆盖有界历史扫描及幂等、乱序证据、原请求/回执与单调尝试号、暂停/撤回/unknown/变更来源/摘要冲突、共享分区唤醒、同依赖单探针、预算耗尽、原结果只应用一次和显式定向恢复。
+- 同一文件补充来源或身份在模型回执返回前失效、以及来源在原失败后失效的实时路径用例；核对旧失败归档保留、未调用 Runtime note、没有后继尝试。
 - 更新 `tests/memory/test_rbf_wait_recovery.py` 中原先依赖逐批自动定向任务的断言，检查实际同分区合并任务身份；其他现有用例保持。
 - 按本批授权仅作 Python AST 解析和 diff 静态检查；未运行测试、构建、烟测、真实模型、QQ 或生产操作。请根在 Runtime 及迁移集成后集中执行上述 Memory 用例，并按共享行为影响选取 `tests/core/test_memory_rpc_recovery.py`、`tests/core/test_rb_consolidation_write.py`、`tests/core/test_consolidation_pipeline.py` 中相关回归。集成、业务收敛和部署尚未验证。

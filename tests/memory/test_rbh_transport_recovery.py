@@ -42,6 +42,78 @@ class LegacyFailure(waits.Model):
         return await super().submit(request,completion=completion)
 
 
+@pytest.mark.parametrize("withdrawal,phase",[("source","on_submit"),("identity","on_submit"),
+                                               ("source","before_observe")])
+async def test_live_failure_archives_without_retry_after_authority_withdrawal(
+        core, ordinary_users, monkeypatch, withdrawal, phase):
+    alice, _ = ordinary_users
+    policy = RecoveryPolicy()
+    calls = []
+    revoked = False
+    item = None
+
+    async def withdraw():
+        nonlocal revoked
+        if withdrawal == "source":
+            ref = item.source_refs[0]
+            await core.sources.invalidate(alice,{"source_id":ref.source_id,"expected_revision":ref.revision,
+                "client_request_id":"rbh-live-withdraw-"+phase})
+        else:
+            async with core.database.transaction() as conn:
+                await conn.execute("UPDATE identity.principals SET access_epoch=access_epoch+1 WHERE principal_id=%s",
+                    (alice.principal_id,))
+        revoked = True
+
+    class WithdrawOnSubmit(LegacyFailure):
+        async def submit(self, request, *, completion):
+            receipt = await super().submit(request,completion=completion)
+            if phase == "on_submit":
+                await withdraw()
+            return receipt
+
+    model = WithdrawOnSubmit()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=policy)
+
+    async def note_before_withdrawal(*args, **kwargs):
+        calls.append(kwargs["model_receipt"].attempt_id)
+        if phase == "before_observe" and not revoked:
+            # Leave a historical failed attempt unclassified for the later
+            # authoritative observation; this is only a disposable fixture.
+            return {"can_retry":True,"reason":"not_confirmed_not_sent"}
+        raise AssertionError("withdrawn authority reached Runtime note")
+
+    monkeypatch.setattr(policy,"note_not_sent_on",note_before_withdrawal)
+    item = await examples.episode(core,alice,"rbh-live-authority-"+withdrawal+"-"+phase)
+    partition, _ = await waits.batch_for_episode(core,item.episode_id)
+    await core.workers.consolidate(partition)
+    _, batch = await waits.batch_for_episode(core,item.episode_id)
+    if phase == "before_observe":
+        assert batch["status"] == "quarantined" and len(calls) == 1
+        calls.clear()
+        await withdraw()
+        await waits.force_batch_due(core,batch["batch_id"])
+        await core.workers.consolidate(partition)
+        _, batch = await waits.batch_for_episode(core,item.episode_id)
+
+    original = model.submissions[0][0]
+    async with core.database.transaction(read_only=True) as conn:
+        attempts = await (await conn.execute("SELECT a.number,a.model_attempt_id,a.recovery_policy_state,"
+            "r.status,r.error_code,l.cancelled,l.attempts FROM memory.consolidation_attempts a "
+            "JOIN runtime.recovery_attempts r ON r.attempt_id=a.model_attempt_id "
+            "JOIN runtime.recovery_lineages l ON l.lineage_id=a.recovery_lineage_id "
+            "WHERE a.batch_id=%s ORDER BY a.number",(batch["batch_id"],))).fetchall()
+        classified = await (await conn.execute("SELECT count(*) AS n FROM runtime.recovery_not_sent "
+            "WHERE attempt_id=%s",(original.attempt_id,))).fetchone()
+    assert calls == [] and classified["n"] == 0
+    assert batch["status"] == "revoked" and batch["error_code"] == "source_unavailable"
+    assert len(attempts) == 1 and attempts[0]["number"] == attempts[0]["attempts"] == 1
+    assert attempts[0]["model_attempt_id"] == original.attempt_id and attempts[0]["cancelled"]
+    assert attempts[0]["recovery_policy_state"] == attempts[0]["status"] == "failed"
+    assert attempts[0]["error_code"] == "transport_not_sent"
+    assert model.results[original.attempt_id].receipt.status == "failed" and len(model.submissions) == 1
+
+
 async def historical_failure(core, context, monkeypatch, name, *, failures=1):
     model, policy = LegacyFailure(failures=failures), RecoveryPolicy()
     examples.configure(core,model)

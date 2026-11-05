@@ -128,9 +128,14 @@ class ConsolidationRetries:
             outcome=await observe_original(self.steps.models,request)
             await self._recovery_observation(batch,current["step_id"],outcome,owner=owner)
             if outcome.receipt and outcome.status in {"failed","cancelled","succeeded","unknown"}:
-                await self.consolidation._policy_outcome(batch["batch_id"],current["step_id"],
+                policy_result = await self.consolidation._policy_outcome(batch["batch_id"],current["step_id"],
                     status=outcome.status,code=outcome.receipt.error_code,
                     observation_ref="models:"+request.attempt_id,model_receipt=outcome.receipt)
+                block = policy_result.get("authority_block") if policy_result else None
+                if block == "memory_consolidation_batch_changed":
+                    return None
+                if block == "source_unavailable":
+                    raise AppError(block,status=403)
             if outcome.explicit_cancel:
                 raise AppError("explicit_cancel", status=409, details={"status": "cancelled"})
         # Rejected semantic outputs and attempts superseded by a successor

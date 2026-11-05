@@ -325,17 +325,43 @@ class Consolidation:
             if not confirmed_computation_unknown(receipt):
                 return
         async with self.database.transaction() as conn:
-            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+            snapshot = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
                 (batch_id,))).fetchone()
-            if not batch:
+            if not snapshot:
                 return
-            await self._assert_batch_generation_on(conn, batch)
-            await self._lock_owned_partition(conn,batch["partition_id"],None)
+            await self._assert_batch_generation_on(conn, snapshot)
+            authority_block = None
+            if status in {"failed","unknown"}:
+                # Sources and identity are locked before the partition and
+                # batch, matching source withdrawal's established ordering.
+                context = context_from_bound(snapshot["manifest"]["authority_bound"])
+                valid = await self.sources.validate_persistence(conn,context,codec.refs(snapshot["dependency_refs"]))
+                if valid:
+                    try:
+                        await self.identity.check_context(context,connection=conn)
+                    except RecoveryWait:
+                        raise
+                    except AppError as error:
+                        if error.status not in {401,403,409}:
+                            raise
+                        valid = False
+                if not valid:
+                    authority_block = "source_unavailable"
+            await self._lock_owned_partition(conn,snapshot["partition_id"],None)
             batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
                 (batch_id,))).fetchone()
             if not batch:
                 return
             await self._assert_batch_generation_on(conn, batch)
+            if status in {"failed","unknown"} and (
+                    batch["partition_id"] != snapshot["partition_id"]
+                    or batch["dependency_refs"] != snapshot["dependency_refs"]
+                    or batch["context_fingerprint"] != snapshot["context_fingerprint"]
+                    or batch["manifest"].get("authority_bound") != snapshot["manifest"].get("authority_bound")
+                    or batch["manifest"].get("recovery") != snapshot["manifest"].get("recovery")
+                    or batch["step_ids"] != snapshot["step_ids"]
+                    or snapshot["context_fingerprint"] != body_hash(context_record(context))):
+                authority_block = "memory_consolidation_batch_changed"
             row = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s "
                 "AND step_id=%s FOR UPDATE", (batch_id,step_id))).fetchone()
             if not row or not row.get("recovery_lineage_id"):
@@ -345,18 +371,32 @@ class Consolidation:
             recovery = batch["manifest"].get("recovery")
             if not recovery or recovery["lineage_id"] != row["recovery_lineage_id"]:
                 raise AppError("memory_recovery_lineage_changed",status=409)
+
+            async def blocked_outcome():
+                if authority_block == "source_unavailable":
+                    # Match the existing revoked-batch path in the same
+                    # transaction as archival, before any other claimant wakes.
+                    await self.cancel_recovery_on(conn,batch["manifest"])
+                return {"authority_block":authority_block}
+
             if previous in {"succeeded","cancelled"}:
-                return
+                return await blocked_outcome() if authority_block else None
             if status in {"failed","unknown"} and receipt is not None:
-                step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
-                    (step_id,))).fetchone()
-                if not step or step["state"] == "source_revoked" or step["request"] != recorded["request"]:
-                    raise AppError("memory_consolidation_attempt_changed",status=409)
                 from .rbh_transport import validate_frozen_attempt_on
-                await validate_frozen_attempt_on(conn,attempt_id,recovery,step["request"])
+                if not authority_block:
+                    # Sources hold the request's authority stable; do not
+                    # acquire the step lock after the batch while invalidation
+                    # locks it first.
+                    step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s",
+                        (step_id,))).fetchone()
+                    if not step or step["state"] == "source_revoked" or step["request"] != recorded["request"]:
+                        raise AppError("memory_consolidation_attempt_changed",status=409)
+                await validate_frozen_attempt_on(conn,attempt_id,recovery,recorded["request"])
             if previous == "failed":
                 # Historical and duplicate failure observations may add only
                 # Runtime-validated evidence to the existing failed attempt.
+                if authority_block:
+                    return await blocked_outcome()
                 if status == "failed" and receipt is not None:
                     result = await policy.note_not_sent_on(conn,attempt_id,owner=recovery["owner"],
                         expected_version=recovery["version"],model_receipt=receipt)
@@ -390,9 +430,13 @@ class Consolidation:
                     expected_version=recovery["version"],model_receipt=receipt,retry_after=retry_after)
                 settled = "unknown"
             else:
-                return
+                return await blocked_outcome() if authority_block else None
             await conn.execute("UPDATE memory.consolidation_attempts SET recovery_policy_state=%s "
                 "WHERE batch_id=%s AND step_id=%s",(settled,batch_id,step_id))
+            if authority_block:
+                # Commit the original outcome even when its sources or frozen
+                # authority are no longer eligible to grant a new retry.
+                return await blocked_outcome()
             if status in {"failed", "unknown"} and receipt is not None:
                 result = await policy.note_not_sent_on(conn,attempt_id,owner=recovery["owner"],
                     expected_version=recovery["version"],model_receipt=receipt)
@@ -1714,10 +1758,15 @@ class Consolidation:
                 attempt = await (await conn.execute("SELECT step_id FROM memory.consolidation_attempts "
                     "WHERE batch_id=%s ORDER BY number DESC LIMIT 1", (batch_id,))).fetchone()
             if attempt:
-                await self._policy_outcome(batch_id,attempt["step_id"],status=details["status"],
+                policy_result = await self._policy_outcome(batch_id,attempt["step_id"],status=details["status"],
                     code=details.get("receipt_error_code") or code,
                     observation_ref="models:"+str(details.get("attempt_id") or "unknown"),
                     retry_after=details.get("retry_after"))
+                block = policy_result.get("authority_block") if policy_result else None
+                if block == "memory_consolidation_batch_changed":
+                    return
+                if block == "source_unavailable":
+                    code, details = block, {}
         if batch_id and (transient_model_failure(code) or details.get("status") in {"queued","running","succeeded"}
                 or details.get("original_observation") in {"confirmed","missing","unavailable"}):
             if await self.retries.defer(batch_id,exc,owner=owner):
