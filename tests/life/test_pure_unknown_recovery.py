@@ -108,10 +108,10 @@ async def test_finished_unknown_uses_delayed_distinct_attempt_and_applies_once(d
         await connection.execute(f"UPDATE {table} SET generation_retry_due_at=%s WHERE id=%s", (past,first["id"]))
     original_status = value.models.status
     observations = 0
-    async def status_disappears(identifier):
+    async def status_disappears(identifier, *, phase="observe"):
         nonlocal observations
         observations += 1
-        return None if observations >= 3 else await original_status(identifier)
+        return None if observations >= 3 else await original_status(identifier,phase=phase)
     value.models.status = status_disappears
     await generate(attempt)
     assert (await current())["generation_id"] == attempt and len(value.models.requests) == 1

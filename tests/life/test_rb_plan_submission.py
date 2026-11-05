@@ -8,6 +8,7 @@ import pytest
 
 from tianshu.life import model_budget, planning, planning_engine
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
+from tianshu.models.ledger import submission_digest
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -48,9 +49,11 @@ async def test_planning_submits_once_yields_worker_and_consumes_original_complet
     async def submit(request, *, completion=None):
         submitted.append((request, completion))
         state["receipt"] = ModelReceipt(request.attempt_id, request.intent_id, "queued", "not_started",
-            "route", 1, "provider", "model", "native", "quota")
+            "route", 1, "provider", "model", "native", "quota",
+            request_digest=submission_digest(request),data_generation=request.data_generation)
         return state["receipt"]
-    async def status(_attempt_id):
+    async def status(_attempt_id, *, phase="observe"):
+        assert phase in {"pre_submit","observe"}
         return state["receipt"]
     value.models.submit = submit
     value.models.status = status
@@ -70,7 +73,8 @@ async def test_planning_submits_once_yields_worker_and_consumes_original_complet
 
     request = submitted[0][0]
     state["receipt"] = ModelReceipt(request.attempt_id, request.intent_id, "succeeded", "submitted",
-        "route", 1, "provider", "model", "native", "quota")
+        "route", 1, "provider", "model", "native", "quota",
+        request_digest=submission_digest(request),data_generation=request.data_generation)
     value.models.actual = ModelResult((ModelPart("text", text=output),), state["receipt"],
         completion=ModelCompletion("complete", ("stop",)))
     await value.worker.plan("actor", 1, wire(value.context), data_generation)

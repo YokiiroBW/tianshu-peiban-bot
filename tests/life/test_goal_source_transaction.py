@@ -28,6 +28,9 @@ async def source_life(database, tmp_path):
             +'\n'+files('tianshu.sources').joinpath('functions.sql').read_text()),
         Migration('0031_life',files('tianshu.life').joinpath('schema.sql').read_text()),
         Migration('0038_life_computation_retry',files('tianshu.life').joinpath('0038_life_computation_retry.sql').read_text()),
+        Migration('0032_conversation',files('tianshu.conversation').joinpath('schema.sql').read_text()),
+        Migration('0040_life_execution',files('tianshu.life').joinpath('rb_life_execution.sql').read_text()),
+        Migration('rbf_life_planning_wake',files('tianshu.life').joinpath('rbf_life_planning_wake.sql').read_text()),
     ))
     commands,jobs=CommandStore(database),JobQueue(database.config.dsn)
     identity=IdentityService(database,commands)

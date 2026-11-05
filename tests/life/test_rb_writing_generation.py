@@ -120,7 +120,7 @@ async def test_chapter_retry_keeps_budget_and_switches_actual_quota_after_known_
     attempt = command.attempt_id
     await writing.generate("chapter",attempt)
     value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="unknown",dispatch="unknown",
-        error_code="transport_unknown")
+        error_code="transport_unknown",finished_at=datetime.now(UTC))
     await writing.generate("chapter",attempt)
     await writing.generate("chapter",attempt)
     async with database.transaction(read_only=True) as connection:

@@ -97,16 +97,16 @@ async def test_verified_model_configuration_change_naturally_recovers_without_pe
                 "route_revision": 2 if ready else 1}
 
     value.models.generation_profile = profile
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     current = await mark(database)
     assert current["last_error"] == "planner_model_unavailable" and value.models.calls == []
     assert current["repair_due_at"] is None and current["generation_key"] is None
     await value.worker.life.signal(value.context, "rhythm:still-unverified")
-    await value.worker.plan("actor", 2, wire(value.context))
+    await value.worker.plan("actor", 2, wire(value.context), value.data_generation)
     assert value.models.calls == []
     ready = True
     await value.worker.life.signal(value.context, "rhythm:after-capability-probe")
-    await value.worker.plan("actor", 3, wire(value.context))
+    await value.worker.plan("actor", 3, wire(value.context), value.data_generation)
     current = await mark(database)
     assert current["last_error"] is None and current["decision_fingerprint"] and len(value.models.calls) == 1
     assert value.models.calls[0].route_revision == 2
@@ -116,12 +116,12 @@ async def test_verified_model_configuration_change_naturally_recovers_without_pe
 async def test_unknown_yields_to_new_material_without_replaying_its_identity(database):
     value = await setup(database, chosen_activity(), lose_response=True)
     with pytest.raises(TimeoutError):
-        await value.worker.plan("actor", 1, wire(value.context))
+        await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     original = await mark(database)
     frozen=value.models.calls[0]
     value.models.lose_response=False
     await value.worker.life.signal(value.context, "reconsider:new-material", change={"reason": "A different authored idea"})
-    await value.worker.plan("actor", 2, wire(value.context))
+    await value.worker.plan("actor", 2, wire(value.context), value.data_generation)
     current = await mark(database)
     assert current["generation_key"] != original["generation_key"] and current["generation_consumed"]
     assert len(value.models.calls) == 2 and value.models.calls[1].attempt_id!=frozen.attempt_id
@@ -136,12 +136,12 @@ async def test_unknown_yields_to_new_material_without_replaying_its_identity(dat
 async def test_late_valid_result_under_revoked_sources_cannot_apply_or_create_repair(database):
     value = await setup(database, chosen_activity(), lose_response=True)
     with pytest.raises(TimeoutError):
-        await value.worker.plan("actor", 1, wire(value.context))
+        await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     assert (await mark(database))["repair_due_at"] > datetime.now(UTC)
     value.models.actual = replace(value.models.actual, receipt=replace(value.models.actual.receipt, status="succeeded"))
     value.worker.life.sources.validate_persistence = AsyncMock(return_value=False)
     await make_due(database, "repair_due_at")
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     current = await mark(database)
     value.worker.life.sources.validate_persistence.assert_awaited_once()
     assert current["last_error"] == "source_unavailable" and current["repair_due_at"] is None
@@ -155,16 +155,16 @@ async def test_late_valid_result_under_revoked_sources_cannot_apply_or_create_re
 @pytest.mark.asyncio
 async def test_free_time_has_a_review_window_and_ordinary_notifications_only_rebind_the_due_job(database):
     value = await setup(database, rest())
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     first = await mark(database)
     assert first["review_after"] > datetime.now(UTC) and first["decision_fingerprint"]
     for index, signal in enumerate(("growth:style", "rhythm:ordinary"), start=2):
         await value.worker.life.signal(value.context, signal)
-        await value.worker.plan("actor", index, wire(value.context))
+        await value.worker.plan("actor", index, wire(value.context), value.data_generation)
     current = await mark(database)
     assert len(value.models.calls) == 1 and current["review_after"] == first["review_after"]
     await make_due(database, "review_after")
-    await value.worker.plan("actor", current["revision"], wire(value.context))
+    await value.worker.plan("actor", current["revision"], wire(value.context), value.data_generation)
     current = await mark(database)
     assert len(value.models.calls) == 2 and current["generation_key"] != first["generation_key"]
     assert current["reason"] == "no_meaningful_activity"  # The actor may still choose rest.

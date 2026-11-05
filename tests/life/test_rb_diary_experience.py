@@ -1,7 +1,7 @@
 """RB-15: one scene/day, independent submissions and saved-body recovery."""
 
 from dataclasses import replace
-from datetime import timedelta
+from datetime import UTC, datetime, timedelta
 from importlib.resources import files
 
 import pytest
@@ -10,6 +10,7 @@ from tianshu.identity.service import IdentityService
 from tianshu.life.diary_automation import diary_experience
 from tianshu.life.diary_materials import episode_observation, episode_versions
 from tianshu.models.types import ModelCompletion, ModelPart, ModelReceipt, ModelResult
+from tianshu.models.ledger import submission_digest
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
@@ -42,15 +43,30 @@ class Broker:
         self.completions[request.attempt_id] = completion
         route = request.route_id or self.selected_route
         receipt = ModelReceipt(request.attempt_id, request.intent_id, "queued", "not_started",
-            route, request.route_revision or 1, "provider", "model", "openai.chat", self.quota_groups[route])
+            route, request.route_revision or 1, "provider", "model", "openai.chat", self.quota_groups[route],
+            queued_at=datetime.now(UTC),request_digest=submission_digest(request),data_generation=request.data_generation)
         self.receipts[request.attempt_id] = receipt
         return receipt
 
-    async def status(self, attempt_id):
+    async def status(self, attempt_id, *, phase="observe"):
+        assert phase in {"pre_submit", "observe"}
         return self.receipts.get(attempt_id)
 
     async def result(self, attempt_id, *, context):
-        return self.results.get(attempt_id)
+        result = self.results.get(attempt_id)
+        return replace(result,receipt=self.receipts[attempt_id]) if result is not None else None
+
+    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None, expected_data_generation=None):
+        from tianshu.models.results import validate_reusable_receipt
+        current = await self.status(attempt_id)
+        if current is None:
+            raise AppError("attempt_not_found", status=404)
+        validate_reusable_receipt(current,attempt_id,expected_request_digest=expected_request_digest,
+            expected_data_generation=expected_data_generation)
+        result = await self.result(attempt_id,context=context)
+        if result is None:
+            raise AppError("model_result_unavailable",status=409)
+        return result
 
     async def cancel(self, attempt_id, *, reason="explicit_cancel"):
         if attempt_id in self.receipts:
@@ -59,7 +75,7 @@ class Broker:
         return self.receipts.get(attempt_id)
 
     def complete(self, attempt_id, content="今天做了实际记录。"):
-        receipt = replace(self.receipts[attempt_id], status="succeeded", dispatch="submitted")
+        receipt = replace(self.receipts[attempt_id], status="succeeded", dispatch="submitted",finished_at=datetime.now(UTC))
         self.receipts[attempt_id] = receipt
         self.results[attempt_id] = ModelResult((ModelPart("text", text=content),), receipt,
             completion=ModelCompletion("complete", ("stop",)))
@@ -330,7 +346,7 @@ async def test_unknown_attempt_is_observed_then_definitive_failure_retries_same_
     attempt = diary["generation_id"]
     await value.diaries.generate(diary["id"], attempt)
     value.models.receipts[attempt] = replace(value.models.receipts[attempt],status="unknown",dispatch="unknown",
-        error_code="transport_unknown")
+        error_code="transport_unknown",finished_at=datetime.now(UTC))
     await value.diaries.generate(diary["id"], attempt)
     await value.diaries.generate(diary["id"], attempt)
     async with database.transaction(read_only=True) as connection:

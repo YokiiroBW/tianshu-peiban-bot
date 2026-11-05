@@ -226,7 +226,7 @@ async def test_old_checkpoint_goes_to_normal_planning_and_future_activity_does_n
     assert row["action_id"] == "discovery" and row["next_due_at"] is None
     # The earlier result slot is over; only the future appointment remains.
     current = await mark(database)
-    await value.worker.plan("actor", current["revision"], wire(value.context))
+    await value.worker.plan("actor", current["revision"], wire(value.context), value.data_generation)
     after = await mark(database)
     assert after["last_error"] is None, after["reason"]
     assert len(value.models.calls) == 1 and not value.actions.calls
@@ -234,7 +234,7 @@ async def test_old_checkpoint_goes_to_normal_planning_and_future_activity_does_n
     assert after["reason"] == "no_meaningful_activity" and after["review_after"] is not None
     assert (await activity(database))["action_id"] == "discovery"  # Choosing rest is valid.
     await value.worker.life.signal(value.context, "rhythm:unchanged-after-review")
-    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context))
+    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context), value.data_generation)
     assert len(value.models.calls) == 1
 
 
@@ -254,13 +254,13 @@ async def test_model_approved_resume_reuses_activity_at_full_day_quota_without_r
                 (identifier+'-slot', NOW.date(), starts, starts+timedelta(minutes=30), identifier))
         original = await (await connection.execute("SELECT * FROM life.activities WHERE id='research'")).fetchone()
         routine = await (await connection.execute("SELECT * FROM life.routines WHERE actor_id='actor'")).fetchone()
-        count = await value.worker.life.days.apply(connection, value.context,
+        application = await value.worker.life.days.apply(connection, value.context,
             {"activity": {"existing_activity_id": "research", "title": original["title"], "kind": "research", "goal_id": None,
-                "capability_id": "content.discover", "arguments": {}, "duration_minutes": 20},
+                "capability_id": "content.read", "continuation_key":"url:selected", "arguments": {}, "duration_minutes": 20},
              "arrangements": [], "cancel_activity_ids": [], "reason": "继续读取原来选中的正文。"},
             {"unfinished": [original], "commitments": []}, "accepted-next-slot", {}, (), routine, NOW, "new-window")
     resumed = await activity(database)
-    assert count == 1 and resumed["id"] == original["id"]
+    assert [item.status for item in application.items] == ["scheduled"] and resumed["id"] == original["id"]
     assert resumed["action_id"] is None and resumed["checkpoint_data"]["capability_id"] == "content.read"
     await value.worker.activity_step("research", resumed["revision"], wire(value.context))
     assert len(value.actions.calls) == 1 and value.actions.calls[0][0].capability_id == "content.read"

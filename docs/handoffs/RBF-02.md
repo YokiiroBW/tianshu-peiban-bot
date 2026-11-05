@@ -21,6 +21,8 @@
 
 ## 验证与限制
 
-- 新增 `test_rbf_planning_recovery.py`、`test_rbf_content_recovery.py`、`test_rbf_source_preparation.py`、`test_rbf_generation_recovery.py`、`test_rbf_statistics.py`，覆盖语义变化与同语义通知、可用性恢复、合并唤醒、原请求中断/丢 ACK、原子替换回滚、远端未确认回滚、读取原回执和取消/暂停、来源聚合、回填完成条件。
+- 新增 `test_rbf_planning_recovery.py`、`test_rbf_content_recovery.py`、`test_rbf_source_preparation.py`、`test_rbf_generation_recovery.py`、`test_rbf_life_statistics.py`，覆盖语义变化与同语义通知、可用性恢复、合并唤醒、原请求中断/丢 ACK、原子替换回滚、远端未确认回滚、读取原回执和取消/暂停、来源聚合、回填完成条件。
 - 已静态审阅 diff，`git diff --check` 与 Python AST 解析；按本批授权未运行测试、构建、烟测、真实模型/QQ 或生产操作。测试代码是否通过、共享实现联调及业务结果均由主协调者集中验证。
-- 历史 Life fixture 的 Models 替身需要实现带 `phase` 的 `status` 和 `reusable_result`，Sources 替身需支持 `prepare_event_writes`；旧数据库 fixture 需应用本域增量迁移。旧统计测试中“在线扫描永远 incomplete”或“仍有 replay 即 complete”的断言需按新合同更新。
+- 夹具追补：共享 Life fixture 已应用本域增量迁移；Models 替身按原请求生成 `request_digest` 和安装代际，支持带 `phase` 的 `status`，成功复用调用真实的 `validate_reusable_receipt`；Sources 替身按完整依赖批次验证 `prepare_event_writes`。旧统计测试保留业务提交及补投断言，改为在 replay 未完成时报告 pending。Life 统计测试更名避免与 Operations 同名文件冲突。
+- 建议集中运行的最小既有用例：`test_rb_plan_submission.py`、`test_rb_plan_statistics.py`、`test_planner_execution.py`、`test_planning_stream_repair.py`、`test_rb_diary_experience.py`、`test_rb_writing_generation.py`、`test_pure_unknown_recovery.py`、`test_computation_retry.py`、`test_writing_completion.py`、`test_goal_source_transaction.py`；另选 `test_diary_automation.py::test_recovery_uses_original_business_expiry_without_rewriting_a_frozen_preparation_budget`、`test_diary_automation.py::test_unknown_same_scene_new_epoch_observes_original_and_late_success_commits_once`、`test_activity_continuation.py::test_model_approved_resume_reuses_activity_at_full_day_quota_without_replaying_discovery`、`test_rolling_day_plan.py::test_idle_review_keeps_its_absolute_deadline_across_harmless_ticks_and_reconsiders_once`。本卡的五个 `test_rbf_*` 文件也需集中运行。
+- `test_rolling_day_plan.py` 另有历史用例期望 `existing_activity_continues` 和 `actor_resting` 规划原因；当前规划实现未设置这两个原因。这是静态发现、尚未执行，不在本次接口夹具修补中改写其业务断言，集中验证时需结合最新日程合同判断。

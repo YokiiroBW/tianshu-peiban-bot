@@ -152,7 +152,7 @@ async def test_idle_review_keeps_its_absolute_deadline_across_harmless_ticks_and
 async def test_restart_recovers_legacy_idle_deadline_without_rewriting_original_requests(database, time_now, old_reason):
     value = await rolling_fixture(database, json.dumps(decision()))
     await completed_history(database, value)
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     first = await mark(database)
     deadline = NOW+timedelta(minutes=90)
     original = value.models.calls[0]
@@ -161,7 +161,7 @@ async def test_restart_recovers_legacy_idle_deadline_without_rewriting_original_
             (deadline, old_reason))
     time_now.now = NOW+timedelta(minutes=10)
     await value.worker.life.signal(value.context, "growth:ordinary")
-    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context))
+    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context), value.data_generation)
     current = await mark(database)
     assert current["next_due_at"] == deadline and current["review_after"] is None and len(value.models.calls) == 1
     value.jobs.enqueue = AsyncMock(wraps=value.jobs.enqueue)
@@ -186,7 +186,7 @@ async def test_restart_recovers_legacy_idle_deadline_without_rewriting_original_
 @pytest.mark.parametrize("notification", ["rhythm:ordinary", "growth:style-only"])
 async def test_due_legacy_review_preserves_running_and_unknown_activities(database, time_now, notification):
     value = await rolling_fixture(database, json.dumps(decision()))
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.plan_watermarks SET review_after=NULL,next_due_at=%s,reason='unchanged_decision_material' WHERE actor_id='actor'",
             (NOW-timedelta(seconds=1),))
@@ -196,7 +196,7 @@ async def test_due_legacy_review_preserves_running_and_unknown_activities(databa
             (NOW+timedelta(minutes=30), document(value.context), document(value.context)))
     await value.worker.life.signal(value.context, notification)
     await value.worker.recover()
-    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context))
+    await value.worker.plan("actor", (await mark(database))["revision"], wire(value.context), value.data_generation)
     await value.worker.activity_step("unknown", 1, wire(value.context))
     async with database.transaction(read_only=True) as connection:
         unknown = await (await connection.execute("SELECT * FROM life.activities WHERE id='unknown'")).fetchone()
@@ -212,14 +212,14 @@ async def test_due_legacy_review_preserves_running_and_unknown_activities(databa
 @pytest.mark.asyncio
 async def test_legacy_review_during_sleep_waits_for_the_original_waking_boundary(database, time_now):
     value = await rolling_fixture(database, json.dumps(decision()))
-    await value.worker.plan("actor", 1, wire(value.context))
+    await value.worker.plan("actor", 1, wire(value.context), value.data_generation)
     first = await mark(database)
     async with database.transaction() as connection:
         await connection.execute("UPDATE life.routines SET wake_at='08:00',sleep_at='09:00' WHERE actor_id='actor'")
         await connection.execute("UPDATE life.plan_watermarks SET review_after=NULL,next_due_at=%s,reason='day_arrangements_complete' WHERE actor_id='actor'",
             (NOW-timedelta(seconds=1),))
     await value.worker.recover()
-    await value.worker.plan("actor", first["revision"], wire(value.context))
+    await value.worker.plan("actor", first["revision"], wire(value.context), value.data_generation)
     after = await mark(database)
     assert after["reason"] == "actor_resting" and after["next_due_at"] == NOW.replace(hour=8)+timedelta(days=1)
     assert after["generation_key"] == first["generation_key"] and len(value.models.calls) == 1

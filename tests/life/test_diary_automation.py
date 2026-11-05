@@ -12,11 +12,12 @@ from tianshu.life.diaries import DiaryService
 from tianshu.life.generation_control import GenerationControl
 from tianshu.memory.types import Episode, EpisodePage
 from tianshu.models.types import ModelReceipt, ModelRequest
+from tianshu.models.ledger import submission_digest
 from tianshu.runtime.api import Page
 from tianshu.runtime.errors import AppError
 from tianshu.types import Coverage, OriginKind, SourceRef, RequestBudget, ServiceClass
 from test_planner_execution import setup
-from historical_support import diary_fixture as historical_fixture
+from historical_support import diary_fixture as historical_fixture, migrations
 
 
 class Authority:
@@ -62,6 +63,7 @@ class Memory:
 
 async def fixture(database, *, empty=False, unknown=False):
     value = await setup(database,"今天只记下实际完成的小事。",lose_response=unknown)
+    await migrations(database,diary=True)
     # This diary scenario owns its calendar instead of inheriting planner defaults.
     async with database.transaction() as connection:
         await connection.execute(
@@ -73,6 +75,16 @@ async def fixture(database, *, empty=False, unknown=False):
             ("Asia/Shanghai",value.context.actor_id))
     life = value.worker.life
     identity, jobs = Authority(), Jobs()
+    from tianshu.identity.service import IdentityService
+    from tianshu.runtime.jobs import JobQueue
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    identity.scene_id = IdentityService.scene_id
+    jobs.current_generation_on = JobQueue.current_generation_on
+    jobs.assert_generation_on = JobQueue.assert_generation_on
+    async def current_generation():
+        async with database.transaction(read_only=True) as connection:
+            return await jobs.current_generation_on(connection)
+    jobs.current_generation = current_generation
     episode = Episode("actual","activity:completed",1,"actor",OriginKind.ACTOR,
         datetime(2026,11,1,18,tzinfo=UTC),"在想象的小屋里整理书架",
         (SourceRef("actual-completion",1),),("actor-scope",),
@@ -81,6 +93,7 @@ async def fixture(database, *, empty=False, unknown=False):
     life.identity, life.jobs, life.memory = identity, jobs, memory
     value.worker.assembler.identity = identity
     diaries = DiaryService(life,value.models,value.worker.assembler)
+    diaries.bind_observability(recovery_policy=RecoveryPolicy(),statistics=None)
     value.models.cancel = AsyncMock()
     return SimpleNamespace(diaries=diaries,life=life,models=value.models,context=value.context,
         memory=memory,episode=episode,identity=identity,jobs=jobs)
@@ -190,7 +203,7 @@ async def test_changed_original_revision_revises_that_day_once_and_preserves_pub
     await value.diaries.changed(value.context,"revision:2",episode=revised)
     await value.diaries.changed(value.context,"duplicate:2",episode=revised)
     assert (await day_state(database))["revision"] == 2
-    await value.diaries.review_day("actor",scope,day,2)
+    await value.diaries.review_day("actor",scope,day,2, await value.jobs.current_generation())
     diary = await collect_current(database,value)
     await value.diaries.generate(diary["id"],diary["generation_id"])
     result = await diary_state(database)
@@ -213,14 +226,18 @@ async def test_unknown_same_scene_new_epoch_observes_original_and_late_success_c
     original = value.models.calls[0]
     assert (await diary_state(database))["state"] == "unknown"
     value.identity.epoch = 2
-    observed = await value.diaries.review_day("actor",scope,day,1)
+    value.diaries.generations.observe_request = AsyncMock(wraps=value.diaries.generations.observe_request)
+    observed = await value.diaries.review_day("actor",scope,day,1, await value.jobs.current_generation())
     assert observed["state"] == "unknown" and len(value.models.calls) == 1
-    assert value.models.observations[-1][1].access_epoch == 2
+    original_observation = value.diaries.generations.observe_request.await_args
+    assert original_observation.args[0] == original.attempt_id
+    assert original_observation.kwargs["observer"].access_epoch == 2
     value.models.actual = replace(value.models.actual,
         receipt=replace(value.models.actual.receipt,status="succeeded",dispatch="submitted"))
-    await value.diaries.review_day("actor",scope,day,1)
+    await value.diaries.review_day("actor",scope,day,1, await value.jobs.current_generation())
     result = await diary_state(database)
     assert result["state"] == "draft" and result["current_revision"] == 1
+    assert value.models.observations[-1][1].access_epoch == 2
     frozen = await value.diaries.generations.request(original.attempt_id,original.context)
     assert frozen.context == original.context and frozen.budget.trace_id == original.budget.trace_id
     assert len(value.models.calls) == 1
@@ -233,22 +250,27 @@ async def test_recovery_uses_original_business_expiry_without_rewriting_a_frozen
     await start_day(value)
     diary = await collect_current(database, value)
     past = datetime.now(UTC)-timedelta(seconds=1)
+    generation = await value.jobs.current_generation()
     frozen = ModelRequest("diary:"+diary["generation_id"], diary["generation_id"], "reflect", ServiceClass.ELASTIC,
         value.context, RequestBudget(past), (), execution_timeout_seconds=None if timing == "legacy" else 300,
-        business_deadline_at=past if timing == "business_expired" else None)
-    queued = SimpleNamespace(receipt=ModelReceipt(frozen.attempt_id, frozen.intent_id, "queued", "not_started",
-        "route", 1, "provider", "model", "openai.chat", "quota"))
-    value.diaries.generations.observe_request = AsyncMock(return_value=frozen)
-    value.diaries.generations.read = AsyncMock(return_value=None)
-    value.diaries.generations.run = AsyncMock(return_value=queued)
-    outcome = await value.diaries.generate(diary["id"], diary["generation_id"])
+        business_deadline_at=past if timing == "business_expired" else None,
+        route_id="fixture-route",route_revision=1,protocol="openai.chat",data_generation=generation)
+    queued = ModelReceipt(frozen.attempt_id, frozen.intent_id, "queued", "not_started",
+        "fixture-route", 1, "provider", "model", "openai.chat", "quota",
+        request_digest=submission_digest(frozen),data_generation=generation)
+    await value.diaries.generations.prepare("diary:"+diary["generation_id"],frozen)
+    value.models.submit = AsyncMock(return_value=queued)
     assert frozen.budget.deadline_at == past and frozen.attempt_id == diary["generation_id"]
     if admit:
+        outcome = await value.diaries.generate(diary["id"], diary["generation_id"])
         assert outcome["state"] == "generating"
-        assert value.diaries.generations.run.await_args.args[1] is frozen
+        assert value.models.submit.await_args.args[0] == frozen
     else:
-        assert outcome["state"] == "failed" and outcome["reason"] == "generation_request_expired"
-        value.diaries.generations.run.assert_not_awaited()
+        with pytest.raises(AppError,match="generation_request_expired"):
+            await value.diaries.generate(diary["id"], diary["generation_id"])
+        row = await diary_state(database)
+        assert row["state"] == "failed" and row["reason"] == "generation_request_expired"
+        value.models.submit.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -262,12 +284,12 @@ async def test_revised_material_rejects_late_success_then_legal_new_material_can
     await value.diaries.changed(value.context,"actual:2",episode=value.memory.episodes[0])
     value.models.actual = replace(value.models.actual,
         receipt=replace(value.models.actual.receipt,status="succeeded",dispatch="submitted"))
-    await value.diaries.review_day("actor",scope,day,2)
+    await value.diaries.review_day("actor",scope,day,2, await value.jobs.current_generation())
     refused = await diary_state(database)
     assert refused["reason"] == "diary_material_changed" and refused["current_revision"] == 0
     pending = await day_state(database)
     assert pending["reviewed_revision"] == 0 and pending["blocked_revision"]==1 and pending["revision"] == 2
-    await value.diaries.review_day("actor",scope,day,2)
+    await value.diaries.review_day("actor",scope,day,2, await value.jobs.current_generation())
     fresh = await collect_current(database,value)
     assert fresh["generation_id"] != diary["generation_id"] and fresh["state"] == "generating"
     assert len(value.models.calls) == 1  # New actual material has only been collected.
@@ -316,7 +338,7 @@ async def test_source_loss_retires_diary_application_without_relabeling_unknown_
         return False
     value.life.sources.validate_persistence = denied
     with pytest.raises(AppError,match="source_unavailable"):
-        await value.diaries.review_day("actor",scope,day,1)
+        await value.diaries.review_day("actor",scope,day,1, await value.jobs.current_generation())
     current = await diary_state(database)
     assert current["state"] == "failed" and current["reason"] == "source_unavailable"
     assert current["current_revision"] == 0 and value.models.actual.receipt.status == "unknown"
@@ -416,7 +438,7 @@ async def test_manual_recovery_binds_only_its_closed_day_and_saved_reconcile_cha
     assert failed["generation_id"] is None and failed["reviewed_revision"] == 1
     assert failed["blocked_revision"] == 2 and failed["revision"] == 3
     assert any(job.task == "life.diary_review" and job.payload["expected_revision"] == 3 for job in value.jobs.items)
-    await value.diaries.review_day("actor",scope,day,3)
+    await value.diaries.review_day("actor",scope,day,3, await value.jobs.current_generation())
     current = await collect_current(database,value)
     value.models.output = "仅记录实际经历的新版本。"
     await value.diaries.generate(current["id"],current["generation_id"])

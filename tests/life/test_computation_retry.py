@@ -15,7 +15,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
 from test_planner_execution import Models, setup, mark, chosen_activity
 from test_diary_automation import fixture, start_day, collect_current, diary_state, day_state
-from historical_support import adapt_models, diary_fixture as historical_diary_fixture
+from historical_support import adapt_models, diary_fixture as historical_diary_fixture, migrations
 
 
 pytestmark=pytest.mark.asyncio
@@ -46,13 +46,15 @@ class Computations(Models):
         self.observations.append((attempt_id,context))
         return self.results.get(attempt_id)
 
-    async def status(self,attempt_id):
+    async def status(self,attempt_id, *, phase="observe"):
+        assert phase in {"pre_submit","observe"}
         return self.receipts.get(attempt_id)
 
 
 async def plan_fixture(database):
     value=await setup(database,chosen_activity())
-    models=Computations(chosen_activity())
+    await migrations(database,diary=True)
+    models=adapt_models(Computations(chosen_activity()))
     value.models=value.worker.models=value.worker.generations.models=models
     return value
 
@@ -68,56 +70,62 @@ async def expire(database,table,column):
     assert (table,column) in {("plan_watermarks","repair_due_at"),("diaries","generation_retry_due_at"),("chapters","generation_retry_due_at")}
     async with database.transaction() as connection:
         await connection.execute(f"UPDATE life.{table} SET {column}=now()-interval '1 second' WHERE {column} IS NOT NULL")
+        await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE due_at IS NOT NULL")
+        await connection.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=now()-interval '1 second' WHERE cooldown_until IS NOT NULL")
 
 
 async def test_planning_network_retries_are_distinct_from_the_two_schema_repairs(database):
     value=await plan_fixture(database)
     keys=[]
-    for number in range(1,5):
-        await value.worker.plan("actor",1,wire(value.context))
+    # The original attempt and its successors share the current three-attempt
+    # policy; leave the final slot for the successful independent request.
+    for number in range(1,3):
+        await value.worker.plan("actor",1,wire(value.context), value.data_generation)
         row=await mark(database)
         keys.append(row["generation_key"])
         assert row["generation_consumed"] and row["computation_retry_count"]==number
         assert row["repair_count"]==0 and row["repair_due_at"]==row["next_due_at"]
         assert row["reason"]=="planner_retry_wait" and row["last_error"]=="timeout_unknown"
-        await value.worker.plan("actor",1,wire(value.context))
+        await value.worker.plan("actor",1,wire(value.context), value.data_generation)
         assert len(value.models.calls)==number
         await expire(database,"plan_watermarks","repair_due_at")
-    assert len(set(keys))==4
+    assert len(set(keys))==2
     original=value.models.calls[0]
     async with database.transaction(read_only=True) as connection:
         frozen=await (await connection.execute("SELECT request FROM conversation.generation_requests WHERE attempt_id=%s",(original.attempt_id,))).fetchone()
     assert frozen["request"]==wire(original)
     value.models.status_value,value.models.error="succeeded",None
-    await value.worker.plan("actor",1,wire(value.context))
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
     current=await mark(database)
     assert current["last_error"] is None and current["computation_retry_count"]==0
-    assert len(value.models.calls)==5 and len({request.attempt_id for request in value.models.calls})==5
+    assert len(value.models.calls)==3 and len({request.attempt_id for request in value.models.calls})==3
     assert all(request.provider_session_scope=="intent" for request in value.models.calls)
     assert all("PREVIOUS_PARTIAL_MUST_NOT_BE_CONTINUED" not in str(wire(request.messages)) for request in value.models.calls)
     assert all('"repair"' not in str(wire(request.messages)) for request in value.models.calls)
     async with database.transaction(read_only=True) as connection:
         assert len(await (await connection.execute("SELECT id FROM life.activities")).fetchall())==1
         history=await (await connection.execute("SELECT previous_generation_key FROM life.plan_generations WHERE generation_key=%s",(current["generation_key"],))).fetchone()
+        attempts=await (await connection.execute("SELECT status FROM runtime.recovery_attempts ORDER BY attempt_number")).fetchall()
     assert history["previous_generation_key"]==keys[-1]
+    assert [entry["status"] for entry in attempts]==["unknown","unknown","succeeded"]
     assert value.models.results[original.attempt_id].receipt.status=="unknown"
 
 
 async def test_planning_observes_a_live_original_and_later_explicit_cancel_stops_retry(database):
     value=await plan_fixture(database)
     value.models.status_value,value.models.error="queued",None
-    await value.worker.plan("actor",1,wire(value.context))
-    await value.worker.plan("actor",1,wire(value.context))
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
     assert len(value.models.calls)==1 and not (await mark(database))["generation_consumed"]
     original=value.models.calls[0]
-    receipt=replace(value.models.receipts[original.attempt_id],status="unknown",error_code="consumer_interrupted")
+    receipt=replace(value.models.receipts[original.attempt_id],status="unknown",error_code="consumer_interrupted",finished_at=datetime.now(UTC))
     value.models.receipts[original.attempt_id]=receipt
     value.models.results[original.attempt_id]=replace(value.models.results[original.attempt_id],receipt=receipt)
-    await value.worker.plan("actor",1,wire(value.context))
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
     assert (await mark(database))["generation_consumed"]
     await expire(database,"plan_watermarks","repair_due_at")
     value.models.receipts[original.attempt_id]=replace(receipt,cancellation_reason="explicit_cancel")
-    await value.worker.plan("actor",1,wire(value.context))
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
     stopped=await mark(database)
     assert stopped["last_error"]=="explicit_cancel" and stopped["repair_due_at"] is None
     assert len(value.models.calls)==1 and value.models.results[original.attempt_id].receipt.status=="unknown"
@@ -125,7 +133,7 @@ async def test_planning_observes_a_live_original_and_later_explicit_cancel_stops
 
 async def test_an_expired_day_proposal_is_superseded_by_a_fresh_current_day(database,monkeypatch):
     value=await plan_fixture(database)
-    await value.worker.plan("actor",1,wire(value.context))
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
     first=await mark(database)
     original=value.models.calls[0]
     from tianshu.life import planning_engine
@@ -136,7 +144,7 @@ async def test_an_expired_day_proposal_is_superseded_by_a_fresh_current_day(data
             return future.astimezone(tz) if tz else future.replace(tzinfo=None)
     monkeypatch.setattr(planning_engine,"datetime",Clock)
     value.models.status_value,value.models.error="succeeded",None
-    await value.worker.plan("actor",1,wire(value.context))
+    await value.worker.plan("actor",1,wire(value.context), value.data_generation)
     current=await mark(database)
     async with database.transaction(read_only=True) as connection:
         old=await (await connection.execute("SELECT state,day FROM life.plan_generations WHERE generation_key=%s",(first["generation_key"],))).fetchone()
@@ -214,11 +222,11 @@ async def test_diary_permanent_failure_is_not_reviewed_or_periodically_retried_b
     count=len(value.jobs.items)
     await value.diaries.recover()
     assert len(value.jobs.items)==count
-    assert (await value.diaries.review_day("actor",scope,day,1))["state"]=="blocked"
+    assert (await value.diaries.review_day("actor",scope,day,1, await value.jobs.current_generation()))["state"]=="blocked"
     changed=replace(value.episode,revision=2,summary="更新后的实际经历")
     value.memory.episodes=(changed,)
     await value.diaries.changed(value.context,"changed:2",episode=changed)
-    await value.diaries.review_day("actor",scope,day,2)
+    await value.diaries.review_day("actor",scope,day,2, await value.jobs.current_generation())
     fresh=await collect_current(database,value)
     value.models.status_value,value.models.error="succeeded",None
     await value.diaries.generate(fresh["id"],fresh["generation_id"])
@@ -273,7 +281,7 @@ async def test_a_dirty_day_at_retry_time_yields_the_old_pointer_to_normal_collec
     current=await day_state(database)
     assert current["generation_id"] is None and current["reviewed_revision"]==0 and current["blocked_revision"]==1
     assert any(job.task=="life.diary_review" and job.payload["expected_revision"]==2 for job in value.jobs.items)
-    await value.diaries.review_day("actor",scope,day,2)
+    await value.diaries.review_day("actor",scope,day,2, await value.jobs.current_generation())
     child=await collect_current(database,value)
     assert child["generation_id"]!=original.attempt_id and len(child["generation_recipe"]["episodes"])==2
     value.models.status_value,value.models.error="succeeded",None
@@ -303,6 +311,7 @@ async def test_chapter_retry_uses_the_existing_writing_queue_and_saves_only_the_
     life=value.worker.life
     life.sources.record_event=AsyncMock(return_value=(SourceRef("chapter-completion",1),))
     writing=WritingService(life,value.models,value.worker.assembler)
+    writing.bind_observability(recovery_policy=life.recovery_policy,statistics=None)
     completion=AsyncMock()
     writing.bind_completion(completion)
     life.jobs.register("life.chapter_generate",writing.generate)

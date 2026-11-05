@@ -16,6 +16,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget, SourceRef
 from test_planner_contract import Identity, context, data
 from test_planner_execution import setup
+from historical_support import migrations
 
 
 def assembler(identity=None):
@@ -63,6 +64,7 @@ async def test_planning_still_rejects_a_whole_mandatory_persona_over_the_200000_
 @pytest.mark.parametrize("tokens,accepted", [(190000, True), (200001, False)])
 async def test_writing_assembles_200000_input_plus_the_original_6000_output_and_preserves_whole_recipes(database, tokens, accepted):
     value = await setup(database, "只保存这次合成章节的完整正文。")
+    await migrations(database,diary=True)
     assembly = assembler(value.worker.life.identity)
     assembly.assemble = AsyncMock(wraps=assembly.assemble)
     text = large_material(assembly.counter, tokens)
@@ -74,6 +76,7 @@ async def test_writing_assembles_200000_input_plus_the_original_6000_output_and_
     life = value.worker.life
     life.sources.record_event = AsyncMock(return_value=(SourceRef("chapter-completion", 1),))
     writing = WritingService(life, value.models, assembly)
+    writing.bind_observability(recovery_policy=life.recovery_policy,statistics=None)
     life.jobs.register("life.chapter_generate", writing.generate)
     async with database.transaction() as connection:
         await connection.execute("INSERT INTO life.works(id,actor_id,title,scope_ids) VALUES ('work','actor','Synthetic work',ARRAY['actor-scope'])")

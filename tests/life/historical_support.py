@@ -5,6 +5,8 @@ from datetime import UTC, datetime
 from importlib.resources import files
 
 from tianshu.identity.service import IdentityService
+from tianshu.models.ledger import submission_digest
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobQueue
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.recovery_policy import RecoveryPolicy
@@ -28,6 +30,8 @@ async def migrations(database, *, diary=False):
 
 def adapt_models(models):
     """Store an immutable result per physical attempt behind the submit port."""
+    if getattr(models, "_life_port_adapted", False):
+        return models
     old_profile = models.generation_profile
     async def profile(request):
         return {**(await old_profile(request)), "quota_group": "quota"}
@@ -37,13 +41,14 @@ def adapt_models(models):
     old_status, old_result = models.status, models.result
 
     def finished(result, request):
-        if result.receipt.status == "unknown" and result.receipt.finished_at is None:
-            result = replace(result, receipt=replace(result.receipt, finished_at=datetime.now(UTC),
-                data_generation=request.data_generation))
-            models.actual = result
-            if hasattr(models, "results"):
-                models.results[result.receipt.attempt_id] = result
-                models.receipts[result.receipt.attempt_id] = result.receipt
+        settled = result.receipt.status in {"succeeded", "failed", "cancelled", "unknown"}
+        result = replace(result, receipt=replace(result.receipt,
+            finished_at=result.receipt.finished_at or (datetime.now(UTC) if settled else None),
+            request_digest=submission_digest(request), data_generation=request.data_generation))
+        models.actual = result
+        if hasattr(models, "results"):
+            models.results[result.receipt.attempt_id] = result
+            models.receipts[result.receipt.attempt_id] = result.receipt
         return result
 
     async def submit(request, *, completion=None):
@@ -64,16 +69,18 @@ def adapt_models(models):
         saved[request.attempt_id] = (request, result)
         return result.receipt
 
-    async def status(attempt_id):
-        # Allow scenarios to publish a later observation of the same attempt.
-        if models.actual and models.actual.receipt.attempt_id == attempt_id:
-            return models.actual.receipt
+    async def status(attempt_id, *, phase="observe"):
+        assert phase in {"pre_submit", "observe"}
+        # The fake's receipt ledger is authoritative even when a previously
+        # returned body has an older status or cancellation observation.
         result = await old_status(attempt_id)
         if result is not None:
             return result
         return saved[attempt_id][1].receipt if attempt_id in saved else None
 
     async def result(attempt_id, *, context):
+        if hasattr(models, "results") and attempt_id in models.results:
+            return await old_result(attempt_id,context=context)
         if models.actual and models.actual.receipt.attempt_id == attempt_id:
             models.observations.append((attempt_id, context))
             return models.actual
@@ -82,8 +89,22 @@ def adapt_models(models):
             return saved[attempt_id][1]
         return await old_result(attempt_id, context=context)
 
+    async def reusable_result(attempt_id, *, context, expected_request_digest=None, expected_data_generation=None):
+        from tianshu.models.results import validate_reusable_receipt
+        current = await models.status(attempt_id)
+        if current is None:
+            raise AppError("attempt_not_found", status=404)
+        validate_reusable_receipt(current, attempt_id, expected_request_digest=expected_request_digest,
+            expected_data_generation=expected_data_generation)
+        original = await models.result(attempt_id, context=context)
+        if original is None:
+            raise AppError("model_result_unavailable", status=409)
+        return replace(original, receipt=current)
+
     models.submit, models.status, models.result = submit, status, result
+    models.reusable_result = reusable_result
     models.completions = completion_jobs
+    models._life_port_adapted = True
     return models
 
 

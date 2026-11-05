@@ -2,7 +2,6 @@
 from dataclasses import replace
 import asyncio
 from datetime import UTC, date, datetime, timedelta
-from importlib.resources import files
 import json
 from unittest.mock import AsyncMock
 
@@ -14,7 +13,6 @@ from test_rb_diary_experience import Broker
 from tianshu.capabilities.catalog import Availability
 from tianshu.life import planner
 from tianshu.life.planning_engine import decision_fingerprint
-from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_from_wire
 from tianshu.runtime.serialization import wire
 from tianshu.types import OriginKind, TrustedContext
@@ -24,26 +22,9 @@ REST = json.dumps({"activity":None,"arrangements":[],"goal_changes":[],"cancel_a
     "reason":"rest","free_time_reason":"leave space"})
 
 
-class ReceiptBroker(Broker):
-    async def status(self, attempt_id, *, phase="observe"):
-        return self.receipts.get(attempt_id)
-
-    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None,
-                              expected_data_generation=None):
-        return await self.result(attempt_id,context=context)
-
-
 async def make_life(database):
     value = await planner_setup(database, REST)
-    # This isolated port has no Models database; the migration uses only the
-    # original ledger's identity as positive legacy-admission evidence.
-    async with database.transaction() as connection:
-        await connection.execute("CREATE SCHEMA IF NOT EXISTS models")
-        await connection.execute("CREATE TABLE IF NOT EXISTS models.attempts(attempt_id text PRIMARY KEY)")
-    await migrate(database,(Migration("rbf_life_planning_wake_test",
-        files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text()),))
-    value.worker.life.sources.prepare_event_writes = AsyncMock()
-    broker = ReceiptBroker(value.models.generation_profile)
+    broker = Broker(value.models.generation_profile)
     value.worker.models = value.worker.generations.models = broker
     value.broker = broker
     return value
@@ -198,7 +179,7 @@ async def test_missing_latest_receipt_never_applies_an_earlier_success(database)
     await run_plan(value)
     attempt = next(iter(value.broker.requests))
     value.broker.complete(attempt,REST)
-    value.broker.status = AsyncMock(side_effect=[value.broker.receipts[attempt],None])
+    value.broker.status = AsyncMock(side_effect=[value.broker.receipts[attempt],value.broker.receipts[attempt],None])
     await run_plan(value)
     current = await mark(database)
     assert not current["generation_consumed"] and current["reason"] == "planner_observation_unavailable"

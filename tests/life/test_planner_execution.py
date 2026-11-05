@@ -40,6 +40,19 @@ class Sources:
     async def validate_persistence(self, *_args):
         return True
 
+    async def check_many_on(self, connection, context, groups):
+        return tuple([await self.validate_persistence(connection, context, group) for group in groups])
+
+    async def prepare_event_writes(self, connection, context, events, *, additional_refs=()):
+        # This isolated fake has no source locks; still check the same full
+        # dependency batch that a real Sources implementation validates.
+        refs = [*additional_refs]
+        for event in events:
+            assert event["producer"] and event["event_id"] and event["revision"] > 0
+            refs.extend(event.get("support_refs", ()))
+        if not await self.validate_persistence(connection, context, tuple(refs)):
+            raise AppError("source_support_unavailable", status=403)
+
 
 class Companion:
     async def actor(self, _context):
@@ -114,7 +127,8 @@ class Models:
         assert self.actual is None or self.actual.receipt.attempt_id == attempt_id
         return self.actual
 
-    async def status(self,attempt_id):
+    async def status(self,attempt_id, *, phase="observe"):
+        assert phase in {"pre_submit", "observe"}
         return self.actual.receipt if self.actual and self.actual.receipt.attempt_id==attempt_id else None
 
 
@@ -152,6 +166,8 @@ async def setup(database, output, *, lose_response=False, capability_id="content
                 "0032_conversation",
                 files("tianshu.conversation").joinpath("schema.sql").read_text(),
             ),
+            Migration("0040_life_execution", files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),
+            Migration("rbf_life_planning_wake", files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text()),
         ),
     )
     identity, sources, jobs, actions = (
@@ -185,7 +201,11 @@ async def setup(database, output, *, lose_response=False, capability_id="content
     handler = ReadPage()
     handler.definition = replace(handler.definition, id=capability_id)
     catalog.register(handler)
-    models = Models(output, lose_response=lose_response)
+    from historical_support import adapt_models
+    from tianshu.runtime.recovery_policy import RecoveryPolicy
+    models = adapt_models(Models(output, lose_response=lose_response))
+    life.bind_recovery_policy(RecoveryPolicy())
+    catalog.planning = catalog.discover
     worker = LifeWorker(
         life, models, ContextAssembler(identity, None, None), catalog, actions, None
     )
@@ -201,8 +221,9 @@ async def setup(database, output, *, lose_response=False, capability_id="content
         await connection.execute(
             "INSERT INTO life.plan_watermarks(actor_id,change_watermark) VALUES ('actor','rhythm:fixture')"
         )
+        data_generation = await jobs.current_generation_on(connection)
     return SimpleNamespace(
-        worker=worker, models=models, actions=actions, context=context, jobs=jobs
+        worker=worker, models=models, actions=actions, context=context, jobs=jobs, data_generation=data_generation
     )
 
 
@@ -236,10 +257,11 @@ async def test_native_plan_creates_activity_then_dispatches_that_exact_action(
     database, capability_id
 ):
     fixture = await setup(database, chosen_activity(capability_id), capability_id=capability_id)
-    await fixture.worker.plan("actor", 1, wire(fixture.context))
+    await fixture.worker.plan("actor", 1, wire(fixture.context), fixture.data_generation)
     request = fixture.models.calls[0]
     assert planner.TASK in request.system
-    assert fixture.models.streams == [request] and request.max_output_tokens == 16384
+    assert not fixture.models.streams and request.max_output_tokens == 16384
+    assert fixture.models.completions[request.attempt_id].task == "life.plan"
     assert planner.frozen_material(request)["routine"]["wake_at"] == "00:00"
     async with database.transaction(read_only=True) as connection:
         rows = await (await connection.execute("SELECT * FROM life.activities")).fetchall()
@@ -275,7 +297,7 @@ async def test_successful_model_invalid_text_and_legitimate_null_have_distinct_s
     database, output, reason
 ):
     fixture = await setup(database, output)
-    await fixture.worker.plan("actor", 1, wire(fixture.context))
+    await fixture.worker.plan("actor", 1, wire(fixture.context), fixture.data_generation)
     current = await mark(database)
     assert current["reason"] == reason and current["generation_consumed"] is True
     if reason == "planner_output_invalid":
@@ -284,7 +306,7 @@ async def test_successful_model_invalid_text_and_legitimate_null_have_distinct_s
     else:
         assert current["decision_fingerprint"] and current["review_after"] is not None
     assert fixture.models.actual.receipt.status == "succeeded"
-    await fixture.worker.plan("actor", 1, wire(fixture.context))
+    await fixture.worker.plan("actor", 1, wire(fixture.context), fixture.data_generation)
     assert len(fixture.models.calls) == 1
     async with database.transaction(read_only=True) as connection:
         assert not await (await connection.execute("SELECT id FROM life.activities")).fetchall()
@@ -294,7 +316,7 @@ async def test_successful_model_invalid_text_and_legitimate_null_have_distinct_s
 async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(database):
     fixture = await setup(database, chosen_activity(), lose_response=True)
     with pytest.raises(TimeoutError):
-        await fixture.worker.plan("actor", 1, wire(fixture.context))
+        await fixture.worker.plan("actor", 1, wire(fixture.context), fixture.data_generation)
     original = fixture.models.calls[0]
     key = (await mark(database))["generation_key"]
     restarted = LifeWorker(
@@ -305,11 +327,11 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
         fixture.actions,
         None,
     )
-    await restarted.plan("actor", 1, wire(fixture.context))
+    await restarted.plan("actor", 1, wire(fixture.context), fixture.data_generation)
     assert (await mark(database))["reason"] == "planner_retry_wait"
     refreshed = replace(fixture.context, access_epoch=2)
     fixture.worker.life.identity.epoch=2
-    await restarted.plan("actor", 1, wire(refreshed))
+    await restarted.plan("actor", 1, wire(refreshed), fixture.data_generation)
     current = await mark(database)
     assert current["generation_key"] == key and current["generation_consumed"] is True
     assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None
@@ -330,13 +352,13 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
 async def test_successful_original_plan_is_consumed_after_legal_epoch_refresh(database):
     fixture=await setup(database,chosen_activity(),lose_response=True)
     with pytest.raises(TimeoutError):
-        await fixture.worker.plan('actor',1,wire(fixture.context))
+        await fixture.worker.plan('actor',1,wire(fixture.context), fixture.data_generation)
     original=fixture.models.actual
     fixture.models.actual=replace(original,receipt=replace(original.receipt,status='succeeded'))
     fixture.worker.life.identity.epoch=2
     refreshed=replace(fixture.context,access_epoch=2)
     await fixture.worker.life.signal(refreshed,'growth:updated-interest')
-    await fixture.worker.plan('actor',2,wire(refreshed))
+    await fixture.worker.plan('actor',2,wire(refreshed), fixture.data_generation)
     assert len(fixture.models.calls)==1
     assert (await mark(database))['generation_consumed'] is True
     async with database.transaction(read_only=True) as connection:
@@ -351,7 +373,7 @@ async def test_private_trigger_does_not_replace_saved_routine_authority(database
     foreign=replace(fixture.context,person_id='someone-else',conversation_id='other-private',
         scope_ids=('other-scope',),audience=('other-scope',))
     await fixture.worker.life.signal(foreign,'growth:another-private-scene')
-    await fixture.worker.plan('actor',2,wire(foreign))
+    await fixture.worker.plan('actor',2,wire(foreign), fixture.data_generation)
     assert fixture.models.calls[0].context==fixture.context
     assert planner.frozen_material(fixture.models.calls[0])['logical_conversation_id'] is None
 
