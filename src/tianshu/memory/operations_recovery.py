@@ -49,6 +49,8 @@ class ConsolidationOperations:
             (snapshot["batch_id"],))).fetchone()
         if not state or not batch or self._snapshot(batch) != self._snapshot(snapshot):
             return {"eligible":False,"reason":"memory_batch_changed"}
+        if batch["manifest"].get("remote_wait_unresolved") or batch["manifest"].get("original_observation_only"):
+            return {"eligible":False,"reason":"memory_original_observation_only"}
         now = datetime.now(UTC)
         if (state["active_batch_id"] is not None or state.get("lease_until") and state["lease_until"] > now
                 or not batch["step_ids"] or batch["step_ids"][-1] != request.intent_id):

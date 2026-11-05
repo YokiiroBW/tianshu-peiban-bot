@@ -58,7 +58,7 @@ class FixedConsolidator:
                     for operation in operations if operation['op_id'] in target['operation_ids']],
                 'unresolved':[]} for target in results], 'needs_context':[]}
         receipt=ModelReceipt(request.attempt_id,request.intent_id,'succeeded','submitted','fixture',1,
-            'fixture','fixture','openai.chat','fixture')
+            'fixture','fixture','openai.chat','fixture',data_generation=request.data_generation)
         return ModelResult((ModelPart('text',text=json.dumps(output,ensure_ascii=False)),),receipt,
             {'finish_reason':'length' if self.truncated else 'stop'},
             ModelCompletion('incomplete' if self.truncated else 'complete',('length',) if self.truncated else ('stop',)))
@@ -71,11 +71,26 @@ class FixedConsolidator:
             raise TimeoutError('synthetic connection loss after provider completion')
         return self.results[request.attempt_id]
 
+    async def submit(self,request,*,completion):
+        if request.attempt_id in self.results:
+            return self.results[request.attempt_id].receipt
+        return (await self.generate(request)).receipt
+
     async def result(self,attempt_id,*,context):
         return self.results.get(attempt_id)
 
-    async def status(self,attempt_id):
+    async def status(self,attempt_id,*,phase='observe'):
         return self.results[attempt_id].receipt if attempt_id in self.results else None
+
+    async def reusable_result(self,attempt_id,*,context,expected_request_digest=None,expected_data_generation=None):
+        result=await self.result(attempt_id,context=context)
+        if result is None:
+            raise AppError('model_result_unavailable',status=409)
+        if result.receipt.data_generation != expected_data_generation:
+            raise AppError('model_result_identity_conflict',status=409)
+        if result.receipt.status != 'succeeded':
+            raise AppError('model_result_not_succeeded',status=409)
+        return result
 
 
 async def observe(core,context,key,text):
@@ -600,12 +615,12 @@ class HeldConsolidator(FixedConsolidator):
             self.requests.append(request)
             self.held[request.attempt_id]=ModelReceipt(request.attempt_id,request.intent_id,
                 'unknown','unknown','fixture',1,'fixture','fixture','openai.chat','fixture',
-                finished_at=datetime.now(UTC),error_code='timeout_unknown')
+                finished_at=datetime.now(UTC),error_code='timeout_unknown',data_generation=request.data_generation)
             raise AppError('timeout_unknown',status=503,details={'status':'unknown'})
         return await super().generate(request)
 
-    async def status(self,attempt_id):
-        return self.held.get(attempt_id) or await super().status(attempt_id)
+    async def status(self,attempt_id,*,phase='observe'):
+        return self.held.get(attempt_id) or await super().status(attempt_id,phase=phase)
 
     def release(self):
         request=self.requests[0]
@@ -781,7 +796,8 @@ async def test_late_original_can_win_while_an_independent_retry_is_unknown(core,
             if len(self.requests)==1:
                 self.requests.append(request)
                 self.held[request.attempt_id]=ModelReceipt(request.attempt_id,request.intent_id,
-                    'unknown','unknown','fixture',1,'fixture','fixture','openai.chat','fixture',error_code='transport_unknown')
+                    'unknown','unknown','fixture',1,'fixture','fixture','openai.chat','fixture',error_code='transport_unknown',
+                    data_generation=request.data_generation)
                 raise AppError('transport_unknown',status=503,details={'status':'unknown'})
             return await super().generate(request)
     model=TwoUnknown()
@@ -1262,7 +1278,7 @@ async def test_model_step_dispatch_preserves_frozen_execution_duration_after_pre
             assert request==original and wire(request.budget)==frozen['budget']
             assert waiting_timeout(request) is None
             return ModelResult((),ModelReceipt(request.attempt_id,request.intent_id,'succeeded','submitted',
-                'fixture',1,'fixture','fixture','openai.chat','fixture'))
+                'fixture',1,'fixture','fixture','openai.chat','fixture',data_generation=request.data_generation))
     core.steps.models=Models()
     async with core.database.transaction() as conn:
         await core.steps.prepare_on(conn,'frozen-execution',original)

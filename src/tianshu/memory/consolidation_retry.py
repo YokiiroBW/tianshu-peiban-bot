@@ -54,11 +54,15 @@ def semantic_output_failure(batch):
 def explicit_retry_available(batch):
     """Malformed semantic output has a finite user-requested recovery path."""
     return bool(semantic_output_failure(batch)
+                and not batch["manifest"].get("original_observation_only")
+                and not batch["manifest"].get("remote_wait_unresolved")
                 and len(batch["manifest"].get("explicit_recoveries", ())) < EXPLICIT_RETRY_LIMIT)
 
 
 def rpc_recovery_available(batch):
     return bool(batch and batch["status"]=="failed" and batch["step_ids"]
+        and not batch["manifest"].get("original_observation_only")
+        and not batch["manifest"].get("remote_wait_unresolved")
         and batch.get("selected_step_id") is None
         and batch.get("proposal_digest") is None
         and batch.get("error_code") in RPC_WRAPPERS)
@@ -355,7 +359,8 @@ class ConsolidationRetries:
         state = await (await conn.execute("SELECT active_batch_id,wake_due_at FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
                                          (partition_id,))).fetchone()
         held = await (await conn.execute("SELECT min(COALESCE(retry_due_at,now())) AS due FROM memory.consolidation_batches "
-            "WHERE partition_id=%s AND status='quarantined' AND NOT (manifest ? 'remote_wait_unresolved') "
+            "WHERE partition_id=%s AND status='quarantined' "
+            "AND NOT (manifest ? 'remote_wait_unresolved' OR manifest ? 'original_observation_only') "
             "AND manifest->>'data_generation'=(SELECT id FROM runtime.installation_generation WHERE singleton=true)",
             (partition_id,))).fetchone()
         values = [value for value in (state["wake_due_at"], held["due"]) if value is not None]

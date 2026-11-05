@@ -27,7 +27,7 @@ from .generation import MODEL_REQUEST_SECONDS, REPAIR_LIMIT, native_request, rep
 from .materials import ConsolidationPolicy, MaterialBuilder, PreparationReads, append_context_material, batch_frozen, closed_episode_split, expand_record_endpoints, freeze_dependency_closure, frozen_mapping, model_messages, has_new_material, material_capabilities, partition_identity, refresh_read_set
 from .consolidation_retry import ConsolidationRetries, failure_code
 from .consolidation_wait import ConsolidationWait
-from .recovery_wait import is_unresolved_wait
+from .recovery_wait import is_unresolved_wait, read_observation
 from .model_outcome import observe_original
 from .preparation import candidate_coverage_reserve
 from .proposal import COMPILER_VERSION, compile_proposal
@@ -159,6 +159,65 @@ class Consolidation:
             await self._track_policy_on(conn, current["batch_id"], step_id, recovery)
             await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,updated_at=now() WHERE batch_id=%s",
                 (Jsonb(manifest), current["batch_id"]))
+
+    async def _reobserve_preparation_profile(self, batch, *, owner):
+        """Recheck only the read-only route lookup, before any model admission."""
+        context = context_from_bound(batch["manifest"]["authority_bound"])
+        marker = batch["manifest"].get("remote_wait_unresolved") or {}
+        step_id = marker.get("step_id")
+        if (not step_id or not batch["manifest"].get("profile_pending")
+                or marker.get("transaction_rollback_confirmed") is False
+                or marker.get("last_reobservation",{}).get("transaction_rollback_confirmed") is False):
+            raise AppError("memory_remote_wait_unresolved",status=503)
+
+        async def lock_draft(conn):
+            await self._assert_batch_generation_on(conn,batch)
+            if not await self.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
+                raise AppError("source_unavailable",status=403)
+            await self.identity.check_context(context,connection=conn)
+            state = await self._lock_owned_partition(conn,batch["partition_id"],owner)
+            current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
+                (batch["batch_id"],))).fetchone()
+            if (not current or current["status"] != "quarantined" or not current["manifest"].get("profile_pending")
+                    or current["manifest"].get("remote_wait_unresolved") != marker
+                    or not current["step_ids"] or current["step_ids"][-1] != step_id
+                    or current["dependency_refs"] != batch["dependency_refs"] or state["active_batch_id"]):
+                raise AppError("memory_consolidation_batch_changed",status=409)
+            await self._validate_submission_on(conn,current,context,step_id)
+            step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s FOR UPDATE",
+                (step_id,))).fetchone()
+            if not step or step["state"] != "prepared":
+                raise AppError("memory_consolidation_attempt_changed",status=409)
+            return current,step
+
+        async with self.database.transaction() as conn:
+            _, draft = await lock_draft(conn)
+        request = request_from_wire(draft["request"])
+        # The route lookup is read-only and no model attempt was admitted.
+        # Give that lookup a fresh transport window, never changing a submitted
+        # attempt or its business deadline.
+        if request.business_deadline_at is not None and request.business_deadline_at <= datetime.now(UTC):
+            raise AppError("business_deadline_expired",status=409)
+        probe = replace(request,budget=RequestBudget(datetime.now(UTC)+timedelta(seconds=MODEL_REQUEST_SECONDS),
+            cancellation_id=request.budget.cancellation_id,trace_id=request.budget.trace_id))
+        try:
+            profiled = await native_request(self.steps.models,probe)
+        except RecoveryWait as wait:
+            wait.memory_wait_stage = "route_profile"
+            raise
+        async with self.database.transaction() as conn:
+            current,fresh = await lock_draft(conn)
+            if fresh["request"] != draft["request"]:
+                raise AppError("memory_consolidation_attempt_changed",status=409)
+            manifest = deepcopy(current["manifest"])
+            evidence = manifest.pop("remote_wait_unresolved")
+            manifest["last_unresolved_wait"] = {**evidence,"observed_status":"profile_available",
+                "observed_at":wire(datetime.now(UTC))}
+            del manifest["profile_pending"]
+            await conn.execute("UPDATE memory.model_steps SET request=%s,updated_at=now() WHERE step_id=%s AND state='prepared'",
+                (Jsonb(wire(profiled)),step_id))
+            await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,retry_due_at=NULL,error_code=NULL,updated_at=now() "
+                "WHERE batch_id=%s",(Jsonb(manifest),batch["batch_id"]))
 
     async def cancel_recovery_on(self, conn, manifest):
         recovery = manifest.get("recovery")
@@ -351,12 +410,20 @@ class Consolidation:
             held = await (await conn.execute("SELECT batch_id FROM memory.consolidation_batches "
                 "WHERE partition_id=%s AND status='quarantined' AND manifest->>'data_generation'=%s "
                 "AND (NOT (manifest ? 'local_wait') OR retry_due_at<=now()) "
-                "AND (NOT (manifest ? 'remote_wait_unresolved') OR %s::text IS NOT NULL AND batch_id=%s) "
+                "AND (NOT (manifest ? 'remote_wait_unresolved' OR manifest ? 'original_observation_only') "
+                "OR %s::text IS NOT NULL AND batch_id=%s) "
                 "AND (%s::text IS NULL OR batch_id=%s) "
                 "ORDER BY COALESCE(retry_due_at,updated_at),batch_id LIMIT 1",
                 (partition_id,run_generation,target_batch_id,target_batch_id,target_batch_id,target_batch_id))).fetchone()
-            if target_batch_id is not None and (not held or state["active_batch_id"]):
-                return
+            if target_batch_id is not None:
+                if not held:
+                    return
+                if state["active_batch_id"]:
+                    # A read-only held observation yields to the active batch;
+                    # retain its targeted wake instead of dropping it.
+                    due = datetime.now(UTC)+timedelta(seconds=30)
+                    await self._schedule_on(conn,partition_id,due,suffix="held-after-active",target_batch_id=target_batch_id)
+                    return
             if not state["active_batch_id"] and state["wake_due_at"] is None and not held:
                 await self.retries.arm_on(conn, partition_id)
                 return
@@ -555,6 +622,16 @@ class Consolidation:
             source_refs=self.materials.dependencies(frozen))
 
     async def _prepare(self, state, context, owner, *, budget):
+        preparation = {"stage":"selection", "episodes":[]}
+        try:
+            return await self._prepare_stages(state,context,owner,budget=budget,preparation=preparation)
+        except RecoveryWait as wait:
+            # This is local context for scoping a hold. It does not alter the
+            # remote rollback evidence or claim that an RPC did not happen.
+            wait.memory_preparation = preparation
+            raise
+
+    async def _prepare_stages(self, state, context, owner, *, budget, preparation):
         # A scene may contain several principals. Select the oldest input and
         # its own frozen authorization, never the latest sender's authority.
         async with self.database.transaction(read_only=True) as conn:
@@ -586,6 +663,7 @@ class Consolidation:
         if not first:
             await self._idle(state["partition_id"], owner, state["dirty_generation"])
             return None
+        preparation.update(authority_bound=batch_bound,context=context,data_generation=data_generation)
         rows = await self.materials.pending(context, state["partition_id"], authority=bound)
         if not rows or rows[0]["episode_id"] != first["episode_id"]:
             raise AppError("source_unavailable",status=403,details={"episode_id": first["episode_id"],
@@ -612,7 +690,9 @@ class Consolidation:
                         for row, episode in zip(rows, part["episodes"], strict=True))):
                     raise AppError("memory_reorganization_input_changed", status=409)
         batch_id = "memory_batch_"+uuid4().hex
+        preparation.update(batch_id=batch_id,part=part,stage="material_read",rows=rows)
         text_ceiling = min(self.policy.max_source_characters, self.policy.max_input_tokens//2)
+        preparation["source_budget"] = text_ceiling
         reads=PreparationReads(self.sources)
         prefetched = None
 
@@ -638,6 +718,7 @@ class Consolidation:
                 if not frozen:
                     await self._idle(state["partition_id"], owner, state["dirty_generation"])
                     return None
+                preparation["frozen"] = frozen
                 if prefetched:
                     reuse_candidates(frozen, prefetched)
                     closure_frozen = deepcopy(frozen)
@@ -658,6 +739,7 @@ class Consolidation:
                         data_generation=data_generation,authority_bound=batch_bound,source_budget=text_ceiling,part=part)
                     return None
                 if not prefetched:
+                    preparation["stage"] = "candidate_recall"
                     await self.materials.attach_records(context,frozen,reads=reads,budget=budget)
                     prefetched = deepcopy(frozen)
                     closure_frozen = prefetched
@@ -672,6 +754,7 @@ class Consolidation:
             # Only this final new-material/source range can incur optional remote
             # work. Candidate size never starts another material-build trial.
             if not prefetched:
+                preparation["stage"] = "candidate_recall"
                 await self.materials.attach_records(context,frozen,reads=reads,budget=budget)
             # Estimate the combined target/operation shape after the one
             # candidate lookup. Rebuild only the selected material prefix and
@@ -688,6 +771,7 @@ class Consolidation:
                         and all(episode["complete"] for episode in reduced["episodes"])):
                     reuse_candidates(reduced, frozen)
                     frozen = reduced
+                    preparation["frozen"] = frozen
             try:
                 request=self._budgeted_request(context,frozen,step_id,metrics=reads.metrics,allow_required_context=False)
             except AppError as exc:
@@ -698,8 +782,10 @@ class Consolidation:
                 return None
             with reads.metrics.phase("route_ms"):
                 request=replace(request,data_generation=data_generation)
+                preparation.update(stage="route_profile",request=request,frozen=frozen)
                 request=await native_request(self.steps.models,request)
         dependencies = self.materials.dependencies(frozen)
+        preparation["stage"] = "local_commit"
         manifest = {"frozen": frozen_mapping(frozen), "episodes": frozen["episodes"], "source_budget":text_ceiling,
             "budget":self._budget_record(),
             "preparation":{**reads.metrics.snapshot(),"final_episodes":len(frozen["episodes"]),
@@ -709,6 +795,9 @@ class Consolidation:
                 "final_images":sum(part.kind=="image" for message in request.messages for part in message.parts) if request else 0},
             "authority_bound": batch_bound, "generation": state["dirty_generation"], "data_generation": data_generation,
             "steps": {step_id: frozen_mapping(frozen)} if request else {}, "context_round": 0}
+        observed_preparation = read_observation(state.get("last_error"))
+        if observed_preparation:
+            manifest["preparation_observation"] = observed_preparation
         if part:
             manifest["reorganization"] = {"root_batch_id": part["root_batch_id"],
                 "parent_batch_id": part["parent_batch_id"], "ordinal": part["ordinal"]}
@@ -981,6 +1070,10 @@ class Consolidation:
                     "WHERE batch_id=%s AND status='prepared' AND NOT (manifest ? 'remote_wait_unresolved')", (batch_id,))
             manifest = batch["manifest"]
             if manifest.get("remote_wait_unresolved"):
+                if (manifest["remote_wait_unresolved"].get("stage") == "route_profile"
+                        and manifest.get("profile_pending")):
+                    await self._reobserve_preparation_profile(batch,owner=owner)
+                    continue
                 step_id = manifest["remote_wait_unresolved"].get("step_id")
                 if not step_id:
                     raise AppError("memory_remote_wait_unresolved",status=503)
@@ -988,7 +1081,8 @@ class Consolidation:
                 outcome = await observe_original(self.steps.models,original)
                 # A still-unconfirmed local reservation needs separate policy
                 # reconciliation, even if the original receipt becomes visible.
-                if outcome.receipt is None or manifest.get("recovery_pending"):
+                if (outcome.result is None or outcome.status != "succeeded"
+                        or manifest.get("recovery_pending")):
                     raise AppError("memory_remote_wait_unresolved",status=503)
                 await self.waits.resolve_observed(batch,outcome.receipt,owner=owner)
                 continue
@@ -1012,17 +1106,25 @@ class Consolidation:
                 proposal = consolidation_example(manifest["frozen"])
                 await self._freeze_compilation(batch, context, manifest["frozen"], proposal, [], owner=owner)
                 return await self._apply(batch, context, manifest["frozen"], proposal,owner=owner)
-            chosen = await self.retries.choose(batch, context, owner=owner)
-            if chosen is None:
-                return None
-            step_id, observe_only = chosen
-            if step_id not in manifest["steps"]:
-                async with self.database.transaction(read_only=True) as conn:
-                    batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s", (batch_id,))).fetchone()
-                manifest = batch["manifest"]
-            observed = await self.steps.submit_or_observe(step_id, batch["partition_id"],
-                data_generation=manifest["data_generation"], observe_only=observe_only, owner=owner,
-                validate_on=self._validate_submission_on)
+            if manifest.get("original_observation_only"):
+                step_id = batch["step_ids"][-1]
+                _, recorded = await self.steps.recorded(step_id)
+                original = await observe_original(self.steps.models,recorded)
+                if original.result is None or original.status != "succeeded":
+                    raise AppError("memory_remote_wait_unresolved",status=503)
+                observed = (original.result,recorded)
+            else:
+                chosen = await self.retries.choose(batch, context, owner=owner)
+                if chosen is None:
+                    return None
+                step_id, observe_only = chosen
+                if step_id not in manifest["steps"]:
+                    async with self.database.transaction(read_only=True) as conn:
+                        batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s", (batch_id,))).fetchone()
+                    manifest = batch["manifest"]
+                observed = await self.steps.submit_or_observe(step_id, batch["partition_id"],
+                    data_generation=manifest["data_generation"], observe_only=observe_only, owner=owner,
+                    validate_on=self._validate_submission_on)
             if observed is None:
                 if batch["status"] == "quarantined":
                     await self.retries._postpone(batch,code="model_outcome_unconfirmed",owner=owner)
@@ -1040,17 +1142,20 @@ class Consolidation:
                 requests = (exc.details or {}).get("requests", ())
                 if exc.code == "memory_consolidation_record_context_required" and requests:
                     context_attempted = True
-                    if not manifest["context_round"] and await self._supplement(batch,context,frozen,recorded,requests,owner=owner):
+                    if (not manifest.get("original_observation_only") and not manifest["context_round"]
+                            and await self._supplement(batch,context,frozen,recorded,requests,owner=owner)):
                         continue
                     # A known dependency did not fit or was unavailable. Keep
                     # it explicitly unresolved instead of deleting its reads.
                     proposal = self._unresolved_context(frozen, requests)
                     alias_map = []
-                elif await self._repair(batch,context,frozen,recorded,result,exc,owner=owner):
+                elif (not manifest.get("original_observation_only")
+                        and await self._repair(batch,context,frozen,recorded,result,exc,owner=owner)):
                     continue
                 else:
                     raise
-            if (proposal["needs_context"] and not context_attempted and not manifest["context_round"]
+            if (proposal["needs_context"] and not manifest.get("original_observation_only")
+                    and not context_attempted and not manifest["context_round"]
                     and await self._supplement(batch,context,frozen,recorded,proposal["needs_context"],owner=owner)):
                 await self.retries.reject(batch_id, step_id, "memory_consolidation_context_requested")
                 continue
@@ -1561,7 +1666,9 @@ class Consolidation:
                 if batch and batch["status"] in _OBSERVABLE:
                     if revoked or stale or code == "explicit_cancel":
                         await self.cancel_recovery_on(conn,batch["manifest"])
-                    split = closed_episode_split(batch_frozen(batch)) if code == "memory_consolidation_output_truncated" else None
+                    split = (closed_episode_split(batch_frozen(batch))
+                        if code == "memory_consolidation_output_truncated"
+                        and not batch["manifest"].get("original_observation_only") else None)
                     status = "revoked" if revoked else "stale" if stale else "superseded" if split else "failed"
                     manifest=deepcopy(batch["manifest"])
                     recorded_code = code

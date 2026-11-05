@@ -98,6 +98,8 @@ class ConsolidationRecovery:
                 and batch and closed_episode_split(batch_frozen(batch)) is None
                 and batch["manifest"].get("budget",self.memory.consolidation._budget_record()) == self.memory.consolidation._budget_record()):
             action="configure_budget"
+        if batch and batch["status"] == "failed" and batch["manifest"].get("original_observation_only"):
+            action="wait_for_new_evidence"
         result={"batch_id":batch["batch_id"] if batch else None,
             "status":batch["status"] if batch else episode["extraction_state"],
             "error_code":error,"action":action,
@@ -123,8 +125,18 @@ class ConsolidationRecovery:
             result["action"] = "wait_for_dependency"
             result["retry_due_at"] = wire(batch.get("retry_due_at"))
         if batch and batch["manifest"].get("remote_wait_unresolved"):
-            result["action"] = "observe_original_attempt"
+            marker = batch["manifest"]["remote_wait_unresolved"]
+            if marker.get("stage") == "route_profile" and batch["manifest"].get("profile_pending"):
+                local_unknown = (marker.get("transaction_rollback_confirmed") is False
+                    or marker.get("last_reobservation",{}).get("transaction_rollback_confirmed") is False)
+                result["action"] = "wait_for_reconciliation" if local_unknown else "reobserve_preparation"
+            elif marker.get("step_id"):
+                result["action"] = "observe_original_attempt"
+            else:
+                result["action"] = "wait_for_reconciliation"
             result["recovery_observation"] = "rollback_unconfirmed"
+            if marker.get("preparation_stage"):
+                result["preparation_stage"] = marker["preparation_stage"]
         if explicit_retry_available(batch) and result["action"] != "configure_budget":
             result["action"]="retry_computation"
         elif rpc_recovery_available(batch):
@@ -240,14 +252,25 @@ class ConsolidationRecovery:
                 suffix="reorganization:"+body["client_request_id"])
             data.update(queued=True,action="wait_for_reorganized_input")
         elif batch and batch["status"] in {"prepared","waiting_model","ready","quarantined"}:
+            marker = batch["manifest"].get("remote_wait_unresolved")
             if batch["status"] == "quarantined":
                 # Observation never advances the independent retry's due time.
                 data["retry_due_at"]=wire(batch.get("retry_due_at"))
-            await self.memory.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
-                suffix="explicit:"+body["client_request_id"],
-                target_batch_id=batch["batch_id"] if batch["status"] == "quarantined"
-                    and batch["manifest"].get("remote_wait_unresolved") else None)
-            data.update(queued=True,action="observe_original_attempt")
+            local_unknown_profile = bool(marker and marker.get("stage") == "route_profile" and
+                (marker.get("transaction_rollback_confirmed") is False
+                 or marker.get("last_reobservation",{}).get("transaction_rollback_confirmed") is False))
+            if marker and (not marker.get("step_id") or local_unknown_profile):
+                # An unconfirmed preparation effect has no original model
+                # attempt to observe or safely re-admit.
+                data["action"] = "wait_for_reconciliation"
+            else:
+                await self.memory.consolidation._schedule_on(conn,batch["partition_id"],datetime.now(UTC),
+                    suffix="explicit:"+body["client_request_id"],
+                    target_batch_id=batch["batch_id"] if batch["status"] == "quarantined"
+                        and (marker or batch["manifest"].get("original_observation_only")) else None)
+                action = ("reobserve_preparation" if marker and marker.get("stage") == "route_profile"
+                    and batch["manifest"].get("profile_pending") else "observe_original_attempt")
+                data.update(queued=True,action=action)
         elif batch and batch["status"] == "failed" and batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT:
             if await self.memory.consolidation.waits.reopen_failed_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="resume_original_batch")
@@ -264,7 +287,8 @@ class ConsolidationRecovery:
                 # allowance by creating a fresh batch for unchanged input.
                 data["action"]="wait_for_new_evidence"
         elif (batch and batch["status"] == "failed" and batch["error_code"] == "closed_component_exceeds_budget"):
-            if await self.resume_closed_component_on(conn,batch,body["client_request_id"]):
+            if (not batch["manifest"].get("original_observation_only")
+                    and await self.resume_closed_component_on(conn,batch,body["client_request_id"])):
                 data.update(queued=True,action="refresh_material")
             else:
                 data["action"]="wait_for_new_evidence"

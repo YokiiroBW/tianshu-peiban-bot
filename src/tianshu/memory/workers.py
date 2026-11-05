@@ -50,7 +50,7 @@ class MemoryWorkers:
                 "WHERE a.batch_id=memory.consolidation_state.active_batch_id AND a.manifest ? 'remote_wait_unresolved')) "
                 "OR wake_due_at<=now() OR EXISTS(SELECT 1 FROM memory.consolidation_batches b "
                 "WHERE b.partition_id=memory.consolidation_state.partition_id AND b.status='quarantined' "
-                "AND NOT (b.manifest ? 'remote_wait_unresolved'))) AND "
+                "AND NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only'))) AND "
                 "(lease_until IS NULL OR lease_until<now()) ORDER BY updated_at LIMIT 64"
             )).fetchall()
         for row in rows:
@@ -64,7 +64,7 @@ class MemoryWorkers:
                     "WHERE a.batch_id=memory.consolidation_state.active_batch_id AND a.manifest ? 'remote_wait_unresolved')) "
                     "OR wake_due_at<=now() OR EXISTS(SELECT 1 FROM memory.consolidation_batches b "
                     "WHERE b.partition_id=memory.consolidation_state.partition_id AND b.status='quarantined' "
-                    "AND NOT (b.manifest ? 'remote_wait_unresolved'))) AND (lease_until IS NULL OR lease_until<now()) "
+                    "AND NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only'))) AND (lease_until IS NULL OR lease_until<now()) "
                     "FOR UPDATE SKIP LOCKED", (row["partition_id"],))).fetchone()
                 if current:
                     state=await (await conn.execute("SELECT active_batch_id,EXISTS(SELECT 1 FROM memory.consolidation_batches b "

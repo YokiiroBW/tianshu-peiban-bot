@@ -1,7 +1,7 @@
 """Durable, stage-preserving waits for the existing consolidation worker."""
 
 from copy import deepcopy
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 from psycopg.types.json import Jsonb
 
@@ -9,8 +9,10 @@ from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from . import codec
-from .authority import request_identity
-from .recovery_wait import wait_marker
+from .authority import context_record, request_identity
+from .extraction_contract import SCHEMA_VERSION
+from .materials import frozen_mapping
+from .recovery_wait import read_observation, read_observation_marker, wait_marker
 
 
 ACTIVE = {"prepared", "waiting_model", "ready"}
@@ -27,18 +29,37 @@ class ConsolidationWait:
         self.consolidation = consolidation
         self.database = consolidation.database
 
+    async def _wake_pending_on(self, conn, partition_id, *, suffix):
+        pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
+            "AND active AND extraction_state='pending' LIMIT 1", (partition_id,))).fetchone()
+        due = datetime.now(UTC) if pending else None
+        await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=%s,updated_at=now() "
+            "WHERE partition_id=%s", (due,due,partition_id))
+        if due:
+            await self.consolidation._schedule_on(conn,partition_id,due,suffix=suffix)
+
     async def mark_unresolved(self, partition_id, batch_id, wait, *, owner, generation):
-        """Retain negative rollback evidence without settling the original work."""
+        """Fence only the original work; safely isolated batches yield their slot."""
         async with self.database.transaction() as conn:
             await self.consolidation.jobs.assert_generation_on(conn,generation)
+            preparation = getattr(wait,"memory_preparation",None) or {}
+            local_safe = getattr(wait,"transaction_rollback_confirmed",None) is not False
+            frozen = preparation.get("frozen")
+            dependencies, source_valid = (), None
+            if not batch_id and local_safe and frozen and preparation.get("context"):
+                dependencies = self.consolidation.materials.dependencies(frozen)
+                if preparation.get("stage") == "route_profile":
+                    # Only the route stage retains a text-bearing draft. Lock
+                    # all its actual sources before persisting that request.
+                    source_valid = await self.consolidation.sources.validate_persistence(
+                        conn,preparation["context"],dependencies)
             state = await (await conn.execute("SELECT * FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
                 (partition_id,))).fetchone()
             if not state or owner is not None and state["lease_owner"] != owner:
                 return False
             if not batch_id:
-                await conn.execute("UPDATE memory.consolidation_state SET last_error=%s,"
-                    "wake_due_at=NULL,updated_at=now() WHERE partition_id=%s", (wait_marker(wait),partition_id))
-                return True
+                return await self._mark_preparation_on(conn,state,wait,generation=generation,
+                    dependencies=dependencies,source_valid=source_valid)
             batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
                 (batch_id,))).fetchone()
             if (not batch or batch["partition_id"] != partition_id or batch["status"] not in ACTIVE | {"quarantined"}
@@ -46,19 +67,170 @@ class ConsolidationWait:
                     or batch["status"] in ACTIVE and state["active_batch_id"] != batch_id):
                 return False
             manifest = deepcopy(batch["manifest"])
-            if not manifest.get("remote_wait_unresolved"):
-                manifest["remote_wait_unresolved"] = {
-                    "reason":wait.reason, "retry_at":wire(wait.retry_at), "dependency":wait.dependency,
-                    "remote_rollback_confirmed":getattr(wait,"remote_rollback_confirmed",None),
-                    "transaction_rollback_confirmed":getattr(wait,"transaction_rollback_confirmed",None),
+            local_rollback = getattr(wait,"transaction_rollback_confirmed",None)
+            remote_rollback = getattr(wait,"remote_rollback_confirmed",None)
+            safe_local = local_rollback is not False
+            can_isolate = remote_rollback is False and safe_local
+            marker = manifest.get("remote_wait_unresolved")
+            if not marker:
+                marker = {"reason":wait.reason, "retry_at":wire(wait.retry_at), "dependency":wait.dependency,
+                    "remote_rollback_confirmed":remote_rollback, "transaction_rollback_confirmed":local_rollback,
                     "step_id":batch["step_ids"][-1] if batch["step_ids"] else None,
-                }
+                    "stage":getattr(wait,"memory_wait_stage",None), "resume_status":batch["status"], "isolation":"local_transaction_unknown" if not safe_local else "remote"}
+                manifest["remote_wait_unresolved"] = marker
+            elif getattr(wait,"memory_wait_stage",None) == "route_profile":
+                marker["reobservation_count"] = int(marker.get("reobservation_count",0)) + 1
+                marker["last_reobservation"] = {"reason":wait.reason,"retry_at":wire(wait.retry_at),
+                    "remote_rollback_confirmed":remote_rollback,"transaction_rollback_confirmed":local_rollback}
+            if can_isolate and batch["status"] in ACTIVE:
+                # Do not touch changed/revoked episodes; the frozen versions
+                # remain in the batch for later source/read-set/CAS checks.
+                for episode in sorted(manifest.get("episodes",()),key=lambda item:item["episode_id"]):
+                    before = Jsonb(episode["before"]) if episode.get("before") is not None else None
+                    await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_unknown',"
+                        "extraction_started_at=NULL WHERE episode_id=%s AND revision=%s AND sequence=%s AND active "
+                        "AND extraction_cursor IS NOT DISTINCT FROM %s AND extraction_state='running'",
+                        (episode["episode_id"],episode["revision"],episode["sequence"],before))
+                await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined',manifest=%s,"
+                    "retry_due_at=NULL,updated_at=now() WHERE batch_id=%s", (Jsonb(manifest),batch_id))
+                await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=NULL "
+                    "WHERE partition_id=%s AND active_batch_id=%s", (partition_id,batch_id))
+                await self._wake_pending_on(conn,partition_id,suffix="after-unresolved-batch")
+            else:
                 await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,updated_at=now() WHERE batch_id=%s",
                     (Jsonb(manifest),batch_id))
                 if state["active_batch_id"] == batch_id:
                     await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=NULL,updated_at=now() WHERE partition_id=%s",
                         (partition_id,))
+            if (can_isolate and marker.get("stage") == "route_profile" and manifest.get("profile_pending")):
+                due = max(wait.retry_at,datetime.now(UTC)+timedelta(seconds=5))
+                await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=%s WHERE batch_id=%s",(due,batch_id))
+                await self.consolidation._schedule_on(conn,partition_id,due,suffix="profile-reobserve",target_batch_id=batch_id)
             return True
+
+    async def _mark_preparation_on(self, conn, state, wait, *, generation, dependencies, source_valid):
+        """Reobserve proven reads or hold only the input whose effect is uncertain."""
+        preparation = getattr(wait,"memory_preparation",None) or {}
+        stage = preparation.get("stage", "unknown")
+        local_safe = getattr(wait,"transaction_rollback_confirmed",None) is not False
+        remote_unknown = getattr(wait,"remote_rollback_confirmed",None) is False
+        if local_safe and remote_unknown and stage in {"selection", "material_read"}:
+            due = max(wait.retry_at,datetime.now(UTC)+timedelta(seconds=5))
+            marker = read_observation_marker(wait,read_observation(state.get("last_error")))
+            await conn.execute("UPDATE memory.consolidation_state SET last_error=%s,wake_due_at=%s,updated_at=now() "
+                "WHERE partition_id=%s", (marker,due,state["partition_id"]))
+            await self.consolidation._schedule_on(conn,state["partition_id"],due,suffix="preparation-read-observation")
+            return True
+        frozen = preparation.get("frozen")
+        batch_id = preparation.get("batch_id")
+        context = preparation.get("context")
+        bound = preparation.get("authority_bound")
+        if local_safe and remote_unknown and batch_id and frozen and context and bound:
+            return await self._hold_preparation_on(conn,state,wait,preparation,dependencies,source_valid)
+        # A failed local commit cannot be treated as a rollback. Inspect the
+        # intended batch, selected compilation and original cursors first, but
+        # keep the active pointer and evidence until a conclusive reconciliation.
+        current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+            (batch_id,))).fetchone() if batch_id else None
+        selected = await (await conn.execute("SELECT 1 FROM memory.consolidation_compilations WHERE batch_id=%s AND selected",
+            (batch_id,))).fetchone() if current else None
+        episodes = (frozen or {}).get("episodes",())
+        cursor_matches = True if episodes else None
+        for item in episodes:
+            row = await (await conn.execute("SELECT revision,sequence,extraction_cursor FROM memory.episodes WHERE episode_id=%s",
+                (item["episode_id"],))).fetchone()
+            cursor_matches = cursor_matches and bool(row and row["revision"] == item["revision"]
+                and row["sequence"] == item["sequence"] and row["extraction_cursor"] == item["before"])
+        evidence = {"preparation_stage":stage,"batch_id":batch_id,"batch_status":current["status"] if current else None,
+            "selected_compilation":bool(selected),"original_cursors_match":cursor_matches}
+        await conn.execute("UPDATE memory.consolidation_state SET last_error=%s,wake_due_at=NULL,updated_at=now() "
+            "WHERE partition_id=%s", (wait_marker(wait,extra=evidence),state["partition_id"]))
+        return True
+
+    async def _hold_preparation_on(self, conn, state, wait, preparation, dependencies, source_valid):
+        batch_id, frozen, context = preparation["batch_id"],preparation["frozen"],preparation["context"]
+        stage, part = preparation["stage"],preparation.get("part")
+        existing = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
+            (batch_id,))).fetchone()
+        if existing or state["active_batch_id"]:
+            # A concurrent/uncertain local commit must be reconciled, not
+            # overwritten with an artificial hold.
+            await conn.execute("UPDATE memory.consolidation_state SET last_error=%s,wake_due_at=NULL WHERE partition_id=%s",
+                (wait_marker(wait,extra={"preparation_stage":stage,"batch_id":batch_id,
+                    "batch_status":existing["status"] if existing else None}),state["partition_id"]))
+            return True
+        can_reobserve = stage == "route_profile" and source_valid and preparation.get("request") is not None
+        recovery = None
+        prior = None
+        if can_reobserve and part:
+            root = await (await conn.execute("SELECT manifest FROM memory.consolidation_batches WHERE batch_id=%s",
+                (part["root_batch_id"],))).fetchone()
+            if not root or root["manifest"].get("data_generation") != preparation["data_generation"]:
+                can_reobserve = False
+            else:
+                recovery = root["manifest"].get("recovery")
+                if not recovery and self.consolidation.memory.recovery_policy is not None:
+                    can_reobserve = False
+                if recovery and self.consolidation.memory.recovery_policy is not None:
+                    prior = await (await conn.execute("SELECT model_attempt_id FROM memory.consolidation_attempts "
+                        "WHERE recovery_lineage_id=%s AND recovery_policy_state='succeeded' "
+                        "ORDER BY created_at DESC,step_id DESC LIMIT 1",(recovery["lineage_id"],))).fetchone()
+                    if not prior:
+                        can_reobserve = False
+        marker = {"reason":wait.reason,"retry_at":wire(wait.retry_at),"dependency":wait.dependency,
+            "remote_rollback_confirmed":getattr(wait,"remote_rollback_confirmed",None),
+            "transaction_rollback_confirmed":getattr(wait,"transaction_rollback_confirmed",None),
+            "stage":"route_profile" if can_reobserve else "preparation", "preparation_stage":stage,
+            "step_id":batch_id+":step:0" if can_reobserve else None,"resume_status":"preparation"}
+        manifest = {"episodes":deepcopy(frozen["episodes"]),"authority_bound":preparation["authority_bound"],
+            "data_generation":preparation["data_generation"],"generation":state["dirty_generation"],
+            "context_round":0,"steps":{},"remote_wait_unresolved":marker,
+            "preparation_hold":{"stage":stage,"closure_complete":stage == "route_profile", "source_valid":source_valid}}
+        previous = read_observation(state.get("last_error"))
+        if previous:
+            manifest["preparation_observation"] = previous
+        step_ids = []
+        if part:
+            manifest["reorganization"] = {"root_batch_id":part["root_batch_id"],
+                "parent_batch_id":part["parent_batch_id"],"ordinal":part["ordinal"]}
+        if can_reobserve:
+            step_id = marker["step_id"]
+            manifest.update(frozen=frozen_mapping(frozen),source_budget=preparation.get("source_budget"),profile_pending=True)
+            manifest["steps"][step_id] = frozen_mapping(frozen)
+            if recovery:
+                manifest["recovery"] = recovery
+                if prior:
+                    manifest["recovery_pending"] = {"kind":"continuation","prior_attempt_id":prior["model_attempt_id"],
+                        "reason":"capacity_repartition"}
+            elif not part and self.consolidation.memory.recovery_policy is not None:
+                manifest["recovery_pending"] = {"kind":"original"}
+            await self.consolidation.steps.prepare_on(conn,step_id,preparation["request"])
+            step_ids = [step_id]
+        await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,status,manifest,"
+            "read_set,dependency_refs,context_fingerprint,step_ids,error_code) VALUES(%s,%s,%s,'quarantined',%s,%s,%s,%s,%s,%s)",
+            (batch_id,state["partition_id"],SCHEMA_VERSION,Jsonb(wire(manifest)),Jsonb(wire(frozen.get("read_set",[]))),
+             Jsonb(wire(dependencies)),body_hash(context_record(context)),step_ids,"memory_preparation_unresolved"))
+        if part:
+            reserved = await (await conn.execute("UPDATE memory.consolidation_reorganization_parts SET state='active',"
+                "child_batch_id=%s WHERE parent_batch_id=%s AND ordinal=%s AND state='pending' RETURNING parent_batch_id",
+                (batch_id,part["parent_batch_id"],part["ordinal"]))).fetchone()
+            if not reserved:
+                raise AppError("memory_reorganization_part_changed",status=409)
+        if can_reobserve:
+            await self.consolidation.retries.track_on(conn,batch_id,step_ids[0],kind="original")
+        for episode in sorted(frozen["episodes"],key=lambda item:item["episode_id"]):
+            before = Jsonb(episode["before"]) if episode.get("before") is not None else None
+            await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_unknown',extraction_started_at=NULL "
+                "WHERE episode_id=%s AND revision=%s AND sequence=%s AND active AND extraction_state='pending' "
+                "AND extraction_cursor IS NOT DISTINCT FROM %s",(episode["episode_id"],episode["revision"],episode["sequence"],before))
+        await conn.execute("UPDATE memory.consolidation_state SET last_error=NULL WHERE partition_id=%s",(state["partition_id"],))
+        await self._wake_pending_on(conn,state["partition_id"],suffix="after-unresolved-preparation")
+        if can_reobserve:
+            due = max(wait.retry_at,datetime.now(UTC)+timedelta(seconds=5))
+            await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=%s WHERE batch_id=%s",(due,batch_id))
+            await self.consolidation._schedule_on(conn,state["partition_id"],due,
+                suffix="profile-reobserve",target_batch_id=batch_id)
+        return True
 
     async def resolve_observed(self, snapshot, receipt, *, owner):
         """Only a validated original receipt can remove the no-admission marker."""
@@ -85,8 +257,12 @@ class ConsolidationWait:
                     or step["request"].get("intent_id") != receipt.intent_id
                     or receipt.data_generation != manifest.get("data_generation")):
                 raise AppError("memory_consolidation_attempt_changed",status=409)
+            await self.consolidation._validate_submission_on(conn,current,context,step_id)
             manifest["last_unresolved_wait"] = {**manifest.pop("remote_wait_unresolved"),
                 "observed_status":receipt.status, "observed_at":wire(datetime.now(UTC))}
+            # Even after a successful control read, this original batch may
+            # only consume the original attempt, never allocate a successor.
+            manifest["original_observation_only"] = True
             await conn.execute("UPDATE memory.consolidation_batches SET manifest=%s,updated_at=now() WHERE batch_id=%s",
                 (Jsonb(manifest),current["batch_id"]))
             await conn.execute("UPDATE memory.model_steps SET state=%s,error_code=%s,updated_at=now() WHERE step_id=%s",

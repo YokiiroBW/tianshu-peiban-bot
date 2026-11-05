@@ -85,11 +85,21 @@ class RpcModels:
             raise AppError("internal_error",status=500)
         return None if self.control=="missing" else self.results.get(attempt_id)
 
-    async def status(self,attempt_id):
+    async def status(self,attempt_id,*,phase="observe"):
         self.status_reads.append(attempt_id)
         if self.control=="unavailable":
             raise AppError("internal_error",status=500)
         return None if self.control=="missing" else self.receipts.get(attempt_id)
+
+    async def reusable_result(self,attempt_id,*,context,expected_request_digest=None,expected_data_generation=None):
+        result=await self.result(attempt_id,context=context)
+        if result is None:
+            raise AppError("model_result_unavailable",status=409)
+        if result.receipt.data_generation != expected_data_generation:
+            raise AppError("model_result_identity_conflict",status=409)
+        if result.receipt.status != "succeeded":
+            raise AppError("model_result_not_succeeded",status=409)
+        return result
 
     def release(self):
         request=self.requests[0]

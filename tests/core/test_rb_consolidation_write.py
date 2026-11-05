@@ -50,17 +50,28 @@ class RecordedModel:
                               "operations": operations, "unresolved": [],
                               "reason": "有本人陈述" if operations else "没有新增事实"})
         receipt = ModelReceipt(request.attempt_id, request.intent_id, "succeeded", "submitted", "fixture", 1,
-                               "fixture", "fixture", "openai.chat", "fixture")
+                               "fixture", "fixture", "openai.chat", "fixture", data_generation=request.data_generation)
         self.results[request.attempt_id] = ModelResult((ModelPart("text", text=json.dumps(
             {"targets": decisions, "needs_context": []}, ensure_ascii=False)),), receipt,
             {"finish_reason": "stop"}, ModelCompletion("complete", ("stop",)))
         return receipt
 
-    async def status(self, attempt_id):
+    async def status(self, attempt_id, *, phase="observe"):
         return self.results[attempt_id].receipt if attempt_id in self.results else None
 
     async def result(self, attempt_id, *, context):
         return self.results.get(attempt_id)
+
+    async def reusable_result(self, attempt_id, *, context, expected_request_digest=None,
+                              expected_data_generation=None):
+        result = await self.result(attempt_id, context=context)
+        if result is None:
+            raise AppError("model_result_unavailable", status=409)
+        if result.receipt.data_generation != expected_data_generation:
+            raise AppError("model_result_identity_conflict", status=409)
+        if result.receipt.status != "succeeded":
+            raise AppError("model_result_not_succeeded", status=409)
+        return result
 
 
 class DeferredModel(RecordedModel):
@@ -72,9 +83,9 @@ class DeferredModel(RecordedModel):
         finished = await super().submit(request, completion=completion)
         return replace(finished, status="queued", dispatch="not_started")
 
-    async def status(self, attempt_id):
-        receipt = await super().status(attempt_id)
-        return receipt if self.ready else replace(receipt, status="queued", dispatch="not_started")
+    async def status(self, attempt_id, *, phase="observe"):
+        receipt = await super().status(attempt_id, phase=phase)
+        return receipt if receipt is None or self.ready else replace(receipt, status="queued", dispatch="not_started")
 
     async def result(self, attempt_id, *, context):
         return await super().result(attempt_id, context=context) if self.ready else None

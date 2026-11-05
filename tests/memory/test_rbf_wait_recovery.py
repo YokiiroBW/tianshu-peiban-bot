@@ -382,6 +382,45 @@ async def test_unknown_commit_observes_existing_applied_batch(core, ordinary_use
     assert len(model.submissions) == 1
 
 
+async def test_unconfirmed_local_commit_keeps_slot_until_selected_compilation_reconciles(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model = Model()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    apply = core.memory.consolidation._apply
+    failed = False
+
+    async def lose_commit_ack(*args, **kwargs):
+        nonlocal failed
+        if not failed:
+            failed = True
+            error = OSError("fixture local commit acknowledgement unknown")
+            error.database_failure = DatabaseFailure("database_commit_unknown", "commit", "fixture", "worker",
+                None, False, False, True, None)
+            raise error
+        return await apply(*args, **kwargs)
+
+    monkeypatch.setattr(core.memory.consolidation,"_apply",lose_commit_ack)
+    item = await examples.episode(core,alice,"rbf-commit-unknown-pending")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(OSError):
+        await core.workers.consolidate(partition)
+    _, batch = await batch_for_episode(core,item.episode_id)
+    async with core.database.transaction(read_only=True) as conn:
+        state = await (await conn.execute("SELECT active_batch_id FROM memory.consolidation_state WHERE partition_id=%s",
+                                         (partition,))).fetchone()
+        selected = await (await conn.execute("SELECT step_id FROM memory.consolidation_compilations WHERE batch_id=%s AND selected",
+                                            (batch["batch_id"],))).fetchone()
+        episode = await (await conn.execute("SELECT extraction_cursor FROM memory.episodes WHERE episode_id=%s",
+                                           (item.episode_id,))).fetchone()
+    assert state["active_batch_id"] == batch["batch_id"] and selected and episode["extraction_cursor"] is None
+    assert len(model.submissions) == 1
+    await core.workers.consolidate(partition)
+    _, applied = await batch_for_episode(core,item.episode_id)
+    assert applied["status"] == "applied" and applied["step_ids"] == batch["step_ids"]
+    assert len(model.submissions) == 1
+
+
 class DisconnectBeforeAdmission(Model):
     def __init__(self, *, lose_ack=False):
         super().__init__()
@@ -498,13 +537,28 @@ class UnconfirmedModel(Model):
     def __init__(self):
         super().__init__()
         self.admissions = []
+        self.original_attempt_id = None
 
     async def submit(self, request, *, completion):
         self.admissions.append((wire(request),wire(completion)))
-        raise remote_unconfirmed_wait()
+        if self.original_attempt_id is None:
+            self.original_attempt_id = request.attempt_id
+        if request.attempt_id == self.original_attempt_id:
+            raise remote_unconfirmed_wait()
+        return await super().submit(request, completion=completion)
 
 
-async def test_remote_rollback_false_is_fenced_and_original_exception_propagates(core, ordinary_users):
+def original_admissions(model):
+    return [request for request, _ in model.admissions if request["attempt_id"] == model.original_attempt_id]
+
+
+async def stored_batch(core, batch_id):
+    async with core.database.transaction(read_only=True) as conn:
+        return await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
+                                       (batch_id,))).fetchone()
+
+
+async def test_remote_rollback_false_isolates_original_and_later_input_advances(core, ordinary_users):
     alice, _ = ordinary_users
     model = UnconfirmedModel()
     examples.configure(core, model)
@@ -515,20 +569,140 @@ async def test_remote_rollback_false_is_fenced_and_original_exception_propagates
         await core.workers.consolidate(partition)
     assert error.value.remote_rollback_confirmed is False
     _, batch = await batch_for_episode(core, item.episode_id)
+    batch_id, step_id = batch["batch_id"], batch["step_ids"][0]
     marker = batch["manifest"]["remote_wait_unresolved"]
     assert marker["remote_rollback_confirmed"] is False and marker["reason"] == "source_lock_set_changed"
-    assert batch["status"] == "waiting_model" and len(model.admissions) == 1
-    with pytest.raises(AppError, match="memory_remote_wait_unresolved"):
-        await core.workers.consolidate(partition)
-    assert len(model.admissions) == 1
-    # Simulate an authoritative original receipt appearing independently;
-    # observation may then clear the fence without another admission.
-    original = request_from_wire(model.admissions[0][0])
-    await Model.submit(model, original, completion=None)
+    assert batch["status"] == "quarantined" and len(original_admissions(model)) == 1
+    async with core.database.transaction(read_only=True) as conn:
+        state = await (await conn.execute("SELECT active_batch_id FROM memory.consolidation_state WHERE partition_id=%s",
+                                         (partition,))).fetchone()
+        episode = await (await conn.execute("SELECT extraction_state FROM memory.episodes WHERE episode_id=%s",
+                                           (item.episode_id,))).fetchone()
+    assert state["active_batch_id"] is None and episode["extraction_state"] == "consolidation_unknown"
+
+    later = await examples.episode(core, alice, "rbf-remote-independent")
     await core.workers.consolidate(partition)
-    _, applied = await batch_for_episode(core, item.episode_id)
-    assert applied["status"] == "applied" and len(model.admissions) == 1
+    _, next_batch = await batch_for_episode(core, later.episode_id)
+    assert next_batch["status"] == "applied" and next_batch["batch_id"] != batch_id
+    assert len(original_admissions(model)) == 1
+    with pytest.raises(AppError, match="memory_remote_wait_unresolved"):
+        await core.workers.consolidate(partition, batch_id=batch_id)
+    assert len(original_admissions(model)) == 1
+
+    # An authoritative result appears independently; it is consumed by the
+    # original ID after revalidating its own sources, versions and read set.
+    original = request_from_wire(original_admissions(model)[0])
+    await Model.submit(model, original, completion=None)
+    await core.workers.consolidate(partition, batch_id=batch_id)
+    applied = await stored_batch(core, batch_id)
+    assert applied["status"] == "applied" and applied["step_ids"] == [step_id]
     assert applied["manifest"]["last_unresolved_wait"]["remote_rollback_confirmed"] is False
+    assert applied["manifest"]["original_observation_only"] and len(original_admissions(model)) == 1
+
+
+async def test_unconfirmed_local_transaction_keeps_original_slot(core, ordinary_users):
+    class LocalUnconfirmedModel(UnconfirmedModel):
+        async def submit(self, request, *, completion):
+            try:
+                return await super().submit(request, completion=completion)
+            except RecoveryWait as wait:
+                wait.transaction_rollback_confirmed = False
+                raise
+
+    alice, _ = ordinary_users
+    model = LocalUnconfirmedModel()
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    item = await examples.episode(core,alice,"rbf-local-unconfirmed")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition)
+    _, batch = await batch_for_episode(core,item.episode_id)
+    async with core.database.transaction(read_only=True) as conn:
+        state = await (await conn.execute("SELECT active_batch_id FROM memory.consolidation_state WHERE partition_id=%s",
+                                         (partition,))).fetchone()
+    assert batch["status"] == "waiting_model" and state["active_batch_id"] == batch["batch_id"]
+    assert batch["manifest"]["remote_wait_unresolved"]["transaction_rollback_confirmed"] is False
+    assert len(original_admissions(model)) == 1
+
+
+async def test_unconfirmed_original_unknown_receipt_cannot_spawn_successor(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = UnconfirmedModel()
+    examples.configure(core, model)
+    core.memory.bind_observability(statistics=None, recovery_policy=RecoveryPolicy())
+    item = await examples.episode(core, alice, "rbf-remote-terminal-unknown")
+    partition, _ = await batch_for_episode(core, item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition)
+    _, batch = await batch_for_episode(core, item.episode_id)
+    original = request_from_wire(original_admissions(model)[0])
+    await Model.submit(model, original, completion=None)
+    result = model.results[original.attempt_id]
+    model.results[original.attempt_id] = replace(result,receipt=replace(result.receipt,status="unknown",
+        finished_at=datetime.now(UTC)))
+    for _ in range(2):
+        with pytest.raises(AppError, match="memory_remote_wait_unresolved"):
+            await core.workers.consolidate(partition, batch_id=batch["batch_id"])
+    held = await stored_batch(core,batch["batch_id"])
+    assert held["status"] == "quarantined" and held["step_ids"] == batch["step_ids"]
+    assert held["manifest"]["remote_wait_unresolved"]["remote_rollback_confirmed"] is False
+    assert len(original_admissions(model)) == 1
+    async with core.database.transaction(read_only=True) as conn:
+        attempts = await (await conn.execute("SELECT model_attempt_id FROM memory.consolidation_attempts WHERE batch_id=%s",
+                                           (batch["batch_id"],))).fetchall()
+    assert len(attempts) == 1 and attempts[0]["model_attempt_id"] == original.attempt_id
+
+
+async def test_unconfirmed_original_invalid_output_never_creates_repair_attempt(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = UnconfirmedModel()
+    model.invalid_first = True
+    examples.configure(core,model)
+    core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
+    item = await examples.episode(core,alice,"rbf-remote-invalid-output")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition)
+    _, batch = await batch_for_episode(core,item.episode_id)
+    original = request_from_wire(original_admissions(model)[0])
+    await Model.submit(model,original,completion=None)
+    await core.workers.consolidate(partition,batch_id=batch["batch_id"])
+    failed = await stored_batch(core,batch["batch_id"])
+    assert failed["status"] == "failed" and failed["manifest"]["original_observation_only"]
+    assert failed["step_ids"] == batch["step_ids"] and len(original_admissions(model)) == 1
+    async with core.database.transaction() as conn:
+        attempts = await (await conn.execute("SELECT step_id FROM memory.consolidation_attempts WHERE batch_id=%s",
+                                            (batch["batch_id"],))).fetchall()
+        resumed = await core.workers.recovery.resume_on(conn,alice,{"episode_id":item.episode_id,
+            "expected_revision":item.revision,"client_request_id":"no-repair-unconfirmed"})
+    assert len(attempts) == 1 and resumed.data["queued"] is False
+
+
+async def test_late_original_result_cannot_overwrite_changed_episode(core, ordinary_users):
+    alice, _ = ordinary_users
+    model = UnconfirmedModel()
+    examples.configure(core, model)
+    core.memory.bind_observability(statistics=None, recovery_policy=RecoveryPolicy())
+    item = await examples.episode(core, alice, "rbf-remote-stale")
+    partition, _ = await batch_for_episode(core, item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition)
+    _, batch = await batch_for_episode(core, item.episode_id)
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.episodes SET revision=revision+1,extraction_state='pending' WHERE episode_id=%s",
+                           (item.episode_id,))
+    original = request_from_wire(original_admissions(model)[0])
+    await Model.submit(model,original,completion=None)
+    await core.workers.consolidate(partition,batch_id=batch["batch_id"])
+    after = await stored_batch(core,batch["batch_id"])
+    async with core.database.transaction(read_only=True) as conn:
+        episode = await (await conn.execute("SELECT revision,extraction_state,extraction_cursor FROM memory.episodes "
+                                          "WHERE episode_id=%s",(item.episode_id,))).fetchone()
+    assert after["status"] == "stale" and after["commit_refs"] == {}
+    assert after["manifest"]["remote_wait_unresolved"]["remote_rollback_confirmed"] is False
+    assert episode["revision"] == item.revision+1 and episode["extraction_state"] == "pending"
+    assert episode["extraction_cursor"] is None and len(original_admissions(model)) == 1
 
 
 class UnconfirmedIndexModel(IndexModel):
@@ -574,22 +748,137 @@ class UnconfirmedProfileModel(Model):
 
     async def generation_profile(self, request):
         self.profile_calls += 1
-        raise remote_unconfirmed_wait()
+        if self.profile_calls == 1:
+            raise remote_unconfirmed_wait()
+        return await super().generation_profile(request)
 
 
-async def test_unconfirmed_preparation_does_not_fabricate_original_attempt(core, ordinary_users):
+async def test_read_only_profile_reobserves_without_blocking_new_material(core, ordinary_users):
     alice, _ = ordinary_users
     model = UnconfirmedProfileModel()
     examples.configure(core, model)
+    core.memory.bind_observability(statistics=None, recovery_policy=RecoveryPolicy())
     item = await examples.episode(core, alice, "rbf-profile-unconfirmed")
     partition, _ = await batch_for_episode(core, item.episode_id)
     with pytest.raises(RecoveryWait) as error:
         await core.workers.consolidate(partition)
     assert error.value.remote_rollback_confirmed is False
+    _, held = await batch_for_episode(core,item.episode_id)
+    batch_id, step_id = held["batch_id"], held["step_ids"][0]
+    assert held["status"] == "quarantined" and held["manifest"]["profile_pending"]
+    assert held["manifest"]["remote_wait_unresolved"]["stage"] == "route_profile"
     async with core.database.transaction(read_only=True) as conn:
-        state = await (await conn.execute("SELECT last_error,wake_due_at FROM memory.consolidation_state WHERE partition_id=%s",
-                                         (partition,))).fetchone()
-    assert '"remote_rollback_confirmed":false' in state["last_error"] and state["wake_due_at"] is None
-    with pytest.raises(AppError, match="memory_remote_wait_unresolved"):
+        draft = await (await conn.execute("SELECT request FROM memory.model_steps WHERE step_id=%s",(step_id,))).fetchone()
+        ledger = await (await conn.execute("SELECT count(*) AS n FROM runtime.recovery_attempts")).fetchone()
+    assert ledger["n"] == 0 and not model.submissions
+
+    later = await examples.episode(core, alice, "rbf-profile-independent")
+    await core.workers.consolidate(partition)
+    _, next_batch = await batch_for_episode(core,later.episode_id)
+    assert next_batch["status"] == "applied" and next_batch["batch_id"] != batch_id
+    await force_batch_due(core,batch_id)
+    await core.workers.consolidate(partition,batch_id=batch_id)
+    applied = await stored_batch(core,batch_id)
+    assert applied["status"] == "applied" and applied["step_ids"] == [step_id]
+    assert applied["manifest"]["last_unresolved_wait"]["remote_rollback_confirmed"] is False
+    assert sum(request.attempt_id == draft["request"]["attempt_id"] for request, _ in model.submissions) == 1
+
+
+async def test_profile_reobservation_stops_if_local_transaction_becomes_uncertain(core, ordinary_users):
+    class ProfileBecomesUncertain(UnconfirmedProfileModel):
+        async def generation_profile(self, request):
+            self.profile_calls += 1
+            wait = remote_unconfirmed_wait()
+            if self.profile_calls > 1:
+                wait.transaction_rollback_confirmed = False
+            raise wait
+
+    alice, _ = ordinary_users
+    model = ProfileBecomesUncertain()
+    examples.configure(core,model)
+    item = await examples.episode(core,alice,"rbf-profile-local-unknown")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(RecoveryWait):
         await core.workers.consolidate(partition)
-    assert model.profile_calls == 1 and not model.submissions
+    _, held = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition,batch_id=held["batch_id"])
+    with pytest.raises(AppError,match="memory_remote_wait_unresolved"):
+        await core.workers.consolidate(partition,batch_id=held["batch_id"])
+    held = await stored_batch(core,held["batch_id"])
+    assert held["manifest"]["remote_wait_unresolved"]["last_reobservation"]["transaction_rollback_confirmed"] is False
+    assert model.profile_calls == 2 and not model.submissions
+    status = await core.memory.extraction_status(alice,item.episode_id)
+    assert status["action"] == "wait_for_reconciliation"
+
+
+async def test_read_only_preparation_wait_reobserves_and_retains_evidence(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model = Model()
+    examples.configure(core,model)
+    build = core.memory.consolidation.materials.build
+    waited = False
+
+    async def wait_once(*args, **kwargs):
+        nonlocal waited
+        if not waited:
+            waited = True
+            raise remote_unconfirmed_wait()
+        return await build(*args, **kwargs)
+
+    monkeypatch.setattr(core.memory.consolidation.materials,"build",wait_once)
+    item = await examples.episode(core,alice,"rbf-preparation-read")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition)
+    async with core.database.transaction() as conn:
+        state = await (await conn.execute("SELECT last_error,wake_due_at FROM memory.consolidation_state "
+                                         "WHERE partition_id=%s",(partition,))).fetchone()
+        count = await (await conn.execute("SELECT count(*) AS n FROM memory.consolidation_batches WHERE partition_id=%s",
+                                         (partition,))).fetchone()
+        await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=now()-interval '1 second' WHERE partition_id=%s",
+                           (partition,))
+    assert state["last_error"].startswith("memory_preparation_read_observation:") and state["wake_due_at"]
+    assert count["n"] == 0 and not model.submissions
+    await core.workers.consolidate(partition)
+    _, batch = await batch_for_episode(core,item.episode_id)
+    assert batch["status"] == "applied" and len(model.submissions) == 1
+    assert batch["manifest"]["preparation_observation"]["first"]["remote_rollback_confirmed"] is False
+
+
+async def test_uncertain_candidate_preparation_holds_only_its_exact_input(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model = Model()
+    examples.configure(core,model)
+    attach = core.memory.consolidation.materials.attach_records
+    waited = False
+
+    async def wait_once(*args, **kwargs):
+        nonlocal waited
+        if not waited:
+            waited = True
+            raise remote_unconfirmed_wait()
+        return await attach(*args, **kwargs)
+
+    monkeypatch.setattr(core.memory.consolidation.materials,"attach_records",wait_once)
+    item = await examples.episode(core,alice,"rbf-candidate-uncertain")
+    partition, _ = await batch_for_episode(core,item.episode_id)
+    with pytest.raises(RecoveryWait):
+        await core.workers.consolidate(partition)
+    _, held = await batch_for_episode(core,item.episode_id)
+    assert held["status"] == "quarantined" and held["step_ids"] == []
+    assert held["manifest"]["preparation_hold"]["stage"] == "candidate_recall"
+    assert held["manifest"]["preparation_hold"]["closure_complete"] is False and not model.submissions
+    async with core.database.transaction() as conn:
+        episode = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s",(item.episode_id,))).fetchone()
+        status = await core.workers.recovery.status_on(conn,alice,episode)
+        result = await core.workers.recovery.resume_on(conn,alice,{"episode_id":item.episode_id,
+            "expected_revision":item.revision,"client_request_id":"candidate-no-attempt"})
+    assert status["action"] == "wait_for_reconciliation" and status["preparation_stage"] == "candidate_recall"
+    assert result.data["action"] == "wait_for_reconciliation" and result.data["queued"] is False
+    later = await examples.episode(core,alice,"rbf-candidate-independent")
+    await core.workers.consolidate(partition)
+    _, next_batch = await batch_for_episode(core,later.episode_id)
+    assert next_batch["status"] == "applied" and next_batch["batch_id"] != held["batch_id"]
+    assert (await stored_batch(core,held["batch_id"]))["manifest"]["remote_wait_unresolved"]["step_id"] is None
+    assert len(model.submissions) == 1
