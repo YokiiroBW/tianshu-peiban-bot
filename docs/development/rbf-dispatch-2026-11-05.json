@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBF-20261105",
-  "state": "implementation_dispatched",
+  "state": "parallel_implementation_active",
   "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "model": "gpt-6.1-terra",
   "reasoning_effort": "max",
@@ -18,7 +18,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-runtime/tianshu-peiban-bot",
       "branch": "codex/rbf-runtime-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/runtime/database.py",
         "src/tianshu/runtime/jobs.py",
@@ -32,7 +32,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-02",
@@ -42,7 +43,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
       "branch": "codex/rbf-life-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/life/",
         "tests/life/test_rbf_*.py"
@@ -50,7 +51,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-03",
@@ -60,7 +62,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-memory/tianshu-peiban-bot",
       "branch": "codex/rbf-memory-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/memory/",
         "tests/memory/test_rbf_*.py"
@@ -68,7 +70,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-04",
@@ -78,7 +81,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
       "branch": "codex/rbf-capabilities-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/capabilities/",
         "tests/capabilities/test_rbf_*.py"
@@ -86,7 +89,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-05",
@@ -96,7 +100,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-sources/tianshu-peiban-bot",
       "branch": "codex/rbf-sources-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/sources/",
         "src/tianshu/identity/",
@@ -108,7 +112,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-06",
@@ -118,7 +123,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-models/tianshu-peiban-bot",
       "branch": "codex/rbf-models-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/models/",
         "tests/models/test_rbf_*.py"
@@ -126,7 +131,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-07",
@@ -136,7 +142,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-growth/tianshu-peiban-bot",
       "branch": "codex/rbf-growth-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/companion/",
         "tests/companion/test_rbf_*.py"
@@ -144,7 +150,8 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     },
     {
       "id": "RBF-08",
@@ -154,7 +161,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-observability/tianshu-peiban-bot",
       "branch": "codex/rbf-observability-20261105",
-      "status": "dispatched",
+      "status": "implementing",
       "allowed_paths": [
         "src/tianshu/operations/",
         "src/tianshu/runtime/api.py",
@@ -169,9 +176,13 @@
       "commits": [],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
-      "service_tier": "default"
+      "service_tier": "default",
+      "acknowledged": true
     }
   ],
   "integration_branch": "codex/rbf-integration-20261105",
-  "dispatched_at": "2026-11-05T02:24:09.670928+00:00"
+  "dispatched_at": "2026-11-05T02:24:09.670928+00:00",
+  "all_tasks_acknowledged": true,
+  "last_updated_at": "2026-11-05T02:34:24.680185+00:00",
+  "interfaces": "docs/development/rbf-interfaces-2026-11-05.md"
 }

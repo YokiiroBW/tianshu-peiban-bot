@@ -1,7 +1,6 @@
 """The single product object graph. Domains receive only the ports they consume."""
 
 from dataclasses import dataclass
-from uuid import uuid4
 
 from tianshu.identity.service import IdentityService
 from tianshu.identity.sessions import SessionService
@@ -251,7 +250,7 @@ async def build_product(runtime):
 
     async def capabilities_changed(context, capability_ids):
         if context.actor_id:
-            await life.signal(context, "capability-observation:" + str(uuid4()))
+            await life.signal(context, "capability-observation:" + caps.catalog.observation_digest(context))
 
     caps.catalog.on_change = capabilities_changed
     await caps.prepare()
