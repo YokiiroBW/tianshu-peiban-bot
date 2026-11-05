@@ -435,17 +435,20 @@ class DiaryService:
     def _frozen_recipe(request, collected=None):
         return frozen_recipe(request, collected)
 
-    async def _generation_state(self, diary_id, generation_id, state, reason, *, settle=False, data_generation):
-        async with self.life.database.transaction() as connection:
-            await self.life.jobs.assert_generation_on(connection,data_generation)
-            changed = await (await connection.execute(
-                "UPDATE life.diaries SET state=CASE WHEN generation_cancel_requested AND %s IN ('generating','unknown') THEN 'cancelling' ELSE %s END,"
-                "reason=%s,revision=revision+1,generation_retry_due_at=CASE WHEN %s OR generation_cancel_requested THEN NULL ELSE generation_retry_due_at END,"
-                "last_reviewed_at=CASE WHEN %s THEN now() ELSE last_reviewed_at END "
-                "WHERE id=%s AND generation_id=%s AND state IN ('collecting','generating','unknown','cancelling') RETURNING id,generation_recipe",
-                (state,state,reason,settle,settle,diary_id,generation_id))).fetchone()
-            if settle and changed:
-                await self.automation.settle(connection,generation_id,error=reason,recipe=changed["generation_recipe"],data_generation=data_generation)
+    async def _generation_state(self, diary_id, generation_id, state, reason, *, settle=False, data_generation, connection=None):
+        if connection is None:
+            async with self.life.database.transaction() as connection:
+                return await self._generation_state(diary_id,generation_id,state,reason,settle=settle,
+                    data_generation=data_generation,connection=connection)
+        await self.life.jobs.assert_generation_on(connection,data_generation)
+        changed = await (await connection.execute(
+            "UPDATE life.diaries SET state=CASE WHEN generation_cancel_requested AND %s IN ('generating','unknown') THEN 'cancelling' ELSE %s END,"
+            "reason=%s,revision=revision+1,generation_retry_due_at=CASE WHEN %s OR generation_cancel_requested THEN NULL ELSE generation_retry_due_at END,"
+            "last_reviewed_at=CASE WHEN %s THEN now() ELSE last_reviewed_at END "
+            "WHERE id=%s AND generation_id=%s AND state IN ('collecting','generating','unknown','cancelling') RETURNING id,generation_recipe",
+            (state,state,reason,settle,settle,diary_id,generation_id))).fetchone()
+        if settle and changed:
+            await self.automation.settle(connection,generation_id,error=reason,recipe=changed["generation_recipe"],data_generation=data_generation)
 
     async def _observe_later(self, diary_id, generation_id, actor_id, *, when=None, data_generation):
         async with self.life.database.transaction() as connection:

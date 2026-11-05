@@ -12,6 +12,27 @@ from tianshu.models.timing import waiting_budget
 from .validation import revision
 
 
+async def _material_id_on(connection, kind, item_id, row, saved_revision):
+    """Keep a persisted lineage; distinguish proven new diary material."""
+    if row["recovery_lineage_id"]:
+        if not row["recovery_material_id"]:
+            raise AppError("recovery_original_lineage_missing", status=409)
+        return row["recovery_material_id"]
+    base = f"{kind}:{item_id}:generated:{saved_revision}"
+    scan_hash = row["recipe"].get("scan_hash") if kind == "diary" else None
+    if not scan_hash:
+        return base
+    legacy = await (await connection.execute(
+        "SELECT recipe->>'scan_hash' AS scan_hash FROM life.generation_recipes "
+        "WHERE recovery_material_id=%s AND generation_id<>%s AND recovery_lineage_id IS NOT NULL",
+        (base,row["generation_id"]))).fetchall()
+    # A pre-upgrade chain must not acquire a second budget for identical
+    # material. A withdrawn/missing old recipe cannot prove it is different.
+    if any(not item["scan_hash"] or item["scan_hash"] == scan_hash for item in legacy):
+        return base
+    return f"{base}:material:{scan_hash}"
+
+
 class GenerationRecovery:
     """Bind authored requests to the runtime's single physical-attempt budget."""
 
@@ -56,9 +77,10 @@ class GenerationRecovery:
             f"SELECT coalesce(max(revision),0) AS revision FROM {revision_table} "
             f"WHERE {item_column}=%s AND model_attempt_id IS NOT NULL", (item_id,))).fetchone()
         # Author edits and other administrative revisions cannot reset a failed
-        # generation budget. Only a previously saved model result starts the
-        # next authored generation cycle for this same object.
-        material_id = f"{kind}:{item_id}:generated:{saved['revision']}"
+        # generation budget. A saved model result starts the next cycle. For a
+        # diary, genuinely changed episode versions also define new material;
+        # its collection hash excludes request IDs and administrative revisions.
+        material_id = await _material_id_on(connection,kind,item_id,row,saved['revision'])
         material_version = signature({"recipe": row["recipe"], "source_refs": row["source_refs"]})
         previous = await (await connection.execute(
             "SELECT recovery_lineage_id,recovery_owner,recovery_material_digest,recovery_dependency,recovery_version "
@@ -80,7 +102,7 @@ class GenerationRecovery:
         if identity is None:
             if row["previous_generation_id"]:
                 raise AppError("recovery_original_lineage_missing", status=409)
-            owner = f"life.{material_id}"
+            owner = previous["recovery_owner"] if previous else f"life.{material_id}"
             version = material_version
             lineage = await self.policy.register_on(connection, domain="life",
                 subject_id=request.context.actor_id, owner=owner,
@@ -202,6 +224,23 @@ class GenerationRecovery:
             raise AppError("recovery_original_lineage_missing", status=409)
         await self.policy.assert_attempt_applicable_on(connection, attempt_id,
             owner=row["recovery_owner"], expected_version=row["recovery_version"])
+
+    async def assert_replaceable_on(self, connection, attempt_id):
+        """Keep an original's policy fences when replacing its changed material."""
+        row = await (await connection.execute(
+            "SELECT recovery_lineage_id,recovery_owner,recovery_version FROM life.generation_recipes "
+            "WHERE generation_id=%s FOR UPDATE", (attempt_id,))).fetchone()
+        if not row or not row["recovery_lineage_id"]:
+            raise AppError("recovery_original_lineage_missing", status=409)
+        try:
+            # The caller has observed the original in this transaction, which
+            # already holds the lineage lock. Due/dependency waits constrain
+            # admission separately; a genuinely new material has its own budget.
+            await self.policy.inspect_wait_on(connection,row["recovery_lineage_id"],
+                owner=row["recovery_owner"],expected_version=row["recovery_version"])
+        except AppError as error:
+            if error.code != "recovery_budget_exhausted":
+                raise
 
     async def cancel_on(self, connection, attempt_id):
         row = await (await connection.execute(

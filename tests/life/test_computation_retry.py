@@ -11,6 +11,7 @@ from tianshu.conversation.codec import signature
 from tianshu.life.dependencies import LifeDependencies
 from tianshu.life.writing import WritingService
 from tianshu.models.types import ModelCompletion, ModelEvent, ModelPart, ModelReceipt, ModelResult
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
 from test_planner_execution import Models, setup, mark, chosen_activity
@@ -64,6 +65,19 @@ async def diary_fixture(database):
     models=adapt_models(Computations("这一天只写下实际观察。",error="consumer_interrupted"))
     value.models=value.diaries.models=value.diaries.generations.models=models
     return value
+
+
+async def generate_with_legacy_material(value,row,monkeypatch):
+    from tianshu.life import generation_control
+
+    legacy_id=f"diary:{row['id']}:generated:0"
+    async def old_material_id(_connection,_kind,_item_id,_row,_saved_revision):
+        return legacy_id
+    # Create the original as it was recorded before the material-ID upgrade.
+    with monkeypatch.context() as old:
+        old.setattr(generation_control,"_material_id_on",old_material_id)
+        await value.diaries.generate(row["id"],row["generation_id"])
+    return legacy_id
 
 
 async def expire(database,table,column):
@@ -189,6 +203,53 @@ async def test_diary_retry_preserves_full_recipe_and_selection_but_uses_a_new_in
     assert (await diary_state(database))["current_revision"]==1 and len(value.models.calls)==2
 
 
+async def test_legacy_diary_unknown_retry_keeps_its_original_lineage(database,monkeypatch):
+    value=await diary_fixture(database)
+    await start_day(value)
+    row=await collect_current(database,value)
+    legacy_id=await generate_with_legacy_material(value,row,monkeypatch)
+    original=value.models.calls[0]
+    await expire(database,"diaries","generation_retry_due_at")
+    value.models.status_value,value.models.error="succeeded",None
+    await value.diaries.generate(row["id"],original.attempt_id)
+    child=await diary_state(database)
+    async with database.transaction(read_only=True) as connection:
+        recipes=await (await connection.execute(
+            "SELECT generation_id,recovery_lineage_id,recovery_material_id FROM life.generation_recipes")).fetchall()
+    assert len(recipes)==2 and {item["recovery_material_id"] for item in recipes}=={legacy_id}
+    assert len({item["recovery_lineage_id"] for item in recipes})==1
+    await value.diaries.generate(child["id"],child["generation_id"])
+    assert (await day_state(database))["reviewed_revision"]==1 and len(value.models.calls)==2
+    assert value.models.results[original.attempt_id].receipt.status=="unknown"
+
+
+@pytest.mark.parametrize("missing_recipe",[False,True])
+async def test_legacy_diary_new_request_does_not_reset_its_material_budget(database,monkeypatch,missing_recipe):
+    value=await diary_fixture(database)
+    value.models.status_value,value.models.error="failed","model_function_not_configured"
+    await start_day(value)
+    row=await collect_current(database,value)
+    legacy_id=await generate_with_legacy_material(value,row,monkeypatch)
+    original=value.models.calls[0]
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE runtime.recovery_lineages SET attempts=max_attempts")
+        if missing_recipe:
+            await connection.execute("UPDATE life.generation_recipes SET recipe=NULL WHERE generation_id=%s",(original.attempt_id,))
+    failed=await diary_state(database)
+    command=await value.diaries.request(value.context,{"day":"2026-11-02","expected_revision":failed["revision"],
+        "client_request_id":"same-material-after-upgrade"})
+    await value.diaries.collect(command.data["id"],command.attempt_id,None)
+    with pytest.raises(AppError,match="recovery_budget_exhausted"):
+        await value.diaries.generate(command.data["id"],command.attempt_id)
+    async with database.transaction(read_only=True) as connection:
+        lineages=await (await connection.execute("SELECT lineage_id,attempts,max_attempts FROM runtime.recovery_lineages")).fetchall()
+        legacy=await (await connection.execute("SELECT recovery_lineage_id,recovery_material_id FROM life.generation_recipes "
+            "WHERE generation_id=%s",(original.attempt_id,))).fetchone()
+    assert len(lineages)==1 and lineages[0]["lineage_id"]==legacy["recovery_lineage_id"]
+    assert lineages[0]["attempts"]==lineages[0]["max_attempts"]==3 and legacy["recovery_material_id"]==legacy_id
+    assert len(value.models.calls)==1
+
+
 async def test_an_unknown_diary_does_not_block_a_later_registered_day(database):
     value=await diary_fixture(database)
     await start_day(value)
@@ -211,12 +272,16 @@ async def test_an_unknown_diary_does_not_block_a_later_registered_day(database):
     assert "在想象的小屋里整理书架" not in str(wire(value.models.calls[1].messages))
 
 
-async def test_diary_permanent_failure_is_not_reviewed_or_periodically_retried_but_new_material_can_continue(database):
+@pytest.mark.parametrize("legacy",[False,True])
+async def test_diary_permanent_failure_is_not_reviewed_or_periodically_retried_but_new_material_can_continue(database,monkeypatch,legacy):
     value=await diary_fixture(database)
     value.models.status_value,value.models.error="failed","model_function_not_configured"
     day,scope=await start_day(value)
     row=await collect_current(database,value)
-    await value.diaries.generate(row["id"],row["generation_id"])
+    if legacy:
+        await generate_with_legacy_material(value,row,monkeypatch)
+    else:
+        await value.diaries.generate(row["id"],row["generation_id"])
     failed=await day_state(database)
     assert failed["reviewed_revision"]==0 and failed["blocked_revision"]==1 and failed["generation_id"] is None
     count=len(value.jobs.items)
@@ -231,6 +296,13 @@ async def test_diary_permanent_failure_is_not_reviewed_or_periodically_retried_b
     value.models.status_value,value.models.error="succeeded",None
     await value.diaries.generate(fresh["id"],fresh["generation_id"])
     assert (await day_state(database))["reviewed_revision"]==2 and len(value.models.calls)==2
+    async with database.transaction(read_only=True) as connection:
+        rows=await (await connection.execute(
+            "SELECT attempt_id,lineage_id,status FROM runtime.recovery_attempts")).fetchall()
+    attempts={item["attempt_id"]:item for item in rows}
+    first,second=(attempts[call.attempt_id] for call in value.models.calls)
+    assert len(attempts)==2 and first["status"]=="failed" and second["status"]=="succeeded"
+    assert first["lineage_id"]!=second["lineage_id"]
 
 
 async def test_diary_latest_explicit_cancel_overrides_an_immutable_cleanup_unknown(database):
@@ -287,6 +359,128 @@ async def test_a_dirty_day_at_retry_time_yields_the_old_pointer_to_normal_collec
     value.models.status_value,value.models.error="succeeded",None
     await value.diaries.generate(child["id"],child["generation_id"])
     assert (await day_state(database))["reviewed_revision"]==2 and len(value.models.calls)==2
+    async with database.transaction(read_only=True) as connection:
+        rows=await (await connection.execute(
+            "SELECT attempt_id,lineage_id,status FROM runtime.recovery_attempts")).fetchall()
+    attempts={item["attempt_id"]:item for item in rows}
+    first,second=attempts[original.attempt_id],attempts[child["generation_id"]]
+    assert len(attempts)==2 and first["status"]=="unknown" and second["status"]=="succeeded"
+    assert first["lineage_id"]!=second["lineage_id"]
+    assert value.models.results[original.attempt_id].receipt.status=="unknown"
+    await value.diaries.generate(row["id"],original.attempt_id)
+    assert (await diary_state(database))["generation_id"]==child["generation_id"] and len(value.models.calls)==2
+
+
+@pytest.mark.parametrize("observation",["absent","unfinished_unknown","naive_unknown","wrong_generation","wrong_attempt"])
+async def test_changed_day_waits_for_a_confirmed_original_unknown(database,observation):
+    value=await diary_fixture(database)
+    value.models.status_value,value.models.error="running",None
+    day,scope=await start_day(value)
+    row=await collect_current(database,value)
+    await value.diaries.generate(row["id"],row["generation_id"])
+    original=value.models.calls[0]
+    later=replace(value.episode,episode_id="later",summary="同一天的新经历")
+    value.memory.episodes+=(later,)
+    await value.diaries.changed(value.context,"later",episode=later)
+    status=value.models.status
+    if observation=="absent":
+        value.models.status=AsyncMock(return_value=None)
+    else:
+        receipt=replace(value.models.receipts[original.attempt_id],status="unknown",error_code="consumer_interrupted",
+            finished_at=(None if observation=="unfinished_unknown" else
+                datetime.now().replace(tzinfo=None) if observation=="naive_unknown" else datetime.now(UTC)),
+            data_generation="wrong-generation" if observation=="wrong_generation" else original.data_generation,
+            attempt_id="wrong-attempt" if observation=="wrong_attempt" else original.attempt_id)
+        value.models.receipts[original.attempt_id]=receipt
+    await value.diaries.review_day("actor",scope,day,2,await value.jobs.current_generation())
+    assert (await diary_state(database))["generation_id"]==original.attempt_id
+    assert (await day_state(database))["generation_id"]==original.attempt_id and len(value.models.calls)==1
+    value.models.status=status
+    value.models.receipts[original.attempt_id]=replace(value.models.receipts[original.attempt_id],
+        status="unknown",error_code="consumer_interrupted",finished_at=datetime.now(UTC),
+        data_generation=original.data_generation,attempt_id=original.attempt_id)
+    assert (await value.diaries.review_day("actor",scope,day,2,await value.jobs.current_generation()))["state"]=="changed_since_review"
+    async with database.transaction(read_only=True) as connection:
+        attempt=await (await connection.execute(
+            "SELECT status FROM runtime.recovery_attempts WHERE attempt_id=%s",(original.attempt_id,))).fetchone()
+    assert attempt["status"]=="unknown" and (await day_state(database))["generation_id"] is None
+
+
+async def test_changed_day_observes_explicit_cancel_before_replacing_material(database):
+    value=await diary_fixture(database)
+    value.models.status_value,value.models.error="running",None
+    day,scope=await start_day(value)
+    row=await collect_current(database,value)
+    await value.diaries.generate(row["id"],row["generation_id"])
+    original=value.models.calls[0]
+    later=replace(value.episode,episode_id="later",summary="同一天的新经历")
+    value.memory.episodes+=(later,)
+    await value.diaries.changed(value.context,"later",episode=later)
+    value.models.receipts[original.attempt_id]=replace(value.models.receipts[original.attempt_id],
+        status="unknown",finished_at=datetime.now(UTC),cancellation_reason="explicit_cancel")
+    result=await value.diaries.review_day("actor",scope,day,2,await value.jobs.current_generation())
+    assert result["state"]=="cancelled" and result["attempt_id"]==original.attempt_id
+    assert (await diary_state(database))["state"]=="cancelled" and len(value.models.calls)==1
+
+
+@pytest.mark.parametrize("fence",["paused","cancelled","source_withdrawn"])
+async def test_changed_day_keeps_the_original_recovery_fence(database,fence):
+    value=await diary_fixture(database)
+    value.models.status_value,value.models.error="running",None
+    day,scope=await start_day(value)
+    row=await collect_current(database,value)
+    await value.diaries.generate(row["id"],row["generation_id"])
+    original=value.models.calls[0]
+    later=replace(value.episode,episode_id="later",summary="同一天的新经历")
+    value.memory.episodes+=(later,)
+    await value.diaries.changed(value.context,"later",episode=later)
+    value.models.receipts[original.attempt_id]=replace(value.models.receipts[original.attempt_id],
+        status="failed",error_code="model_function_not_configured",finished_at=datetime.now(UTC))
+    async with database.transaction() as connection:
+        await connection.execute(f"UPDATE runtime.recovery_lineages SET {fence}=true")
+    with pytest.raises(AppError,match="recovery_version_changed"):
+        await value.diaries.review_day("actor",scope,day,2,await value.jobs.current_generation())
+    assert (await diary_state(database))["generation_id"]==original.attempt_id
+    assert (await day_state(database))["generation_id"]==original.attempt_id and len(value.models.calls)==1
+
+
+@pytest.mark.parametrize("change_snapshot",[False,True])
+async def test_changed_day_locks_sources_before_diary_and_rechecks_snapshot(database,change_snapshot):
+    value=await diary_fixture(database)
+    value.models.status_value,value.models.error="running",None
+    day,scope=await start_day(value)
+    row=await collect_current(database,value)
+    await value.diaries.generate(row["id"],row["generation_id"])
+    original=value.models.calls[0]
+    later=replace(value.episode,episode_id="later",summary="同一天的新经历")
+    value.memory.episodes+=(later,)
+    await value.diaries.changed(value.context,"later",episode=later)
+    before=await diary_state(database)
+    value.models.receipts[original.attempt_id]=replace(value.models.receipts[original.attempt_id],
+        status="failed",error_code="model_function_not_configured",finished_at=datetime.now(UTC))
+    validate=value.life.sources.validate_persistence
+    checked=[]
+    async def check_sources(connection,context,refs):
+        if not checked:
+            locks=await (await connection.execute(
+                "SELECT EXISTS(SELECT 1 FROM pg_locks WHERE pid=pg_backend_pid() "
+                "AND relation='life.diaries'::regclass AND mode='RowShareLock' AND granted) AS diary_locked")).fetchone()
+            checked.append((locks["diary_locked"],{ref.source_id for ref in refs}))
+            if change_snapshot:
+                await connection.execute("UPDATE life.diaries SET revision=revision+1 WHERE id=%s",(row["id"],))
+        return await validate(connection,context,refs)
+    value.life.sources.validate_persistence=check_sources
+    result=await value.diaries.review_day("actor",scope,day,2,await value.jobs.current_generation())
+    assert result["state"]=="changed_since_review"
+    assert checked==[(False,{ref["source_id"] for ref in before["source_refs"]})]
+    async with database.transaction(read_only=True) as connection:
+        attempt=await (await connection.execute(
+            "SELECT status FROM runtime.recovery_attempts WHERE attempt_id=%s",(original.attempt_id,))).fetchone()
+    if change_snapshot:
+        assert (await diary_state(database))["generation_id"]==original.attempt_id
+        assert (await day_state(database))["generation_id"]==original.attempt_id and attempt["status"]=="reserved"
+    else:
+        assert (await day_state(database))["generation_id"] is None and attempt["status"]=="failed"
 
 
 async def test_recipe_audit_is_erased_on_source_withdrawal_and_the_unknown_is_never_replayed(database):

@@ -9,6 +9,7 @@ from uuid import uuid4
 import pytest
 
 from tianshu.capabilities.catalog import Availability, Catalog, CapabilityDefinition
+from tianshu.conversation.codec import document
 from tianshu.conversation.context.assembly import ContextAssembler
 from tianshu.runtime.serialization import wire
 from tianshu.life import planner
@@ -416,6 +417,11 @@ async def test_day_plan_leaves_free_time_and_carries_only_unstarted_work(databas
         await fixture.worker.life.days.apply(connection,fixture.context,decision,data,'day',{},(),
             {'timezone':'UTC','wake_at':'00:00','sleep_at':'23:59','idle_seconds':5400},now,'fingerprint')
         rows=await (await connection.execute("SELECT * FROM life.day_slots WHERE kind='activity' ORDER BY starts_at")).fetchall()
+        # These assertions describe focus work, while capability work defaults
+        # to background execution and is intentionally allowed to cross days.
+        for slot in rows:
+            await connection.execute("UPDATE life.activities SET checkpoint_data=jsonb_set(checkpoint_data,'{execution_mode}',%s) WHERE id=%s",
+                (document('focus'),slot['activity_id']))
         await connection.execute("UPDATE life.activities SET state='dormant',action_id='original-pending',waiting_reason='capability_running' WHERE id=%s",(rows[0]['activity_id'],))
         await connection.execute("UPDATE life.day_slots SET state='waiting_result' WHERE id=%s",(rows[0]['id'],))
         await fixture.worker.life.days.close(connection,fixture.context,now.date())
@@ -437,6 +443,8 @@ async def test_manually_moved_slot_cannot_cover_explicit_commitment(database):
             {'unfinished':[],'commitments':[],'coverage':{}},'move-day',{},(),
             {'timezone':'UTC','wake_at':'00:00','sleep_at':'23:59','idle_seconds':5400},now,'fingerprint')
         slot=await (await connection.execute("SELECT * FROM life.day_slots WHERE kind='activity'")).fetchone()
+        await connection.execute("UPDATE life.activities SET checkpoint_data=jsonb_set(checkpoint_data,'{execution_mode}',%s) WHERE id=%s",
+            (document('focus'),slot['activity_id']))
         await connection.execute("INSERT INTO life.commitments(id,actor_id,title,due_at,timezone,state,scope_ids,context) VALUES ('promise','actor','An explicit promise',%s,'UTC','scheduled',ARRAY['actor-scope'],%s)",
             (now+timedelta(hours=2),json.dumps(wire(fixture.context))))
     with pytest.raises(AppError,match='day_slot_conflict'):

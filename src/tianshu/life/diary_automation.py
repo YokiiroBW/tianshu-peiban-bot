@@ -123,15 +123,48 @@ class DiaryAutomation:
                 if (row["generation_id"]==diary["generation_id"] and row["generation_revision"]<row["revision"]
                         and not diary["generation_cancel_requested"]):
                     receipt=await self.diaries.models.status(diary["generation_id"])
-                    if not receipt or receipt.status not in {"queued","running"}:
-                        from .computation_retry import freeze_recipe
+                    from .computation_retry import finished_unknown, freeze_recipe
+                    if receipt is not None and (receipt.attempt_id != diary["generation_id"]
+                            or receipt.data_generation != data_generation):
+                        await self.diaries._observe_later(diary["id"],diary["generation_id"],actor_id,data_generation=data_generation)
+                        return {"state":diary["state"],"attempt_id":diary["generation_id"],"reason":"model_observation_unavailable"}
+                    completed_unknown = (finished_unknown(receipt,diary["generation_id"],data_generation)
+                        and receipt.finished_at.utcoffset() is not None)
+                    if (receipt is not None and receipt.status == "unknown"
+                            and receipt.cancellation_reason != "explicit_cancel" and not completed_unknown):
+                        await self.diaries._observe_later(diary["id"],diary["generation_id"],actor_id,data_generation=data_generation)
+                        return {"state":diary["state"],"attempt_id":diary["generation_id"],"reason":"model_observation_unavailable"}
+                    confirmed = (receipt is not None and receipt.attempt_id == diary["generation_id"]
+                        and receipt.data_generation == data_generation and receipt.cancellation_reason != "explicit_cancel"
+                        and (receipt.status in {"succeeded", "failed"} or completed_unknown))
+                    if confirmed:
                         from tianshu.conversation.codec import source_refs
                         async with self.life.database.transaction() as connection:
                             await self.life.jobs.assert_generation_on(connection,data_generation)
-                            if diary["generation_recipe"] is not None:
-                                await freeze_recipe(self.life,connection,"diary",diary["id"],diary["generation_id"],context,
-                                    diary["generation_recipe"],source_refs(diary["source_refs"]))
-                        await self.diaries._generation_state(diary["id"],diary["generation_id"],"failed","diary_material_changed",settle=True,data_generation=data_generation)
+                            current=await self.life.lock_row(connection,context,
+                                "SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary["id"],))
+                            if (not current or current["generation_id"]!=diary["generation_id"]
+                                    or current["state"] not in UNRESOLVED or current["generation_cancel_requested"]):
+                                return {"state":"changed_since_review"}
+                            current_day=await (await connection.execute(
+                                "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
+                                (actor_id,scope_key,row["day"]))).fetchone()
+                            if (not current_day or current_day["generation_id"]!=current["generation_id"]
+                                    or current_day["generation_revision"] is None
+                                    or current_day["generation_revision"]>=current_day["revision"]):
+                                return {"state":"changed_since_review"}
+                            if current["generation_recipe"] is not None:
+                                await freeze_recipe(self.life,connection,"diary",current["id"],current["generation_id"],context,
+                                    current["generation_recipe"],source_refs(current["source_refs"]))
+                            if self.diaries.recovery is None:
+                                raise AppError("recovery_policy_unavailable",status=503)
+                            observed,_ = await self.diaries.recovery.observe_on(connection,current["generation_id"],receipt.status,
+                                receipt.error_code,model_receipt=receipt)
+                            if observed == "unregistered":
+                                raise AppError("recovery_original_lineage_missing",status=409)
+                            await self.diaries.recovery.assert_replaceable_on(connection,current["generation_id"])
+                            await self.diaries._generation_state(current["id"],current["generation_id"],"failed",
+                                "diary_material_changed",settle=True,data_generation=data_generation,connection=connection)
                         return {"state":"changed_since_review"}
                 return await self.diaries.generate(diary["id"], diary["generation_id"],data_generation=data_generation)
             if diary and diary["current_revision"] and diary["state"] in {"draft", "published"}:
