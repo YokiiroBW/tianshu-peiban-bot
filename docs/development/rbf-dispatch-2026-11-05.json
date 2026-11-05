@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBF-20261105",
-  "state": "deployed_with_source_perf_followup_active",
+  "state": "verified_deployed",
   "parent_thread": "01a1a72e-d357-7ba2-9e01-6373ebb7741e",
   "model": "gpt-6.1-terra",
   "reasoning_effort": "max",
@@ -18,7 +18,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-runtime/tianshu-peiban-bot",
       "branch": "codex/rbf-runtime-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/runtime/database.py",
         "src/tianshu/runtime/jobs.py",
@@ -58,7 +58,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-life/tianshu-peiban-bot",
       "branch": "codex/rbf-life-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/life/",
         "tests/life/test_rbf_*.py"
@@ -86,7 +86,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-memory/tianshu-peiban-bot",
       "branch": "codex/rbf-memory-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/memory/",
         "tests/memory/test_rbf_*.py"
@@ -114,7 +114,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-capabilities/tianshu-peiban-bot",
       "branch": "codex/rbf-capabilities-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/capabilities/",
         "tests/capabilities/test_rbf_*.py"
@@ -140,7 +140,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-sources/tianshu-peiban-bot",
       "branch": "codex/rbf-sources-20261105",
-      "status": "followup_active",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/sources/",
         "src/tianshu/identity/",
@@ -155,7 +155,9 @@
         "71ef3ea75bb669bf19f7716418641aad7534610a",
         "c18525a76c75237f61703ddd4399043f2c910946",
         "956a73ba381cdcc91911ff61a69d7b31fbd076ee",
-        "d71568393bf12bba3e4588a0ff03968b7d1c07b9"
+        "d71568393bf12bba3e4588a0ff03968b7d1c07b9",
+        "f4bf445a03fbdf39485c42284bdef3fb13f7316f",
+        "d43a0c8a014084d87e5ec0046e923099e07a3a02"
       ],
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
@@ -167,9 +169,10 @@
         "b88221d648eee98837f325f05a510a44e43a080d",
         "fed6d70679cacf80633a88cc8db141b13f3c867e",
         "27b4c0f468f7f9c56d516de9f5a37cb19169252d",
-        "a84af7af562a0ad430548d1b11fa735bd22702cb"
-      ],
-      "pending": "shared_DAG_proof_cost_proven_live_awaiting_bounded_optimization"
+        "a84af7af562a0ad430548d1b11fa735bd22702cb",
+        "7f492c78454fd763f2dda03a8f4c4420c3496e9c",
+        "0970db34728391cd8b7e5a689f7b2ddf6b8cd145"
+      ]
     },
     {
       "id": "RBF-06",
@@ -179,7 +182,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-models/tianshu-peiban-bot",
       "branch": "codex/rbf-models-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/models/",
         "tests/models/test_rbf_*.py"
@@ -213,7 +216,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-growth/tianshu-peiban-bot",
       "branch": "codex/rbf-growth-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/companion/",
         "tests/companion/test_rbf_*.py",
@@ -250,7 +253,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-observability/tianshu-peiban-bot",
       "branch": "codex/rbf-observability-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/operations/",
         "src/tianshu/runtime/api.py",
@@ -290,7 +293,7 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbf-conversation/tianshu-peiban-bot",
       "branch": "codex/rbf-conversation-20261105",
-      "status": "integrated_pending_central_validation",
+      "status": "verified_deployed",
       "allowed_paths": [
         "src/tianshu/conversation/ except persistence.py",
         "tests/conversation/",
@@ -311,14 +314,14 @@
   "integration_branch": "codex/rbf-integration-20261105",
   "dispatched_at": "2026-11-05T02:24:09.670928+00:00",
   "all_tasks_acknowledged": true,
-  "last_updated_at": "2026-11-05T05:16:49.822364+00:00",
+  "last_updated_at": "2026-11-05T05:34:18.628915+00:00",
   "interfaces": "docs/development/rbf-interfaces-2026-11-05.md",
   "coordinator_commits": [
     "553cf173",
     "a53c95c2"
   ],
-  "next_step": "collect implementation commits, integrate serially, run centralized relevant checks",
-  "validation_state": "598_passed_0_failed_0_skipped_before_live_shared_DAG_followup",
+  "next_step": "continue_existing_read_only_30_minute_monitoring",
+  "validation_state": "602_passed_0_failed_0_skipped",
   "validation_database": {
     "host": "192.168.31.230",
     "port": 25019,
@@ -326,24 +329,22 @@
     "private_admin_record": ".runtime/rbf-execution-20261105/validation-pg.private.json",
     "purpose": "isolated RBF verification only"
   },
-  "pending_followups": [
-    {
-      "key": "sources",
-      "task": "shared_DAG_proof_cost_proven_live_awaiting_bounded_optimization"
-    }
-  ],
+  "pending_followups": [],
   "shared_migrations_registered": [
     "models_recovery_wait",
     "models_prestart_reconciliation",
     "0041_conversation_submission_confirmation",
     "rbf_life_planning_wake",
-    "rbf_source_proof_jit"
+    "rbf_source_proof_jit",
+    "rbf_source_proof_reuse"
   ],
-  "integration_head": "680662a1e53e70893db47f4559447411b1415ca9",
+  "integration_head": "548553251a1ad6a92bab7b662698bd0215e1ad6f",
   "production_changed": true,
   "application_source": "79c522282715ac5e909728776a340f30b61aed38",
-  "database_migration_source": "680662a1e53e70893db47f4559447411b1415ca9",
+  "database_migration_source": "548553251a1ad6a92bab7b662698bd0215e1ad6f",
   "data_generation": "0833be12-8fba-4db7-9e22-2120e8ea13ea",
   "original_memory_recovery": "original_5480_batch_applied_both_episodes_completed",
-  "automation": "existing_automation_active_30_minutes_terra_max_normal_read_only"
+  "automation": "existing_automation_active_30_minutes_terra_max_normal_read_only",
+  "cleanup": "owned_test_database_and_build_source_removed_other_containers_unchanged",
+  "delivery_handoff": "docs/handoffs/RBF-20261105-integration.md"
 }
