@@ -24,3 +24,9 @@
 本合同覆盖持久回执、事件和消费身份。`enqueue_control` 在排队后返回的 `reconcile_requested`/`cancel_requested` 临时确认仍沿用原公开响应，未持久化，也未纳入本补充；将控制确认从回执拆出属于后续接口协调。
 
 新增 `test_rbg_action_receipt_identity.py`，使用实际 `Actions.save`、结果事件入队与 `ResultConsumer` 消费路径的隔离 PostgreSQL 夹具，覆盖同 ID 语义变化、事件与消费去重、重复保存、历史 ID 再用、来源撤回、取消标记及旧 unknown 回执；只编写用例，未运行测试。
+
+## 首轮集中验证后的夹具同步
+
+协调者在集成提交 `e5d6ccb4b2d932b06f0aa106aa6d215b6f24880e` 的首轮集中验证中发现，上述文件四个用例均在构造 `ResultConsumer` 时因夹具缺少 `conversation.jobs` 而报 setup error。对照该提交的 `conversation/results.py` 与 `rbg_result_ledger.py`，该消费者现在还需要结果投递/分支进度表、Life 归属查询和独立分支的事务完成回调；旧的统一 `life.capability_result` 接口已由活动与承诺分支替代。
+
+返修仅调整该测试夹具：加载现有 Life 和 RBG 结果账本 schema，将同一真实 JobQueue 和来源校验端口提供给 conversation，准备真实活动记录，并让合成活动处理器在同一事务中记录回执及完成分支。原先两个不同回执各消费一次的断言改为检查两次活动分支调用及其回执 ID，并检查两个消费记录、十二个分支各执行一次和活动最终版本，未删减身份或去重断言。未修改生产代码或已通过的视频用例。本窗口未运行测试；实际结果待协调者在集成环境补跑确认。

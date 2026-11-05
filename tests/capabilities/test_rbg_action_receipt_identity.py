@@ -24,6 +24,8 @@ async def receipts(database):
     await migrate(database, (
         Migration("capabilities-0001", files("tianshu.capabilities").joinpath("schema.sql").read_text()),
         Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
+        Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
+        Migration("rbg_results", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text()),
     ))
     jobs = JobQueue(database.config.dsn, database=database)
     jobs.register_route("conversation.result")
@@ -47,9 +49,25 @@ async def receipts(database):
         await conn.execute(
             "INSERT INTO capabilities.attempts(id,action_id,attempt,receipt) VALUES(%s,%s,%s::jsonb,%s::jsonb)",
             (attempt.attempt_id, action.action_id, encoded(attempt), encoded(initial)))
-    life = SimpleNamespace(capability_result=AsyncMock(return_value=False), detached_result=AsyncMock())
+        await conn.execute(
+            "INSERT INTO life.activities(id,actor_id,title,kind,state,action_id,scope_ids) "
+            "VALUES(%s,%s,%s,%s,%s,%s,%s)",
+            ("activity", context.actor_id, "Read input", "reading", "running", action.action_id, list(context.scope_ids)))
+
+    async def activity_result(_context, result, revision, _observed_at, _capability_id, *, on_complete):
+        # Match the atomic Life branch contract: record this result and complete
+        # its independent consumer claim in one transaction.
+        async with database.transaction() as conn:
+            await on_complete.begin(conn)
+            await conn.execute("UPDATE life.activities SET last_receipt_id=%s,last_result_revision=%s WHERE id=%s",
+                               (result.receipt_id, revision, "activity"))
+            await on_complete(conn, proof={"activity_id": "activity", "receipt_id": result.receipt_id,
+                                           "result_revision": revision})
+
+    life = SimpleNamespace(_activity_result=AsyncMock(side_effect=activity_result),
+                           _commitment_result=AsyncMock(), detached_result=AsyncMock())
     renderer = SimpleNamespace(on_action_result=AsyncMock(return_value=False))
-    conversation = SimpleNamespace(on_result=AsyncMock())
+    conversation = SimpleNamespace(jobs=jobs, sources=actions.sources, on_result=AsyncMock())
     consumer = ResultConsumer(database, identity, actions, SimpleNamespace(), SimpleNamespace(),
                               conversation, life, renderer)
     yield SimpleNamespace(database=database, actions=actions, action=action, attempt=attempt,
@@ -96,8 +114,21 @@ async def test_changed_same_id_publishes_distinct_event_and_consumes_once_per_re
     async with state.database.transaction(read_only=True) as conn:
         consumed = await (await conn.execute(
             "SELECT receipt_id FROM conversation.result_consumption ORDER BY receipt_id")).fetchall()
+        progress = await (await conn.execute(
+            "SELECT receipt_id,consumer,disposition,attempts,proof FROM conversation.result_consumer_progress "
+            "ORDER BY receipt_id,consumer")).fetchall()
+        activity = await (await conn.execute(
+            "SELECT last_receipt_id,last_result_revision FROM life.activities WHERE id='activity'")).fetchone()
     assert {row["receipt_id"] for row in consumed} == {first.receipt_id, second.receipt_id}
-    assert state.life.capability_result.await_count == 2
+    assert state.life._activity_result.await_count == 2
+    assert [call.args[1].receipt_id for call in state.life._activity_result.await_args_list] == [
+        first.receipt_id, second.receipt_id]
+    assert activity == {"last_receipt_id": second.receipt_id, "last_result_revision": event_rows[1]["result_revision"]}
+    assert len(progress) == 12 and all(row["attempts"] == 1 for row in progress)
+    life_progress = {row["receipt_id"]: row for row in progress if row["consumer"] == "life_activity"}
+    assert set(life_progress) == {first.receipt_id, second.receipt_id}
+    assert all(row["disposition"] == "done" and row["proof"]["receipt_id"] == receipt_id
+               for receipt_id, row in life_progress.items())
 
     before = await snapshot(state)
     assert before["attempt"]["attempt_id"] == state.attempt.attempt_id
