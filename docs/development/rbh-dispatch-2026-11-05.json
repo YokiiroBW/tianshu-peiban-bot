@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBH-20261105",
-  "state": "central_validation",
+  "state": "verified_pending_release",
   "baseline_source": "ab471c58b70eab0a2807b900b2eebda114b53330",
   "production_source": "a41c85d4501702694a5920f31a3e8f30140f7851",
   "parent_thread": "01a1ac04-8013-7620-8d29-a2f2656d850b",
@@ -27,7 +27,7 @@
         "tests/runtime/test_database.py",
         "docs/handoffs/RBH-01.md"
       ],
-      "status": "integrated_pending_central_validation",
+      "status": "verified_pending_release",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -52,7 +52,7 @@
         "tests/models/",
         "docs/handoffs/RBH-02.md"
       ],
-      "status": "integrated_pending_central_validation",
+      "status": "verified_pending_release",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -83,7 +83,7 @@
         "tests/companion/test_rb_growth_async.py",
         "tests/companion/test_*growth*.py"
       ],
-      "status": "integrated_pending_central_validation",
+      "status": "verified_pending_release",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -92,7 +92,9 @@
       "source_commit": "4cee60d2335ea55a866b2502ec63c77dbfda2a13",
       "integration_commit": "0a167f85",
       "handoff_commit": "282391b5d2d7bb51137b67fd261e15b53ca52217",
-      "followup_commit": "b6bb6d33dc5f435754dfb7fad0cd951663939f55"
+      "followup_commit": "b6bb6d33dc5f435754dfb7fad0cd951663939f55",
+      "followup_integration_commit": "3f0158b6",
+      "validation_followup_commit": "58989cb10f16b3e010d6007891d42bf76b7bfbd8"
     },
     {
       "id": "RBH-04",
@@ -121,7 +123,7 @@
         "tests/memory/test_operations_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py"
       ],
-      "status": "integrated_pending_central_validation",
+      "status": "verified_pending_release",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -130,7 +132,9 @@
       "source_commit": "9ac79841a5b83134ad80c18dbea4d11dc0ebe043",
       "integration_commit": "6f967bb6",
       "followup_commit": "3c69f454b377dcf80c7000be2e714d3e6054f1ce",
-      "followup_integration_commit": "0c373677"
+      "followup_integration_commit": "0c373677",
+      "validation_followup_commit": "1dcd75e5bd33b268239b2fccdc2159d92a504b37",
+      "validation_integration_commit": "9be200d2"
     },
     {
       "id": "RBH-05",
@@ -162,14 +166,16 @@
         "tests/life/test_rb_plan_recovery.py",
         "tests/life/test_rbf_planning_recovery.py"
       ],
-      "status": "integrated_pending_central_validation",
+      "status": "verified_pending_release",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "previous_head": "a1d8a01bc614566ff70a5092daed53a0f9b03c53",
       "actual_head": "ec245f9e30f935f7bcadbc441373a45c9f9d07a4",
       "source_commit": "00b2b5c8b0f96dbf5efaf0528b5648c258e4eed1",
-      "integration_commit": "651abbf6"
+      "integration_commit": "651abbf6",
+      "validation_followup_commit": "102479519cf00c51ba64eea1a4fc7db304c95a38",
+      "validation_integration_commit": "d136d54f"
     },
     {
       "id": "RBH-06",
@@ -188,7 +194,7 @@
         "tests/core/test_rbh_*.py",
         "docs/handoffs/RBH-06.md"
       ],
-      "status": "integrated_pending_central_validation",
+      "status": "verified_pending_release",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -215,5 +221,18 @@
     "rbh_not_sent",
     "rbh_growth_transport",
     "rbh_transport_recovery"
-  ]
+  ],
+  "verified_at": "2026-11-05T15:27:33.976371+00:00",
+  "validation": {
+    "state": "passed_with_existing_failures",
+    "source": "d136d54f9f2100f81d2e5b2aee5a2038f27c8ab0",
+    "counts": {
+      "passed": 487,
+      "failed": 38,
+      "error": 0,
+      "skipped": 0
+    },
+    "total_distinct_cases": 525,
+    "existing_failure_count": 38
+  }
 }
