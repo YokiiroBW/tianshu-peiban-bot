@@ -488,7 +488,7 @@
       "conditional_priority": "P1 planning investigation",
       "owner": "Life",
       "title": "稳定观察原 Action、可靠唤醒与条件式规划修复",
-      "status": "implementing",
+      "status": "candidate_submitted",
       "depends_on": [
         "RBI-00"
       ],
@@ -547,7 +547,15 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "implementation_turn_id": "01a1aeb3-e586-7e30-88ca-2c3f58f5f78d"
+      "implementation_turn_id": "01a1aeb3-e586-7e30-88ca-2c3f58f5f78d",
+      "source_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "handoff_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "candidate_head": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "required_commits_in_order": [
+        "f943befa74b75d8b093573d565e48650e3311a0d"
+      ],
+      "pending_followup": null,
+      "verification": "reported AST 27 Python files and diff static only; tests/build/smoke/production not run"
     },
     {
       "id": "RBI-05",

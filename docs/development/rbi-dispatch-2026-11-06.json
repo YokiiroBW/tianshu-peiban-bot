@@ -237,12 +237,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "status": "implementing",
+      "status": "candidate_submitted",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
       "allowed_paths": [
         "src/tianshu/life/worker.py",
         "src/tianshu/life/recovery.py",
@@ -292,7 +292,24 @@
       },
       "verified": false,
       "integrated": false,
-      "scope_note": "仅针对consumer_interrupted纯计算状态映射修复两个实际写作调用方；generation SHARE可先于Sources，不为锁序扩大重构。"
+      "scope_note": "仅针对consumer_interrupted纯计算状态映射修复两个实际写作调用方；generation SHARE可先于Sources，不为锁序扩大重构。",
+      "handoff_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "candidate_head": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "required_commits_in_order": [
+        "f943befa74b75d8b093573d565e48650e3311a0d"
+      ],
+      "pending_followup": null,
+      "verification": "reported AST 27 Python files and diff static only; tests/build/smoke/production not run",
+      "root_migration_registration": {
+        "sql": "src/tianshu/life/rbi_activity_reconciliation.sql",
+        "registration": "life module and product migrations",
+        "contains": [
+          "nullable decision_trace",
+          "activity scan indexes",
+          "fixed-target wake intents and indexes",
+          "actor/wake_condition target indexes"
+        ]
+      }
     },
     {
       "id": "RBI-05",
@@ -563,7 +580,15 @@
     "diary_observation_closure": "Life reports combined original recipe/request and current diary contexts/refs via scoped_refs before any Source/domain lock; diary full snapshot CAS and recipe/request recheck; code pending, not validated",
     "native_terminal_correction": "d9e4fd08 covers finish/retry/manual retried attempt increments; ambiguous abort and missing last event remain history_unknown; verify native manager paths centrally",
     "native_history_evidence_limit": "checkpoint tail anchor does not prove no earlier middle event was deleted; preserve unknown when source retention evidence missing; never reset durable counters",
-    "runtime_migration_order": "register rbi_recovery_repairs and rbi_execution_budget in both product/execution entrypoints after recovery/runtime; execution budget after 0003_procrastinate"
+    "runtime_migration_order": "register rbi_recovery_repairs and rbi_execution_budget in both product/execution entrypoints after recovery/runtime; execution budget after 0003_procrastinate",
+    "life_completion_wake_task": {
+      "task": "life.activity_completed_wake",
+      "handler": "worker.activity_completed_wake",
+      "execution_lane": "ExecutionLane.LIFE",
+      "resource_recovery": true
+    },
+    "life_maintenance": "bot-background: worker.reconcile_due(limit=32); retain startup recovery",
+    "life_test_fixtures": "add new DDL to shared setup including test_planner_execution; use real Models attempt/submission facts; exact fake Action/Identity/Sources ports follow real contracts"
   },
   "all_implementation_windows_started": true,
   "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
