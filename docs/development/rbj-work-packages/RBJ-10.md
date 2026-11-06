@@ -4,6 +4,7 @@
 
 - src/tianshu/conversation/rbi_result_wake.py
 - src/tianshu/conversation/results.py
+- src/tianshu/conversation/rbj_result_repair.py
 - tests/conversation/test_rbj_native_admission.py
 - docs/handoffs/RBJ-10.md
 
