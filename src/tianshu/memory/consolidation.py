@@ -1675,9 +1675,13 @@ class Consolidation:
                     observation_ref="models:"+str(details.get("attempt_id") or "unknown"),
                     retry_after=details.get("retry_after"), owner=owner)
                 block = policy_result.get("authority_block") if policy_result else None
-                if block and block != "source_unavailable":
+                if block == "recovery_model_cancelled":
+                    code, details = "explicit_cancel", {}
+                elif block == "recovery_model_receipt_mismatch":
+                    raise AppError(block, status=409)
+                elif block and block != "source_unavailable":
                     return
-                if block == "source_unavailable":
+                elif block == "source_unavailable":
                     code, details = block, {}
                 elif policy_result and (policy_result.get("unconfirmed") or
                         policy_result.get("status") not in {None, details["status"]}):

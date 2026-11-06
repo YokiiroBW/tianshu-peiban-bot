@@ -10,9 +10,9 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 
 from .consolidation_retry import retryable_code
-from .model_outcome import confirmed_computation_unknown, observe_original
+from .model_outcome import confirmed_computation_unknown, interrupted_computation, observe_original
 from .rbh_transport import validate_frozen_attempt_on
-from .rbi_outcome import lock_attempt_on, lock_batch_on, reconcile_locked_on
+from .rbi_outcome import lock_attempt_on, lock_batch_on, lock_original_recovery_facts_on, reconcile_locked_on
 
 
 LOCAL_FAILURE = "recovery_original_not_failed"
@@ -98,14 +98,14 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
     if outcome.receipt is None:
         return {"batch_id": batch_id, "queued": False, "reason": "original_unavailable"}
     if outcome.explicit_cancel:
-        return {"batch_id": batch_id, "queued": False, "reason": "explicit_cancel"}
+        return {"batch_id": batch_id, "queued": False, "reason": "recovery_model_cancelled"}
     if outcome.status == "unknown" and not confirmed_computation_unknown(outcome.receipt):
         return {"batch_id": batch_id, "queued": False, "reason": "original_unconfirmed"}
     if outcome.status == "succeeded" and outcome.result is None:
         return {"batch_id": batch_id, "queued": False, "reason": "original_result_unavailable"}
-    if outcome.status not in {"queued", "running", "unknown", "failed", "succeeded"}:
+    if outcome.status not in {"queued", "running", "unknown", "failed", "succeeded"} and not interrupted_computation(outcome.receipt):
         return {"batch_id": batch_id, "queued": False, "reason": "original_" + outcome.status}
-    if outcome.status in {"unknown", "failed"} and not retryable_code(outcome.code, outcome.status):
+    if (outcome.status in {"unknown", "failed"} or interrupted_computation(outcome.receipt)) and not retryable_code(outcome.code, outcome.status):
         return {"batch_id": batch_id, "queued": False, "reason": "original_not_retryable"}
     async with recovery.database.transaction() as conn:
         batch, context, block = await lock_batch_on(consolidation, conn, snapshot, recorded, request,
@@ -126,6 +126,7 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
                 return {"batch_id": batch_id, "queued": False, "reason": "memory_episode_changed"}
         covered_reason, coverage = await _coverage_on(conn, batch)
         if covered_reason:
+            await consolidation._assert_batch_generation_on(conn, batch)
             return {"batch_id": batch_id, "queued": False, "reason": covered_reason, "coverage": coverage}
         for episode, row in rows:
             if row["extraction_cursor"] != episode["before"]:
@@ -142,10 +143,15 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
                         "competing_batch_id": competing["batch_id"]}
         await consolidation._validate_submission_on(conn, batch, context, request.intent_id)
         attempt = await lock_attempt_on(conn, batch, request)
+        await consolidation._assert_batch_generation_on(conn, batch)
         lineage_ref = batch["manifest"].get("recovery")
         policy = recovery.memory.recovery_policy
         if not attempt or attempt.get("rejected_error") or not lineage_ref or not policy:
             return {"batch_id": batch_id, "queued": False, "reason": "memory_recovery_lineage_unavailable"}
+        if outcome.status in {"unknown", "failed"} or interrupted_computation(outcome.receipt):
+            reason, _ = await lock_original_recovery_facts_on(conn, request, outcome.receipt)
+            if reason:
+                return {"batch_id": batch_id, "queued": False, "reason": reason}
         await validate_frozen_attempt_on(conn, request.attempt_id, lineage_ref, recorded["request"])
         lineage = await (await conn.execute("SELECT *,now() AS db_now FROM runtime.recovery_lineages "
             "WHERE lineage_id=%s FOR UPDATE", (lineage_ref["lineage_id"],))).fetchone()
@@ -165,7 +171,7 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
             return {"batch_id": batch_id, "queued": False, "reason": "memory_recovery_material_changed"}
         if lineage["claim_token"] and lineage["claim_expires_at"] and lineage["claim_expires_at"] > lineage["db_now"]:
             return {"batch_id": batch_id, "queued": False, "reason": "memory_recovery_claimed"}
-        if outcome.status in {"unknown", "failed"}:
+        if outcome.status in {"unknown", "failed"} or interrupted_computation(outcome.receipt):
             budget = await policy.computation_budget_on(conn, lineage_ref["lineage_id"],
                 owner=lineage_ref["owner"], expected_version=lineage_ref["version"])
             if not budget["can_retry"]:
@@ -173,7 +179,7 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
         result = await reconcile_locked_on(consolidation, conn, batch, attempt, recorded, request, outcome)
         if result.get("authority_block"):
             return {"batch_id": batch_id, "queued": False, "reason": result["authority_block"]}
-        if outcome.status in {"unknown", "failed"}:
+        if outcome.status in {"unknown", "failed"} or interrupted_computation(outcome.receipt):
             due = result.get("retry_at") or lineage["db_now"]
         elif outcome.status == "succeeded":
             due = lineage["db_now"]

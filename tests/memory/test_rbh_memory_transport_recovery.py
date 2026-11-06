@@ -1,16 +1,18 @@
 """RBH Memory stories; the coordinator runs these with the integrated Runtime."""
 
+import asyncio
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib.util import module_from_spec, spec_from_file_location
+from psycopg.types.json import Jsonb
 from pathlib import Path
 import json
 
 import pytest
 
-from tianshu.models.ledger import submission_digest
 from tianshu.models.http_timing import HttpTiming
-from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
+from tianshu.models.ledger import AttemptLedger, receipt as ledger_receipt
+from tianshu.models.types import ModelPart, ModelResult
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryPolicy, RecoveryWait
 
@@ -23,8 +25,9 @@ rpc_examples = waits.load_helper("_rbh_rpc_examples",Path(__file__).parents[1]/"
 
 
 class LegacyFailure(waits.Model):
-    def __init__(self, *, failures=1):
+    def __init__(self, *, database, failures=1):
         super().__init__()
+        self.database = database
         self.failures = failures
 
     async def submit(self, request, *, completion):
@@ -33,11 +36,9 @@ class LegacyFailure(waits.Model):
             timing = HttpTiming(None)
             timing.connection_reused = False
             timing.mark("connect_start")
-            receipt = ModelReceipt(request.attempt_id,request.intent_id,"failed","not_started","fixture",1,
-                "fixture","fixture","openai.chat","fixture",error_code="transport_not_sent",
-                finished_at=datetime.now(UTC),data_generation=request.data_generation,
-                request_digest=submission_digest(request),diagnostic={"category":"not_sent","part_count":0,
-                    "part_kinds":[],"text_bytes":0,"native_completed":False},http_timing=timing.record())
+            receipt = await waits.recorded_failure(self.database, request, timing=timing.record(),
+                diagnostic={"category":"not_sent","part_count":0,"part_kinds":[],
+                            "text_bytes":0,"native_completed":False})
             self.results[request.attempt_id] = ModelResult((),receipt)
             return receipt
         return await super().submit(request,completion=completion)
@@ -72,7 +73,7 @@ async def test_live_failure_archives_without_retry_after_authority_withdrawal(
                 await withdraw()
             return receipt
 
-    model = WithdrawOnSubmit()
+    model = WithdrawOnSubmit(database=core.database)
     examples.configure(core,model)
     core.memory.bind_observability(statistics=None,recovery_policy=policy)
 
@@ -116,7 +117,7 @@ async def test_live_failure_archives_without_retry_after_authority_withdrawal(
 
 
 async def historical_failure(core, context, monkeypatch, name, *, failures=1):
-    model, policy = LegacyFailure(failures=failures), RecoveryPolicy()
+    model, policy = LegacyFailure(database=core.database, failures=failures), RecoveryPolicy()
     examples.configure(core,model)
     core.memory.bind_observability(statistics=None,recovery_policy=policy)
     note = policy.note_not_sent_on
@@ -253,7 +254,9 @@ async def test_reconciliation_keeps_ineligible_originals(core, ordinary_users, m
         result = await core.memory.consolidation.reconcile_transport_waits(limit=1)
         assert result["scheduled"] == 0
         if condition == "unknown":
-            assert result["changes"][0]["reason"] == "original_unknown"
+            # The returned receipt was changed while the locked Models fact
+            # still says failed; it cannot authorize a historical credit.
+            assert result["changes"][0]["reason"] == "recovery_model_outcome_changed"
         if condition == "stale":
             assert result["changes"][0]["reason"] == "memory_consolidation_episode_changed"
     async with core.database.transaction(read_only=True) as conn:
@@ -317,7 +320,7 @@ async def test_shared_dependency_allows_only_one_live_probe(core, ordinary_users
             return await super().submit(request,completion=completion)
 
     alice, _ = ordinary_users
-    model = PendingProbe()
+    model = PendingProbe(database=core.database)
     examples.configure(core,model)
     core.memory.bind_observability(statistics=None,recovery_policy=RecoveryPolicy())
     first = await examples.episode(core,alice,"rbh-probe-original")
@@ -377,7 +380,7 @@ async def test_unknown_original_success_is_observed_once_before_future_retry_due
 
 async def test_runtime_budget_exhaustion_keeps_original_without_auto_requeue(core, ordinary_users, monkeypatch):
     alice, _ = ordinary_users
-    model,policy = LegacyFailure(),RecoveryPolicy()
+    model,policy = LegacyFailure(database=core.database),RecoveryPolicy()
     examples.configure(core,model)
     core.memory.bind_observability(statistics=None,recovery_policy=policy)
 
@@ -459,3 +462,121 @@ async def test_explicit_historical_resume_keeps_targeted_wake(core, ordinary_use
             "WHERE batch_id=%s",(batch["batch_id"],))).fetchone()
     assert restored["status"] == "applied", restored["error_code"]
     assert restored["step_ids"] == batch["step_ids"] and len(model.submissions) == 1
+
+
+@pytest.mark.parametrize("batch_status,fresh_observation", [("failed",False), ("failed",True),
+    ("quarantined",False), ("quarantined",True)])
+async def test_historical_not_sent_proof_survives_later_cancel_without_retry(
+        core, ordinary_users, monkeypatch, batch_status, fresh_observation):
+    alice, _ = ordinary_users
+    model, _, _, _, batch, lineage, steps = await historical_failure(
+        core, alice, monkeypatch, "rbh-evidence-then-cancel")
+    original = model.submissions[0][0]
+    prior_receipt = model.results[original.attempt_id].receipt
+    if batch_status == "quarantined":
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined' WHERE batch_id=%s",
+                               (batch["batch_id"],))
+    ledger = AttemptLedger(core.database, "memory-failed-fixture")
+    await ledger.request_cancel(original.attempt_id, reason="explicit_cancel")
+    if fresh_observation:
+        current_receipt = ledger_receipt(await ledger.get(original.attempt_id))
+        model.results[original.attempt_id] = replace(model.results[original.attempt_id], receipt=current_receipt)
+    first = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert first["scheduled"] == 0 and first["changes"][0]["reason"] == "confirmed_not_sent"
+    assert first["changes"][0]["observed_attempt_eligibility"] == "recovery_model_cancelled"
+    if batch_status == "quarantined":
+        async with core.database.transaction(read_only=True) as conn:
+            fenced = await (await conn.execute("SELECT manifest,retry_due_at FROM memory.consolidation_batches "
+                "WHERE batch_id=%s", (batch["batch_id"],))).fetchone()
+        assert fenced["retry_due_at"] is None
+        assert fenced["manifest"]["recovery_budget_blocked"]["reason"] == "recovery_model_cancelled"
+    second = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert second["scheduled"] == 0 and second["changes"][0]["reason"] == "recovery_model_cancelled"
+    async with core.database.transaction(read_only=True) as conn:
+        saved = await (await conn.execute("SELECT status,step_ids,manifest,retry_due_at FROM memory.consolidation_batches "
+                                          "WHERE batch_id=%s", (batch["batch_id"],))).fetchone()
+        credits = await (await conn.execute("SELECT count(*) AS n FROM runtime.recovery_not_sent WHERE lineage_id=%s",
+                                            (lineage,))).fetchone()
+        after = await (await conn.execute("SELECT step_id,request FROM memory.model_steps WHERE step_id=ANY(%s::text[])",
+                                          (batch["step_ids"],))).fetchall()
+        old = await (await conn.execute("SELECT first_failure FROM memory.consolidation_attempts WHERE step_id=%s",
+                                        (batch["step_ids"][-1],))).fetchone()
+    assert saved["status"] == batch_status and saved["step_ids"] == batch["step_ids"] and after == steps
+    if batch_status == "quarantined":
+        assert saved["retry_due_at"] is None
+        assert saved["manifest"]["recovery_budget_blocked"]["reason"] == "recovery_model_cancelled"
+    assert credits["n"] == 1 and len(model.submissions) == 1
+    assert old["first_failure"]["attempt_id"] == prior_receipt.attempt_id
+    assert old["first_failure"].get("cancellation_reason") is None
+    assert model.results[original.attempt_id].receipt.cancellation_reason == ("explicit_cancel" if fresh_observation else None)
+    assert (await ledger.get(original.attempt_id))["cancellation_reason"] == "explicit_cancel"
+
+
+async def test_missing_original_submission_never_earns_not_sent_credit(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model, _, _, _, batch, lineage, _ = await historical_failure(core, alice, monkeypatch, "rbh-missing-facts")
+    attempt_id = model.submissions[0][0].attempt_id
+    async with core.database.transaction() as conn:
+        await conn.execute("DELETE FROM models.submissions WHERE attempt_id=%s", (attempt_id,))
+    result = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert result["scheduled"] == 0 and result["changes"][0]["reason"] == "recovery_model_receipt_unconfirmed"
+    async with core.database.transaction(read_only=True) as conn:
+        current = await (await conn.execute("SELECT status,error_code,step_ids FROM memory.consolidation_batches "
+            "WHERE batch_id=%s", (batch["batch_id"],))).fetchone()
+        credits = await (await conn.execute("SELECT count(*) AS n FROM runtime.recovery_not_sent WHERE lineage_id=%s",
+                                            (lineage,))).fetchone()
+    assert current["status"] == "failed" and current["step_ids"] == batch["step_ids"] and credits["n"] == 0
+    assert len(model.submissions) == 1
+
+
+async def test_rbh_models_facts_are_locked_before_runtime_not_sent_note(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model, policy, _, _, batch, _, _ = await historical_failure(core, alice, monkeypatch, "rbh-facts-lock")
+    original_note = policy.note_not_sent_on
+    ledger = AttemptLedger(core.database, "memory-failed-fixture")
+    started = asyncio.Event()
+    cancel_task = None
+
+    async def note_while_cancel_waits(*args, **kwargs):
+        nonlocal cancel_task
+        async def cancel():
+            started.set()
+            return await ledger.request_cancel(model.submissions[0][0].attempt_id, reason="explicit_cancel")
+        cancel_task = asyncio.create_task(cancel())
+        await started.wait()
+        await asyncio.sleep(0.05)
+        assert not cancel_task.done()
+        return await original_note(*args, **kwargs)
+
+    monkeypatch.setattr(policy, "note_not_sent_on", note_while_cancel_waits)
+    result = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert result["scheduled"] == 0 and cancel_task is not None
+    await asyncio.wait_for(cancel_task, timeout=5)
+    assert len(model.submissions) == 1 and batch["step_ids"] == [model.submissions[0][0].intent_id]
+
+
+@pytest.mark.parametrize("archive", ["missing", "different_route"])
+async def test_cancel_without_matching_archive_does_not_invent_not_sent_credit(core, ordinary_users, monkeypatch, archive):
+    alice, _ = ordinary_users
+    model, _, _, _, batch, lineage, _ = await historical_failure(core, alice, monkeypatch, "rbh-cancel-no-archive")
+    attempt_id = model.submissions[0][0].attempt_id
+    ledger = AttemptLedger(core.database, "memory-failed-fixture")
+    await ledger.request_cancel(attempt_id, reason="explicit_cancel")
+    model.results[attempt_id] = replace(model.results[attempt_id], receipt=ledger_receipt(await ledger.get(attempt_id)))
+    async with core.database.transaction() as conn:
+        if archive == "missing":
+            await conn.execute("UPDATE memory.consolidation_attempts SET first_failure=NULL WHERE model_attempt_id=%s", (attempt_id,))
+        else:
+            await conn.execute("UPDATE memory.consolidation_attempts SET first_failure=first_failure || %s "
+                "WHERE model_attempt_id=%s", (Jsonb({"route_id":"different"}), attempt_id))
+        await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined' WHERE batch_id=%s", (batch["batch_id"],))
+    result = await core.memory.consolidation.reconcile_transport_waits(limit=1)
+    assert result["scheduled"] == 0 and result["changes"][0]["reason"] == "recovery_model_cancelled"
+    async with core.database.transaction(read_only=True) as conn:
+        current = await (await conn.execute("SELECT manifest,retry_due_at FROM memory.consolidation_batches WHERE batch_id=%s",
+                                            (batch["batch_id"],))).fetchone()
+        credits = await (await conn.execute("SELECT count(*) AS n FROM runtime.recovery_not_sent WHERE lineage_id=%s",
+                                            (lineage,))).fetchone()
+    assert credits["n"] == 0 and current["retry_due_at"] is None
+    assert current["manifest"]["recovery_budget_blocked"]["reason"] == "recovery_model_cancelled"

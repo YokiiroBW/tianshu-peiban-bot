@@ -19,7 +19,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from . import codec
 from .generation import MODEL_REQUEST_SECONDS
-from .model_outcome import confirmed_computation_unknown, observe_original
+from .model_outcome import confirmed_computation_unknown, interrupted_computation, observe_original
 
 OBSERVE_SECONDS = 30
 EXPLICIT_RETRY_LIMIT = 1
@@ -131,6 +131,10 @@ class ConsolidationRetries:
                 block = policy_result.get("authority_block") if policy_result else None
                 if block == "source_unavailable":
                     raise AppError(block,status=403)
+                if block == "recovery_model_cancelled":
+                    raise AppError("explicit_cancel", status=409)
+                if block == "recovery_model_receipt_mismatch":
+                    raise AppError(block, status=409)
                 if block:
                     await self._postpone(batch, code=block, owner=owner)
                     return None
@@ -188,7 +192,8 @@ class ConsolidationRetries:
     async def _successor(self, batch, context, previous, recorded, original, outcome, *, owner):
         # Only this fresh original receipt can authorize the next computation.
         receipt = outcome.receipt
-        if (receipt is None or outcome.explicit_cancel or outcome.status not in {"unknown", "failed", "succeeded"}
+        if (receipt is None or outcome.explicit_cancel
+                or outcome.status not in {"unknown", "failed", "succeeded"} and not interrupted_computation(receipt)
                 or outcome.status == "unknown" and not confirmed_computation_unknown(receipt)):
             await self._postpone(batch, code="model_outcome_unconfirmed", owner=owner)
             return None
@@ -207,6 +212,10 @@ class ConsolidationRetries:
                 return None
             result = await reconcile_locked_on(self.consolidation, conn, fresh, prior, recorded, original,
                                                outcome, authority_block=block)
+            if result.get("authority_block") == "recovery_model_cancelled":
+                raise AppError("explicit_cancel", status=409)
+            if result.get("authority_block") == "recovery_model_receipt_mismatch":
+                raise AppError("recovery_model_receipt_mismatch", status=409)
             if result.get("authority_block"):
                 return None
             if fresh["status"] != "quarantined" or fresh.get("selected_step_id"):
@@ -247,7 +256,8 @@ class ConsolidationRetries:
                 await policy.reserve_attempt_on(conn,recovery["lineage_id"],owner=recovery["owner"],
                     expected_version=recovery["version"],attempt_id=request.attempt_id,
                     request_digest=body_hash(request_identity(wire(request))),route=request.route_id or request.function,
-                    original_state=outcome.status,claim_token=claim["claim_token"],model_receipt=receipt)
+                    original_state="failed" if interrupted_computation(receipt) else outcome.status,
+                    claim_token=claim["claim_token"],model_receipt=receipt)
                 await conn.execute("DELETE FROM memory.recovery_due_claims WHERE lineage_id=%s",(recovery["lineage_id"],))
             await self.steps.prepare_on(conn, step_id, request)
             await self.track_on(conn, batch["batch_id"], step_id, kind="retry", previous_step_id=previous["step_id"],
@@ -260,6 +270,34 @@ class ConsolidationRetries:
                 "retry_due_at=NULL,retry_requested=false,error_code=NULL,updated_at=now() WHERE batch_id=%s",
                 (Jsonb(manifest), step_id, batch["batch_id"]))
         return step_id, False
+
+    async def _defer_unconfirmed_on(self, conn, batch, attempt, reason):
+        """Leave an unconfirmed original observable without occupying the active slot."""
+        due = datetime.now(UTC) + timedelta(seconds=OBSERVE_SECONDS)
+        observation = {"status": "observing", "error_code": reason, "original_observation": "unconfirmed"}
+        await conn.execute("UPDATE memory.consolidation_attempts SET status='observing',error_code=%s,"
+            "first_failure=COALESCE(first_failure,%s),updated_at=now() WHERE batch_id=%s AND step_id=%s",
+            (reason, Jsonb(observation), batch["batch_id"], attempt["step_id"]))
+        manifest = deepcopy(batch["manifest"])
+        manifest.setdefault("quarantine", {"attempt_id": attempt["model_attempt_id"], **observation,
+                                           "action": "observe_original_attempt"})
+        await conn.execute("UPDATE memory.consolidation_batches SET status='quarantined',manifest=%s,"
+            "error_code=%s,retry_due_at=%s,updated_at=now() WHERE batch_id=%s",
+            (Jsonb(manifest), reason, due, batch["batch_id"]))
+        for episode in batch["manifest"]["episodes"]:
+            before = Jsonb(episode["before"]) if episode["before"] is not None else None
+            await conn.execute("UPDATE memory.episodes SET extraction_state='consolidation_unknown',"
+                "extraction_started_at=NULL WHERE episode_id=%s AND revision=%s AND sequence=%s AND active "
+                "AND extraction_cursor IS NOT DISTINCT FROM %s",
+                (episode["episode_id"], episode["revision"], episode["sequence"], before))
+        await conn.execute("UPDATE memory.consolidation_state SET active_batch_id=NULL,last_error=%s "
+            "WHERE partition_id=%s AND active_batch_id=%s", (reason, batch["partition_id"], batch["batch_id"]))
+        pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
+            "AND active AND extraction_state='pending' LIMIT 1", (batch["partition_id"],))).fetchone()
+        wake = datetime.now(UTC) if pending else None
+        await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=%s WHERE partition_id=%s",
+            (wake, wake, batch["partition_id"]))
+        await self.arm_on(conn, batch["partition_id"])
 
     async def defer(self, batch_id, error, *, owner=None):
         """Reconcile and quarantine the same fresh original observation atomically."""
@@ -292,7 +330,12 @@ class ConsolidationRetries:
             result = await reconcile_locked_on(self.consolidation, conn, fresh, attempt, recorded, original,
                                                outcome, authority_block=block)
             block = result.get("authority_block")
-            if block and block != "source_unavailable":
+            if block in {"recovery_model_receipt_unconfirmed", "recovery_model_outcome_changed"}:
+                await self._defer_unconfirmed_on(conn, fresh, attempt, block)
+                return True
+            if block == "recovery_model_receipt_mismatch":
+                raise AppError(block, status=409)
+            if block and block not in {"source_unavailable", "recovery_model_cancelled"}:
                 return True
             if not block and not terminal:
                 delay = (OBSERVE_SECONDS if receipt is None or status in {"queued", "running", "dispatching", "succeeded"}
@@ -336,9 +379,10 @@ class ConsolidationRetries:
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=%s WHERE partition_id=%s",
                     (wake, wake, batch["partition_id"]))
                 await self.arm_on(conn, batch["partition_id"])
-        if block == "source_unavailable":
+        if block in {"source_unavailable", "recovery_model_cancelled"}:
             await self.consolidation._failure(batch["partition_id"], batch_id,
-                AppError("source_unavailable", status=403), owner=owner)
+                AppError("source_unavailable" if block == "source_unavailable" else "explicit_cancel", status=409),
+                owner=owner)
         elif terminal:
             terminal_code = "explicit_cancel" if outcome.explicit_cancel else code
             await self.consolidation._failure(batch["partition_id"], batch_id,

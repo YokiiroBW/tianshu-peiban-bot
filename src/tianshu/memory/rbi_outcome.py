@@ -5,13 +5,14 @@ from copy import deepcopy
 from psycopg.types.json import Jsonb
 
 from tianshu.models.retry import transient_model_failure
+from tianshu.models.ledger import submission_digest
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import FailureCategory, RecoveryWait, classify_failure
 
 from . import codec
 from .authority import context_record
-from .model_outcome import confirmed_computation_unknown
+from .model_outcome import confirmed_computation_unknown, interrupted_computation
 from .rbh_transport import validate_frozen_attempt_on, validate_original_receipt
 
 
@@ -33,7 +34,6 @@ async def lock_batch_on(consolidation, conn, snapshot, recorded, request, *, own
     """Lock authority, partition, batch, materials and the original head, in that order."""
     from .consolidation import context_from_bound
 
-    await consolidation._assert_batch_generation_on(conn, snapshot)
     context = context_from_bound(snapshot["manifest"]["authority_bound"])
     valid = await consolidation.sources.validate_persistence(conn, context, codec.refs(snapshot["dependency_refs"]))
     if valid:
@@ -98,7 +98,31 @@ async def lock_observation_on(consolidation, conn, snapshot, recorded, request, 
             attempt.get(key) != expected_attempt.get(key) for key in
             ("number", "step_id", "model_attempt_id", "rejected_error", "recovery_lineage_id"))):
         return None, None, "memory_consolidation_batch_changed"
+    await consolidation._assert_batch_generation_on(conn, current)
     return current, attempt, block
+
+
+async def lock_original_recovery_facts_on(conn, request, receipt):
+    """Hold Models facts before Runtime and bind them to Memory's frozen request."""
+    from tianshu.models.rbi_outcome_guard import lock_recovery_facts_on
+    from tianshu.runtime.recovery_policy import validate_model_recovery_facts
+
+    facts = await lock_recovery_facts_on(conn, request.attempt_id)
+    try:
+        validate_model_recovery_facts(facts, receipt=receipt, expected_status=receipt.status,
+                                      data_generation=request.data_generation)
+    except AppError as error:
+        if error.code in {"recovery_model_receipt_unconfirmed", "recovery_model_cancelled",
+                          "recovery_model_receipt_mismatch", "recovery_model_outcome_changed"}:
+            return error.code, facts
+        raise
+    if not receipt.request_digest:
+        return "recovery_model_receipt_unconfirmed", facts
+    if (receipt.attempt_id != request.attempt_id or receipt.intent_id != request.intent_id
+            or receipt.data_generation != request.data_generation
+            or receipt.request_digest != submission_digest(request)):
+        return "recovery_model_receipt_mismatch", facts
+    return None, facts
 
 
 async def reconcile_locked_on(consolidation, conn, batch, attempt, recorded, request, outcome, *,
@@ -109,6 +133,13 @@ async def reconcile_locked_on(consolidation, conn, batch, attempt, recorded, req
         if authority_block == "source_unavailable":
             await consolidation.cancel_recovery_on(conn, batch["manifest"])
         return {"unconfirmed": True, "authority_block": authority_block}
+    if receipt.status in {"failed", "unknown"} or interrupted_computation(receipt):
+        reason, _ = await lock_original_recovery_facts_on(conn, request, receipt)
+        if reason:
+            if authority_block == "source_unavailable":
+                await consolidation.cancel_recovery_on(conn, batch["manifest"])
+                return {"authority_block": authority_block}
+            return {"authority_block": reason}
     validate_original_receipt(request, receipt)
     recovery = batch["manifest"].get("recovery")
     policy = consolidation.memory.recovery_policy
@@ -170,7 +201,8 @@ async def reconcile_locked_on(consolidation, conn, batch, attempt, recorded, req
     code = None if status == "succeeded" else receipt.error_code or "model_outcome_" + status
     if outcome.explicit_cancel:
         code = "explicit_cancel"
-    policy_state = "cancelled" if status == "cancelled" and ledger_status == "failed" else ledger_status
+    policy_state = ("cancelled" if status == "cancelled" and not interrupted_computation(receipt)
+                    and ledger_status == "failed" else ledger_status)
     await conn.execute("UPDATE memory.consolidation_attempts SET status=%s,error_code=%s,"
         "recovery_policy_state=COALESCE(%s,recovery_policy_state),updated_at=now() WHERE batch_id=%s AND step_id=%s",
         (status, code, policy_state, batch["batch_id"], request.intent_id))
@@ -188,7 +220,7 @@ async def reconcile_locked_on(consolidation, conn, batch, attempt, recorded, req
         await consolidation.cancel_recovery_on(conn, batch["manifest"])
         return {"authority_block": authority_block}
     result = {"status": status, "policy_state": policy_state}
-    if recovery and policy and status == "failed":
+    if recovery and policy and (status == "failed" or interrupted_computation(receipt)):
         result.update(await policy.note_not_sent_on(conn, request.attempt_id, owner=recovery["owner"],
             expected_version=recovery["version"], model_receipt=receipt))
         if result.get("can_retry") and batch["manifest"].get("rbh_claim_budget"):
@@ -198,7 +230,7 @@ async def reconcile_locked_on(consolidation, conn, batch, attempt, recorded, req
     elif recovery and policy and status == "unknown" and confirmed_computation_unknown(receipt):
         result.update(await policy.computation_budget_on(conn, recovery["lineage_id"],
             owner=recovery["owner"], expected_version=recovery["version"]))
-    if status == "failed" and result.get("can_retry") is False and batch["status"] == "quarantined":
+    if (status == "failed" or interrupted_computation(receipt)) and result.get("can_retry") is False and batch["status"] == "quarantined":
         marker = {"reason": result["reason"], "version": recovery["version"]}
         await conn.execute("UPDATE memory.consolidation_batches SET manifest=jsonb_set(manifest,"
             "'{recovery_budget_blocked}',%s,true),retry_due_at=NULL WHERE batch_id=%s", (Jsonb(marker), batch["batch_id"]))

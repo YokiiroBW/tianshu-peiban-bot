@@ -110,6 +110,13 @@ def confirmed_computation_unknown(receipt):
             receipt.cancellation_reason != "explicit_cancel")
 
 
+def interrupted_computation(receipt):
+    """Only this explicit Models tuple names a retryable pure-computation interruption."""
+    return (isinstance(receipt, ModelReceipt) and receipt.status == "cancelled"
+            and receipt.error_code == "consumer_interrupted"
+            and receipt.cancellation_reason == "consumer_interrupted")
+
+
 async def observe_original(models, request):
     """A returned original receipt is evidence; missing/unavailable control is not."""
     control_error=None

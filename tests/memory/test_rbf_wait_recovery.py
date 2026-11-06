@@ -9,6 +9,8 @@ import pytest
 
 from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.models.codec import request_from_wire
+from tianshu.models.catalog import RoutePlan
+from tianshu.models.ledger import AttemptLedger, receipt as ledger_receipt
 from tianshu.runtime.database import DatabaseFailure
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryPolicy, RecoveryWait, recovery_wait_from_wire
@@ -27,6 +29,17 @@ core_fixtures = load_helper("_rbf_core_fixtures", Path(__file__).parents[1] / "c
 examples = load_helper("_rbf_consolidation_examples", Path(__file__).parents[1] / "core" / "test_rb_consolidation_write.py")
 core = core_fixtures.core
 ordinary_users = core_fixtures.ordinary_users
+
+
+async def recorded_failure(database, request, *, timing=None, diagnostic=None):
+    """Record a real failed Models attempt for cross-domain recovery fixtures."""
+    ledger = AttemptLedger(database, "memory-failed-fixture")
+    plan = RoutePlan("fixture", 1, "fixture", "fixture", "openai.chat", "http://localhost",
+                     "KEY", "fixture", frozenset({"text"}), {})
+    await ledger.create(request, plan, {}, frozen=request, data_generation=request.data_generation)
+    await ledger.finish_before_start(request.attempt_id, "failed", error_code="transport_not_sent",
+                                     timing=timing, diagnostic=diagnostic)
+    return ledger_receipt(await ledger.get(request.attempt_id))
 
 
 class Model(examples.RecordedModel):
@@ -178,9 +191,7 @@ async def test_resume_historical_wait_reconciles_queued_domain_attempt_with_fail
         async def submit(self,request,*,completion):
             if len(self.submissions) < 2:
                 self.submissions.append((request,completion))
-                receipt = ModelReceipt(request.attempt_id,request.intent_id,"failed","not_started","fixture",1,
-                    "fixture","fixture","openai.chat","fixture",error_code="transport_not_sent",
-                    finished_at=datetime.now(UTC),data_generation=request.data_generation)
+                receipt = await recorded_failure(core.database, request)
                 self.results[request.attempt_id] = ModelResult((),receipt)
                 return receipt
             return await super().submit(request,completion=completion)
