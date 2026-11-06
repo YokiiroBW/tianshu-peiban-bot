@@ -61,7 +61,9 @@
       "contract_notice_accepted_at": "2026-11-06T11:50:48.017441+00:00",
       "contract_notice_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
       "scope_extension": "Bound selected/writable/alias_keys discovery before/after locks; share public-call budget with proof; preserve lock order and fail without truncated authorization.",
-      "latest_progress": "主协调已把锁闭包正式纳入本卡：锁前收集、锁后复核和来源证明将共享一次预算，同时保留现有锁序与集合变化回滚。现在正在把预算显式传递到这些内部步骤。"
+      "latest_progress": "主协调已把锁闭包正式纳入本卡：锁前收集、锁后复核和来源证明将共享一次预算，同时保留现有锁序与集合变化回滚。现在正在把预算显式传递到这些内部步骤。",
+      "archive_budget_note": "Remove redundant pre-lock bound seed read only after preserving complete alias/new-root lock discovery. Bound post-lock authority metadata and per-record proofs in the same call budget; technical budget exhaustion rolls back the full archive transaction.",
+      "scope_boundary_note": "Other Source writes limited to private budget plumbing along the affected lock-to-proof call chain; public signatures and business semantics unchanged. List actual affected entrypoints in handoff."
     },
     {
       "id": "RBJ-02",
