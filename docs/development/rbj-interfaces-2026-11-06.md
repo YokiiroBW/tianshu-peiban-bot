@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.8
+# RBJ 公共合同，2026-11-06，版本 1.9
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -260,5 +260,13 @@ Conversation 收到 waiting 后在原 sources.notify 派生通知事务外层抛
 Runtime 保持 close 的公开签名。只有资格的首次关闭引用精确对应同 generation/identity/grant 的真实 `completed` 执行事实，且历史完整、无 active/unknown 时，才允许把第一个可信领域证明引用绑定到该事实已有的 `observation_ref`。首次 `closed_at/close_observation_ref`、原执行/失败事实均不改；同领域引用重入幂等，不同引用仍冲突。失败、unknown、等待和不对应原完成事实的关闭不走此分支；原领域直接关闭、resolve 关闭继续遵循已有严格证明规则。不新增业务判定、迁移或平行账本。
 
 Conversation 对原 generation/action/receipt/revision、冻结 owner、consumer、disposition 和持久 proof 生成统一稳定引用；历史预算对账 resolve 与 close 使用同一规则。不得从 native succeeded、grant closed 或 Life 行状态推断完整消费证明。合法非应用终态保留自身 disposition 与理由，不改成 done。重复观察只对账原证明，不再运行原 Action/模型/外部发送，原普通四次失败与一次修复失败限制不变。
+
+## 17. 1.9 原失败对账不得解除当前有效消费租约
+
+集中复验及静态追踪确认：候选盘点会导入 native doing 的 unknown；随后该任务失败，普通直接调用仍可取得独立 consumer 租约。仅有原 native failed 事实不能证明这个后来取得的 token 属于该物理 ordinal。原按 receipt 清理所有 running token 的方式可能干扰有效消费者并新增不必要任务。
+
+Conversation 复用原 result_consumer_progress 和队列，不新增 claim 系统或 SQL。所有 reconcile_stranded 入口均先以数据库时间检查并保护同一原 receipt 的当前消费租约；存在有效未过期 running lease 时，继续有界导入原 native 历史并保留失败证据，但不得 resolve 未决 unknown、解除/替换 claim 或签发新消费执行。返回 waiting/consumer_running 和最早真实 lease_until，携带未改写的执行预算；此规则优先于同原事件的普通/repair 预算拒绝或既有 pending 采用，包括 allow_successor。物理 worker/repair 的预检同样不得趁该租约 begin/resolve 或消耗修复额度。缺失或无效 lease 的 running 状态保持 unknown，不能猜测为已过期。
+
+租约期间保留原 failed/unknown/native ordinal、token、proof、due 和普通/repair 总预算；例如一条已归一 failed 加另一条先前 unknown、当前 native 已 failed 的执行仍应报告 failed_executions=1、unknown_held=1，不能提前改成两条已确认失败。消费者完成后依精确原 proof 对账；租约真正过期后再走已有来源/Action/领域 proof 与 CAS 路径。renderer/dialogue 没有完整效果证明仍 blocked/unknown，不能据另一 ordinal 的失败认定其成功或未发生。不得通过修改用例为 accepted、伪造 doing、重置预算或重放外部效果绕过。
 
 实现者只完成整块代码、必要用例代码、静态 diff 审阅和提交，不运行测试/构建/烟测/模型/QQ/生产。根收齐后做必要 PG 联合验证，复用未变有效结果；不全量重跑 472 用例。发布和原对象恢复另由根串行执行，本次派发不代表已修复/验证/部署。
