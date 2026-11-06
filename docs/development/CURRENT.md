@@ -1,10 +1,10 @@
-# 2026-11-06 RBJ 五包已交付，Runtime/Conversation 收尾
+# 2026-11-06 RBJ 七包已串行集成，集中验证准备中
 
-Sources 9793412f、Capabilities f6c6955d、Life 41d903b3、Growth 2371ed32（交接ca539659）已完整交付；根已核对不可变提交/交接和路径归属，尚未集中集成/行为验证。Memory 7b055516（交接1adfaa7f）也已完整交付，Runtime、Conversation 两包收尾中，所有七包均已启动，当前没有排队包；精确状态见[记录](rbj-dispatch-2026-11-06.json)。
+七个既有窗口的完整提交已回收并无冲突串行合入 codex/rbj-integration-20261106。根正在接入 Runtime/Sources/Conversation 的五项新迁移和 Operations 的 Life worker 引用；映射见[派发记录](rbj-dispatch-2026-11-06.json)。实现者只做静态检查，当前没有PG/SQL/性能或业务验收通过结论。
 
-公共合同1.7已收口精确未执行退出、覆盖压平、来源单向去敏及旧consumer未决。Memory 复用已有轻维护/backfill，扫描尾页仅表示本轮结束，producer覆盖证据不足保持partial；Migration IDs/顺序已记录供根统一装配。Sources预算按访问量计费，其实际容量、深图与新回执性能仍待真实PG验证，不用静态检查声称亚秒。
+20:45:45只读补证确认：五条原成功回执的30个consumer行全存在，均只有life_activity因QueryCanceled仍pending且缺proof，其他五类已记录not_applicable；当前Action head与原receipt/revision均匹配，aggregate均不存在。发布后必须新鲜核对来源/owner/CAS，再核实Life+Goal+Memory+proof及整条aggregate，不能只看单项成功。证据保留在根.runtime，不提交业务正文。
 
-统一gpt-6.1-terra/max普通速度。实现者只写整块代码、必要用例及静态审阅后提交，根集中必要验证；不清数据/重置预算/重放unknown/主动QQ测试。生产仍为RBI-08版本，本批未部署，偶发403/429与备用路由不改。20:05巡检新增跨角色池超时及未关联对象的commit_unknown仅作证据保留，未推断为同一SQL根因、未重放。下方为历史截面。
+公共合同1.7已冻结（a5e5c5f0）。保留六角色、原身份/预算/unknown，真实SQL计算失败不免费重试；Source撤回和历史apply未知分别处理。临时PG验证沿既有独立owner流程，实际结果待集中执行。生产仍RBI-08，当前没有本批推送/部署、清库、预算重置或真实模型/QQ测试；403/429及备用路由不改。下方为历史截面。
 
 # 2026-11-06 14:34 自然巡检确认业务阻塞恶化
 

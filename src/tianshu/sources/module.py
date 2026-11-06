@@ -74,5 +74,13 @@ def create_module(service, identity):
                 "rbf_source_proof_reuse",
                 files("tianshu.sources").joinpath("rbf_source_proof_reuse.sql").read_text(encoding="utf-8"),
             ),
+            Migration(
+                "rbj_lock_graph",
+                files("tianshu.sources").joinpath("rbj_lock_graph.sql").read_text(encoding="utf-8"),
+            ),
+            Migration(
+                "rbj_source_proof",
+                files("tianshu.sources").joinpath("rbj_source_proof.sql").read_text(encoding="utf-8"),
+            ),
         ),
     )

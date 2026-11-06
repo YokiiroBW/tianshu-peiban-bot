@@ -30,6 +30,7 @@ def product_migrations():
         Migration("rbh_not_sent",
             files("tianshu.runtime").joinpath("rbh_not_sent.sql").read_text(encoding="utf-8")),
         *rbi_recovery_migrations(),
+        *rbj_runtime_migrations(),
         Migration("rbh_growth_transport",
             files("tianshu.companion").joinpath("rbh_growth_transport.sql").read_text(encoding="utf-8")),
         Migration("rbi_growth_maintenance",
@@ -43,6 +44,8 @@ def product_migrations():
             files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text(encoding="utf-8")),
         Migration("rbi_result_reconcile",
             files("tianshu.conversation").joinpath("rbi_result_reconcile.sql").read_text(encoding="utf-8")),
+        Migration("rbj_result_repair_evidence",
+            files("tianshu.conversation").joinpath("rbj_result_repair_evidence.sql").read_text(encoding="utf-8")),
         Migration("rbf_life_planning_wake",
             files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text(encoding="utf-8")),
         Migration("rbg_plan_retirement",
@@ -55,6 +58,10 @@ def product_migrations():
             files("tianshu.sources").joinpath("rbf_source_proof_jit.sql").read_text(encoding="utf-8")),
         Migration("rbf_source_proof_reuse",
             files("tianshu.sources").joinpath("rbf_source_proof_reuse.sql").read_text(encoding="utf-8")),
+        Migration("rbj_lock_graph",
+            files("tianshu.sources").joinpath("rbj_lock_graph.sql").read_text(encoding="utf-8")),
+        Migration("rbj_source_proof",
+            files("tianshu.sources").joinpath("rbj_source_proof.sql").read_text(encoding="utf-8")),
     )
 
 
@@ -64,6 +71,15 @@ def rbi_recovery_migrations():
             files("tianshu.runtime").joinpath("rbi_recovery_repairs.sql").read_text(encoding="utf-8")),
         Migration("rbi_execution_budget",
             files("tianshu.runtime").joinpath("rbi_execution_budget.sql").read_text(encoding="utf-8")),
+    )
+
+
+def rbj_runtime_migrations():
+    return (
+        Migration("rbj_wake",
+            files("tianshu.runtime").joinpath("rbj_wake.sql").read_text(encoding="utf-8")),
+        Migration("rbj_execution_repair",
+            files("tianshu.runtime").joinpath("rbj_execution_repair.sql").read_text(encoding="utf-8")),
     )
 
 
@@ -88,6 +104,7 @@ def execution_migrations(jobs):
         Migration("rbh_not_sent",
             files("tianshu.runtime").joinpath("rbh_not_sent.sql").read_text(encoding="utf-8")),
         *rbi_recovery_migrations(),
+        *rbj_runtime_migrations(),
         Migration("0008_models_async_execution", files("tianshu.models").joinpath("async_execution.sql").read_text()),
         Migration("0009_models_generation_fence", files("tianshu.models").joinpath("generation_fence.sql").read_text()),
         *model_recovery_migrations(),

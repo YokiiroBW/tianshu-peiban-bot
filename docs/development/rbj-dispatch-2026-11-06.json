@@ -1,6 +1,6 @@
 {
   "batch": "RBJ-20261106",
-  "status": "five_packages_received_runtime_conversation_active",
+  "status": "seven_packages_integrated_shared_wiring_in_progress",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "contract": "1.7",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
@@ -49,7 +49,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-sources-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-sources\\tianshu-peiban-bot",
-      "status": "committed_pending_integration_validation",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-01.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:19.341365+00:00",
@@ -70,7 +70,8 @@
       "handoff_commit": "9793412f53489d0ce1f07af4897384b54f7f1137",
       "receipt_at": "2026-11-06T12:31:36.987491+00:00",
       "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
-      "validation": "pending_central_integration"
+      "validation": "pending_central_postgresql",
+      "integrated_commit": "a8477779096c7b9dfee1cdcbc2908464d8c3726d"
     },
     {
       "id": "RBJ-02",
@@ -100,7 +101,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-runtime-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-runtime\\tianshu-peiban-bot",
-      "status": "implementation_started_confirmed",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-02.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:20.367666+00:00",
@@ -112,7 +113,11 @@
       "contract": "1.7",
       "contract_notice_accepted_at": "2026-11-06T12:40:06.902Z",
       "contract_notice_commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
-      "latest_progress": "普通与修复执行现在共用原执行账本，修复 job 会在入队事务中绑定资格，历史导入也能识别其用途。正在收口唤醒的覆盖、重试等待下界和旧任务接管，并补相应的用例代码。"
+      "latest_progress": "普通与修复执行现在共用原执行账本，修复 job 会在入队事务中绑定资格，历史导入也能识别其用途。正在收口唤醒的覆盖、重试等待下界和旧任务接管，并补相应的用例代码。",
+      "implementation_commit": "ed5251c22523b521c8f390163ecbb9863b1b78d7",
+      "handoff_commit": "bbb39ef9a0dae75be2c8b719644031bcefcba7a7",
+      "integrated_commit": "4bdf6af4e463415c64e9bb55f4a11fcaff0d3fb9",
+      "validation": "pending_central_postgresql"
     },
     {
       "id": "RBJ-03",
@@ -139,7 +144,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-capabilities-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-capabilities\\tianshu-peiban-bot",
-      "status": "committed_pending_integration_validation",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-03.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:21.911614+00:00",
@@ -154,7 +159,8 @@
       "implementation_commit": "f6c6955dc1018b0fa1f5698fbfd37c0292d12c6e",
       "receipt_at": "2026-11-06T11:50:48.017441+00:00",
       "receipt_verified": "commit exists, immutable handoff read, changed paths within allowlist; no tests run by coordinator",
-      "validation": "pending_central_integration"
+      "validation": "pending_central_postgresql",
+      "integrated_commit": "7d5a5f5c338081542e93a13b3f9b3407e6c0a95b"
     },
     {
       "id": "RBJ-04",
@@ -192,7 +198,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-conversation-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-conversation\\tianshu-peiban-bot",
-      "status": "implementation_started_confirmed",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-04.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:25.151432+00:00",
@@ -205,7 +211,11 @@
       "contract_notice_accepted_at": "2026-11-06T12:40:06.969Z",
       "contract_notice_commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
       "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
-      "generation_read_extension": "request(attempt_id,context,*,connection=None,material_key=None); read-only existing port, no new Sources lock"
+      "generation_read_extension": "request(attempt_id,context,*,connection=None,material_key=None); read-only existing port, no new Sources lock",
+      "implementation_commit": "4caddc3d6a56e4e85f4b0a98c1de8f62ddd26029",
+      "handoff_commit": "8f26d34d34ee15845ea76b244f49b75205918402",
+      "integrated_commit": "f77acfadd656d3f6eb09ee0e9daa7783beb46ba4",
+      "validation": "pending_central_postgresql"
     },
     {
       "id": "RBJ-05",
@@ -241,7 +251,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-life-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-life\\tianshu-peiban-bot",
-      "status": "committed_pending_integration_validation",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-05.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:33.585989+00:00",
@@ -258,7 +268,8 @@
       "handoff_commit": "41d903b3432a3095a55c3669311d9d0f324aeaae",
       "receipt_at": "2026-11-06T12:31:36.987491+00:00",
       "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
-      "validation": "pending_central_integration"
+      "validation": "pending_central_postgresql",
+      "integrated_commit": "6646ad7b55d0edb443d01ce91a2d34d6981207cb"
     },
     {
       "id": "RBJ-06",
@@ -287,7 +298,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-growth-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-growth\\tianshu-peiban-bot",
-      "status": "committed_pending_integration_validation",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-06.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:40.009152+00:00",
@@ -310,7 +321,8 @@
       "handoff_commit": "ca5396590f9febe9a77107ff8c9ce9e43136fb00",
       "receipt_at": "2026-11-06T12:31:36.987491+00:00",
       "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
-      "validation": "pending_central_integration"
+      "validation": "pending_central_postgresql",
+      "integrated_commit": "e6a3196a0a97d41065b99b6c9b444d7710089431"
     },
     {
       "id": "RBJ-07",
@@ -340,7 +352,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-memory-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-memory\\tianshu-peiban-bot",
-      "status": "committed_pending_integration_validation",
+      "status": "integrated_pending_validation",
       "handoff": "docs/handoffs/RBJ-07.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:41.107284+00:00",
@@ -359,7 +371,8 @@
       "handoff_commit": "1adfaa7f10e228d5873f218026bc487afc062ee2",
       "receipt_at": "2026-11-06T12:35:29.800211+00:00",
       "receipt_verified": "Immutable code/handoff read; allowed paths verified; no behavior/coverage tests run",
-      "validation": "pending_central_integration"
+      "validation": "pending_central_postgresql",
+      "integrated_commit": "c7d256497aa07a2b3b873f83934d6a67c886c325"
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
@@ -451,5 +464,20 @@
     ],
     "production_writes": false
   },
-  "contract_1_7_note": "Redaction may report real try-lock waiting; original durable Source notification defers and never silently loses pending work. Authoritative Source withdrawal is already committed."
+  "contract_1_7_note": "Redaction may report real try-lock waiting; original durable Source notification defers and never silently loses pending work. Authoritative Source withdrawal is already committed.",
+  "integrated_head": "4a7670eb736fbf23337d60dae334f6d3d2984f2d",
+  "integration_conflicts": 0,
+  "six_consumer_readonly_evidence": {
+    "observed_at": "2026-11-06T12:45:45.346898+00:00",
+    "local_time": "2026-11-06 20:45:45 Asia/Shanghai",
+    "evidence": ".runtime/rbi-execution-20261106/monitor-six-consumer-proof-20261106T124545Z.json",
+    "targets": 5,
+    "rows": 30,
+    "missing_rows": 0,
+    "all_heads_match": true,
+    "aggregate_rows": 0,
+    "per_target_life_activity": "pending/QueryCanceled/no proof",
+    "other_five_consumers": "not_applicable with original domain reasons",
+    "inference": "Targeted local Life repair is applicable evidence path, but actual full atomic proof and aggregate completion remain unverified"
+  }
 }

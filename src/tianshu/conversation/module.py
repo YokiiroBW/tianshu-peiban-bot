@@ -84,4 +84,5 @@ def create_module(service, expression, identity, result_consumer, renderer):
                     Migration("0040_conversation_input_supplements", files("tianshu.conversation").joinpath("input_supplements.sql").read_text()),
                     Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text()),
                     Migration("rbg_result_consumption", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text()),
-                    Migration("rbi_result_reconcile", files("tianshu.conversation").joinpath("rbi_result_reconcile.sql").read_text(encoding="utf-8"))))
+                    Migration("rbi_result_reconcile", files("tianshu.conversation").joinpath("rbi_result_reconcile.sql").read_text(encoding="utf-8")),
+                    Migration("rbj_result_repair_evidence", files("tianshu.conversation").joinpath("rbj_result_repair_evidence.sql").read_text(encoding="utf-8"))))
