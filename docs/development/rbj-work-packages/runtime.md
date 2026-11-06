@@ -7,7 +7,7 @@
 - 代码起点 `39da2d283deb17de2739b3c24fc1eeedc96cfa69`；实际准备提交由根正式派发消息及 dispatch 记录给出，必须核对一致。
 - gpt-6.1-terra / max，普通速度（service_tier=default、fast_mode=false），不自行开启 Fast。
 - 依赖：无跨窗口实现前置。依赖窗口使用冻结合同与夹具，不读写其可变目录；接口不明确即报根并继续自身独立工作。
-- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.3](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
+- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.6](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
 
 ## 完整交付范围
 
@@ -17,6 +17,7 @@
 4. inspect/begin/history import/finish/resolve 联合兼容普通和 repair 事实；历史扫描不能把 repair 重新算作普通或覆盖已有 purpose。旧 failed 不转 wait；started/unknown 先对账。真实服务器 statement_timeout 不一律免费重试，仅有已确认回滚的资源等待延续原资格。
 5. 新迁移 rbj_*.sql，仅机械事实/预算/唤醒能力，不判断 Life/Memory/Growth 业务终态。不能把新 Runtime 领取行锁长时间带入 Sources/Goal 领域事务。返回最少必要诊断和公开接口，不扩展依赖/配置或业务控制器。
 6. 必要用例代码覆盖 retry 锁解除与保存交错、退出/后继、无锁历史、旧代际/载荷冲突、doing 不强杀、一次修复资格、普通预算仍耗尽、伪造资格、未知提交、资源等待与真实失败区分。编写不运行。
+7. 1.6 完成精确 ordinal 的 repair preflight-stop、covered 历史一跳压平与追加覆盖事实、单向 redact_wake_on 的 conn-only 单实现及 JobQueue 委托。begin/exit 双向互斥，原正文不备份/恢复；原 digest/身份/未知保留，去敏与实际是否应用区分，具体字段/锁序按合同，公共事件 schema 仍归根。
 
 ## 独占可写文件
 

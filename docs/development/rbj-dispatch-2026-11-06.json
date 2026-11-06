@@ -1,8 +1,8 @@
 {
   "batch": "RBJ-20261106",
-  "status": "five_implementations_active_rbj03_committed_memory_queued",
+  "status": "four_packages_received_three_implementations_active",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.5",
+  "contract": "1.6",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -49,7 +49,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-sources-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-sources\\tianshu-peiban-bot",
-      "status": "implementation_started_confirmed",
+      "status": "committed_pending_integration_validation",
       "handoff": "docs/handoffs/RBJ-01.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:19.341365+00:00",
@@ -65,7 +65,12 @@
       "latest_progress": "主协调已把锁闭包正式纳入本卡：锁前收集、锁后复核和来源证明将共享一次预算，同时保留现有锁序与集合变化回滚。现在正在把预算显式传递到这些内部步骤。",
       "archive_budget_note": "Remove redundant pre-lock bound seed read only after preserving complete alias/new-root lock discovery. Bound post-lock authority metadata and per-record proofs in the same call budget; technical budget exhaustion rolls back the full archive transaction.",
       "scope_boundary_note": "Other Source writes limited to private budget plumbing along the affected lock-to-proof call chain; public signatures and business semantics unchanged. List actual affected entrypoints in handoff.",
-      "evidence_budget_note": "Evidence prove_many_on manifest/lock/proof share a private call budget, preserving public signature, required/generation/alternative semantics, missing-evidence false and deterministic IDs."
+      "evidence_budget_note": "Evidence prove_many_on manifest/lock/proof share a private call budget, preserving public signature, required/generation/alternative semantics, missing-evidence false and deterministic IDs.",
+      "implementation_commit": "9793412f53489d0ce1f07af4897384b54f7f1137",
+      "handoff_commit": "9793412f53489d0ce1f07af4897384b54f7f1137",
+      "receipt_at": "2026-11-06T12:31:36.987491+00:00",
+      "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
+      "validation": "pending_central_integration"
     },
     {
       "id": "RBJ-02",
@@ -104,7 +109,7 @@
       "latest_turn_id": "01a1b09e-0cf6-7e10-ae40-b4f5a4ff4af4",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
-      "contract": "1.5",
+      "contract": "1.6",
       "contract_notice_accepted_at": "2026-11-06T11:58:43.840Z",
       "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "latest_progress": "普通与修复执行现在共用原执行账本，修复 job 会在入队事务中绑定资格，历史导入也能识别其用途。正在收口唤醒的覆盖、重试等待下界和旧任务接管，并补相应的用例代码。"
@@ -173,6 +178,9 @@
         "tests/conversation/test_rbj_*.py",
         "tests/conversation/rbj_*.py",
         "tests/conversation/test_rbi_result_consumption.py",
+        "src/tianshu/conversation/rbg_result_withdrawal.py",
+        "src/tianshu/conversation/dependencies.py",
+        "tests/conversation/test_rbg_result_withdrawal.py",
         "docs/handoffs/RBJ-04.md"
       ],
       "work": "1. 拥有 ActionResultEvents.ensure_on；publish 保留兼容并委托此口。公开补唤醒与原通知共用原事件/身份/消费者账本，准确表达真正 blocked/waiting/accepted/verified，不能只看到 pending job 就忽略执行资格。\n2. 扩展 ResultRecovery 与 ResultConsumer 的 repair_ref/repair_consumer。先读原业务证据/proof，已提交则对账，未提交且可信资格有效才执行同一原事件的目标原子本地领域回调。首次只支持 life_activity 与已有等价原子合同的 life_commitment；绝不在 repair 分支运行 renderer/dialogue/模型/QQ/外部 Action。\n3. 保留 execution_identity(generation,action,revision,receipt)，不加 consumer 生成新普通身份绕预算。接 Runtime 的可信登记、失败历史摘要 CAS 与 begin/finish purpose，普通耗尽保持耗尽，一次目标修复资格幂等。消费者参数不能自授资格；candidates/inspect/invoke/observe/verify 统一表达普通资格、repair 资格和 unknown。\n4. Life/Goal/Memory/consumer proof 同事务完成；未知提交先读原 proof 和相关业务引用，不凭 activity.completed 推断完整成功。新 head/撤回/换代/取消按真实 superseded/invalidated 等收口，不重放旧结果。保留已有 head fence 和同版本冲突拒绝。\n5. 复用 Runtime 的 wake 合同；对旧无锁 result jobs 仅在核对完整信封/代际后 adopt。不直接写 Runtime 内部事实，不碰 Actions 文件。\n6. 添加四次失败耗尽、一次修复资格重入、repair 无外部调用、proof 丢应答对账、来源/Goal/Memory/proof 任一点回滚、head 推进与旧任务覆盖的必要用例代码。编写不运行。",
@@ -193,7 +201,7 @@
       "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
-      "contract": "1.5",
+      "contract": "1.6",
       "contract_notice_accepted_at": "2026-11-06T11:58:43.653Z",
       "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
@@ -233,7 +241,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-life-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-life\\tianshu-peiban-bot",
-      "status": "implementation_started_confirmed",
+      "status": "committed_pending_integration_validation",
       "handoff": "docs/handoffs/RBJ-05.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:33.585989+00:00",
@@ -245,7 +253,12 @@
       "contract": "1.3",
       "contract_notice_accepted_at": "2026-11-06T11:44:52.904Z",
       "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd",
-      "latest_progress": "结果修复接口和原 Action 期限处理已接上；Runtime 也确认了历史唤醒的覆盖返回语义。接下来会补齐旧格式任务的身份核验与合并，并编写针对头部推进、证据不足和唤醒覆盖的回归用例。"
+      "latest_progress": "结果修复接口和原 Action 期限处理已接上；Runtime 也确认了历史唤醒的覆盖返回语义。接下来会补齐旧格式任务的身份核验与合并，并编写针对头部推进、证据不足和唤醒覆盖的回归用例。",
+      "implementation_commit": "41d903b3432a3095a55c3669311d9d0f324aeaae",
+      "handoff_commit": "41d903b3432a3095a55c3669311d9d0f324aeaae",
+      "receipt_at": "2026-11-06T12:31:36.987491+00:00",
+      "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
+      "validation": "pending_central_integration"
     },
     {
       "id": "RBJ-06",
@@ -274,7 +287,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-growth-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-growth\\tianshu-peiban-bot",
-      "status": "implementation_started_confirmed",
+      "status": "committed_pending_integration_validation",
       "handoff": "docs/handoffs/RBJ-06.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:40.009152+00:00",
@@ -292,7 +305,12 @@
       "latest_progress": "RBJ-06 已收到启动信号。我会先追踪同一材料被两个执行者并发准备时的实际调用链，再按可达性完成定向修复和用例代码。",
       "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "generation_read_extension": "Use public same-transaction request; missing frozen request stops prepare; do not query Conversation private table",
-      "contract_notice_accepted_at": "2026-11-06T11:58:43.744Z"
+      "contract_notice_accepted_at": "2026-11-06T11:58:43.744Z",
+      "implementation_commit": "2371ed32660e1133a4c88e88dab1a2127730731d",
+      "handoff_commit": "ca5396590f9febe9a77107ff8c9ce9e43136fb00",
+      "receipt_at": "2026-11-06T12:31:36.987491+00:00",
+      "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
+      "validation": "pending_central_integration"
     },
     {
       "id": "RBJ-07",
@@ -310,6 +328,7 @@
         "src/tianshu/memory/rbj_*.py",
         "src/tianshu/memory/rbj_*.sql",
         "tests/memory/test_rbj_*.py",
+        "tests/core/test_rb_retrieval_index.py",
         "docs/handoffs/RBJ-07.md"
       ],
       "work": "1. 排队卡，须待根明确释放实现名额。允许先读卡和确认理解，不启动产品/用例写入。\n2. 已有 record_attempt_on/backfill，不新建统计体系。复核 index_jobs.recover 后部 backfill 被前方重扫描异常阻断的路径，结合现有 producer 水位和投影合同定义可证明覆盖，partial/unknown 保持真实。\n3. 若成立，复用原有有界 backfill，接入 Memory 自身轻维护并独立隔离失败；只修改自身领域能力，module/process 装配交根。不要将两条对象向量正常或进程 ready 等同全覆盖。\n4. 索引来源撤回/权限/版本/embedding profile 保持；不重新嵌入全库、不改配置、不改上游 HTTP。不在生产跑探针或数据库命令。\n5. 编写扫描中断仍能有界补齐、重复维护幂等、水位/代际准确及失败隔离的必要用例代码，不运行。证据不足时明确待根执行，不虚构现场覆盖。",
@@ -321,7 +340,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-memory-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-memory\\tianshu-peiban-bot",
-      "status": "acknowledged_queued_not_started",
+      "status": "implementation_started_confirmed",
       "handoff": "docs/handoffs/RBJ-07.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:41.107284+00:00",
@@ -329,10 +348,13 @@
       "latest_cursor": "aa11dc72-cf69-41ae-88eb-3f2e7e3c7379:36",
       "latest_turn_id": "01a1b09e-258c-7e00-a0e7-e48e808cbcef",
       "observed_at": "2026-11-06T11:29:25.638Z",
-      "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
-      "queue_release_required": true,
-      "contract": "1.3",
-      "contract_read_on_release": true
+      "acknowledgement": "已收到释放名额并正式启动；复用现有索引backfill与轻维护，测试/生产交根",
+      "queue_release_required": false,
+      "contract": "1.6",
+      "contract_read_on_release": true,
+      "release_at": "2026-11-06T12:31:36.987491+00:00",
+      "released_by": "RBJ-05 whole-package receipt",
+      "test_scope_note": "Only test_recovery_statistics_backfill_uses_original_attempt_identity and its local fixture for truthful coverage; preserve original attempt/revision/dedup assertions"
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
@@ -376,5 +398,41 @@
     "Runtime wake-exit proof for exact covered generation/job/native ordinal must prevent importing native succeeded as repair applied; require persisted covered_by and no existing begin fact. Domain handlers propagate the verified covered result. SQL/central validation pending."
   ],
   "contract_1_4_note": "Sources owns bounded lock-closure discovery and fresh post-lock verification; private budget spans lock graph and proof evaluation; no public signature or other domain ownership change.",
-  "contract_1_5_note": "Reuse GenerationRequests.request with optional same connection/material_key; Growth cannot recreate a missing frozen request. Close may use exact durable legal non-application terminal evidence without erasing unresolved attempts."
+  "contract_1_5_note": "Reuse GenerationRequests.request with optional same connection/material_key; Growth cannot recreate a missing frozen request. Close may use exact durable legal non-application terminal evidence without erasing unresolved attempts.",
+  "contract_1_6_note": "Exact preflight-stop vs execution, bounded flat coverage facts, preserved unknown under supersede/withdrawal, one-way redact conn-only API, and honest index scan coverage.",
+  "source_sql_order": [
+    "rbj_lock_graph",
+    "rbj_source_proof"
+  ],
+  "source_sql_after": [
+    "0012_sources_rb",
+    "rbf_source_proof_reuse"
+  ],
+  "runtime_conversation_sql_order": [
+    "rbj_wake",
+    "rbj_execution_repair",
+    "rbj_result_repair_evidence"
+  ],
+  "central_validation_notes": [
+    "Source node/edge budgets count visits across lock-before/after/proof; validate 195 nodes/8252 edges/new receipt, multi-context, existing large groups and growth; limits are not unique-node capacity or measured performance.",
+    "Target Life done alone is not delivery complete if other consumers absent/nonterminal; repair never runs renderer/dialogue/other effects.",
+    "Validate native no-op/covered/redacted exits against exact ordinal proofs, preserve original physical attempts and all unknown facts."
+  ],
+  "latest_patrol_report": {
+    "window_local": "2026-11-06 19:37:31--20:05:46 Asia/Shanghai",
+    "same_role_instances": true,
+    "reported_new_counters": {
+      "model-broker.control.acquire_timeouts": 7,
+      "operations.business.acquire_timeouts": 3,
+      "operations.commit_unknown": 1
+    },
+    "commit_unknown_scope": "No transaction/business object correlation; remains unknown; no replay",
+    "causal_conclusion": "Point-in-time lock chain and pool deltas do not prove each timeout root cause",
+    "evidence": [
+      ".runtime/rbi-execution-20261106/monitor-role-pool-baseline-20261106T1134Z.json",
+      ".runtime/rbi-execution-20261106/monitor-role-pool-baseline-20261106T1204Z.json",
+      ".runtime/rbi-execution-20261106/monitor-targeted-20261106T1204Z.json"
+    ],
+    "production_writes": false
+  }
 }

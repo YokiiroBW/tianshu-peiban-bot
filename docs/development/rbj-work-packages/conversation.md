@@ -7,7 +7,7 @@
 - 代码起点 `39da2d283deb17de2739b3c24fc1eeedc96cfa69`；实际准备提交由根正式派发消息及 dispatch 记录给出，必须核对一致。
 - gpt-6.1-terra / max，普通速度（service_tier=default、fast_mode=false），不自行开启 Fast。
 - 依赖：RBJ-02, RBJ-03。依赖窗口使用冻结合同与夹具，不读写其可变目录；接口不明确即报根并继续自身独立工作。
-- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.5](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
+- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.6](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
 
 ## 完整交付范围
 
@@ -18,6 +18,7 @@
 5. 复用 Runtime 的 wake 合同；对旧无锁 result jobs 仅在核对完整信封/代际后 adopt。不直接写 Runtime 内部事实，不碰 Actions 文件。
 6. 添加四次失败耗尽、一次修复资格重入、repair 无外部调用、proof 丢应答对账、来源/Goal/Memory/proof 任一点回滚、head 推进与旧任务覆盖的必要用例代码。编写不运行。
 7. 1.5 扩展既有 GenerationRequests.request 的可选 connection/material_key，供 Growth 在原 prepare guard 同事务核对既有冻结请求；只读不补造，不取得新 Sources 锁，旧调用保持兼容。添加最小有意义端口用例代码，实际运行由根集中执行。
+8. 1.6 持久化精确 preflight-stop 检查依据并调用 Runtime；head 推进/撤回时保留无法证明的旧 apply 未决，已证明合法终态照常收口。withdrawal 通过 Runtime 单向去敏窄口对接冻结摘要，dependencies.py 只传递既有 jobs，jobs=None 使用同一 Runtime conn-only 实现；不留原地 UPDATE 平行路径，不凭 invalidated/superseded 信号抹掉 unknown，不将目标 Life done 当整 delivery 完成。
 
 ## 独占可写文件
 
@@ -26,11 +27,14 @@
 - `src/tianshu/conversation/rbi_result_wake.py`
 - `src/tianshu/conversation/rbg_result_recovery.py`
 - `src/tianshu/conversation/rbg_result_ledger.py`
+- `src/tianshu/conversation/rbg_result_withdrawal.py`
+- `src/tianshu/conversation/dependencies.py`
 - `src/tianshu/conversation/rbj_*.py`
 - `src/tianshu/conversation/rbj_*.sql`
 - `tests/conversation/test_rbj_*.py`
 - `tests/conversation/rbj_*.py`
 - `tests/conversation/test_rbi_result_consumption.py`
+- `tests/conversation/test_rbg_result_withdrawal.py`
 - `docs/handoffs/RBJ-04.md`
 
 白名单是职责范围，不要求改动每个文件。不跨写其他窗口；新增非白名单文件、公共签名调整或事件 schema 需求报根，由根调整合同，不能自行平行实现。所有 module.py、runtime/product、全局 types、已有 schema.sql/旧迁移、注册、配置/依赖和共享记录归根。

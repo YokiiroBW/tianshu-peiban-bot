@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.5
+# RBJ 公共合同，2026-11-06，版本 1.6
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -190,5 +190,59 @@ async def GenerationRequests.request(self, attempt_id, context, *,
 Growth 在 prepare 的 guard 已完成外层来源及 generation 锁、锁定自己的 current organize_state 后，先重载权威 active_batch，再使用原 attempt/context/material_key 和同一 connection 读取既有冻结请求，核对原身份/代际。命中原批但冻结请求缺失/不一致时必须停止当前 prepare、保持原批并明确缺失/未知，不继续插入 B 的候选请求，不重复 reserve、不补造谱系；有效时沿用原批 lineage/recovery_version 与原请求，后续使用权威材料继续记账。
 
 Growth 不直接读取或更新 conversation.generation_requests，不复制其 context/state/解码规则；Conversation 不写 Growth 私表。RBJ-04 白名单增加 generation.py 及原 tests/conversation/test_rbj_*.py 范围内必要端口用例，RBJ-06 使用冻结接口写交错用例。两个原生 organize 的真实交错复现由根集中执行；静态已定位不等于实测通过。
+
+## 11. 1.6 已证实未开始的修复 ordinal 退出
+
+Runtime（RBJ-02）在现有机械退出事实体系提供：
+
+```python
+async def JobQueue.record_repair_preflight_stop_on(self, connection, *, owner,
+        identity, data_generation, repair_ref, consumer, job_id, native_attempt,
+        reason, observation_ref) -> dict: ...
+```
+
+reason 仅 closed/blocked/unknown，返回 state=preflight_stopped。Conversation 先在同事务保存准确原 target/预检结论/观察引用，再调用此口，在 handler 正常返回或依据已确认等待延期前留下本 ordinal 未 apply 的事实。Runtime 核验当前原生执行者及 generation/job/attempt、真实 job→grant、原身份/consumer；record 与 begin 使用同一机械互斥，已存在 begin/fact 不能写 stop，已有 stop 也禁止本 ordinal 随后 begin。相同证明重入幂等，冲突拒绝。
+
+复用本批 wake-exit 事实，加 kind/reason/grant/ref，不新建业务恢复账本。closed 核对真实已关闭资格；blocked/unknown 不关闭、不消费资格，也不解析或消除其他 ordinal 的未决事实。历史导入只跳过此精确已证明未开始 ordinal 的业务执行，保留物理 job/attempt/事件及原 purpose，不因 native succeeded 伪造 completed，不因合法 no-op 新增虚假 unknown。
+
+该口不是预检异常的免费通道。来源 SQL/计算失败、取消、提交不确定等异常不因被改写为 blocked/unknown 就可免责；没有已完成可信预检的明确证据，继续原失败/unknown 分类。缺 stop/covered 退出证明的 native succeeded 仍保留未决。已有 started/unknown 只能通过原物理事实对账，不用本口抹掉。
+
+## 12. 1.6 覆盖压平与旧结果未决
+
+若 B 已有直接 covered 子行 A，领域证明同对象 B 被有效 C 覆盖后，Runtime 可在对象锁下以有界原子或可恢复小批次将运行态指针压平到 C，追加保留 A→B 及重定向依据，不形成无界链，不改变物理 job/attempt/旧退出证据。保留所有最早合法 due/等待下界；不无界扫全历史或长持锁。旧 exit proof 依当时有效覆盖事实核验，不因后来指针改变就否定已证实的非执行退出。无法证明的其他 doing/未知仍等待。
+
+新 Action head 不证明旧 consumer 未应用。pending/blocked/running 任一状态，只要 Runtime 有未决/不完整历史，或 Life 同回执历史落账缺完整事务 proof，都不能 blanket superseded/invalidated；保留或转 blocked/unconfirmed，旧 aggregate 不伪造全完成。只有精确目标可证明的合法终态才能收口；新 head 独立准确交接。目标 Life done 也不表示缺失的 renderer/dialogue/detached/memory 分支完成，repair 不顺带运行这些分支。
+
+来源撤回后的正文删除、禁止后续使用与旧是否已应用是不同事实：去敏不能被冻结 payload 摘要挡住，已有 done 不被抹成未应用，started/unknown 不因撤回关闭。RBJ-04 独占 rbg_result_withdrawal.py 及必要 dependencies.py 调用适配；Runtime 负责单向去敏的机械 CAS/失效事实，原逻辑身份/原摘要保留，生效摘要/失效状态单独表达，不存原正文副本、不允许恢复内容。沿既有 Sources durable 通知，不另建业务队列；精确机械 API 见第 14 节，不能只改一端发布。
+
+保留未知不是将所有新非终态都变为未知：完整可信历史及精确目标证据能够证明未开始/未应用的正常场景，照常按合法 superseded/invalidated 收口；只有未决或证据不足才 blocked/unconfirmed。pending 本身不能证明已应用或未应用，两类均需实际用例覆盖。
+
+## 13. 1.6 索引覆盖的准确口径
+
+Memory 继续复用已有 backfill。多事务游标尾页只证明本轮遍历完成，不证明较早键新增/修订或失败投影已全覆盖；没有完整覆盖证据时 producer.complete=False，detail 记录 partial/scanned_unverified、generation 和实际扫描边界。backfill 返回 complete 保持遍历完成含义，不把重置空游标当覆盖水位，不另建统计系统。RBJ-07 可限定修改 test_recovery_statistics_backfill_uses_original_attempt_identity 的完整性预期，原 attempt/revision/去重断言保留，必要用例由根集中执行。
+
+## 14. 1.6 单向来源去敏与冻结载荷
+
+Runtime 与 Conversation 已对齐并由根在本版本冻结：
+
+```python
+async def JobQueue.redact_wake_on(self, connection, job_id, *, expected_task,
+        expected_generation, expected_payload, redacted_payload, invalidation_ref,
+        wake_object_key=None) -> dict: ...
+```
+
+同一 conn-only 公开实现为 tianshu.runtime.rbj_wake.redact_wake_on(connection, job_id, *, 上述相同参数)，JobQueue 方法委托它。ConversationDependencies 的既有 jobs=None 调用使用该公开函数；不另建 Queue/连接，不保留直接 UPDATE 的平行路径。
+
+返回 state=redacted|changed，job_id 必有。redacted 可含 metadata_unverified=True 表示正文已去敏但历史元数据不能验证，另保留 invalidation_ref；不能把 metadata_unverified 当作未擦除而恢复原文。重复已确认去敏仍可幂等返回 redacted；只有原生快照确实变化才返回 changed，不用永久历史元数据冲突造成无穷 changed。
+
+仅用于本批登记的 conversation.result 来源撤回去敏，不是任意 payload 更新口。Conversation 验证精确来源/版本/fragment/actor，构造既有 redacted_event，保留原事件/context、receipt/attempt 与执行效果等身份元数据；Runtime 用纯机械规则只允许删除/清空与固定 source-invalidated 墓碑，不反向 import Conversation、不接受任意替换或恢复。
+
+锁序为代际读保护→已登记对象锁→native job 行锁。expected_generation 核对该历史 job 的原代际，可为 None；不因当前 live generation 不同而禁止旧代际隐私清除，也不补造当前代际。Domain 从未锁定的候选快照调用 CAS，不能先 FOR UPDATE j 再调口；实际 native 载荷变化返回 changed，Domain 有界重读并重新判断 Source 相交。
+
+原 job_keys.payload_digest 和原身份保持，新增 effective digest/失效与旧新摘要事实，不存原正文副本。已确证 native 原载荷需要去敏时，永久的历史 metadata 缺失/冲突不能阻断擦除：保留 metadata_unverified 等准确事实，不修造旧身份，不无穷返回 changed。已擦后的稳定 job/失效事实要能被后续对账定位，不能依赖已删除 source_refs 再匹配。未来 enqueue/adopt/retry 禁止恢复旧敏感载荷。
+
+去敏不取消其他 doing，不抹已存在的 begin/unknown，也不自行关闭未决资格。handler 前遇 source-invalidated 的精确非执行退出沿同一机械退出事实留证，普通/repair 都不能因 native succeeded 伪称已消费；没有完整退出证明继续保留未知。只有领域已证明并持久化的合法终态才按既有 close 条件关闭未开始资格，不能先将未知写 invalidated 再拿该行循环自证。
+
+RBJ-04 同时单写 dependencies.py 中向撤回 helper 传递既有 self.jobs 的最小适配，保留其他依赖失效逻辑。沿已有提交后 Sources durable 通知/正常对账，不增加第二个业务队列；根集中联合验证擦除与入队/领取/重试交错、历史缺元数据、旧事实保留、重复通知及来源片段边界。
 
 实现者只完成整块代码、必要用例代码、静态 diff 审阅和提交，不运行测试/构建/烟测/模型/QQ/生产。根收齐后做必要 PG 联合验证，复用未变有效结果；不全量重跑 472 用例。发布和原对象恢复另由根串行执行，本次派发不代表已修复/验证/部署。

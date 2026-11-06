@@ -1,12 +1,10 @@
-# 2026-11-06 RBJ-03 已交付待集成，Growth 已释放名额
+# 2026-11-06 RBJ 四包已交付，Runtime/Conversation/Memory 开发中
 
-用户授权的RBJ修复继续使用既有窗口与独立工作树。Sources、Runtime、Conversation、Life、Growth 五包已确认开发中；Capabilities 的 RBJ-03 已整块提交待集中集成/验证，Memory 的 RBJ-07 继续排队。七个工作树同起点ec4b26a6，模型gpt-6.1-terra/max普通速度；精确提交/状态见[记录](rbj-dispatch-2026-11-06.json)。六角色与领域所有权保留；生产仍为RBI-08版本，本批尚未验证/部署。
+Sources 9793412f、Capabilities f6c6955d、Life 41d903b3、Growth 2371ed32（交接ca539659）已完整交付；根已核对不可变提交/交接和路径归属，尚未集中集成/行为验证。Runtime、Conversation、Memory 三包开发中，所有七包均已启动，当前没有排队包；精确状态见[记录](rbj-dispatch-2026-11-06.json)。
 
-RBJ-03 已提交 f6c6955d，根已核对提交/交接与路径归属，尚未集成或行为验证。释放该实现名额后Growth 已回执 RBJ-06 正式开始，Memory 继续排队；Sources 锁前/锁后闭包已加入本卡，合同1.4为d888b8dc，公开签名保持。当前状态以JSON为准。
+公共合同1.6已收口精确未执行退出、覆盖压平、来源单向去敏及旧consumer未决。Memory 复用已有轻维护/backfill，扫描尾页仅表示本轮结束，producer覆盖证据不足保持partial；Migration IDs/顺序已记录供根统一装配。Sources预算按访问量计费，其实际容量、深图与新回执性能仍待真实PG验证，不用静态检查声称亚秒。
 
-Growth 并发重载的同事务冻结请求核对已复用 GenerationRequests.request(connection/material_key) 公共扩展，由 Conversation 单写、Growth 消费；缺失原请求时停止而不补造。合同1.5为a5e6155c，相关三个窗口已收通知，产品实现/联合验证仍待各包交付。
-
-统一gpt-6.1-terra/max普通速度。实现者只写整块代码、必要用例和静态审阅后提交，根集中必要验证及共享装配；不清数据、重置预算、重放unknown或发QQ测试。偶发403/429和备用路由不改。下方为历史截面。
+统一gpt-6.1-terra/max普通速度。实现者只写整块代码、必要用例及静态审阅后提交，根集中必要验证；不清数据/重置预算/重放unknown/主动QQ测试。生产仍为RBI-08版本，本批未部署，偶发403/429与备用路由不改。20:05巡检新增跨角色池超时及未关联对象的commit_unknown仅作证据保留，未推断为同一SQL根因、未重放。下方为历史截面。
 
 # 2026-11-06 14:34 自然巡检确认业务阻塞恶化
 
