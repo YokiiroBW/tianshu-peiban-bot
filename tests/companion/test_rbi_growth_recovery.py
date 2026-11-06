@@ -163,6 +163,20 @@ async def test_known_program_repair_uses_original_receipt_and_one_budgeted_succe
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('repair_ref', ['repair:line\nbreak', 'repair:nul\x00value', 'repair:del\x7fvalue'])
+async def test_repair_reference_rejects_control_characters_before_queueing(database, repair_ref):
+    growth, context, _memory, models, _scope, _original, failure = await setup_original(database)
+    before = await retry_row(database)
+    jobs = len(growth.jobs.items)
+
+    with pytest.raises(AppError) as rejected:
+        await request_review(growth, context, database, failure['retry_key'], 'bad-repair-ref', repair_ref)
+
+    assert rejected.value.code == 'invalid_input'
+    assert await retry_row(database) == before and len(growth.jobs.items) == jobs and len(models.submitted) == 1
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize('change,reason', [
     ('source', 'source_unavailable'), ('authorization', 'access_changed'),
     ('input', 'reflection_episode_revision_conflict'), ('cancel', 'explicit_cancel'),

@@ -35,3 +35,8 @@
 - 增量代码提交 `300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f`，依赖 Runtime 新增的 `validate_model_recovery_facts`。Growth 在原 attempt 的 Models 事实锁下、Runtime 首个 lineage 写操作前，核对 fresh receipt 的实际状态、原请求身份与代际；修复资格、后继 claim/reserve 及基于原回执的 unknown 记账均走此路径。来源或取消已失效时的原始历史归档不伪造成可续接事实。
 - 仅当原回执同时满足 `status=cancelled`、`error_code=consumer_interrupted`、`cancellation_reason=consumer_interrupted` 才视为可续接的消费者中断。unknown 在事实未确认、身份不一致或状态发生变化时保持原请求观察，不据此提交后继。
 - 已补真实 Models 账本回归代码：在最后一次回执读取后、领取前提交明确取消，断言拒绝新 attempt；另覆盖没有消费者中断原因的 cancelled 回执。此增量仅做了 5 个 Python 文件的 AST 解析和 `git diff --check`，没有运行用例。协调者仍须合并 Runtime 并集中验证实际锁序、拒绝码和竞争事务。
+
+## Runtime 候选静态核对
+
+- 只读核对 Runtime `24bbcad9928d7662e6882c68df545cd08323cf01`：Growth 使用的事实校验、修复资格、原回执预留和预算接口签名一致，`cancelled/consumer_interrupted` 规则一致。Growth 入口补齐与 Runtime 一致的 `repair_ref` 控制字符校验，避免先入队再报参数错误，并补充回归代码。
+- 该增量只进行了两个 Python 文件的 AST 解析与 `git diff --check`；未执行测试、构建或生产操作，不能据此宣称跨域运行通过。

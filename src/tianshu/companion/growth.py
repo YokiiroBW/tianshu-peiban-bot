@@ -633,7 +633,8 @@ class GrowthService:
             raise AppError("invalid_input")
         repair_ref = body.get('repair_ref')
         if repair_ref is not None and (not isinstance(repair_ref, str) or not repair_ref
-                                       or repair_ref != repair_ref.strip() or len(repair_ref) > 256):
+                                       or repair_ref != repair_ref.strip() or len(repair_ref) > 256
+                                       or any(ord(character) < 32 or ord(character) == 127 for character in repair_ref)):
             raise AppError('invalid_input')
         scope_key=signature(sorted(context.scope_ids))
         async def apply(connection):
