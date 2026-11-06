@@ -103,7 +103,7 @@ Models 先定位原 invalid_upstream_response 的阶段；Growth 决定语义纠
 
 ## 6. 共享入口、交接与证据
 
-本轮接口确认补充：ResultRecovery 构造器允许 keyword-only actions=None，ResultConsumer 传 self.actions；根在 runtime/product_operations.py 注入已有 actions。缺端口时为 unknown/action_head_unavailable，不能假验证或补唤醒。Life 原子回调签名保持既有 on_complete 合同。
+本轮接口确认补充：ResultRecovery 构造器允许 keyword-only actions=None，ResultConsumer 传 self.actions；根在 runtime/product_operations.py 注入已有 actions。缺端口时为 unknown/action_head_unavailable，不能假验证或补唤醒。Life 原子回调签名保持既有 on_complete 合同。 ExpressionService(..., sources=sources, actions=caps.actions) 由根在 runtime/product.py 注入；已有Action绑定的404或缺端口不能证明Channel-only，不绕过头fence提交成功/终态业务投影。明确无Action的Channel权威和本地生成unknown继续按自身CAS保留，不虚构Action。
 
 ### 6.1 跨物理结果任务的有限失败边界
 

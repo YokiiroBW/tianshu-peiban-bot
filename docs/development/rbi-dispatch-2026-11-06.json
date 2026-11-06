@@ -253,7 +253,8 @@
         "tests/life/test_goal_source_transaction.py",
         "tests/life/test_rb_plan_recovery.py",
         "src/tianshu/life/diary_retry.py",
-        "src/tianshu/life/writing.py"
+        "src/tianshu/life/writing.py",
+        "src/tianshu/life/diary_automation.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
@@ -482,7 +483,8 @@
       },
       "verified": false,
       "integrated": false,
-      "dispatched_at_utc": "2026-11-06 03:35:35 UTC"
+      "dispatched_at_utc": "2026-11-06 03:35:35 UTC",
+      "confirmed_interface": "prepare_event_writes(conn, context, events, *, additional_refs=(), scoped_refs=()); empty events supported; original alias tuple return"
     }
   ],
   "dispatched_at_utc": "2026-11-06 02:36:23 UTC",
@@ -505,7 +507,12 @@
     "validation": "wait for full slices; do not test each micro change or integrate intermediate candidate",
     "sources_scoped_refs": "RBI-10 optional per-context source closure; preserve Goal and receipt transaction",
     "sources_source_of_truth": "scoped false remains optional; no widened context authorization",
-    "native_history_bound": "per-receipt fixed upper/cursor plus per-job bounded event cursor; incomplete history blocks requeue"
+    "native_history_bound": "per-receipt fixed upper/cursor plus per-job bounded event cursor; incomplete history blocks requeue",
+    "expression_actions": "runtime/product.py: ExpressionService(..., sources=sources, actions=caps.actions); bound Action 404 is not proof of Channel-only authority",
+    "runtime_probe_fixture": "tests/runtime/test_rbf_probe_leases.py synthetic model receipts need real isolated Models attempts/submissions at centralized validation; do not weaken guard",
+    "confirmed_call_shapes": [
+      "Memory and Life statically matched Runtime 24bbcad9 and Models 7715afa5; not executed"
+    ]
   },
   "all_implementation_windows_started": true,
   "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",

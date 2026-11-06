@@ -36,6 +36,7 @@
 - src/tianshu/life/contacts.py
 - src/tianshu/life/generation_control.py
 - src/tianshu/life/diary_retry.py
+- src/tianshu/life/diary_automation.py
 - src/tianshu/life/writing.py
 - src/tianshu/life/rbh_transport_recovery.py
 - src/tianshu/life/recovery.py
@@ -59,7 +60,7 @@
 
 精确白名单以本卡及队列 JSON 为准。全部 module.py、runtime/product、共享 types、已有 schema.sql、迁移注册、配置/依赖、生产和活跃巡检探针由根单写；本域必要新 SQL 交根注册。Runtime 的 process/composition 仅 RBI-01 可写。Life worker/结果回调仅 RBI-04 可写；Conversation 消费账本仅 RBI-09 可写。
 
-写作调用方两文件仅修复已证实的精确 consumer_interrupted 纯计算终态误分类，复用 Runtime 分类；不改变原 Models cancelled 回执、显式取消或预算。安装代际共享锁可以先于 Sources，随后保持 Models 事实锁先于首次 Runtime lineage 写锁。Sources 的 RBI-10 scoped_refs 装配保留 Goal 和原回执同事务、各自权限及可选跳过语义。
+diary_automation.py 仅在已定位的材料更换分支、diary行锁前准备原请求完整来源读集并将observation传入既有observe_on。写作调用方两文件仅修复已证实的精确 consumer_interrupted 纯计算终态误分类，复用 Runtime 分类；不改变原 Models cancelled 回执、显式取消或预算。安装代际共享锁可以先于 Sources，随后保持 Models 事实锁先于首次 Runtime lineage 写锁。Sources 的 RBI-10 scoped_refs 装配保留 Goal 和原回执同事务、各自权限及可选跳过语义。
 
 ## 接口、依赖与执行
 

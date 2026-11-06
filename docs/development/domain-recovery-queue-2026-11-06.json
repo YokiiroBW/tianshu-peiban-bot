@@ -506,7 +506,8 @@
         "tests/life/test_goal_source_transaction.py",
         "tests/life/test_rb_plan_recovery.py",
         "src/tianshu/life/diary_retry.py",
-        "src/tianshu/life/writing.py"
+        "src/tianshu/life/writing.py",
+        "src/tianshu/life/diary_automation.py"
       ],
       "deliverables": [
         "先补 job 78316 的冲突字段证据，再收敛唯一 ensure_reconcile_on",
