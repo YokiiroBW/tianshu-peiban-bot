@@ -110,8 +110,8 @@
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
       "contract": "1.7",
-      "contract_notice_accepted_at": "2026-11-06T11:58:43.840Z",
-      "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
+      "contract_notice_accepted_at": "2026-11-06T12:40:06.902Z",
+      "contract_notice_commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
       "latest_progress": "普通与修复执行现在共用原执行账本，修复 job 会在入队事务中绑定资格，历史导入也能识别其用途。正在收口唤醒的覆盖、重试等待下界和旧任务接管，并补相应的用例代码。"
     },
     {
@@ -202,8 +202,8 @@
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
       "contract": "1.7",
-      "contract_notice_accepted_at": "2026-11-06T11:58:43.653Z",
-      "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
+      "contract_notice_accepted_at": "2026-11-06T12:40:06.969Z",
+      "contract_notice_commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
       "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
       "generation_read_extension": "request(attempt_id,context,*,connection=None,material_key=None); read-only existing port, no new Sources lock"
     },
@@ -365,7 +365,7 @@
   "dispatched_at": "2026-11-06T11:29:25.638Z",
   "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged",
   "contract_revision_note": "Frozen after owner review: exact consumer proof; wake variant/object lock; attested legacy coverage; repair job binding; Life application inspection. No product implementation or production changes by coordinator.",
-  "contract_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
+  "contract_commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
   "contract_1_2_note": "Only clarify nullable owner_id: Life resolves unique current owner under actor/action/consumer authority; unresolved stays unknown.",
   "contract_1_3_note": "Bind original Life owner through callback; trusted proof closes unstarted grant without a fabricated execution.",
   "contract_history": [
@@ -399,13 +399,19 @@
       "version": "1.6",
       "commit": "db6e53f757678bbe9117d68728c7cfbe4674c8af",
       "scope": "Exact ordinal exits; unknown-preserving supersede; one-way redaction; index coverage"
+    },
+    {
+      "version": "1.7",
+      "commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
+      "scope": "Durable redaction try-lock waiting and complete return-state/transaction contract"
     }
   ],
   "integration_notes": [
     "Register new named Sources/Runtime/Conversation SQL only after receiving exact handoffs; rbj_result_repair_evidence.sql is planned, not yet accepted or deployed.",
     "Adapt affected legacy Life planner/action-result test fixtures centrally to asynchronous public handoff semantics; do not treat direct private callback tests as observer acceptance.",
     "Sources Python public calls map source_dependency_budget_exceeded; direct SQL callers retain distinct SQLSTATE 54000. Verify affected Memory read/retraction semantics without treating budget as business false.",
-    "Runtime wake-exit proof for exact covered generation/job/native ordinal must prevent importing native succeeded as repair applied; require persisted covered_by and no existing begin fact. Domain handlers propagate the verified covered result. SQL/central validation pending."
+    "Runtime wake-exit proof for exact covered generation/job/native ordinal must prevent importing native succeeded as repair applied; require persisted covered_by and no existing begin fact. Domain handlers propagate the verified covered result. SQL/central validation pending.",
+    "Before any original-result closure, distinguish exact Life target proof from all-consumer delivery completion. Other applicable/missing consumers remain pending/unknown unless separately proven; no renderer/model/external work through local target repair."
   ],
   "contract_1_4_note": "Sources owns bounded lock-closure discovery and fresh post-lock verification; private budget spans lock graph and proof evaluation; no public signature or other domain ownership change.",
   "contract_1_5_note": "Reuse GenerationRequests.request with optional same connection/material_key; Growth cannot recreate a missing frozen request. Close may use exact durable legal non-application terminal evidence without erasing unresolved attempts.",
