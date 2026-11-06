@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.2
+# RBJ 公共合同，2026-11-06，版本 1.3
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -95,6 +95,9 @@ async def authorize_execution_repair_on(self, connection, *, owner, identity,
 async def bind_execution_repair_job_on(self, connection, *, owner, identity,
                                       data_generation, max_failures, repair_ref,
                                       consumer, job_id) -> dict: ...
+async def close_execution_repair_on(self, connection, *, owner, identity,
+                                   data_generation, max_failures, repair_ref,
+                                   consumer, observation_ref) -> dict: ...
 # 原参数不变，新增仅关键字可选参数：
 async def inspect_execution_on(..., repair_ref=None, consumer=None) -> dict: ...
 async def begin_execution_on(..., repair_ref=None, consumer=None) -> dict: ...
@@ -107,6 +110,8 @@ authorize 需登记匹配、普通真实失败预算已耗尽、完整 failed �
 Conversation 在重新核验可信资格的 repair enqueue 同一事务调用 bind，持久绑定真实 job→可信 grant；资格可由 authorize_local_repair 提前登记，安排时必须再次核验，不能让未绑定的 repair job 提交可见。如果同一请求同时授予资格与安排，则 authorize/enqueue/bind 同事务。Runtime 验证任务/代际与已授权 target、原 identity 和载荷 purpose；原生 handler 尚未进入、generation lookup/启动即失败的 attempt，历史导入也按此绑定继承 repair，不能误算 normal。bind 不从 payload 自授资格，begin/finish/history 依持久绑定取 purpose；缺绑定的伪 repair job 不具执行资格。
 
 inspect 返回现有 normal 字段，同时明确普通计数与 repair 状态/remaining/资格引用；原调用者不传 repair 参数保持原语义。begin 验证当前原生执行身份与可信资格；finish/resolve 从已持久化 execution purpose 决定记账，不由 payload 改写 purpose。实际修复失败消耗资格；已确认回滚的资源等待保留同资格，started/commit unknown 停止 apply 并对账，不能自动再开一次。可信资格不能由纯 repair_ref 字符串自授。
+
+1.3 增加 close 窄口：可信领域在 grant 授权后、begin 前读到精确原提交 proof，可用 observation_ref 请求关闭同目标 grant，不制造执行、不耗一次失败。Runtime 只在无 started/unknown 等未决事实且可信登记/资格一致时关闭；已有未决必须先依真实 proof 通过原 resolve_execution_on 对账，不能用任意字符串抹掉 unknown。同一关闭证明重入幂等，closed grant 不再安排。真实 repair 成功时 finish 也依持久 purpose 关闭 grant；资源 wait 保留同资格。
 
 ## 6. Conversation：精准本地消费恢复（RBJ-04）
 
@@ -126,6 +131,8 @@ async def ResultRecovery.authorize_local_repair(self, job_id, *, data_generation
 ResultRecovery 构造器新增可选 `life_worker=None` 注入，旧调用兼容；没有原领域检查能力时 repair 明确 blocked，不自行跨查领域私表。根 module/product 装配由根修改。
 
 可信协调恢复流程先验证部署生效版本并 register，再显式调用 authorize_local_repair。repair_revision/defect_key/defect_evidence_ref 来自根已核实的修复及准确目标失败证据，不能从 worker/job payload 推断；缺证据不授予资格。该口校验原事件摘要、当前 head/来源/代际、完整失败历史和领域预检，取得 failure_digest 后调用 Runtime authorize。已存在准确 done proof 只对账，明确 not_applied 才可发资格；领域 unknown 在授权/begin 前停止，不消耗一次资格。
+
+1.3 确认 Conversation 新命名 rbj_result_repair_evidence.sql，可持久保存原身份、修复/缺陷证据引用、material/failure 摘要及预检确认的 owner_id/owner_revision，root 统一注册。它是证据与目标绑定，不是新的调度/资格权威。实际修复从该可信记录取冻结 owner_id；不能从任意 job payload 或重新解析的新 owner 无声替换原授权目标。
 
 恢复端口先查 proof+原业务引用，已原子提交的只对账；真实未提交且资格有效才 apply 原事件。资格发放/任务安排在同事务，begin 后领域 apply 在既有独立事务；异常或应答丢失必须读原证明而不是靠 activity.completed 推测 Goal/Memory 已提交。来源、head、CAS、代际变化按既有合法 superseded/invalidated 等语义退出。
 
@@ -152,6 +159,8 @@ async def LifeWorker.inspect_result_repair_on(self, connection, context, result,
 1.2 仅澄清首次初始化前 owner_resolved=false 的合法场景：owner_id 可为 None，由 Life 自己按 consumer 对应领域、已授权 actor+原 Action 精确解析当前唯一所有者，并返回 owner_id/owner_revision；显式传 owner_id 时严格核对。缺失、多匹配、身份冲突或不能证明归属时保持 unknown，不猜旧/新对象、不创建对象，Conversation 不因此跨查 Life 私表。其余 1.1 签名与语义不变。
 
 目标仍对应原 Action、版本明确低于原事件且允许应用时可返回 not_applied；明确取消/替换按 superseded；同版本异 receipt、回退、缺失/不一致，或同 receipt 已落账但无完整事务证明返回 unknown。旧直接路径缺 proof 的历史不补造 marker，不强推修复。实际 apply 在原领域事务重复同样检查；若预检后出现“同 receipt 已落账无 proof”的竞态，抛 AppError `local_result_application_unconfirmed`（409，带 consumer/owner 引用），Conversation 将本次执行记 unknown、保留同资格待对账，不作为真实修复失败、不再 apply；不把它包装为可自动重放的免费 wait。
+
+1.3 给 _activity_result/_commitment_result（含必要内部转发）增加可选关键字 expected_owner_id=None，旧调用兼容。repair 必须传证据绑定中授予资格时的原 owner_id；锁内若明确已换绑按 superseded 且不 apply，无法确认归属则 unknown。预检、begin 和实际 callback 之间不允许重新选一个新 row 来替换原目标；同一 row 的业务变化仍按原领域 CAS/来源/head 检查作决定。
 
 ## 8. 根的装配与验收范围
 
