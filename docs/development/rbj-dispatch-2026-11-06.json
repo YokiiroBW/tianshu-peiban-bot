@@ -634,5 +634,15 @@
     ]
   },
   "product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
-  "local_completed_at": "2026-11-06T14:03:27.039500+00:00"
+  "local_completed_at": "2026-11-06T14:03:27.039500+00:00",
+  "release": {
+    "status": "authorized_preparing",
+    "authorized_at": "2026-11-06T14:12:38.143040+00:00",
+    "authorization": "推送部署吧",
+    "coordinator": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
+    "tested_product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
+    "previous_source": "44590b88b4d5db4c8ea0288751bc35cb40a70348",
+    "handoff": "docs/handoffs/RBJ-08.md",
+    "production_changed": false
+  }
 }

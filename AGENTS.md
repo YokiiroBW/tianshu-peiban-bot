@@ -1,3 +1,7 @@
+# 2026-11-06 RBJ 已授权推送与保留数据部署
+
+用户最新明确要求“推送部署吧”。唯一协调/生产写者仍为01a1ac6f-8494-7f82-8c4d-ec7d285f44ae，按source-result-repair-plan-2026-11-06.md第10节执行：推送已验收候选、不可变源码构建、受影响域备份和增量迁移、六角色统一切换、原结果正常端口恢复及准确业务对账。279个不同受影响用例的有效结果复用；原ID/请求/回执/unknown、来源权限/版本/CAS/代际、总attempt和预算、配置/11挂载及其他容器保持。偶发403/429及备用路由不改，不清库、不重放未知外部效果、不做真实模型/QQ测试。当前进入发布，实际推送、部署和业务状态见docs/handoffs/RBJ-08.md及rbj-dispatch-2026-11-06.json，不能提前称已部署或整体收敛。下方为历史阶段。
+
 # 2026-11-06 RBJ 来源求值、可靠唤醒与原结果修复已授权
 
 用户已要求“分发给对应窗口修复”。本批 RBJ-01 至 RBJ-07 复用既有 Sources/Runtime/Capabilities/Conversation/Life/Growth/Memory 窗口，新独立分支与工作树，不续写旧完成卡，不创建新聊天或子代理。按 docs/development/source-result-repair-plan-2026-11-06.md、rbj-interfaces-2026-11-06.md 和 rbj-work-packages 本号卡；准确状态以 rbj-dispatch-2026-11-06.json 为准。第一批五实现者，Growth/Memory 排队，根释放名额前只阅读不写产品/用例。
