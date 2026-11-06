@@ -67,7 +67,7 @@ async def repair_snapshot_on(connection, *, data_generation, identity_digest, ow
         (data_generation, identity_digest))).fetchone()
     remaining = 0 if grant["closed_at"] or facts["failures"] or facts["completed"] else 1
     reason = ("execution_outcome_unknown" if normal["unknown_held"] else
-              "execution_in_progress" if normal["active_executions"] else
+              "execution_in_progress" if normal["active_executions"] or normal["native_inflight_blocking"] else
               "repair_closed" if grant["closed_at"] else
               "repair_failure_budget_exhausted" if facts["failures"] else
               "repair_already_completed" if facts["completed"] else
@@ -99,7 +99,7 @@ async def authorize_execution_repair_on(connection, *, owner, identity, data_gen
     base = {"eligible": False, "ref": repair_ref, "consumer": consumer, "failure_digest": normal["failure_digest"]}
     if not normal["history_complete"]:
         return {**base, "reason": "history_unknown"}
-    if normal["unknown_held"] or normal["active_executions"]:
+    if normal["unknown_held"] or normal["active_executions"] or normal["native_inflight_blocking"]:
         return {**base, "reason": "execution_outcome_unknown" if normal["unknown_held"] else "execution_in_progress"}
     if normal["failure_digest"] != failure_digest:
         return {**base, "reason": "repair_failure_history_changed"}
@@ -156,6 +156,8 @@ async def bind_execution_repair_job_on(connection, *, owner, identity, data_gene
             return {"bound": False, "reason": "history_unknown", "job_id": job_id}
         if normal["failure_digest"] != grant["failure_digest"]:
             return {"bound": False, "reason": "repair_failure_history_changed", "job_id": job_id}
+        if normal["native_inflight_blocking"]:
+            return {"bound": False, "reason": "execution_in_progress", "job_id": job_id}
         return {"bound": True, "reason": "already_bound", "job_id": job_id, "grant_id": grant["id"]}
     binding = await ledger._binding_on(connection, data_generation, digest, owner, max_failures)
     normal = await ledger._snapshot_on(connection, data_generation, digest, binding)
@@ -198,7 +200,7 @@ async def bind_execution_repair_job_on(connection, *, owner, identity, data_gene
 
 
 async def close_execution_repair_on(connection, *, owner, identity, data_generation, max_failures,
-                                    repair_ref, consumer, observation_ref):
+                                    repair_ref, consumer, observation_ref, current_job=None):
     """Close a grant using domain-owned proof without creating an attempt."""
     _selector(repair_ref, consumer)
     if repair_ref is None:
@@ -218,10 +220,10 @@ async def close_execution_repair_on(connection, *, owner, identity, data_generat
     if not grant:
         return {**base, "reason": "repair_not_authorized"}
     binding = await ledger._binding_on(connection, data_generation, digest, owner, max_failures)
-    normal = await ledger._snapshot_on(connection, data_generation, digest, binding)
+    normal = await ledger._snapshot_on(connection, data_generation, digest, binding, current_job=current_job)
     if not normal["history_complete"]:
         return {**base, "reason": "history_unknown"}
-    if normal["unknown_held"] or normal["active_executions"]:
+    if normal["unknown_held"] or normal["active_executions"] or normal["native_inflight_blocking"]:
         return {**base, "reason": "execution_outcome_unknown" if normal["unknown_held"] else "execution_in_progress"}
     if grant["closed_at"] is not None:
         # A successful finish closes using its physical execution reference;

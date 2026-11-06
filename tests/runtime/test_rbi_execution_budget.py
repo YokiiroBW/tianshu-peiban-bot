@@ -21,7 +21,8 @@ async def queue(database):
     await migrate(database, (Migration("rbi_execution_budget",
         files("tianshu.runtime").joinpath("rbi_execution_budget.sql").read_text(encoding="utf-8")),
         Migration("rbj_wake", files("tianshu.runtime").joinpath("rbj_wake.sql").read_text(encoding="utf-8")),
-        Migration("rbj_execution_repair", files("tianshu.runtime").joinpath("rbj_execution_repair.sql").read_text(encoding="utf-8"))))
+        Migration("rbj_execution_repair", files("tianshu.runtime").joinpath("rbj_execution_repair.sql").read_text(encoding="utf-8")),
+        Migration("rbj_native_admission", files("tianshu.runtime").joinpath("rbj_native_admission.sql").read_text(encoding="utf-8"))))
     jobs = JobQueue(database.config.dsn, database=database)
     await jobs.open()
     try:
@@ -416,7 +417,7 @@ async def test_wrapper_context_can_exclude_only_its_own_current_execution(databa
         async with database.transaction() as conn:
             history = await queue.observe_execution_history_on(conn, job_ids=[current["job_id"]],
                 data_generation=current["data_generation"], task_name="fixture.rbi_context", current_job=current)
-            assert history == {"complete": True, "reason": None, "executions": []}
+            assert history == {"complete": True, "reason": None, "executions": [], "native_inflight": []}
             args = budget_args(current["data_generation"])
             page = await queue.advance_execution_history_on(conn, **args, job_id=current["job_id"],
                 task_name="fixture.rbi_context", current_job=current)

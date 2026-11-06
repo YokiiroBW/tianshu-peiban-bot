@@ -74,14 +74,172 @@ async def _binding_on(connection, data_generation, digest, owner, max_failures=N
     return row
 
 
-async def _snapshot_on(connection, data_generation, digest, binding):
-    if binding is None or binding["history_state"] != "history_complete":
+async def _prebegin_binding_on(connection, *, generation, job_id, identity_digest=None):
+    """Read an immutable trusted repair binding or new normal admission."""
+    from .jobs import JobSpec, _identity_digest
+
+    repair = await (await connection.execute(
+        "SELECT b.data_generation,b.job_id,b.identity_digest,b.grant_id,g.owner,g.repair_ref,g.consumer,"
+        "j.args,k.subject_id,k.matter_id,k.payload_version,k.payload_digest "
+        "FROM runtime.rbj_execution_repair_jobs b JOIN runtime.rbj_execution_repair_grants g ON g.id=b.grant_id "
+        "AND g.data_generation=b.data_generation AND g.identity_digest=b.identity_digest "
+        "JOIN runtime.rbj_execution_repairs r ON r.owner=g.owner AND r.defect_key=g.defect_key "
+        "AND r.consumer=g.consumer AND r.repair_ref=g.repair_ref AND r.repair_revision=g.repair_revision "
+        "JOIN procrastinate_jobs j ON j.id=b.job_id AND j.task_name=g.owner "
+        "JOIN LATERAL (SELECT * FROM runtime.job_keys WHERE job_id=j.id AND task=g.owner "
+        "AND data_generation=b.data_generation AND cancelled_at IS NULL ORDER BY created_at,key LIMIT 1) k ON true "
+        "WHERE b.data_generation=%s AND b.job_id=%s AND (%s::text IS NULL OR b.identity_digest=%s) "
+        "AND g.owner='conversation.result' AND j.args->>'repair_ref'=g.repair_ref "
+        "AND j.args->>'repair_consumer'=g.consumer AND NOT EXISTS "
+        "(SELECT 1 FROM runtime.rbj_execution_admissions a WHERE a.data_generation=b.data_generation AND a.job_id=b.job_id)",
+        (generation, job_id, identity_digest, identity_digest))).fetchone()
+    normal = await (await connection.execute(
+        "SELECT a.data_generation,a.job_id,a.identity_digest,NULL::bigint AS grant_id,a.owner,"
+        "j.args,k.subject_id,k.matter_id,k.payload_version,k.payload_digest "
+        "FROM runtime.rbj_execution_admissions a JOIN procrastinate_jobs j ON j.id=a.job_id AND j.task_name=a.owner "
+        "JOIN LATERAL (SELECT * FROM runtime.job_keys WHERE job_id=j.id AND task=a.owner "
+        "AND data_generation=a.data_generation AND cancelled_at IS NULL AND payload_digest=a.payload_digest "
+        "ORDER BY created_at,key LIMIT 1) k ON true "
+        "WHERE a.data_generation=%s AND a.job_id=%s AND (%s::text IS NULL OR a.identity_digest=%s) "
+        "AND a.owner='conversation.result' AND a.policy='normal_begin_required' "
+        "AND NOT (j.args ? 'repair_ref' OR j.args ? 'repair_consumer') AND NOT EXISTS "
+        "(SELECT 1 FROM runtime.rbj_execution_repair_jobs b WHERE b.data_generation=a.data_generation AND b.job_id=a.job_id)",
+        (generation, job_id, identity_digest, identity_digest))).fetchone()
+    if bool(repair) == bool(normal):
+        return None
+    row, purpose = (repair, "repair") if repair else (normal, "normal")
+    if not isinstance(row["args"], Mapping) or row["payload_digest"] is None:
+        return None
+    digest = _identity_digest(JobSpec(row["owner"], "native-admission", row["args"],
+        subject_id=row["subject_id"], matter_id=row["matter_id"], payload_version=row["payload_version"],
+        data_generation=generation))
+    invalidated = False
+    if digest != row["payload_digest"]:
+        from .rbj_wake import payload_digest
+        event = row["args"].get("event")
+        redaction = await (await connection.execute(
+            "SELECT effective_digest FROM runtime.rbj_wake_redactions WHERE job_id=%s AND task=%s "
+            "ORDER BY id DESC LIMIT 1", (job_id, row["owner"]))).fetchone()
+        invalidated = bool(redaction and redaction["effective_digest"] == payload_digest(row["args"])
+                           and isinstance(event, Mapping) and event.get("source_invalidated") is True)
+        if not invalidated:
+            return None
+    return {"data_generation": generation, "job_id": job_id, "identity_digest": row["identity_digest"],
+            "grant_id": row["grant_id"], "purpose": purpose, "source_invalidated": invalidated}
+
+
+async def _prebegin_tail_on(connection, *, generation, job_id, native_attempt, started_event_id,
+                            identity_digest=None):
+    """Recognize an anchored, trusted native tail without a business fact."""
+    if type(started_event_id) is not int:
+        return None
+    binding = await _prebegin_binding_on(connection, generation=generation, job_id=job_id,
+                                         identity_digest=identity_digest)
+    if not binding:
+        return None
+    native = await (await connection.execute(
+        "SELECT 1 FROM procrastinate_jobs j WHERE j.id=%s AND j.status='doing' AND NOT j.abort_requested "
+        "AND j.attempts=%s AND EXISTS (SELECT 1 FROM procrastinate_events e WHERE e.job_id=j.id "
+        "AND e.id=%s AND e.type='started') AND NOT EXISTS (SELECT 1 FROM procrastinate_events e "
+        "WHERE e.job_id=j.id AND e.id>%s AND e.type IN "
+        "('started','deferred_for_retry','failed','succeeded','aborted','retried','cancelled','abort_requested')) "
+        "AND NOT EXISTS (SELECT 1 FROM runtime.rbi_execution_facts f WHERE f.data_generation=%s "
+        "AND f.job_id=j.id AND f.native_attempt=j.attempts) "
+        "AND NOT EXISTS (SELECT 1 FROM runtime.rbj_wake_exits x WHERE x.data_generation=%s "
+        "AND x.job_id=j.id AND x.native_attempt=j.attempts)",
+        (job_id, native_attempt, started_event_id, started_event_id, generation, generation))).fetchone()
+    if not native:
+        return None
+    return {"data_generation": generation, "job_id": job_id, "native_attempt": native_attempt,
+            "grant_id": binding["grant_id"], "started_event_id": started_event_id, "purpose": binding["purpose"],
+            "source_invalidated": binding["source_invalidated"]}
+
+
+async def _native_inflight_on(connection, data_generation, digest, current_job=None):
+    """Inspect bounded trusted native tails under the execution identity mutex."""
+    rows = await (await connection.execute(
+        "WITH tracked AS (SELECT data_generation,job_id,identity_digest,grant_id,'repair'::text AS purpose "
+        "FROM runtime.rbj_execution_repair_jobs UNION ALL "
+        "SELECT data_generation,job_id,identity_digest,NULL::bigint,'normal'::text "
+        "FROM runtime.rbj_execution_admissions) "
+        "SELECT t.data_generation,t.job_id,j.attempts AS native_attempt,t.grant_id,t.purpose,j.status,j.abort_requested,"
+        "c.ordinal AS cursor_ordinal,c.active_attempt,c.active_event_id AS started_event_id,"
+        "c.event_id AS cursor_event_id,c.task_name AS cursor_task,"
+        "EXISTS (SELECT 1 FROM procrastinate_events e WHERE e.job_id=j.id AND e.id=c.event_id) AS cursor_anchor_exists,"
+        "EXISTS (SELECT 1 FROM procrastinate_events e WHERE e.job_id=j.id AND e.id=c.active_event_id "
+        "AND e.type='started') AS started_anchor_exists,"
+        "EXISTS (SELECT 1 FROM runtime.rbj_wake_exits x WHERE x.data_generation=t.data_generation "
+        "AND x.job_id=j.id AND x.native_attempt=j.attempts) AS exit_recorded "
+        "FROM tracked t JOIN procrastinate_jobs j ON j.id=t.job_id "
+        "LEFT JOIN runtime.rbi_execution_history_cursors c ON c.data_generation=t.data_generation "
+        "AND c.identity_digest=t.identity_digest AND c.job_id=t.job_id "
+        "WHERE t.data_generation=%s AND t.identity_digest=%s AND j.status IN ('doing','aborting') "
+        "AND NOT EXISTS (SELECT 1 FROM runtime.rbi_execution_facts f WHERE f.data_generation=t.data_generation "
+        "AND f.job_id=j.id AND f.native_attempt=j.attempts) ORDER BY j.id,t.purpose LIMIT 33",
+        (data_generation, digest))).fetchall()
+    items = []
+    complete = len(rows) <= 32
+    for row in rows[:32]:
+        binding = await _prebegin_binding_on(connection, generation=data_generation, job_id=row["job_id"],
+                                              identity_digest=digest)
+        valid_binding = (binding is not None and binding["purpose"] == row["purpose"]
+                         and binding["grant_id"] == row["grant_id"] and row["status"] == "doing"
+                         and not row["abort_requested"])
+        verified = None
+        if not valid_binding:
+            anchor_state = "invalid"
+        elif row["cursor_event_id"] is not None and (
+                row["cursor_task"] != "conversation.result" or row["cursor_ordinal"] > row["native_attempt"]
+                or row["cursor_event_id"] > 0 and not row["cursor_anchor_exists"]
+                or row["active_attempt"] is not None and (
+                    not row["started_anchor_exists"] or row["started_event_id"] > row["cursor_event_id"])):
+            anchor_state = "invalid"
+        elif row["exit_recorded"]:
+            anchor_state = "exiting"
+        elif row["active_attempt"] != row["native_attempt"]:
+            anchor_state = "unscanned"
+        elif (row["cursor_task"] != "conversation.result" or not row["cursor_anchor_exists"]
+              or row["started_event_id"] is None or row["cursor_event_id"] is None
+              or row["cursor_event_id"] < row["started_event_id"]):
+            anchor_state = "invalid"
+        else:
+            verified = await _prebegin_tail_on(connection, generation=data_generation, job_id=row["job_id"],
+                native_attempt=row["native_attempt"], started_event_id=row["started_event_id"], identity_digest=digest)
+            anchor_state = "verified" if verified else "invalid"
+        if anchor_state == "invalid":
+            complete = False
+        own = (verified is not None and not verified["source_invalidated"] and current_job is not None
+               and current_job.get("data_generation") == data_generation
+               and current_job.get("job_id") == row["job_id"]
+               and current_job.get("native_attempt") == row["native_attempt"])
+        if own:
+            await _current_job_on(connection, data_generation, row["job_id"], row["native_attempt"])
+        items.append({"data_generation": data_generation, "job_id": row["job_id"],
+                      "native_attempt": row["native_attempt"], "grant_id": row["grant_id"], "purpose": row["purpose"],
+                      "started_event_id": row["started_event_id"] if row["active_attempt"] == row["native_attempt"] else None,
+                      "verified": verified is not None, "is_current": own, "anchor_state": anchor_state,
+                      "source_invalidated": bool(binding and binding["source_invalidated"])})
+    return items, complete
+
+
+async def _snapshot_on(connection, data_generation, digest, binding, *, current_job=None):
+    inflight, inflight_complete = await _native_inflight_on(connection, data_generation, digest, current_job)
+    native_blocked = not inflight_complete or any(not item["is_current"] for item in inflight)
+    native_fields = {"native_inflight": inflight, "native_inflight_complete": inflight_complete,
+                     "native_inflight_blocking": native_blocked}
+    if binding is None or binding["history_state"] != "history_complete" or not inflight_complete:
+        known = await (await connection.execute(
+            "SELECT count(*) FILTER (WHERE COALESCE(resolved_outcome,outcome)='unknown') AS unknown,"
+            "count(*) FILTER (WHERE COALESCE(resolved_outcome,outcome)='started') AS active "
+            "FROM runtime.rbi_execution_facts WHERE data_generation=%s AND identity_digest=%s AND job_id>0",
+            (data_generation, digest))).fetchone()
         return {"eligible": False, "reason": "history_unknown", "history_complete": False,
+                "known_unknown_held": known["unknown"], "known_active_executions": known["active"],
                 "total_executions": None, "failed_executions": None, "unknown_held": None,
                 "active_executions": None, "unresolved_executions": [], "unresolved_complete": False,
                 "remaining": None, "max_failures": binding["max_failures"] if binding else None, "retry_at": None,
                 "normal_failed_executions": None, "repair_failed_executions": None,
-                "total_failed_executions": None, "failure_digest": None}
+                "total_failed_executions": None, "failure_digest": None, **native_fields}
     counts = await (await connection.execute(
         "SELECT count(*) AS total,"
         "count(*) FILTER (WHERE purpose='normal' AND COALESCE(resolved_outcome,outcome)='failed') AS failures,"
@@ -108,17 +266,19 @@ async def _snapshot_on(connection, data_generation, digest, binding):
         [[item["job_id"], item["native_attempt"], item["evidence_ref"], item["observation_ref"]] for item in failures],
         ensure_ascii=False, separators=(",", ":")).encode("utf-8")).hexdigest()
     reason = ("execution_outcome_unknown" if counts["unknown"] else
-              "execution_in_progress" if counts["active"] else
+              "execution_in_progress" if counts["active"] or native_blocked else
               "execution_failure_budget_exhausted" if counts["failures"] >= binding["max_failures"] else
               "execution_wait" if counts["retry_at"] is not None else None)
     return {"eligible": reason is None, "reason": reason, "history_complete": True,
             "total_executions": counts["total"], "failed_executions": counts["failures"],
             "unknown_held": counts["unknown"], "active_executions": counts["active"],
+            "known_unknown_held": counts["unknown"], "known_active_executions": counts["active"],
             "unresolved_executions": unresolved[:32], "unresolved_complete": len(unresolved) <= 32,
             "remaining": max(0, binding["max_failures"] - counts["failures"] - counts["unknown"] - counts["active"]),
             "max_failures": binding["max_failures"], "retry_at": counts["retry_at"] if reason == "execution_wait" else None,
             "normal_failed_executions": counts["failures"], "repair_failed_executions": counts["repair_failures"],
-            "total_failed_executions": counts["failures"] + counts["repair_failures"], "failure_digest": failure_digest}
+            "total_failed_executions": counts["failures"] + counts["repair_failures"], "failure_digest": failure_digest,
+            **native_fields}
 
 
 def _history(history):
@@ -179,7 +339,7 @@ async def seed_execution_history_on(connection, *, owner, identity, data_generat
             effective_retry = existing["resolved_retry_at"] if existing["resolved_outcome"] else existing["retry_at"]
             # Coarse native observations never downgrade typed waits or an
             # established outcome. Unknown/started need explicit resolution.
-            if (outcome != "unknown" and effective not in {"unknown", "started", outcome}
+            if (outcome != "unknown" and effective not in {"unknown", "started", "not_started", outcome}
                     and not (effective == "wait" and outcome == "failed")):
                 raise AppError("execution_history_conflict", status=409)
             if effective == outcome == "wait" and effective_retry != retry_at:
@@ -192,10 +352,17 @@ async def seed_execution_history_on(connection, *, owner, identity, data_generat
             "WHERE b.data_generation=%s AND b.job_id=%s", (data_generation, job))).fetchone()
         if purpose and purpose["identity_digest"] != digest:
             raise AppError("execution_attempt_identity_conflict", status=409)
-        if purpose and outcome == "completed":
+        admission = await (await connection.execute(
+            "SELECT identity_digest,owner FROM runtime.rbj_execution_admissions "
+            "WHERE data_generation=%s AND job_id=%s", (data_generation, job))).fetchone()
+        if admission and (admission["identity_digest"] != digest or admission["owner"] != owner):
+            raise AppError("execution_attempt_identity_conflict", status=409)
+        if purpose and admission:
+            raise AppError("execution_attempt_identity_conflict", status=409)
+        if (purpose or admission) and outcome == "completed":
             # A native job can finish normally while its handler reports
             # blocked. Without an existing begin/finish fact this is not proof
-            # that the repair target was applied.
+            # that the result target was applied (also for a marked normal job).
             outcome = "unknown"
         if not purpose:
             native = await (await connection.execute(
@@ -223,12 +390,13 @@ async def seed_execution_history_on(connection, *, owner, identity, data_generat
 
 
 async def inspect_execution_on(connection, *, owner, identity, data_generation, max_failures,
-                               repair_ref=None, consumer=None):
+                               repair_ref=None, consumer=None, current_job=None):
     from .rbj_execution_repair import repair_snapshot_on
     digest = _inputs(owner, identity, data_generation, max_failures)
     await _generation_on(connection, data_generation, lock=False)
+    await _lock_on(connection, data_generation, digest)
     binding = await _binding_on(connection, data_generation, digest, owner, max_failures)
-    result = await _snapshot_on(connection, data_generation, digest, binding)
+    result = await _snapshot_on(connection, data_generation, digest, binding, current_job=current_job)
     if binding is None:
         result["max_failures"] = max_failures
     result["repair"] = await repair_snapshot_on(connection, data_generation=data_generation,
@@ -254,8 +422,18 @@ async def begin_execution_on(connection, *, owner, identity, data_generation, jo
     _physical(job_id, native_attempt)
     await _generation_on(connection, data_generation)
     await _lock_on(connection, data_generation, digest)
+    await _current_job_on(connection, data_generation, job_id, native_attempt)
+    current_job = {"data_generation": data_generation, "job_id": job_id, "native_attempt": native_attempt}
+    admission = await (await connection.execute(
+        "SELECT owner,identity_digest FROM runtime.rbj_execution_admissions WHERE data_generation=%s AND job_id=%s",
+        (data_generation, job_id))).fetchone()
+    if admission:
+        verified = await _prebegin_binding_on(connection, generation=data_generation, job_id=job_id, identity_digest=digest)
+        if (admission["owner"] != owner or admission["identity_digest"] != digest or repair_ref is not None
+                or not verified or verified["purpose"] != "normal" or verified["source_invalidated"]):
+            raise AppError("execution_admission_identity_conflict", status=409)
     binding = await _binding_on(connection, data_generation, digest, owner, max_failures)
-    result = await _snapshot_on(connection, data_generation, digest, binding)
+    result = await _snapshot_on(connection, data_generation, digest, binding, current_job=current_job)
     repair = await repair_snapshot_on(connection, data_generation=data_generation, identity_digest=digest,
         owner=owner, normal=result, repair_ref=repair_ref, consumer=consumer)
     result["repair"] = repair
@@ -271,13 +449,12 @@ async def begin_execution_on(connection, *, owner, identity, data_generation, jo
     if existing:
         result.update(eligible=False, reason="execution_attempt_already_recorded", retry_at=None)
         return result
-    if not result["eligible"]:
-        return result
-    await _current_job_on(connection, data_generation, job_id, native_attempt)
     stop = await _wake_exit_on(connection, data_generation, job_id, native_attempt)
     if stop:
         result.update(eligible=False, reason="wake_covered" if stop["kind"] == "covered"
                       else "execution_preflight_stopped", retry_at=None)
+        return result
+    if not result["eligible"]:
         return result
     purpose = await (await connection.execute(
         "SELECT grant_id,identity_digest FROM runtime.rbj_execution_repair_jobs "
@@ -298,6 +475,7 @@ async def begin_execution_on(connection, *, owner, identity, data_generation, jo
         raise AppError("execution_attempt_identity_conflict", status=409)
     result["total_executions"] += 1
     result["active_executions"] += 1
+    result["known_active_executions"] += 1
     result["unresolved_executions"] = [{"job_id": job_id, "native_attempt": native_attempt,
                                         "outcome": "started", "evidence_ref": None,
                                         "purpose": "repair" if repair else "normal",
@@ -335,6 +513,62 @@ def _classify_outcome(outcome, error):
     return ("unknown", None) if outcome == "wait" else ("failed", None)
 
 
+async def record_execution_preflight_stop_on(connection, *, owner, identity, data_generation, job_id,
+                                             native_attempt, reason, observation_ref):
+    """Persist a trusted marked normal worker's precise pre-begin no-op."""
+    from .jobs import current_job_execution
+    if reason not in {"closed", "blocked", "unknown", "history_more", "execution_wait", "execution_in_progress"}:
+        raise ValueError("invalid_execution_preflight_stop")
+    if (not isinstance(observation_ref, str) or not observation_ref.strip() or len(observation_ref) > 256
+            or any(ord(char) < 32 or ord(char) == 127 for char in observation_ref)):
+        raise ValueError("invalid_execution_observation")
+    _physical(job_id, native_attempt)
+    if current_job_execution() != {"job_id": job_id, "native_attempt": native_attempt,
+                                   "data_generation": data_generation}:
+        raise AppError("execution_current_job_mismatch", status=409)
+    digest = _inputs(owner, identity, data_generation)
+    await _generation_on(connection, data_generation)
+    await _lock_on(connection, data_generation, digest)
+    admission = await (await connection.execute(
+        "SELECT data_generation,owner,identity_digest FROM runtime.rbj_execution_admissions WHERE job_id=%s",
+        (job_id,))).fetchone()
+    if not admission:
+        return {"state": "unregistered", "reason": "execution_admission_unregistered",
+                "job_id": job_id, "native_attempt": native_attempt}
+    if (admission["data_generation"] != data_generation or admission["owner"] != owner
+            or admission["identity_digest"] != digest):
+        raise AppError("execution_admission_identity_conflict", status=409)
+    binding = await _prebegin_binding_on(connection, generation=data_generation, job_id=job_id, identity_digest=digest)
+    if not binding or binding["purpose"] != "normal" or binding["source_invalidated"]:
+        raise AppError("execution_admission_identity_conflict", status=409)
+    await _current_job_on(connection, data_generation, job_id, native_attempt)
+    fact = await (await connection.execute(
+        "SELECT 1 FROM runtime.rbi_execution_facts WHERE data_generation=%s AND job_id=%s AND native_attempt=%s",
+        (data_generation, job_id, native_attempt))).fetchone()
+    if fact:
+        raise AppError("execution_already_started", status=409)
+    if reason == "history_more":
+        unresolved = await (await connection.execute(
+            "SELECT 1 FROM runtime.rbi_execution_facts WHERE data_generation=%s AND identity_digest=%s "
+            "AND job_id>0 AND COALESCE(resolved_outcome,outcome) IN ('started','unknown') LIMIT 1",
+            (data_generation, digest))).fetchone()
+        if unresolved:
+            raise AppError("execution_preflight_wait_unconfirmed", status=409)
+    await connection.execute(
+        "INSERT INTO runtime.rbj_wake_exits(data_generation,job_id,native_attempt,kind,reason,observation_ref) "
+        "VALUES(%s,%s,%s,'normal_preflight',%s,%s) ON CONFLICT DO NOTHING",
+        (data_generation, job_id, native_attempt, reason, observation_ref))
+    saved = await (await connection.execute(
+        "SELECT kind,reason,observation_ref FROM runtime.rbj_wake_exits "
+        "WHERE data_generation=%s AND job_id=%s AND native_attempt=%s",
+        (data_generation, job_id, native_attempt))).fetchone()
+    if (not saved or saved["kind"] != "normal_preflight" or saved["reason"] != reason
+            or saved["observation_ref"] != observation_ref):
+        raise AppError("execution_preflight_conflict", status=409)
+    return {"state": "preflight_stopped", "reason": reason, "job_id": job_id,
+            "native_attempt": native_attempt, "purpose": "normal"}
+
+
 async def finish_execution_on(connection, *, owner, identity, data_generation, job_id, native_attempt, outcome, error=None):
     from .rbj_execution_repair import repair_snapshot_on
     digest = _inputs(owner, identity, data_generation)
@@ -365,7 +599,8 @@ async def finish_execution_on(connection, *, owner, identity, data_generation, j
         raise AppError("execution_attempt_conflict", status=409)
     result = await _snapshot_on(connection, data_generation, digest, binding)
     if (actual == "completed" and fact["repair_grant_id"] is not None and result["history_complete"]
-            and not result["unknown_held"] and not result["active_executions"]):
+            and not result["unknown_held"] and not result["active_executions"]
+            and not result["native_inflight_blocking"]):
         await connection.execute("UPDATE runtime.rbj_execution_repair_grants SET closed_at=now(),"
             "close_observation_ref=%s WHERE id=%s AND closed_at IS NULL",
             (f"execution:{job_id}:{native_attempt}:completed", fact["repair_grant_id"]))
@@ -374,12 +609,88 @@ async def finish_execution_on(connection, *, owner, identity, data_generation, j
     return {"recorded": recorded, "outcome": actual, **result}
 
 
+async def _validate_not_started_on(connection, *, owner, data_generation, digest, job_id, native_attempt, fact):
+    """Verify mechanical provenance; the trusted caller owns domain evidence."""
+    if (owner != "conversation.result" or fact["outcome"] != "unknown" or fact["purpose"] != "repair"
+            or fact["repair_grant_id"] is None or fact["retry_at"] is not None):
+        raise AppError("execution_not_started_unproven", status=409)
+    evidence = fact["evidence_ref"]
+    prefix = "native-job-event:"
+    if (not isinstance(evidence, str) or not evidence.startswith(prefix)
+            or not evidence[len(prefix):].isascii() or not evidence[len(prefix):].isdigit()
+            or evidence[len(prefix):].startswith("0") or len(evidence[len(prefix):]) > 18):
+        raise AppError("execution_not_started_unproven", status=409)
+    started_event_id = int(evidence[len(prefix):])
+    binding = await _prebegin_binding_on(connection, generation=data_generation, job_id=job_id, identity_digest=digest)
+    if (not binding or binding["purpose"] != "repair" or binding["grant_id"] != fact["repair_grant_id"]
+            or binding["source_invalidated"]):
+        raise AppError("execution_not_started_unproven", status=409)
+    native = await (await connection.execute(
+        "SELECT status,attempts FROM procrastinate_jobs WHERE id=%s FOR SHARE", (job_id,))).fetchone()
+    if (not native or native["status"] in {"doing", "aborting"} or native["attempts"] <= native_attempt):
+        raise AppError("execution_not_started_unproven", status=409)
+    other_doing = await (await connection.execute(
+        "SELECT 1 FROM (SELECT data_generation,job_id,identity_digest FROM runtime.rbj_execution_repair_jobs "
+        "UNION ALL SELECT data_generation,job_id,identity_digest FROM runtime.rbj_execution_admissions) b "
+        "JOIN procrastinate_jobs j ON j.id=b.job_id WHERE b.data_generation=%s AND b.identity_digest=%s "
+        "AND j.status IN ('doing','aborting') LIMIT 1", (data_generation, digest))).fetchone()
+    if other_doing:
+        raise AppError("execution_in_progress", status=409)
+    conflict = await (await connection.execute(
+        "SELECT 1 FROM runtime.rbi_execution_facts WHERE data_generation=%s AND identity_digest=%s AND job_id>0 "
+        "AND (job_id<>%s OR native_attempt<>%s) AND COALESCE(resolved_outcome,outcome) IN ('started','unknown') LIMIT 1",
+        (data_generation, digest, job_id, native_attempt))).fetchone()
+    if conflict or await _wake_exit_on(connection, data_generation, job_id, native_attempt):
+        raise AppError("execution_not_started_unproven", status=409)
+    cursor = await (await connection.execute(
+        "SELECT event_id,ordinal,active_attempt,active_event_id,last_type,task_name "
+        "FROM runtime.rbi_execution_history_cursors WHERE data_generation=%s AND identity_digest=%s AND job_id=%s",
+        (data_generation, digest, job_id))).fetchone()
+    events = await (await connection.execute(
+        "SELECT id,type FROM procrastinate_events WHERE job_id=%s ORDER BY id LIMIT 129", (job_id,))).fetchall()
+    if (not cursor or cursor["task_name"] != owner or not events or len(events) > 128
+            or cursor["event_id"] != events[-1]["id"] or cursor["ordinal"] != native["attempts"]
+            or cursor["active_attempt"] is not None or cursor["active_event_id"] is not None):
+        raise AppError("execution_history_incomplete", status=409)
+    ordinal, active, last, matched = 0, None, None, False
+    for event in events:
+        event_type = event["type"]
+        if event_type == "started":
+            if active is not None:
+                raise AppError("execution_history_incomplete", status=409)
+            active, last = (ordinal, event["id"]), None
+        elif event_type == "abort_requested":
+            raise AppError("execution_history_incomplete", status=409)
+        elif event_type == "cancelled":
+            if active is not None:
+                raise AppError("execution_history_incomplete", status=409)
+            last = "cancelled"
+        elif event_type == "retried":
+            if active is not None or last not in {"failed", "cancelled"}:
+                raise AppError("execution_history_incomplete", status=409)
+            ordinal, last = ordinal + 1, "retry"
+        elif event_type in {"deferred_for_retry", "failed", "succeeded", "aborted"}:
+            if active is None:
+                raise AppError("execution_history_incomplete", status=409)
+            if active == (native_attempt, started_event_id):
+                matched = True
+            active, last = None, event_type
+            ordinal += 1
+    status = native["status"]
+    if (not matched or active is not None or ordinal != native["attempts"] or cursor["last_type"] != last
+            or status == "failed" and last not in {"failed", "cancelled"}
+            or status == "succeeded" and last not in {"succeeded", "cancelled"}
+            or status == "aborted" and last != "aborted"
+            or status == "cancelled" and last != "cancelled"):
+        raise AppError("execution_history_incomplete", status=409)
+
+
 async def resolve_execution_on(connection, *, owner, identity, data_generation, job_id, native_attempt,
-                               outcome, observation_ref, retry_at=None):
+                               outcome, observation_ref, retry_at=None, current_job=None):
     from .rbj_execution_repair import repair_snapshot_on
     digest = _inputs(owner, identity, data_generation)
     _physical(job_id, native_attempt)
-    if (outcome not in {"failed", "wait", "completed"} or not isinstance(observation_ref, str)
+    if (outcome not in {"failed", "wait", "completed", "not_started"} or not isinstance(observation_ref, str)
             or not observation_ref.strip() or len(observation_ref) > 256
             or any(ord(character) < 32 or ord(character) == 127 for character in observation_ref)
             or outcome == "wait" and not _aware(retry_at) or outcome != "wait" and retry_at is not None):
@@ -389,20 +700,30 @@ async def resolve_execution_on(connection, *, owner, identity, data_generation, 
     binding = await _binding_on(connection, data_generation, digest, owner)
     if not binding:
         raise AppError("execution_history_unknown", status=409)
+    before = await _snapshot_on(connection, data_generation, digest, binding, current_job=current_job)
+    if before["native_inflight_blocking"]:
+        before.update(eligible=False, reason=("history_unknown" if not before["native_inflight_complete"]
+                                              else "execution_in_progress"), retry_at=None)
+        return {"recorded": False, "outcome": None, **before}
     fact = await (await connection.execute(
-        "SELECT f.outcome,f.resolved_outcome,f.resolved_retry_at,f.observation_ref,"
+        "SELECT f.outcome,f.retry_at,f.evidence_ref,f.purpose,f.resolved_outcome,f.resolved_retry_at,f.observation_ref,"
         "f.repair_grant_id,g.repair_ref,g.consumer "
         "FROM runtime.rbi_execution_facts f LEFT JOIN runtime.rbj_execution_repair_grants g ON g.id=f.repair_grant_id "
         "WHERE f.data_generation=%s AND f.identity_digest=%s AND f.job_id=%s AND f.native_attempt=%s FOR UPDATE OF f",
         (data_generation, digest, job_id, native_attempt))).fetchone()
     if not fact or fact["outcome"] not in {"started", "unknown"}:
         raise AppError("execution_attempt_not_unknown", status=409)
+    if outcome == "not_started":
+        if not binding or binding["history_state"] != "history_complete":
+            raise AppError("execution_history_unknown", status=409)
+        await _validate_not_started_on(connection, owner=owner, data_generation=data_generation, digest=digest,
+                                       job_id=job_id, native_attempt=native_attempt, fact=fact)
     recorded = fact["resolved_outcome"] is None
     if recorded:
         native = await (await connection.execute(
             "SELECT status,attempts FROM procrastinate_jobs WHERE id=%s FOR SHARE", (job_id,))).fetchone()
         if native and native["status"] in {"doing", "todo"} and native["attempts"] == native_attempt:
-            result = await _snapshot_on(connection, data_generation, digest, binding)
+            result = await _snapshot_on(connection, data_generation, digest, binding, current_job=current_job)
             result.update(eligible=False, reason="execution_in_progress", retry_at=None)
             return {"recorded": False, "outcome": None, **result}
         await connection.execute(
@@ -412,9 +733,10 @@ async def resolve_execution_on(connection, *, owner, identity, data_generation, 
     elif (fact["resolved_outcome"] != outcome or fact["resolved_retry_at"] != retry_at
           or fact["observation_ref"] != observation_ref):
         raise AppError("execution_attempt_conflict", status=409)
-    result = await _snapshot_on(connection, data_generation, digest, binding)
+    result = await _snapshot_on(connection, data_generation, digest, binding, current_job=current_job)
     if (outcome == "completed" and fact["repair_grant_id"] is not None and result["history_complete"]
-            and not result["unknown_held"] and not result["active_executions"]):
+            and not result["unknown_held"] and not result["active_executions"]
+            and not result["native_inflight_blocking"]):
         await connection.execute("UPDATE runtime.rbj_execution_repair_grants SET closed_at=now(),"
             "close_observation_ref=%s WHERE id=%s AND closed_at IS NULL", (observation_ref, fact["repair_grant_id"]))
     result["repair"] = await repair_snapshot_on(connection, data_generation=data_generation, identity_digest=digest,
@@ -442,14 +764,22 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
     await _generation_on(connection, data_generation, lock=False)
     ids = sorted(set(job_ids))
     if not ids:
-        return {"complete": True, "reason": None, "executions": []}
+        return {"complete": True, "reason": None, "executions": [], "native_inflight": []}
+    bindings = await (await connection.execute(
+        "SELECT DISTINCT identity_digest FROM ("
+        "SELECT identity_digest FROM runtime.rbj_execution_repair_jobs WHERE data_generation=%s AND job_id=ANY(%s::bigint[]) "
+        "UNION ALL SELECT identity_digest FROM runtime.rbj_execution_admissions "
+        "WHERE data_generation=%s AND job_id=ANY(%s::bigint[])) b ORDER BY identity_digest",
+        (data_generation, ids, data_generation, ids))).fetchall()
+    for item in bindings:
+        await _lock_on(connection, data_generation, item["identity_digest"])
     rows = await (await connection.execute(
         "SELECT j.id,j.status,j.attempts,j.task_name,EXISTS (SELECT 1 FROM runtime.job_keys k "
         "WHERE k.job_id=j.id AND k.data_generation=%s) AS generation_matches "
         "FROM procrastinate_jobs j WHERE j.id=ANY(%s) ORDER BY j.id",
         (data_generation, ids))).fetchall()
     if len(rows) != len(ids) or any(row["task_name"] != task_name or not row["generation_matches"] for row in rows):
-        return {"complete": False, "reason": "execution_history_job_missing_or_changed", "executions": []}
+        return {"complete": False, "reason": "execution_history_job_missing_or_changed", "executions": [], "native_inflight": []}
     events = await (await connection.execute(
         "SELECT id,job_id,type FROM procrastinate_events WHERE job_id=ANY(%s) "
         "AND type IN ('started','deferred_for_retry','failed','succeeded','aborted','retried','cancelled','abort_requested') "
@@ -457,31 +787,31 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
     by_job = {job_id: [] for job_id in ids}
     for event in events:
         by_job[event["job_id"]].append(event)
-    executions = []
+    executions, native_inflight = [], []
     for row in rows:
         ordinal, active, last = 0, None, None
         for event in by_job[row["id"]]:
             event_type = event["type"]
             if event_type == "started":
                 if active is not None:
-                    return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                    return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
                 active, last = (ordinal, event["id"]), None
             elif event_type == "abort_requested":
                 # Native retry-on-abort may finish without incrementing the
                 # counter; event rows alone cannot prove which path won.
-                return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
             elif event_type == "cancelled":
                 if active is not None:
-                    return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                    return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
                 last = "cancelled"
             elif event_type == "retried":
                 if active is not None or last not in {"failed", "cancelled"}:
-                    return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                    return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
                 ordinal += 1
                 last = "retry"
             else:
                 if active is None:
-                    return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                    return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
                 outcome = {"failed": "failed", "succeeded": "completed", "aborted": "unknown",
                            "deferred_for_retry": "unknown"}[event_type]
                 if not await _wake_exit_on(connection, data_generation, row["id"], active[0]):
@@ -491,21 +821,28 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
                 # Native finish as well as doing->todo increments attempts.
                 ordinal += 1
         if row["attempts"] != ordinal:
-            return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+            return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
         if row["status"] == "doing":
             if active is None:
-                return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
             is_current = (current_job is not None and current_job["job_id"] == row["id"]
                           and current_job["native_attempt"] == active[0])
-            if not is_current and not await _wake_exit_on(connection, data_generation, row["id"], active[0]):
+            tail = (await _prebegin_tail_on(connection, generation=data_generation, job_id=row["id"],
+                native_attempt=active[0], started_event_id=active[1]) if task_name == "conversation.result" else None)
+            if tail:
+                native_inflight.append(tail)
+                if len(native_inflight) > 32:
+                    return {"complete": False, "reason": "execution_history_incomplete",
+                            "executions": [], "native_inflight": []}
+            elif not is_current and not await _wake_exit_on(connection, data_generation, row["id"], active[0]):
                 executions.append({"job_id": row["id"], "native_attempt": active[0], "outcome": "unknown",
                                    "evidence_ref": "native-job-event:" + str(active[1])})
         elif (active is not None or row["status"] == "failed" and last not in {"failed", "cancelled"}
                 or row["status"] == "succeeded" and last not in {"succeeded", "cancelled"}
                 or row["status"] == "aborted" and last != "aborted"
                 or row["status"] == "cancelled" and last != "cancelled"):
-            return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
-    return {"complete": True, "reason": None, "executions": executions}
+            return {"complete": False, "reason": "execution_history_incomplete", "executions": [], "native_inflight": []}
+    return {"complete": True, "reason": None, "executions": executions, "native_inflight": native_inflight}
 
 
 async def advance_execution_history_on(connection, *, owner, identity, data_generation, max_failures,
@@ -536,9 +873,10 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
         "WHERE k.job_id=j.id AND k.data_generation=%s) AS generation_matches "
         "FROM procrastinate_jobs j WHERE j.id=%s FOR SHARE OF j", (data_generation, job_id))).fetchone()
 
-    def result(complete, reason, executions=(), events_read=0):
+    def result(complete, reason, executions=(), events_read=0, native_inflight=()):
         return {"complete": complete, "reason": reason, "executions": list(executions),
-                "events_read": events_read, "job_status": row["status"] if row else None}
+                "native_inflight": list(native_inflight), "events_read": events_read,
+                "job_status": row["status"] if row else None}
 
     if not row or row["task_name"] != task_name or not row["generation_matches"]:
         return result(False, "execution_history_job_missing_or_changed")
@@ -566,7 +904,7 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
     ordinal, active, active_event, last = (cursor["ordinal"], cursor["active_attempt"],
                                            cursor["active_event_id"], cursor["last_type"])
     event_id = cursor["event_id"]
-    executions = []
+    executions, native_inflight = [], []
     for event in page:
         event_id, event_type = event["id"], event["type"]
         if event_type == "started":
@@ -595,6 +933,12 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
                                    "evidence_ref": "native-job-event:" + str(event_id)})
             active, active_event, last = None, None, event_type
             ordinal += 1
+    if active is not None:
+        anchor = await (await connection.execute(
+            "SELECT 1 FROM procrastinate_events WHERE id=%s AND job_id=%s AND type='started'",
+            (active_event, job_id))).fetchone()
+        if not anchor:
+            return result(False, "execution_history_incomplete", events_read=len(page))
     if not more:
         status = row["status"]
         if (row["attempts"] != ordinal or status in {"doing", "aborting"} and active is None
@@ -604,16 +948,21 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
                 or status == "aborted" and last != "aborted"
                 or status == "cancelled" and last != "cancelled"):
             return result(False, "execution_history_incomplete", events_read=len(page))
-        is_current = (current_job is not None and current_job["job_id"] == job_id
+        is_current = (status == "doing" and current_job is not None and current_job["job_id"] == job_id
                       and current_job["native_attempt"] == active)
-        if (status in {"doing", "aborting"} and not is_current
-                and not await _wake_exit_on(connection, data_generation, job_id, active)):
-            executions.append({"job_id": job_id, "native_attempt": active, "outcome": "unknown",
-                               "evidence_ref": "native-job-event:" + str(active_event)})
+        if status in {"doing", "aborting"}:
+            tail = (await _prebegin_tail_on(connection, generation=data_generation, job_id=job_id,
+                native_attempt=active, started_event_id=active_event, identity_digest=digest)
+                if task_name == "conversation.result" else None)
+            if tail:
+                native_inflight.append(tail)
+            elif not is_current and not await _wake_exit_on(connection, data_generation, job_id, active):
+                executions.append({"job_id": job_id, "native_attempt": active, "outcome": "unknown",
+                                   "evidence_ref": "native-job-event:" + str(active_event)})
     await seed_execution_history_on(connection, owner=owner, identity=identity,
         data_generation=data_generation, max_failures=max_failures, history=executions, complete=False)
     await connection.execute(
         "UPDATE runtime.rbi_execution_history_cursors SET event_id=%s,ordinal=%s,active_attempt=%s,"
         "active_event_id=%s,last_type=%s WHERE data_generation=%s AND identity_digest=%s AND job_id=%s",
         (event_id, ordinal, active, active_event, last, data_generation, digest, job_id))
-    return result(not more, "execution_history_more" if more else None, executions, len(page))
+    return result(not more, "execution_history_more" if more else None, executions, len(page), native_inflight)

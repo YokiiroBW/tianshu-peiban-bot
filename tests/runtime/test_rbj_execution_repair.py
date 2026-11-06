@@ -18,19 +18,27 @@ from tianshu.runtime.recovery_policy import RecoveryWait
 @pytest_asyncio.fixture
 async def repair_queue(database):
     await migrate(database, tuple(Migration(name, files("tianshu.runtime").joinpath(name + ".sql").read_text(encoding="utf-8"))
-                                  for name in ("rbj_wake", "rbj_execution_repair")))
+                                  for name in ("rbj_wake", "rbj_execution_repair", "rbj_native_admission")))
     queue = JobQueue(database.config.dsn, database=database)
     state = {"mode": "failure", "event": {"event_id": "receipt", "action_id": "action", "result_revision": 2}}
 
     async def handler(event, repair_ref=None, repair_consumer=None):
         current = current_job_execution()
+        if repair_ref is not None:
+            # The current physical ordinal is exempt only after its native
+            # started anchor has been included in the bounded history scan.
+            async with database.transaction() as conn:
+                page = await queue.advance_execution_history_on(conn, **args(current["data_generation"]),
+                    job_id=current["job_id"], task_name="conversation.result", current_job=current)
+                assert page["complete"]
+                await queue.seed_execution_history_on(conn, **args(current["data_generation"]), history=[], complete=True)
         if state["mode"] in {"preclose", "preunknown", "prewait"}:
             reason = {"preclose": "closed", "preunknown": "unknown", "prewait": "blocked"}[state["mode"]]
             async with database.transaction() as conn:
                 if reason == "closed":
                     closed = await queue.close_execution_repair_on(conn, owner="conversation.result", identity="original-result",
                         data_generation=current["data_generation"], max_failures=4, repair_ref=repair_ref,
-                        consumer=repair_consumer, observation_ref="preflight-proof")
+                        consumer=repair_consumer, observation_ref="preflight-proof", current_job=current)
                     assert closed["closed"]
                 stop_args = dict(owner="conversation.result", identity="original-result", data_generation=current["data_generation"],
                     repair_ref=repair_ref, consumer=repair_consumer, job_id=current["job_id"],

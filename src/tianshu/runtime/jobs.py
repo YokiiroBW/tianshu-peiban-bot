@@ -61,6 +61,8 @@ class JobSpec:
     execution_lane: ExecutionLane | None = None
     payload_version: int = 1
     data_generation: str | None = None
+    # Trusted Python publishers only; never inferred from the job payload.
+    execution_identity: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -257,11 +259,13 @@ class JobQueue:
             consumer=consumer, job_id=job_id)
 
     async def close_execution_repair_on(self, connection, *, owner, identity, data_generation, max_failures,
-                                        repair_ref, consumer, observation_ref):
+                                        repair_ref, consumer, observation_ref, current_job=None):
+        if current_job is not None and current_job != current_job_execution():
+            raise AppError("execution_current_job_mismatch", status=409)
         from .rbj_execution_repair import close_execution_repair_on
         return await close_execution_repair_on(connection, owner=owner, identity=identity,
             data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref,
-            consumer=consumer, observation_ref=observation_ref)
+            consumer=consumer, observation_ref=observation_ref, current_job=current_job)
 
     async def record_repair_preflight_stop_on(self, connection, *, owner, identity, data_generation,
                                               repair_ref, consumer, job_id, native_attempt, reason, observation_ref):
@@ -271,6 +275,14 @@ class JobQueue:
         return await record_repair_preflight_stop_on(connection, owner=owner, identity=identity,
             data_generation=data_generation, repair_ref=repair_ref, consumer=consumer, job_id=job_id,
             native_attempt=native_attempt, reason=reason, observation_ref=observation_ref)
+
+    async def record_execution_preflight_stop_on(self, connection, *, owner, identity, data_generation,
+                                                  job_id, native_attempt, reason, observation_ref):
+        if current_job_execution() != {"job_id": job_id, "native_attempt": native_attempt, "data_generation": data_generation}:
+            raise AppError("execution_current_job_mismatch", status=409)
+        return await rbi_execution_budget.record_execution_preflight_stop_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, job_id=job_id, native_attempt=native_attempt, reason=reason,
+            observation_ref=observation_ref)
 
     async def adopt_wake_on(self, connection, job_id, *, expected_task, expected_generation,
                             expected_payload, wake_key):
@@ -292,9 +304,12 @@ class JobQueue:
             invalidation_ref=invalidation_ref, wake_object_key=wake_object_key)
 
     async def inspect_execution_on(self, connection, *, owner, identity, data_generation, max_failures,
-                                   repair_ref=None, consumer=None):
+                                   repair_ref=None, consumer=None, current_job=None):
+        if current_job is not None and current_job != current_job_execution():
+            raise AppError("execution_current_job_mismatch", status=409)
         return await rbi_execution_budget.inspect_execution_on(connection, owner=owner, identity=identity,
-            data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref, consumer=consumer)
+            data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref, consumer=consumer,
+            current_job=current_job)
 
     async def begin_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt, max_failures,
                                  repair_ref=None, consumer=None):
@@ -312,10 +327,12 @@ class JobQueue:
             data_generation=data_generation, job_id=job_id, native_attempt=native_attempt, outcome=outcome, error=error)
 
     async def resolve_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt,
-                                   outcome, observation_ref, retry_at=None):
+                                   outcome, observation_ref, retry_at=None, current_job=None):
+        if current_job is not None and current_job != current_job_execution():
+            raise AppError("execution_current_job_mismatch", status=409)
         return await rbi_execution_budget.resolve_execution_on(connection, owner=owner, identity=identity,
             data_generation=data_generation, job_id=job_id, native_attempt=native_attempt,
-            outcome=outcome, observation_ref=observation_ref, retry_at=retry_at)
+            outcome=outcome, observation_ref=observation_ref, retry_at=retry_at, current_job=current_job)
 
     async def observe_execution_history_on(self, connection, *, job_ids, data_generation, task_name, current_job=None):
         if current_job is not None and current_job != current_job_execution():
@@ -574,6 +591,7 @@ class JobQueue:
                         preflight_stopped = isinstance(result, Mapping) and result.get("state") == "preflight_stopped"
                         await self.events.emit("job.finished", "succeeded", task_name=name, job_id=job_context.job.id,
                             error_code=("wake_covered" if covered else "wake_source_invalidated" if invalidated
+                                        else "execution_preflight_stopped" if preflight_stopped and result.get("purpose") == "normal"
                                         else "repair_preflight_stopped" if preflight_stopped else None),
                             dependency_ref="wake-job:" + str(result.get("covered_by")) if covered else None)
                     except Exception:
@@ -614,6 +632,8 @@ class JobQueue:
         return self.task_lanes[task]
 
     def enqueue_sync(self, connection, spec: JobSpec) -> int:
+        if spec.execution_identity is not None:
+            raise AppError("execution_admission_async_required", status=409)
         if spec.task not in self.sync_tasks and spec.task not in self.sync_route_tasks:
             raise AppError("task_not_registered", status=503)
         if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
@@ -663,6 +683,12 @@ class JobQueue:
         if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
             raise AppError("invalid_persistent_job_class")
         spec = await self._bind_generation_on(connection, spec)
+        admission_digest = None
+        if spec.execution_identity is not None:
+            if (spec.task != "conversation.result" or not isinstance(spec.payload, Mapping)
+                    or any(key in spec.payload for key in ("repair_ref", "repair_consumer"))):
+                raise AppError("execution_admission_scope_invalid", status=409)
+            admission_digest = rbi_execution_budget._inputs(spec.task, spec.execution_identity, spec.data_generation)
         wake_key = object_key = None
         if wake_object_key is not None and (spec.task not in rbj_wake.WAKE_TASKS or queueing_lock is None):
             raise AppError("wake_task_not_registered", status=409)
@@ -709,7 +735,10 @@ class JobQueue:
                 "SELECT job_id,task,cancelled_at,payload_digest,subject_id,matter_id,payload_version,data_generation "
                 "FROM runtime.job_keys WHERE key=%s FOR UPDATE", (spec.key,))).fetchone()
             await self._check_identity_on(connection, spec, digest, row)
-            return pending if pending is not None else row["job_id"]
+            existing_job = pending if pending is not None else row["job_id"]
+            if admission_digest is not None:
+                await self._check_admission_on(connection, spec.data_generation, existing_job, admission_digest)
+            return existing_job
         if queueing_lock is not None:
             if not isinstance(queueing_lock, str) or not queueing_lock:
                 raise AppError("invalid_job_queueing_lock")
@@ -722,6 +751,8 @@ class JobQueue:
                 job_id = await self._record_coalesced_key(connection, spec, digest, pending)
                 if wake_key is not None:
                     await rbj_wake.assign_key_on(connection, spec.key, wake_key=wake_key, object_key=object_key)
+                if admission_digest is not None:
+                    await self._check_admission_on(connection, spec.data_generation, job_id, admission_digest)
                 return job_id
         if wake_key is not None:
             lower = await rbj_wake._not_before_on(connection, spec.data_generation, spec.task, object_key)
@@ -741,6 +772,8 @@ class JobQueue:
                 (spec.key,))
             row = await cursor.fetchone()
             await self._check_identity_on(connection, spec, digest, row)
+            if admission_digest is not None:
+                await self._check_admission_on(connection, spec.data_generation, row["job_id"], admission_digest)
             return row["job_id"]
         task = self.tasks.get(spec.task) or self.route_tasks[spec.task]
         options = {"connection": connection, "queue": lane.value, "schedule_at": spec.scheduled_at,
@@ -752,7 +785,21 @@ class JobQueue:
                                  (job_id, spec.key))
         if wake_key is not None:
             await rbj_wake.assign_key_on(connection, spec.key, wake_key=wake_key, object_key=object_key)
+        if admission_digest is not None:
+            await connection.execute(
+                "INSERT INTO runtime.rbj_execution_admissions(data_generation,job_id,owner,identity_digest,"
+                "payload_digest,policy) VALUES(%s,%s,%s,%s,%s,'normal_begin_required')",
+                (spec.data_generation, job_id, spec.task, admission_digest, digest))
         return job_id
+
+    @staticmethod
+    async def _check_admission_on(connection, generation, job_id, digest):
+        # Existing or coalesced jobs retain their original admission policy.
+        row = await (await connection.execute(
+            "SELECT identity_digest FROM runtime.rbj_execution_admissions WHERE data_generation=%s AND job_id=%s",
+            (generation, job_id))).fetchone()
+        if row and row["identity_digest"] != digest:
+            raise AppError("execution_admission_identity_conflict", status=409)
 
     @staticmethod
     async def _check_identity_on(connection, spec, digest, row):
