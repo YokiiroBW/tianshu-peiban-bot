@@ -88,7 +88,7 @@
       },
       "verified": false,
       "integrated": false,
-      "handoff_commit": "9af6ac4f48de2307ab870b62e43297d1f7b296ab",
+      "handoff_commit": "ed52eee946f6d88f7f019e143fe593b8d3721036",
       "verification": "AST/diff static only; native ordinal corrected; tests/build/smoke/production not run",
       "dependencies": [
         "7715afa5144be098a8b9431d1cda03b1a3aae4ec"
@@ -110,10 +110,10 @@
         "24bbcad9928d7662e6882c68df545cd08323cf01",
         "09c8350e263de115e41bb4ddbed5ba70521c020f",
         "d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c",
-        "9af6ac4f48de2307ab870b62e43297d1f7b296ab"
+        "9af6ac4f48de2307ab870b62e43297d1f7b296ab",
+        "ed52eee946f6d88f7f019e143fe593b8d3721036"
       ],
-      "candidate_head": "9af6ac4f48de2307ab870b62e43297d1f7b296ab",
-      "documentation_followup": "RBI-02 Models label and generation SHARE placement wording; no product change requested"
+      "candidate_head": "ed52eee946f6d88f7f019e143fe593b8d3721036"
     },
     {
       "id": "RBI-02",
