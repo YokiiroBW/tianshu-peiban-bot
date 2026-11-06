@@ -224,7 +224,26 @@ async def close_execution_repair_on(connection, *, owner, identity, data_generat
     if normal["unknown_held"] or normal["active_executions"]:
         return {**base, "reason": "execution_outcome_unknown" if normal["unknown_held"] else "execution_in_progress"}
     if grant["closed_at"] is not None:
-        if grant["close_observation_ref"] != observation_ref:
+        # A successful finish closes using its physical execution reference;
+        # the domain proof can only be checked afterwards. Bind that first
+        # trusted proof to the exact completed fact while preserving the
+        # original mechanical close reference. Manual/proof-based closes and
+        # later different proofs retain the existing conflict semantics.
+        completed = await (await connection.execute(
+            "SELECT job_id,native_attempt,observation_ref FROM runtime.rbi_execution_facts "
+            "WHERE data_generation=%s AND identity_digest=%s AND owner=%s AND repair_grant_id=%s "
+            "AND purpose='repair' AND outcome='completed' AND resolved_outcome IS NULL "
+            "AND %s=('execution:' || job_id::text || ':' || native_attempt::text || ':completed') "
+            "FOR UPDATE", (data_generation, digest, owner, grant["id"], grant["close_observation_ref"]))).fetchone()
+        if completed:
+            if completed["observation_ref"] is not None and completed["observation_ref"] != observation_ref:
+                raise AppError("execution_repair_close_conflict", status=409)
+            if completed["observation_ref"] is None:
+                await connection.execute(
+                    "UPDATE runtime.rbi_execution_facts SET observation_ref=%s WHERE data_generation=%s "
+                    "AND identity_digest=%s AND job_id=%s AND native_attempt=%s",
+                    (observation_ref, data_generation, digest, completed["job_id"], completed["native_attempt"]))
+        elif grant["close_observation_ref"] != observation_ref:
             raise AppError("execution_repair_close_conflict", status=409)
         return {**base, "closed": True, "reason": "already_closed"}
     await connection.execute("UPDATE runtime.rbj_execution_repair_grants SET closed_at=now(),close_observation_ref=%s "

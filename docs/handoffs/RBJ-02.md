@@ -25,3 +25,9 @@
 - 已对全部改动的 8 个 Python 文件做 AST 语法解析；已审阅本卡差异并执行 `git diff --cached --check`，通过。
 - 已编写定向用例代码：`test_rbj_wakes.py`、`test_rbj_execution_repair.py`、`test_rbj_redaction.py`，并为既有 RBI fixture 增加本卡迁移。按本批授权，**未运行测试、构建、烟测、PostgreSQL、模型、QQ 或生产操作**；不得据此宣称验证、集成或部署完成。
 - 未修改共享 module/product、全局迁移注册、配置、其他领域或生产；未推送、部署、清理或重放外部未知副作用。
+
+## 1.8 成功修复后的重复证明观察返修
+
+- 对齐公共合同 `1d56370f` 第 16 节。已关闭 grant 只有在首次机械 `close_observation_ref` 精确指向同 generation/identity/grant 的 `repair`/`completed` 原物理 fact、历史完整且无 active/unknown 时，才将首次可信领域证明引用绑定到该 fact 既有 `observation_ref`。原 `closed_at`、首次机械关闭引用、原成功与失败事实保持；同领域引用重入幂等，不同引用仍冲突。手动/resolve 关闭、失败和等待不走该分支。
+- 未新增迁移或公开接口。Conversation 负责将预算对账 resolve 与 close 使用的原事件/目标/持久证明引用统一；Runtime 不读取领域表或仅凭 closed 判定业务完成。
+- 补充机械层用例代码，覆盖真实 completed 后绑定及重复/冲突、首次关闭引用保持、失败和等待的伪机械引用、history unknown/active/unknown、跨 grant 事实。按分工未运行测试或 PostgreSQL；根需集中复验这些用例及真实领域成功后重复恢复。

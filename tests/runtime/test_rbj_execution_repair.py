@@ -54,6 +54,11 @@ async def repair_queue(database):
                 repair_ref=repair_ref, consumer=repair_consumer)
         if not started["eligible"]:
             return started
+        if state["mode"] == "completed":
+            async with database.transaction() as conn:
+                return await queue.finish_execution_on(conn, owner="conversation.result", identity="original-result",
+                    data_generation=current["data_generation"], job_id=current["job_id"],
+                    native_attempt=current["native_attempt"], outcome="completed")
         if state["mode"] == "begin_then_stop":
             async with database.transaction() as conn:
                 with pytest.raises(AppError, match="execution_repair_already_started"):
@@ -229,6 +234,9 @@ async def test_closed_grant_does_not_create_execution_and_unbound_job_cannot_com
             consumer="life_activity", observation_ref="target-proof:non-application")
         assert first["closed"] and first["reason"] == "closed"
         assert second["closed"] and second["reason"] == "already_closed"
+        with pytest.raises(AppError, match="execution_repair_close_conflict"):
+            await queue.close_execution_repair_on(conn, **args(generation), repair_ref="fix:source-eval",
+                consumer="life_activity", observation_ref="different-non-application-proof")
         status = await queue.inspect_execution_on(conn, **args(generation), repair_ref="fix:source-eval", consumer="life_activity")
         assert status["total_executions"] == 4 and status["repair"]["reason"] == "repair_closed"
         assert not (await grant_on(conn, queue, generation, digest))["eligible"]
@@ -344,3 +352,113 @@ async def test_preflight_stop_requires_the_current_worker_and_cannot_overwrite_b
         assert not await (await conn.execute("SELECT 1 FROM runtime.rbj_wake_exits WHERE job_id=%s", (job_id,))).fetchone()
         fact = await (await conn.execute("SELECT purpose,outcome FROM runtime.rbi_execution_facts WHERE job_id=%s", (job_id,))).fetchone()
         assert fact["purpose"] == "repair" and fact["outcome"] == "failed"
+
+
+async def test_completed_repair_binds_domain_proof_without_replacing_execution_close(database, repair_queue):
+    queue, task, state = repair_queue
+    async with database.transaction() as conn:
+        generation, digest = await exhaust_normal(conn, queue, state["event"])
+        assert (await grant_on(conn, queue, generation, digest))["eligible"]
+        job_id, payload = await enqueue_repair(conn, queue, generation, state["event"])
+        await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
+    state["mode"] = "completed"
+    result = await task(context(job_id), **payload)
+    assert result["outcome"] == "completed" and result["repair"]["reason"] == "repair_closed"
+    async with database.transaction() as conn:
+        close_args = {**args(generation), "repair_ref": "fix:source-eval", "consumer": "life_activity"}
+        original_close = await (await conn.execute(
+            "SELECT closed_at,close_observation_ref FROM runtime.rbj_execution_repair_grants "
+            "WHERE data_generation=%s AND repair_ref=%s AND consumer=%s",
+            (generation, "fix:source-eval", "life_activity"))).fetchone()
+        first = await queue.close_execution_repair_on(conn, **close_args, observation_ref="life-proof:original")
+        again = await queue.close_execution_repair_on(conn, **close_args, observation_ref="life-proof:original")
+        assert first["closed"] and first["reason"] == "already_closed" and again == first
+        with pytest.raises(AppError, match="execution_repair_close_conflict"):
+            await queue.close_execution_repair_on(conn, **close_args, observation_ref="life-proof:different")
+        with pytest.raises(AppError, match="execution_repair_close_conflict"):
+            await queue.close_execution_repair_on(conn, **close_args,
+                                                  observation_ref=f"execution:{job_id}:0:completed")
+        saved = await (await conn.execute(
+            "SELECT g.closed_at,g.close_observation_ref,f.outcome,f.observation_ref FROM runtime.rbj_execution_repair_grants g "
+            "JOIN runtime.rbi_execution_facts f ON f.repair_grant_id=g.id WHERE f.data_generation=%s "
+            "AND f.job_id=%s AND f.native_attempt=0", (generation, job_id))).fetchone()
+        assert saved == {"closed_at": original_close["closed_at"],
+                         "close_observation_ref": f"execution:{job_id}:0:completed", "outcome": "completed",
+                         "observation_ref": "life-proof:original"}
+        assert original_close["close_observation_ref"] == saved["close_observation_ref"]
+
+
+@pytest.mark.parametrize("mode", ["failure", "wait"])
+async def test_noncompleted_repair_cannot_turn_matching_string_into_completion_proof(database, repair_queue, mode):
+    queue, task, state = repair_queue
+    async with database.transaction() as conn:
+        generation, digest = await exhaust_normal(conn, queue, state["event"])
+        assert (await grant_on(conn, queue, generation, digest))["eligible"]
+        job_id, payload = await enqueue_repair(conn, queue, generation, state["event"])
+        await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
+    state["mode"] = mode
+    result = await task(context(job_id), **payload)
+    assert result["outcome"] == ("failed" if mode == "failure" else "wait")
+    async with database.transaction() as conn:
+        close_args = {**args(generation), "repair_ref": "fix:source-eval", "consumer": "life_activity"}
+        mechanical_lookalike = f"execution:{job_id}:0:completed"
+        manual = await queue.close_execution_repair_on(conn, **close_args, observation_ref=mechanical_lookalike)
+        assert manual["closed"] and manual["reason"] == "closed"
+        with pytest.raises(AppError, match="execution_repair_close_conflict"):
+            await queue.close_execution_repair_on(conn, **close_args, observation_ref="different-domain-proof")
+        fact = await (await conn.execute("SELECT outcome,observation_ref FROM runtime.rbi_execution_facts "
+                                         "WHERE data_generation=%s AND job_id=%s", (generation, job_id))).fetchone()
+        assert fact["outcome"] == result["outcome"] and fact["observation_ref"] is None
+
+
+@pytest.mark.parametrize("blocker", ["unknown", "started", "history_unknown"])
+async def test_completed_repair_does_not_bind_proof_while_history_is_unresolved(database, repair_queue, blocker):
+    queue, task, state = repair_queue
+    async with database.transaction() as conn:
+        generation, digest = await exhaust_normal(conn, queue, state["event"])
+        assert (await grant_on(conn, queue, generation, digest))["eligible"]
+        job_id, payload = await enqueue_repair(conn, queue, generation, state["event"])
+        await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
+    state["mode"] = "completed"
+    assert (await task(context(job_id), **payload))["outcome"] == "completed"
+    async with database.transaction() as conn:
+        if blocker == "history_unknown":
+            await queue.seed_execution_history_on(conn, **args(generation), history=[], complete=False)
+        else:
+            other = await queue.enqueue(conn, JobSpec("conversation.result", "other-unresolved", {"event": state["event"]},
+                                                       data_generation=generation))
+            await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (other,))
+            await conn.execute(
+                "INSERT INTO runtime.rbi_execution_facts(data_generation,identity_digest,owner,max_failures,job_id,"
+                "native_attempt,outcome) SELECT data_generation,identity_digest,owner,max_failures,%s,0,%s "
+                "FROM runtime.rbi_execution_facts WHERE data_generation=%s AND job_id=%s AND native_attempt=0",
+                (other, blocker, generation, job_id))
+        closed = await queue.close_execution_repair_on(conn, **args(generation), repair_ref="fix:source-eval",
+            consumer="life_activity", observation_ref="life-proof:cannot-close-unresolved")
+        expected = {"unknown": "execution_outcome_unknown", "started": "execution_in_progress",
+                    "history_unknown": "history_unknown"}[blocker]
+        assert not closed["closed"] and closed["reason"] == expected
+        fact = await (await conn.execute("SELECT observation_ref FROM runtime.rbi_execution_facts "
+                                         "WHERE data_generation=%s AND job_id=%s", (generation, job_id))).fetchone()
+        assert fact["observation_ref"] is None
+
+
+async def test_completed_execution_of_another_grant_cannot_authorize_a_proof_binding(database, repair_queue):
+    queue, task, state = repair_queue
+    async with database.transaction() as conn:
+        generation, digest = await exhaust_normal(conn, queue, state["event"])
+        assert (await grant_on(conn, queue, generation, digest))["eligible"]
+        job_id, payload = await enqueue_repair(conn, queue, generation, state["event"])
+        await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
+    state["mode"] = "completed"
+    assert (await task(context(job_id), **payload))["outcome"] == "completed"
+    async with database.transaction() as conn:
+        assert (await grant_on(conn, queue, generation, digest, consumer="life_commitment"))["eligible"]
+        close_args = {**args(generation), "repair_ref": "fix:source-eval", "consumer": "life_commitment"}
+        lookalike = f"execution:{job_id}:0:completed"
+        assert (await queue.close_execution_repair_on(conn, **close_args, observation_ref=lookalike))["closed"]
+        with pytest.raises(AppError, match="execution_repair_close_conflict"):
+            await queue.close_execution_repair_on(conn, **close_args, observation_ref="other-target-proof")
+        fact = await (await conn.execute("SELECT observation_ref FROM runtime.rbi_execution_facts "
+                                         "WHERE data_generation=%s AND job_id=%s", (generation, job_id))).fetchone()
+        assert fact["observation_ref"] is None
