@@ -346,6 +346,11 @@ async def test_recovery_statistics_backfill_uses_original_attempt_identity(core,
         async def mark_producer_on(self, _conn, producer, **kwargs):
             self.producers.append((producer, kwargs))
 
+        async def lock_producer_on(self, _conn, _producer, *, source):
+            if self.producers:
+                return self.producers[-1][1]
+            return {"complete": False, "detail": {"source": source}}
+
     stats = Statistics()
     core.workers.index_jobs.bind_observability(statistics=stats)
     profile_key = (await embeddings.profile())[1]
@@ -354,9 +359,17 @@ async def test_recovery_statistics_backfill_uses_original_attempt_identity(core,
     models.fail(request)
     await core.workers.index_jobs.run(job["index_id"], generation=job["generation"], completed_attempt_id=request.attempt_id)
     assert (await find_job(core, value, profile_key))["state"] == "retry_wait"
-    assert stats.events[("recovery", "memory-index:" + request.attempt_id)]["metrics"]["recovery_eligible"] == 1
-    await core.workers.index_jobs.backfill_statistics(await generation(core))
-    assert len(stats.events) == 1 and stats.producers[-1][1]["complete"]
+    event_key = ("recovery", "memory-index:" + request.attempt_id)
+    original = stats.events[event_key]
+    assert original["metrics"]["recovery_eligible"] == 1
+    scan = await core.workers.index_jobs.backfill_statistics(await generation(core))
+    assert scan["complete"] and scan["coverage"] == "partial"
+    assert len(stats.events) == 1 and stats.events[event_key] == original
+    assert stats.events[event_key]["revision"] == original["revision"]
+    marker = stats.producers[-1][1]
+    assert marker["complete"] is False
+    assert marker["detail"]["data_generation"] == job["generation"]
+    assert marker["detail"]["backfill"]["state"] == "scanned_unverified"
 
 
 async def test_operations_index_recovery_guard_and_version_are_checked_in_enqueue_transaction(core, ordinary_users):

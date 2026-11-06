@@ -13,6 +13,7 @@ from .embedding import normalized_input
 
 MAX_ATTEMPTS = 3
 PRODUCER = "memory.index.recovery"
+STATISTICS_SOURCE = "memory.index_attempts"
 ACTION_NAME = "memory.index.rebuild"
 ERROR_FAMILIES = ("memory_index_failed", "memory_index_missing", "memory_vector_candidate_budget")
 
@@ -141,19 +142,40 @@ class IndexRecovery:
         if not recorded:
             try:
                 async with conn.transaction():
-                    await self.statistics.mark_producer_on(conn, PRODUCER, watermark="", complete=False,
-                        detail={"source": "memory.index_attempts", "reason": "event_write_pending"})
+                    await self.statistics.mark_producer_on(conn, PRODUCER, watermark=None, complete=False,
+                        detail={"source": STATISTICS_SOURCE, "mode": "live",
+                            "data_generation": job.get("generation"), "reason": "event_write_pending",
+                            "backfill": {"state": "pending", "reason": "event_write_pending"}})
             except Exception:
                 # Observability must not roll back the domain transition.
                 pass
         return recorded
 
     async def backfill(self, generation, *, limit=64):
+        """Project one page; complete denotes a traversal, not coverage proof."""
+        if type(limit) is not int or not 1 <= limit <= 512:
+            raise ValueError("invalid_memory_index_statistics_limit")
         if self.statistics is None:
             return {"complete": False, "reason": "statistics_unavailable"}
+        # An old traversal may have claimed complete coverage. In a short
+        # transaction, demote that claim (and stale generations) before a page
+        # can fail. Keep an existing same-generation partial marker intact.
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn, generation)
-            cursor = await (await conn.execute("SELECT * FROM memory.index_stats_cursor WHERE singleton FOR UPDATE")).fetchone()
+            producer = await self.statistics.lock_producer_on(conn, PRODUCER, source=STATISTICS_SOURCE)
+            if producer is None:
+                raise AppError("memory_index_statistics_producer_unavailable", status=503)
+            detail = producer.get("detail") if isinstance(producer.get("detail"), dict) else {}
+            if producer["complete"] or detail.get("data_generation") != generation:
+                await self.statistics.mark_producer_on(conn, PRODUCER, watermark=None, complete=False,
+                    detail={"source": STATISTICS_SOURCE, "mode": "live", "data_generation": generation,
+                            "backfill": {"state": "pending", "reason": "scan_in_progress"}})
+        async with self.database.transaction() as conn:
+            await self.memory.jobs.assert_generation_on(conn, generation)
+            cursor = await (await conn.execute("SELECT * FROM memory.index_stats_cursor "
+                "WHERE singleton FOR UPDATE SKIP LOCKED")).fetchone()
+            if cursor is None:
+                return {"complete": False, "processed": 0, "reason": "cursor_busy_or_missing"}
             if cursor["generation"] != generation:
                 cursor = {**cursor, "after_index_id": "", "after_number": 0}
                 await conn.execute("UPDATE memory.index_stats_cursor SET generation=%s,after_index_id='',after_number=0 "
@@ -168,20 +190,30 @@ class IndexRecovery:
                 (generation, cursor["after_index_id"], cursor["after_number"], limit))).fetchall()
             last, complete, processed = None, True, 0
             for row in rows:
-                job = {"profile": row["profile"], "state": row["job_state"]}
+                job = {"profile": row["profile"], "state": row["job_state"], "generation": generation}
                 if not await self.record_attempt_on(conn, job, row, actor_id=row["actor_id"]):
                     complete = False
                     break
                 last = row
                 processed += 1
             finished = complete and len(rows) < limit
-            after_id = "" if finished else (last["index_id"] if last else cursor["after_index_id"])
-            after_number = 0 if finished else (last["number"] if last else cursor["after_number"])
+            observed_id = last["index_id"] if last else cursor["after_index_id"]
+            observed_number = last["number"] if last else cursor["after_number"]
+            after_id = "" if finished else observed_id
+            after_number = 0 if finished else observed_number
             await conn.execute("UPDATE memory.index_stats_cursor SET after_index_id=%s,after_number=%s WHERE singleton",
                                (after_id, after_number))
-            await self.statistics.mark_producer_on(conn, PRODUCER, watermark=f"{after_id}:{after_number}",
-                complete=finished, detail={"source": "memory.index_attempts", "batch": len(rows)})
-            return {"complete": finished, "processed": processed, "watermark": f"{after_id}:{after_number}"}
+            watermark = f"{observed_id}:{observed_number}" if observed_id else None
+            state = "scanned_unverified" if finished else "failed" if not complete else "pending"
+            reason = ("concurrent_source_changes_unverified" if finished else
+                      "event_write_pending" if not complete else "scan_in_progress")
+            # Attempts and their revisions may change behind a paged cursor.
+            # A completed traversal alone cannot prove current full coverage.
+            await self.statistics.mark_producer_on(conn, PRODUCER, watermark=watermark, complete=False,
+                detail={"source": STATISTICS_SOURCE, "mode": "live", "data_generation": generation,
+                        "batch": len(rows), "processed": processed,
+                        "backfill": {"state": state, "reason": reason}})
+            return {"complete": finished, "processed": processed, "watermark": watermark, "coverage": "partial"}
 
     async def context_for_recovery(self, kind, object_id, revision):
         if kind not in {"claim", "hypothesis", "matter", "episode"} or not isinstance(object_id, str) or type(revision) is not int or revision < 1:

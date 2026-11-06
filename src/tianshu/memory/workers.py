@@ -1,10 +1,15 @@
 """Thin queue entry points for the unique consolidation writer and reusable indexes."""
 
+import asyncio
 from datetime import UTC, datetime
+import logging
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.types import ServiceClass
+
+
+LOG = logging.getLogger(__name__)
 
 
 class MemoryWorkers:
@@ -37,12 +42,27 @@ class MemoryWorkers:
         return await self.index_jobs.run(index_id, completed_attempt_id=completed_attempt_id, generation=generation)
 
     async def reconcile_due(self, *, limit=32):
-        """Scan one bounded partition page; complete means this traversal reached its end."""
+        """Run bounded maintenance pages; complete describes the partition traversal."""
+        if type(limit) is not int or not 1 <= limit <= 512:
+            raise ValueError("invalid_memory_reconcile_limit")
         generation = current_execution_generation()
         if generation is None:
             async with self.database.transaction(read_only=True) as conn:
                 generation = await self.memory.jobs.current_generation_on(conn)
-        return await self._reconcile_due(generation=generation, limit=limit)
+        # Each lane owns its own transactions. A blocked or failed statistics
+        # write must not keep a due consolidation wake from being repaired.
+        index_result, partition_result = await asyncio.gather(
+            self.index_jobs.backfill_statistics(generation, limit=limit),
+            self._reconcile_due(generation=generation, limit=limit),
+            return_exceptions=True)
+        if isinstance(index_result, Exception):
+            LOG.error("memory index statistics maintenance failed",
+                      exc_info=(type(index_result), index_result, index_result.__traceback__))
+        if isinstance(partition_result, BaseException):
+            raise partition_result
+        if isinstance(index_result, BaseException):
+            raise index_result
+        return partition_result
 
     async def _reconcile_due(self, *, generation, limit):
         from .rbi_maintenance import reconcile_due
