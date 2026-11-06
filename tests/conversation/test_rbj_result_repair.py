@@ -639,7 +639,7 @@ async def test_dispatched_normal_worker_records_real_consumer_lease_wait(databas
 ])
 async def test_expired_lease_then_reconciles_only_under_consumer_semantics(database, consumer, disposition, reason):
     value = await setup(database)
-    saved = await publish(value, database)
+    saved = await publish(value, database, legacy=True)
     async with database.transaction() as connection:
         await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (saved["original_job_id"],))
     first = await value.recovery._budget_for(saved["data_generation"], value.event)

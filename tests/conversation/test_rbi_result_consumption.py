@@ -154,8 +154,16 @@ async def fixture(database):
                            consumer=consumer, recovery=recovery, event=event, action=action)
 
 
-async def publish(value, database):
+async def publish(value, database, *, legacy=False):
     async with database.transaction() as connection:
+        if legacy:
+            # Create an old unmarked physical wake through the public queue.
+            # Publishing may adopt it, but cannot retrofit begin-required policy.
+            generation = await value.jobs.current_generation_on(connection)
+            await value.jobs.enqueue(connection, JobSpec("conversation.result",
+                "capability.result:" + value.event["event_id"], {"event": value.event},
+                ServiceClass.INTERACTIVE, subject_id=value.event["context"]["actor_id"],
+                data_generation=generation))
         await ActionResultEvents(value.jobs).publish(connection, value.event)
         return await (await connection.execute(
             "SELECT original_job_id,data_generation FROM conversation.result_deliveries WHERE receipt_id='receipt'"
@@ -412,7 +420,7 @@ async def test_a_missing_recorded_job_cannot_reinitialize_a_receipt_budget(datab
 @pytest.mark.asyncio
 async def test_native_history_scan_resumes_after_a_bounded_page(database):
     value = await fixture(database)
-    saved = await publish(value, database)
+    saved = await publish(value, database, legacy=True)
     async with database.transaction() as connection:
         await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (saved["original_job_id"],))
         await connection.execute("UPDATE procrastinate_jobs SET status='succeeded',attempts=attempts+1 WHERE id=%s",
