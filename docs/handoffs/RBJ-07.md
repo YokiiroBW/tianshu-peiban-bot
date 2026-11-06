@@ -29,3 +29,9 @@
 已编写 `tests/memory/test_rbj_index_statistics.py`：对象重扫异常后仍能有限补齐；跨页更早插入/修订与循环重访；投影中途失败的真实水位；旧完整标记降级后 marker 失败的回滚及两个维护路径的故障/阻塞隔离；cursor 锁竞争、旧代际拒绝和新代际从头扫描。既有原 attempt 身份、revision、去重场景已按 partial 口径调整。
 
 实现窗口只做 Python AST 解析与完整 diff/空白静态审阅；**未运行测试、构建、烟测、PG、真实模型、QQ 或生产操作**。根集中使用真实隔离 PostgreSQL/Operations 投影执行上述新用例、原 `test_recovery_statistics_backfill_uses_original_attempt_identity` 和受影响的原 Memory 维护用例；必要时核对共享装配。实际生产 producer 水位、真实投影缺口及后续业务收敛仍待根只读核验，不能根据进程 ready、遍历到尾或少量对象有向量推断全覆盖。
+
+## 根集中验证后的夹具返修
+
+根报告集成点 `a3c4ea31888300281ca8491b3ad935fb467feb1f` 的新 Memory 用例通过；相关 59 例中原 `test_recovery_statistics_backfill_uses_original_attempt_identity` 一例因 `models.requests[0]` 为空失败。静态追踪发现此用例复用的 `SubmittedModels.status(attempt_id)` 不接受现行首次提交前的 `phase="pre_submit"` 参数；该调用会抛 `TypeError`，索引流程将此控制读取异常记作 `model_status_unavailable` 并让原 attempt 等待，因此不会进入提交。原 XML 只记录最终异常，未包含当时 job/attempt 状态；该签名缺口确定存在，但现场是否还有更早原因仍由根复验确认。
+
+返修提交 `a77e5c7f71c70be45af4044d00583edaa718c498` 只在该已授权测试函数内给替身补齐可选 phase，并断言真实 pre-submit、唯一原 attempt 与冻结请求/来源/代际、原失败 revision，以及补投后事件去重与原请求不变；未修改产品代码。返修窗口只执行 AST 和 Git diff 静态检查，**未运行该用例、PG 或构建**；请根仅复验此用例，原已通过证据不重复执行。如仍未提交原请求，需捕获原 job 的 state/last_error、attempt 与 phase 调用记录后区分其他原因，不能把 observing 当作通过。
