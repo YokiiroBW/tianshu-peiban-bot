@@ -433,9 +433,37 @@ async def test_progress_observes_future_retry_other_wake_and_live_consumer_witho
     agent.progress.return_value = facts
     await agent.poll_progress()
     agent.incidents.ingest.assert_not_awaited()
+
+    async def recovery_snapshot():
+        async with database.transaction(read_only=True) as connection:
+            clock = await (await connection.execute("SELECT now() AS observed_at")).fetchone()
+            jobs = await (await connection.execute(
+                "SELECT j.id,j.status,j.attempts,j.scheduled_at,j.worker_id,j.queueing_lock,"
+                "k.key,k.wake_covered_by FROM procrastinate_jobs j JOIN runtime.job_keys k ON k.job_id=j.id "
+                "WHERE j.task_name='conversation.result' AND k.data_generation=%s "
+                "AND j.args->'event'->>'event_id'=%s AND j.args->'event'->>'action_id'=%s "
+                "AND j.args->'event'->>'result_revision'='1' ORDER BY j.id,k.key",
+                (saved["data_generation"],value.original.receipt_id,value.action.action_id))).fetchall()
+            progress = await (await connection.execute(
+                "SELECT consumer,disposition,reason,owner_token,lease_until,rbi_retry_at,proof,attempts "
+                "FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s ORDER BY consumer",
+                (saved["data_generation"],value.original.receipt_id))).fetchall()
+            executions = await (await connection.execute(
+                "SELECT job_id,native_attempt,outcome,resolved_outcome,evidence_ref,observation_ref "
+                "FROM runtime.rbi_execution_facts WHERE data_generation=%s AND job_id=ANY(%s) "
+                "ORDER BY job_id,native_attempt",(saved["data_generation"],[saved["original_job_id"],wake_id]))).fetchall()
+            delivery = await (await connection.execute(
+                "SELECT rbi_failed_native,rbi_history_cursor,rbi_history_upper,rbi_history_gap "
+                "FROM conversation.result_deliveries WHERE data_generation=%s AND receipt_id=%s",
+                (saved["data_generation"],value.original.receipt_id))).fetchone()
+        return {"clock":clock,"jobs":jobs,"progress":progress,"executions":executions,"delivery":delivery}
+
+    before_recovery = await recovery_snapshot()
     result = await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
         action_id=value.action.action_id, receipt_id="original-receipt", result_revision=1)
-    assert result["state"] == "waiting" and result["reason"] == "consumer_running"
+    after_recovery = await recovery_snapshot()
+    assert result.get("state") == "waiting" and result.get("reason") == "consumer_running", {
+        "result":result, "before":before_recovery, "after":after_recovery}
     assert result["due_at"] == running["lease_until"]
     assert result["budget"]["history_complete"] and result["budget"]["failed_executions"] == 2
     async with database.transaction(read_only=True) as connection:
