@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBI-20261106",
-  "state": "implementation_in_progress",
+  "state": "integration_in_progress",
   "user_authorization": "交付对应窗口修复吧",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "baseline_source": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
@@ -29,7 +29,7 @@
     },
     {
       "id": "RBI-07",
-      "state": "waiting_implementation",
+      "state": "integration_in_progress",
       "owner": "coordinator"
     },
     {
@@ -385,12 +385,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
-      "status": "implementing",
+      "status": "candidate_submitted",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
       "allowed_paths": [
         "src/tianshu/conversation/results.py",
         "src/tianshu/conversation/rbg_result_recovery.py",
@@ -427,7 +427,14 @@
       },
       "verified": false,
       "integrated": false,
-      "confirmed_history_interface": "ResultRecovery.recover_result(..., known_job_ids=()) / ensure_on(..., known_job_ids=()); authoritative old IDs appended before bounded history review; missing rows remain history_unknown"
+      "confirmed_history_interface": "ResultRecovery.recover_result(..., known_job_ids=()) / ensure_on(..., known_job_ids=()); authoritative old IDs appended before bounded history review; missing rows remain history_unknown",
+      "handoff_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+      "candidate_head": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+      "required_commits_in_order": [
+        "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5"
+      ],
+      "pending_followup": null,
+      "verification": "reported AST/full diff static only; integration tests not run"
     },
     {
       "id": "RBI-06",
@@ -588,7 +595,8 @@
       "resource_recovery": true
     },
     "life_maintenance": "bot-background: worker.reconcile_due(limit=32); retain startup recovery",
-    "life_test_fixtures": "add new DDL to shared setup including test_planner_execution; use real Models attempt/submission facts; exact fake Action/Identity/Sources ports follow real contracts"
+    "life_test_fixtures": "add new DDL to shared setup including test_planner_execution; use real Models attempt/submission facts; exact fake Action/Identity/Sources ports follow real contracts",
+    "conversation_migration": "rbi_result_reconcile.sql after RBG result consumption, Runtime and Procrastinate; bot-foreground result_consumer.reconcile_due"
   },
   "all_implementation_windows_started": true,
   "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
@@ -602,5 +610,15 @@
     "normal_speed_config_verified": true,
     "both_roots_synchronized": true,
     "product_tests_run": false
-  }
+  },
+  "integration_order": [
+    "RBI-02",
+    "RBI-01",
+    "RBI-10",
+    "RBI-03",
+    "RBI-05",
+    "RBI-04",
+    "RBI-09",
+    "RBI-06"
+  ]
 }
