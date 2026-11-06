@@ -11,9 +11,22 @@ from tianshu.runtime.migrations import Migration, migrate
 
 @pytest_asyncio.fixture
 async def memory_probe_db(database):
+    prerequisites = (
+        Migration(
+            "rbi_probe_identity",
+            files("tianshu.identity").joinpath("schema.sql").read_text(encoding="utf-8"),
+        ),
+        Migration(
+            "rbi_probe_sources",
+            "\n".join(
+                files("tianshu.sources").joinpath(part).read_text(encoding="utf-8")
+                for part in ("schema.sql", "functions.sql")
+            ),
+        ),
+    )
     names = ("schema.sql", "0021_memory_consolidation.sql", "0022_memory_runtime.sql", "0023_memory_index_retry.sql",
              "0024_memory_consolidation_retry.sql", "0025_memory_write.sql")
-    await migrate(database, tuple(Migration("rbi_probe_" + name,
+    await migrate(database, prerequisites + tuple(Migration("rbi_probe_" + name,
         files("tianshu.memory").joinpath(name).read_text(encoding="utf-8")) for name in names))
     async with database.transaction() as conn:
         for index in range(1, 4):
