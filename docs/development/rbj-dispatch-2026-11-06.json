@@ -100,9 +100,9 @@
       "latest_turn_id": "01a1b09e-0cf6-7e10-ae40-b4f5a4ff4af4",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
-      "contract": "1.3",
-      "contract_notice_accepted_at": "2026-11-06T11:44:52.666Z",
-      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd",
+      "contract": "1.5",
+      "contract_notice_accepted_at": "2026-11-06T11:58:43.840Z",
+      "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "latest_progress": "普通与修复执行现在共用原执行账本，修复 job 会在入队事务中绑定资格，历史导入也能识别其用途。正在收口唤醒的覆盖、重试等待下界和旧任务接管，并补相应的用例代码。"
     },
     {
@@ -190,8 +190,8 @@
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
       "contract": "1.5",
-      "contract_notice_accepted_at": "2026-11-06T11:44:52.801Z",
-      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd",
+      "contract_notice_accepted_at": "2026-11-06T11:58:43.653Z",
+      "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
       "generation_read_extension": "request(attempt_id,context,*,connection=None,material_key=None); read-only existing port, no new Sources lock"
     },
@@ -286,8 +286,9 @@
       "released_by": "RBJ-03 whole-package commit receipt",
       "release_contract_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
       "latest_progress": "RBJ-06 已收到启动信号。我会先追踪同一材料被两个执行者并发准备时的实际调用链，再按可达性完成定向修复和用例代码。",
-      "contract_notice_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
-      "generation_read_extension": "Use public same-transaction request; missing frozen request stops prepare; do not query Conversation private table"
+      "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
+      "generation_read_extension": "Use public same-transaction request; missing frozen request stops prepare; do not query Conversation private table",
+      "contract_notice_accepted_at": "2026-11-06T11:58:43.744Z"
     },
     {
       "id": "RBJ-07",
@@ -333,7 +334,7 @@
   "dispatched_at": "2026-11-06T11:29:25.638Z",
   "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged",
   "contract_revision_note": "Frozen after owner review: exact consumer proof; wake variant/object lock; attested legacy coverage; repair job binding; Life application inspection. No product implementation or production changes by coordinator.",
-  "contract_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
+  "contract_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
   "contract_1_2_note": "Only clarify nullable owner_id: Life resolves unique current owner under actor/action/consumer authority; unresolved stays unknown.",
   "contract_1_3_note": "Bind original Life owner through callback; trusted proof closes unstarted grant without a fabricated execution.",
   "contract_history": [
@@ -357,6 +358,11 @@
       "version": "1.4",
       "commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
       "scope": "Sources bounded lock closure; unchanged public signatures"
+    },
+    {
+      "version": "1.5",
+      "commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
+      "scope": "Public same-transaction frozen request read; trusted legal non-application terminal closes unstarted repair grant"
     }
   ],
   "integration_notes": [
