@@ -40,3 +40,10 @@
 
 - 只读核对 Runtime `24bbcad9928d7662e6882c68df545cd08323cf01`：Growth 使用的事实校验、修复资格、原回执预留和预算接口签名一致，`cancelled/consumer_interrupted` 规则一致。Growth 入口补齐与 Runtime 一致的 `repair_ref` 控制字符校验，避免先入队再报参数错误，并补充回归代码。
 - 该增量只进行了两个 Python 文件的 AST 解析与 `git diff --check`；未执行测试、构建或生产操作，不能据此宣称跨域运行通过。
+
+## 集中验证后的数据库时间返修
+
+- 根在集成源码 `438cf6786fceb09311981709f19fc2e56053886e` 的首轮检查中记录 12 通过、20 失败；多项失败在 Growth 到期入口提前返回。根测得测试数据库时钟比客户端快约 0.217 秒；这些失败尚不能据此全部归因为时钟，后续分支仍需复验。
+- Growth 的 retry 和 input 到期判断、修复资格允许后的立即续接、Runtime 预算/冷却比较、Operations 判定、补漏退避及新建定时唤醒，使用数据库 `clock_timestamp()` 或同一数据库查询得到的时间。未来 due 和冷却仍必须等待；输入材料读取后若并发推迟了 due，在领域提交前再次检查并安排原到期时间。
+- 新增客户端时钟快慢、数据库立即到期、未来复核/输入、Runtime 冷却以及材料读取期间推迟 due 的回归用例代码。测试夹具中的 Models 物理尝试执行 deadline 也改为按数据库时间创建；没有引入容差或睡眠，也没有直接移除 future guard。
+- 既有 `tests/companion/test_rb_growth_operations.py` 的 `ProgressProbe` 和 `metadata` 人工候选覆盖了 `_waiting_rows_on`，未提供真实候选新增的 `db_now`。该文件不在本卡写入范围，已请求根在集中集成时补充对应夹具；生产路径没有回退到客户端时间。

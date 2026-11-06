@@ -1,7 +1,5 @@
 """Bounded Growth wake repair, using only domain metadata and native jobs."""
 
-from datetime import UTC, datetime, timedelta
-
 from tianshu.life.validation import timestamp
 from tianshu.runtime.errors import AppError
 
@@ -10,7 +8,6 @@ from .reflection_output import REVIEW_ERRORS
 
 
 LANES = ('retry', 'input', 'organize')
-SCAN_DELAY = timedelta(minutes=2)
 
 
 async def _todo_covers(connection, generation, lock, task, payload, due):
@@ -28,9 +25,10 @@ async def _mark(connection, generation, lane, row, key, revision):
     await connection.execute(
         'INSERT INTO companion.rbi_growth_maintenance_scans '
         '(runtime_generation,lane,actor_id,scope_key,work_key,observed_revision,next_scan_at) '
-        'VALUES(%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(runtime_generation,lane,actor_id,scope_key,work_key) '
+        "VALUES(%s,%s,%s,%s,%s,%s,clock_timestamp()+interval '2 minutes') "
+        'ON CONFLICT(runtime_generation,lane,actor_id,scope_key,work_key) '
         'DO UPDATE SET observed_revision=excluded.observed_revision,next_scan_at=excluded.next_scan_at',
-        (generation, lane, row['actor_id'], row['scope_key'], key, revision, datetime.now(UTC) + SCAN_DELAY))
+        (generation, lane, row['actor_id'], row['scope_key'], key, revision))
 
 
 async def _cursor(connection, generation, lane):
@@ -60,7 +58,7 @@ async def _retry_rows(connection, generation, limit, cursor):
         params.extend((cursor['due_at'], cursor['actor_id'], cursor['scope_key'], cursor['work_key']))
     params.append(limit)
     return await (await connection.execute(
-        "SELECT r.*,c.observed_revision AS scan_revision,c.next_scan_at AS scan_next_at "
+        "SELECT r.*,c.observed_revision AS scan_revision,c.next_scan_at AS scan_next_at,clock_timestamp() AS db_now "
         "FROM companion.growth_retry_batches r "
         "LEFT JOIN companion.rbi_growth_maintenance_scans c ON c.runtime_generation=%s "
         "AND c.lane='retry' AND c.actor_id=r.actor_id AND c.scope_key=r.scope_key AND c.work_key=r.retry_key "
@@ -78,7 +76,7 @@ async def _input_rows(connection, generation, limit, cursor):
         params.extend((cursor['due_at'], cursor['actor_id'], cursor['scope_key'], cursor['work_key']))
     params.append(limit)
     return await (await connection.execute(
-        "SELECT f.*,c.observed_revision AS scan_revision,c.next_scan_at AS scan_next_at "
+        "SELECT f.*,c.observed_revision AS scan_revision,c.next_scan_at AS scan_next_at,clock_timestamp() AS db_now "
         "FROM companion.growth_material_failures f "
         "LEFT JOIN companion.rbi_growth_maintenance_scans c ON c.runtime_generation=%s "
         "AND c.lane='input' AND c.actor_id=f.actor_id AND c.scope_key=f.scope_key AND c.work_key=f.failure_key "
@@ -95,7 +93,7 @@ async def _organize_rows(connection, generation, limit, cursor):
         params.extend((cursor['actor_id'], cursor['scope_key']))
     params.append(limit)
     return await (await connection.execute(
-        "SELECT s.*,c.observed_revision AS scan_revision,c.next_scan_at AS scan_next_at "
+        "SELECT s.*,c.observed_revision AS scan_revision,c.next_scan_at AS scan_next_at,clock_timestamp() AS db_now "
         "FROM companion.organize_state s "
         "LEFT JOIN companion.rbi_growth_maintenance_scans c ON c.runtime_generation=%s "
         "AND c.lane='organize' AND c.actor_id=s.actor_id AND c.scope_key=s.scope_key AND c.work_key='' "
@@ -128,7 +126,7 @@ async def _wake(growth, connection, generation, lane, row):
         key, revision = '', row['revision']
         blocked = row['blocked_material'] or {}
         due = (timestamp(blocked['retry_at']) if blocked.get('recovery') == 'dependency_wait'
-               else datetime.now(UTC))
+               else row['db_now'])
         lock = f'growth-organize:{actor}:{scope}:{revision}'
         task = 'companion.organize'
         payload = {'actor_id': actor, 'scope_key': scope, 'expected_revision': revision, 'generation': generation}
@@ -185,7 +183,7 @@ async def reconcile_due(growth, *, limit=32):
             for row in rows:
                 revision = row['observation_revision'] if lane == 'input' else row['revision']
                 if (row['scan_revision'] != revision or row['scan_next_at'] is None
-                        or row['scan_next_at'] <= datetime.now(UTC)):
+                        or row['scan_next_at'] <= row['db_now']):
                     woken += int(await _wake(growth, connection, generation, lane, row))
             await _advance(connection, generation, lane, rows, maximum)
     complete = all(allocations[lane] and began[lane] and counts[lane] < allocations[lane] for lane in LANES)

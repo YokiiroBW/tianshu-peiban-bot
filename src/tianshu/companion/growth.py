@@ -32,7 +32,7 @@ from .expression_examples import ExpressionExamples
 from .growth_statistics import GrowthStatistics
 from .growth_operations import GrowthOperations
 from .growth_input_status import GrowthInputStatus
-from .growth_policy import OWNER, MAX_ATTEMPTS, reserve_initial, succeed as succeed_recovery
+from .growth_policy import OWNER, MAX_ATTEMPTS, database_now_on, reserve_initial, succeed as succeed_recovery
 from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_PROTOCOL, OUTPUT_TOKEN_BUDGET,
                                 REVIEW_ERRORS, frozen_episodes, prepare_reflections, validate_batch_request)
 
@@ -119,7 +119,7 @@ class GrowthService:
             "WHERE actor_id=%s AND scope_key=%s RETURNING revision,last_error,blocked_material",
             (watermark, AUTHORIZATION_BLOCKED, document(context), 0 if created else 1, context.actor_id, scope_key))).fetchone()
         if row["last_error"] not in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}:
-            due = datetime.now(UTC) + timedelta(seconds=30)
+            due = await database_now_on(connection) + timedelta(seconds=30)
             blocked = row['blocked_material'] or {}
             if blocked.get('recovery') == 'dependency_wait':
                 due = max(due, timestamp(blocked['retry_at']))
@@ -216,7 +216,8 @@ class GrowthService:
         async with self.companion.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, generation)
             state = await (await connection.execute(
-                "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
+                "SELECT *,clock_timestamp() AS db_now FROM companion.organize_state "
+                "WHERE actor_id=%s AND scope_key=%s", (actor_id, scope_key))).fetchone()
         if not state:
             return
         if state['runtime_generation'] != generation:
@@ -236,7 +237,7 @@ class GrowthService:
         blocked = state['blocked_material'] or {}
         if not batch and blocked.get('recovery') == 'dependency_wait':
             due = timestamp(blocked['retry_at'])
-            if due > datetime.now(UTC):
+            if due > state['db_now']:
                 async with self.companion.database.transaction() as connection:
                     await self.jobs.assert_generation_on(connection, generation)
                     current = await (await connection.execute(
@@ -740,7 +741,7 @@ class GrowthService:
                 (context.actor_id, scope_key, episode_id, version, key, error.code, document(details), document(context), state['runtime_generation']))).fetchone()
             if (error.code == 'growth_model_profile_unavailable' and
                     transient_model_failure(details.get('underlying_error')) and failure['retry_count'] < MAX_ATTEMPTS):
-                due = datetime.now(UTC) + timedelta(seconds=retry_delay_seconds(failure['retry_count']))
+                due = await database_now_on(connection) + timedelta(seconds=retry_delay_seconds(failure['retry_count']))
                 failure = await (await connection.execute(
                     'UPDATE companion.growth_material_failures SET due_at=%s WHERE actor_id=%s AND scope_key=%s '
                     'AND failure_key=%s RETURNING *', (due, context.actor_id, scope_key, key))).fetchone()
@@ -756,11 +757,11 @@ class GrowthService:
         async with self.companion.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, generation)
             failure = await (await connection.execute(
-                "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                "SELECT *,clock_timestamp() AS db_now FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
                 "AND failure_key=%s AND state='blocked'", (actor_id, scope_key, failure_key))).fetchone()
         if not failure or failure['runtime_generation'] != generation or failure['observation_revision'] != expected_revision or not failure['due_at']:
             return {'state': 'superseded'}
-        if failure['due_at'] > datetime.now(UTC):
+        if failure['due_at'] > failure['db_now']:
             async with self.companion.database.transaction() as connection:
                 await self.jobs.assert_generation_on(connection, generation)
                 current = await (await connection.execute(
@@ -805,10 +806,15 @@ class GrowthService:
                 'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE',
                 (actor_id, scope_key))).fetchone()
             current = await (await connection.execute(
-                "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                "SELECT *,clock_timestamp() AS db_now FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
                 "AND failure_key=%s AND state='blocked' FOR UPDATE", (actor_id, scope_key, failure_key))).fetchone()
             if not state or state['runtime_generation'] != generation or not current or current['runtime_generation'] != generation or current['observation_revision'] != expected_revision:
                 return {'state': 'superseded'}
+            if not current['due_at']:
+                return {'state': 'superseded'}
+            if current['due_at'] > current['db_now']:
+                await self._schedule_input_retry_on(connection, current)
+                return {'state': 'waiting'}
             released = await (await connection.execute(
                 "UPDATE companion.growth_inputs SET retry_key=NULL,missing='{}',updated_at=now() "
                 'WHERE actor_id=%s AND scope_key=%s AND episode_id=%s AND revision=%s AND retry_key=%s '
@@ -836,14 +842,14 @@ class GrowthService:
         async with self.companion.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, generation)
             current = await (await connection.execute(
-                "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                "SELECT *,clock_timestamp() AS db_now FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
                 "AND failure_key=%s AND runtime_generation=%s AND state='blocked' FOR UPDATE",
                 (failure['actor_id'], failure['scope_key'], failure['failure_key'], generation))).fetchone()
             if not current or current['observation_revision'] != failure['observation_revision'] or not current['due_at']:
                 return {'state': 'superseded'}
             due = current['due_at']
-            if due <= datetime.now(UTC):
-                due = datetime.now(UTC) + timedelta(minutes=5)
+            if due <= current['db_now']:
+                due = current['db_now'] + timedelta(minutes=5)
                 current = await (await connection.execute(
                     'UPDATE companion.growth_material_failures SET due_at=%s,updated_at=now() '
                     'WHERE actor_id=%s AND scope_key=%s AND failure_key=%s AND runtime_generation=%s RETURNING *',
@@ -1080,10 +1086,12 @@ class GrowthService:
             (actor_id, scope_key))).fetchone()
         if not state or state['runtime_generation'] != generation:
             raise AppError('growth_generation_required')
+        if scheduled_at is None:
+            scheduled_at = await database_now_on(connection) + timedelta(seconds=delay)
         await self.jobs.enqueue(connection, JobSpec("companion.organize",
             f"organize:{generation}:{actor_id}:{scope_key}:{revision}:{reason}:{datetime.now(UTC).isoformat()}",
             {"actor_id": actor_id, "scope_key": scope_key, "expected_revision": revision, 'generation':generation},
-            scheduled_at=scheduled_at or datetime.now(UTC) + timedelta(seconds=delay), subject_id=actor_id,
+            scheduled_at=scheduled_at, subject_id=actor_id,
             data_generation=generation),
             queueing_lock=f"growth-organize:{actor_id}:{scope_key}:{revision}")
 

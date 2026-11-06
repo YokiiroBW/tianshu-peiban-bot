@@ -6,6 +6,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from tianshu.companion import growth_retry as growth_retry_module
+from tianshu.companion import rbi_growth_review as growth_review_module
 from tianshu.companion.rbi_growth_review import process_review
 from tianshu.models.broker import ModelBroker
 from tianshu.models.catalog import RoutePlan
@@ -16,6 +18,19 @@ from tianshu.runtime.serialization import wire
 from test_growth_output import state
 from test_growth_retry import current_retry_setup, observed_result, retry_row
 from test_rb_growth_async import GENERATION
+
+
+def shifted_datetime(seconds):
+    class DateTimeMeta(type):
+        def __instancecheck__(cls, value):
+            return isinstance(value, datetime)
+
+    class ShiftedDateTime(datetime, metaclass=DateTimeMeta):
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + timedelta(seconds=seconds)
+
+    return ShiftedDateTime
 
 
 class LedgerModels:
@@ -45,8 +60,10 @@ class LedgerModels:
         return await self.broker.status(attempt_id)
 
     async def finish(self, request, status, *, code=None, diagnostic=None, result=None):
-        await self.broker.ledger.started(request.attempt_id, None,
-                                         deadline_at=datetime.now(UTC) + timedelta(minutes=2))
+        async with self.broker.database.transaction(read_only=True) as connection:
+            deadline = await (await connection.execute(
+                "SELECT clock_timestamp()+interval '2 minutes' AS deadline_at")).fetchone()
+        await self.broker.ledger.started(request.attempt_id, None, deadline_at=deadline['deadline_at'])
         if diagnostic is not None:
             await self.broker.ledger.save_observation(request.attempt_id, diagnostic=diagnostic)
         await self.broker.ledger.finish(request.attempt_id, status, error_code=code,
@@ -112,6 +129,70 @@ async def test_old_waiting_without_runtime_due_returns_to_original_blocked(datab
     assert outcome == {'state': 'review_stopped', 'reason': 'growth_failure_stage_unknown'}
     assert row['last_error'] == 'invalid_upstream_response' and row['batch']['rbi_review']['state'] == 'stopped'
     assert await ledger_state(database) == (lineage, attempts, inputs) and len(models.submitted) == 1
+
+
+@pytest.mark.asyncio
+async def test_due_review_does_not_wait_for_a_slow_client_clock(database, monkeypatch):
+    growth, context, _memory, models, scope, _original, failure = await setup_original(database)
+    await request_review(growth, context, database, failure['retry_key'], 'db-clock-due')
+    monkeypatch.setattr(growth_retry_module, 'datetime', shifted_datetime(-7200))
+
+    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+
+    assert outcome == {'state': 'review_stopped', 'reason': 'growth_failure_stage_unknown'}
+    assert len(models.submitted) == 1
+
+
+@pytest.mark.asyncio
+async def test_future_review_is_not_started_by_a_fast_client_clock(database, monkeypatch):
+    growth, context, _memory, models, scope, _original, failure = await setup_original(database)
+    await request_review(growth, context, database, failure['retry_key'], 'db-clock-future')
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE companion.growth_retry_batches SET due_at=clock_timestamp()+interval '1 hour'")
+    models.result = AsyncMock(wraps=models.result)
+    monkeypatch.setattr(growth_retry_module, 'datetime', shifted_datetime(7200))
+
+    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+
+    assert outcome['state'] == 'review_waiting' and (await retry_row(database))['state'] == 'blocked'
+    models.result.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_immediate_repair_admission_reports_due_using_database_clock(database, monkeypatch):
+    diagnostic = {'failure_stage': 'local_program', 'error_type': 'TypeError', 'original_output_reusable': False}
+    growth, context, _memory, _models, _scope, _original, failure = await setup_original(
+        database, code='model_local_error', diagnostic=diagnostic)
+    await request_review(growth, context, database, failure['retry_key'], 'db-clock-admitted', 'repair:fix-v1')
+    monkeypatch.setattr(growth_review_module, 'datetime', shifted_datetime(-7200))
+
+    admitted = await process_review(growth.retries, await retry_row(database), GENERATION)
+
+    async with database.transaction(read_only=True) as connection:
+        db_now = (await (await connection.execute('SELECT clock_timestamp() AS db_now')).fetchone())['db_now']
+    assert admitted['state'] == 'review_admitted' and admitted['due_now']
+    assert admitted['due_at'] <= db_now
+
+
+@pytest.mark.asyncio
+async def test_repair_uses_database_time_without_weakening_runtime_cooldown(database, monkeypatch):
+    diagnostic = {'failure_stage': 'local_program', 'error_type': 'TypeError', 'original_output_reusable': False}
+    growth, context, _memory, models, scope, _original, failure = await setup_original(
+        database, code='model_local_error', diagnostic=diagnostic)
+    await request_review(growth, context, database, failure['retry_key'], 'db-clock-cooldown', 'repair:fix-v1')
+    async with database.transaction() as connection:
+        dependency = await (await connection.execute(
+            "UPDATE runtime.recovery_dependencies SET cooldown_until=clock_timestamp()+interval '1 hour' "
+            "RETURNING cooldown_until")).fetchone()
+    monkeypatch.setattr(growth_review_module, 'datetime', shifted_datetime(7200))
+    monkeypatch.setattr(growth_retry_module, 'datetime', shifted_datetime(7200))
+
+    admitted = await process_review(growth.retries, await retry_row(database), GENERATION)
+
+    assert admitted['state'] == 'review_admitted' and not admitted['due_now']
+    assert admitted['due_at'] == dependency['cooldown_until']
+    assert await growth.retries.run('actor', scope, failure['retry_key'], GENERATION) is None
+    assert len(models.submitted) == 1
 
 
 @pytest.mark.asyncio

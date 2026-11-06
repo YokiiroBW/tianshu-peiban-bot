@@ -1,14 +1,12 @@
 """One bounded Operations action for a particular failed Growth batch."""
 
-from datetime import UTC, datetime
-
 import aiohttp
 
 from tianshu.conversation.codec import context_from_record, signature
 from tianshu.conversation.generation import attempt_for
 from tianshu.runtime.errors import AppError
 from .growth_output_repair import review_available, review_original
-from .growth_policy import bind_receipt, budget_on as recovery_budget_on
+from .growth_policy import bind_receipt, budget_on as recovery_budget_on, database_now_on
 from .growth_recovery import authorization_error
 from .growth_retry import manual_retry_allowed
 from .reflection_output import frozen_episodes
@@ -62,6 +60,9 @@ class GrowthOperations:
                 if error.code != 'recovery_version_changed':
                     raise
                 row['budget'] = {'can_retry': False, 'retry_at': None, 'reason': error.code}
+        db_now = await database_now_on(connection)
+        for row in rows:
+            row['db_now'] = db_now
         return rows
 
     @staticmethod
@@ -84,11 +85,10 @@ class GrowthOperations:
             raise AppError('invalid_growth_progress_limit')
         async with self.growth.companion.database.transaction(read_only=True) as connection:
             rows = await self._waiting_rows_on(connection, limit=limit)
-        now = datetime.now(UTC)
         facts = []
         for row in rows:
             target = {key: row[key] for key in ('actor_id', 'scope_key', 'retry_key')}
-            eligible, waiting_dependency = self._waiting_ready(row, now)
+            eligible, waiting_dependency = self._waiting_ready(row, row['db_now'])
             if eligible:
                 try:
                     inspected = await self.inspect(None, target)
@@ -127,7 +127,7 @@ class GrowthOperations:
             async with self.growth.companion.database.transaction(read_only=True) as connection:
                 candidates = await self._waiting_rows_on(connection, limit=1, target=target)
             if (not candidates or candidates[0]['revision'] != row['revision']
-                    or not self._waiting_ready(candidates[0], datetime.now(UTC))[0]):
+                    or not self._waiting_ready(candidates[0], candidates[0]['db_now'])[0]):
                 budget = candidates[0]['budget'] if candidates else None
                 reason = budget.get('reason') if budget and not budget['can_retry'] else None
                 return {'eligible': False, 'reason': reason or 'growth_retry_not_due'}
@@ -151,11 +151,12 @@ class GrowthOperations:
         if row['state'] == 'blocked' and action == 'transient':
             async with self.growth.companion.database.transaction(read_only=True) as connection:
                 budget = await recovery_budget_on(self.growth.recovery_policy, connection, row['batch'])
+                db_now = await database_now_on(connection)
             if not budget['can_retry']:
                 return {'eligible': False, 'reason': budget.get('reason') or 'growth_retry_not_available'}
             if budget.get('retry_at') is None:
                 return {'eligible': False, 'reason': 'growth_recovery_due_unavailable'}
-            if budget['retry_at'] > datetime.now(UTC):
+            if budget['retry_at'] > db_now:
                 return {'eligible': False, 'reason': 'growth_retry_not_due'}
         versions = frozen_episodes(request)
         async with self.growth.companion.database.transaction() as connection:
@@ -195,7 +196,7 @@ class GrowthOperations:
             if latest['state'] == 'waiting':
                 candidates = await self._waiting_rows_on(connection, limit=1, target=target)
                 if (not candidates or candidates[0]['revision'] != latest['revision']
-                        or not self._waiting_ready(candidates[0], datetime.now(UTC))[0]):
+                        or not self._waiting_ready(candidates[0], candidates[0]['db_now'])[0]):
                     raise AppError('reflection_retry_not_available', status=409)
                 # Wake the existing owner only; it rechecks the original receipt,
                 # source closure and shared physical-attempt budget itself.

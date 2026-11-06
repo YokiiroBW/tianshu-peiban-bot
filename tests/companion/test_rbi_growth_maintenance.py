@@ -7,6 +7,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+from tianshu.companion import growth as growth_module
 from tianshu.conversation.codec import document
 from tianshu.memory.types import EpisodePage
 from tianshu.runtime.jobs import JobQueue
@@ -14,7 +15,7 @@ from tianshu.runtime.migrations import Migration, migrate
 from tianshu.types import Coverage
 from test_growth_retry import retry_row
 from test_rb_growth_async import GENERATION
-from test_rbi_growth_recovery import setup_original
+from test_rbi_growth_recovery import setup_original, shifted_datetime
 
 
 async def setup_maintenance(database):
@@ -162,6 +163,53 @@ async def test_unavailable_input_stops_its_due_instead_of_repeated_wakes(databas
 
 
 @pytest.mark.asyncio
+async def test_future_input_retry_uses_database_clock(database, monkeypatch):
+    growth, context, memory, _models, scope, _original, _failure = await setup_maintenance(database)
+    async with database.transaction() as connection:
+        await connection.execute(
+            "INSERT INTO companion.growth_material_failures(actor_id,scope_key,episode_id,episode_revision,"
+            "failure_key,runtime_generation,error_code,details,context,due_at) "
+            "VALUES('actor',%s,'missing',1,'input:future',%s,'growth_model_profile_unavailable',%s,%s,"
+            "clock_timestamp()+interval '1 hour')", (scope, GENERATION, document({}), document(context)))
+    memory.episodes_by_refs = AsyncMock(side_effect=AssertionError('future input must not be read'))
+    monkeypatch.setattr(growth_module, 'datetime', shifted_datetime(7200))
+
+    outcome = await growth.retry_input('actor', scope, 'input:future', 1, GENERATION)
+
+    assert outcome == {'state': 'waiting'}
+    memory.episodes_by_refs.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_input_retry_rechecks_a_due_postponed_during_material_read(database):
+    growth, context, memory, _models, scope, _original, _failure = await setup_maintenance(database)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE companion.growth_inputs SET retry_key='input:race' WHERE episode_id='episode'")
+        await connection.execute(
+            "INSERT INTO companion.growth_material_failures(actor_id,scope_key,episode_id,episode_revision,"
+            "failure_key,runtime_generation,error_code,details,context,due_at) "
+            "VALUES('actor',%s,'episode',1,'input:race',%s,'growth_model_profile_unavailable',%s,%s,"
+            "clock_timestamp()-interval '1 second')", (scope, GENERATION, document({}), document(context)))
+    read_episodes = memory.episodes_by_refs
+
+    async def postpone_during_read(*args, **kwargs):
+        page = await read_episodes(*args, **kwargs)
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE companion.growth_material_failures SET due_at=clock_timestamp()+interval '1 hour' "
+                                     "WHERE failure_key='input:race'")
+        return page
+
+    memory.episodes_by_refs = postpone_during_read
+    outcome = await growth.retry_input('actor', scope, 'input:race', 1, GENERATION)
+
+    assert outcome == {'state': 'waiting'}
+    async with database.transaction(read_only=True) as connection:
+        current = await (await connection.execute(
+            "SELECT retry_key,reviewed_revision FROM companion.growth_inputs WHERE episode_id='episode'")).fetchone()
+    assert current == {'retry_key': 'input:race', 'reviewed_revision': 0}
+
+
+@pytest.mark.asyncio
 async def test_unexplained_empty_input_observation_remains_retryable(database):
     growth, context, _memory, _models, scope, _original, _failure = await setup_maintenance(database)
     async with database.transaction() as connection:
@@ -174,10 +222,10 @@ async def test_unexplained_empty_input_observation_remains_retryable(database):
     outcome = await growth.retry_input('actor', scope, 'input:unknown', 1, GENERATION)
 
     assert outcome['state'] == 'waiting' and outcome['reason'] == 'episode_observation_incomplete'
-    assert outcome['due_at'] > datetime.now(UTC)
     async with database.transaction(read_only=True) as connection:
         failure = await (await connection.execute(
-            "SELECT error_code,due_at,observation_revision FROM companion.growth_material_failures "
+            "SELECT error_code,due_at,observation_revision,clock_timestamp() AS db_now FROM companion.growth_material_failures "
             "WHERE failure_key='input:unknown'")).fetchone()
     assert failure['error_code'] == 'growth_model_profile_unavailable'
+    assert outcome['due_at'] > failure['db_now']
     assert failure['due_at'] == outcome['due_at'] and failure['observation_revision'] == 1

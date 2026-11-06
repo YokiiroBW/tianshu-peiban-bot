@@ -16,6 +16,12 @@ def field(row, name):
     return row.get(name) if isinstance(row, dict) else getattr(row, name)
 
 
+async def database_now_on(connection):
+    """Use the scheduler's database clock when setting or comparing due times."""
+    row = await (await connection.execute('SELECT clock_timestamp() AS db_now')).fetchone()
+    return row['db_now']
+
+
 async def reserve_initial(policy, connection, context, batch, request):
     if policy is None:
         raise AppError('growth_recovery_policy_unavailable', status=503)

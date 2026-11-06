@@ -1,6 +1,6 @@
 """Qualify an explicit Growth review against its original physical outcome."""
 
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from collections.abc import Mapping
 
 import aiohttp
@@ -12,7 +12,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 
 from .growth_output_repair import review_original
-from .growth_policy import OWNER, bind_receipt, budget_on, lock_receipt_on
+from .growth_policy import OWNER, bind_receipt, budget_on, database_now_on, lock_receipt_on
 
 
 async def _current_on(retries, connection, row, generation):
@@ -56,11 +56,13 @@ async def _finish_on(retries, connection, row, generation, *, reason=None, due_a
     return updated
 
 
-async def _finish(retries, row, generation, *, reason=None, due_at=None):
+async def _finish(retries, row, generation, *, reason=None, due_at=None, delay=None):
     async with retries.database.transaction() as connection:
         _state, saved = await _current_on(retries, connection, row, generation)
         if not saved:
             return {'state': 'changed_since_review_read'}
+        if delay is not None:
+            due_at = await database_now_on(connection) + delay
         await _finish_on(retries, connection, saved, generation, reason=reason, due_at=due_at)
     return {'state': 'review_stopped' if reason else 'review_waiting', 'reason': reason, 'due_at': due_at}
 
@@ -107,8 +109,6 @@ async def process_review(retries, row, generation):
         if result is None:
             return await _finish(retries, row, generation, reason='original_attempt_unresolved')
         bind_receipt(request, result.receipt)
-        if request.business_deadline_at and request.business_deadline_at <= datetime.now(UTC):
-            return await _finish(retries, row, generation, reason='business_deadline_expired')
         action, reason = review_original(result.receipt, review.get('repair_ref'))
     except RecoveryWait as wait:
         if not recovery_wait_retryable(wait):
@@ -122,7 +122,7 @@ async def process_review(retries, row, generation):
             return await _finish(retries, row, generation, reason=error.code)
         raise
     except (TimeoutError, aiohttp.ClientError):
-        return await _finish(retries, row, generation, due_at=datetime.now(UTC) + timedelta(minutes=5))
+        return await _finish(retries, row, generation, delay=timedelta(minutes=5))
 
     async with retries.database.transaction() as connection:
         await growth.jobs.assert_generation_on(connection, generation)
@@ -130,8 +130,12 @@ async def process_review(retries, row, generation):
         state, saved = await _current_on(retries, connection, row, generation)
         if not saved:
             return {'state': 'changed_since_review_read'}
+        db_now = await database_now_on(connection)
+        if request.business_deadline_at and request.business_deadline_at <= db_now:
+            await _finish_on(retries, connection, saved, generation, reason='business_deadline_expired')
+            return {'state': 'review_stopped', 'reason': 'business_deadline_expired'}
         if state['active_batch']:
-            due = datetime.now(UTC) + timedelta(seconds=30)
+            due = db_now + timedelta(seconds=30)
             await _finish_on(retries, connection, saved, generation, due_at=due)
             return {'state': 'review_waiting', 'reason': 'growth_owner_busy', 'due_at': due}
         if material_error in {None, 'reflection_episode_unavailable'}:
@@ -170,7 +174,7 @@ async def process_review(retries, row, generation):
                              receipt=result.receipt)
             return {'state': 'review_stopped', 'reason': 'growth_original_receipt_conflict'}
 
-        due = datetime.now(UTC)
+        due = db_now
         if action == 'repaired':
             await lock_receipt_on(connection, result.receipt, generation)
             qualification = await growth.recovery_policy.resume_repaired_on(
@@ -197,4 +201,5 @@ async def process_review(retries, row, generation):
                 return {'state': 'review_stopped', 'reason': reason}
             due = max(due, budget['retry_at'])
         await _finish_on(retries, connection, saved, generation, admitted=True, due_at=due, receipt=result.receipt)
-    return {'state': 'review_admitted', 'due_at': due}
+        due_now = due <= await database_now_on(connection)
+    return {'state': 'review_admitted', 'due_at': due, 'due_now': due_now}
