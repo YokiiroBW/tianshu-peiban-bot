@@ -1,6 +1,6 @@
 # RBI-08：保留数据发布、原对象恢复与自然巡检
 
-日期：2026-11-06。状态：**已部署并回收14:04自然巡检及14:12摘要；原业务仍有未解决项。** 用户在完成 RBI-07 本地验收后明确要求“发布部署”。唯一协调与生产写者为 01a1ac6f-8494-7f82-8c4d-ec7d285f44ae，沿用六角色和各领域状态机。
+日期：2026-11-06。状态：**已部署；最新14:34自然巡检、14:39定向读回及14:41摘要确认，四条结果均已耗尽失败预算且未完成，业务阻塞恶化。** 用户在完成 RBI-07 本地验收后明确要求“发布部署”。唯一协调与生产写者为 01a1ac6f-8494-7f82-8c4d-ec7d285f44ae，沿用六角色和各领域状态机。
 
 ## 发布回执与数据保留
 
@@ -41,6 +41,18 @@
 14:10定向补查确认四条结果的其他消费者已not_applicable，life_activity仍pending且缺proof；其中两条已达四次确定失败上限并无合法后续job/due，另两条保留有效todo任务及due，仍不能称业务完成。池等待快照见一次来源校验约26秒且另一事务锁等待，旧问题继续保留，没有用新窗口预算替换旧预算。
 
 巡检回执补充：发布后共有9次已提交Memory.extract请求返回403，这是物理尝试数，不能换算成失败材料数。同容器且前后台worker_id未变的13:46—14:04窗口，后台business acquire_timeouts增加6、transaction_errors增加279、transaction_conflicts增加235；前台business acquire_timeouts增加35、transaction_errors增加26。前台control新增1次commit_unknown，具体事务影响未知；模型代理control当前值1缺同进程身份，不能当新增。sql_errors仍0不等于无数据库异常，queue池活动仍未知。26.048秒Sources查询/32.393秒事务与锁等待只是时点证据，不将所有失败归为同一原因。池等待证据为 .runtime/rbf-execution-20261105/pool-waits-20261106T060645Z.json。最近24条turn无需要回复的真实样本，QQ连接可用没有证明端到端送达。
+
+## 14:34 后续自然巡检：四条消费均已停止
+
+版本、镜像、容器及代际仍同本发布，六角色和11组消费者就绪。14:39定向读回四条成功Action回执均pending，life_activity无完成proof，全部execution_failure_budget_exhausted、开放job为空且无reconcile_due；不能继续按“另外两条仍恢复中”的14:10旧截面判断。
+
+同容器且worker_id未变的14:04:55—14:34:55，后台business acquire_timeouts增加2、transaction_errors增加555、transaction_conflicts增加430、sql_errors增加0；前台business transaction_errors增加14、冲突增加10。14:35现场Sources校验query 21.609秒、事务25.671秒，两个事务分别等待life.goals/source originals锁。仅凭该时点不归因所有失败；缺失queue池和没有进程身份的其他角色增量仍unknown。
+
+本轮模型增量查询记录10次memory.extract 403、15次reflect 429、3次life.plan 429、1次reflect timeout_unknown，均为物理尝试数。固定Memory原批仍failed。Growth的429 blocked批从4增至5，新批关联1条未reviewed输入；另一批第四次尝试unknown，经同一lineage关联27条未reviewed输入，waiting_on_original的due只是观察安排。同一material fingerprint的3次规划请求均429且usage为空；estimated/charged token字段不足以证明实际消耗或重复收费。
+
+证据为本批目录full-chain-20261106T063454Z.json、monitor-final-targets-20261106T0634Z.json、monitor-followup-20261106T0634Z.json、monitor-model-delta-20261106T0634Z.json，以及RBF目录pool-waits-20261106T063534Z.json。摘要14:41更新为累计78次观察、216条问题事件、57个指纹；本轮增加1次观察/7条既有指纹事件，账本输入完整，但Memory整体页/目标集合和memory.index.recovery producer仍不完整。最近24条turn不需回复，未证明QQ端到端。本次只读取和更新记录，没有恢复、重放、清除或增加生产预算。
+
+后续优先解决Sources校验/事务争锁及上游403/429；四条原消费者必须在真实修复证据与原历史保留的正常领域入口处理，不能重置计数或更换receipt绕过上限。
 
 ## 证据
 

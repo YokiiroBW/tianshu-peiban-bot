@@ -1030,6 +1030,44 @@
         "memory.index.recovery"
       ],
       "status": "partial"
+    },
+    "latest_patrol": {
+      "snapshot_local_time": "2026-11-06T14:34:55+08:00",
+      "target_observation_utc": "2026-11-06T06:39:31.599452+00:00",
+      "summary_as_of": "2026-11-06T06:41:27.871007+00:00",
+      "result_pending": 4,
+      "result_failure_budget_exhausted": 4,
+      "result_open_jobs": 0,
+      "result_live_business_proofs": 0,
+      "same_worker_pool_increments": {
+        "background_business_acquire_timeouts": 2,
+        "background_business_transaction_errors": 555,
+        "background_business_transaction_conflicts": 430,
+        "background_business_sql_errors": 0,
+        "foreground_business_transaction_errors": 14,
+        "foreground_business_transaction_conflicts": 10
+      },
+      "source_query_seconds": 21.609,
+      "source_transaction_seconds": 25.671,
+      "model_delta_attempts": {
+        "memory_extract_403": 10,
+        "reflect_429": 15,
+        "life_plan_429": 3,
+        "reflect_timeout_unknown": 1
+      },
+      "unknown_growth_unreviewed_inputs": 27,
+      "new_429_growth_unreviewed_inputs": 1,
+      "observation_records_added": 1,
+      "issue_records_added": 7,
+      "new_fingerprints": 0,
+      "ledger_input_complete": true,
+      "business_completion": false,
+      "evidence": [
+        "full-chain-20261106T063454Z.json",
+        "monitor-final-targets-20261106T0634Z.json",
+        "monitor-followup-20261106T0634Z.json",
+        "monitor-model-delta-20261106T0634Z.json"
+      ]
     }
   },
   "release_authorization": "用户明确要求 发布部署，保留配置与数据，唯一协调者串行发布",
