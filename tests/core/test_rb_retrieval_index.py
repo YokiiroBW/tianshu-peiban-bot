@@ -332,6 +332,16 @@ async def test_recovery_statistics_backfill_uses_original_attempt_identity(core,
     context, _ = ordinary_users
     value = await fact(core, context, "statistics-replay")
     models, embeddings = bind_models(core)
+    original_status = models.status
+    status_calls = []
+
+    async def status_with_phase(attempt_id, *, phase="observe"):
+        status_calls.append((attempt_id, phase))
+        return await original_status(attempt_id)
+
+    # This scenario must exercise the actual pre-submit lookup and original
+    # attempt, rather than treating a fixture signature error as an unknown.
+    models.status = status_with_phase
 
     class Statistics:
         def __init__(self):
@@ -355,17 +365,40 @@ async def test_recovery_statistics_backfill_uses_original_attempt_identity(core,
     core.workers.index_jobs.bind_observability(statistics=stats)
     profile_key = (await embeddings.profile())[1]
     await index_claim(core, value)
-    job, request = await find_job(core, value, profile_key), models.requests[0]
+    job = await find_job(core, value, profile_key)
+    assert job is not None and len(models.requests) == len(models.completions) == 1
+    request = models.requests[0]
+    assert (request.attempt_id, "pre_submit") in status_calls
+    async with core.database.transaction(read_only=True) as conn:
+        attempt = await (await conn.execute(
+            "SELECT * FROM memory.index_attempts WHERE index_id=%s AND number=1", (job["index_id"],))).fetchone()
+        step = await (await conn.execute(
+            "SELECT request FROM memory.model_steps WHERE step_id=%s", (attempt["step_id"],))).fetchone()
+    assert job["attempt_count"] == 1 and attempt["model_attempt_id"] == request.attempt_id
+    assert attempt["intent_id"] == request.intent_id
+    assert step["request"]["attempt_id"] == request.attempt_id and step["request"]["intent_id"] == request.intent_id
+    assert step["request"]["data_generation"] == request.data_generation == job["generation"]
+    assert step["request"]["source_refs"] == wire(request.source_refs) and request.source_refs
+    assert models.completions[0].payload["completed_attempt_id"] == request.attempt_id
     models.fail(request)
     await core.workers.index_jobs.run(job["index_id"], generation=job["generation"], completed_attempt_id=request.attempt_id)
     assert (await find_job(core, value, profile_key))["state"] == "retry_wait"
+    async with core.database.transaction(read_only=True) as conn:
+        failed = await (await conn.execute(
+            "SELECT * FROM memory.index_attempts WHERE index_id=%s AND number=1", (job["index_id"],))).fetchone()
+    assert failed["status"] == "failed" and failed["model_attempt_id"] == request.attempt_id
     event_key = ("recovery", "memory-index:" + request.attempt_id)
     original = stats.events[event_key]
-    assert original["metrics"]["recovery_eligible"] == 1
+    assert original["revision"] == failed["event_revision"] and original["metrics"]["recovery_eligible"] == 1
     scan = await core.workers.index_jobs.backfill_statistics(await generation(core))
     assert scan["complete"] and scan["coverage"] == "partial"
     assert len(stats.events) == 1 and stats.events[event_key] == original
     assert stats.events[event_key]["revision"] == original["revision"]
+    assert len(models.requests) == 1
+    async with core.database.transaction(read_only=True) as conn:
+        saved = await (await conn.execute(
+            "SELECT request FROM memory.model_steps WHERE step_id=%s", (attempt["step_id"],))).fetchone()
+    assert saved["request"] == step["request"]
     marker = stats.producers[-1][1]
     assert marker["complete"] is False
     assert marker["detail"]["data_generation"] == job["generation"]
