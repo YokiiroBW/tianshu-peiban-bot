@@ -275,6 +275,42 @@ class Actions:
         }
         return {**result, "execution": execution}
 
+    async def assert_result_head_on(self, connection, context, *, action_id, expected_receipt,
+                                    result_revision, data_generation, source_refs=()):
+        """Fence a consumer's original receipt until its domain transaction ends.
+
+        The caller must have already locked its complete domain-specific source
+        set. This port locks the Action's own sources before the Action row.
+        """
+        if self.sources is None:
+            raise Fault("source_authority_unavailable", 503)
+        await self.jobs.assert_generation_on(connection, data_generation)
+        if not await self.sources.validate_persistence(connection, context, tuple(source_refs)):
+            raise Fault("source_unavailable", 403)
+        row = await (await connection.execute(
+            "SELECT principal_id,action,receipt,result_revision,document FROM capabilities.actions "
+            "WHERE id=%s AND principal_id=%s FOR SHARE", (action_id, context.principal_id))).fetchone()
+        if not row:
+            raise Fault("result_head_unavailable", 404)
+        action = action_from(row["action"])
+        if (action.context.actor_id != context.actor_id or
+                not set(action.context.scope_ids) <= set(context.scope_ids)):
+            raise Fault("forbidden", 403)
+        if json.loads(row["document"]).get("data_generation") != data_generation:
+            raise Fault("job_generation_expired", 409)
+        if row["result_revision"] > result_revision:
+            raise Fault("result_head_advanced", 409)
+        if row["result_revision"] < result_revision:
+            raise Fault("result_head_regressed", 409)
+        if canonical(row["receipt"]) != canonical(wire(expected_receipt)):
+            raise Fault("result_receipt_revision_conflict", 409)
+        required = unique_refs(action.source_refs, result_sources(receipt_from(row["receipt"])))
+        locked = {canonical(wire(ref)) for ref in source_refs}
+        if any(canonical(wire(ref)) not in locked for ref in required):
+            raise Fault("result_source_set_changed", 409)
+        return {"action_id": action_id, "receipt_id": row["receipt"]["receipt_id"],
+                "result_revision": row["result_revision"]}
+
     async def inspect_recovery(self, action_id, context):
         """Inspect only the canonical Action, attempt, receipt and queue identity."""
         return await self.get(action_id, context)

@@ -58,10 +58,11 @@ def receipt_advances(previous: Receipt | None, result: Receipt) -> bool:
 
 
 class ExpressionService:
-    def __init__(self, database, jobs, identity, channels, contacts, *, sources):
+    def __init__(self, database, jobs, identity, channels, contacts, *, sources, actions=None):
         self.database, self.jobs, self.identity = database, jobs, identity
         self.channels, self.contacts = channels, contacts
         self.sources = sources
+        self.actions = actions
         self.statistics = None
 
     def bind_statistics(self, statistics):
@@ -126,9 +127,33 @@ class ExpressionService:
             return result
         return await self._finish(context, plan, result)
 
-    async def _finish(self, context, plan, result):
+    async def _prepare_result_fence(self, context, plan, result, result_fence):
+        if not result or not result.action_id:
+            return result, result_fence
+        bound = getattr(result_fence, "action_ids", ()) or (getattr(result_fence, "action_id", ""),)
+        if result.action_id in bound:
+            return result, result_fence
+        # Expiry and local delivery failures produce an Expression observation,
+        # not an Action receipt, even when an older result supplied action_id.
+        if (result.execution == "unknown" and result.receipt_id ==
+                str(uuid5(NAMESPACE_URL, "expression-receipt:" + plan.expression_id))):
+            return result, result_fence
+        if self.actions is None:
+            raise AppError("action_head_unavailable", status=503)
+        from .rbi_result_fence import action_result_fence, combine_result_fences
+        result, _, action_fence = await action_result_fence(self.database, self.jobs, self.actions,
+            context, result, refresh=True)
+        return result, combine_result_fences(result_fence, action_fence)
+
+    async def _finish(self, context, plan, result, *, result_fence=None):
+        result, result_fence = await self._prepare_result_fence(context, plan, result, result_fence)
         async with self.database.transaction() as connection:
-            material_valid = await self.sources.validate_persistence(connection,context,plan.source_refs)
+            refs = unique_refs(plan.source_refs, getattr(result_fence, "source_refs", ()))
+            material_valid = await self.sources.validate_persistence(connection,context,refs)
+            if result_fence:
+                if not material_valid:
+                    raise AppError("source_unavailable", status=403)
+                await result_fence(connection)
             current = await (await connection.execute(
                 "SELECT state,receipt,revision,created_at FROM conversation.expressions WHERE expression_id=%s "
                 "AND actor_id=%s AND conversation_id=%s FOR UPDATE",
@@ -165,7 +190,9 @@ class ExpressionService:
                         "VALUES (%s,%s,'assistant',%s,%s,%s,%s,%s) ON CONFLICT(expression_id) DO NOTHING",
                         (context.actor_id, context.conversation_id, document(plan.public_parts), document(plan.source_refs),
                          list(context.scope_ids), plan.turn_id, plan.expression_id))
-        if material_valid:
+            if material_valid and result_fence:
+                await self.contacts.record_delivery(context, plan, result, connection=connection)
+        if material_valid and not result_fence:
             await self.contacts.record_delivery(context, plan, result)
         return result
 
@@ -203,14 +230,20 @@ class ExpressionService:
         await self._finish(context, plan, receipt(actual))
         return await self.get(context, expression_id)
 
-    async def channel_result(self, context, expression_id, result) -> Receipt | None:
+    async def channel_result(self, context, expression_id, result, *, result_fence=None) -> Receipt | None:
         async with self.database.transaction(read_only=True) as connection:
             row=await (await connection.execute("SELECT * FROM conversation.expressions WHERE expression_id=%s AND actor_id=%s AND conversation_id=%s",(expression_id,context.actor_id,context.conversation_id))).fetchone()
         if not row:
             return None
         plan=ExpressionPlan(expression_id,context.actor_id,context.conversation_id,tuple(row["public_parts"]),source_refs(row["source_refs"]),context.origin_kind,row["turn_id"],artifacts(row["artifacts"]),row["candidate_id"])
-        result = await self._finish(context,plan,result)
+        result, result_fence = await self._prepare_result_fence(context, plan, result, result_fence)
+        result = await self._finish(context,plan,result,result_fence=result_fence)
         async with self.database.transaction() as connection:
+            if result_fence:
+                refs = unique_refs(plan.source_refs, getattr(result_fence, "source_refs", ()))
+                if not await self.sources.validate_persistence(connection, context, refs):
+                    raise AppError("source_unavailable", status=403)
+                await result_fence(connection)
             state = expression_turn_state(delivery_state(result))
             await connection.execute(
                 "UPDATE conversation.turns SET state=%s,error_code=%s,revision=revision+1,"

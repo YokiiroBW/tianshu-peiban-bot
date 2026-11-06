@@ -1445,15 +1445,26 @@ class ConversationService:
             await connection.execute("UPDATE conversation.turns SET tool_dispatch_complete=true WHERE turn_id=%s", (row["turn_id"],))
         await self._await_tools(context, row["turn_id"])
 
-    async def _tool_receipt(self, context, result, result_revision=None):
+    async def _tool_receipt(self, context, result, result_revision=None, *, result_fence=None):
         if result_revision is None:
             current = await self.actions.get(result.action_id, context)
             result, result_revision = receipt(current["receipt"]), current["result_revision"]
         if result is None:
             return
-        refs=unique_refs(tuple(ref for ref in (*source_refs(result.result.get("source_refs",())),*(ref for item in result.artifacts for ref in item.source_refs))))
+        if result_fence is None and result.action_id:
+            if self.actions is None:
+                raise AppError("action_head_unavailable", status=503)
+            from .rbi_result_fence import action_result_fence
+            result, result_revision, result_fence = await action_result_fence(
+                self.database, self.jobs, self.actions, context, result, result_revision=result_revision)
+        refs=unique_refs(tuple(ref for ref in (*source_refs(result.result.get("source_refs",())),*(ref for item in result.artifacts for ref in item.source_refs))),
+                         getattr(result_fence, "source_refs", ()))
         async with self.database.transaction() as connection:
             valid=await self.sources.validate_persistence(connection,context,refs)
+            if result_fence:
+                if not valid:
+                    raise AppError("source_unavailable", status=403)
+                await result_fence(connection)
             link = await (await connection.execute("SELECT l.*,t.context,t.state AS turn_state FROM conversation.tool_links l JOIN conversation.turns t ON t.turn_id=l.turn_id WHERE action_id=%s AND t.actor_id=%s AND t.conversation_id=%s FOR UPDATE OF l", (result.action_id, context.actor_id, context.conversation_id))).fetchone()
             if not link:
                 return
@@ -1464,23 +1475,52 @@ class ConversationService:
             state = result.execution
             await connection.execute("UPDATE conversation.tool_links SET state=%s,last_receipt_id=%s,result=%s,result_revision=%s WHERE action_id=%s", (state, result.receipt_id, document(result), result_revision, result.action_id))
 
-    async def _await_tools(self, context, turn_id, *, deployment_generation=None):
+    async def _await_tools(self, context, turn_id, *, deployment_generation=None, result_fence=None):
         async def apply():
-            return await self._await_tools_once(context, turn_id, deployment_generation=deployment_generation)
+            return await self._await_tools_once(context, turn_id, deployment_generation=deployment_generation,
+                                                result_fence=result_fence)
         return await retry_material_snapshot(apply)
 
-    async def _await_tools_once(self, context, turn_id, *, deployment_generation=None):
+    async def _await_tools_once(self, context, turn_id, *, deployment_generation=None, result_fence=None):
         async with self.database.transaction() as connection:
             if deployment_generation is not None:
                 await self.jobs.assert_generation_on(connection, deployment_generation)
             snapshots = await (await connection.execute("SELECT * FROM conversation.tool_links WHERE turn_id=%s AND consumed=false ORDER BY call_id", (turn_id,))).fetchall()
             dependencies=[]
+            fences = {}
+            if result_fence:
+                fences[getattr(result_fence, "action_id", "")] = result_fence
             for item in snapshots:
                 observed=receipt(item["result"])
                 if observed:
                     dependencies.extend(source_refs(observed.result.get("source_refs",())))
                     dependencies.extend(ref for artifact in observed.artifacts for ref in artifact.source_refs)
-            row = await lock_material_row(connection,self.sources,context,"SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE",(turn_id,),additional_refs=unique_refs(tuple(dependencies)))
+                    if observed.action_id and observed.action_id not in fences:
+                        if self.actions is None:
+                            raise AppError("action_head_unavailable", status=503)
+                        from .rbi_result_fence import action_result_fence
+                        _, _, fence = await action_result_fence(self.database, self.jobs, self.actions,
+                            context, observed, result_revision=item["result_revision"])
+                        if fence:
+                            fences[observed.action_id] = fence
+            if fences:
+                ordered_fences = sorted(
+                    (item for fence in fences.values() for item in getattr(fence, "components", (fence,))),
+                    key=lambda fence: getattr(fence, "action_id", ""))
+                snapshot = await (await connection.execute(
+                    "SELECT * FROM conversation.turns WHERE turn_id=%s", (turn_id,))).fetchone()
+                refs = unique_refs(source_refs(snapshot.get("source_refs", ())) if snapshot else (),
+                                   tuple(dependencies), *(fence.source_refs for fence in ordered_fences))
+                if not await self.sources.validate_persistence(connection, context, refs):
+                    raise AppError("source_unavailable", status=403)
+                for fence in ordered_fences:
+                    await fence(connection)
+                row = await (await connection.execute(
+                    "SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE", (turn_id,))).fetchone()
+                if signature(snapshot) != signature(row):
+                    raise MaterialSnapshotChanged(row.get("revision") if row else None)
+            else:
+                row = await lock_material_row(connection,self.sources,context,"SELECT * FROM conversation.turns WHERE turn_id=%s FOR UPDATE",(turn_id,),additional_refs=unique_refs(tuple(dependencies)))
             if row["state"] not in {"running", "waiting_external"}:
                 return
             if not row["tool_dispatch_complete"]:
@@ -1524,14 +1564,21 @@ class ConversationService:
             await connection.execute("UPDATE conversation.turns SET state='queued',continuation=%s,ordered_parts=%s,artifacts=%s,source_refs=%s,round=%s WHERE turn_id=%s", (document(continuation), document(ordered), document(output_artifacts), document(merged_refs), next_round, turn_id))
             await self.jobs.enqueue(connection, JobSpec("conversation.run", f"turn:{turn_id}:{next_round}", {"turn_id": turn_id}, ServiceClass.ELASTIC if row.get("autonomous") else ServiceClass.INTERACTIVE, subject_id=context.actor_id))
 
-    async def on_result(self, context, result, *, result_revision=None):
+    async def on_result(self, context, result, *, result_revision=None, result_fence=None):
         result = receipt(result)
         await self.identity.check(context)
-        await self._tool_receipt(context, result, result_revision)
+        if result_fence is None and result and result.action_id:
+            if self.actions is None:
+                raise AppError("action_head_unavailable", status=503)
+            from .rbi_result_fence import action_result_fence
+            result, result_revision, result_fence = await action_result_fence(
+                self.database, self.jobs, self.actions, context, result, result_revision=result_revision,
+                refresh=result_revision is None)
+        await self._tool_receipt(context, result, result_revision, result_fence=result_fence)
         async with self.database.transaction(read_only=True) as connection:
             link = await (await connection.execute("SELECT turn_id FROM conversation.tool_links WHERE action_id=%s", (result.action_id,))).fetchone()
         if link:
-            await self._await_tools(context, link["turn_id"])
+            await self._await_tools(context, link["turn_id"], result_fence=result_fence)
 
     async def reconcile(self, turn_id, sequence):
         async with self.database.transaction(read_only=True) as connection:

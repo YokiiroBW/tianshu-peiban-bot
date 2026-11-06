@@ -2,7 +2,7 @@
 from tianshu.sources.dependencies import unique_refs
 from dataclasses import replace
 from datetime import UTC,datetime
-from uuid import NAMESPACE_URL,uuid5
+from uuid import NAMESPACE_URL,uuid4,uuid5
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
@@ -12,6 +12,7 @@ from .types import ExpressionPlan,ExpressionProgress
 from .expression import delivery_state, receipt_advances
 from .behaviors import behavior_status
 from .recovery import can_retry_resource_wait, is_resource_wait, raise_resource_wait
+from .persistence import MaterialSnapshotChanged, retry_material_snapshot
 
 
 def decode_plan(value):
@@ -172,7 +173,19 @@ class ExpressionRenderer:
                 await self.on_action_result(context,receipt(actual["receipt"]),actual["result_revision"])
             raise
 
-    async def on_action_result(self,context,result,result_revision):
+    async def on_action_result(self,context,result,result_revision,*,result_fence=None):
+        defer_release = result_fence is not None
+        if result_fence is None and result is not None and result.action_id:
+            if self.actions is None:
+                raise AppError("action_head_unavailable", status=503)
+            from .rbi_result_fence import action_result_fence
+            result, result_revision, result_fence = await action_result_fence(
+                self.database, self.jobs, self.actions, context, result, result_revision=result_revision)
+        return await retry_material_snapshot(
+            lambda: self._on_action_result_once(context, result, result_revision,
+                result_fence=result_fence, defer_release=defer_release))
+
+    async def _on_action_result_once(self,context,result,result_revision,*,result_fence=None,defer_release=False):
         if result is None or not result.action_id:
             return False
         async with self.database.transaction(read_only=True) as connection:
@@ -180,14 +193,22 @@ class ExpressionRenderer:
         if not row:
             return False
         refs=unique_refs(tuple(ref for ref in (*source_refs(row["source_refs"]),*source_refs(result.result.get("source_refs",())),*(ref for item in result.artifacts for ref in item.source_refs))))
+        locked_refs = unique_refs(refs, getattr(result_fence, "source_refs", ()))
         async with self.database.transaction() as connection:
-            if not await self.sources.validate_persistence(connection,context,refs):
+            if not await self.sources.validate_persistence(connection,context,locked_refs):
+                if result_fence:
+                    raise AppError("source_unavailable", status=403)
                 await connection.execute("UPDATE conversation.expression_plans SET state='failed',plan='{}',rendered=NULL,reason='source_unavailable',revision=revision+1 WHERE expression_id=%s",(row["expression_id"],))
                 return True
+            if result_fence:
+                await result_fence(connection)
             fresh=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s FOR UPDATE",(row["expression_id"],))).fetchone()
+            if result_fence and (not fresh or signature(row["source_refs"]) != signature(fresh["source_refs"])):
+                raise MaterialSnapshotChanged(fresh.get("revision") if fresh else None)
             steps=fresh["steps"]
             step=next(item for item in steps if item["action_id"]==result.action_id)
             resume = result_revision<=step["result_revision"] and fresh["state"] == "delivering"
+            updated = False
             if result_revision<=step["result_revision"] and not resume:
                 return True
             if resume:
@@ -202,16 +223,28 @@ class ExpressionRenderer:
                 state = "delivering"
                 refs = source_refs(fresh["source_refs"])
             else:
+                updated = True
                 step.update(state=result.execution,result_revision=result_revision,artifacts=wire(result.artifacts),receipt=wire(result))
                 state="render_unknown" if any(item["state"]=="unknown" for item in steps) else "failed" if any(item["state"] in {"failed","cancelled"} for item in steps) else "delivering" if all(item["state"]=="succeeded" for item in steps) else "waiting_render"
-                if fresh["state"] in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}:
+                may_prepare = False
+                if fresh["state"] == "delivering":
+                    existing = await (await connection.execute(
+                        "SELECT state FROM conversation.expressions WHERE expression_id=%s", (row["expression_id"],))).fetchone()
+                    may_prepare = not fresh["continuation_unconfirmed"] and (not existing or existing["state"] == "prepared")
+                    if not may_prepare:
+                        state = fresh["state"]
+                elif fresh["state"] in {"waiting_delivery","delivered","delivery_unknown","cancelled","failed"}:
                     state=fresh["state"]
                 await connection.execute("UPDATE conversation.expression_plans SET steps=%s,state=%s,source_refs=%s,reason=%s,revision=revision+1 WHERE expression_id=%s",(document(steps),state,document(refs),result.error_code,row["expression_id"]))
                 if state in {"failed","render_unknown"}:
                     await self._event(connection,context,row["expression_id"],fresh["revision"]+1)
+                if state == "delivering" and fresh["state"] == "delivering" and may_prepare:
+                    resume = True
         if state=="delivering" and (resume or fresh["state"] not in {"delivering","waiting_delivery","delivered","delivery_unknown","cancelled","failed"}):
+            expected_revision = fresh["revision"] + int(updated)
             if fresh["deadline_at"] is not None and datetime.now(UTC)>fresh["deadline_at"]:
-                await self._failed(context,fresh["expression_id"],"expression_window_expired")
+                await self._failed(context,fresh["expression_id"],"expression_window_expired",
+                                   result_fence=result_fence, refs=refs, expected_revision=expected_revision)
                 return True
             plan=decode_plan(fresh["plan"])
             parts=[]
@@ -224,30 +257,62 @@ class ExpressionRenderer:
                     continue
                 actual=artifacts(step["artifacts"])
                 if not actual:
-                    await self._failed(context,plan.expression_id,"speech_artifact_missing")
+                    await self._failed(context,plan.expression_id,"speech_artifact_missing",
+                                       result_fence=result_fence, refs=refs, expected_revision=expected_revision)
                     return True
                 if fresh["profile"]["output_mode"]=="both":
                     parts.append(part)
                 parts.extend({"kind":"audio","media":wire(item.media)} for item in actual)
                 output.extend(actual)
             try:
-                await self._deliver(context,replace(plan,public_parts=tuple(parts),source_refs=refs,artifacts=tuple(output)))
+                rendered_plan = replace(plan,public_parts=tuple(parts),source_refs=refs,artifacts=tuple(output))
+                if result_fence:
+                    await self._deliver(context, rendered_plan, result_fence=result_fence,
+                                        expected_revision=expected_revision, defer_release=defer_release)
+                else:
+                    await self._deliver(context, rendered_plan)
             except Exception as error:
                 if is_resource_wait(error) and not can_retry_resource_wait(error):
                     try:
                         async with self.database.transaction() as connection:
+                            if result_fence:
+                                if not await self.sources.validate_persistence(connection, context,
+                                        unique_refs(refs, getattr(result_fence, "source_refs", ()))):
+                                    raise AppError("source_unavailable", status=403)
+                                await result_fence(connection)
                             await connection.execute("UPDATE conversation.expression_plans SET continuation_unconfirmed=true "
-                                "WHERE expression_id=%s AND state='delivering'", (plan.expression_id,))
+                                "WHERE expression_id=%s AND state='delivering' "
+                                "AND (%s::bigint IS NULL OR revision=%s)",
+                                (plan.expression_id, expected_revision if result_fence else None,
+                                 expected_revision if result_fence else None))
                     except BaseException as observation_error:
                         raise error from observation_error
                 raise
         return True
 
-    async def _deliver(self,context,plan):
+    async def _deliver(self,context,plan,*,result_fence=None,expected_revision=None,defer_release=False):
         async with self.database.transaction() as connection:
-            if not await self.sources.validate_persistence(connection,context,plan.source_refs):
+            refs = unique_refs(plan.source_refs, getattr(result_fence, "source_refs", ()))
+            if not await self.sources.validate_persistence(connection,context,refs):
                 raise AppError("source_unavailable",status=409)
+            if result_fence:
+                await result_fence(connection)
+                current = await (await connection.execute(
+                    "SELECT state,revision,source_refs FROM conversation.expression_plans "
+                    "WHERE expression_id=%s FOR UPDATE", (plan.expression_id,))).fetchone()
+                if not current or current["state"] != "delivering" or current["revision"] != expected_revision:
+                    return None
+                if signature(source_refs(current["source_refs"])) != signature(plan.source_refs):
+                    raise MaterialSnapshotChanged(current["revision"])
             await connection.execute("UPDATE conversation.expression_plans SET rendered=%s,state='ready' WHERE expression_id=%s",(document(plan),plan.expression_id))
+            if result_fence and not defer_release:
+                await self.jobs.enqueue(connection, JobSpec("conversation.expression_release",
+                    f"render-ready:{plan.expression_id}:{expected_revision}:{uuid4()}", {"expression_id": plan.expression_id},
+                    ServiceClass.INTERACTIVE, subject_id=context.actor_id),
+                    queueing_lock=f"expression-release:{plan.expression_id}")
+        if defer_release:
+            # ResultConsumer persists the release job together with its proof.
+            return None
         return await self.release(plan.expression_id)
 
     async def release(self,expression_id):
@@ -257,6 +322,19 @@ class ExpressionRenderer:
             return progress(row) if row else None
         context=context_from_record(row["context"])
         plan=decode_plan(row["rendered"] or row["plan"])
+        fences = []
+        if self.actions is None and any(receipt(step.get("receipt")) and receipt(step.get("receipt")).action_id
+                                        for step in row["steps"]):
+            raise AppError("action_head_unavailable", status=503)
+        if self.actions is not None:
+            from .rbi_result_fence import action_result_fence
+            for step in sorted(row["steps"], key=lambda item: item["action_id"]):
+                actual = receipt(step.get("receipt"))
+                if actual and actual.action_id:
+                    _, _, fence = await action_result_fence(self.database, self.jobs, self.actions,
+                        context, actual, result_revision=step["result_revision"])
+                    if fence:
+                        fences.append(fence)
         if not await self.behavior_ready(context, plan, task="conversation.expression_release",
                                          payload={"expression_id": expression_id}):
             async with self.database.transaction(read_only=True) as connection:
@@ -265,10 +343,17 @@ class ExpressionRenderer:
             return progress(current) if current else None
         await self.identity.check(context,plan.source_refs)
         async with self.database.transaction() as connection:
-            if not await self.sources.validate_persistence(connection,context,plan.source_refs):
+            refs = unique_refs(plan.source_refs, *(fence.source_refs for fence in fences))
+            if not await self.sources.validate_persistence(connection,context,refs):
                 return None
+            for fence in fences:
+                await fence(connection)
             await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",("expression-order:"+str(context.actor_id)+":"+str(context.conversation_id),))
             fresh=await (await connection.execute("SELECT * FROM conversation.expression_plans WHERE expression_id=%s FOR UPDATE",(expression_id,))).fetchone()
+            if fences and (not fresh or signature(row["steps"]) != signature(fresh["steps"])
+                           or signature(row["source_refs"]) != signature(fresh["source_refs"])
+                           or signature(row["rendered"]) != signature(fresh["rendered"])):
+                raise MaterialSnapshotChanged(fresh.get("revision") if fresh else None)
             if fresh["state"] not in {"ready","waiting_order"}:
                 return progress(fresh)
             if fresh.get("deadline_at") is not None and fresh["deadline_at"] <= datetime.now(UTC):
@@ -345,8 +430,25 @@ class ExpressionRenderer:
             if row:
                 await self._event(connection,context,expression_id,row["revision"])
 
-    async def _failed(self,context,expression_id,reason):
+    async def _failed(self,context,expression_id,reason,*,result_fence=None,refs=(),expected_revision=None):
         async with self.database.transaction() as connection:
+            if result_fence:
+                snapshot = await (await connection.execute(
+                    "SELECT source_refs FROM conversation.expression_plans WHERE expression_id=%s", (expression_id,))).fetchone()
+                if not snapshot:
+                    return
+                refs = unique_refs(refs, source_refs(snapshot["source_refs"]),
+                                   getattr(result_fence, "source_refs", ()))
+                if not await self.sources.validate_persistence(connection, context, refs):
+                    raise AppError("source_unavailable", status=403)
+                await result_fence(connection)
+                current = await (await connection.execute(
+                    "SELECT state,revision,source_refs FROM conversation.expression_plans "
+                    "WHERE expression_id=%s FOR UPDATE", (expression_id,))).fetchone()
+                if not current or signature(snapshot["source_refs"]) != signature(current["source_refs"]):
+                    raise MaterialSnapshotChanged(current.get("revision") if current else None)
+                if current["state"] != "delivering" or current["revision"] != expected_revision:
+                    return
             row=await (await connection.execute("UPDATE conversation.expression_plans SET state='failed',reason=%s,revision=revision+1 WHERE expression_id=%s RETURNING revision",(reason,expression_id))).fetchone()
             await self._event(connection,context,expression_id,row["revision"])
 
@@ -390,15 +492,42 @@ class ExpressionRenderer:
                     await self.channel_result(context,expression_id,receipt(actual["receipt"]))
         return await self.get(context,expression_id)
 
-    async def channel_result(self,context,expression_id,result):
-        result = await self.delivery.channel_result(context, expression_id, result)
+    async def channel_result(self,context,expression_id,result,*,result_fence=None):
+        bound = getattr(result_fence, "action_ids", ()) or (getattr(result_fence, "action_id", ""),)
+        synthetic = (result and result.execution == "unknown" and result.receipt_id ==
+                     str(uuid5(NAMESPACE_URL, "expression-receipt:" + expression_id)))
+        if result and result.action_id and result.action_id not in bound and not synthetic:
+            if self.actions is None:
+                raise AppError("action_head_unavailable", status=503)
+            from .rbi_result_fence import action_result_fence, combine_result_fences
+            result, _, channel_fence = await action_result_fence(
+                self.database, self.jobs, self.actions, context, result, refresh=True)
+            result_fence = combine_result_fences(result_fence, channel_fence)
+        if result_fence:
+            result = await self.delivery.channel_result(context, expression_id, result, result_fence=result_fence)
+        else:
+            result = await self.delivery.channel_result(context, expression_id, result)
         if not result:
             return
         async with self.database.transaction() as connection:
+            snapshot = None
+            if result_fence:
+                snapshot = await (await connection.execute(
+                    "SELECT source_refs FROM conversation.expression_plans WHERE expression_id=%s "
+                    "AND actor_id=%s AND conversation_id=%s", (expression_id, context.actor_id,
+                                                                 context.conversation_id))).fetchone()
+                if not snapshot:
+                    return
+                refs = unique_refs(source_refs(snapshot["source_refs"]), getattr(result_fence, "source_refs", ()))
+                if not await self.sources.validate_persistence(connection, context, refs):
+                    raise AppError("source_unavailable", status=403)
+                await result_fence(connection)
             current = await (await connection.execute(
-                "SELECT receipt FROM conversation.expression_plans WHERE expression_id=%s "
+                "SELECT receipt,source_refs FROM conversation.expression_plans WHERE expression_id=%s "
                 "AND actor_id=%s AND conversation_id=%s FOR UPDATE",
                 (expression_id, context.actor_id, context.conversation_id))).fetchone()
+            if result_fence and (not current or signature(snapshot["source_refs"]) != signature(current["source_refs"])):
+                raise MaterialSnapshotChanged()
             if not current or not receipt_advances(receipt(current["receipt"]), result):
                 return
             state = "cancelled" if result.execution == "cancelled" and result.result.get("contact_preflight") else delivery_state(result)

@@ -2,9 +2,7 @@
 from uuid import NAMESPACE_URL, uuid4, uuid5
 
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.recovery_policy import RecoveryWait
-from tianshu.types import ServiceClass
 from .codec import document
 
 
@@ -27,10 +25,10 @@ def event_identity(event):
 
 async def register_on(connection, generation, event, original_job_id=None):
     action_id, receipt_id, revision = event_identity(event)
-    await connection.execute(
+    inserted = await (await connection.execute(
         "INSERT INTO conversation.result_deliveries(data_generation,receipt_id,action_id,result_revision,original_job_id) "
-        "VALUES (%s,%s,%s,%s,%s) ON CONFLICT(data_generation,receipt_id) DO NOTHING",
-        (generation, receipt_id, action_id, revision, original_job_id))
+        "VALUES (%s,%s,%s,%s,%s) ON CONFLICT(data_generation,receipt_id) DO NOTHING RETURNING receipt_id",
+        (generation, receipt_id, action_id, revision, original_job_id))).fetchone()
     row = await (await connection.execute(
         "SELECT * FROM conversation.result_deliveries WHERE data_generation=%s AND receipt_id=%s FOR UPDATE",
         (generation, receipt_id))).fetchone()
@@ -42,7 +40,8 @@ async def register_on(connection, generation, event, original_job_id=None):
         await connection.execute(
             "UPDATE conversation.result_deliveries SET original_job_id=%s WHERE data_generation=%s AND receipt_id=%s",
             (original_job_id, generation, receipt_id))
-    return row
+        row = {**row, "original_job_id": original_job_id}
+    return {**row, "_new_delivery": bool(inserted)}
 
 
 async def resolve_owners_on(connection, row, action, actor_id):
@@ -95,9 +94,11 @@ async def claim_on(connection, generation, receipt_id, consumer):
         raise AppError("result_consumer_blocked", status=409, details={"consumer": consumer})
     if row["disposition"] == "running" and row["lease_until"] and row["lease_until"] > row["now"]:
         raise RecoveryWait("result_consumer_busy", row["lease_until"], dependency="result_consumer")
+    if row.get("rbi_retry_at") and row["rbi_retry_at"] > row["now"]:
+        raise RecoveryWait("result_consumer_waiting", row["rbi_retry_at"], dependency="result_consumer")
     token = str(uuid4())
     await connection.execute(
-        "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token=%s,"
+        "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token=%s,rbi_retry_at=NULL,"
         "lease_until=now()+interval '5 minutes',attempts=attempts+1,updated_at=now() "
         "WHERE data_generation=%s AND receipt_id=%s AND consumer=%s",
         (token, generation, receipt_id, consumer))
@@ -109,18 +110,19 @@ async def complete_on(connection, generation, receipt_id, consumer, token, dispo
         raise ValueError("invalid_result_disposition")
     changed = await (await connection.execute(
         "UPDATE conversation.result_consumer_progress SET disposition=%s,reason=%s,proof=%s,"
-        "owner_token=NULL,lease_until=NULL,updated_at=now() WHERE data_generation=%s AND receipt_id=%s "
-        "AND consumer=%s AND disposition='running' AND owner_token=%s RETURNING consumer",
+        "owner_token=NULL,lease_until=NULL,rbi_retry_at=NULL,updated_at=now() WHERE data_generation=%s AND receipt_id=%s "
+        "AND consumer=%s AND disposition='running' AND owner_token=%s AND lease_until>now() RETURNING consumer",
         (disposition, reason, document(proof or {}), generation, receipt_id, consumer, token))).fetchone()
     if not changed:
         raise AppError("result_consumer_claim_lost", status=409)
 
 
-async def release_on(connection, generation, receipt_id, consumer, token, *, blocked=False, reason=None):
+async def release_on(connection, generation, receipt_id, consumer, token, *, blocked=False, reason=None, retry_at=None):
     await connection.execute(
-        "UPDATE conversation.result_consumer_progress SET disposition=%s,reason=%s,owner_token=NULL,lease_until=NULL,updated_at=now() "
+        "UPDATE conversation.result_consumer_progress SET disposition=%s,reason=%s,rbi_retry_at=%s,"
+        "owner_token=NULL,lease_until=NULL,updated_at=now() "
         "WHERE data_generation=%s AND receipt_id=%s AND consumer=%s AND disposition='running' AND owner_token=%s",
-        ("blocked" if blocked else "pending", reason, generation, receipt_id, consumer, token))
+        ("blocked" if blocked else "pending", reason, retry_at, generation, receipt_id, consumer, token))
 
 
 async def finish_on(connection, generation, receipt_id):
@@ -151,19 +153,10 @@ async def queue_head_on(connection, jobs, generation, current):
              "action_id": actual["action_id"], "result_revision": current["result_revision"],
              "result_observed_at": observed.isoformat() if observed else None,
              "context": action["context"], "source_refs": action.get("source_refs", []), "receipt": actual}
-    key = f"result-head:{generation}:{actual['action_id']}:{current['result_revision']}:{actual['receipt_id']}"
-    job_id = await jobs.enqueue(connection, JobSpec("conversation.result", key, {"event": event},
-        ServiceClass.INTERACTIVE, subject_id=action["context"]["actor_id"], data_generation=generation))
-    job = await (await connection.execute("SELECT status FROM procrastinate_jobs WHERE id=%s", (job_id,))).fetchone()
-    if not job or job["status"] not in {"todo", "doing"}:
-        done = await (await connection.execute(
-            "SELECT 1 FROM conversation.result_consumption WHERE receipt_id=%s", (actual["receipt_id"],))).fetchone()
-        if not done:
-            job_id = await jobs.enqueue(connection, JobSpec("conversation.result", key + ":" + str(uuid4()),
-                {"event": event}, ServiceClass.INTERACTIVE,
-                subject_id=action["context"]["actor_id"], data_generation=generation))
-    await register_on(connection, generation, event, job_id)
-    return job_id
+    from .rbi_result_wake import ensure_on
+    result = await ensure_on(connection, jobs, generation, event,
+        initial_key=f"result-head:{generation}:{actual['action_id']}:{current['result_revision']}:{actual['receipt_id']}")
+    return result.get("job_id")
 
 
 async def supersede_on(connection, generation, receipt_id):
