@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBI-20261106",
-  "state": "central_validation_in_progress",
+  "state": "local_verified_not_deployed",
   "user_authorization": "交付对应窗口修复吧",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "baseline_source": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
@@ -29,8 +29,9 @@
     },
     {
       "id": "RBI-07",
-      "state": "central_validation_in_progress",
-      "owner": "coordinator"
+      "state": "complete_local_verified",
+      "owner": "coordinator",
+      "handoff": "docs/handoffs/RBI-07.md"
     },
     {
       "id": "RBI-08",
@@ -48,12 +49,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c",
+      "source_commit": "ed52eee946f6d88f7f019e143fe593b8d3721036",
       "allowed_paths": [
         "src/tianshu/runtime/recovery_policy.py",
         "src/tianshu/runtime/jobs.py",
@@ -86,10 +87,10 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "handoff_commit": "ed52eee946f6d88f7f019e143fe593b8d3721036",
-      "verification": "AST/diff static only; native ordinal corrected; tests/build/smoke/production not run",
+      "verification": "central affected validation complete; no production acceptance",
       "dependencies": [
         "7715afa5144be098a8b9431d1cda03b1a3aae4ec"
       ],
@@ -124,7 +125,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
       "branch": "codex/rbi-models-20261106",
       "card": "docs/development/rbi-work-packages/models.md",
-      "status": "repair_integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -161,7 +162,7 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "superseded_candidate": "a11a26bf56a0dbc85f9594ed391efcdcbf8d5082",
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "pending_followup": null,
       "superseded_candidates": [
@@ -173,7 +174,8 @@
         "81bd6a70fce81b4ee4f722db6ac32c74cdae9582"
       ],
       "candidate_head": "81bd6a70fce81b4ee4f722db6ac32c74cdae9582",
-      "handoff_commit": "81bd6a70fce81b4ee4f722db6ac32c74cdae9582"
+      "handoff_commit": "81bd6a70fce81b4ee4f722db6ac32c74cdae9582",
+      "verification": "central affected validation complete; no production acceptance"
     },
     {
       "id": "RBI-03",
@@ -184,7 +186,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "status": "repair_integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -226,7 +228,7 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "pending_followup": null,
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "handoff_commit": "a4a5d835cdd5e0709c6b2314efcf12fbb426dee7",
       "required_commits_in_order": [
@@ -234,7 +236,7 @@
         "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
         "a4a5d835cdd5e0709c6b2314efcf12fbb426dee7"
       ],
-      "verification": "reported AST and diff checks only; tests/build/production not run",
+      "verification": "central affected validation complete; no production acceptance",
       "candidate_head": "a4a5d835cdd5e0709c6b2314efcf12fbb426dee7"
     },
     {
@@ -246,12 +248,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "source_commit": "ef480101717047de694f5a43009715960ccf0486",
       "allowed_paths": [
         "src/tianshu/life/worker.py",
         "src/tianshu/life/recovery.py",
@@ -299,16 +301,18 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "scope_note": "仅针对consumer_interrupted纯计算状态映射修复两个实际写作调用方；generation SHARE可先于Sources，不为锁序扩大重构。",
-      "handoff_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
-      "candidate_head": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "handoff_commit": "ef480101717047de694f5a43009715960ccf0486",
+      "candidate_head": "ef480101717047de694f5a43009715960ccf0486",
       "required_commits_in_order": [
-        "f943befa74b75d8b093573d565e48650e3311a0d"
+        "f943befa74b75d8b093573d565e48650e3311a0d",
+        "b42da7eb7d7c631aad21fac332d14b51cef01510",
+        "ef480101717047de694f5a43009715960ccf0486"
       ],
       "pending_followup": null,
-      "verification": "reported AST 27 Python files and diff static only; tests/build/smoke/production not run",
+      "verification": "central affected validation complete; no production acceptance",
       "root_migration_registration": {
         "sql": "src/tianshu/life/rbi_activity_reconciliation.sql",
         "registration": "life module and product migrations",
@@ -329,12 +333,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
-      "status": "repair_integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "fd5f5c1ca5d2c7d524edb75d951b2ea93d7de4da",
+      "source_commit": "3eaea751467e43e99ebf9f360f12ca9d662965b5",
       "allowed_paths": [
         "src/tianshu/companion/growth.py",
         "src/tianshu/companion/growth_retry.py",
@@ -373,9 +377,9 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "handoff_commit": "fd5f5c1ca5d2c7d524edb75d951b2ea93d7de4da",
+      "handoff_commit": "3eaea751467e43e99ebf9f360f12ca9d662965b5",
       "pending_followup": null,
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "required_commits_in_order": [
         "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
@@ -384,10 +388,11 @@
         "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
         "d276fed872ceaaaf363230ea0af387a06e649df2",
         "2d3fe22bab14f07e7d6842c2a6aaeaf1f38691ac",
-        "fd5f5c1ca5d2c7d524edb75d951b2ea93d7de4da"
+        "fd5f5c1ca5d2c7d524edb75d951b2ea93d7de4da",
+        "3eaea751467e43e99ebf9f360f12ca9d662965b5"
       ],
-      "verification": "reported AST and diff checks only; tests/build/production not run",
-      "candidate_head": "fd5f5c1ca5d2c7d524edb75d951b2ea93d7de4da"
+      "verification": "central affected validation complete; no production acceptance",
+      "candidate_head": "3eaea751467e43e99ebf9f360f12ca9d662965b5"
     },
     {
       "id": "RBI-09",
@@ -398,12 +403,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+      "source_commit": "077d80b89eac24657dfe6db964e603099946e6c0",
       "allowed_paths": [
         "src/tianshu/conversation/results.py",
         "src/tianshu/conversation/rbg_result_recovery.py",
@@ -440,16 +445,18 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "confirmed_history_interface": "ResultRecovery.recover_result(..., known_job_ids=()) / ensure_on(..., known_job_ids=()); authoritative old IDs appended before bounded history review; missing rows remain history_unknown",
-      "handoff_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
-      "candidate_head": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+      "handoff_commit": "077d80b89eac24657dfe6db964e603099946e6c0",
+      "candidate_head": "077d80b89eac24657dfe6db964e603099946e6c0",
       "required_commits_in_order": [
-        "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5"
+        "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+        "0319599bbc289dbe4a2cfbf33f3045e1c966b6e8",
+        "077d80b89eac24657dfe6db964e603099946e6c0"
       ],
       "pending_followup": null,
-      "verification": "reported AST/full diff static only; integration tests not run"
+      "verification": "central affected validation complete; no production acceptance"
     },
     {
       "id": "RBI-06",
@@ -460,12 +467,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
       "branch": "codex/rbi-observability-20261106",
       "card": "docs/development/rbi-work-packages/observability.md",
-      "status": "repair_integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "1f832b20e7447b719fbb33307ec4ae74508c380e",
+      "source_commit": "aa4e641b7757e919043cdfbc8f5500273146e19b",
       "allowed_paths": [
         "scripts/ops/rbf_monitor_summary.py",
         "src/tianshu/operations/statistics.py",
@@ -493,15 +500,18 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "handoff_commit": "1f832b20e7447b719fbb33307ec4ae74508c380e",
-      "verified": false,
+      "handoff_commit": "aa4e641b7757e919043cdfbc8f5500273146e19b",
+      "verified": true,
       "integrated": true,
       "required_commits_in_order": [
         "c869be9b7aa916082b57a424fbef6bb8b52c2bc9",
         "7c18f274610a535cb400caf570f52ca87d6e690c",
-        "1f832b20e7447b719fbb33307ec4ae74508c380e"
+        "1f832b20e7447b719fbb33307ec4ae74508c380e",
+        "aa4e641b7757e919043cdfbc8f5500273146e19b"
       ],
-      "candidate_head": "1f832b20e7447b719fbb33307ec4ae74508c380e"
+      "candidate_head": "aa4e641b7757e919043cdfbc8f5500273146e19b",
+      "pending_followup": null,
+      "verification": "central affected validation complete; no production acceptance"
     },
     {
       "id": "RBI-10",
@@ -510,7 +520,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
       "branch": "codex/rbi-sources-20261106",
       "card": "docs/development/rbi-work-packages/sources.md",
-      "status": "integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "key": "sources",
       "title": "RBW 身份来源与失效传播",
       "allowed_paths": [
@@ -543,7 +553,7 @@
         "model_override": "gpt-6.1-terra",
         "thinking_override": "max"
       },
-      "verified": false,
+      "verified": true,
       "integrated": true,
       "dispatched_at_utc": "2026-11-06 03:35:35 UTC",
       "confirmed_interface": "prepare_event_writes(conn, context, events, *, additional_refs=(), scoped_refs=()); empty events supported; original alias tuple return",
@@ -553,7 +563,7 @@
         "faa4f2f0f3cccdb736677a169e4757c6193886b6"
       ],
       "pending_followup": null,
-      "verification": "reported AST/full diff static only; PG/Goal/receipt integration tests not run",
+      "verification": "central affected validation complete; no production acceptance",
       "ddl": false
     }
   ],
@@ -567,19 +577,13 @@
     "result_recovery_actions": "runtime/product_operations.py inject actions=actions",
     "native_result_budget": "Runtime mechanical execution ledger, max_failures=4, history not reset, no Ops direct access",
     "optional_observation_fields": "business_observations plus producer/real_samples/queries/target_sets coverage",
-    "pending_domain_sql": [
-      "Memory maintenance",
-      "Growth maintenance",
-      "Life reconciliation/decision_trace",
-      "Conversation result reconciliation",
-      "Runtime repair/execution evidence"
-    ],
+    "pending_domain_sql": [],
     "validation": "wait for full slices; do not test each micro change or integrate intermediate candidate",
     "sources_scoped_refs": "RBI-10 faa4f2f0 optional per-context closure; empty events supported; no DDL or extra assembly",
     "sources_source_of_truth": "scoped false remains optional; no widened context authorization",
     "native_history_bound": "native jobs/events: max16 jobs x128 events per tick, persistent upper/history/open cursors; current receipt ID existence check and array read/write scale with its registered IDs (current target2 each), not absolute constant transaction cost",
     "expression_actions": "runtime/product.py: ExpressionService(..., sources=sources, actions=caps.actions); bound Action 404 is not proof of Channel-only authority",
-    "runtime_probe_fixture": "tests/runtime/test_rbf_probe_leases.py synthetic model receipts need real isolated Models attempts/submissions at centralized validation; do not weaken guard",
+    "runtime_probe_fixture": "completed isolated Models attempt/submission fixture; affected tests passed",
     "confirmed_call_shapes": [
       "Memory and Life statically matched Runtime 24bbcad9 and Models 7715afa5; not executed"
     ],
@@ -617,7 +621,18 @@
     },
     "life_maintenance": "bot-background: worker.reconcile_due(limit=32); retain startup recovery",
     "life_test_fixtures": "add new DDL to shared setup including test_planner_execution; use real Models attempt/submission facts; exact fake Action/Identity/Sources ports follow real contracts",
-    "conversation_migration": "rbi_result_reconcile.sql after RBG result consumption, Runtime and Procrastinate; bot-foreground result_consumer.reconcile_due"
+    "conversation_migration": "rbi_result_reconcile.sql after RBG result consumption, Runtime and Procrastinate; bot-foreground result_consumer.reconcile_due",
+    "status": "complete_local_verified",
+    "probe_candidate": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\chain_probe.py",
+    "probe_cutover": "RBI-08 with code release; active probe unchanged",
+    "registered_domain_sql": [
+      "rbi_recovery_repairs",
+      "rbi_execution_budget",
+      "rbi_memory_maintenance",
+      "rbi_growth_maintenance",
+      "rbi_activity_reconciliation",
+      "rbi_result_reconcile"
+    ]
   },
   "all_implementation_windows_started": true,
   "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
@@ -757,14 +772,44 @@
       "task": "RBI-06",
       "source": "1f832b20e7447b719fbb33307ec4ae74508c380e",
       "integrated": "07db1fa37f3c372f4bb9d4f20c4e6c1dce09fc72"
+    },
+    {
+      "task": "RBI-04",
+      "source": "b42da7eb7d7c631aad21fac332d14b51cef01510",
+      "integrated": "8f4db887d02f9e56729f663d96c48e317f36ea07"
+    },
+    {
+      "task": "RBI-05",
+      "source": "3eaea751467e43e99ebf9f360f12ca9d662965b5",
+      "integrated": "7d169762b46e78192a2abedf92402bea0b9f8c6a"
+    },
+    {
+      "task": "RBI-06",
+      "source": "aa4e641b7757e919043cdfbc8f5500273146e19b",
+      "integrated": "2dc291e17f9e3774d84287ae2f5226083a8c79b7"
+    },
+    {
+      "task": "RBI-04",
+      "source": "ef480101717047de694f5a43009715960ccf0486",
+      "integrated": "2cb8716c0db7b5b56761496575827efa118289ff"
+    },
+    {
+      "task": "RBI-09",
+      "source": "0319599bbc289dbe4a2cfbf33f3045e1c966b6e8",
+      "integrated": "3b66557f5c2fd830c1ca5104997b2a6f79ec9def"
+    },
+    {
+      "task": "RBI-09",
+      "source": "077d80b89eac24657dfe6db964e603099946e6c0",
+      "integrated": "8034743c455191a426567e89227bcf30f72554fa"
     }
   ],
   "assembly_commit": "6f640be52c88ff80c31c10fd80125aaa0dc7289f",
   "central_validation": {
-    "targets": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\central-targets.json",
-    "test_files": 42,
+    "targets": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\final-targets.json",
+    "test_files": 45,
     "label": "central-1",
-    "status": "running",
+    "status": "passed",
     "database": "task-owned disposable pgvector, 192.168.31.230:25026",
     "production_data_used": false,
     "test_commands_in_implementer_windows": false,
@@ -808,13 +853,38 @@
       }
     ],
     "unique_passing_before_repairs": 352,
-    "open_failure_classes": [
+    "stable_repair_validation": "repair-stable: complete updated Growth/Memory clock slices, cancel receipt projection and affected isolated fixtures; diagnostic instrumentation disabled",
+    "files": 45,
+    "distinct_passed": 472,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "result": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\validation-final.json",
+    "probe_adapter": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\probe-adapter-validation.json",
+    "cleanup": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\validation-cleanup.json",
+    "unchanged_passing_results_reused": true,
+    "resolved_failure_classes": [
       "database/client due-clock boundary",
       "Model cancel receipt enrichment",
       "Life physical failure projection and real ledger fixtures",
       "legacy expression Action authority and release fence",
       "missing isolated fixture schemas"
     ],
-    "stable_repair_validation": "repair-stable: complete updated Growth/Memory clock slices, cancel receipt projection and affected isolated fixtures; diagnostic instrumentation disabled"
-  }
+    "open_failure_classes": [],
+    "initial_targets": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\central-targets.json",
+    "evidence_labels": [
+      "central-1",
+      "central-rest-progress-recovered",
+      "rest-failures",
+      "remaining-1",
+      "repair-stable",
+      "life-repair",
+      "closing-1",
+      "caller-guards"
+    ],
+    "product_validation_completed": true,
+    "results_aggregated_by_current_case_identity": true
+  },
+  "validated_code_commit": "8034743c455191a426567e89227bcf30f72554fa",
+  "handoff": "docs/handoffs/RBI-07.md"
 }

@@ -3,7 +3,7 @@
   "planning_id": "RBI-20261106",
   "date": "2026-11-06",
   "timezone": "Asia/Shanghai",
-  "state": "central_validation_in_progress",
+  "state": "local_verified_not_deployed",
   "canonical_queue": "docs/development/domain-recovery-queue-2026-11-06.md",
   "design": "docs/development/domain-recovery-plan-2026-11-06.md",
   "scope": "保留六角色与领域状态机，修复新鲜回执续接、可靠观察唤醒、已知失败修复后领取和领域有界补漏",
@@ -329,7 +329,7 @@
       "priority": "P0",
       "owner": "Runtime",
       "title": "恢复领取机械边界与 role 内维护回调",
-      "status": "integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -367,8 +367,8 @@
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
       "implementation_turn_id": "01a1aeb3-d82b-7962-9556-ebf9e035f077",
-      "source_commit": "d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c",
-      "verification": "AST/diff static only; native ordinal corrected; tests/build/smoke/production not run",
+      "source_commit": "ed52eee946f6d88f7f019e143fe593b8d3721036",
+      "verification": "central_passed_local_not_deployed",
       "pending_followup": null,
       "handoff_commit": "ed52eee946f6d88f7f019e143fe593b8d3721036",
       "required_commits_in_order": [
@@ -385,7 +385,7 @@
       "priority": "P0",
       "owner": "Models",
       "title": "invalid_upstream_response 准确归因与原输出复用证据",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -421,15 +421,20 @@
       "branch": "codex/rbi-models-20261106",
       "card": "docs/development/rbi-work-packages/models.md",
       "implementation_turn_id": "01a1aeb3-dcad-7e11-a804-701d09c57132",
-      "source_commit": "7715afa5144be098a8b9431d1cda03b1a3aae4ec",
-      "verification": "static_only_not_tested"
+      "source_commit": "81bd6a70fce81b4ee4f722db6ac32c74cdae9582",
+      "verification": "central_passed_local_not_deployed",
+      "handoff_commit": "81bd6a70fce81b4ee4f722db6ac32c74cdae9582",
+      "required_commits_in_order": [
+        "7715afa5144be098a8b9431d1cda03b1a3aae4ec",
+        "81bd6a70fce81b4ee4f722db6ac32c74cdae9582"
+      ]
     },
     {
       "id": "RBI-03",
       "priority": "P0",
       "owner": "Memory",
       "title": "新鲜回执驱动续接、原批恢复与本域补漏",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -475,13 +480,14 @@
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
       "implementation_turn_id": "01a1aeb3-e0ed-7732-a484-9b7b0924f21e",
-      "source_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
-      "handoff_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
+      "source_commit": "a4a5d835cdd5e0709c6b2314efcf12fbb426dee7",
+      "handoff_commit": "a4a5d835cdd5e0709c6b2314efcf12fbb426dee7",
       "required_commits_in_order": [
         "fef2b555e83594795f96351b1c0ead493653cb63",
-        "fbd7f6863a84dd43727971e9da7e4750e41c0fc5"
+        "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
+        "a4a5d835cdd5e0709c6b2314efcf12fbb426dee7"
       ],
-      "verification": "static_only_not_tested"
+      "verification": "central_passed_local_not_deployed"
     },
     {
       "id": "RBI-04",
@@ -489,7 +495,7 @@
       "conditional_priority": "P1 planning investigation",
       "owner": "Life",
       "title": "稳定观察原 Action、可靠唤醒与条件式规划修复",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -549,21 +555,23 @@
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
       "implementation_turn_id": "01a1aeb3-e586-7e30-88ca-2c3f58f5f78d",
-      "source_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
-      "handoff_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "source_commit": "ef480101717047de694f5a43009715960ccf0486",
+      "handoff_commit": "ef480101717047de694f5a43009715960ccf0486",
       "candidate_head": "f943befa74b75d8b093573d565e48650e3311a0d",
       "required_commits_in_order": [
-        "f943befa74b75d8b093573d565e48650e3311a0d"
+        "f943befa74b75d8b093573d565e48650e3311a0d",
+        "b42da7eb7d7c631aad21fac332d14b51cef01510",
+        "ef480101717047de694f5a43009715960ccf0486"
       ],
       "pending_followup": null,
-      "verification": "reported AST 27 Python files and diff static only; tests/build/smoke/production not run"
+      "verification": "central_passed_local_not_deployed"
     },
     {
       "id": "RBI-05",
       "priority": "P0",
       "owner": "Growth",
       "title": "按真实失败分类恢复原反思批与本域补漏",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00",
         "RBI-01",
@@ -609,23 +617,26 @@
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
       "implementation_turn_id": "01a1aeb3-ea15-77a0-bbdc-605dfdc1a4ba",
-      "source_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
-      "handoff_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
+      "source_commit": "3eaea751467e43e99ebf9f360f12ca9d662965b5",
+      "handoff_commit": "3eaea751467e43e99ebf9f360f12ca9d662965b5",
       "required_commits_in_order": [
         "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
         "4024a2ec97f5380a9452cefe2ff5104ed5009613",
         "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
         "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
-        "d276fed872ceaaaf363230ea0af387a06e649df2"
+        "d276fed872ceaaaf363230ea0af387a06e649df2",
+        "2d3fe22bab14f07e7d6842c2a6aaeaf1f38691ac",
+        "fd5f5c1ca5d2c7d524edb75d951b2ea93d7de4da",
+        "3eaea751467e43e99ebf9f360f12ca9d662965b5"
       ],
-      "verification": "static_only_not_tested"
+      "verification": "central_passed_local_not_deployed"
     },
     {
       "id": "RBI-09",
       "priority": "P0",
       "owner": "Conversation",
       "title": "成功结果消费停滞、恢复观察空转与前台本域补漏",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -674,21 +685,23 @@
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
       "implementation_turn_id": "01a1aeb3-ef04-7231-a3b8-1640877fa521",
-      "source_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
-      "handoff_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+      "source_commit": "077d80b89eac24657dfe6db964e603099946e6c0",
+      "handoff_commit": "077d80b89eac24657dfe6db964e603099946e6c0",
       "candidate_head": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
       "required_commits_in_order": [
-        "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5"
+        "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+        "0319599bbc289dbe4a2cfbf33f3045e1c966b6e8",
+        "077d80b89eac24657dfe6db964e603099946e6c0"
       ],
       "pending_followup": null,
-      "verification": "reported AST/full diff static only; integration tests not run"
+      "verification": "central_passed_local_not_deployed"
     },
     {
       "id": "RBI-06",
       "priority": "P1",
       "owner": "Logs/Operations",
       "title": "业务推进、物理未知与逐项采样覆盖",
-      "status": "integration_followup",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -728,16 +741,22 @@
       "branch": "codex/rbi-observability-20261106",
       "card": "docs/development/rbi-work-packages/observability.md",
       "implementation_turn_id": "01a1aeb3-f3b1-7f52-8448-380b1568ec6f",
-      "source_commit": "c869be9b7aa916082b57a424fbef6bb8b52c2bc9",
-      "handoff_commit": "7c18f274610a535cb400caf570f52ca87d6e690c",
-      "verification": "static_only_not_tested"
+      "source_commit": "aa4e641b7757e919043cdfbc8f5500273146e19b",
+      "handoff_commit": "aa4e641b7757e919043cdfbc8f5500273146e19b",
+      "verification": "central_passed_local_not_deployed",
+      "required_commits_in_order": [
+        "c869be9b7aa916082b57a424fbef6bb8b52c2bc9",
+        "7c18f274610a535cb400caf570f52ca87d6e690c",
+        "1f832b20e7447b719fbb33307ec4ae74508c380e",
+        "aa4e641b7757e919043cdfbc8f5500273146e19b"
+      ]
     },
     {
       "id": "RBI-10",
       "priority": "P0",
       "owner": "Sources",
       "title": "多上下文完整来源批预锁，保留Goal与原回执原子合同",
-      "status": "integrated_pending_validation",
+      "status": "local_verified_not_deployed",
       "depends_on": [
         "RBI-00"
       ],
@@ -773,14 +792,14 @@
         "faa4f2f0f3cccdb736677a169e4757c6193886b6"
       ],
       "pending_followup": null,
-      "verification": "reported AST/full diff static only; PG/Goal/receipt integration tests not run"
+      "verification": "central_passed_local_not_deployed"
     },
     {
       "id": "RBI-07",
       "priority": "P0",
       "owner": "coordinator",
       "title": "串行集成、共享装配与集中必要时序验证",
-      "status": "central_validation_in_progress",
+      "status": "complete",
       "depends_on": [
         "RBI-01",
         "RBI-02",
@@ -815,7 +834,16 @@
         "Operations 停用且漏通知/缺入队后，领域自身仍能补缺",
         "不为同状态重复检查，不默认全量矩阵；无关旧失败明确单列",
         "两个成功Action原消费及一次恢复任务均failed、无live job、Operations持续观察时，领域仍能按原身份补缺或明确停止；真实ResultConsumer与Life回调联合验证"
-      ]
+      ],
+      "completion_scope": "local_integrated_verified_not_deployed",
+      "handoff": "docs/handoffs/RBI-07.md",
+      "verification": {
+        "distinct_passed": 472,
+        "test_files": 45,
+        "failed": 0,
+        "errors": 0,
+        "skipped": 0
+      }
     },
     {
       "id": "RBI-08",
@@ -838,7 +866,8 @@
         "Memory/Life/Growth 准确原对象恢复结果",
         "下一轮自然巡检的本批复发和样本覆盖结论",
         "两条原成功Action回执的缺少消费者结果；已恢复五Growth批与十材料不重复执行",
-        "通过既有Operations IncidentStore.get公开恢复记录核对准确原回执的旧job关联，再由正常recover_result known_job_ids入口接续；缺失历史保持history_unknown，不重置计数。"
+        "通过既有Operations IncidentStore.get公开恢复记录核对准确原回执的旧job关联，再由正常recover_result known_job_ids入口接续；缺失历史保持history_unknown，不重置计数。",
+        "发布后把既有巡检切到已验证的RBI有界探针候选和可选逐对象模板，旧账本不改写；生产切换尚未执行。"
       ],
       "acceptance": [
         "不清数据或覆盖配置，不发送 QQ 测试，不重放未知外部动作",
@@ -959,5 +988,6 @@
     "RBI-09",
     "RBI-06"
   ],
-  "product_verification_started": true
+  "product_verification_started": true,
+  "validated_code_commit": "8034743c455191a426567e89227bcf30f72554fa"
 }

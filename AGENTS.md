@@ -1,3 +1,9 @@
+# 2026-11-06 RBI 本地验证收口，未发布
+
+八包已在独立工作树完成并由唯一协调者串行集成到 codex/rbi-integration-20261106，产品代码8034743c；45个受影响测试文件的472个不同用例通过，未变成功直接复用。源提交/返修、机械归属和边界见 docs/development/rbi-dispatch-2026-11-06.json 与 docs/handoffs/RBI-07.md。
+
+保留六角色/领域状态机及全部原ID、回执、unknown、来源权限/CAS/代际和预算。临时验证PG已按owner清理；未推送、部署、生产迁移或真实模型/QQ测试。RBI-08及活跃探针切换仍未执行，不把本地通过称生产收敛。下方为历史授权和阶段状态。
+
 # 2026-11-06 RBI 分域恢复修复已派发
 
 用户已审阅修订 2 并要求“交付对应窗口修复吧”。本批 RBI-01/02/03/04/05/06/09 复用 Runtime、Models、Memory、Life、Growth、Logs、Conversation 七个既有窗口，另由既有Sources窗口RBI-10补Goal原子事务所需的多context来源批预锁；各自全新独立工作树/分支，统一 gpt-6.1-terra / max / 普通速度，不创建新聊天或子代理，不续写旧完成卡。
