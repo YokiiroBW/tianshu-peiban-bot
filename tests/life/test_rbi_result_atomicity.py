@@ -62,6 +62,7 @@ async def test_query_cancel_rolls_back_domain_and_consumer_proof_then_reuses_rec
 @pytest.mark.parametrize("kind",["activity","commitment"])
 async def test_lost_ack_after_business_commit_observes_proof_without_reapplying(database,kind):
     value = await result_fixture(database,kind)
+    value.memory.observe_episode = AsyncMock(wraps=value.memory.observe_episode)
     name = "_activity_result" if kind == "activity" else "_commitment_result"
     original = getattr(value.worker,name)
     calls = 0
@@ -73,15 +74,23 @@ async def test_lost_ack_after_business_commit_observes_proof_without_reapplying(
             raise OSError("synthetic acknowledgement loss after Life committed")
         return result
     setattr(value.worker,name,lost_ack)
-    with pytest.raises(OSError):
-        await value.consumer.consume(value.event())
-    domain,progress,episodes = await state(database,kind)
-    assert domain["last_result_revision"] == 1 and domain["last_receipt_id"] == "original-receipt"
-    assert progress["disposition"] == "done" and progress["proof"]["last_receipt_id"] == "original-receipt"
-    assert episodes == 1
+    # The callback has already committed its proof in the Life transaction;
+    # the consumer can resolve the lost acknowledgement from that proof.
     await value.consumer.consume(value.event())
     domain,progress,episodes = await state(database,kind)
-    assert calls == 1 and episodes == 1 and progress["disposition"] == "done"
+    identifier = "activity-1" if kind == "activity" else "promise"
+    assert domain == {"state":"completed","last_result_revision":1,"last_receipt_id":"original-receipt"}
+    assert progress == {"disposition":"done","proof":{kind+"_id":identifier,
+        "last_result_revision":1,"last_receipt_id":"original-receipt"}}
+    assert episodes == 1 and calls == 1
+    value.memory.observe_episode.assert_awaited_once()
+    async with database.transaction(read_only=True) as connection:
+        episode = await (await connection.execute("SELECT event_id,revision,receipt_id FROM test_result_episodes")).fetchone()
+    assert episode == {"event_id":"action:"+value.action.action_id,"revision":1,"receipt_id":"original-receipt"}
+    await value.consumer.consume(value.event())
+    repeated_domain,repeated_progress,episodes = await state(database,kind)
+    assert repeated_domain == domain and repeated_progress == progress and episodes == 1 and calls == 1
+    value.memory.observe_episode.assert_awaited_once()
     value.actions.invoke.assert_not_awaited()
     value.actions.resume.assert_not_awaited()
 

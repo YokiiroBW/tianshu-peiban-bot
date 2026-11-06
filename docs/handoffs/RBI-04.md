@@ -46,3 +46,4 @@
 - 规划 429 测试不再把 `ModelReceipt.hold_until` 当成 HTTP Retry-After：Models 将提供方的 Retry-After 保存在自己的 quota cooldown，hold 是尝试的资源占用时间；Life 用例实际核对 Runtime 原 lineage due、共享 dependency cooldown 和耗尽后真实新意图的准入。该用例不验证 Models 调度器对提供方冷却的真实执行。
 - `tests/life/test_rbi_contacts.py` 直接构造真实 `Contacts` 测试事务与幂等。四个结果原子性用例需要协调者已修的共享 Conversation 结果表迁移及 Actions fence 夹具；`tests/life/test_planner_execution.py` 和 `tests/life/test_rbg_result_consumers.py` 继续由协调者单写。
 - 本窗口仅做静态源码解析和 diff 检查，未执行测试、构建或生产操作。请协调者集成后集中复验 `test_rb_plan_recovery.py`、`test_rbh_transport_recovery.py`、`test_rbi_authored_recovery.py`、`test_rbi_planning_trace.py`、`test_rbi_contacts.py`、`test_rbi_result_atomicity.py` 及共享夹具受影响用例；尚不能声称集中失败已通过。
+- 后续协调者集中验收反馈：共享结果夹具修复后，QueryCanceled 的活动和承诺两例通过；丢失 ACK 两例原先错误地要求继续抛出 OSError。用例现核验消费者读取同一业务事务已提交的 done/proof 后正常结束，业务状态、原 receipt/revision 与经历各只应用一次，重复消费不重入。此注入明确发生在业务提交之后，不能代表真实数据库提交结果尚未知时的证据。本次用例调整仍由协调者重新验证。
