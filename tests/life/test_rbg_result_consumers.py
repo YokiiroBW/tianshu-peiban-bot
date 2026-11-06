@@ -465,7 +465,20 @@ async def test_progress_observes_future_retry_other_wake_and_live_consumer_witho
     assert result.get("state") == "waiting" and result.get("reason") == "consumer_running", {
         "result":result, "before":before_recovery, "after":after_recovery}
     assert result["due_at"] == running["lease_until"]
-    assert result["budget"]["history_complete"] and result["budget"]["failed_executions"] == 2
+    assert result["budget"]["history_complete"] and result["budget"]["failed_executions"] == 1
+    assert result["budget"]["unknown_held"] == 1
+    prior = next(item for item in before_recovery["executions"] if item["job_id"] == wake_id)
+    older = next(item for item in after_recovery["executions"] if item["job_id"] == wake_id)
+    assert older == prior and older["outcome"] == "unknown" and older["resolved_outcome"] is None
+    proof_key = f"{wake_id}:0"
+    proof = before_recovery["delivery"]["rbi_failed_native"].get(proof_key)
+    assert proof and after_recovery["delivery"]["rbi_failed_native"].get(proof_key) == proof
+    original_jobs = {saved["original_job_id"],wake_id}
+    native_before = {(job["id"],job["status"],job["attempts"]) for job in before_recovery["jobs"]
+        if job["id"] in original_jobs}
+    native_after = {(job["id"],job["status"],job["attempts"]) for job in after_recovery["jobs"]
+        if job["id"] in original_jobs}
+    assert native_before == native_after == {(job_id,"failed",1) for job_id in original_jobs}
     async with database.transaction(read_only=True) as connection:
         after = await (await connection.execute("SELECT disposition,owner_token,lease_until FROM conversation.result_consumer_progress "
             "WHERE data_generation=%s AND receipt_id='original-receipt' AND consumer='renderer'",
