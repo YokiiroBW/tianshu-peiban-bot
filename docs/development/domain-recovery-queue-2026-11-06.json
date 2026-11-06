@@ -800,7 +800,8 @@
         "源码/镜像/容器、配置挂载代际和受影响入口回执",
         "Memory/Life/Growth 准确原对象恢复结果",
         "下一轮自然巡检的本批复发和样本覆盖结论",
-        "两条原成功Action回执的缺少消费者结果；已恢复五Growth批与十材料不重复执行"
+        "两条原成功Action回执的缺少消费者结果；已恢复五Growth批与十材料不重复执行",
+        "通过既有Operations IncidentStore.get公开恢复记录核对准确原回执的旧job关联，再由正常recover_result known_job_ids入口接续；缺失历史保持history_unknown，不重置计数。"
       ],
       "acceptance": [
         "不清数据或覆盖配置，不发送 QQ 测试，不重放未知外部动作",

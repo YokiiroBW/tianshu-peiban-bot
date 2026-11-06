@@ -401,7 +401,8 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "verified": false,
-      "integrated": false
+      "integrated": false,
+      "confirmed_history_interface": "ResultRecovery.recover_result(..., known_job_ids=()) / ensure_on(..., known_job_ids=()); authoritative old IDs appended before bounded history review; missing rows remain history_unknown"
     },
     {
       "id": "RBI-06",
@@ -520,7 +521,29 @@
     "runtime_probe_fixture": "tests/runtime/test_rbf_probe_leases.py synthetic model receipts need real isolated Models attempts/submissions at centralized validation; do not weaken guard",
     "confirmed_call_shapes": [
       "Memory and Life statically matched Runtime 24bbcad9 and Models 7715afa5; not executed"
-    ]
+    ],
+    "old_result_job_identity_backfill": {
+      "stage": "RBI-08 normal domain recovery only",
+      "authority": "existing Operations IncidentStore.get public recoveries/result, exact target matching",
+      "known_pairs": [
+        [
+          99471,
+          99627
+        ],
+        [
+          99817,
+          100073
+        ]
+      ],
+      "required_match": [
+        "action_id",
+        "receipt_id",
+        "result_revision",
+        "data_generation"
+      ],
+      "missing_history": "history_unknown, no zero/reset",
+      "normal_maintenance": "no Operations dependency; new jobs registered in domain transaction"
+    }
   },
   "all_implementation_windows_started": true,
   "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
