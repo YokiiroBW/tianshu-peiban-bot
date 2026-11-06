@@ -1,6 +1,6 @@
 {
   "batch": "RBJ-20261106",
-  "status": "deployed_original_recovery_blocked",
+  "status": "deployed_scoped_business_verified",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "contract": "2.1",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
@@ -49,7 +49,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-sources-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-sources\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-01.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:19.341365+00:00",
@@ -72,7 +72,8 @@
       "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
       "validation": "coordinator_isolated_postgresql_affected_checks_passed",
       "integrated_commit": "a8477779096c7b9dfee1cdcbc2908464d8c3726d",
-      "validated_contract": "1.9"
+      "validated_contract": "1.9",
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     },
     {
       "id": "RBJ-02",
@@ -102,7 +103,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-runtime-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-runtime\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-02.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:20.367666+00:00",
@@ -128,7 +129,8 @@
           "source": "21d4b04b9cac45ae105347d3caa1e517d1a853f8",
           "integrated": "2e5f23d2fe575adb8f7d7b1f77e56c10d2fcaef0"
         }
-      ]
+      ],
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     },
     {
       "id": "RBJ-03",
@@ -155,7 +157,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-capabilities-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-capabilities\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-03.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:21.911614+00:00",
@@ -172,7 +174,8 @@
       "receipt_verified": "commit exists, immutable handoff read, changed paths within allowlist; no tests run by coordinator",
       "validation": "coordinator_isolated_postgresql_affected_checks_passed",
       "integrated_commit": "7d5a5f5c338081542e93a13b3f9b3407e6c0a95b",
-      "validated_contract": "1.9"
+      "validated_contract": "1.9",
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     },
     {
       "id": "RBJ-04",
@@ -210,7 +213,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-conversation-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-conversation\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-04.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:25.151432+00:00",
@@ -247,7 +250,8 @@
           "source": "25a84507dcce714d0953c91457c08301a031aedc",
           "integrated": "d8021aeb017776a53ec2e83e7b18d3e164c8f650"
         }
-      ]
+      ],
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     },
     {
       "id": "RBJ-05",
@@ -283,7 +287,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-life-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-life\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-05.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:33.585989+00:00",
@@ -321,7 +325,8 @@
           "source": "4d4d136e99623ee25f7eb5c8edc86b1d2032fe42",
           "integrated": "8b43a66a2d7abce644dbd5472c4f3640509d7d22"
         }
-      ]
+      ],
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     },
     {
       "id": "RBJ-06",
@@ -350,7 +355,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-growth-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-growth\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-06.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:40.009152+00:00",
@@ -389,7 +394,8 @@
           "source": "f6adbd748da02866222a8061d4e2b95ea11ca4d0",
           "integrated": "9496c71468234fd37963144b7cc6f75bf24add9b"
         }
-      ]
+      ],
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     },
     {
       "id": "RBJ-07",
@@ -419,7 +425,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-memory-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-memory\\tianshu-peiban-bot",
-      "status": "local_integrated_verified_not_deployed",
+      "status": "deployed_implementation_verified",
       "handoff": "docs/handoffs/RBJ-07.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:41.107284+00:00",
@@ -454,7 +460,8 @@
           "source": "8484abe98226b593d846734c8a68f599cd836ed0",
           "integrated": "7a0c8fdc0f46c475d2c3a3022cd6e687e77df333"
         }
-      ]
+      ],
+      "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
@@ -633,10 +640,10 @@
       "Five original targets and any newly affected current-generation targets require fresh source/head/owner/CAS checks after release."
     ]
   },
-  "product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
+  "product_commit": "908dba0dacc38a1813122d781426e9cc83db0d2f",
   "local_completed_at": "2026-11-06T14:03:27.039500+00:00",
   "release": {
-    "status": "deployed_original_recovery_blocked",
+    "status": "deployed_originals_and_natural_verified",
     "authorized_at": "2026-11-06T14:12:38.143040+00:00",
     "authorization": "推送部署吧",
     "coordinator": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
@@ -644,8 +651,8 @@
     "previous_source": "44590b88b4d5db4c8ea0288751bc35cb40a70348",
     "handoff": "docs/handoffs/RBJ-08.md",
     "production_changed": true,
-    "deployed_source": "e317734fcf0f1d9551a3f7838c95e0efbcfd464d",
-    "image": "sha256:3ef6809f59f2a9aee29e86ac1ac6a2a887ce5574b16e65551b691833a1e838e5",
+    "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c",
+    "image": "sha256:08a0e5215c839c0955d0ba7b5d01fd3a326bfca18c272b5a004dce2bec29e5be",
     "backup": {
       "path": "/srv/tianshu-rbj-releases-20261106/e317734fcf0f/affected-domains.dump",
       "bytes": 56275228,
@@ -657,14 +664,14 @@
       "other_containers": 2,
       "data_generation": "0833be12-8fba-4db7-9e22-2120e8ea13ea",
       "original_actions": 5,
-      "unknown_models": 67,
-      "existing_table_counts": 29
+      "unknown_models": 72,
+      "existing_table_counts": 35
     },
     "first_repair_job_id": 145703,
     "first_grant_id": 1,
     "ordinary_failures_preserved": 4,
     "repair_failures": 0,
-    "blocker": "foreign_native_live_tail_imported_unknown_before_business_begin",
+    "blocker": null,
     "followups": [
       {
         "id": "RBJ-09",
@@ -682,14 +689,15 @@
         ],
         "branch": "codex/rbj-native-runtime-20261106",
         "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-runtime\\tianshu-peiban-bot",
-        "status": "local_integrated_verified_not_deployed",
+        "status": "deployed_scoped_business_verified",
         "contract": "2.1",
         "model": "gpt-6.1-terra",
         "thinking": "max",
         "service_tier": "default",
         "implementation_commit": "1e16b553b788fe7a73493f62e979408a6dbc3087",
         "integrated_commit": "908dba0dacc38a1813122d781426e9cc83db0d2f",
-        "handoff_commit": "edd229e977f851e09acf85dfda0caf6f887cc5df"
+        "handoff_commit": "edd229e977f851e09acf85dfda0caf6f887cc5df",
+        "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
       },
       {
         "id": "RBJ-10",
@@ -704,14 +712,15 @@
         ],
         "branch": "codex/rbj-native-conversation-20261106",
         "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-conversation\\tianshu-peiban-bot",
-        "status": "local_integrated_verified_not_deployed",
+        "status": "deployed_scoped_business_verified",
         "contract": "2.1",
         "model": "gpt-6.1-terra",
         "thinking": "max",
         "service_tier": "default",
         "implementation_commit": "a6a2ae0ad06e6c674a9f32380c1708178d4e33d7",
         "integrated_commit": "e3a945ac",
-        "handoff_commit": "a6a2ae0ad06e6c674a9f32380c1708178d4e33d7"
+        "handoff_commit": "a6a2ae0ad06e6c674a9f32380c1708178d4e33d7",
+        "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c"
       }
     ],
     "followup_frozen_at": "2026-11-06T14:30:27.236512+00:00",
@@ -734,6 +743,73 @@
       "initial_fixture_failures_retained": 4,
       "production_repair_complete": false,
       "evidence_directory": ".runtime/rbj-native-execution-20261106"
+    },
+    "first_deployed_source": "e317734fcf0f1d9551a3f7838c95e0efbcfd464d",
+    "first_backup": {
+      "path": "/srv/tianshu-rbj-releases-20261106/e317734fcf0f/affected-domains.dump",
+      "bytes": 56275228,
+      "sha256": "8d2617ef2d770a3f5f54378770f6e2bdc2e7c8769153fac71af012b9e30b986f"
+    },
+    "native_admission_backup": {
+      "path": "/srv/tianshu-rbj-native-releases-20261106/8dbe3eeb386c/affected-domains.dump",
+      "bytes": 18240088,
+      "sha256": "a4d4d0a84da605a115e5808eb2efc93c3b4284fb73acd9aa54c61a562688bf54"
+    },
+    "verified_at": "2026-11-06T15:34:47.969325+00:00",
+    "first_acceptance_blocker": "foreign_native_live_tail_imported_unknown_before_business_begin",
+    "business_acceptance": {
+      "original_receipts": [
+        "3efab48c-967e-44fd-807c-467f7aab083a",
+        "58375a65-0bff-401d-ad44-2d74486b81ba",
+        "5bca45d3-6f88-4195-93cc-5d74fb6efaaa",
+        "8e8c7b7f-0a44-48fc-85fa-d21f2547d8dc",
+        "91b545df-9529-4d50-a586-54bed5ab46a4"
+      ],
+      "original_count": 5,
+      "life_proofs": 5,
+      "memory_episodes_committed": 5,
+      "six_consumer_aggregates": 5,
+      "grants_closed": 5,
+      "ordinary_failures_per_original": 4,
+      "repair_failures": 0,
+      "old_native_jobs_unchanged": 20,
+      "model_unknown_records_unchanged": 72,
+      "natural_receipt": "10a7f9b5-d18f-4908-b686-b1641ea23dbc",
+      "natural_job_id": 149316,
+      "natural_policy": "normal_begin_required",
+      "natural_consumer_verified": true,
+      "goal_progress": 1.0,
+      "goal_satisfied": 2,
+      "goal_target": 2,
+      "prebegin_original_outcome": "unknown",
+      "prebegin_resolved_outcome": "not_started",
+      "prebegin_observation": "rbj-prebegin:sha256:785862683274ba2ae6b5a5fb0af62bad2a59dd7b23423f7d92c1078c09111f31",
+      "memory_consolidation_complete": false,
+      "overall_system_business_complete": false,
+      "evidence": ".runtime/rbj-native-execution-20261106/business-final.json"
+    },
+    "independent_patrol": {
+      "observed_at_start": "2026-11-06T15:28:57Z",
+      "observed_at_end": "2026-11-06T15:31:20Z",
+      "source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c",
+      "five_originals_verified": true,
+      "natural_result_verified": true,
+      "episode_consolidation_failed": 6,
+      "error": "upstream_http_403",
+      "evidence": ".runtime/rbj-execution-20261106/monitor-post-release-episode-trace-20261106T1528Z.json"
+    },
+    "open_items": [
+      "Memory consolidation continuously fails with upstream_http_403; all six accepted episode projections are consolidation_failed",
+      "Two legacy external-unknown delivery projections lack complete consumer proofs; no replay",
+      "Other external/model or commit unknowns remain independent; no complete QQ end-to-end delivery sample"
+    ],
+    "cleanup": {
+      "validation_pg": ".runtime/rbj-native-execution-20261106/validation-cleanup.json",
+      "exports": ".runtime/rbj-native-execution-20261106/export-cleanup.json",
+      "images_and_backups_preserved": true
     }
-  }
+  },
+  "previous_product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
+  "deployed_source": "8dbe3eeb386c8a982a12d078322fcc18d38d904c",
+  "deployed_image": "sha256:08a0e5215c839c0955d0ba7b5d01fd3a326bfca18c272b5a004dce2bec29e5be"
 }

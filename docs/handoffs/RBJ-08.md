@@ -36,3 +36,28 @@ Runtime 1e16b553→908dba0d、Conversation a6a2ae0a→e3a945ac，合同2.1及新
 补发使用新不可变源码镜像，仅Runtime有新增增量迁移，因此该次停写仅再备份Runtime，原四域备份/源镜像/事实与原生历史保留。实际原145703:0仍待新版本上线后，由根受限脚本逐项核验不可变e317代码、同序号持久日志、原事件与来源/Action/Life CAS/租约，再公开resolve追加not_started。其原unknown/evidence/recorded_at保留，不以稍后ordinal1的退出或native succeeded推导；随后只复用grant1和原结果正常恢复。其余四条同样先核对新鲜权威与来源再签发原consumer受限资格。
 
 独立巡检仍报告Memory新批连续403，45个关联回执均同主路由、未见可关联备用路由尝试，未调整路由/配置或制造模型测试。同期部分池commit_unknowns增加但未建立具体对象关联，不能据计数改写或重放未知。此处仅保留问题和证据，不称本批全部业务已收敛。
+
+
+## 最终补发与原对象业务结果
+
+最终应用运行8dbe3eeb386c8a982a12d078322fcc18d38d904c，镜像sha256:08a0e5215c839c0955d0ba7b5d01fd3a326bfca18c272b5a004dce2bec29e5be，容器f52e2eb251d3935075699e668923b6da62bc508d6b769b1e565041be39d5c530于2026-11-06T15:18:01Z启动。六角色就绪、0重启、HTTP/首页与四资源200；6个已安装关键Python模块SHA逐一匹配Git。原配置/11挂载/代际/其他2容器保持，迁移前后35张既有表记录数、原Action及72条Models unknown完全一致。后续原结果对账亦逐条核验72条unknown的状态、dispatch、请求与结果摘要未变。
+
+本次Runtime备份/srv/tianshu-rbj-native-releases-20261106/8dbe3eeb386c/affected-domains.dump，18240088字节，sha256:a4d4d0a84da605a115e5808eb2efc93c3b4284fb73acd9aa54c61a562688bf54；唯一新增rbj_native_admission，使迁移总数25。原四域备份和两代回退镜像保留；无数据库倒灌、配置覆盖或原外部Action重放。
+
+受限脚本逐项核验不可变e317代码的begin/seed互斥、原生started557219及原序号持久错误日志链、完整native事件、owner revision8、原来源/Action头、无消费租约和未apply后，公开resolve为145703:0追加not_started，原outcome=unknown/evidence_ref/recorded_at均保留，观察引用rbj-prebegin:sha256:785862683274ba2ae6b5a5fb0af62bad2a59dd7b23423f7d92c1078c09111f31。不是从ordinal1的stop、native succeeded或当前Life状态推测原来未执行；原grant1未刷新。
+
+| 原receipt | 本次原结果job | 资格 | 逐对象验收 |
+|---|---:|---:|---|
+| 5bca45d3-6f88-4195-93cc-5d74fb6efaaa | 149133 | 1 | Life done，Memory revision5，六消费者aggregate |
+| 58375a65-0bff-401d-ad44-2d74486b81ba | 149210 | 3 | Life done，Memory revision2，六消费者aggregate |
+| 3efab48c-967e-44fd-807c-467f7aab083a | 149231 | 4 | Life done，Memory revision2，六消费者aggregate |
+| 91b545df-9529-4d50-a586-54bed5ab46a4 | 149263 | 5 | Life done，Memory revision2，六消费者aggregate |
+| 8e8c7b7f-0a44-48fc-85fa-d21f2547d8dc | 149285 | 6 | Life done，Memory revision2，六消费者aggregate |
+
+五条均保持原owner/Action/receipt/revision proof及原Action/attempt/receipt摘要；其他5消费者各为not_applicable。五grant均真实completed关闭，每目标原normal失败4/repair失败0；20条旧native失败的status/attempt/due/event摘要原样。随后通过正常ResultRecovery重复证明对账全部verified，绑定领域观察时首次close时间和机械引用保留，没有再次apply。
+
+自然新普通结果10a7f9b5-d18f-4908-b686-b1641ea23dbc（Action dff1b198-e95f-5453-94bf-c2416a3811d4，job149316）没有repair参数，可信normal_begin_required与原生normal completed事实均已核验；Life、Memory episode revision2、6消费者aggregate在15:22:13UTC完成。它是正常领域续接产生的真实新结果，不是测试模型/QQ。Goal53234e3e-bb7f-5027-b15c-e784912eb373依据两条有效完成记录达到2/2、progress1.0；部分活动仍按领域继续或等待，视频片段continue不等于完整视频已看完。
+
+独立巡检15:28:57–15:31:20UTC已重新读取现场并复核上述原五条、新普通结果、Goal和原unknown保存。关键限制：这6条Memory episode写入成功，但后续整理已逐条关联到6个403失败批，extraction_state=consolidation_failed，不能称Memory整理/索引已收敛。更早45批关联回执也全为同一路由submitted/failed/403，没有可关联的备用路由尝试证据；未修改主备路由。两个旧external unknown且缺完整consumer proof的delivery投影继续未知；新video b0accb48执行unknown/403具体业务后果仍未知。旧生命周期内提交unknown计数增长也未据此重放或改写对象。真实QQ端到端交付不由以上Life结果证明。
+
+证据：.runtime/rbj-native-execution-20261106/business-final.json、health-final.json、release-status.json、validation-summary.json，及.runtime/rbj-execution-20261106/monitor-post-release-episode-trace-20261106T1528Z.json。既有半小时心跳已更新最终源码/资格/逐对象状态，仍只读、未变安静。两次临时PG及两组本批源码导出已按owner/精确ID/目录核验清理，源提交、工作树、日志、备份和镜像保留。当前收口仅指本批部署与受影响结果链，未声称全部系统业务无问题。
