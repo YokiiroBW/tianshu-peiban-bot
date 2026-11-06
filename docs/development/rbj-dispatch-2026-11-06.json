@@ -55,7 +55,8 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我会在新建的 RBJ Sources 工作树中核对基线和冻结合同，然后完成来源图求值与同调用去重的整块实现，最后提交并向主协调窗口回执。",
       "contract": "1.3",
-      "contract_notice_accepted_at": "2026-11-06T11:39:24.710Z"
+      "contract_notice_accepted_at": "2026-11-06T11:44:53.005Z",
+      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd"
     },
     {
       "id": "RBJ-02",
@@ -95,7 +96,8 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
       "contract": "1.3",
-      "contract_notice_accepted_at": "2026-11-06T11:39:24.788Z"
+      "contract_notice_accepted_at": "2026-11-06T11:44:52.666Z",
+      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd"
     },
     {
       "id": "RBJ-03",
@@ -132,7 +134,8 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我会在指定的新工作树核对冻结合同和现有 Action／结果消费链路，完成 RBJ-03 的端口、回归用例与交接；测试和装配按约定留给协调者集中执行。",
       "contract": "1.3",
-      "contract_notice_accepted_at": "2026-11-06T11:39:24.864Z"
+      "contract_notice_accepted_at": "2026-11-06T11:44:53.144Z",
+      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd"
     },
     {
       "id": "RBJ-04",
@@ -176,7 +179,8 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
       "contract": "1.3",
-      "contract_notice_accepted_at": "2026-11-06T11:39:24.942Z"
+      "contract_notice_accepted_at": "2026-11-06T11:44:52.801Z",
+      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd"
     },
     {
       "id": "RBJ-05",
@@ -222,7 +226,8 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我会先核对 RBJ 新工作树、任务卡和冻结接口，再沿 Life 的结果观察与业务落库链路检查需要调整的位置；本窗口只提交本卡代码和必要用例，由协调者集中验证。",
       "contract": "1.3",
-      "contract_notice_accepted_at": "2026-11-06T11:39:25.012Z"
+      "contract_notice_accepted_at": "2026-11-06T11:44:52.904Z",
+      "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd"
     },
     {
       "id": "RBJ-06",
@@ -306,7 +311,30 @@
   "dispatched_at": "2026-11-06T11:29:25.638Z",
   "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged",
   "contract_revision_note": "Frozen after owner review: exact consumer proof; wake variant/object lock; attested legacy coverage; repair job binding; Life application inspection. No product implementation or production changes by coordinator.",
-  "contract_commit": "315fc10bef2b4a5629341b7aea84bdf4e17ca98f",
+  "contract_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd",
   "contract_1_2_note": "Only clarify nullable owner_id: Life resolves unique current owner under actor/action/consumer authority; unresolved stays unknown.",
-  "contract_1_3_note": "Bind original Life owner through callback; trusted proof closes unstarted grant without a fabricated execution."
+  "contract_1_3_note": "Bind original Life owner through callback; trusted proof closes unstarted grant without a fabricated execution.",
+  "contract_history": [
+    {
+      "version": "1.0",
+      "commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d"
+    },
+    {
+      "version": "1.1",
+      "commit": "315fc10bef2b4a5629341b7aea84bdf4e17ca98f"
+    },
+    {
+      "version": "1.2",
+      "commit": "1e7272417a42e815b9c38f2f1cd509ce56c5ebdf"
+    },
+    {
+      "version": "1.3",
+      "commit": "bf408fa5af0daabace0059dd501d22166dd02bcd"
+    }
+  ],
+  "integration_notes": [
+    "Register new named Sources/Runtime/Conversation SQL only after receiving exact handoffs; rbj_result_repair_evidence.sql is planned, not yet accepted or deployed.",
+    "Adapt affected legacy Life planner/action-result test fixtures centrally to asynchronous public handoff semantics; do not treat direct private callback tests as observer acceptance.",
+    "Sources Python public calls map source_dependency_budget_exceeded; direct SQL callers retain distinct SQLSTATE 54000. Verify affected Memory read/retraction semantics without treating budget as business false."
+  ]
 }
