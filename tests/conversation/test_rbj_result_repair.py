@@ -148,7 +148,8 @@ async def test_queued_legacy_wake_does_not_hide_four_exhausted_failures(database
     saved = await exhaust(database, value)
     async with database.transaction() as connection:
         legacy = await value.jobs.enqueue(connection, JobSpec("conversation.result", "legacy-unlocked-rbj",
-            {"event": value.event}, ServiceClass.INTERACTIVE, data_generation=saved["data_generation"]))
+            {"event": value.event}, ServiceClass.INTERACTIVE, subject_id=value.event["context"]["actor_id"],
+            data_generation=saved["data_generation"]))
         wake = await ActionResultEvents(value.jobs).ensure_on(connection, value.event)
     assert wake["state"] == "blocked" and wake["reason"] == "execution_failure_budget_exhausted"
     assert wake["budget"]["failed_executions"] == 4
@@ -161,6 +162,27 @@ async def test_queued_legacy_wake_does_not_hide_four_exhausted_failures(database
     assert observed["state"] == "failed" and observed["reason"] == facts["reason"]
     async with database.transaction(read_only=True) as connection:
         assert (await value.jobs.observe_on(connection, legacy))["job_state"] == "todo"
+
+
+@pytest.mark.asyncio
+async def test_legacy_wake_with_different_subject_is_not_adopted(database):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        legacy = await value.jobs.enqueue(connection, JobSpec("conversation.result", "legacy-other-subject",
+            {"event": value.event}, ServiceClass.INTERACTIVE, data_generation=saved["data_generation"]))
+        original = await (await connection.execute(
+            "SELECT subject_id,matter_id,payload_version,payload_digest,wake_key,wake_object_key "
+            "FROM runtime.job_keys WHERE job_id=%s", (legacy,))).fetchone()
+    with pytest.raises(AppError, match="job_identity_conflict"):
+        async with database.transaction() as connection:
+            await ActionResultEvents(value.jobs).ensure_on(connection, value.event)
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute(
+            "SELECT subject_id,matter_id,payload_version,payload_digest,wake_key,wake_object_key "
+            "FROM runtime.job_keys WHERE job_id=%s", (legacy,))).fetchone()
+        assert (await value.jobs.observe_on(connection, legacy))["job_state"] == "todo"
+    assert original["subject_id"] is None and after == original
 
 
 @pytest.mark.asyncio
@@ -342,7 +364,8 @@ async def test_exhausted_unlocked_normal_job_is_covered_by_authorized_repair(dat
     saved = await exhaust(database, value)
     async with database.transaction() as connection:
         old_job = await value.jobs.enqueue(connection, JobSpec("conversation.result", "old-unlocked-result",
-            {"event": value.event}, ServiceClass.INTERACTIVE, data_generation=saved["data_generation"]))
+            {"event": value.event}, ServiceClass.INTERACTIVE, subject_id=value.event["context"]["actor_id"],
+            data_generation=saved["data_generation"]))
     assert (await register_and_authorize(database, value, saved))["state"] == "accepted"
     repair = await schedule_repair(value, saved)
     async with database.transaction(read_only=True) as connection:

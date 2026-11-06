@@ -30,3 +30,9 @@
 - Runtime 本窗口提交时尚未交付，API、迁移、并发锁和 PostgreSQL 行为均待协调者集中集成验证；Life 的真实 Source/Goal/Memory/progress 原子性也待联合验证。
 - 本卡没有为 renderer、dialogue、detached、Memory 建立通用 proof-only / not-applicable 补账。若只有 Life 目标有 proof，而其他消费者没有足够证据，整条 delivery 仍可能保持 pending/unknown；不得把单个 Life 成功写成整条业务完成。旧版聚合记录或历史 superseded/invalidated 状态也不能单独证明旧消费者是否实际应用，应按原进度和执行事实核对。
 - 新 head 出现时，本地调用会保守保留未证实的旧结果；已授权 repair 的后续关闭依赖原事件的协调恢复和完整 Runtime 事实。集成验收时须覆盖 head 竞争后调用恢复并核对 grant 收口，不把有疑点的旧结果改写为成功。
+
+## 集中集成后的旧唤醒夹具返修
+
+- 根在集成提交 `a3c4ea31888300281ca8491b3ad935fb467feb1f` 的真实 PostgreSQL 检查中发现两条旧无锁 result wake 用例的 `job_identity_conflict`。静态对照确认，两条夹具漏传 `subject_id`，而原始 `ActionResultEvents.publish`（`1d087637`、`06ce91b2`）及 RBI 的 result 唤醒（`27499db6`）均设置为事件的 actor ID。Runtime 冻结摘要包含该字段，因此原夹具与 canonical job 的身份不同。
+- 两条夹具改为忠实构造历史生产者的 actor；另写用例确认相同 event 但不同 subject 不会被 adopt，原任务身份和待办状态不被改写。与 Runtime 单写窗口对照后确认不修改 Runtime 身份规则，不将不同摘要混并。若之后发现真实历史任务缺失 subject，须按实际证据另行判断，不能据此猜补身份。
+- 本返修仅静态审阅和 AST 解析，不运行测试或 PostgreSQL；由根集中复验原失败用例及新增冲突用例。
