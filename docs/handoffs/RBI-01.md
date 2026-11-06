@@ -4,12 +4,12 @@
 - 分支：`codex/rbi-runtime-20261106`
 - 基线：`18d640c41bb3354ef82ffea41ff2e78b1338e3b3`
 - 代码及必要用例提交：`24bbcad9928d7662e6882c68df545cd08323cf01`，随后必须应用原生序号修正 `d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c`；两者之间的 `09c8350e263de115e41bb4ddbed5ba70521c020f` 是本交接初版。
-- 依赖 RBI-06 Models 提交 `7715afa5144be098a8b9431d1cda03b1a3aae4ec` 的 `tianshu.models.rbi_outcome_guard.lock_recovery_facts_on`。本窗口未跨树集成该提交。
+- 依赖 RBI-02 Models 提交 `7715afa5144be098a8b9431d1cda03b1a3aae4ec` 的 `tianshu.models.rbi_outcome_guard.lock_recovery_facts_on`。本窗口未跨树集成该提交。
 
 ## 实现与边界
 
 1. `RecoveryPolicy.resume_repaired_on(connection, lineage_id, *, owner, expected_version, original_attempt_id, model_receipt, repair_ref)` 为已确认 failed、同版本修复后建立一次幂等 due；不重置预算、不变更原尝试或失败分类、不提前穿透依赖 cooldown/探针。返回 `eligible/reason/lineage_id/retry_at/repair_ref`；资格不是新物理尝试。领域仍须在事务中核对业务 head、固定材料和来源/权限。
-2. 同步的 `validate_model_recovery_facts(facts, *, receipt, expected_status, data_generation)` 校验锁定的 Models 原尝试、提交摘要、时间和取消事实。Runtime 请求摘要与 Models submission 摘要是不同合同，不直接互比。拿锁顺序为来源/身份和领域 head → installation generation share → Models admission/attempt facts → Runtime lineage → dependency；不得持锁发 RPC。已保留非 Models 调用方的原有 `reserve_attempt_on(..., original_state='failed', model_receipt=None)` 兼容路径，故模型领域必须主动传入 fresh 原 `model_receipt` 才启用该事实围栏。
+2. 同步的 `validate_model_recovery_facts(facts, *, receipt, expected_status, data_generation)` 校验锁定的 Models 原尝试、提交摘要、时间和取消事实。Runtime 请求摘要与 Models submission 摘要是不同合同，不直接互比。按根接口 v1.3，installation generation SHARE 可在 Sources 之前取得；完整的 Sources/Identity/领域准备和 generation SHARE 均满足后，先获取 Models admission/attempt facts，再首次写 Runtime lineage，并按既有顺序处理 dependency；不得持锁发 RPC。已保留非 Models 调用方的原有 `reserve_attempt_on(..., original_state='failed', model_receipt=None)` 兼容路径，故模型领域必须主动传入 fresh 原 `model_receipt` 才启用该事实围栏。
 3. 纯计算的原始 `cancelled/consumer_interrupted/consumer_interrupted` 回执以 `classify_failure('consumer_interrupted') == FailureCategory.INTERRUPTED` 记作 Runtime failed，正常计入计算次数并有界延迟；不记 not-sent、不生成共享 provider cooldown。后继使用 `original_state='failed'` 和未改写的原回执；explicit cancel 和未知效果不能借此重试。`note_not_sent_on` 在该组合下仅复核事实及返回原预算，不返还次数。
 4. `DomainModule` 新增 `maintenance`、`maintenance_roles`。`process.py` 复用 30 秒节奏，每领域独立任务、单回调 20 秒上界和局部状态记录，关闭时取消；回调角色未指定时沿用 start role。业务补漏、分页和短事务由各领域实现，未改任何 `module.py`。
 5. 普通 native retry 若被并发的同主体 todo 占用队列锁，复用现有释放锁机制让原 doing job 保留原 key/载荷再重试；只有既有 retry strategy 真的允许重试时才释放。原有效永久键及最早 todo 唤醒语义不变。
