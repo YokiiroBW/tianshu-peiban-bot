@@ -1,10 +1,10 @@
-# 2026-11-06 RBJ 七包已串行集成，集中验证准备中
+# 2026-11-06 RBJ 已集成，集中验证返修中
 
-七个既有窗口的完整提交已回收并无冲突串行合入 codex/rbj-integration-20261106。根正在接入 Runtime/Sources/Conversation 的五项新迁移和 Operations 的 Life worker 引用；映射见[派发记录](rbj-dispatch-2026-11-06.json)。实现者只做静态检查，当前没有PG/SQL/性能或业务验收通过结论。
+七个既有窗口完整提交已串行集成，根共享迁移与 Operations 装配已提交 a3c4ea31。当前在独立 owner 的临时 PostgreSQL/pgvector 验证，实际回执见[派发记录](rbj-dispatch-2026-11-06.json)；没有生产写入。Sources、Runtime 新用例、Actions、Growth、Memory 及五种产品角色装配已有通过证据，未变成功结果复用。
 
-20:45:45只读补证确认：五条原成功回执的30个consumer行全存在，均只有life_activity因QueryCanceled仍pending且缺proof，其他五类已记录not_applicable；当前Action head与原receipt/revision均匹配，aggregate均不存在。发布后必须新鲜核对来源/owner/CAS，再核实Life+Goal+Memory+proof及整条aggregate，不能只看单项成功。证据保留在根.runtime，不提交业务正文。
+真实195节点/8252边/64层来源增加第65层Life回执后，原结果定向修复已能原子提交Life、Goal、Memory、consumer proof和六消费者aggregate；真实Memory写入后取消也全部回滚。成功后重复观察发现机械完成引用与领域proof引用冲突，Runtime/Conversation按[合同1.8](rbj-interfaces-2026-11-06.md)定向返修，保留首次关闭和未知事实；六个旧Life夹具/准确blocked-waiting预期仍在对应窗口修正。当前不称整批已验收。
 
-公共合同1.7已冻结（a5e5c5f0）。保留六角色、原身份/预算/unknown，真实SQL计算失败不免费重试；Source撤回和历史apply未知分别处理。临时PG验证沿既有独立owner流程，实际结果待集中执行。生产仍RBI-08，当前没有本批推送/部署、清库、预算重置或真实模型/QQ测试；403/429及备用路由不改。下方为历史截面。
+20:45:45只读补证确认：五条线上原成功回执的30个consumer行全存在，只有life_activity因QueryCanceled仍pending且缺proof，其他五类已记录not_applicable；当前Action head与原receipt/revision匹配，aggregate不存在。生产仍RBI-08，发布后还需新鲜来源/owner/CAS检查及原对象业务收敛验收。保留六角色、原ID/请求/回执/unknown、代际、预算、配置/挂载；403/429及备用路由不改。不清库、不重放未知效果、不做真实模型/QQ测试。下方为历史截面。
 
 # 2026-11-06 14:34 自然巡检确认业务阻塞恶化
 

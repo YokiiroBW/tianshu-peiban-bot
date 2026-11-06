@@ -167,7 +167,9 @@ async def test_real_source_life_goal_memory_and_proof_share_the_original_repair(
         saved = await original_observe(context, episode, connection=connection)
         goal = await (await connection.execute("SELECT progress,state FROM life.goals WHERE id='goal'")).fetchone()
         assert goal == {"progress": 1, "state": "completed"}
+        proof_started = perf_counter()
         assert await value.sources.check_many_on(connection, context, (source_refs(episode["source_refs"]),)) == (True,)
+        record_property("source_graph_65_depth_seconds", perf_counter() - proof_started)
         # Another connection cannot see the new receipt original or Memory before this transaction commits.
         assert not (await value.identity.check_many(context, (source_refs(episode["source_refs"]),)))[0]
         if cancel_after_memory_write:
