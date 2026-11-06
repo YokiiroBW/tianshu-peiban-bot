@@ -510,7 +510,7 @@ class ModelBroker:
             # An observer can disconnect while the Models-owned cloud request
             # continues. External resource owners retain their permit semantics.
             if current is None or current["protocol"] != "external":
-                return receipt(current) if current else None
+                return self._receipt(current) if current else None
         return await self._cancel_attempt(attempt_id, reason=reason)
 
     async def cancel_external_owner(self, attempt_id):
@@ -530,13 +530,13 @@ class ModelBroker:
         if task:
             task.cancel()
         elif attempt_id in self.external and self.external[attempt_id].submitted_at is None:
-            return await self.external[attempt_id].unknown("cancelled_before_external_submit")
+            await self.external[attempt_id].unknown("cancelled_before_external_submit")
         elif row["status"] == "queued":
             row = await self.ledger.finish(
                 attempt_id, "cancelled", error_code=_cancelled_before_start(row)
             )
         # External domain I/O sees cancel_requested through its separate control watcher.
-        return receipt(row)
+        return await self.status(attempt_id)
 
     async def generate(self, request):
         await self.submit(request)

@@ -45,7 +45,7 @@ async def test_current_original_facts_are_bounded_and_preserve_the_actual_state(
     broker.scheduler.acquire.assert_not_awaited()
 
 
-@pytest.mark.parametrize("status", ["failed", "unknown"])
+@pytest.mark.parametrize("status", ["failed", "unknown", "succeeded"])
 async def test_late_explicit_cancel_is_visible_without_rewriting_the_original_result(database, status):
     broker, request, before = await original_outcome(database, status)
     cancelled = await broker.cancel(request.attempt_id)

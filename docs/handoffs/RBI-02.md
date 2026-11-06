@@ -29,6 +29,12 @@
 
 ## 验证与交接边界
 
+### RBI-07 取消回执返修
+
+集中验证基线 `438cf678` 的 `test_rbi_outcome_guard.py::test_late_explicit_cancel_is_visible_without_rewriting_the_original_result[failed/unknown]` 发现取消 API 返回的 ModelReceipt 缺少原 submission 的 request_digest 与 completion_state。原因是取消后的 `request_cancel`/`finish` 返回 Models attempts 原始行，而 status 使用 `ledger.get` 联接 submissions/cancellations 并形成完整投影。取消保留原有写入、终态、外部资源和调度行为；所有成功取得原行的公共取消路径结束后复用现有 status 投影，云端 consumer_interrupted 无动作分支复用同一 `_receipt` 投影。不改变原终态，不触发用量重算或退款；不存在的原行仍保持原来返回 None 的语义。
+
+新增 `tests/models/test_rbi_cancel_receipt.py`，覆盖合成 HTTP 路径下 failed/unknown/succeeded 的取消回执与 status 完全一致，包括非空原请求摘要、已附着 completion 的摘要与 pending 状态，核对原 result、usage、charged_units、finished_at 等未被改变；另覆盖 queued 取消、云端观察者中断及未提交外部资源持有者的取消。原报错用例未删减，并扩展 succeeded。返修窗口只做静态审阅和 Python AST 解析；上述用例与集中验证剩余用例仍由协调者执行，不能将编写视为通过。
+
 编写 `tests/models/test_rbi_failure_diagnostic.py`：完整响应 JSON/UTF-8 失败、原生结构拒绝、向量维度、读取后的本地用量错误及错误处理自身的用量解码失败、数据依赖错误归因未知、截断读取及流事件、旧 diagnostic、去敏、既有成功结果读取与本地解析，以及真实 Models 账本/QuotaScheduler 配合合成 HTTP 的 429/502/503 状态与冷却。另用真实账本模拟成功提交后释放失败、commit 后连接关闭导致 ACK 未知及 owner 变化，验证结果、诊断、身份及预留不得倒退。`test_rbh_transport_evidence.py` 增加未发送与关闭阶段诊断断言。成功输出复用用例只走既有结果端口，不做外部模型请求；跨域恢复与真实现场未由这些用例证明。
 
 `tests/models/test_rbi_outcome_guard.py` 编写了各物理状态的真实隔离账本事实、失败/unknown 后显式取消、取消锁的两个事务顺序、consumer_interrupted、status 转变、submission 与 attempt 摘要不同、缺原请求摘要及无原行锁的用例。Runtime 负责在同版本修复资格和传入 failed/unknown 原回执的后继 reserve 中调用本端口并判定准确拒绝；Growth/Memory/Life 按合同传递原回执，由根集中做真实跨域联验。
