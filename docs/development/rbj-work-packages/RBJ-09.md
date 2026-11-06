@@ -6,7 +6,7 @@
 - src/tianshu/runtime/rbi_execution_budget.py
 - src/tianshu/runtime/rbj_execution_repair.py
 - src/tianshu/runtime/rbj_native_admission.sql
-- tests/runtime/test_rbj_native_admission.py
+- tests/runtime/test_rbj_runtime_admission.py
 - tests/runtime/test_rbj_execution_repair.py
 - tests/runtime/test_rbi_execution_budget.py
 - docs/handoffs/RBJ-09.md
