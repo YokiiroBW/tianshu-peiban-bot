@@ -23,6 +23,7 @@ const stateNames: Record<string, string> = {
   applied: "本批已提交，索引状态以实际读回为准",
   stale: "固定材料已变化",
   failed: "本批未提交",
+  retired: "历史整理任务已清理，经历原文已保留",
   consolidation_failed: "整理失败，本批未提交",
   consolidation_revoked: "整理依据已撤回",
   revoked: "来源已撤回",
@@ -42,6 +43,10 @@ const stateNames: Record<string, string> = {
 };
 
 const actions: Record<string, { label: string; description: string }> = {
+  retired: {
+    label: "历史任务已清理",
+    description: "保留这段经历和原处理记录，不再自动重试本批。",
+  },
   observe_original_attempt: {
     label: "观察原执行",
     description: "保留原执行记录并查询结果；临时失败会自动稍后独立重试。",
