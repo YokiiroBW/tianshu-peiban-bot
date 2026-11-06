@@ -11,6 +11,9 @@ import pytest
 import aiohttp
 from aiohttp import web
 
+from tianshu.capabilities.actions import Actions as CapabilityActions, encoded
+from tianshu.capabilities.catalog import Catalog
+from tianshu.capabilities.contracts import canonical
 from tianshu.conversation.codec import document
 from tianshu.conversation.expression import ExpressionService
 from tianshu.conversation.generation import GenerationRequests, attempt_for
@@ -23,9 +26,10 @@ from tianshu.models.catalog import QuotaPolicy, RoutePlan
 from tianshu.models.http_timing import trace_config
 from tianshu.models.scheduler import QuotaScheduler
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.jobs import JobQueue
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.recovery_policy import RecoveryWait
-from tianshu.types import ArtifactRef, MediaRef, OriginKind, Receipt, RequestBudget, ServiceClass, TrustedContext
+from tianshu.types import Action, ArtifactRef, Attempt, MediaRef, OriginKind, Receipt, RequestBudget, ServiceClass, TrustedContext
 
 
 def wait():
@@ -62,6 +66,41 @@ class Jobs:
 
     async def assert_generation_on(self, *_args):
         pass
+
+
+class ActionJobs(Jobs):
+    current_generation_on = staticmethod(JobQueue.current_generation_on)
+    assert_generation_on = staticmethod(JobQueue.assert_generation_on)
+
+    async def observe_on(self, _connection, **_kwargs):
+        return None
+
+    async def enqueue(self, connection, spec, *, queueing_lock=None):
+        await super().enqueue(connection, spec)
+
+
+async def action_heads(database, jobs, authority):
+    await migrate(database, (Migration("capabilities-0001", files("tianshu.capabilities").joinpath("schema.sql").read_text()),))
+    actions = CapabilityActions(database, jobs, Catalog(), authority)
+    actions.sources = authority
+    return actions
+
+
+async def record_action(database, jobs, action, actual):
+    """Publish a synthetic receipt on the real Action row used by the fence."""
+    attempt = Attempt(actual.attempt_id, action.action_id)
+    async with database.transaction() as connection:
+        generation = await jobs.current_generation_on(connection)
+        await connection.execute(
+            "INSERT INTO capabilities.actions AS current_action(id,intent,semantics,principal_id,kind,created_at,document,"
+            "action,attempt,receipt,result_revision,result_observed_at) "
+            "VALUES(%s,%s,%s,%s,%s,0,%s,%s::jsonb,%s::jsonb,%s::jsonb,1,now()) "
+            "ON CONFLICT(id) DO UPDATE SET receipt=excluded.receipt,"
+            "result_revision=current_action.result_revision+1,result_observed_at=now() "
+            "WHERE current_action.receipt IS DISTINCT FROM excluded.receipt",
+            (action.action_id, action.intent_key, "fixture", action.context.principal_id,
+             action.capability_id, canonical({"data_generation": generation}), encoded(action),
+             encoded(attempt), encoded(actual)))
 
 
 @pytest.mark.asyncio
@@ -402,6 +441,8 @@ async def test_expression_resource_wait_never_duplicates_channel_send(database, 
                 raise wait()
 
     delivered = Receipt("receipt", "original-action", "original-attempt", "succeeded", "confirmed", "delivered")
+    channel_action = Action("original-action", "expression:expression", "channels.deliver", "actor",
+                            context, {}, OriginKind.ACTOR, expression_id="expression")
 
     class Channels:
         calls = 0
@@ -410,19 +451,22 @@ async def test_expression_resource_wait_never_duplicates_channel_send(database, 
             self.calls += 1
             if not wait_before_send:
                 raise wait()
+            await record_action(database, jobs, channel_action, delivered)
             return delivered
 
         async def reconcile(self, _context, _expression_id):
+            await record_action(database, jobs, channel_action, delivered)
             return delivered
 
     class Voice:
         async def expression_profile(self, _context):
             return {"profile_id": "fixed", "revision": 1, "output_mode": "text"}
 
-    authority, jobs, channels = FlakyAuthority(), Jobs(), Channels()
+    authority, jobs, channels = FlakyAuthority(), ActionJobs(), Channels()
+    actions = await action_heads(database, jobs, authority)
     contacts = SimpleNamespace(record_delivery=AsyncMock())
-    delivery = ExpressionService(database, jobs, authority, channels, contacts, sources=authority)
-    renderer = ExpressionRenderer(database, jobs, authority, authority, None, Voice(), delivery)
+    delivery = ExpressionService(database, jobs, authority, channels, contacts, sources=authority, actions=actions)
+    renderer = ExpressionRenderer(database, jobs, authority, authority, actions, Voice(), delivery)
     plan = ExpressionPlan("expression", "actor", "chat", ({"kind": "text", "text": "answer"},), (), OriginKind.ACTOR)
     with pytest.raises(RecoveryWait):
         await renderer.send(context, plan)
@@ -437,6 +481,8 @@ async def test_expression_resource_wait_never_duplicates_channel_send(database, 
         await renderer.expire_delivery(plan.expression_id)
         assert (await renderer.get(context, plan.expression_id))["state"] == "delivered"
     assert channels.calls == 1
+    observed = (await actions.get("original-action", context))["receipt"]
+    assert (observed["receipt_id"], observed["attempt_id"]) == ("receipt", "original-attempt")
 
 
 @pytest.mark.asyncio
@@ -449,18 +495,31 @@ async def test_render_result_commit_resumes_delivery_from_original_action_receip
             return {"profile_id": "fixed", "revision": 1, "output_mode": "audio"}
 
     delivered = Receipt("delivery", "original-delivery", "original-attempt", "succeeded", "confirmed", "delivered")
-    delivery = SimpleNamespace(send=AsyncMock(return_value=delivered))
-    authority, jobs = Authority(), Jobs()
-    renderer = ExpressionRenderer(database, jobs, authority, authority, None, Voice(), delivery)
+    authority, jobs = Authority(), ActionJobs()
+    actions = await action_heads(database, jobs, authority)
+    actions.invoke = AsyncMock()
+    channel_action = Action("original-delivery", "expression:spoken-expression", "channels.deliver", "actor",
+                            context, {}, OriginKind.ACTOR, expression_id="spoken-expression")
+
+    async def send_channel(_context, _plan):
+        await record_action(database, jobs, channel_action, delivered)
+        return delivered
+
+    delivery = SimpleNamespace(send=AsyncMock(side_effect=send_channel))
+    renderer = ExpressionRenderer(database, jobs, authority, authority, actions, Voice(), delivery)
     plan = ExpressionPlan("spoken-expression", "actor", "chat", ({"kind": "text", "text": "answer"},), (), OriginKind.ACTOR)
     progress = await renderer.send(context, plan)
     action_id = progress.render_action_ids[0]
     result = Receipt("render-receipt", action_id, "render-attempt", "succeeded", "confirmed", "not_requested",
                      artifacts=(ArtifactRef("speech", MediaRef("artifact:speech", "controlled", "audio/wav")),))
+    tts_action = Action(action_id, "expression-render:spoken-expression:0", "speech.synthesize", "actor", context,
+                        {"profile_id": "fixed", "profile_revision": 1, "text": "answer"},
+                        OriginKind.ACTOR, expression_id=plan.expression_id)
+    await record_action(database, jobs, tts_action, result)
     original_deliver = renderer._deliver
     calls = 0
 
-    async def fail_once(ctx, rendered):
+    async def fail_once(ctx, rendered, **kwargs):
         nonlocal calls
         calls += 1
         if calls == 1:
@@ -468,17 +527,19 @@ async def test_render_result_commit_resumes_delivery_from_original_action_receip
             if not rollback_confirmed:
                 error.remote_rollback_confirmed = False
             raise error
-        return await original_deliver(ctx, rendered)
+        return await original_deliver(ctx, rendered, **kwargs)
 
     renderer._deliver = fail_once
     with pytest.raises(RecoveryWait):
         await renderer.on_action_result(context, result, 1)
     assert (await renderer.get(context, plan.expression_id))["state"] == "delivering"
     assert await renderer.on_action_result(context, result, 1)
+    actions.invoke.assert_not_awaited()
     if not rollback_confirmed:
         assert (await renderer.get(context, plan.expression_id))["state"] == "delivering"
         delivery.send.assert_not_awaited()
         return
     assert (await renderer.get(context, plan.expression_id))["state"] == "delivered"
     assert await renderer.on_action_result(context, result, 1)
+    actions.invoke.assert_not_awaited()
     delivery.send.assert_awaited_once()

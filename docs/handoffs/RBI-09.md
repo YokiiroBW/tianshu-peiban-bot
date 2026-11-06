@@ -12,6 +12,8 @@
 
 本窗口对返修仅执行 AST 与 diff 静态检查，未运行测试、构建或生产；上述 13 项及新增用例须由根在完整装配后复验。
 
+根随后扩围 `test_rbf_recovery.py`：TTS 结果已提交后继续原表达的用例，以及同文件的渠道资源等待用例，均改用隔离数据库内真实 Action 头与公开 fence。前者继续分别验证确认回滚可恢复、未确认结果保持不重发，并断言不重新调用原 TTS Action；后者保留原渠道至多一次发送及通过原回执观察的断言。此追加返修同样只做静态检查，由根集中复验。
+
 ## 实现
 
 - 复用 `result_deliveries` / `result_consumer_progress`；新 `rbi_result_wake.py` 将首次发布、旧头切换、Operations 恢复和领域补漏收敛到同一原始 receipt、action、revision、generation。只安排原始消费，不重新执行 Action、模型或渠道发送；有效的原生待办和消费者租约继续使用。
