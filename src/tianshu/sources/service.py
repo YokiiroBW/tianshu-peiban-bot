@@ -18,6 +18,28 @@ from tianshu.runtime.cancellation import finish_cleanup
 from tianshu.types import Coverage, MediaRef, OriginKind, ServiceClass, SourceRef
 
 
+def _context_lock_order(context):
+    """A stable order for every authority represented by a trusted context."""
+    return (
+        context.actor_id or "",
+        tuple(sorted(context.scope_ids)),
+        context.conversation_id or "",
+        context.principal_id,
+        context.person_id or "",
+        context.access_epoch,
+        str(context.origin_kind),
+        tuple(sorted(context.permissions)),
+        tuple(context.scope_ids),
+        tuple(context.audience),
+        context.conversation_kind or "",
+        context.delivery_allowed,
+        context.actor_id is not None,
+        context.conversation_id is not None,
+        context.person_id is not None,
+        context.conversation_kind is not None,
+    )
+
+
 class SourceService:
     def __init__(self, database, identity, files, commands, jobs):
         self.database, self.identity, self.files = database, identity, files
@@ -168,13 +190,25 @@ class SourceService:
         },), additional_refs=additional_refs)
         return aliases[0]
 
-    async def prepare_event_writes(self, connection, context, events, *, additional_refs=()):
-        """Lock a complete batch of event roots and inputs in the caller's transaction.
+    async def prepare_event_writes(
+        self, connection, context, events, *, additional_refs=(), scoped_refs=()
+    ):
+        """Lock event roots and each original context's inputs in one transaction.
 
         Prepare before any domain or source locks. Subsequent record_event calls
         must use the same event identities, revisions, parts and support refs.
+        Scoped groups are prechecked under their own contexts; a false proof does
+        not reject the event. Callers must recheck before using those groups.
         """
+        from .proofs import normalize_groups
+
         events = tuple(events)
+        scoped = tuple(
+            (original_context, normalize_groups((
+                tuple(SourceRef(**ref) if isinstance(ref, dict) else ref for ref in refs),
+            ))[0])
+            for original_context, refs in scoped_refs
+        )
         required = [SourceRef(**ref) if isinstance(ref, dict) else ref for ref in additional_refs]
         dependencies, source_ids, prepared = [], [], []
         for event in events:
@@ -209,7 +243,11 @@ class SourceService:
                                    "evidence_unit": f"{producer}:{event_id}"})
             prepared.append((event_key, producer, event_id, revision))
 
-        await self.identity.lock_context_on(connection, context)
+        contexts = (context, *(original_context for original_context, _ in scoped))
+        if scoped:
+            contexts = sorted(contexts, key=_context_lock_order)
+        for original_context in contexts:
+            await self.identity.lock_context_on(connection, original_context)
         # One event key serializes revisions of that event, never unrelated actors/events.
         await connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended('sources:event:'||value,0)) "
@@ -230,12 +268,15 @@ class SourceService:
             )).fetchall()
             dependencies.extend(SourceRef(row["source_id"], row["head_revision"], {}) for row in previous)
             source_ids.extend(row["source_id"] for row in previous)
+        scoped_sources = tuple(ref for _, refs in scoped for ref in refs)
         await self._lock_selected(
-            connection, tuple((*required, *dependencies)), extra=tuple(source_ids),
+            connection, tuple((*required, *dependencies, *scoped_sources)), extra=tuple(source_ids),
             extra_aliases=tuple(alias for alias in aliases if alias), write_ids=tuple(source_ids),
         )
         if required and not (await self.check_many_on(connection, context, (tuple(required),)))[0]:
             raise AppError("source_support_unavailable", status=403)
+        for original_context, refs in scoped:
+            await self.check_many_on(connection, original_context, (refs,))
         return tuple(aliases)
 
     async def record_event(

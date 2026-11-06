@@ -70,6 +70,7 @@ class SourcePort(Protocol):
     async def prepare_event_writes(
         self, connection, context: TrustedContext, events: tuple[dict, ...], *,
         additional_refs: tuple[SourceRef, ...] = (),
+        scoped_refs: tuple[tuple[TrustedContext, tuple[SourceRef, ...]], ...] = (),
     ) -> tuple[str | None, ...]: ...
     async def record_event(
         self,
