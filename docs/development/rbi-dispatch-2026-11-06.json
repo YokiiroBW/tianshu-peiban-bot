@@ -48,12 +48,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "candidate_followup_in_progress",
+      "status": "candidate_handoff_pending",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "24bbcad9928d7662e6882c68df545cd08323cf01",
+      "source_commit": "d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c",
       "allowed_paths": [
         "src/tianshu/runtime/recovery_policy.py",
         "src/tianshu/runtime/jobs.py",
@@ -88,8 +88,8 @@
       },
       "verified": false,
       "integrated": false,
-      "handoff_commit": null,
-      "verification": "static integration defect found before tests/deployment; 24bbcad9 not final",
+      "handoff_commit": "09c8350e263de115e41bb4ddbed5ba70521c020f",
+      "verification": "native terminal/retry ordinal correction and regression code submitted; AST/diff reported only, tests not run",
       "dependencies": [
         "7715afa5144be098a8b9431d1cda03b1a3aae4ec"
       ],
@@ -105,7 +105,12 @@
         "order": "after corresponding original schema; inspect handoff before assembly",
         "new_index": "public.procrastinate_events(job_id,id)"
       },
-      "pending_followup": "native finish_job increments terminal attempts; historical observer must map terminal attempts=1 to ordinal0; Runtime correcting with native-manager regression code"
+      "pending_followup": "final handoff SHA after native terminal ordinal correction",
+      "required_commits_in_order": [
+        "24bbcad9928d7662e6882c68df545cd08323cf01",
+        "09c8350e263de115e41bb4ddbed5ba70521c020f",
+        "d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c"
+      ]
     },
     {
       "id": "RBI-02",
@@ -544,7 +549,8 @@
       "missing_history": "history_unknown, no zero/reset",
       "normal_maintenance": "no Operations dependency; new jobs registered in domain transaction"
     },
-    "diary_observation_closure": "Life reports combined original recipe/request and current diary contexts/refs via scoped_refs before any Source/domain lock; diary full snapshot CAS and recipe/request recheck; code pending, not validated"
+    "diary_observation_closure": "Life reports combined original recipe/request and current diary contexts/refs via scoped_refs before any Source/domain lock; diary full snapshot CAS and recipe/request recheck; code pending, not validated",
+    "native_terminal_correction": "d9e4fd08 covers finish/retry/manual retried attempt increments; ambiguous abort and missing last event remain history_unknown; verify native manager paths centrally"
   },
   "all_implementation_windows_started": true,
   "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
