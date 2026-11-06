@@ -420,7 +420,7 @@
       "priority": "P0",
       "owner": "Memory",
       "title": "新鲜回执驱动续接、原批恢复与本域补漏",
-      "status": "candidate_followup_in_progress",
+      "status": "candidate_submitted",
       "depends_on": [
         "RBI-00"
       ],
@@ -464,7 +464,14 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "implementation_turn_id": "01a1aeb3-e0ed-7732-a484-9b7b0924f21e"
+      "implementation_turn_id": "01a1aeb3-e0ed-7732-a484-9b7b0924f21e",
+      "source_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
+      "handoff_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
+      "required_commits_in_order": [
+        "fef2b555e83594795f96351b1c0ead493653cb63",
+        "fbd7f6863a84dd43727971e9da7e4750e41c0fc5"
+      ],
+      "verification": "static_only_not_tested"
     },
     {
       "id": "RBI-04",
@@ -583,13 +590,14 @@
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
       "implementation_turn_id": "01a1aeb3-ea15-77a0-bbdc-605dfdc1a4ba",
-      "source_commit": "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
-      "handoff_commit": "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+      "source_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
+      "handoff_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
       "required_commits_in_order": [
         "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
         "4024a2ec97f5380a9452cefe2ff5104ed5009613",
         "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
-        "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7"
+        "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+        "d276fed872ceaaaf363230ea0af387a06e649df2"
       ],
       "verification": "static_only_not_tested"
     },

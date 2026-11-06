@@ -170,12 +170,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "status": "candidate_followup_in_progress",
+      "status": "candidate_submitted",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "fef2b555e83594795f96351b1c0ead493653cb63",
+      "source_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
       "allowed_paths": [
         "src/tianshu/memory/consolidation.py",
         "src/tianshu/memory/consolidation_retry.py",
@@ -210,9 +210,15 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "pending_followup": "facts-before-lineage lock order",
+      "pending_followup": null,
       "verified": false,
-      "integrated": false
+      "integrated": false,
+      "handoff_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
+      "required_commits_in_order": [
+        "fef2b555e83594795f96351b1c0ead493653cb63",
+        "fbd7f6863a84dd43727971e9da7e4750e41c0fc5"
+      ],
+      "verification": "reported AST and diff checks only; tests/build/production not run"
     },
     {
       "id": "RBI-04",
@@ -294,7 +300,7 @@
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
+      "source_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
       "allowed_paths": [
         "src/tianshu/companion/growth.py",
         "src/tianshu/companion/growth_retry.py",
@@ -332,7 +338,7 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "handoff_commit": "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+      "handoff_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
       "pending_followup": null,
       "verified": false,
       "integrated": false,
@@ -340,9 +346,10 @@
         "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
         "4024a2ec97f5380a9452cefe2ff5104ed5009613",
         "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
-        "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7"
+        "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+        "d276fed872ceaaaf363230ea0af387a06e649df2"
       ],
-      "verification": "AST/diff static only; tests not run"
+      "verification": "reported AST and diff checks only; tests/build/production not run"
     },
     {
       "id": "RBI-09",
