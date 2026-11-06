@@ -1,8 +1,8 @@
 """Durable wakes for observing an activity's original Action."""
-from datetime import UTC, datetime, timedelta
+from datetime import datetime, timedelta
 from uuid import uuid4
 
-from tianshu.conversation.codec import document, signature
+from tianshu.conversation.codec import document
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.recovery_policy import RecoveryWait
@@ -71,7 +71,8 @@ async def generation_on(life, connection, requested=None):
 
 
 async def ensure_reconcile_on(life, connection, *, activity_id, action_id, data_generation=None,
-                              due_at=None, reason="observe", observed=False, immediate=False, retire_due=False, not_before=None):
+                              due_at=None, reason="observe", observed=False, immediate=False, retire_due=False,
+                              not_before=None, cover_legacy=True):
     """Queue one stable original-Action wake under the caller's source/row locks.
 
     A fresh physical key avoids old permanent-key collisions. The native lock
@@ -82,7 +83,7 @@ async def ensure_reconcile_on(life, connection, *, activity_id, action_id, data_
         "SELECT * FROM life.activities WHERE id=%s FOR UPDATE", (activity_id,))).fetchone()
     if not eligible(row) or row["action_id"] != action_id:
         return None
-    now = datetime.now(UTC)
+    now = (await (await connection.execute("SELECT now() AS now")).fetchone())["now"]
     due_at = timestamp(due_at) if due_at is not None else now
     if due_at is None:
         raise AppError("invalid_activity_reconciliation_due", status=409)
@@ -91,18 +92,27 @@ async def ensure_reconcile_on(life, connection, *, activity_id, action_id, data_
     if (observed or retire_due) and old_due is not None and old_due <= now:
         old_due = None
     when = min(old_due, due_at) if old_due is not None else due_at
-    lower_bound = None
+    from .rbj_activity_wake import (adopt_canonical_on, scan_on, cover_legacy_on,
+        lower_bound as saved_lower_bound, payload as wake_payload, wake_key)
+    lower_bound = saved_lower_bound(row)
     if not_before is not None:
-        lower_bound = timestamp(not_before)
-        if lower_bound is None:
+        requested_bound = timestamp(not_before)
+        if requested_bound is None:
             raise AppError("invalid_activity_reconciliation_due",status=409)
+        lower_bound = max(filter(None, (lower_bound, requested_bound)))
+    if lower_bound is not None:
         when = max(when,lower_bound)
     count = previous.get("observations", 0)
     count = count if type(count) is int and count >= 0 else 0
     metadata = {"action_id": action_id, "data_generation": generation,
         "due_at": when.isoformat(), "observations": count + int(observed), "reason": reason}
-    payload = {"activity_id": activity_id, "action_id": action_id, "data_generation": generation}
-    queueing_lock = "life-activity-observe:" + signature((activity_id, action_id))
+    if lower_bound is not None:
+        metadata["not_before"] = lower_bound.isoformat()
+    found, cursor = await scan_on(connection, row, generation, previous)
+    metadata["history_cursor"] = cursor
+    await adopt_canonical_on(life, connection, row, generation, found)
+    payload = wake_payload(row, generation)
+    queueing_lock = wake_key(row)
     scheduled = min(now, when) if immediate else when
     if lower_bound is not None:
         scheduled = max(scheduled, lower_bound)
@@ -110,6 +120,12 @@ async def ensure_reconcile_on(life, connection, *, activity_id, action_id, data_
         "life-activity-observe:" + str(uuid4()), payload,
         scheduled_at=scheduled, subject_id=row["actor_id"],
         data_generation=generation), queueing_lock=queueing_lock)
+    covered = await cover_legacy_on(life, connection, row, generation, found, job_id) if cover_legacy else ()
+    for item in covered:
+        actual_due = timestamp(item.get("due_at"))
+        if item.get("state") == "covered":
+            when = min(when, actual_due or now)
+    metadata["due_at"] = when.isoformat()
     metadata["job_id"] = job_id
     await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id=%s",
         (document({"reconciliation": metadata}), activity_id))
@@ -146,13 +162,23 @@ async def reconcile_due(worker, *, limit=32):
                         or row["context"] != snapshot["context"] or not generation_matches(row,generation)):
                     continue
                 saved = observation(row, generation)
-                now = datetime.now(UTC)
+                now = (await (await connection.execute("SELECT now() AS now")).fetchone())["now"]
                 due = timestamp(saved.get("due_at")) or recovery_due(row) or now + timedelta(seconds=15)
                 job = (await life.jobs.observe_on(connection, saved["job_id"])
                        if type(saved.get("job_id")) is int else None)
                 if job and job["job_state"] == "todo":
                     scheduled = job.get("scheduled_at")
                     if scheduled is None or scheduled <= due:
+                        from .rbj_activity_wake import adopt_canonical_on, scan_on, cover_legacy_on
+                        found, cursor = await scan_on(connection, row, generation, saved)
+                        await adopt_canonical_on(life, connection, row, generation, found)
+                        covered = await cover_legacy_on(life, connection, row, generation, found, saved["job_id"])
+                        for item in covered:
+                            actual_due = timestamp(item.get("due_at"))
+                            if item.get("state") == "covered":
+                                due = min(due,actual_due or now)
+                        await connection.execute("UPDATE life.activities SET checkpoint_data=checkpoint_data||%s WHERE id=%s",
+                            (document({"reconciliation":{**saved,"history_cursor":cursor,"due_at":due.isoformat()}}),row["id"]))
                         continue
                 if job and job["job_state"] == "doing":
                     due = max(due, now + timedelta(seconds=15))

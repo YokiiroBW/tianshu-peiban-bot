@@ -119,14 +119,17 @@ async def test_advanced_head_aborts_after_prelocking_callback_sources(database,k
     value.actions.invoke.assert_not_awaited()
 
 
-async def test_direct_action_observation_also_fences_head_before_life_write(database):
+async def test_terminal_observation_hands_off_without_writing_life(database):
     value = await result_fixture(database,"activity")
-    value.actions.assert_result_head_on = AsyncMock(side_effect=AppError("result_head_advanced",status=409))
-    with pytest.raises(AppError,match="result_head_advanced"):
-        await value.worker.capability_result(value.context,value.original,data_generation=value.data_generation)
+    value.actions.assert_result_head_on = AsyncMock()
+    blocked = {"state":"blocked","reason":"consumer_budget_exhausted","action_id":value.action.action_id}
+    value.actions.ensure_result_consumption = AsyncMock(return_value=blocked)
+    assert await value.worker.capability_result(value.context,value.original,data_generation=value.data_generation) == blocked
     domain,_,episodes = await state(database,"activity")
     assert domain["last_result_revision"] == -1 and domain["last_receipt_id"] is None and episodes == 0
-    assert value.actions.assert_result_head_on.await_count == 1
+    value.actions.assert_result_head_on.assert_not_awaited()
+    value.actions.ensure_result_consumption.assert_awaited_once_with(value.context,value.action.action_id,
+        data_generation=value.data_generation,expected_result_revision=1,expected_receipt_id="original-receipt")
     value.actions.invoke.assert_not_awaited()
 
 
@@ -137,8 +140,13 @@ async def test_terminal_same_revision_with_different_receipt_is_not_marked_done(
     async with database.transaction() as connection:
         await connection.execute(f"UPDATE {table} SET state='completed',last_result_revision=1,last_receipt_id='other' WHERE id=%s",
             (identifier,))
-    value.actions.assert_result_head_on = AsyncMock()
-    with pytest.raises(AppError,match=kind+"_result_identity_conflict"):
-        await value.worker.capability_result(value.context,value.original,data_generation=value.data_generation)
+    async def complete(*_args,**_kwargs):
+        pytest.fail("conflicting evidence must never be completed")
+    complete.fence = AsyncMock()
+    complete.source_refs = ()
+    method = value.worker._activity_result if kind == "activity" else value.worker._commitment_result
+    with pytest.raises(AppError,match="local_result_application_unconfirmed"):
+        await method(value.context,value.original,1,datetime.now(UTC),"content.read",
+            on_complete=complete,expected_owner_id=identifier,data_generation=value.data_generation)
     domain,_,episodes = await state(database,kind)
     assert domain["last_receipt_id"] == "other" and episodes == 0
