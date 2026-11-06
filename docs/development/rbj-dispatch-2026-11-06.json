@@ -357,7 +357,8 @@
   "integration_notes": [
     "Register new named Sources/Runtime/Conversation SQL only after receiving exact handoffs; rbj_result_repair_evidence.sql is planned, not yet accepted or deployed.",
     "Adapt affected legacy Life planner/action-result test fixtures centrally to asynchronous public handoff semantics; do not treat direct private callback tests as observer acceptance.",
-    "Sources Python public calls map source_dependency_budget_exceeded; direct SQL callers retain distinct SQLSTATE 54000. Verify affected Memory read/retraction semantics without treating budget as business false."
+    "Sources Python public calls map source_dependency_budget_exceeded; direct SQL callers retain distinct SQLSTATE 54000. Verify affected Memory read/retraction semantics without treating budget as business false.",
+    "Runtime wake-exit proof for exact covered generation/job/native ordinal must prevent importing native succeeded as repair applied; require persisted covered_by and no existing begin fact. Domain handlers propagate the verified covered result. SQL/central validation pending."
   ],
   "contract_1_4_note": "Sources owns bounded lock-closure discovery and fresh post-lock verification; private budget spans lock graph and proof evaluation; no public signature or other domain ownership change."
 }
