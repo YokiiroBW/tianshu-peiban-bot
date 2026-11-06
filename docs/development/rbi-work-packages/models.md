@@ -30,6 +30,7 @@
 - src/tianshu/models/broker.py
 - src/tianshu/models/transport_diagnostic.py
 - src/tianshu/models/codec.py
+- src/tianshu/models/ledger.py
 - src/tianshu/models/rbi_*.py
 - tests/models/test_rbi_*.py
 - tests/models/test_rbh_transport_evidence.py

@@ -1,6 +1,6 @@
 # 分域恢复与业务收敛方案，2026-11-06
 
-状态：用户已批准修订 2 并要求交付对应窗口，现进入实现派发准备；尚未完成 RBI 产品实现、验证或发布。公共语义由 rbi-interfaces-2026-11-06.md 冻结，精确派发以 rbi-dispatch-2026-11-06.json 为准。修订 2 已对照北京时间 2026-11-06 10:04 巡检、10:09 汇总更新。
+状态：用户已批准修订 2，七个既有窗口已正式接收并进入实现；尚未完成 RBI 产品实现、验证或发布。公共语义由 rbi-interfaces-2026-11-06.md 冻结，共同准备提交 18d640c4，精确派发以 rbi-dispatch-2026-11-06.json 为准。修订 2 已对照北京时间 2026-11-06 10:04 巡检、10:09 汇总更新。
 
 ## 1. 结论与选择
 
@@ -58,6 +58,16 @@
 未关联的 model-broker unknown/attempt_not_found、conversation.result QueryCanceled 事件继续标为 unscoped/uncorrelated。不能从它们推定上述四个失败任务的原因；后续按准确 job/receipt/attempt 查证。
 
 证据：[10:04 快照](C:/YOKI/Codex/tianshu-peiban-bot/.runtime/rbh-execution-20261105/full-chain-20261106T020445Z.json)、[09:34 结果消费定向](C:/YOKI/Codex/tianshu-peiban-bot/.runtime/rbh-execution-20261105/monitor-detail-20261106T0134Z.json)、[10:04 补证](C:/YOKI/Codex/tianshu-peiban-bot/.runtime/rbh-execution-20261105/monitor-followup-20261106T0204Z.json)及[补证二](C:/YOKI/Codex/tianshu-peiban-bot/.runtime/rbh-execution-20261105/monitor-followup2-20261106T0204Z.json)。旧时间命名的字段属于历史证据，不作为本轮重新观测。
+
+### 2.2 正式派发后的根定向补证，10:44
+
+根以只读连接查询准确 ID，未执行恢复或写生产。两条新结果的 life_activity 均为 pending/attempts=2/reason=QueryCanceled，无有效租约、无完成 proof；renderer/dialogue 已 not_applicable，其余消费者尚未开始。这已将最近的错误关联到准确 Life 消费分支，但四个 job 的每次原始异常、SQL 和提交确定性仍未保存，不能扩成全部由同一原因导致。
+
+原 invalid_upstream_response attempt 的 Models 回执存在：failed/submitted、输出已观察、native_completed=true、completion=complete/stop，但 result 未保存，旧 failure_stage/error_type 均为空。因此没有原失败输出可安全重解析，具体历史异常阶段继续未知。
+
+job 78316 为 sequence=0 的重启观察；原 Action 的固定观察 key 0～5 均有已完成历史任务。被拒绝 incoming 载荷未持久化，第二摘要与字段差异仍不可得。上述结果用于定向用例，不据缺失证据猜原输入。
+
+去敏元数据只读证据位于 [RBI 派发补证](C:/YOKI/Codex/tianshu-peiban-bot/.runtime/rbi-execution-20261106/dispatch-evidence.json)。原规划两次调用与 Memory 高用量仍按 P1 补证后决定，不自动去重或改变合法重评。
 
 ## 3. 权威、身份与执行边界
 

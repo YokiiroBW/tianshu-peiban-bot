@@ -1,6 +1,6 @@
-# 2026-11-06 RBI 分域恢复修复已授权
+# 2026-11-06 RBI 分域恢复修复已派发
 
-用户已审阅修订 2 并要求“交付对应窗口修复吧”。本批 RBI-01/02/03/04/05/06/09 复用 Runtime、Models、Memory、Life、Growth、Logs、Conversation 七个既有窗口，各自全新独立工作树/分支；统一 gpt-6.1-terra / max / 普通速度，不创建新聊天或子代理，不续写旧完成卡。
+用户已审阅修订 2 并要求“交付对应窗口修复吧”。本批 RBI-01/02/03/04/05/06/09 复用 Runtime、Models、Memory、Life、Growth、Logs、Conversation 七个既有窗口，另由既有Sources窗口RBI-10补Goal原子事务所需的多context来源批预锁；各自全新独立工作树/分支，统一 gpt-6.1-terra / max / 普通速度，不创建新聊天或子代理，不续写旧完成卡。
 
 以 docs/development/domain-recovery-plan-2026-11-06.md、domain-recovery-queue-2026-11-06.md、rbi-interfaces-2026-11-06.md 和 rbi-work-packages 本号卡为准。本批唯一协调聊天为 01a1ac6f-8494-7f82-8c4d-ec7d285f44ae；用户现有派发与回执授权沿用本批协作，不回到已收尾的旧协调卡。
 

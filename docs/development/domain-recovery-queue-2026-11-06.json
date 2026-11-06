@@ -3,13 +3,13 @@
   "planning_id": "RBI-20261106",
   "date": "2026-11-06",
   "timezone": "Asia/Shanghai",
-  "state": "dispatch_preparing",
+  "state": "implementation_in_progress",
   "canonical_queue": "docs/development/domain-recovery-queue-2026-11-06.md",
   "design": "docs/development/domain-recovery-plan-2026-11-06.md",
   "scope": "保留六角色与领域状态机，修复新鲜回执续接、可靠观察唤醒、已知失败修复后领取和领域有界补漏",
-  "product_implementation_started": false,
-  "dispatch_performed": false,
-  "production_operations_performed": false,
+  "product_implementation_started": true,
+  "dispatch_performed": true,
+  "production_operations_performed": true,
   "baseline": {
     "integration_checkout": "C:/Users/Administrator/.codex/worktrees/rb-integration/tianshu-peiban-bot",
     "integration_head": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
@@ -117,10 +117,18 @@
         "reasoning_effort": "max",
         "service_tier": "default",
         "fast_mode": false
+      },
+      {
+        "id": "RBI-10",
+        "thread_id": "01a1a772-e813-76e3-9869-be43c2a4834c",
+        "host_id": "local",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
+        "branch": "codex/rbi-sources-20261106",
+        "card": "docs/development/rbi-work-packages/sources.md"
       }
     ],
-    "worktrees_created": false,
-    "branches_created": false,
+    "worktrees_created": true,
+    "branches_created": true,
     "reuse_existing_domain_windows_when_dispatched": true,
     "worktree_policy": "每个实现包一个独立新分支/工作树；不续写已完成 RBH/RBG 卡；实际派发前复核最新集成头",
     "implementation_delivery": "整块实现、必要回归用例和静态审阅后提交；实现窗口不运行测试、构建、烟测或生产命令",
@@ -129,7 +137,13 @@
     "unaffected_validation_reused": true,
     "authorization": "用户在本协调聊天明确要求交付对应窗口修复，已授权七个既有窗口实施和必要协作回执",
     "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-    "integration_branch": "codex/rbi-integration-20261106"
+    "integration_branch": "codex/rbi-integration-20261106",
+    "parallel_work_started": true,
+    "preparation_commit": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+    "dispatch_manifest": "docs/development/rbi-dispatch-2026-11-06.json",
+    "dispatched_at_utc": "2026-11-06 02:36:23 UTC",
+    "contract_revision": "1.3",
+    "additional_dependency": "RBI-10 existing Sources window; required to preserve same-transaction Goal contract"
   },
   "shared_ownership": {
     "coordinator_only": [
@@ -271,7 +285,7 @@
       "priority": "P0",
       "owner": "coordinator",
       "title": "冻结窄合同、当前基线和补证清单",
-      "status": "contract_frozen",
+      "status": "complete",
       "depends_on": [],
       "kind": "coordination",
       "write_scope": [
@@ -301,7 +315,7 @@
       "priority": "P0",
       "owner": "Runtime",
       "title": "恢复领取机械边界与 role 内维护回调",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "depends_on": [
         "RBI-00"
       ],
@@ -317,7 +331,8 @@
         "tests/runtime/test_rbi_*.py",
         "tests/runtime/test_rb_recovery_policy.py",
         "tests/runtime/test_rbf_database_jobs.py",
-        "docs/handoffs/RBI-01.md"
+        "docs/handoffs/RBI-01.md",
+        "tests/runtime/test_rbf_probe_leases.py"
       ],
       "deliverables": [
         "优先复用现有端口；确有缺口才补 repair_ref 幂等修复领取",
@@ -336,14 +351,15 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
-      "card": "docs/development/rbi-work-packages/runtime.md"
+      "card": "docs/development/rbi-work-packages/runtime.md",
+      "implementation_turn_id": "01a1aeb3-d82b-7962-9556-ebf9e035f077"
     },
     {
       "id": "RBI-02",
       "priority": "P0",
       "owner": "Models",
       "title": "invalid_upstream_response 准确归因与原输出复用证据",
-      "status": "prepared_not_sent",
+      "status": "candidate_submitted",
       "depends_on": [
         "RBI-00"
       ],
@@ -357,13 +373,15 @@
         "tests/models/test_rbi_*.py",
         "tests/models/test_rbh_transport_evidence.py",
         "tests/models/test_result_recovery.py",
-        "docs/handoffs/RBI-02.md"
+        "docs/handoffs/RBI-02.md",
+        "src/tianshu/models/ledger.py"
       ],
       "deliverables": [
         "原 Growth attempt 的去敏阶段/异常类型证据",
         "既有 diagnostic 内区分协议解析、领域内容、程序异常与传输事实",
         "复用已留存原输出的合法本地解析路径，缺证据保持 unknown",
-        "429/502/503 的发送、结果、用量/hold_until 语义与去敏原身份关联；缺失证据不推断"
+        "429/502/503 的发送、结果、用量/hold_until 语义与去敏原身份关联；缺失证据不推断",
+        "已成功提交后的诊断写入/额度释放受状态和broker_instance原子保护；本域ledger与broker同包"
       ],
       "acceptance": [
         "不把 read_complete 后所有本地异常当作模型坏输出",
@@ -375,14 +393,17 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
       "branch": "codex/rbi-models-20261106",
-      "card": "docs/development/rbi-work-packages/models.md"
+      "card": "docs/development/rbi-work-packages/models.md",
+      "implementation_turn_id": "01a1aeb3-dcad-7e11-a804-701d09c57132",
+      "source_commit": "7715afa5144be098a8b9431d1cda03b1a3aae4ec",
+      "verification": "static_only_not_tested"
     },
     {
       "id": "RBI-03",
       "priority": "P0",
       "owner": "Memory",
       "title": "新鲜回执驱动续接、原批恢复与本域补漏",
-      "status": "prepared_not_sent",
+      "status": "candidate_followup_in_progress",
       "depends_on": [
         "RBI-00"
       ],
@@ -403,7 +424,8 @@
         "tests/memory/test_rbi_*.py",
         "tests/memory/test_rbh_memory_transport_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py",
-        "docs/handoffs/RBI-03.md"
+        "docs/handoffs/RBI-03.md",
+        "src/tianshu/memory/rbh_transport.py"
       ],
       "deliverables": [
         "同次权威观测原子同步领域投影和 Runtime 记账，直接传递新鲜 outcome",
@@ -424,7 +446,8 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
-      "card": "docs/development/rbi-work-packages/memory.md"
+      "card": "docs/development/rbi-work-packages/memory.md",
+      "implementation_turn_id": "01a1aeb3-e0ed-7732-a484-9b7b0924f21e"
     },
     {
       "id": "RBI-04",
@@ -432,12 +455,13 @@
       "conditional_priority": "P1 planning investigation",
       "owner": "Life",
       "title": "稳定观察原 Action、可靠唤醒与条件式规划修复",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "depends_on": [
         "RBI-00"
       ],
       "assembly_depends_on": [
-        "RBI-01"
+        "RBI-01",
+        "RBI-10"
       ],
       "kind": "implementation",
       "branch_candidate": "codex/rbi-life-20261106",
@@ -457,7 +481,14 @@
         "tests/life/test_activity_execution_context.py",
         "tests/life/test_rbf_planning_recovery.py",
         "tests/life/test_rbh_transport_recovery.py",
-        "docs/handoffs/RBI-04.md"
+        "docs/handoffs/RBI-04.md",
+        "src/tianshu/life/events.py",
+        "src/tianshu/life/generation_control.py",
+        "src/tianshu/life/rbh_transport_recovery.py",
+        "src/tianshu/life/contacts.py",
+        "tests/life/test_rbg_result_consumers.py",
+        "tests/life/test_goal_source_transaction.py",
+        "tests/life/test_rb_plan_recovery.py"
       ],
       "deliverables": [
         "先补 job 78316 的冲突字段证据，再收敛唯一 ensure_reconcile_on",
@@ -479,14 +510,15 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
-      "card": "docs/development/rbi-work-packages/life.md"
+      "card": "docs/development/rbi-work-packages/life.md",
+      "implementation_turn_id": "01a1aeb3-e586-7e30-88ca-2c3f58f5f78d"
     },
     {
       "id": "RBI-05",
       "priority": "P0",
       "owner": "Growth",
       "title": "按真实失败分类恢复原反思批与本域补漏",
-      "status": "prepared_not_sent",
+      "status": "candidate_followup_in_progress",
       "depends_on": [
         "RBI-00",
         "RBI-01",
@@ -529,20 +561,24 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
-      "card": "docs/development/rbi-work-packages/growth.md"
+      "card": "docs/development/rbi-work-packages/growth.md",
+      "implementation_turn_id": "01a1aeb3-ea15-77a0-bbdc-605dfdc1a4ba",
+      "source_commit": "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
+      "handoff_commit": "4024a2ec97f5380a9452cefe2ff5104ed5009613"
     },
     {
       "id": "RBI-09",
       "priority": "P0",
       "owner": "Conversation",
       "title": "成功结果消费停滞、恢复观察空转与前台本域补漏",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "depends_on": [
         "RBI-00"
       ],
       "assembly_depends_on": [
         "RBI-01",
-        "RBI-04"
+        "RBI-04",
+        "RBI-10"
       ],
       "kind": "implementation",
       "branch_candidate": "codex/rbi-result-consumption-20261106",
@@ -554,7 +590,12 @@
         "src/tianshu/conversation/rbi_*.sql",
         "tests/conversation/test_rbi_*.py",
         "tests/conversation/test_rbg_result_withdrawal.py",
-        "docs/handoffs/RBI-09.md"
+        "docs/handoffs/RBI-09.md",
+        "src/tianshu/capabilities/actions.py",
+        "src/tianshu/capabilities/rbi_result_head.py",
+        "src/tianshu/conversation/rendering.py",
+        "src/tianshu/conversation/service.py",
+        "src/tianshu/conversation/expression.py"
       ],
       "deliverables": [
         "先关联四个原/恢复消费任务的准确错误和事务结果，不用未关联QueryCanceled替代归因",
@@ -575,14 +616,15 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
-      "card": "docs/development/rbi-work-packages/conversation.md"
+      "card": "docs/development/rbi-work-packages/conversation.md",
+      "implementation_turn_id": "01a1aeb3-ef04-7231-a3b8-1640877fa521"
     },
     {
       "id": "RBI-06",
       "priority": "P1",
       "owner": "Logs/Operations",
       "title": "业务推进、物理未知与逐项采样覆盖",
-      "status": "prepared_not_sent",
+      "status": "candidate_submitted",
       "depends_on": [
         "RBI-00"
       ],
@@ -620,14 +662,51 @@
       "host_id": "local",
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
       "branch": "codex/rbi-observability-20261106",
-      "card": "docs/development/rbi-work-packages/observability.md"
+      "card": "docs/development/rbi-work-packages/observability.md",
+      "implementation_turn_id": "01a1aeb3-f3b1-7f52-8448-380b1568ec6f",
+      "source_commit": "c869be9b7aa916082b57a424fbef6bb8b52c2bc9",
+      "handoff_commit": "7c18f274610a535cb400caf570f52ca87d6e690c",
+      "verification": "static_only_not_tested"
+    },
+    {
+      "id": "RBI-10",
+      "priority": "P0",
+      "owner": "Sources",
+      "title": "多上下文完整来源批预锁，保留Goal与原回执原子合同",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "kind": "implementation",
+      "thread_id": "01a1a772-e813-76e3-9869-be43c2a4834c",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
+      "branch": "codex/rbi-sources-20261106",
+      "card": "docs/development/rbi-work-packages/sources.md",
+      "write_scope": [
+        "src/tianshu/sources/service.py",
+        "src/tianshu/sources/ports.py",
+        "src/tianshu/sources/rbi_*.py",
+        "tests/sources/test_rbi_*.py",
+        "docs/handoffs/RBI-10.md"
+      ],
+      "deliverables": [
+        "prepare_event_writes增加scoped_refs=()，保留aliases与旧调用",
+        "完整Identity/事件/来源批锁后分别按真实context授权",
+        "不改Life Goal原子性、不引入中央业务执行器"
+      ],
+      "acceptance": [
+        "private goal refs不能用public planning_context授权",
+        "不同输入顺序锁序一致；context之间不越权复用证明",
+        "来源撤回/版本/alias/空参数兼容的真实隔离用例代码"
+      ]
     },
     {
       "id": "RBI-07",
       "priority": "P0",
       "owner": "coordinator",
       "title": "串行集成、共享装配与集中必要时序验证",
-      "status": "planned",
+      "status": "waiting_implementation",
       "depends_on": [
         "RBI-01",
         "RBI-02",
@@ -635,7 +714,8 @@
         "RBI-04",
         "RBI-05",
         "RBI-06",
-        "RBI-09"
+        "RBI-09",
+        "RBI-10"
       ],
       "kind": "integration",
       "write_scope": [
@@ -668,7 +748,7 @@
       "priority": "P0",
       "owner": "coordinator-production-writer",
       "title": "保留数据发布、准确原对象恢复与下一轮自然巡检",
-      "status": "planned",
+      "status": "not_started",
       "depends_on": [
         "RBI-07"
       ],
@@ -711,6 +791,13 @@
       ],
       "existing_task_ids_preserved": true,
       "dispatch_or_execution_started": false
+    },
+    {
+      "revision": "execution-dependency-1",
+      "added_tasks": [
+        "RBI-10"
+      ],
+      "reason": "源码/现有测试确认Life Goal和原回执同事务；需要各context独立授权的批预锁公共口，不能拆异步或扁平化权限"
     }
   ],
   "patrol_review": {
@@ -776,5 +863,15 @@
         "action": "保留 unscoped/uncorrelated，只有精确 attempt/job/receipt 链可作因果依据"
       }
     ]
+  },
+  "production_read_only_evidence_performed": true,
+  "production_writes_performed": false,
+  "production_operation_scope": "bounded_read_only_metadata_only",
+  "implementation_evidence": {
+    "primary": ".runtime/rbi-execution-20261106/dispatch-evidence.json",
+    "followup": ".runtime/rbi-execution-20261106/dispatch-evidence-followup.json",
+    "scope": "exact IDs, no body or credentials; DB sessions read-only",
+    "confirmed": "two result life_activity branches recorded QueryCanceled; original Models failed output not saved",
+    "unknown": "per-job original SQL/commit certainty; old model failure class; historic review boundary; whole-window duplicate work"
   }
 }

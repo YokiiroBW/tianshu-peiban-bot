@@ -36,6 +36,7 @@
 - src/tianshu/runtime/rbi_*.sql
 - tests/runtime/test_rbi_*.py
 - tests/runtime/test_rb_recovery_policy.py
+- tests/runtime/test_rbf_probe_leases.py
 - tests/runtime/test_rbf_database_jobs.py
 - docs/handoffs/RBI-01.md
 

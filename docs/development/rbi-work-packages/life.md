@@ -32,6 +32,10 @@
 ## 允许写路径
 
 - src/tianshu/life/worker.py
+- src/tianshu/life/events.py
+- src/tianshu/life/contacts.py
+- src/tianshu/life/generation_control.py
+- src/tianshu/life/rbh_transport_recovery.py
 - src/tianshu/life/recovery.py
 - src/tianshu/life/service.py
 - src/tianshu/life/clock.py
@@ -44,6 +48,9 @@
 - src/tianshu/life/rbi_*.sql
 - tests/life/test_rbi_*.py
 - tests/life/test_activity_execution_context.py
+- tests/life/test_rbg_result_consumers.py
+- tests/life/test_goal_source_transaction.py
+- tests/life/test_rb_plan_recovery.py
 - tests/life/test_rbf_planning_recovery.py
 - tests/life/test_rbh_transport_recovery.py
 - docs/handoffs/RBI-04.md

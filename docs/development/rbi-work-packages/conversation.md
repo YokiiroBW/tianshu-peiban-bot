@@ -31,6 +31,11 @@
 ## 允许写路径
 
 - src/tianshu/conversation/results.py
+- src/tianshu/conversation/rendering.py
+- src/tianshu/conversation/service.py
+- src/tianshu/conversation/expression.py
+- src/tianshu/capabilities/actions.py
+- src/tianshu/capabilities/rbi_result_head.py
 - src/tianshu/conversation/rbg_result_recovery.py
 - src/tianshu/conversation/rbg_result_ledger.py
 - src/tianshu/conversation/rbi_*.py

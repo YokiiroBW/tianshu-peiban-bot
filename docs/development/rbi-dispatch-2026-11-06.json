@@ -1,18 +1,18 @@
 {
   "schema_version": 1,
   "batch": "RBI-20261106",
-  "state": "preparing_worktrees",
+  "state": "implementation_in_progress",
   "user_authorization": "交付对应窗口修复吧",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "baseline_source": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
   "production_source_from_latest_patrol": "aa5662b74e172facf2cda62294adfeb23a15a178",
   "integration_root": "C:/Users/Administrator/.codex/worktrees/rb-integration/tianshu-peiban-bot",
   "integration_branch": "codex/rbi-integration-20261106",
-  "preparation_commit": null,
+  "preparation_commit": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
   "started_at_utc": "2026-11-06 02:28:54 UTC",
   "contract": "docs/development/rbi-interfaces-2026-11-06.md",
-  "contract_revision": 1,
-  "task_count": 7,
+  "contract_revision": "1.3",
+  "task_count": 8,
   "model": "gpt-6.1-terra",
   "reasoning_effort": "max",
   "service_tier": "default",
@@ -20,7 +20,7 @@
   "verification": "实现窗口仅全包实现+必要用例+静态审阅；根集中运行必要验证",
   "protected": "不清库、不覆盖配置、不发QQ测试、不重放未知副作用；原身份/请求/回执/unknown/来源权限/CAS/代际和预算保留",
   "product_verification_started": false,
-  "production_operations_performed": false,
+  "production_operations_performed": true,
   "coordination": [
     {
       "id": "RBI-00",
@@ -48,7 +48,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -64,11 +64,28 @@
         "tests/runtime/test_rbi_*.py",
         "tests/runtime/test_rb_recovery_policy.py",
         "tests/runtime/test_rbf_database_jobs.py",
-        "docs/handoffs/RBI-01.md"
+        "docs/handoffs/RBI-01.md",
+        "tests/runtime/test_rbf_probe_leases.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e95a-7922-a72f-1beb061dd287",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-d82b-7962-9556-ebf9e035f077",
+      "implementation_started_at": 1793932384,
+      "last_ack": "已接收 RBI-01。我会先核对新工作树、冻结接口和任务边界，确认后回报协调者，再完成本窗口的恢复与装配实现、必要用例和交接；本窗口只做静态检查。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      }
     },
     {
       "id": "RBI-02",
@@ -79,12 +96,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
       "branch": "codex/rbi-models-20261106",
       "card": "docs/development/rbi-work-packages/models.md",
-      "status": "prepared_not_sent",
+      "status": "candidate_submitted",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "7715afa5144be098a8b9431d1cda03b1a3aae4ec",
       "allowed_paths": [
         "src/tianshu/models/broker.py",
         "src/tianshu/models/transport_diagnostic.py",
@@ -93,11 +110,36 @@
         "tests/models/test_rbi_*.py",
         "tests/models/test_rbh_transport_evidence.py",
         "tests/models/test_result_recovery.py",
-        "docs/handoffs/RBI-02.md"
+        "docs/handoffs/RBI-02.md",
+        "src/tianshu/models/ledger.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e93b-73d0-9b3f-33cd579098da",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-dcad-7e11-a804-701d09c57132",
+      "implementation_started_at": 1793932385,
+      "last_ack": "我会先核对 RBI 新工作树、冻结合同和 Models 任务卡，确认现有失败分类与可用证据，再在本卡范围内完成实现、必要用例和静态交接。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      },
+      "superseded_candidate": "a11a26bf56a0dbc85f9594ed391efcdcbf8d5082",
+      "verified": false,
+      "integrated": false,
+      "pending_followup": null,
+      "superseded_candidates": [
+        "a11a26bf56a0dbc85f9594ed391efcdcbf8d5082",
+        "6e755b39fb89de5c4198e42801a87ec92ed70e4b"
+      ]
     },
     {
       "id": "RBI-03",
@@ -108,12 +150,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "status": "prepared_not_sent",
+      "status": "candidate_followup_in_progress",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "fef2b555e83594795f96351b1c0ead493653cb63",
       "allowed_paths": [
         "src/tianshu/memory/consolidation.py",
         "src/tianshu/memory/consolidation_retry.py",
@@ -126,11 +168,29 @@
         "tests/memory/test_rbi_*.py",
         "tests/memory/test_rbh_memory_transport_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py",
-        "docs/handoffs/RBI-03.md"
+        "docs/handoffs/RBI-03.md",
+        "src/tianshu/memory/rbh_transport.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e983-7ad0-b572-61409937e393",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-e0ed-7732-a484-9b7b0924f21e",
+      "implementation_started_at": 1793932386,
+      "last_ack": "我会先核对新的 RBI 工作树和冻结合同，再沿 Memory 原始回执观察与重试链实现 RBI-03；完成后只做静态检查、提交并回报当前协调聊天。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      },
+      "pending_followup": "facts-before-lineage lock order"
     },
     {
       "id": "RBI-04",
@@ -141,7 +201,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -163,11 +223,34 @@
         "tests/life/test_activity_execution_context.py",
         "tests/life/test_rbf_planning_recovery.py",
         "tests/life/test_rbh_transport_recovery.py",
-        "docs/handoffs/RBI-04.md"
+        "docs/handoffs/RBI-04.md",
+        "src/tianshu/life/events.py",
+        "src/tianshu/life/generation_control.py",
+        "src/tianshu/life/rbh_transport_recovery.py",
+        "src/tianshu/life/contacts.py",
+        "tests/life/test_rbg_result_consumers.py",
+        "tests/life/test_goal_source_transaction.py",
+        "tests/life/test_rb_plan_recovery.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e80b-7fa0-95d3-d32d50649745",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-e586-7e30-88ca-2c3f58f5f78d",
+      "implementation_started_at": 1793932387,
+      "last_ack": "我会在新的 RBI Life 工作树中核对基线和本批合同，追踪原 Action 的观察、完成回调与恢复调度，再按任务卡完整实现并提交；本窗口只做静态检查。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      }
     },
     {
       "id": "RBI-05",
@@ -178,12 +261,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
-      "status": "prepared_not_sent",
+      "status": "candidate_followup_in_progress",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
       "allowed_paths": [
         "src/tianshu/companion/growth.py",
         "src/tianshu/companion/growth_retry.py",
@@ -204,7 +287,25 @@
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e96f-7600-a841-94ca8dd26ab6",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-ea15-77a0-bbdc-605dfdc1a4ba",
+      "implementation_started_at": 1793932388,
+      "last_ack": "我会在新建的 RBI-05 工作树中按冻结合同实现 Growth 的失败分类和原批有界续接，并保留现有请求、回执、预算与业务数据。完成后只做静态检查，提交并向本批协调聊天回报。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      },
+      "handoff_commit": "4024a2ec97f5380a9452cefe2ff5104ed5009613",
+      "pending_followup": "unified current-facts validation before Runtime writes"
     },
     {
       "id": "RBI-09",
@@ -215,7 +316,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -229,11 +330,32 @@
         "src/tianshu/conversation/rbi_*.sql",
         "tests/conversation/test_rbi_*.py",
         "tests/conversation/test_rbg_result_withdrawal.py",
-        "docs/handoffs/RBI-09.md"
+        "docs/handoffs/RBI-09.md",
+        "src/tianshu/capabilities/actions.py",
+        "src/tianshu/capabilities/rbi_result_head.py",
+        "src/tianshu/conversation/rendering.py",
+        "src/tianshu/conversation/service.py",
+        "src/tianshu/conversation/expression.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-ef04-7231-a3b8-1640877fa521",
+      "implementation_started_at": 1793932390,
+      "last_ack": "新工作树和 RBI-09 边界已核对。两条原 Action 与四个任务的身份已有明确记录，但方案尚未把具体失败阶段与任务绑定；我正在只读核对对应元数据，同时追踪现有账本、入队和观察逻辑。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      }
     },
     {
       "id": "RBI-06",
@@ -244,12 +366,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
       "branch": "codex/rbi-observability-20261106",
       "card": "docs/development/rbi-work-packages/observability.md",
-      "status": "prepared_not_sent",
+      "status": "candidate_submitted",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "c869be9b7aa916082b57a424fbef6bb8b52c2bc9",
       "allowed_paths": [
         "scripts/ops/rbf_monitor_summary.py",
         "src/tianshu/operations/statistics.py",
@@ -260,7 +382,68 @@
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
-      "dispatch_result": null
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e81f-7a10-8a21-5221bed680f8",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "dispatched": true,
+      "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3",
+      "implementation_turn_id": "01a1aeb3-f3b1-7f52-8448-380b1568ec6f",
+      "implementation_started_at": 1793932391,
+      "last_ack": "我会在新建的 RBI 工作树中核对任务合同和现有巡检实现，补齐摘要事实分类与有界原回执探针，并将装配要求交给本批协调者。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
+      },
+      "handoff_commit": "7c18f274610a535cb400caf570f52ca87d6e690c",
+      "verified": false,
+      "integrated": false
+    },
+    {
+      "id": "RBI-10",
+      "thread_id": "01a1a772-e813-76e3-9869-be43c2a4834c",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
+      "branch": "codex/rbi-sources-20261106",
+      "card": "docs/development/rbi-work-packages/sources.md",
+      "status": "prepared_not_sent",
+      "key": "sources",
+      "title": "RBW 身份来源与失效传播",
+      "allowed_paths": [
+        "src/tianshu/sources/service.py",
+        "src/tianshu/sources/ports.py",
+        "src/tianshu/sources/rbi_*.py",
+        "tests/sources/test_rbi_*.py",
+        "docs/handoffs/RBI-10.md"
+      ],
+      "model": "gpt-6.1-terra",
+      "reasoning_effort": "max",
+      "service_tier": "default",
+      "fast_mode": false,
+      "source_commit": null
     }
-  ]
+  ],
+  "dispatched_at_utc": "2026-11-06 02:36:23 UTC",
+  "product_implementation_started": true,
+  "production_read_only_evidence_performed": true,
+  "production_writes_performed": false,
+  "production_operation_scope": "bounded_read_only_metadata_only",
+  "root_assembly": {
+    "module_maintenance": "Memory/Life/Growth bot-background; ResultConsumer bot-foreground",
+    "result_recovery_actions": "runtime/product_operations.py inject actions=actions",
+    "native_result_budget": "Runtime mechanical execution ledger, max_failures=4, history not reset, no Ops direct access",
+    "optional_observation_fields": "business_observations plus producer/real_samples/queries/target_sets coverage",
+    "pending_domain_sql": [
+      "Memory maintenance",
+      "Growth maintenance",
+      "Life reconciliation/decision_trace",
+      "Conversation result reconciliation",
+      "Runtime repair/execution evidence"
+    ],
+    "validation": "wait for full slices; do not test each micro change or integrate intermediate candidate"
+  }
 }

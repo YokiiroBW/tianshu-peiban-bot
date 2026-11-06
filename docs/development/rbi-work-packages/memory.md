@@ -32,6 +32,7 @@
 - src/tianshu/memory/consolidation.py
 - src/tianshu/memory/consolidation_retry.py
 - src/tianshu/memory/model_outcome.py
+- src/tianshu/memory/rbh_transport.py
 - src/tianshu/memory/workers.py
 - src/tianshu/memory/recovery.py
 - src/tianshu/memory/operations_recovery.py
