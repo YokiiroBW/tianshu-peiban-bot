@@ -16,6 +16,7 @@ from tianshu.runtime import jobs as runtime_jobs
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.migrations import Migration, migrate
+from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
 from tianshu.types import ServiceClass
 
@@ -522,3 +523,331 @@ async def test_uncertain_commit_race_after_begin_holds_original_attempt(database
     assert budget["unknown_held"] == 1 and budget["failed_executions"] == 4
     assert not budget["repair"]["eligible"]
     value.actions.invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("pending", [False, True])
+@pytest.mark.parametrize("allow_successor", [False, True])
+async def test_live_consumer_lease_precedes_pending_and_successor_wakes(database, pending, allow_successor):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        if not pending:
+            await fail_native_job(connection, saved["original_job_id"])
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        claim = await (await connection.execute(
+            "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token='live-owner',"
+            "lease_until=now()+interval '1 minute' WHERE data_generation=%s AND receipt_id='receipt' "
+            "AND consumer='renderer' RETURNING owner_token,lease_until,proof",
+            (saved["data_generation"],))).fetchone()
+        due = await (await connection.execute(
+            "UPDATE conversation.result_deliveries SET rbi_reconcile_due_at=now()+interval '2 hours',"
+            "rbi_reconcile_reason='original-due' WHERE data_generation=%s AND receipt_id='receipt' "
+            "RETURNING rbi_reconcile_due_at,rbi_reconcile_reason", (saved["data_generation"],))).fetchone()
+        original = await (await connection.execute(
+            "SELECT status,args,scheduled_at,queueing_lock FROM procrastinate_jobs WHERE id=%s",
+            (saved["original_job_id"],))).fetchone()
+        count = await (await connection.execute(
+            "SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+        wake = await ensure_on(connection, value.jobs, saved["data_generation"], value.event,
+                               allow_successor=allow_successor, reconcile_stranded=True)
+    assert wake["state"] == "waiting" and wake["reason"] == "consumer_running"
+    assert wake["due_at"] == claim["lease_until"]
+    assert wake["budget"]["failed_executions"] == (0 if pending else 1)
+    assert wake["budget"]["unknown_held"] == 0
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute(
+            "SELECT owner_token,lease_until,proof FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='renderer'",
+            (saved["data_generation"],))).fetchone()
+        same = await (await connection.execute(
+            "SELECT status,args,scheduled_at,queueing_lock FROM procrastinate_jobs WHERE id=%s",
+            (saved["original_job_id"],))).fetchone()
+        after_count = await (await connection.execute(
+            "SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+        after_due = await (await connection.execute(
+            "SELECT rbi_reconcile_due_at,rbi_reconcile_reason FROM conversation.result_deliveries "
+            "WHERE data_generation=%s AND receipt_id='receipt'", (saved["data_generation"],))).fetchone()
+    assert after == claim and same == original and after_count == count and after_due == due
+    value.actions.invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_multiple_live_consumers_wait_for_the_earliest_database_lease(database):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        await connection.execute("UPDATE conversation.result_consumer_progress SET disposition='running',"
+            "owner_token='render-owner',lease_until=now()+interval '2 minutes' "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='renderer'", (saved["data_generation"],))
+        first = await (await connection.execute("UPDATE conversation.result_consumer_progress SET disposition='running',"
+            "owner_token='dialogue-owner',lease_until=now()+interval '1 minute' "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='dialogue' RETURNING lease_until",
+            (saved["data_generation"],))).fetchone()
+        wake = await ensure_on(connection, value.jobs, saved["data_generation"], value.event,
+                               allow_successor=True, reconcile_stranded=True)
+    assert wake["state"] == "waiting" and wake["reason"] == "consumer_running"
+    assert wake["due_at"] == first["lease_until"]
+    candidates = await value.recovery.candidates()
+    facts = await value.recovery.inspect(None, {"id": str(saved["original_job_id"])})
+    observed = await value.recovery.observe(None, None, facts, "observer")
+    assert candidates[0]["executing"] and candidates[0]["due_at"] == first["lease_until"]
+    assert not facts["eligible"] and facts["reason"] == "consumer_running" and facts["due_at"] == first["lease_until"]
+    assert observed["state"] == "pending" and observed["reason"] == "consumer_running"
+    assert observed["due_at"] == first["lease_until"]
+
+
+@pytest.mark.asyncio
+async def test_dispatched_normal_worker_records_real_consumer_lease_wait(database):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        await connection.execute("UPDATE conversation.result_consumer_progress SET disposition='not_applicable',"
+            "reason='fixture_not_applicable' WHERE data_generation=%s AND receipt_id='receipt' AND consumer<>'renderer'",
+            (saved["data_generation"],))
+        claim = await (await connection.execute("UPDATE conversation.result_consumer_progress SET disposition='running',"
+            "owner_token='live-owner',lease_until=now()+interval '1 minute' "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='renderer' RETURNING owner_token,lease_until",
+            (saved["data_generation"],))).fetchone()
+        await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (saved["original_job_id"],))
+    generation_token = runtime_jobs._execution_generation.set(saved["data_generation"])
+    job_token = runtime_jobs._execution_identity.set((saved["original_job_id"], 0, saved["data_generation"]))
+    try:
+        with pytest.raises(RecoveryWait) as wait:
+            await value.consumer.consume(value.event)
+    finally:
+        runtime_jobs._execution_identity.reset(job_token)
+        runtime_jobs._execution_generation.reset(generation_token)
+    assert wait.value.reason == "result_consumer_busy" and wait.value.retry_at == claim["lease_until"]
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute("SELECT owner_token,lease_until FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='renderer'", (saved["data_generation"],))).fetchone()
+        fact = await (await connection.execute("SELECT outcome,retry_at FROM runtime.rbi_execution_facts "
+            "WHERE data_generation=%s AND job_id=%s AND native_attempt=0", (saved["data_generation"], saved["original_job_id"]))).fetchone()
+    assert after == claim and fact == {"outcome": "wait", "retry_at": claim["lease_until"]}
+    value.renderer.on_action_result.assert_not_awaited()
+    value.actions.invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("consumer,disposition,reason", [
+    ("life_activity", "pending", "execution_interrupted"),
+    ("renderer", "blocked", "database_outcome_unconfirmed"),
+    ("dialogue", "blocked", "database_outcome_unconfirmed"),
+])
+async def test_expired_lease_then_reconciles_only_under_consumer_semantics(database, consumer, disposition, reason):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (saved["original_job_id"],))
+    first = await value.recovery._budget_for(saved["data_generation"], value.event)
+    assert first["unknown_held"] == 1
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE procrastinate_jobs SET status='failed',attempts=attempts+1 WHERE id=%s",
+                                 (saved["original_job_id"],))
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        claim = await (await connection.execute(
+            "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token='later-owner',"
+            "lease_until=now()+interval '1 minute' WHERE data_generation=%s AND receipt_id='receipt' AND consumer=%s "
+            "RETURNING lease_until", (saved["data_generation"], consumer))).fetchone()
+    waiting = await value.recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
+        action_id="action", receipt_id="receipt", result_revision=1)
+    assert waiting["state"] == "waiting" and waiting["reason"] == "consumer_running"
+    assert waiting["due_at"] == claim["lease_until"]
+    assert waiting["budget"]["failed_executions"] == 0 and waiting["budget"]["unknown_held"] == 1
+    async with database.transaction() as connection:
+        proof = await (await connection.execute(
+            "SELECT rbi_failed_native FROM conversation.result_deliveries WHERE data_generation=%s AND receipt_id='receipt'",
+            (saved["data_generation"],))).fetchone()
+        assert f"{saved['original_job_id']}:0" in proof["rbi_failed_native"]
+        await connection.execute("UPDATE conversation.result_consumer_progress SET lease_until=now()-interval '1 second' "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer=%s", (saved["data_generation"], consumer))
+    recovered = await value.recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
+        action_id="action", receipt_id="receipt", result_revision=1)
+    assert recovered["budget"]["failed_executions"] == 1 and recovered["budget"]["unknown_held"] == 0
+    async with database.transaction(read_only=True) as connection:
+        progress = await (await connection.execute(
+            "SELECT disposition,reason,owner_token,lease_until FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer=%s",
+            (saved["data_generation"], consumer))).fetchone()
+    assert progress == {"disposition": disposition, "reason": reason, "owner_token": None, "lease_until": None}
+    value.renderer.on_action_result.assert_not_awaited()
+    value.consumer.conversation.on_result.assert_not_awaited()
+    value.actions.invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_expired_atomic_claim_can_reacquire_and_commit_with_its_own_proof(database):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        old_token, _ = await ledger.claim_on(connection, saved["data_generation"], "receipt", "life_activity")
+        await connection.execute("UPDATE conversation.result_consumer_progress SET lease_until=now()-interval '1 second' "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='life_activity'", (saved["data_generation"],))
+        new_token, _ = await ledger.claim_on(connection, saved["data_generation"], "receipt", "life_activity")
+        await connection.execute("INSERT INTO test_rbj_memory(receipt_id) VALUES ('receipt')")
+        await ledger.complete_on(connection, saved["data_generation"], "receipt", "life_activity", new_token,
+                                 proof={"activity_id": "activity", "last_result_revision": 1,
+                                        "last_receipt_id": "receipt"})
+    assert old_token != new_token
+    async with database.transaction(read_only=True) as connection:
+        progress = await (await connection.execute("SELECT disposition,proof,attempts FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='life_activity'", (saved["data_generation"],))).fetchone()
+        effect = await (await connection.execute("SELECT receipt_id FROM test_rbj_memory WHERE receipt_id='receipt' ")).fetchone()
+    assert progress["disposition"] == "done" and progress["proof"]["last_receipt_id"] == "receipt"
+    assert progress["attempts"] == 2 and effect == {"receipt_id": "receipt"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("native", [False, True])
+@pytest.mark.parametrize("consumer,lease_kind,error_code", [
+    ("renderer", "expired", "result_consumer_outcome_unknown"),
+    ("dialogue", "expired", "result_consumer_outcome_unknown"),
+    ("life_activity", "missing_due", "result_consumer_lease_unknown"),
+    ("life_activity", "missing_owner", "result_consumer_lease_unknown"),
+])
+async def test_unproven_consumer_claim_is_not_replayed_by_direct_or_native_entry(
+        database, native, consumer, lease_kind, error_code):
+    value = await setup(database)
+    saved = await publish(value, database)
+    async with database.transaction() as connection:
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        await connection.execute("UPDATE conversation.result_consumer_progress SET disposition='not_applicable',"
+            "reason='fixture_not_applicable' WHERE data_generation=%s AND receipt_id='receipt' AND consumer<>%s",
+            (saved["data_generation"], consumer))
+        await connection.execute("UPDATE conversation.result_consumer_progress SET proof=%s "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='renderer' AND consumer<>%s",
+            (Jsonb({"rendered": False}), saved["data_generation"], consumer))
+        await connection.execute("UPDATE conversation.result_consumer_progress SET disposition='running',"
+            "owner_token=%s,lease_until=CASE WHEN %s='expired' THEN now()-interval '1 second' "
+            "WHEN %s='missing_owner' THEN now()+interval '1 minute' ELSE NULL END "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer=%s",
+            (None if lease_kind == "missing_owner" else "original-owner", lease_kind, lease_kind,
+             saved["data_generation"], consumer))
+        before = await (await connection.execute(
+            "SELECT disposition,owner_token,lease_until,proof FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer=%s",
+            (saved["data_generation"], consumer))).fetchone()
+    blocked = await value.recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
+        action_id="action", receipt_id="receipt", result_revision=1)
+    assert blocked["state"] == "blocked"
+    assert blocked["reason"] == ("result_consumer_outcome_unknown" if lease_kind == "expired" else "result_consumer_lease_unknown")
+    assert blocked["outcome"] == "unknown"
+    facts = await value.recovery.inspect(None, {"id": str(saved["original_job_id"])})
+    observed = await value.recovery.observe(None, None, facts, "observer")
+    assert not facts["eligible"] and facts["reason"] == blocked["reason"]
+    assert observed["state"] == "unknown" and observed["reason"] == blocked["reason"]
+    generation_token = job_token = None
+    if native:
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (saved["original_job_id"],))
+        generation_token = runtime_jobs._execution_generation.set(saved["data_generation"])
+        job_token = runtime_jobs._execution_identity.set((saved["original_job_id"], 0, saved["data_generation"]))
+    try:
+        with pytest.raises(AppError, match=error_code):
+            await value.consumer.consume(value.event)
+    finally:
+        if native:
+            runtime_jobs._execution_identity.reset(job_token)
+            runtime_jobs._execution_generation.reset(generation_token)
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute(
+            "SELECT disposition,owner_token,lease_until,proof FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer=%s",
+            (saved["data_generation"], consumer))).fetchone()
+        original = await (await connection.execute("SELECT args FROM procrastinate_jobs WHERE id=%s",
+            (saved["original_job_id"],))).fetchone()
+        if native:
+            fact = await (await connection.execute(
+                "SELECT outcome FROM runtime.rbi_execution_facts WHERE data_generation=%s AND job_id=%s AND native_attempt=0",
+                (saved["data_generation"], saved["original_job_id"]))).fetchone()
+            assert fact == {"outcome": "unknown"}
+    assert after == before and original["args"]["event"] == value.event
+    assert (await value.actions.get("action", value.action.context))["receipt"] == value.event["receipt"]
+    value.renderer.on_action_result.assert_not_awaited()
+    value.consumer.conversation.on_result.assert_not_awaited()
+    assert value.life.activity_calls == 0
+    value.actions.invoke.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_authorized_repair_waits_for_another_consumer_without_spending_grant(database):
+    value = await setup(database)
+    saved = await exhaust(database, value)
+    assert (await register_and_authorize(database, value, saved))["state"] == "accepted"
+    async with database.transaction() as connection:
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        claim = await (await connection.execute(
+            "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token='live-owner',"
+            "lease_until=now()+interval '1 minute' WHERE data_generation=%s AND receipt_id='receipt' "
+            "AND consumer='renderer' RETURNING lease_until", (saved["data_generation"],))).fetchone()
+        count = await (await connection.execute(
+            "SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+    result = await schedule_repair(value, saved)
+    assert result["state"] == "waiting" and result["reason"] == "consumer_running"
+    assert result["due_at"] == claim["lease_until"]
+    assert result["budget"]["failed_executions"] == 4 and result["budget"]["repair"]["remaining"] == 1
+    async with database.transaction(read_only=True) as connection:
+        after_count = await (await connection.execute(
+            "SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+        grant = await (await connection.execute("SELECT closed_at FROM runtime.rbj_execution_repair_grants "
+            "WHERE repair_ref=%s AND consumer=%s", (REPAIR_REF, CONSUMER))).fetchone()
+    assert after_count == count and grant["closed_at"] is None and value.life.activity_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_repair_authorization_waits_for_other_consumer_without_granting(database):
+    value = await setup(database)
+    saved = await exhaust(database, value)
+    async with database.transaction() as connection:
+        await value.jobs.register_execution_repair_on(connection, owner=EXECUTION_OWNER, repair_ref=REPAIR_REF,
+            repair_revision=REPAIR_REVISION, defect_key=DEFECT_KEY, consumer=CONSUMER)
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        claim = await (await connection.execute(
+            "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token='live-owner',"
+            "lease_until=now()+interval '1 minute' WHERE data_generation=%s AND receipt_id='receipt' "
+            "AND consumer='renderer' RETURNING lease_until", (saved["data_generation"],))).fetchone()
+    result = await value.recovery.authorize_local_repair(saved["original_job_id"],
+        data_generation=saved["data_generation"], action_id="action", receipt_id="receipt", result_revision=1,
+        repair_ref=REPAIR_REF, repair_revision=REPAIR_REVISION, defect_key=DEFECT_KEY,
+        repair_consumer=CONSUMER, defect_evidence_ref="verified-native-failure-evidence",
+        material_digest=signature(value.event))
+    assert result["state"] == "waiting" and result["reason"] == "consumer_running"
+    assert result["due_at"] == claim["lease_until"] and result["budget"]["failed_executions"] == 4
+    async with database.transaction(read_only=True) as connection:
+        grant = await (await connection.execute("SELECT 1 FROM runtime.rbj_execution_repair_grants "
+            "WHERE repair_ref=%s AND consumer=%s", (REPAIR_REF, CONSUMER))).fetchone()
+    assert grant is None and value.life.activity_calls == 0
+
+
+@pytest.mark.asyncio
+async def test_dispatched_repair_waits_for_other_consumer_without_beginning(database):
+    value = await setup(database)
+    saved = await exhaust(database, value)
+    assert (await register_and_authorize(database, value, saved))["state"] == "accepted"
+    repair = await schedule_repair(value, saved)
+    async with database.transaction() as connection:
+        await ledger.initialize_on(connection, saved["data_generation"], value.event, wire(value.action), "actor")
+        claim = await (await connection.execute(
+            "UPDATE conversation.result_consumer_progress SET disposition='running',owner_token='live-owner',"
+            "lease_until=now()+interval '1 minute' WHERE data_generation=%s AND receipt_id='receipt' "
+            "AND consumer='renderer' RETURNING lease_until", (saved["data_generation"],))).fetchone()
+    with pytest.raises(RecoveryWait) as wait:
+        await run_native(database, value, saved, repair["job_id"])
+    assert wait.value.reason == "consumer_running" and wait.value.retry_at == claim["lease_until"]
+    async with database.transaction(read_only=True) as connection:
+        stopped = await (await connection.execute(
+            "SELECT decision,reason FROM conversation.rbj_result_preflight_stops WHERE data_generation=%s AND job_id=%s",
+            (saved["data_generation"], repair["job_id"]))).fetchone()
+        fact = await (await connection.execute("SELECT 1 FROM runtime.rbi_execution_facts "
+            "WHERE data_generation=%s AND job_id=%s", (saved["data_generation"], repair["job_id"]))).fetchone()
+        budget = await value.jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER,
+            identity=execution_identity(saved["data_generation"], value.event),
+            data_generation=saved["data_generation"], max_failures=MAX_FAILURES,
+            repair_ref=REPAIR_REF, consumer=CONSUMER)
+    assert stopped == {"decision": "blocked", "reason": "consumer_running"} and fact is None
+    assert budget["failed_executions"] == 4 and budget["repair"]["remaining"] == 1
+    assert value.life.activity_calls == 0

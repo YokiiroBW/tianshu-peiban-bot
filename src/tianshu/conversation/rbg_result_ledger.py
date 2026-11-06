@@ -8,6 +8,7 @@ from .codec import document
 
 CONSUMERS = ("renderer", "dialogue", "life_activity", "life_commitment", "detached", "memory")
 TERMINAL = frozenset({"done", "not_applicable", "superseded", "invalidated"})
+NONATOMIC_CONSUMERS = frozenset({"renderer", "dialogue"})
 
 
 def event_identity(event):
@@ -103,8 +104,13 @@ async def claim_on(connection, generation, receipt_id, consumer):
         return None, row
     if row["disposition"] == "blocked":
         raise AppError("result_consumer_blocked", status=409, details={"consumer": consumer})
-    if row["disposition"] == "running" and row["lease_until"] and row["lease_until"] > row["now"]:
-        raise RecoveryWait("result_consumer_busy", row["lease_until"], dependency="result_consumer")
+    if row["disposition"] == "running":
+        if not row["owner_token"] or row["lease_until"] is None:
+            raise AppError("result_consumer_lease_unknown", status=409)
+        if row["lease_until"] > row["now"]:
+            raise RecoveryWait("result_consumer_busy", row["lease_until"], dependency="result_consumer")
+        if consumer in NONATOMIC_CONSUMERS:
+            raise AppError("result_consumer_outcome_unknown", status=409)
     if row.get("rbi_retry_at") and row["rbi_retry_at"] > row["now"]:
         raise RecoveryWait("result_consumer_waiting", row["rbi_retry_at"], dependency="result_consumer")
     token = str(uuid4())

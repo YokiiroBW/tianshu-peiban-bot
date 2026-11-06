@@ -310,7 +310,9 @@ class ResultConsumer:
                 outcome = "wait" if recovery_wait_retryable(error) else "unknown"
             elif failure and failure.retryable:
                 outcome = "wait"
-            elif (getattr(error, "code", None) == "local_result_application_unconfirmed"
+            elif (getattr(error, "code", None) in {"local_result_application_unconfirmed",
+                                                    "result_consumer_lease_unknown",
+                                                    "result_consumer_outcome_unknown"}
                   or (not isinstance(error, Exception) or failure and failure.receipt_required
                   or isinstance(error, (PsycopgError, ConnectorException, TimeoutError, OSError))
                   and not getattr(error, "rbi_atomic_proof_checked", False))):
@@ -589,6 +591,16 @@ class ResultConsumer:
                 (generation, receipt_id))).fetchone()
             budget = await execution_budget_on(connection, self.jobs, generation, event, delivery,
                 current_job=execution, reconcile_stranded=True, repair_ref=repair_ref, consumer=repair_consumer)
+            if budget.get("consumer_running_due_at") is not None:
+                stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision="blocked", reason="consumer_running",
+                    owner_id=evidence["owner_id"])
+                stopped["retry_at"] = budget["consumer_running_due_at"]
+                return stopped
+            if budget.get("consumer_lease_unknown"):
+                return await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision="unknown", reason="result_consumer_lease_unknown",
+                    owner_id=evidence["owner_id"])
             if not budget.get("failure_digest") or budget["failure_digest"] != evidence["failure_digest"]:
                 return await stop_preflight_on(connection, self.jobs, generation, event, execution,
                     repair_consumer, repair_ref, decision="blocked", reason="repair_failure_history_changed",

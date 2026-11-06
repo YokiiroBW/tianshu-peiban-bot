@@ -43,3 +43,10 @@
 - 按合同 `1d56370f` 第 16 节，Conversation 将原 generation、action、receipt、revision、consumer、repair_ref、冻结 owner、disposition、稳定 reason 和完整持久 proof 统一生成 `result-proof` 引用。预算历史对账 resolve 和领域 close 共用该规则；两条路径均先核对原目标与 Life proof，不因 grant closed 或 native succeeded 猜测业务完成。非应用终态保留原 disposition 和理由。
 - Runtime 按 1.8 在同一已完成物理事实中绑定首次领域观察引用，保留最初的机械关闭引用；重复相同证明幂等，不同证明仍冲突。此提交不更改 Runtime、SQL 或公共签名；双方提交必须一起集成。若既有环境已持久记录本批旧格式的证明引用，不改写原证据或猜测两种引用等价，须由根按事实处理。
 - 新增定向用例覆盖正常 finish 后同一原证明两次观察、不重跑 Life/Action、保留机械关闭和普通预算，以及故意改变 fixture proof 后继续拒绝冲突；补充已提交但 finish 回执丢失时由预算历史先 resolve、随后领域 close 的同引用对账。仅静态检查，相关 PostgreSQL 验证由根执行；真实域测试位于根提交中，不在本卡重复复制。
+
+## 1.9 原失败与独立消费租约返修
+
+- 根和 05 的集成用例确认：盘点时导入的 native unknown 随后出现真实失败，但同一 receipt 可由直接调用取得独立的新 consumer 租约。旧逻辑未保存 claim 到 native ordinal 的归属，却以旧失败批量解除所有 running token。按 `dbd390ff` 第 17 节，不能据此认定新租约属于旧失败。
+- Conversation 在原 delivery 事务内按 DB 时间锁定已有 consumer 状态；有效租约或缺失/无效租约时继续有界导入 native 历史，但暂停 stranded unknown 的 resolve 和 claim 清理，保留失败证据。`ensure_on` 在采用已有 pending、预算判定或创建 successor 前按最早有效租约返回 `waiting/consumer_running`；缺失或无效租约保持 unknown。原 consumer retry due 和 native job 未改，已有 reconcile due 不被覆盖。
+- 授权及已派发 repair 分支沿同一租约证据等待或保持未知，不凭租约绕过资格或消耗 repair 额度。普通已派发 native 沿现有预算和 consumer CAS 工作，没有新建预检退出机制。真正到期后按既有 proof/CAS 对账：原子消费者可恢复，renderer/dialogue 无完整证明不能直接换 token 重放；直接调用和原生入口均将不明效果保留为 unknown。
+- 新增定向用例覆盖有/无 pending、`allow_successor`、有效租约下保留 unknown/失败证据、到期后原子/非原子处置、缺失租约、直接与 native 调用、repair 授权/额度等待。05 的独立真实 native 时序用例由根按其提交合入；不涉及新 SQL、公共 Runtime API 或生产数据。仅静态检查，PostgreSQL 测试及集成结果由根负责。

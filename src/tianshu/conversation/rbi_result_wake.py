@@ -7,7 +7,8 @@ from tianshu.runtime.jobs import JobSpec
 from tianshu.types import ServiceClass
 
 from .codec import document, signature
-from .rbg_result_ledger import CONSUMERS, TERMINAL, event_identity, finish_on, invalidate_on, register_on
+from .rbg_result_ledger import (CONSUMERS, NONATOMIC_CONSUMERS, TERMINAL, event_identity,
+                                finish_on, invalidate_on, register_on)
 
 
 EXECUTION_OWNER = "conversation.result"
@@ -21,6 +22,22 @@ def execution_identity(generation, event):
     return "conversation.result:" + signature([generation, action_id, revision, receipt_id])
 
 
+async def lock_consumer_leases_on(connection, generation, event):
+    """Keep existing claims stable while native history and wakes are reconciled."""
+    action_id, receipt_id, revision = event_identity(event)
+    rows = await (await connection.execute(
+        "SELECT action_id,result_revision,disposition,owner_token,lease_until,now() AS observed_at "
+        "FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s "
+        "ORDER BY consumer FOR UPDATE", (generation, receipt_id))).fetchall()
+    if any((row["action_id"], row["result_revision"]) != (action_id, revision) for row in rows):
+        raise AppError("result_receipt_revision_conflict", status=409)
+    running = [row for row in rows if row["disposition"] == "running"]
+    unknown = any(not row["owner_token"] or row["lease_until"] is None for row in running)
+    due = min((row["lease_until"] for row in running if row["owner_token"] and row["lease_until"] is not None
+               and row["lease_until"] > row["observed_at"]), default=None)
+    return {"due_at": due, "unknown": unknown}
+
+
 async def execution_budget_on(connection, jobs, generation, event, delivery, *, current_job=None,
                               initial_key=None, known_keys=(), reconcile_stranded=False,
                               repair_ref=None, consumer=None):
@@ -30,6 +47,7 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
     receipt's frozen job-ID range, known jobs and incomplete open-job sweep.
     """
     action_id, receipt_id, revision = event_identity(event)
+    claims = await lock_consumer_leases_on(connection, generation, event) if reconcile_stranded else None
     identity = execution_identity(generation, event)
     known = set(delivery.get("rbi_job_ids") or ())
     opened = set(delivery.get("rbi_open_job_ids") or ())
@@ -184,6 +202,11 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
     if repair_ref is not None:
         inspect_args.update(repair_ref=repair_ref, consumer=consumer)
     budget = await jobs.inspect_execution_on(connection, **inspect_args)
+    if claims and (claims["due_at"] is not None or claims["unknown"]):
+        # A claim is not linked to a native ordinal. Keep the imported failure
+        # proof and unresolved Runtime fact until the claim can be reconciled.
+        return {**budget, "consumer_running_due_at": claims["due_at"],
+                "consumer_lease_unknown": claims["unknown"]}
     if reconcile_stranded and complete and budget.get("unresolved_executions"):
         # Sources and Action are already fenced by the caller. Do not revoke a
         # progress token while another native worker is still executing.
@@ -250,17 +273,36 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
     return budget
 
 
+def unconfirmed_consumers(progress):
+    """Find claims that cannot be safely resumed from a native failure alone."""
+    unconfirmed, missing_lease = [], []
+    for item in progress:
+        if item["disposition"] != "running" or "lease_until" not in item:
+            continue
+        lease = item["lease_until"]
+        if not item.get("owner_token") or lease is None:
+            unconfirmed.append(item["consumer"])
+            missing_lease.append(item["consumer"])
+        elif item["consumer"] in NONATOMIC_CONSUMERS and lease <= item["observed_at"]:
+            unconfirmed.append(item["consumer"])
+    return tuple(unconfirmed), tuple(missing_lease)
+
+
 def runnable_consumers(progress):
     """Life consumers are independent; dialogue and fallback need renderer proof."""
     by_name = {item["consumer"]: item for item in progress}
     renderer = by_name.get("renderer")
     renderer_done = bool(renderer and renderer["disposition"] in TERMINAL)
     available, blocked = [], []
+    unconfirmed, _ = unconfirmed_consumers(progress)
     for name in ("renderer", "dialogue", "life_activity", "life_commitment", "detached", "memory"):
         item = by_name.get(name)
         if item and item["disposition"] in TERMINAL:
             continue
         if item and item["disposition"] == "blocked":
+            blocked.append(name)
+            continue
+        if name in unconfirmed:
             blocked.append(name)
             continue
         if name in {"dialogue", "detached", "memory"} and not renderer_done:
@@ -286,7 +328,7 @@ async def work_on(connection, generation, event, *, jobs=None):
     action_id, receipt_id, revision = event_identity(event)
     progress = await (await connection.execute(
         "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,reason,proof,"
-        "lease_until,rbi_retry_at,now() AS observed_at "
+        "owner_token,lease_until,rbi_retry_at,now() AS observed_at "
         "FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s "
         "ORDER BY consumer", (generation, receipt_id))).fetchall()
     job_rows = await (await connection.execute(
@@ -311,11 +353,13 @@ async def work_on(connection, generation, event, *, jobs=None):
             continue
         if job["status"] == "todo" or job["live_doing"]:
             live.append(job)
-    running = [item for item in progress if item["disposition"] == "running"
+    running = [item for item in progress if item["disposition"] == "running" and item["owner_token"]
                and item["lease_until"] and item["lease_until"] > item["observed_at"]]
     ready, blocked = runnable_consumers(progress)
+    unconfirmed, missing_lease = unconfirmed_consumers(progress)
     return {"progress": progress, "jobs": live, "running": running,
-            "runnable": ready, "blocked": blocked, "waiting": waiting_consumers(progress)}
+            "runnable": ready, "blocked": blocked, "waiting": waiting_consumers(progress),
+            "unconfirmed": unconfirmed, "missing_lease": missing_lease}
 
 
 async def terminal_delivery_on(connection, generation, event, disposition):
@@ -393,6 +437,23 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
         "SELECT 1 FROM conversation.result_consumption WHERE receipt_id=%s", (receipt_id,))).fetchone()
     if consumed:
         return await terminal_delivery_on(connection, generation, event, "result_already_consumed")
+    claims = await lock_consumer_leases_on(connection, generation, event)
+    if claims["due_at"] is not None or claims["unknown"]:
+        budget = await execution_budget_on(connection, jobs, generation, event, delivery,
+            initial_key=initial_key, known_keys=known_keys, reconcile_stranded=reconcile_stranded,
+            repair_ref=repair_ref, consumer=repair_consumer)
+        if claims["due_at"] is not None:
+            await connection.execute(
+                "UPDATE conversation.result_deliveries SET rbi_reconcile_due_at=COALESCE(rbi_reconcile_due_at,%s),"
+                "rbi_reconcile_reason=CASE WHEN rbi_reconcile_due_at IS NULL THEN 'consumer_running' "
+                "ELSE rbi_reconcile_reason END "
+                "WHERE data_generation=%s AND receipt_id=%s AND state='pending'",
+                (claims["due_at"], generation, receipt_id))
+            result = {"state": "waiting", "reason": "consumer_running", "due_at": claims["due_at"], "budget": budget}
+            if claims["unknown"]:
+                result["outcome"] = "unknown"
+            return result
+        return {"state": "blocked", "reason": "result_consumer_lease_unknown", "outcome": "unknown", "budget": budget}
     work = await work_on(connection, generation, event, jobs=jobs)
     wake_key = f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}"
     for job in work["jobs"]:
@@ -470,6 +531,11 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
                 return covered
         return None
 
+    if not repairing and not work["runnable"] and not work["waiting"]:
+        reason = ("result_consumer_outcome_unknown" if work["unconfirmed"] else
+                  "result_consumer_blocked" if work["blocked"] else "result_no_runnable_consumer")
+        return {"state": "blocked", "reason": reason, "outcome": "unknown" if work["unconfirmed"] else None,
+                "blocked_consumers": work["blocked"], "budget": budget}
     pending = [job for job in work["jobs"] if job["status"] == "todo" and same_purpose(job)]
     if pending:
         job = pending[0]
@@ -489,9 +555,6 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
         return {"state": "waiting" if waiting else "accepted", "job_id": job["id"],
                 "reason": "result_dependency_wait" if waiting else "already_queued",
                 "due_at": due_at, "budget": budget}
-    if work["running"] and not allow_successor:
-        return {"state": "waiting", "reason": "consumer_running", "budget": budget,
-                "due_at": min(item["lease_until"] for item in work["running"])}
     doing = [job for job in work["jobs"] if job["status"] == "doing"]
     if doing and not allow_successor:
         return {"state": "waiting", "job_id": doing[0]["id"], "reason": "already_executing", "budget": budget}
@@ -502,9 +565,6 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
         if other_repair:
             return {"state": "waiting", "reason": "other_repair_target_pending",
                     "job_id": other_repair[0]["id"], "due_at": other_repair[0]["scheduled_at"], "budget": budget}
-    if not repairing and not work["runnable"] and not work["waiting"]:
-        return {"state": "blocked", "reason": "result_consumer_blocked" if work["blocked"] else "result_no_runnable_consumer",
-                "blocked_consumers": work["blocked"], "budget": budget}
     if not repairing and not work["runnable"]:
         scheduled_at = min(item["rbi_retry_at"] for item in work["waiting"])
     key = (initial_key if initial_key and original_id is None else

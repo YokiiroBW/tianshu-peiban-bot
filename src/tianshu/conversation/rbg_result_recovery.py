@@ -265,11 +265,16 @@ class ResultRecovery:
                 except AppError as error:
                     problem = error.code
             active_jobs = work["jobs"] if work else []
+            if work is not None:
+                runnable, blocked = runnable_consumers(work["progress"])
+                stopped = bool(blocked and not runnable)
             queued = [job for job in active_jobs if job["status"] == "todo"]
             executing = bool(work and (work["running"] or any(job["status"] == "doing" for job in active_jobs)))
             queued_future = bool(queued and not executing and all(job["scheduled_at"]
                 and job["scheduled_at"] > row["observed_at"] for job in queued))
-            if queued:
+            if work and work["running"]:
+                due_at = min(item["lease_until"] for item in work["running"])
+            elif queued:
                 due_at = min((job["scheduled_at"] or row["observed_at"] for job in queued))
             elif work and work["waiting"]:
                 due_at = min(item["rbi_retry_at"] for item in work["waiting"])
@@ -288,11 +293,14 @@ class ResultRecovery:
                       "source_withdrawn_consumer_outcome_unknown" if withdrawn else
                       "result_consumer_outcome_unknown" if row["delivery_state"] != "pending" or aggregate_unknown else
                       "original_result_changed" if not valid_identity else problem if problem else
+                      "result_consumer_lease_unknown" if work and work["missing_lease"] else
                       diagnostics["reason"] if not diagnostics["eligible"] else
+                      "result_consumer_outcome_unknown" if stopped and work and work["unconfirmed"] else
                       "result_dependency_wait" if queued_future else
                       "result_consumer_blocked" if stopped and not repair_ref else None)
             selected = diagnostics["repair_eligibility"] if repair_ref else diagnostics["normal_eligibility"]
-            if selected.get("retry_at") and (not due_at or selected["retry_at"] > due_at):
+            if (not (work and work["running"]) and selected.get("retry_at")
+                    and (not due_at or selected["retry_at"] > due_at)):
                 due_at = selected["retry_at"]
             if reason == "result_dependency_wait":
                 selected.update(eligible=False, reason=reason, retry_at=due_at)
@@ -300,7 +308,7 @@ class ResultRecovery:
                 "due_at": due_at, "dependency": "conversation.result",
                 "outcome": "unknown" if reason in {"result_consumer_outcome_unknown",
                     "source_withdrawn_consumer_outcome_unknown", "history_unknown", "execution_outcome_unknown",
-                    "repair_outcome_unknown", "local_result_application_unconfirmed"} else None,
+                    "repair_outcome_unknown", "local_result_application_unconfirmed", "result_consumer_lease_unknown"} else None,
                 "error_family": "result_consumption_incomplete", "version": str(row["id"]),
                 "material_id": row["receipt_id"], "role": "bot-foreground",
                 "executing": executing,
@@ -346,10 +354,8 @@ class ResultRecovery:
                 (generation, receipt_id))).fetchone()
             previous = await (await connection.execute(
                 "SELECT 1 FROM conversation.result_consumption WHERE receipt_id=%s", (receipt_id,))).fetchone()
-            progress = await (await connection.execute(
-                "SELECT consumer,disposition,rbi_retry_at,now() AS observed_at FROM conversation.result_consumer_progress "
-                "WHERE data_generation=%s AND receipt_id=%s", (generation, receipt_id))).fetchall()
             work = await work_on(connection, generation, event, jobs=self.jobs)
+            progress = work["progress"]
             clock = await (await connection.execute("SELECT now() AS observed_at")).fetchone()
         if previous and not repairing:
             if len(progress) != len(ledger.CONSUMERS) or any(part["disposition"] not in ledger.TERMINAL for part in progress):
@@ -373,7 +379,8 @@ class ResultRecovery:
         if delivery and delivery["state"] != "pending":
             diagnostics.update(eligible=False, reason="result_consumer_outcome_unknown")
         if diagnostics["eligible"] and not repairing and blocked and not runnable and not waiting_consumers(progress):
-            diagnostics.update(eligible=False, reason="result_consumer_blocked")
+            diagnostics.update(eligible=False, reason="result_consumer_outcome_unknown" if work["unconfirmed"]
+                               else "result_consumer_blocked")
         if diagnostics["eligible"]:
             queued = [job for job in work["jobs"] if job["status"] == "todo"]
             doing = any(job["status"] == "doing" for job in work["jobs"]) or bool(work["running"])
@@ -411,9 +418,19 @@ class ResultRecovery:
                 diagnostics.update(eligible=False, reason=reason)
                 diagnostics["repair_eligibility"] = {**diagnostics["repair_eligibility"],
                                                        "eligible": False, "reason": reason}
+        lease_due = None
+        if work["running"]:
+            lease_due = min(item["lease_until"] for item in work["running"])
+            diagnostics.update(eligible=False, reason="consumer_running")
+            selected = diagnostics["repair_eligibility"] if repairing else diagnostics["normal_eligibility"]
+            if selected["eligible"]:
+                selected.update(eligible=False, reason="consumer_running", retry_at=lease_due)
+        elif work["missing_lease"]:
+            diagnostics.update(eligible=False, reason="result_consumer_lease_unknown")
         return {**diagnostics, "version": str(row["id"]), "material_id": receipt_id,
                 "material_digest": signature(event), "dependency": "conversation.result",
                 "original_state": str(row["status"]), "head_revision": current["result_revision"],
+                "due_at": lease_due,
                 "repair_ref": repair_ref, "repair_consumer": repair_consumer,
                 "target_state": target_state, **expected}
 
@@ -467,6 +484,12 @@ class ResultRecovery:
             budget = await execution_budget_on(connection, self.jobs, data_generation, event, delivery,
                 repair_ref=repair_ref, consumer=repair_consumer, reconcile_stranded=True)
             diagnostics = eligibility(budget, repair_ref=repair_ref, consumer=repair_consumer)
+            if budget.get("consumer_running_due_at") is not None:
+                return {**diagnostics, "eligible": False, "state": "waiting", "reason": "consumer_running",
+                        "due_at": budget["consumer_running_due_at"], "budget": budget}
+            if budget.get("consumer_lease_unknown"):
+                return {**diagnostics, "eligible": False, "state": "blocked", "reason": "result_consumer_lease_unknown",
+                        "outcome": "unknown", "budget": budget}
             if (not budget.get("history_complete") or budget.get("unknown_held") or budget.get("active_executions")
                     or budget.get("failed_executions") is None or budget["failed_executions"] < MAX_FAILURES
                     or not budget.get("failure_digest")):
@@ -645,6 +668,14 @@ class ResultRecovery:
         progress = {item["consumer"]: item["disposition"] for item in work["progress"]}
         if repairing and not evidence:
             return {**diagnostics, "state": "failed", "reason": "repair_evidence_missing", "progress": progress}
+        if work["running"]:
+            return {**diagnostics, "state": "pending", "reason": "consumer_running", "progress": progress,
+                    "due_at": min(item["lease_until"] for item in work["running"])}
+        if work["missing_lease"]:
+            return {**diagnostics, "state": "unknown", "reason": "result_consumer_lease_unknown", "progress": progress}
+        if work["unconfirmed"] and not work["runnable"] and not work["waiting"]:
+            return {**diagnostics, "state": "unknown", "reason": "result_consumer_outcome_unknown",
+                    "blocked_consumers": work["blocked"], "progress": progress}
         if repairing and diagnostics["eligible"]:
             checked = await self.inspect(None, {"id": facts["version"], "material_id": facts["receipt_id"],
                 "version": facts["version"], "repair_ref": repair_ref, "repair_consumer": repair_consumer})
@@ -663,9 +694,6 @@ class ResultRecovery:
                      "failed")
             return {**diagnostics, "state": state, "reason": reason, "progress": progress,
                     "due_at": selected.get("retry_at")}
-        if work["running"]:
-            return {**diagnostics, "state": "pending", "reason": "consumer_running", "progress": progress,
-                    "due_at": min(item["lease_until"] for item in work["running"])}
         if work["jobs"]:
             job = work["jobs"][0]
             reason = "result_job_executing" if job["status"] == "doing" else "result_job_queued"
