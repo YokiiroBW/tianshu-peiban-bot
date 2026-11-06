@@ -23,3 +23,11 @@
 - 必须先装配 RBJ-04 的 `GenerationRequests.request(self, attempt_id, context, *, connection=None, material_key=None)` 合同实现，再集中运行 Growth 与 Conversation 的相关 PostgreSQL 用例。本分支保留原始基线，不包含对方实现；直接运行本分支的上述新代码会因旧接口不接受这两个关键字参数而失败。
 - 接口在传入 connection 时须复用该事务、不重取 Sources 锁、无插入/prepare/claim/submit，保留上下文及 invalidated 检查和 expired 原观察语义；原 attempt 的 material 不匹配须报 `generation_identity_conflict`。Growth 不直接访问 Conversation 私表；用例中的数据库直读/受控修改仅用于隔离夹具和断言。
 - 无新增 SQL、迁移、注册、配置或其他公共装配；根负责按合同核对接口、集中验证与后续集成。未推送、未部署，尚无运行验收或真实业务效果结论。
+
+## 集中验证反馈及夹具返修
+
+根回报在集成提交 `a3c4ea31` 的隔离 PostgreSQL 集中验证中，本卡新增的九个参数化场景均先在 `concurrent_preparation` 的调用次数断言处失败，尚未进入各自的业务断言；这个结果不能判定产品修复已经通过或失败。原因是 `GenerationRequests.prepare` 在未传 connection 时打开事务，再通过 `self.prepare(..., connection=transaction)` 重入；原测试包装器将 A 的事务内重入误计为第三个 Growth 执行者。
+
+返修提交 `1076a021c18a132c392ba39be617f23b34ca2c60` 只修改测试夹具：带 connection 的重入直接委托真实方法；只统计两个外层执行者，严格断言分别为 first/second、材料键及 attempt ID 相同。两者均到达外层 prepare 后、A 获准冻结前，增加明确的持久 `active_batch is None` 断言；再放行 A 完成原批冻结并提交到 Models 账本，B 仍由各场景控制释放。原请求、谱系、unknown、预算和具体异常断言未放宽。
+
+本窗口静态审阅返修 diff、`git diff --cached --check` 和测试文件 AST 解析通过；按派发要求未运行测试或 PostgreSQL。请根在现有集成基线上装配上述返修提交，复验受影响九例，并据实际结果判断是否存在后续产品或夹具问题。根的私有运行日志不纳入本提交。
