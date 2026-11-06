@@ -87,52 +87,32 @@ def _lock_set_changed():
     )
 
 
-async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=(), write_ids=()):
-    """Lock selected roots in ID order, using exclusive mode only for writers.
+async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=(), write_ids=(), budget=None):
+    """Lock the complete bounded closure in the existing alias/root/row order."""
+    from .rbj_budget import SourceBudget, bounded_tuple
+    from . import rbj_locking
 
-    write_ids are roots that will be changed; their directly bound aliases can
-    be invalidated too. Other selected sources remain shared dependencies.
-    """
+    budget = budget if budget is not None else SourceBudget()
+    inputs_left = budget.remaining["inputs"]
+    refs = bounded_tuple(refs, inputs_left)
+    extra = bounded_tuple(extra, inputs_left - len(refs))
+    aliases = bounded_tuple(aliases, inputs_left - len(refs) - len(extra))
+    write_ids = bounded_tuple(write_ids, inputs_left - len(refs) - len(extra) - len(aliases))
+
     async def selected():
-        rows = await (await conn.execute(
-            "WITH RECURSIVE edges(source_id,revision,target_id,target_revision) AS NOT MATERIALIZED ("
-            "SELECT source_id,revision,support_source_id,support_revision FROM sources.supports UNION ALL "
-            "SELECT a.source_id,a.revision,b.source_id,b.revision FROM sources.source_aliases a "
-            "JOIN sources.source_aliases b USING(alias_key)), selected(source_id,revision) AS ("
-            "(SELECT * FROM unnest(%s::text[],%s::bigint[]) UNION SELECT source_id,head_revision "
-            "FROM sources.originals WHERE source_id=ANY(%s) UNION SELECT source_id,revision FROM sources.source_aliases "
-            "WHERE alias_key=ANY(%s)) UNION SELECT e.target_id,e.target_revision FROM edges e "
-            "JOIN selected s ON s.source_id=e.source_id AND s.revision=e.revision) "
-            "SELECT DISTINCT source_id FROM selected ORDER BY source_id",
-            (
-                [ref.source_id for ref in refs],
-                [ref.revision for ref in refs],
-                list(extra),
-                list(aliases),
-            ),
-        )).fetchall()
-        return {row["source_id"] for row in rows} | set(extra)
+        return await rbj_locking.selected_on(conn, refs, extra, aliases, budget)
 
     async def writable(identifiers):
         if exclusive:
+            budget.charge(work=len(identifiers))
             return set(identifiers)
         targets = set(write_ids)
         if targets or aliases:
-            rows = await (await conn.execute(
-                "SELECT DISTINCT b.source_id FROM sources.source_aliases b WHERE b.alias_key=ANY(%s) "
-                "OR b.alias_key IN (SELECT alias_key FROM sources.source_aliases WHERE source_id=ANY(%s))",
-                (list(aliases), list(targets)),
-            )).fetchall()
-            targets.update(row["source_id"] for row in rows)
+            return await rbj_locking.targets_on(conn, targets, aliases, budget)
         return targets
 
     async def alias_keys(targets):
-        rows = await (await conn.execute(
-            "SELECT DISTINCT alias_key FROM sources.source_aliases "
-            "WHERE source_id=ANY(%s) ORDER BY alias_key",
-            (sorted(targets),),
-        )).fetchall()
-        return {row["alias_key"] for row in rows} | set(aliases)
+        return await rbj_locking.alias_keys_on(conn, targets, aliases, budget)
 
     identifiers = await selected()
     targets = await writable(identifiers)
@@ -245,7 +225,11 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
         raise AppError("invalid_archive_record")
     if sum(len(str(row.get("text", ""))) for row in records) > 2 * 1024 * 1024:
         raise AppError("archive_material_too_large", status=413)
+    from .rbj_budget import SourceBudget
+    from . import rbj_locking
+
     results = []
+    budget = SourceBudget()
     async with service.database.transaction() as conn:
         scene = await service.identity.archive_scene_on(conn, context)
         intake, epochs = await service.identity.intake_scope(context, connection=conn)
@@ -289,34 +273,18 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 }
             )
             prepared.append((record, keys, key, occurred_at))
-        # One query for all selected aliases. Tombstones and fragment barriers remain after content erasure.
+        # Explicit alias keys already select every bound source for locking;
+        # do not expand them in an unbounded query before acquiring those locks.
         all_keys = sorted({key for _, keys, _, _ in prepared for key in keys})
-        bound = await (
-            await conn.execute(
-                "SELECT a.alias_key,a.source_id,a.revision,o.state,o.head_revision,v.state AS version_state,"
-                "EXISTS(SELECT 1 FROM sources.forgotten_fragments f WHERE f.source_id=a.source_id AND f.revision=a.revision) AS fragment_forgotten "
-                "FROM sources.source_aliases a JOIN sources.originals o USING(source_id) "
-                "JOIN sources.versions v ON v.source_id=a.source_id AND v.revision=a.revision WHERE a.alias_key=ANY(%s)",
-                (all_keys,),
-            )
-        ).fetchall()
         await service._lock_selected(
-            conn,
-            tuple(SourceRef(row["source_id"], row["revision"], {}) for row in bound),
+            conn, (),
             extra=tuple("source_" + key[:48] for _, _, key, _ in prepared),
             extra_aliases=all_keys,
             write_ids=tuple("source_" + key[:48] for _, _, key, _ in prepared),
+            budget=budget,
         )
-        # Locks precede this second metadata query: a concurrent forget cannot be missed.
-        bound = await (
-            await conn.execute(
-                "SELECT a.alias_key,a.source_id,a.revision,o.state,o.head_revision,v.state AS version_state,"
-                "EXISTS(SELECT 1 FROM sources.forgotten_fragments f WHERE f.source_id=a.source_id AND f.revision=a.revision) AS fragment_forgotten "
-                "FROM sources.source_aliases a JOIN sources.originals o USING(source_id) "
-                "JOIN sources.versions v ON v.source_id=a.source_id AND v.revision=a.revision WHERE a.alias_key=ANY(%s)",
-                (all_keys,),
-            )
-        ).fetchall()
+        # Read the metadata only after ordered locks and their fresh closure check.
+        bound = await rbj_locking.archive_bound_on(conn, all_keys, budget)
         suppressed = {
             row["alias_key"]
             for row in await (
@@ -326,6 +294,7 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 )
             ).fetchall()
         }
+        budget.charge(work=len(all_keys) + len(suppressed))
         for record, keys, key, occurred_at in prepared:
             related = [row for row in bound if row["alias_key"] in keys]
             denied = bool(set(keys) & suppressed) or any(
@@ -358,7 +327,7 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 continue
             if existing and existing["content_hash"] == record["stored_content_sha256"]:
                 ref = SourceRef(existing["source_id"], existing["head_revision"], {})
-                allowed = (await service.check_many_on(conn, context, ((ref,),)))[0]
+                allowed = (await service._check_with_budget(conn, context, ((ref,),), budget))[0]
                 if allowed and explicit_request and not existing["explicit_authorized"]:
                     await conn.execute(
                         "UPDATE sources.archive_records SET explicit_authorized=true WHERE archive_key=%s",
@@ -384,7 +353,7 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                     and (existing is None or row["source_id"] != existing["source_id"])
                 )
             )
-            if supports and not (await service.check_many_on(conn, context, (supports,)))[0]:
+            if supports and not (await service._check_with_budget(conn, context, (supports,), budget))[0]:
                 results.append({**result, "reason": "native_source_unavailable"})
                 continue
             ref = await service._register(
@@ -421,7 +390,7 @@ async def register_archive(service, context, *, mapping_id, channel, records, ex
                 "archive:" + body_hash({"channel": channel, "locator": record["locator"]}),
                 Coverage(True, representation="stored_text"),
                 (supports,) if supports else (),
-                locks_prepared=True,
+                locks_prepared=True, budget=budget,
             )
             await conn.execute(
                 "INSERT INTO sources.archive_records(archive_key,source_id,content_hash,alias_keys,explicit_authorized) "

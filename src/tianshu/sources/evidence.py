@@ -1,6 +1,7 @@
 """Canonical evidence sets, with proof evaluated against current source authority."""
 
 from collections.abc import Mapping
+from itertools import islice
 
 from psycopg.types.json import Jsonb
 
@@ -9,6 +10,8 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
 from .types import EvidenceSetRef, EvidenceSpec
+from .rbj_budget import SourceBudget
+from .rbj_locking import evidence_manifests_on
 
 
 def _refs(values):
@@ -42,14 +45,25 @@ def normalize(spec):
     return EvidenceSpec(required, alternatives, generation)
 
 
+def _charge_spec(spec, budget):
+    if not isinstance(spec, EvidenceSpec):
+        raise AppError("invalid_evidence_set")
+    for group in (spec.required, spec.generation_dependencies):
+        budget.charge(inputs=1 + len(group), work=1 + len(group))
+    for group in spec.alternative_supports:
+        budget.charge(inputs=1 + len(group), work=1 + len(group))
+
+
 async def register_on(service, conn, context, spec):
+    budget = SourceBudget()
+    _charge_spec(spec, budget)
     spec = normalize(spec)
     slots = len(spec.required) + len(spec.generation_dependencies) + sum(
         len(group) for group in spec.alternative_supports
     )
     all_refs = _refs((*spec.required, *spec.generation_dependencies,
                       *(ref for group in spec.alternative_supports for ref in group)))
-    if not await service.validate_persistence(conn, context, all_refs):
+    if not await service._validate_persistence(conn, context, all_refs, budget):
         raise AppError("source_unavailable", status=403)
     if slots == 1:
         return all_refs[0]
@@ -78,37 +92,54 @@ async def register_on(service, conn, context, spec):
 
 
 async def prove_many_on(service, conn, context, references, *, lock=False):
-    references = tuple(references)
+    references = tuple(islice(references, 1025))
     if len(references) > 1024:
         raise AppError("source_batch_too_large")
     if any(not isinstance(ref, (SourceRef, EvidenceSetRef)) for ref in references):
         raise AppError("invalid_evidence_reference")
+    budget = SourceBudget()
+    budget.charge(inputs=len(references), work=len(references))
     ids = sorted({ref.evidence_id for ref in references if isinstance(ref, EvidenceSetRef)})
-    rows = await (await conn.execute(
-        "SELECT evidence_id,manifest FROM sources.evidence_sets WHERE evidence_id=ANY(%s)", (ids,)
-    )).fetchall() if ids else ()
+    rows = await evidence_manifests_on(conn, ids, budget) if ids else ()
     manifests = {row["evidence_id"]: row["manifest"] for row in rows}
-    selections = []
-    plans = []
+    selections, plans, prepared = [], [], {}
+    logical_selections = 0
     for ref in references:
         if isinstance(ref, SourceRef):
+            logical_selections += 1
+            if logical_selections > 1024:
+                raise AppError("source_batch_too_large")
             plans.append((len(selections), 0))
             selections.append((ref,))
             continue
+        if ref.evidence_id in prepared:
+            plan = prepared[ref.evidence_id]
+            if plan is not None:
+                logical_selections += 1 + plan[1]
+                if logical_selections > 1024:
+                    raise AppError("source_batch_too_large")
+            plans.append(plan)
+            continue
         manifest = manifests.get(ref.evidence_id)
         if manifest is None:
+            prepared[ref.evidence_id] = None
             plans.append(None)
             continue
-        spec = normalize(EvidenceSpec(**manifest))
-        plans.append((len(selections), len(spec.alternative_supports)))
+        original = EvidenceSpec(**manifest)
+        _charge_spec(original, budget)
+        spec = normalize(original)
+        logical_selections += 1 + len(spec.alternative_supports)
+        if logical_selections > 1024:
+            raise AppError("source_batch_too_large")
+        plan = (len(selections), len(spec.alternative_supports))
+        prepared[ref.evidence_id] = plan
+        plans.append(plan)
         selections.append((*spec.required, *spec.generation_dependencies))
         selections.extend(spec.alternative_supports)
-    if len(selections) > 1024:
-        raise AppError("source_batch_too_large")
     if lock:
         await service.identity.lock_context_on(conn, context)
-        await service._lock_selected(conn, _refs(ref for group in selections for ref in group))
-    allowed = await service.check_many_on(conn, context, tuple(selections))
+        await service._lock_selected(conn, _refs(ref for group in selections for ref in group), budget=budget)
+    allowed = await service._check_with_budget(conn, context, tuple(selections), budget)
     return tuple(
         False if plan is None else
         bool(allowed[plan[0]] and (plan[1] == 0 or any(

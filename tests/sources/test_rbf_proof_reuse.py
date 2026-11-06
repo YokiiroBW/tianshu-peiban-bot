@@ -35,13 +35,13 @@ def _node(name, groups=(), *, forgotten=(), disclosure=False):
 
 async def _reuse(connection, groups, nodes):
     row = await (await connection.execute(
-        "SELECT sources._proof_acyclic_plain(%s::jsonb,%s::text[],%s::jsonb,%s) AS allowed",
-        (Jsonb(groups), ["visible"], Jsonb(nodes), len(nodes)),
+        "SELECT sources._rbj_evaluate(%s::jsonb,%s::text[],%s::jsonb,%s)->'allowed' AS allowed",
+        (Jsonb(groups), ["visible"], Jsonb(nodes), 1000000),
     )).fetchone()
     return row["allowed"]
 
 
-async def test_reuse_accepts_shared_dag_and_falls_back_for_unsafe_graphs(core):
+async def test_reuse_handles_shared_dag_ranges_cycles_and_deep_graphs(core):
     leaf, left, right, root = (_ref(name) for name in ("leaf", "left", "right", "root"))
     nodes = {
         "leaf:1": _node("leaf"),
@@ -58,11 +58,11 @@ async def test_reuse_accepts_shared_dag_and_falls_back_for_unsafe_graphs(core):
 
         ranged = dict(nodes)
         ranged["left:1"] = _node("left", ([_ref("leaf", {"start": 1, "end": 2})],))
-        assert await _reuse(conn, groups, ranged) is None
+        assert await _reuse(conn, groups, ranged) == [True, False, False, True, True]
 
         cyclic = dict(nodes)
         cyclic["leaf:1"] = _node("leaf", ([root],))
-        assert await _reuse(conn, groups, cyclic) is None
+        assert await _reuse(conn, groups, cyclic) == [False, False, False, False, True]
 
         def chain(size):
             nodes = {}
@@ -76,7 +76,7 @@ async def test_reuse_accepts_shared_dag_and_falls_back_for_unsafe_graphs(core):
             return nodes
 
         assert await _reuse(conn, [[_ref("deep-0")]], chain(65)) == [True]
-        assert await _reuse(conn, [[_ref("deep-0")]], chain(66)) is None
+        assert await _reuse(conn, [[_ref("deep-0")]], chain(66)) == [True]
 
 
 async def _seed_sources(core, alice, bob):
@@ -246,11 +246,12 @@ async def test_ranged_support_cycles_and_depth_retain_original_lazy_failures(cor
         deep = SourceRef("reuse-10", 1, {})
         compared = await _compare(conn, ((missing, deep),), alice.scope_ids)
         assert compared["current"] == compared["original"] == [False]
-        for function in ("sources.check_groups", "sources._rbf_original_groups"):
-            with pytest.raises(psycopg.Error) as failure:
-                async with conn.transaction():
-                    await conn.execute(
-                        f"SELECT {function}(%s::jsonb,%s::text[])",
-                        (Jsonb(wire(((deep,),))), list(alice.scope_ids)),
-                    )
-            assert failure.value.sqlstate == "54000"
+        # Only the historical recursive implementation has a depth cutoff.
+        with pytest.raises(psycopg.Error) as failure:
+            async with conn.transaction():
+                await conn.execute(
+                    "SELECT sources._rbf_original_groups(%s::jsonb,%s::text[])",
+                    (Jsonb(wire(((deep,),))), list(alice.scope_ids)),
+                )
+        assert failure.value.sqlstate == "54000"
+        assert await core.sources.check_many_on(conn, alice, ((deep,),)) == (True,)

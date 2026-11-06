@@ -63,14 +63,19 @@ class SourceService:
             raise AppError("source_unavailable", status=403)
 
     async def check_many(self, context, refs_groups):
-        from .proofs import normalize_groups
+        from .rbj_budget import SourceBudget
+
+        return await self._check_many(context, refs_groups, SourceBudget())
+
+    async def _check_many(self, context, refs_groups, budget):
+        from .proofs import check_many_on, normalize_groups
 
         groups = normalize_groups(refs_groups)
         refs = tuple(ref for group in groups for ref in group)
         async with self.database.transaction(control=True) as conn:
             await self.identity.lock_context_on(conn, context)
-            await self._lock_selected(conn, refs)
-            return await self.check_many_on(conn, context, groups)
+            await self._lock_selected(conn, refs, budget=budget)
+            return await check_many_on(self.identity, conn, context, groups, budget=budget)
 
     async def register_evidence_on(self, connection, context, spec):
         from .evidence import register_on
@@ -122,13 +127,18 @@ class SourceService:
 
     async def validate_persistence(self, conn, context, source_refs):
         """Lock only selected roots/supports until result commit; forgetting locks these first too."""
-        from .proofs import normalize_groups
+        from .rbj_budget import SourceBudget
+
+        return await self._validate_persistence(conn, context, source_refs, SourceBudget())
+
+    async def _validate_persistence(self, conn, context, source_refs, budget):
+        from .proofs import check_many_on, normalize_groups
 
         source_refs = normalize_groups((source_refs,))[0]
         try:
             await self.identity.lock_context_on(conn, context)
-            await self._lock_selected(conn, source_refs)
-            return (await self.check_many_on(conn, context, (source_refs,)))[0]
+            await self._lock_selected(conn, source_refs, budget=budget)
+            return (await check_many_on(self.identity, conn, context, (source_refs,), budget=budget))[0]
         except RecoveryWait:
             raise
         except AppError as exc:
@@ -137,14 +147,15 @@ class SourceService:
             raise
 
     async def _lock_selected(
-        self, conn, source_refs, *, extra=(), exclusive=False, extra_aliases=(), write_ids=()
+        self, conn, source_refs, *, extra=(), exclusive=False, extra_aliases=(), write_ids=(),
+        budget=None,
     ):
         if source_refs or extra or extra_aliases or write_ids:
             from .archives import lock_selected
 
             await lock_selected(
                 conn, source_refs, extra=extra, exclusive=exclusive, aliases=extra_aliases,
-                write_ids=write_ids,
+                write_ids=write_ids, budget=budget,
             )
 
     async def register_archive(self, context, *, mapping_id, channel, records, explicit_request):
@@ -163,6 +174,11 @@ class SourceService:
         from .proofs import check_many_on
 
         return await check_many_on(self.identity, conn, context, refs_groups)
+
+    async def _check_with_budget(self, conn, context, refs_groups, budget):
+        from .proofs import check_many_on
+
+        return await check_many_on(self.identity, conn, context, refs_groups, budget=budget)
 
     async def describe_for_write_on(self, conn, context, source_refs):
         """Verified descriptions with source locks held until the caller's write commits."""
@@ -193,22 +209,43 @@ class SourceService:
     async def prepare_event_writes(
         self, connection, context, events, *, additional_refs=(), scoped_refs=()
     ):
-        """Lock event roots and each original context's inputs in one transaction.
+        """Prepare event and per-context sources before any domain/source locks.
 
-        Prepare before any domain or source locks. Subsequent record_event calls
-        must use the same event identities, revisions, parts and support refs.
-        Scoped groups are prechecked under their own contexts; a false proof does
-        not reject the event. Callers must recheck before using those groups.
+        Scoped groups are checked under their original contexts; false does not
+        reject the event, and callers must recheck before using those groups.
         """
-        from .proofs import normalize_groups
+        from .rbj_budget import SourceBudget
 
-        events = tuple(events)
-        scoped = tuple(
-            (original_context, normalize_groups((
-                tuple(SourceRef(**ref) if isinstance(ref, dict) else ref for ref in refs),
-            ))[0])
-            for original_context, refs in scoped_refs
+        return await self._prepare_event_writes(
+            connection, context, events, additional_refs=additional_refs,
+            scoped_refs=scoped_refs, budget=SourceBudget(),
         )
+
+    async def _prepare_event_writes(
+        self, connection, context, events, *, additional_refs=(), scoped_refs=(), budget
+    ):
+        """Prepare before domain/source locks; scoped false proofs remain optional.
+
+        Subsequent record_event calls must use the same identities, revisions,
+        parts and support refs. Callers recheck scoped groups before using them.
+        """
+        from .proofs import check_scoped_on, normalize_groups, unique_refs
+        from .rbj_budget import bounded_tuple
+
+        events = bounded_tuple(events, budget.remaining["inputs"])
+        budget.charge(inputs=len(events), work=len(events))
+        scoped_items = bounded_tuple(scoped_refs, budget.remaining["inputs"])
+        budget.charge(inputs=len(scoped_items), work=len(scoped_items))
+        scoped, supplied_refs = [], 0
+        for original_context, refs in scoped_items:
+            refs = bounded_tuple(refs, budget.remaining["inputs"] - supplied_refs)
+            supplied_refs += len(refs)
+            scoped.append((original_context, normalize_groups((
+                tuple(SourceRef(**ref) if isinstance(ref, dict) else ref for ref in refs),
+            ))[0]))
+        scoped = tuple(scoped)
+        additional_refs = bounded_tuple(additional_refs, budget.remaining["inputs"] - supplied_refs)
+        supplied_refs += len(additional_refs)
         required = [SourceRef(**ref) if isinstance(ref, dict) else ref for ref in additional_refs]
         dependencies, source_ids, prepared = [], [], []
         for event in events:
@@ -216,11 +253,14 @@ class SourceService:
             if type(revision) is not int or revision < 1:
                 raise AppError("invalid_source_event")
             original_parts = event["parts"]
-            parts = wire(original_parts)
-            if len(parts) > 256:
+            if len(original_parts) > 256:
                 raise AppError("source_parts_too_many")
-            required.extend(SourceRef(**ref) if isinstance(ref, dict) else ref
-                            for ref in event.get("support_refs", ()))
+            parts = wire(original_parts)
+            budget.charge(inputs=len(parts), work=len(parts))
+            support_refs = bounded_tuple(event.get("support_refs", ()),
+                                         budget.remaining["inputs"] - supplied_refs)
+            supplied_refs += len(support_refs)
+            required.extend(SourceRef(**ref) if isinstance(ref, dict) else ref for ref in support_refs)
             for position, part in enumerate(parts):
                 if not isinstance(part, dict):
                     raise AppError("invalid_source_part")
@@ -246,8 +286,11 @@ class SourceService:
         contexts = (context, *(original_context for original_context, _ in scoped))
         if scoped:
             contexts = sorted(contexts, key=_context_lock_order)
+        previous_context = None
         for original_context in contexts:
-            await self.identity.lock_context_on(connection, original_context)
+            if original_context != previous_context:
+                await self.identity.lock_context_on(connection, original_context)
+                previous_context = original_context
         # One event key serializes revisions of that event, never unrelated actors/events.
         await connection.execute(
             "SELECT pg_advisory_xact_lock(hashtextextended('sources:event:'||value,0)) "
@@ -263,20 +306,37 @@ class SourceService:
                 "SELECT o.source_id,o.head_revision FROM sources.originals o JOIN sources.versions v "
                 "ON v.source_id=o.source_id AND v.revision=o.head_revision WHERE o.owner_id=%s "
                 "AND o.actor_id IS NOT DISTINCT FROM %s AND v.evidence_unit=%s "
-                "AND o.head_revision<%s AND o.state='active' ORDER BY o.source_id",
-                (context.principal_id, context.actor_id, f"{producer}:{event_id}", revision),
+                "AND o.head_revision<%s AND o.state='active' ORDER BY o.source_id LIMIT %s",
+                (context.principal_id, context.actor_id, f"{producer}:{event_id}", revision,
+                 min(budget.remaining["inputs"], budget.remaining["nodes"]) + 1),
             )).fetchall()
+            if len(previous) > budget.remaining["nodes"]:
+                raise AppError("source_dependency_budget_exceeded", status=503)
+            budget.charge(inputs=len(previous), work=len(previous))
             dependencies.extend(SourceRef(row["source_id"], row["head_revision"], {}) for row in previous)
             source_ids.extend(row["source_id"] for row in previous)
         scoped_sources = tuple(ref for _, refs in scoped for ref in refs)
         await self._lock_selected(
             connection, tuple((*required, *dependencies, *scoped_sources)), extra=tuple(source_ids),
             extra_aliases=tuple(alias for alias in aliases if alias), write_ids=tuple(source_ids),
+            budget=budget,
         )
-        if required and not (await self.check_many_on(connection, context, (tuple(required),)))[0]:
-            raise AppError("source_support_unavailable", status=403)
+        # Exact duplicates under the same complete context need one proof.
+        # Different contexts and different locators remain separate authorities.
+        checks = []
+        if required:
+            checks.append((context, unique_refs(required), True))
         for original_context, refs in scoped:
-            await self.check_many_on(connection, original_context, (refs,))
+            refs = unique_refs(refs)
+            if not any(original_context == checked_context and refs == checked_refs
+                       for checked_context, checked_refs, _ in checks):
+                checks.append((original_context, refs, False))
+        results = await check_scoped_on(self.identity, connection, tuple(
+            (original_context, (refs,), mandatory)
+            for original_context, refs, mandatory in checks
+        ), budget=budget)
+        if required and not results[0][0]:
+            raise AppError("source_support_unavailable", status=403)
         return tuple(aliases)
 
     async def record_event(
@@ -289,7 +349,10 @@ class SourceService:
         parts = wire(parts)
         if len(parts) > 256:
             raise AppError("source_parts_too_many")
+        from .rbj_budget import SourceBudget
+
         refs = []
+        budget = SourceBudget()
         async with self._event_connection(connection) as conn:
             expected_generation = (
                 generation if generation is not None else await self.jobs.current_generation_on(conn)
@@ -304,10 +367,10 @@ class SourceService:
             )
             from .archives import bind_event
 
-            native_alias = await self.prepare_event_write(
-                conn, context, producer=producer, event_id=event_id, revision=revision,
-                parts=original_parts, support_refs=support_refs,
-            )
+            native_alias = (await self._prepare_event_writes(conn, context, ({
+                "producer": producer, "event_id": event_id, "revision": revision,
+                "parts": original_parts, "support_refs": support_refs,
+            },), budget=budget))[0]
             if native_alias:
                 if await (
                     await conn.execute(
@@ -334,7 +397,7 @@ class SourceService:
                         if len(pieces) != 3 or pieces[0] != "source" or not pieces[2].isdigit():
                             raise AppError("source_media_not_authorized", status=403)
                         ref = SourceRef(pieces[1], int(pieces[2]), {})
-                        if not (await self.check_many_on(conn, context, ((ref,),)))[0]:
+                        if not (await self._check_with_budget(conn, context, ((ref,),), budget))[0]:
                             raise AppError("source_media_not_authorized", status=403)
                         stored = await (
                             await conn.execute(
@@ -385,7 +448,7 @@ class SourceService:
                         Coverage(True),
                         (tuple(support_refs),) if support_refs else (),
                         speaker_id=author if part_origin == OriginKind.HUMAN else None,
-                        locks_prepared=True,
+                        locks_prepared=True, budget=budget,
                     )
                 )
             removed = await (
@@ -411,7 +474,10 @@ class SourceService:
     @asynccontextmanager
     async def _event_connection(self, connection):
         if connection is not None:
-            yield connection
+            # A budget/error after an earlier part must not leave partial source
+            # writes if the owner catches the error inside its outer transaction.
+            async with connection.transaction():
+                yield connection
         else:
             async with self.database.transaction() as opened:
                 yield opened
@@ -445,7 +511,11 @@ class SourceService:
         support_context=None,
         speaker_id=None,
         locks_prepared=False,
+        budget=None,
     ):
+        from .rbj_budget import SourceBudget
+
+        budget = budget if budget is not None else SourceBudget()
         if not context.scope_ids:
             raise AppError("source_scope_required", status=403)
         source_id = "source_" + key[:48]
@@ -455,7 +525,7 @@ class SourceService:
             for ref in group
         )
         if not locks_prepared:
-            await self._lock_selected(conn, dependencies, extra=(source_id,), write_ids=(source_id,))
+            await self._lock_selected(conn, dependencies, extra=(source_id,), write_ids=(source_id,), budget=budget)
         await conn.execute(
             "INSERT INTO sources.originals(source_id,source_key,owner_id,person_id,actor_id,head_revision) "
             "VALUES(%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
@@ -482,11 +552,9 @@ class SourceService:
             )
         ).fetchone()
         if old:
-            rows = await (await conn.execute(
-                "SELECT group_id,support_source_id,support_revision,support_locator FROM sources.supports "
-                "WHERE source_id=%s AND revision=%s ORDER BY group_id,support_key",
-                (source_id, revision),
-            )).fetchall()
+            from .rbj_locking import support_rows_on
+
+            rows = await support_rows_on(conn, source_id, revision, budget)
             stored_groups = {}
             for row in rows:
                 stored_groups.setdefault(row["group_id"], []).append(SourceRef(
@@ -549,7 +617,7 @@ class SourceService:
             if (
                 not group
                 or not (
-                    await self.check_many_on(conn, support_context or context, (tuple(group),))
+                    await self._check_with_budget(conn, support_context or context, (tuple(group),), budget)
                 )[0]
             ):
                 raise AppError("source_support_unavailable", status=403)
@@ -603,6 +671,9 @@ class SourceService:
             raise AppError("invalid_publication")
 
         async def publish(conn):
+            from .rbj_budget import SourceBudget
+
+            budget = SourceBudget()
             locator = {"producer": producer, "event_id": event_id, "kind": "publication"}
             key = body_hash(
                 {"principal": context.principal_id, "actor": context.actor_id, "locator": locator}
@@ -613,9 +684,9 @@ class SourceService:
             )
             await self._lock_selected(
                 conn, tuple(source_refs), extra=("source_" + key[:48],),
-                write_ids=("source_" + key[:48],),
+                write_ids=("source_" + key[:48],), budget=budget,
             )
-            if not (await self.check_many_on(conn, context, (tuple(source_refs),)))[0]:
+            if not (await self._check_with_budget(conn, context, (tuple(source_refs),), budget))[0]:
                 raise AppError("source_unavailable", status=403)
             target = replace(context, scope_ids=scopes, audience=scopes)
             return await self._register(
@@ -634,7 +705,7 @@ class SourceService:
                 (tuple(source_refs),) if source_refs else (),
                 disclosure=True,
                 support_context=context,
-                locks_prepared=True,
+                locks_prepared=True, budget=budget,
             )
 
         if connection is not None:
@@ -724,6 +795,9 @@ class SourceService:
             raise AppError("forbidden", status=403)
 
         async def publish(conn):
+            from .rbj_budget import SourceBudget
+
+            budget = SourceBudget()
             locator = {"kind": kind, "projection_id": projection_id}
             key = body_hash(
                 {"principal": context.principal_id, "actor": context.actor_id, "locator": locator}
@@ -731,9 +805,9 @@ class SourceService:
             await self.identity.lock_context_on(conn, context)
             await self._lock_selected(
                 conn, tuple(source_refs), extra=("source_" + key[:48],),
-                write_ids=("source_" + key[:48],),
+                write_ids=("source_" + key[:48],), budget=budget,
             )
-            if not (await self.check_many_on(conn, context, (tuple(source_refs),)))[0]:
+            if not (await self._check_with_budget(conn, context, (tuple(source_refs),), budget))[0]:
                 raise AppError("source_unavailable", status=403)
             scope_id = await self.identity.public_scope(context, connection=conn)
             epochs = await self.identity.support_epochs((scope_id,), connection=conn)
@@ -754,11 +828,12 @@ class SourceService:
                 (tuple(source_refs),),
                 disclosure=True,
                 support_context=context,
-                locks_prepared=True,
+                locks_prepared=True, budget=budget,
             )
 
         if connection is not None:
-            return await publish(connection)
+            async with connection.transaction():
+                return await publish(connection)
         async with self.database.transaction() as conn:
             return await publish(conn)
 
@@ -829,14 +904,17 @@ class SourceService:
         # different authorized reader must not create a second attachment identity.
         key = body_hash(locator)
         digest = body_hash({"locator": locator, "revision": supplement_revision, "media": media})
+        from .rbj_budget import SourceBudget
+
+        budget = SourceBudget()
         async with self._event_connection(connection) as conn:
             await self.jobs.assert_generation_on(conn, generation)
             await self.identity.lock_context_on(conn, context)
             await self._lock_selected(
                 conn, (original_ref,), extra=("source_" + key[:48],),
-                write_ids=("source_" + key[:48],),
+                write_ids=("source_" + key[:48],), budget=budget,
             )
-            if not (await self.check_many_on(conn, context, ((original_ref,),)))[0]:
+            if not (await self._check_with_budget(conn, context, ((original_ref,),), budget))[0]:
                 raise AppError("source_unavailable", status=403)
             original = await (await conn.execute(
                 "SELECT o.owner_id,o.person_id,o.actor_id,v.scope_ids,v.locator,"
@@ -862,7 +940,7 @@ class SourceService:
                 wire(media), f"supplement:{producer}:{event_id}:{event_revision}:{part_index}",
                 Coverage(True), ((original_ref,),), support_context=context,
                 speaker_id=original["speaker_id"],
-                locks_prepared=True,
+                locks_prepared=True, budget=budget,
             )
             await conn.execute(
                 "INSERT INTO sources.media_supplements(source_id,revision,request_digest) "
@@ -875,7 +953,7 @@ class SourceService:
             )).fetchone()
             if row["request_digest"] != digest:
                 raise AppError("source_revision_conflict", status=409)
-            if not (await self.check_many_on(conn, context, ((ref,),)))[0]:
+            if not (await self._check_with_budget(conn, context, ((ref,),), budget))[0]:
                 raise AppError("source_unavailable", status=403)
             return ref
 
@@ -888,9 +966,12 @@ class SourceService:
             or not isinstance(original_ref, SourceRef) or original_ref.locator
             or original_ref.revision != event_revision):
             return False
+        from .rbj_budget import SourceBudget
+
+        budget = SourceBudget()
         await self.identity.lock_context_on(connection, context)
-        await self._lock_selected(connection, (supplement_ref, original_ref))
-        if not (await self.check_many_on(connection, context, ((supplement_ref, original_ref),)))[0]:
+        await self._lock_selected(connection, (supplement_ref, original_ref), budget=budget)
+        if not (await self._check_with_budget(connection, context, ((supplement_ref, original_ref),), budget))[0]:
             return False
         row = await (await connection.execute(
             "SELECT v.locator,v.media,o.actor_id,original.locator AS original_locator "
@@ -912,11 +993,9 @@ class SourceService:
             or row["original_locator"].get("event_id") != event_id
             or row["original_locator"].get("part") != part_index):
             return False
-        supports = await (await connection.execute(
-            "SELECT group_id,support_source_id,support_revision,support_locator "
-            "FROM sources.supports WHERE source_id=%s AND revision=%s",
-            (supplement_ref.source_id, supplement_ref.revision),
-        )).fetchall()
+        from .rbj_locking import support_rows_on
+
+        supports = await support_rows_on(connection, supplement_ref.source_id, supplement_ref.revision, budget)
         return bool(supports) and all(
             item["support_source_id"] == original_ref.source_id
             and item["support_revision"] == original_ref.revision
@@ -949,7 +1028,11 @@ class SourceService:
         self, context, media, locator, origin_kind, content, *,
         generation, actor_shared=False, source_refs=(), disclosure=False,
     ):
-        await self.check(context, source_refs)
+        from .rbj_budget import SourceBudget
+
+        budget = SourceBudget()
+        if not (await self._check_many(context, (source_refs,), budget))[0]:
+            raise AppError("source_unavailable", status=403)
         if not self.files.was_written(media):
             raise AppError("media_intake_not_owned", status=403)
 
@@ -995,6 +1078,7 @@ class SourceService:
                 support_groups,
                 disclosure=disclosure,
                 support_context=context if disclosure else None,
+                budget=budget,
             )
 
     async def _media(self, context, media):

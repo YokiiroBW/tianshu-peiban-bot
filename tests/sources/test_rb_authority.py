@@ -7,11 +7,13 @@ from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 
 import pytest
+from psycopg.types.json import Jsonb
 
 from tianshu.conversation.types import InputPart
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.sources.types import EvidenceSetRef, EvidenceSpec
+from tianshu.sources import archives as source_archives
 from tianshu.types import OriginKind
 
 
@@ -265,3 +267,80 @@ async def test_automatic_archives_respect_installation_and_explicit_old_ref(core
     changed = {**old, "stored_content_sha256": "b" * 64, "text": "changed"}
     assert (await register(changed, False))["reason"] == "archive_before_installation"
     assert (await register(fresh, False))["allowed"]
+
+
+async def test_multi_record_archive_budget_failure_rolls_back_earlier_records(
+    core, ordinary_users, monkeypatch
+):
+    alice, _ = ordinary_users
+
+    def record(message):
+        return {"locator": message, "stored_content_sha256": "a" * 64, "text": message,
+                "text_representation": "stored_text", "sender_id": "sender",
+                "timestamp": datetime.now(UTC).timestamp(),
+                "native_aliases": [{"platform": "qq", "account_id": "self", "room_id": "room",
+                                    "message_type": "private", "id_kind": "external", "message_id": message}]}
+
+    first, second = record("rbj-first"), record("rbj-second")
+    async with core.database.transaction() as conn:
+        await conn.execute(
+            "INSERT INTO identity.connections(connection_id,principal_id,actor_id,namespace,self_external_id) "
+            "VALUES('rbj-qq',%s,%s,'qq','self')", (alice.principal_id, alice.actor_id)
+        )
+        await conn.execute(
+            "INSERT INTO identity.conversation_links(connection_id,external_id,conversation_id,mode) "
+            "VALUES('rbj-qq','room',%s,'reply')", (alice.conversation_id,)
+        )
+        scopes, epochs = await core.identity.intake_scope(alice, connection=conn)
+        scene = await core.identity.archive_scene_on(conn, alice)
+        key = source_archives.alias_key(alice, second["native_aliases"][0], scene)
+        await conn.execute(
+            "INSERT INTO sources.originals(source_id,source_key,owner_id,person_id,actor_id,head_revision) "
+            "SELECT 'rbj-archive-graph-'||n,'rbj-archive-key-'||n,%s,%s,%s,1 FROM generate_series(0,173) n",
+            (alice.principal_id, alice.person_id, alice.actor_id),
+        )
+        await conn.execute(
+            "INSERT INTO sources.versions(source_id,revision,intake_epoch,scope_ids,scope_epochs,audience,"
+            "origin_kind,evidence_unit,content,locator,coverage,occurred_at) "
+            "SELECT 'rbj-archive-graph-'||n,1,1,%s::text[],%s::jsonb,%s::text[],'human',"
+            "'rbj-archive-source-'||n,'value','{}'::jsonb,'{}'::jsonb,now() FROM generate_series(0,173) n",
+            (list(scopes), Jsonb(epochs), list(scopes)),
+        )
+        await conn.execute("""
+            INSERT INTO sources.supports(source_id,revision,group_id,support_source_id,
+                                         support_revision,support_locator,support_key)
+            SELECT 'rbj-archive-graph-'||p,1,'0','rbj-archive-graph-'||c,1,'{}'::jsonb,'edge-'||p||'-'||c
+            FROM generate_series(1,173) p CROSS JOIN generate_series(0,172) c WHERE c<p
+        """)
+        await conn.execute(
+            "INSERT INTO sources.source_aliases(alias_key,source_id,revision) VALUES(%s,'rbj-archive-graph-173',1)",
+            (key,),
+        )
+    registered = core.sources._register
+    calls = 0
+    earlier = None
+
+    async def observe(conn, *args, **kwargs):
+        nonlocal calls, earlier
+        calls += 1
+        if calls == 2:
+            earlier = await (await conn.execute(
+                "SELECT (SELECT count(*) FROM sources.archive_records) AS archives, "
+                "(SELECT count(*) FROM sources.source_aliases) AS aliases"
+            )).fetchone()
+        return await registered(conn, *args, **kwargs)
+
+    monkeypatch.setattr(core.sources, "_register", observe)
+    with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
+        await core.sources.register_archive(
+            alice, mapping_id="rbj-budget", channel={"network": "qq"},
+            records=(first, second), explicit_request=True,
+        )
+    assert calls == 2 and earlier == {"archives": 1, "aliases": 2}
+    async with core.database.transaction(read_only=True) as conn:
+        after = await (await conn.execute(
+            "SELECT (SELECT count(*) FROM sources.archive_records) AS archives, "
+            "(SELECT count(*) FROM sources.source_aliases) AS aliases, "
+            "(SELECT count(*) FROM sources.versions WHERE evidence_unit LIKE 'archive:%') AS versions"
+        )).fetchone()
+    assert after == {"archives": 0, "aliases": 1, "versions": 0}

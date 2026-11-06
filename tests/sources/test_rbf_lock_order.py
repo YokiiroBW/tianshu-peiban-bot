@@ -100,7 +100,9 @@ async def test_opposite_batch_order_does_not_deadlock(core, ordinary_users):
     assert await core.sources.check_many(alice, (tuple(left.values()),)) == (True,)
 
 
-async def test_alias_closure_growth_never_extends_a_partially_locked_set():
+async def test_alias_closure_growth_never_extends_a_partially_locked_set(monkeypatch):
+    from tianshu.sources import rbj_locking
+
     class Cursor:
         def __init__(self, rows):
             self.rows = rows
@@ -114,16 +116,18 @@ async def test_alias_closure_growth_never_extends_a_partially_locked_set():
             self.locks = []
 
         async def execute(self, sql, parameters):
-            if sql.startswith("WITH RECURSIVE"):
-                self.scans += 1
-                values = ["a"] if self.scans == 1 else ["a", "b"]
-                return Cursor([{"source_id": value} for value in values])
             if "FOR SHARE" in sql:
                 self.locks.append(parameters[0])
                 return Cursor([])
             raise AssertionError(sql)
 
     conn = ChangingConnection()
+
+    async def changed(_conn, _refs, _extra, _aliases, _budget):
+        conn.scans += 1
+        return {"a"} if conn.scans == 1 else {"a", "b"}
+
+    monkeypatch.setattr(rbj_locking, "selected_on", changed)
     with pytest.raises(RecoveryWait) as failure:
         await lock_selected(conn, (SourceRef("a", 1, {}),))
     assert failure.value.reason == "source_lock_set_changed"

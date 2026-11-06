@@ -81,7 +81,7 @@ async def test_large_groups_preserve_results_ranges_and_global_locks(core, ordin
         assert not await core.sources.validate_persistence(conn, alice, (forgotten, *large_safe_group))
 
 
-async def test_shared_dependency_budget_is_split_without_hiding_single_source_limit(core, ordinary_users):
+async def test_shared_dependency_budget_is_not_reset_by_splitting(core, ordinary_users):
     alice, _ = ordinary_users
     references = await _seed_sources(core, alice, 8195)
     roots = references[:3]
@@ -92,10 +92,15 @@ async def test_shared_dependency_budget_is_split_without_hiding_single_source_li
             "SELECT 'batch-source-'||(n%3),1,'0','batch-source-'||(n+3),1,'{}'::jsonb,"
             "'support-'||n FROM generate_series(0,8191) n"
         )
-    # The three roots together exceed the SQL node budget, while each root is provable.
-    assert await core.sources.check_many(alice, (roots,)) == (True,)
+    # The full public call has one node budget; splitting must not renew it.
+    with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
+        await core.sources.check_many(alice, (roots,))
     async with core.database.transaction() as conn:
-        assert await core.sources.validate_persistence(conn, alice, roots)
+        with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
+            await core.sources.validate_persistence(conn, alice, roots)
+    # A proof without locking can still evaluate one complete smaller graph.
+    async with core.database.transaction(read_only=True) as conn:
+        assert await core.sources.check_many_on(conn, alice, ((roots[0],),)) == (True,)
 
     async with core.database.transaction() as conn:
         await conn.execute(

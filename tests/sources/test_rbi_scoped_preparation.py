@@ -11,6 +11,7 @@ import pytest
 from tianshu.conversation.types import InputPart
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryWait
+import tianshu.sources.proofs as source_proofs
 from tianshu.types import OriginKind, SourceRef
 
 
@@ -57,15 +58,15 @@ async def test_scoped_authority_is_independent_and_private_receipt_still_commits
     private = await _record(core, alice, _event("private-input"))
     receipt_event = _event("private-receipt", support=(private,))
     checks = []
-    check_many_on = core.sources.check_many_on
+    check_scoped_on = source_proofs.check_scoped_on
 
-    async def observe_check(connection, context, groups):
-        groups = tuple(tuple(group) for group in groups)
-        result = await check_many_on(connection, context, groups)
-        checks.append((context, groups, result))
-        return result
+    async def observe_check(identity, connection, requests, *, budget=None):
+        results = await check_scoped_on(identity, connection, requests, budget=budget)
+        for (context, groups, _), result in zip(requests, results):
+            checks.append((context, groups, result))
+        return results
 
-    monkeypatch.setattr(core.sources, "check_many_on", observe_check)
+    monkeypatch.setattr(source_proofs, "check_scoped_on", observe_check)
     async with core.database.transaction() as conn:
         generation = await core.sources.jobs.current_generation_on(conn)
         await core.sources.jobs.assert_generation_on(conn, generation)
@@ -74,7 +75,7 @@ async def test_scoped_authority_is_independent_and_private_receipt_still_commits
             scoped_refs=((bob, (common,)), (bob, (private,))),
         )
         assert aliases == (None,)
-        assert (alice, ((private, common, private),), (True,)) in checks
+        assert (alice, ((private, common),), (True,)) in checks
         assert (bob, ((common,),), (True,)) in checks
         assert (bob, ((private,),), (False,)) in checks
 
@@ -143,11 +144,11 @@ async def test_scoped_proof_errors_and_typed_wait_are_not_turned_into_denials(
         dependency="sources:lock_set",
     )
     for error in (AppError("source_dependency_budget_exceeded", status=503), wait):
-        async def fail_proof(_connection, _context, _groups):
+        async def fail_proof(_connection, _context, _groups, *, budget=None):
             raise error
 
         with monkeypatch.context() as patch:
-            patch.setattr(core.sources, "check_many_on", fail_proof)
+            patch.setattr(source_proofs, "check_scoped_on", fail_proof)
             async with core.database.transaction() as conn:
                 with pytest.raises(type(error)) as failure:
                     await core.sources.prepare_event_writes(
