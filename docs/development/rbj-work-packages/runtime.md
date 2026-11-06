@@ -7,7 +7,7 @@
 - 代码起点 `39da2d283deb17de2739b3c24fc1eeedc96cfa69`；实际准备提交由根正式派发消息及 dispatch 记录给出，必须核对一致。
 - gpt-6.1-terra / max，普通速度（service_tier=default、fast_mode=false），不自行开启 Fast。
 - 依赖：无跨窗口实现前置。依赖窗口使用冻结合同与夹具，不读写其可变目录；接口不明确即报根并继续自身独立工作。
-- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.6](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
+- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.7](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
 
 ## 完整交付范围
 

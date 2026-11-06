@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.6
+# RBJ 公共合同，2026-11-06，版本 1.7
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -233,7 +233,7 @@ async def JobQueue.redact_wake_on(self, connection, job_id, *, expected_task,
 
 同一 conn-only 公开实现为 tianshu.runtime.rbj_wake.redact_wake_on(connection, job_id, *, 上述相同参数)，JobQueue 方法委托它。ConversationDependencies 的既有 jobs=None 调用使用该公开函数；不另建 Queue/连接，不保留直接 UPDATE 的平行路径。
 
-返回 state=redacted|changed，job_id 必有。redacted 可含 metadata_unverified=True 表示正文已去敏但历史元数据不能验证，另保留 invalidation_ref；不能把 metadata_unverified 当作未擦除而恢复原文。重复已确认去敏仍可幂等返回 redacted；只有原生快照确实变化才返回 changed，不用永久历史元数据冲突造成无穷 changed。
+返回 state=redacted|already_redacted|changed|missing|waiting，job_id 必有。redacted/already_redacted 可含 metadata_unverified=True 表示正文已去敏但历史元数据不能验证，另保留 invalidation_ref；不能把 metadata_unverified 当作未擦除而恢复原文。重复已确认去敏幂等；只有原生快照确实变化才返回 changed，不用永久历史元数据冲突造成无穷 changed。missing 表示 native 已不存在，不是业务消费完成证明。
 
 仅用于本批登记的 conversation.result 来源撤回去敏，不是任意 payload 更新口。Conversation 验证精确来源/版本/fragment/actor，构造既有 redacted_event，保留原事件/context、receipt/attempt 与执行效果等身份元数据；Runtime 用纯机械规则只允许删除/清空与固定 source-invalidated 墓碑，不反向 import Conversation、不接受任意替换或恢复。
 
@@ -244,5 +244,13 @@ async def JobQueue.redact_wake_on(self, connection, job_id, *, expected_task,
 去敏不取消其他 doing，不抹已存在的 begin/unknown，也不自行关闭未决资格。handler 前遇 source-invalidated 的精确非执行退出沿同一机械退出事实留证，普通/repair 都不能因 native succeeded 伪称已消费；没有完整退出证明继续保留未知。只有领域已证明并持久化的合法终态才按既有 close 条件关闭未开始资格，不能先将未知写 invalidated 再拿该行循环自证。
 
 RBJ-04 同时单写 dependencies.py 中向撤回 helper 传递既有 self.jobs 的最小适配，保留其他依赖失效逻辑。沿已有提交后 Sources durable 通知/正常对账，不增加第二个业务队列；根集中联合验证擦除与入队/领取/重试交错、历史缺元数据、旧事实保留、重复通知及来源片段边界。
+
+## 15. 1.7 多对象锁争用与持久撤回延期
+
+多 job 或历史冲突对象可能使撤回事务持有前一个对象/摘要锁再等待后一个；Runtime 可对新增对象/摘要使用非阻塞 try-advisory-lock，真实争用返回 waiting、reason=wake_lock_busy 及数据库时间生成的有时区 retry_at，不伪装成 payload changed。固定历史 metadata 冲突仍按上节擦除/metadata_unverified，不能变成永久 waiting。
+
+Conversation 收到 waiting 后在原 sources.notify 派生通知事务外层抛出 RecoveryWait（source_redaction_lock_busy，dependency=runtime:wake_redaction，使用返回 retry_at），沿已有 resource_recovery 原任务延期，不成功吞掉待办。回滚的是尚未提交的派生通知，Source 权威撤回早已提交；不回滚权威状态、不手动提交调用者事务，不为局部进度加第二业务队列。其他已提交失效保持，未提交局部擦除按原事务重试。仅真实锁未取得可如此等待，普通 SQL/计算错误或提交未知不借此免费重试。
+
+1.7 只补充去敏 waiting/已去敏/缺任务的返回与既有通知延期语义；第11节 preflight-stop、第12节保留未知及第13节索引口径保持，方法参数不变。handler 旧入参遇已去敏 native 时依精确原 action/receipt/revision 和 Runtime 持久失效事实判定本次退出；不恢复正文，不把旧业务推断为未发生，已 begin/unknown 原事实不抹。
 
 实现者只完成整块代码、必要用例代码、静态 diff 审阅和提交，不运行测试/构建/烟测/模型/QQ/生产。根收齐后做必要 PG 联合验证，复用未变有效结果；不全量重跑 472 用例。发布和原对象恢复另由根串行执行，本次派发不代表已修复/验证/部署。

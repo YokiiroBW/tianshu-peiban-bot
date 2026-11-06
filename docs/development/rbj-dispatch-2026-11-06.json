@@ -1,8 +1,8 @@
 {
   "batch": "RBJ-20261106",
-  "status": "four_packages_received_three_implementations_active",
+  "status": "five_packages_received_runtime_conversation_active",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.6",
+  "contract": "1.7",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -109,7 +109,7 @@
       "latest_turn_id": "01a1b09e-0cf6-7e10-ae40-b4f5a4ff4af4",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
-      "contract": "1.6",
+      "contract": "1.7",
       "contract_notice_accepted_at": "2026-11-06T11:58:43.840Z",
       "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "latest_progress": "普通与修复执行现在共用原执行账本，修复 job 会在入队事务中绑定资格，历史导入也能识别其用途。正在收口唤醒的覆盖、重试等待下界和旧任务接管，并补相应的用例代码。"
@@ -201,7 +201,7 @@
       "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
-      "contract": "1.6",
+      "contract": "1.7",
       "contract_notice_accepted_at": "2026-11-06T11:58:43.653Z",
       "contract_notice_commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
@@ -340,7 +340,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-memory-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-memory\\tianshu-peiban-bot",
-      "status": "implementation_started_confirmed",
+      "status": "committed_pending_integration_validation",
       "handoff": "docs/handoffs/RBJ-07.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:41.107284+00:00",
@@ -354,7 +354,12 @@
       "contract_read_on_release": true,
       "release_at": "2026-11-06T12:31:36.987491+00:00",
       "released_by": "RBJ-05 whole-package receipt",
-      "test_scope_note": "Only test_recovery_statistics_backfill_uses_original_attempt_identity and its local fixture for truthful coverage; preserve original attempt/revision/dedup assertions"
+      "test_scope_note": "Only test_recovery_statistics_backfill_uses_original_attempt_identity and its local fixture for truthful coverage; preserve original attempt/revision/dedup assertions",
+      "implementation_commit": "7b05551685459130226ddd6c33d16631f7578202",
+      "handoff_commit": "1adfaa7f10e228d5873f218026bc487afc062ee2",
+      "receipt_at": "2026-11-06T12:35:29.800211+00:00",
+      "receipt_verified": "Immutable code/handoff read; allowed paths verified; no behavior/coverage tests run",
+      "validation": "pending_central_integration"
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
@@ -389,6 +394,11 @@
       "version": "1.5",
       "commit": "a5e6155c1d6ad5a680e4b2f4a46aa7abf98adcd1",
       "scope": "Public same-transaction frozen request read; trusted legal non-application terminal closes unstarted repair grant"
+    },
+    {
+      "version": "1.6",
+      "commit": "db6e53f757678bbe9117d68728c7cfbe4674c8af",
+      "scope": "Exact ordinal exits; unknown-preserving supersede; one-way redaction; index coverage"
     }
   ],
   "integration_notes": [
@@ -434,5 +444,6 @@
       ".runtime/rbi-execution-20261106/monitor-targeted-20261106T1204Z.json"
     ],
     "production_writes": false
-  }
+  },
+  "contract_1_7_note": "Redaction may report real try-lock waiting; original durable Source notification defers and never silently loses pending work. Authoritative Source withdrawal is already committed."
 }

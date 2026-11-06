@@ -1,8 +1,8 @@
-# 2026-11-06 RBJ 四包已交付，Runtime/Conversation/Memory 开发中
+# 2026-11-06 RBJ 五包已交付，Runtime/Conversation 收尾
 
-Sources 9793412f、Capabilities f6c6955d、Life 41d903b3、Growth 2371ed32（交接ca539659）已完整交付；根已核对不可变提交/交接和路径归属，尚未集中集成/行为验证。Runtime、Conversation、Memory 三包开发中，所有七包均已启动，当前没有排队包；精确状态见[记录](rbj-dispatch-2026-11-06.json)。
+Sources 9793412f、Capabilities f6c6955d、Life 41d903b3、Growth 2371ed32（交接ca539659）已完整交付；根已核对不可变提交/交接和路径归属，尚未集中集成/行为验证。Memory 7b055516（交接1adfaa7f）也已完整交付，Runtime、Conversation 两包收尾中，所有七包均已启动，当前没有排队包；精确状态见[记录](rbj-dispatch-2026-11-06.json)。
 
-公共合同1.6已收口精确未执行退出、覆盖压平、来源单向去敏及旧consumer未决。Memory 复用已有轻维护/backfill，扫描尾页仅表示本轮结束，producer覆盖证据不足保持partial；Migration IDs/顺序已记录供根统一装配。Sources预算按访问量计费，其实际容量、深图与新回执性能仍待真实PG验证，不用静态检查声称亚秒。
+公共合同1.7已收口精确未执行退出、覆盖压平、来源单向去敏及旧consumer未决。Memory 复用已有轻维护/backfill，扫描尾页仅表示本轮结束，producer覆盖证据不足保持partial；Migration IDs/顺序已记录供根统一装配。Sources预算按访问量计费，其实际容量、深图与新回执性能仍待真实PG验证，不用静态检查声称亚秒。
 
 统一gpt-6.1-terra/max普通速度。实现者只写整块代码、必要用例及静态审阅后提交，根集中必要验证；不清数据/重置预算/重放unknown/主动QQ测试。生产仍为RBI-08版本，本批未部署，偶发403/429与备用路由不改。20:05巡检新增跨角色池超时及未关联对象的commit_unknown仅作证据保留，未推断为同一SQL根因、未重放。下方为历史截面。
 
