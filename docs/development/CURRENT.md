@@ -1,10 +1,10 @@
-# 2026-11-06 RBJ 已集成，集中验证返修中
+# 2026-11-06 RBJ 本地集成验证完成，未发布
 
-七个既有窗口完整提交已串行集成，根共享迁移与 Operations 装配已提交 a3c4ea31。当前在独立 owner 的临时 PostgreSQL/pgvector 验证，实际回执见[派发记录](rbj-dispatch-2026-11-06.json)；没有生产写入。Sources、Runtime 新用例、Actions、Growth、Memory 及五种产品角色装配已有通过证据，未变成功结果复用。
+七个既有窗口的完整实现与定向返修已串行集成到 codex/rbj-integration-20261106，产品候选 d8021aeb；[派发与交付记录](rbj-dispatch-2026-11-06.json)保留所有源提交/合入映射及冻结合同1.9。279个不同受影响用例在隔离PostgreSQL/pgvector通过，0失败/错误/跳过；未变有效结果直接复用，最后47例结果消费/租约/真实业务链路通过。本批临时PG已核验精确owner/容器ID并清理，镜像与原工作树保留。
 
-真实195节点/8252边/64层来源增加第65层Life回执后，原结果定向修复已能原子提交Life、Goal、Memory、consumer proof和六消费者aggregate；真实Memory写入后取消也全部回滚。成功后重复观察发现机械完成引用与领域proof引用冲突，Runtime/Conversation按[合同1.8](rbj-interfaces-2026-11-06.md)定向返修，保留首次关闭和未知事实；六个旧Life夹具/准确blocked-waiting预期仍在对应窗口修正。当前不称整批已验收。
+真实195节点/8252边、64层来源增加第65层回执后，原Action公开交接与受限repair保持四次原失败，并原子提交Life、Goal、Memory、consumer proof及六消费者aggregate；Memory真实写入后取消全部回滚。集中验收另发现并修复成功后重复观察的机械关闭/领域引用冲突，以及旧native失败误清新consumer租约；原关闭时间/引用、未知、token和预算均保留。最后一次新65层公共校验约0.154秒，完整恢复应用约3.967秒，包含测试网络往返；不推算生产吞吐或分阶段SQL耗时。
 
-20:45:45只读补证确认：五条线上原成功回执的30个consumer行全存在，只有life_activity因QueryCanceled仍pending且缺proof，其他五类已记录not_applicable；当前Action head与原receipt/revision匹配，aggregate不存在。生产仍RBI-08，发布后还需新鲜来源/owner/CAS检查及原对象业务收敛验收。保留六角色、原ID/请求/回执/unknown、代际、预算、配置/挂载；403/429及备用路由不改。不清库、不重放未知效果、不做真实模型/QQ测试。下方为历史截面。
+20:45:45只读截面中的五条线上回执均只缺life_activity proof，其余五类为not_applicable，原head匹配且无aggregate。本批未推送、部署、迁移生产或执行这些原对象恢复；发布后仍须新鲜来源/head/owner/CAS核对及自然新增结果验收。六角色、原ID/请求/回执/unknown、代际、预算、配置/挂载保持；403/429和备用路由不改，不清库、不重放未知效果、不做真实模型/QQ测试。下方为历史截面。
 
 # 2026-11-06 14:34 自然巡检确认业务阻塞恶化
 

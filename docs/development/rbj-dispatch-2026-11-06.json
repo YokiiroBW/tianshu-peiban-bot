@@ -1,8 +1,8 @@
 {
   "batch": "RBJ-20261106",
-  "status": "integrated_central_validation_followups_in_progress",
+  "status": "local_integrated_verified_not_deployed",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.8",
+  "contract": "1.9",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -49,7 +49,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-sources-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-sources\\tianshu-peiban-bot",
-      "status": "integrated_affected_validation_passed",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-01.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:19.341365+00:00",
@@ -71,7 +71,8 @@
       "receipt_at": "2026-11-06T12:31:36.987491+00:00",
       "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
       "validation": "coordinator_isolated_postgresql_affected_checks_passed",
-      "integrated_commit": "a8477779096c7b9dfee1cdcbc2908464d8c3726d"
+      "integrated_commit": "a8477779096c7b9dfee1cdcbc2908464d8c3726d",
+      "validated_contract": "1.9"
     },
     {
       "id": "RBJ-02",
@@ -101,7 +102,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-runtime-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-runtime\\tianshu-peiban-bot",
-      "status": "integrated_validation_followup_in_progress",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-02.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:20.367666+00:00",
@@ -117,7 +118,17 @@
       "implementation_commit": "ed5251c22523b521c8f390163ecbb9863b1b78d7",
       "handoff_commit": "bbb39ef9a0dae75be2c8b719644031bcefcba7a7",
       "integrated_commit": "4bdf6af4e463415c64e9bb55f4a11fcaff0d3fb9",
-      "validation": "new_checks_passed_targeted_followup_pending"
+      "validation": "coordinator_isolated_postgresql_affected_checks_passed",
+      "followup_commits": [
+        "21d4b04b9cac45ae105347d3caa1e517d1a853f8"
+      ],
+      "validated_contract": "1.9",
+      "followup_integrations": [
+        {
+          "source": "21d4b04b9cac45ae105347d3caa1e517d1a853f8",
+          "integrated": "2e5f23d2fe575adb8f7d7b1f77e56c10d2fcaef0"
+        }
+      ]
     },
     {
       "id": "RBJ-03",
@@ -144,7 +155,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-capabilities-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-capabilities\\tianshu-peiban-bot",
-      "status": "integrated_affected_validation_passed",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-03.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:21.911614+00:00",
@@ -160,7 +171,8 @@
       "receipt_at": "2026-11-06T11:50:48.017441+00:00",
       "receipt_verified": "commit exists, immutable handoff read, changed paths within allowlist; no tests run by coordinator",
       "validation": "coordinator_isolated_postgresql_affected_checks_passed",
-      "integrated_commit": "7d5a5f5c338081542e93a13b3f9b3407e6c0a95b"
+      "integrated_commit": "7d5a5f5c338081542e93a13b3f9b3407e6c0a95b",
+      "validated_contract": "1.9"
     },
     {
       "id": "RBJ-04",
@@ -198,7 +210,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-conversation-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-conversation\\tianshu-peiban-bot",
-      "status": "integrated_validation_followup_in_progress",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-04.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:25.151432+00:00",
@@ -207,7 +219,7 @@
       "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
-      "contract": "1.8",
+      "contract": "1.9",
       "contract_notice_accepted_at": "2026-11-06T12:40:06.969Z",
       "contract_notice_commit": "a5e5c5f0db09221e2e2fe8b7262b74054b004b61",
       "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
@@ -215,9 +227,26 @@
       "implementation_commit": "4caddc3d6a56e4e85f4b0a98c1de8f62ddd26029",
       "handoff_commit": "8f26d34d34ee15845ea76b244f49b75205918402",
       "integrated_commit": "f77acfadd656d3f6eb09ee0e9daa7783beb46ba4",
-      "validation": "new_checks_passed_targeted_followup_pending",
+      "validation": "coordinator_isolated_postgresql_affected_checks_passed",
       "followup_commits": [
-        "857fb7defd2634e54d3588b89639527026236769"
+        "857fb7defd2634e54d3588b89639527026236769",
+        "f829b2b7b0cd65f10c686aeaca07fa171fee716d",
+        "25a84507dcce714d0953c91457c08301a031aedc"
+      ],
+      "validated_contract": "1.9",
+      "followup_integrations": [
+        {
+          "source": "857fb7defd2634e54d3588b89639527026236769",
+          "integrated": "3cc8b183b202e0345034114d618f2e8f42958b34"
+        },
+        {
+          "source": "f829b2b7b0cd65f10c686aeaca07fa171fee716d",
+          "integrated": "7acd03467d6123953f8a428b9db371d67cdb8e0c"
+        },
+        {
+          "source": "25a84507dcce714d0953c91457c08301a031aedc",
+          "integrated": "d8021aeb017776a53ec2e83e7b18d3e164c8f650"
+        }
       ]
     },
     {
@@ -254,7 +283,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-life-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-life\\tianshu-peiban-bot",
-      "status": "integrated_validation_followup_in_progress",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-05.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:33.585989+00:00",
@@ -271,8 +300,28 @@
       "handoff_commit": "41d903b3432a3095a55c3669311d9d0f324aeaae",
       "receipt_at": "2026-11-06T12:31:36.987491+00:00",
       "receipt_verified": "Immutable commit and handoff read; changed paths within allowlist; runtime behavior/SQL not tested by coordinator",
-      "validation": "new_checks_passed_targeted_followup_pending",
-      "integrated_commit": "6646ad7b55d0edb443d01ce91a2d34d6981207cb"
+      "validation": "coordinator_isolated_postgresql_affected_checks_passed",
+      "integrated_commit": "6646ad7b55d0edb443d01ce91a2d34d6981207cb",
+      "followup_commits": [
+        "5ecf0c34a6e0ad4def660165843a82e98b395901",
+        "f1b2fd57c9c98ea1843fe37750dc2a8fb2358186",
+        "4d4d136e99623ee25f7eb5c8edc86b1d2032fe42"
+      ],
+      "validated_contract": "1.9",
+      "followup_integrations": [
+        {
+          "source": "5ecf0c34a6e0ad4def660165843a82e98b395901",
+          "integrated": "bff4c7774ae99c85cfe5bcf61e841e677a2f634a"
+        },
+        {
+          "source": "f1b2fd57c9c98ea1843fe37750dc2a8fb2358186",
+          "integrated": "45b13fd02ebea1570e9554c5e5799ba3ad0f99d5"
+        },
+        {
+          "source": "4d4d136e99623ee25f7eb5c8edc86b1d2032fe42",
+          "integrated": "8b43a66a2d7abce644dbd5472c4f3640509d7d22"
+        }
+      ]
     },
     {
       "id": "RBJ-06",
@@ -301,7 +350,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-growth-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-growth\\tianshu-peiban-bot",
-      "status": "integrated_affected_validation_passed",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-06.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:40.009152+00:00",
@@ -329,6 +378,17 @@
       "followup_commits": [
         "1076a021c18a132c392ba39be617f23b34ca2c60",
         "f6adbd748da02866222a8061d4e2b95ea11ca4d0"
+      ],
+      "validated_contract": "1.9",
+      "followup_integrations": [
+        {
+          "source": "1076a021c18a132c392ba39be617f23b34ca2c60",
+          "integrated": "4ecabd1359ac183d5381d183b0f8986e3255d2af"
+        },
+        {
+          "source": "f6adbd748da02866222a8061d4e2b95ea11ca4d0",
+          "integrated": "9496c71468234fd37963144b7cc6f75bf24add9b"
+        }
       ]
     },
     {
@@ -359,7 +419,7 @@
       "fast_mode": false,
       "branch": "codex/rbj-memory-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-memory\\tianshu-peiban-bot",
-      "status": "integrated_affected_validation_passed",
+      "status": "local_integrated_verified_not_deployed",
       "handoff": "docs/handoffs/RBJ-07.md",
       "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
       "worktree_created_at": "2026-11-06T11:27:41.107284+00:00",
@@ -383,13 +443,24 @@
       "followup_commits": [
         "a77e5c7f71c70be45af4044d00583edaa718c498",
         "8484abe98226b593d846734c8a68f599cd836ed0"
+      ],
+      "validated_contract": "1.9",
+      "followup_integrations": [
+        {
+          "source": "a77e5c7f71c70be45af4044d00583edaa718c498",
+          "integrated": "0176aceef7cc77646caa2c87993c55b8d3932092"
+        },
+        {
+          "source": "8484abe98226b593d846734c8a68f599cd836ed0",
+          "integrated": "7a0c8fdc0f46c475d2c3a3022cd6e687e77df333"
+        }
       ]
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
-  "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged",
-  "contract_revision_note": "Frozen after owner review: exact consumer proof; wake variant/object lock; attested legacy coverage; repair job binding; Life application inspection. No product implementation or production changes by coordinator.",
-  "contract_commit": "1d56370f",
+  "dispatch_acceptance": "all_seven_existing_windows_delivered_integrated_and_locally_verified",
+  "contract_revision_note": "Contracts 1.0-1.9 frozen by coordinator; original identities, budgets, six roles and domain ownership preserved. Latest fixes cover completed proof re-observation and current consumer leases; no production deployment.",
+  "contract_commit": "dbd390ffef97fa3470b5d0e46bb177e8004e3cb0",
   "contract_1_2_note": "Only clarify nullable owner_id: Life resolves unique current owner under actor/action/consumer authority; unresolved stays unknown.",
   "contract_1_3_note": "Bind original Life owner through callback; trusted proof closes unstarted grant without a fabricated execution.",
   "contract_history": [
@@ -433,14 +504,20 @@
       "version": "1.8",
       "commit": "1d56370f",
       "scope": "Preserve mechanical finish closure and bind a stable domain proof only to the exact completed fact; repeated matching observation is idempotent"
+    },
+    {
+      "version": "1.9",
+      "commit": "dbd390ff",
+      "scope": "Preserve current live or unconfirmed consumer leases and held unknown during historical native-failure reconciliation; no new claim system"
     }
   ],
   "integration_notes": [
-    "Register new named Sources/Runtime/Conversation SQL only after receiving exact handoffs; rbj_result_repair_evidence.sql is planned, not yet accepted or deployed.",
-    "Adapt affected legacy Life planner/action-result test fixtures centrally to asynchronous public handoff semantics; do not treat direct private callback tests as observer acceptance.",
-    "Sources Python public calls map source_dependency_budget_exceeded; direct SQL callers retain distinct SQLSTATE 54000. Verify affected Memory read/retraction semantics without treating budget as business false.",
-    "Runtime wake-exit proof for exact covered generation/job/native ordinal must prevent importing native succeeded as repair applied; require persisted covered_by and no existing begin fact. Domain handlers propagate the verified covered result. SQL/central validation pending.",
-    "Before any original-result closure, distinguish exact Life target proof from all-consumer delivery completion. Other applicable/missing consumers remain pending/unknown unless separately proven; no renderer/model/external work through local target repair."
+    "Root registered rbj_wake and rbj_execution_repair in both product/execution paths, rbj_result_repair_evidence after them, Sources rbj_lock_graph then rbj_source_proof after rbf_source_proof_reuse, and the Operations Life worker port; five product-role assembly cases passed.",
+    "Sources budgets count visits across lock-before/after/proof; 195-node/8252-edge real graph, deeper receipt, multi-context, existing large-group and related authority cases passed. Limits are not unique-node capacity.",
+    "Exact covered/redacted/preflight ordinal facts preserve unknown and physical attempt history; ordinary budget remains four original failures with one trusted local repair failure per registered target.",
+    "Completed repair proof references are stable; mechanical close/time and original execution facts remain, same proof reobserves and different proof conflicts.",
+    "A current consumer lease cannot be cleared by an unrelated older native failure. Waiting preserves token, due and unknown; missing leases and non-atomic unconfirmed effects remain unknown.",
+    "All six consumers must have exact terminal progress before aggregate completion; local Life repair never runs other consumers, models or external Actions."
   ],
   "contract_1_4_note": "Sources owns bounded lock-closure discovery and fresh post-lock verification; private budget spans lock graph and proof evaluation; no public signature or other domain ownership change.",
   "contract_1_5_note": "Reuse GenerationRequests.request with optional same connection/material_key; Growth cannot recreate a missing frozen request. Close may use exact durable legal non-application terminal evidence without erasing unresolved attempts.",
@@ -481,7 +558,7 @@
     "production_writes": false
   },
   "contract_1_7_note": "Redaction may report real try-lock waiting; original durable Source notification defers and never silently loses pending work. Authoritative Source withdrawal is already committed.",
-  "integrated_head": "1d56370f",
+  "integrated_head": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
   "integration_conflicts": 0,
   "six_consumer_readonly_evidence": {
     "observed_at": "2026-11-06T12:45:45.346898+00:00",
@@ -494,13 +571,21 @@
     "aggregate_rows": 0,
     "per_target_life_activity": "pending/QueryCanceled/no proof",
     "other_five_consumers": "not_applicable with original domain reasons",
-    "inference": "Targeted local Life repair is applicable evidence path, but actual full atomic proof and aggregate completion remain unverified"
+    "inference": "At observed 20:45:45 only Life was pending. Isolated real-domain atomic repair and aggregate convergence now passed; production objects remain unverified by this RBJ batch and must be freshly checked after release."
   },
   "shared_wiring_commit": "a3c4ea31888300281ca8491b3ad935fb467feb1f",
   "central_validation": {
-    "state": "followups_in_progress",
+    "state": "passed",
     "owner": "coordinator_only",
-    "environment": "task-owned isolated PostgreSQL/pgvector container, no production DB",
+    "validated_product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
+    "environment": "task-owned isolated PostgreSQL/pgvector at dedicated port; synthetic per-case databases; production DB unused",
+    "distinct_latest": {
+      "passed": 279,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0
+    },
+    "distinct_cases": 279,
     "labels": [
       "stage0",
       "new-domains",
@@ -508,49 +593,46 @@
       "related-domains",
       "fixture-fixes",
       "real-domain",
-      "related-consumers"
+      "related-consumers",
+      "related-life-wakes",
+      "life-fixture-fixes",
+      "completed-proof",
+      "live-consumer-observation",
+      "lease-final"
     ],
-    "distinct_latest": {
-      "passed": 228,
-      "failed": 7
-    },
-    "open_cases": [
-      {
-        "file": "tests\\runtime\\test_rbj_domain_result_repair.py",
-        "name": "test_real_source_life_goal_memory_and_proof_share_the_original_repair[False]",
-        "label": "real-domain"
-      },
-      {
-        "file": "tests\\life\\test_rbi_goal_fence.py",
-        "name": "test_goal_sources_are_prelocked_and_changed_goal_is_retried",
-        "label": "related-consumers"
-      },
-      {
-        "file": "tests\\life\\test_goal_source_transaction.py",
-        "name": "test_new_receipt_original_advances_only_authorized_goal_in_same_transaction[True]",
-        "label": "related-consumers"
-      },
-      {
-        "file": "tests\\life\\test_goal_source_transaction.py",
-        "name": "test_new_receipt_original_advances_only_authorized_goal_in_same_transaction[False]",
-        "label": "related-consumers"
-      },
-      {
-        "file": "tests\\life\\test_goal_source_transaction.py",
-        "name": "test_new_chapter_original_and_current_revision_are_consumed_on_writer_connection",
-        "label": "related-consumers"
-      },
-      {
-        "file": "tests\\life\\test_rbg_result_consumers.py",
-        "name": "test_unconfirmed_remote_rollback_stays_blocked_and_is_not_requeued",
-        "label": "related-consumers"
-      },
-      {
-        "file": "tests\\life\\test_rbg_result_consumers.py",
-        "name": "test_progress_observes_future_retry_other_wake_and_live_consumer_without_false_incident",
-        "label": "related-consumers"
+    "open_cases": [],
+    "summary": ".runtime/rbj-execution-20261106/validation-summary.json",
+    "last_affected_run": {
+      "label": "lease-final",
+      "counts": {
+        "passed": 47,
+        "failed": 0,
+        "error": 0,
+        "skipped": 0
       }
-    ],
-    "note": "New source/runtime/domain tests and affected role assembly passed; real repair atomic apply and rollback proven; repeated post-finish repair observation product conflict under owner fix, six legacy Life fixture/contract followups pending. No deployment or real-model/QQ execution."
-  }
+    },
+    "real_domain_acceptance": "Original Action handoff, preserved four failures, bounded trusted Life repair, real Sources/Life/Goal/Memory/consumer proof/aggregate, atomic rollback, and proof-only repeated observation passed",
+    "reuse": "Unchanged applicable successes reused. Runtime closure changes reran mechanical and consumer cases; lease changes reran result repair, six existing consumption cases, Life lease regression and real-domain success. Prior failed receipts retained as evidence.",
+    "timings": {
+      "source_graph_64_depth_seconds": 0.15560790011659265,
+      "source_graph_65_depth_seconds": 0.1540141999721527,
+      "real_repair_apply_seconds": 3.967426300048828,
+      "scope": "195 nodes, 8252 edges, depth 64 to new receipt depth 65; public-call elapsed includes network; one isolated sample, not production latency or throughput"
+    },
+    "cleanup": {
+      "state": "cleaned",
+      "owner_verified": true,
+      "receipt": ".runtime/rbj-execution-20261106/validation-cleanup.json",
+      "owned_container_and_directory_removed": true,
+      "image_removed": false
+    },
+    "limitations": [
+      "No app build, production migration/deployment or current original-object recovery performed in RBJ.",
+      "No real-model or QQ test; no external unknown effects replayed.",
+      "No separate fetch/evaluation/production lock-wait timing or broad concurrency/throughput claim.",
+      "Five original targets and any newly affected current-generation targets require fresh source/head/owner/CAS checks after release."
+    ]
+  },
+  "product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
+  "local_completed_at": "2026-11-06T14:03:27.039500+00:00"
 }
