@@ -48,7 +48,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "candidate_handoff_pending",
+      "status": "candidate_followup_in_progress",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -89,7 +89,7 @@
       "verified": false,
       "integrated": false,
       "handoff_commit": null,
-      "verification": "reported AST 10 files and diff check; no tests/build/smoke run",
+      "verification": "static integration defect found before tests/deployment; 24bbcad9 not final",
       "dependencies": [
         "7715afa5144be098a8b9431d1cda03b1a3aae4ec"
       ],
@@ -104,7 +104,8 @@
         ],
         "order": "after corresponding original schema; inspect handoff before assembly",
         "new_index": "public.procrastinate_events(job_id,id)"
-      }
+      },
+      "pending_followup": "native finish_job increments terminal attempts; historical observer must map terminal attempts=1 to ordinal0; Runtime correcting with native-manager regression code"
     },
     {
       "id": "RBI-02",

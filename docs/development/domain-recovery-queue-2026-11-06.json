@@ -329,7 +329,7 @@
       "priority": "P0",
       "owner": "Runtime",
       "title": "恢复领取机械边界与 role 内维护回调",
-      "status": "candidate_handoff_pending",
+      "status": "candidate_followup_in_progress",
       "depends_on": [
         "RBI-00"
       ],
@@ -368,7 +368,8 @@
       "card": "docs/development/rbi-work-packages/runtime.md",
       "implementation_turn_id": "01a1aeb3-d82b-7962-9556-ebf9e035f077",
       "source_commit": "24bbcad9928d7662e6882c68df545cd08323cf01",
-      "verification": "static_only_not_tested_handoff_pending"
+      "verification": "static integration defect found before tests/deployment; 24bbcad9 not final",
+      "pending_followup": "native finish_job increments terminal attempts; historical observer must map terminal attempts=1 to ordinal0; Runtime correcting with native-manager regression code"
     },
     {
       "id": "RBI-02",
