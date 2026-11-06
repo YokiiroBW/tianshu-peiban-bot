@@ -355,7 +355,7 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
         return {"complete": False, "reason": "execution_history_job_missing_or_changed", "executions": []}
     events = await (await connection.execute(
         "SELECT id,job_id,type FROM procrastinate_events WHERE job_id=ANY(%s) "
-        "AND type IN ('started','deferred_for_retry','failed','succeeded','aborted','retried') "
+        "AND type IN ('started','deferred_for_retry','failed','succeeded','aborted','retried','cancelled','abort_requested') "
         "ORDER BY job_id,id", (ids,))).fetchall()
     by_job = {job_id: [] for job_id in ids}
     for event in events:
@@ -369,8 +369,16 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
                 if active is not None:
                     return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
                 active, last = (ordinal, event["id"]), None
+            elif event_type == "abort_requested":
+                # Native retry-on-abort may finish without incrementing the
+                # counter; event rows alone cannot prove which path won.
+                return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+            elif event_type == "cancelled":
+                if active is not None:
+                    return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
+                last = "cancelled"
             elif event_type == "retried":
-                if active is not None or last != "failed":
+                if active is not None or last not in {"failed", "cancelled"}:
                     return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
                 ordinal += 1
                 last = "retry"
@@ -382,8 +390,8 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
                 executions.append({"job_id": row["id"], "native_attempt": active[0], "outcome": outcome,
                                    "evidence_ref": "native-job-event:" + str(event["id"])})
                 active, last = None, event_type
-                if event_type == "deferred_for_retry":
-                    ordinal += 1
+                # Native finish as well as doing->todo increments attempts.
+                ordinal += 1
         if row["attempts"] != ordinal:
             return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
         if row["status"] == "doing":
@@ -394,8 +402,10 @@ async def observe_execution_history_on(connection, *, job_ids, data_generation, 
             if not is_current:
                 executions.append({"job_id": row["id"], "native_attempt": active[0], "outcome": "unknown",
                                    "evidence_ref": "native-job-event:" + str(active[1])})
-        elif active is not None or (row["status"] == "failed" and last != "failed") or (
-                row["status"] == "succeeded" and last != "succeeded"):
+        elif (active is not None or row["status"] == "failed" and last not in {"failed", "cancelled"}
+                or row["status"] == "succeeded" and last not in {"succeeded", "cancelled"}
+                or row["status"] == "aborted" and last != "aborted"
+                or row["status"] == "cancelled" and last != "cancelled"):
             return {"complete": False, "reason": "execution_history_incomplete", "executions": []}
     return {"complete": True, "reason": None, "executions": executions}
 
@@ -445,6 +455,12 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
         raise AppError("execution_attempt_identity_conflict", status=409)
     if cursor["task_name"] != task_name:
         return result(False, "execution_history_job_missing_or_changed")
+    if cursor["event_id"]:
+        anchor = await (await connection.execute(
+            "SELECT 1 FROM procrastinate_events WHERE id=%s AND job_id=%s",
+            (cursor["event_id"], job_id))).fetchone()
+        if not anchor:
+            return result(False, "execution_history_incomplete")
     events = await (await connection.execute(
         "SELECT id,type FROM procrastinate_events WHERE job_id=%s AND id>%s ORDER BY id LIMIT %s",
         (job_id, cursor["event_id"], limit + 1))).fetchall()
@@ -459,8 +475,16 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
             if active is not None:
                 return result(False, "execution_history_incomplete", events_read=len(page))
             active, active_event, last = ordinal, event_id, None
+        elif event_type == "abort_requested":
+            # The retry-on-abort path can terminate without incrementing the
+            # attempt counter; do not persist guessed physical ordinals.
+            return result(False, "execution_history_incomplete", events_read=len(page))
+        elif event_type == "cancelled":
+            if active is not None:
+                return result(False, "execution_history_incomplete", events_read=len(page))
+            last = "cancelled"
         elif event_type == "retried":
-            if active is not None or last != "failed":
+            if active is not None or last not in {"failed", "cancelled"}:
                 return result(False, "execution_history_incomplete", events_read=len(page))
             ordinal, last = ordinal + 1, "retry"
         elif event_type in {"deferred_for_retry", "failed", "succeeded", "aborted"}:
@@ -471,15 +495,15 @@ async def advance_execution_history_on(connection, *, owner, identity, data_gene
             executions.append({"job_id": job_id, "native_attempt": active, "outcome": outcome,
                                "evidence_ref": "native-job-event:" + str(event_id)})
             active, active_event, last = None, None, event_type
-            if event_type == "deferred_for_retry":
-                ordinal += 1
+            ordinal += 1
     if not more:
         status = row["status"]
         if (row["attempts"] != ordinal or status in {"doing", "aborting"} and active is None
                 or status not in {"doing", "aborting"} and active is not None
-                or status == "failed" and last != "failed"
-                or status == "succeeded" and last != "succeeded"
-                or status == "aborted" and last != "aborted"):
+                or status == "failed" and last not in {"failed", "cancelled"}
+                or status == "succeeded" and last not in {"succeeded", "cancelled"}
+                or status == "aborted" and last != "aborted"
+                or status == "cancelled" and last != "cancelled"):
             return result(False, "execution_history_incomplete", events_read=len(page))
         is_current = (current_job is not None and current_job["job_id"] == job_id
                       and current_job["native_attempt"] == active)

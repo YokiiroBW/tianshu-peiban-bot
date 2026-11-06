@@ -87,7 +87,7 @@ async def test_incomplete_history_wait_and_four_failures_across_new_jobs(databas
     async with database.transaction() as conn:
         assert (await queue.inspect_execution_on(conn, **args))["reason"] == "execution_wait"
         await conn.execute("UPDATE runtime.rbi_execution_facts SET retry_at=now()-interval '1 second' WHERE job_id=%s", (wait_id,))
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (wait_id,))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (wait_id,))
     for number in range(1, 5):
         async with database.transaction() as conn:
             assert (await queue.inspect_execution_on(conn, **args))["eligible"]
@@ -95,7 +95,7 @@ async def test_incomplete_history_wait_and_four_failures_across_new_jobs(databas
         result = await task(context(job_id), kind="failure")
         assert result["outcome"] == "failed" and result["failed_executions"] == number
         async with database.transaction() as conn:
-            await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (job_id,))
+            await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
     async with database.transaction() as conn:
         exhausted = await queue.inspect_execution_on(conn, **args)
         assert not exhausted["eligible"] and exhausted["reason"] == "execution_failure_budget_exhausted"
@@ -139,7 +139,7 @@ async def test_unknown_commit_requires_observation_and_preserves_original_fact(d
         active = await queue.resolve_execution_on(conn, owner=args["owner"], identity=args["identity"],
             data_generation=generation, job_id=job_id, native_attempt=0, outcome="failed", observation_ref="native-proof:1")
         assert not active["recorded"] and active["reason"] == "execution_in_progress"
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (job_id,))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
         resolved = await queue.resolve_execution_on(conn, owner=args["owner"], identity=args["identity"],
             data_generation=generation, job_id=job_id, native_attempt=0, outcome="failed", observation_ref="native-proof:1")
         assert resolved["recorded"] and resolved["failed_executions"] == 1 and resolved["eligible"]
@@ -192,7 +192,7 @@ async def test_native_history_ordinal_and_incremental_import_preserve_unknown(da
     await queue.app.job_manager.retry_job(context(job_id).job, retry_at=datetime.now(UTC))
     async with database.transaction() as conn:
         await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (job_id,))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
         history = await queue.observe_execution_history_on(conn, job_ids=[job_id], data_generation=generation,
                                                            task_name="fixture.rbi_history")
         assert history["complete"] and history["reason"] is None
@@ -223,7 +223,9 @@ async def test_history_import_finds_a_job_that_failed_before_begin(database, que
         args = budget_args(generation)
         await queue.seed_execution_history_on(conn, **args, history=[], complete=True)
         job_id = await new_doing_job(conn, queue, "fixture.rbi_precheck", "precheck-failed")
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (job_id,))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
+        native = await (await conn.execute("SELECT attempts FROM procrastinate_jobs WHERE id=%s", (job_id,))).fetchone()
+        assert native["attempts"] == 1
         # The worker failed before it could call begin; native job history is the proof.
         history = await queue.observe_execution_history_on(conn, job_ids=[job_id], data_generation=generation,
                                                            task_name="fixture.rbi_precheck")
@@ -240,6 +242,60 @@ async def test_history_import_finds_a_job_that_failed_before_begin(database, que
         assert restored["failed_executions"] == 1 and restored["eligible"]
 
 
+@pytest.mark.parametrize("terminal,outcome", [("failed", "failed"), ("succeeded", "completed"), ("aborted", "unknown")])
+async def test_native_terminal_counter_identifies_the_original_execution(database, queue, terminal, outcome):
+    async def handler():
+        pass
+
+    queue.register("fixture.rbi_terminal", handler, execution_lane=ExecutionLane.MAINTENANCE)
+    async with database.transaction() as conn:
+        generation = await queue.current_generation_on(conn)
+        args = budget_args(generation)
+        job_id = await new_doing_job(conn, queue, "fixture.rbi_terminal", "native-terminal")
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,%s::procrastinate_job_status,false)", (job_id, terminal))
+        native = await (await conn.execute("SELECT status,attempts FROM procrastinate_jobs WHERE id=%s",
+                                           (job_id,))).fetchone()
+        assert native == {"status": terminal, "attempts": 1}
+        observed = await queue.observe_execution_history_on(conn, job_ids=[job_id], data_generation=generation,
+                                                             task_name="fixture.rbi_terminal")
+        page = await queue.advance_execution_history_on(conn, **args, job_id=job_id,
+                                                         task_name="fixture.rbi_terminal", limit=128)
+        assert observed["complete"] and page["complete"]
+        assert [(item["native_attempt"], item["outcome"]) for item in page["executions"]] == [(0, outcome)]
+        assert page["executions"] == observed["executions"]
+
+
+async def test_native_prestart_finish_and_abort_counter_ambiguity(database, queue):
+    async def handler():
+        pass
+
+    queue.register("fixture.rbi_abort", handler, execution_lane=ExecutionLane.MAINTENANCE)
+    async with database.transaction() as conn:
+        generation = await queue.current_generation_on(conn)
+        args = budget_args(generation)
+        early = await queue.enqueue(conn, JobSpec("fixture.rbi_abort", "prestart-terminal", {}))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (early,))
+        native = await (await conn.execute("SELECT status,attempts FROM procrastinate_jobs WHERE id=%s", (early,))).fetchone()
+        assert native == {"status": "failed", "attempts": 0}
+        page = await queue.advance_execution_history_on(conn, **args, job_id=early,
+                                                         task_name="fixture.rbi_abort", limit=128)
+        assert page["complete"] and page["executions"] == []
+        # This native retry branch changes doing to failed without incrementing
+        # attempts. Its abort event must prevent guessing a physical ordinal.
+        ambiguous = await new_doing_job(conn, queue, "fixture.rbi_abort", "abort-ambiguity")
+        await conn.execute("UPDATE procrastinate_jobs SET abort_requested=true WHERE id=%s", (ambiguous,))
+        await conn.execute("SELECT procrastinate_retry_job_v2(%s,now(),NULL,NULL,NULL)", (ambiguous,))
+        native = await (await conn.execute("SELECT status,attempts FROM procrastinate_jobs WHERE id=%s", (ambiguous,))).fetchone()
+        assert native == {"status": "failed", "attempts": 0}
+        observed = await queue.observe_execution_history_on(conn, job_ids=[ambiguous], data_generation=generation,
+                                                             task_name="fixture.rbi_abort")
+        page = await queue.advance_execution_history_on(conn, **args, job_id=ambiguous,
+                                                         task_name="fixture.rbi_abort", limit=128)
+        assert not observed["complete"] and observed["reason"] == "execution_history_incomplete"
+        assert not page["complete"] and page["reason"] == "execution_history_incomplete"
+        assert (await queue.inspect_execution_on(conn, **args))["reason"] == "history_unknown"
+
+
 async def test_native_history_pages_are_bounded_durable_and_resume_after_new_events(database, queue):
     async def handler():
         pass
@@ -252,7 +308,7 @@ async def test_native_history_pages_are_bounded_durable_and_resume_after_new_eve
     await queue.app.job_manager.retry_job(context(job_id).job, retry_at=datetime.now(UTC))
     async with database.transaction() as conn:
         await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (job_id,))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
 
     with pytest.raises(RuntimeError, match="rollback page"):
         async with database.transaction() as conn:
@@ -289,12 +345,12 @@ async def test_native_history_pages_are_bounded_durable_and_resume_after_new_eve
         assert (first["total_executions"], first["failed_executions"], first["unknown_held"]) == (2, 1, 1)
     # A failed job may be explicitly retried later. The saved cursor must see
     # only the appended events and must not turn the earlier unknown into zero.
-    await queue.app.job_manager.retry_job(context(job_id, 1).job, retry_at=datetime.now(UTC))
     async with database.transaction() as conn:
+        await conn.execute("SELECT procrastinate_retry_job_v2(%s,now(),NULL,NULL,NULL)", (job_id,))
         await conn.execute("UPDATE procrastinate_jobs SET status='doing' WHERE id=%s", (job_id,))
-        await conn.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (job_id,))
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
     observations = await reach_tail()
-    assert [(item["native_attempt"], item["outcome"]) for item in observations] == [(2, "failed")]
+    assert [(item["native_attempt"], item["outcome"]) for item in observations] == [(3, "failed")]
     async with database.transaction() as conn:
         final = await queue.seed_execution_history_on(conn, **args, history=[], complete=True)
         assert (final["total_executions"], final["failed_executions"], final["unknown_held"]) == (3, 2, 1)
@@ -323,6 +379,30 @@ async def test_history_does_not_guess_missing_events_or_exclude_someone_elses_ac
         missing = await queue.observe_execution_history_on(conn, job_ids=[job_id], data_generation=generation,
                                                            task_name="fixture.rbi_missing")
         assert not missing["complete"] and missing["reason"] == "execution_history_incomplete"
+
+
+async def test_incremental_cursor_missing_anchor_fences_the_history(database, queue):
+    async def handler():
+        pass
+
+    queue.register("fixture.rbi_anchor", handler, execution_lane=ExecutionLane.MAINTENANCE)
+    async with database.transaction() as conn:
+        generation = await queue.current_generation_on(conn)
+        args = budget_args(generation)
+        job_id = await new_doing_job(conn, queue, "fixture.rbi_anchor", "anchor-history")
+        await conn.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)", (job_id,))
+        page = await queue.advance_execution_history_on(conn, **args, job_id=job_id,
+                                                         task_name="fixture.rbi_anchor")
+        assert page["complete"] and len(page["executions"]) == 1
+        assert (await queue.seed_execution_history_on(conn, **args, history=[], complete=True))["failed_executions"] == 1
+        await conn.execute("DELETE FROM procrastinate_events WHERE id=(SELECT event_id FROM "
+                           "runtime.rbi_execution_history_cursors WHERE job_id=%s)", (job_id,))
+        page = await queue.advance_execution_history_on(conn, **args, job_id=job_id,
+                                                         task_name="fixture.rbi_anchor")
+        assert not page["complete"] and page["reason"] == "execution_history_incomplete"
+        assert (await queue.inspect_execution_on(conn, **args))["reason"] == "history_unknown"
+        fact = await (await conn.execute("SELECT outcome FROM runtime.rbi_execution_facts WHERE job_id=%s", (job_id,))).fetchone()
+        assert fact["outcome"] == "failed"
 
 
 async def test_wrapper_context_can_exclude_only_its_own_current_execution(database, queue):
