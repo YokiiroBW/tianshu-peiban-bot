@@ -1,6 +1,6 @@
 # RBJ-09 native-inflight与not_started机械观察
 
-冻结合同2.0第18节为准。仅本卡白名单，其他文件归根或另一实现者。独立新worktree/branch，不续旧完成卡。
+冻结合同2.1第18-19节为准。仅本卡白名单，其他文件归根或另一实现者。独立新worktree/branch，不续旧完成卡。
 
 - src/tianshu/runtime/jobs.py
 - src/tianshu/runtime/rbi_execution_budget.py

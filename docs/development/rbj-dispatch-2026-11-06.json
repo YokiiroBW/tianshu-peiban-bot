@@ -2,7 +2,7 @@
   "batch": "RBJ-20261106",
   "status": "deployed_original_recovery_blocked",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "2.0",
+  "contract": "2.1",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -683,7 +683,7 @@
         "branch": "codex/rbj-native-runtime-20261106",
         "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-runtime\\tianshu-peiban-bot",
         "status": "assigned",
-        "contract": "2.0",
+        "contract": "2.1",
         "model": "gpt-6.1-terra",
         "thinking": "max",
         "service_tier": "default"
@@ -702,12 +702,13 @@
         "branch": "codex/rbj-native-conversation-20261106",
         "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-conversation\\tianshu-peiban-bot",
         "status": "assigned",
-        "contract": "2.0",
+        "contract": "2.1",
         "model": "gpt-6.1-terra",
         "thinking": "max",
         "service_tier": "default"
       }
     ],
-    "followup_frozen_at": "2026-11-06T14:30:27.236512+00:00"
+    "followup_frozen_at": "2026-11-06T14:30:27.236512+00:00",
+    "ordinary_native_race_confirmed": "Same observer-before-begin path is reachable; prospective trusted enqueue markers only, never retro-mark old jobs."
   }
 }
