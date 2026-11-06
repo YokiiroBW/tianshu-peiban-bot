@@ -229,6 +229,8 @@ class GrowthService:
         if state["last_error"] in REVIEW_ERRORS and not state["active_batch"]:
             return
         batch = state["active_batch"]
+        prepared_without_active_batch = batch is None
+        reloading_authoritative_batch = False
         if batch:
             owner["material_key"] = batch["material_key"]
             owner['inputs'] = batch.get('inputs', ())
@@ -372,14 +374,63 @@ class GrowthService:
             batch.update(recovery_dependency='models:quota:'+profile['quota_group'], recovery_route=profile['route_id'])
 
         async def current_material(connection):
-            nonlocal batch
+            nonlocal batch, state, request, reloading_authoritative_batch
             await self.jobs.assert_generation_on(connection, generation)
             current = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE", (actor_id, scope_key))).fetchone()
             if not current or current["cursor"] != batch["start_cursor"]:
                 return False
             if current["active_batch"]:
-                return current["active_batch"]["material_key"] == material_key and current["last_error"] not in REVIEW_ERRORS
+                active = current['active_batch']
+                if (active.get('material_key') != material_key or active.get('start_cursor') != current['cursor']
+                        or current['runtime_generation'] != generation or active.get('runtime_generation') != generation
+                        or current['last_error'] in REVIEW_ERRORS | {AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}
+                        or prepared_without_active_batch and current['revision'] != expected_revision):
+                    return False
+                # Another preparer can have the same key with only a provisional
+                # batch. Adopt the persisted owner and its frozen request together.
+                reloading_authoritative_batch = True
+                candidate_batch = batch
+                try:
+                    candidate_inputs = tuple(tuple(item) for item in candidate_batch['inputs'])
+                    active_inputs = tuple(tuple(item) for item in active['inputs'])
+                except (KeyError, TypeError):
+                    raise AppError('reflection_material_contract_invalid') from None
+                if candidate_inputs != active_inputs:
+                    return False
+                batch, state = active, current
+                if not isinstance(batch.get('lineage_id'), str) or not batch['lineage_id']:
+                    raise AppError('growth_recovery_lineage_missing', status=503)
+                if not isinstance(batch.get('recovery_version'), str) or not batch['recovery_version']:
+                    raise AppError('growth_recovery_version_missing', status=503)
+                for key in ('lineage_id', 'recovery_version'):
+                    if candidate_batch.get(key) is not None and candidate_batch.get(key) != batch[key]:
+                        return False
+                try:
+                    frozen_context = context_from_record(batch['context'])
+                except (KeyError, TypeError, ValueError):
+                    raise AppError('reflection_material_contract_invalid') from None
+                if frozen_context != request.context:
+                    return False
+                frozen = await self.generations.request(
+                    attempt_for(material_key), frozen_context, connection=connection, material_key=material_key)
+                if frozen is None:
+                    raise AppError('generation_request_not_found', status=404,
+                                   details={'attempt_id': attempt_for(material_key)})
+                if (frozen.attempt_id != attempt_for(material_key) or frozen.intent_id != material_key
+                        or frozen.data_generation != generation):
+                    raise AppError('generation_identity_conflict', status=409,
+                                   details={'attempt_id': attempt_for(material_key)})
+                if frozen.context != frozen_context:
+                    raise AppError('generation_context_changed', status=409)
+                validate_batch_request(batch, frozen, frozen_episodes(frozen))
+                if prepared_without_active_batch:
+                    changed = await self.retries.receipt_inputs_on(
+                        connection, actor_id, scope_key, batch, batch.get('retry_key'))
+                    if changed:
+                        return False
+                request = frozen
+                return True
             if current["revision"] != expected_revision or current["last_error"] in REVIEW_ERRORS:
                 return False
             recovery = await reserve_initial(self.recovery_policy, connection, context, batch, request)
@@ -432,6 +483,13 @@ class GrowthService:
             return await self.recovery.wait_dependency(state, batch, wait)
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             if classify_database_failure(error) is not None:
+                raise
+            # A broken frozen batch is not an RPC failure that may be observed
+            # or repaired by another prepare of the provisional request.
+            if (reloading_authoritative_batch and isinstance(error, AppError) and error.code in {
+                    'growth_recovery_lineage_missing', 'growth_recovery_version_missing',
+                    'generation_request_not_found', 'generation_identity_conflict', 'generation_context_changed',
+                    'reflection_material_contract_invalid', 'invalid_model_request'}):
                 raise
             if isinstance(error, AppError) and error.code == "generation_no_longer_current":
                 return
