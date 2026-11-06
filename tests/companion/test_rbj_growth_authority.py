@@ -25,17 +25,24 @@ async def concurrent_preparation(database):
                           on_projection_changed=growth.on_projection_changed)
     other.set_observability(statistics=None, recovery_policy=RecoveryPolicy())
     first_prepare, second_prepare = growth.generations.prepare, other.generations.prepare
-    first_ready, second_ready, release_second = asyncio.Event(), asyncio.Event(), asyncio.Event()
+    first_ready, second_ready = asyncio.Event(), asyncio.Event()
+    release_first, release_second = asyncio.Event(), asyncio.Event()
     calls = []
 
     async def prepare_first(material_key, request, **kwargs):
-        calls.append((material_key, request.attempt_id))
+        # prepare opens a transaction and re-enters itself with that connection.
+        # Only the outer call belongs to an independently prepared Growth owner.
+        if kwargs.get('connection') is not None:
+            return await first_prepare(material_key, request, **kwargs)
+        calls.append(('first', material_key, request.attempt_id))
         first_ready.set()
-        await second_ready.wait()
+        await release_first.wait()
         return await first_prepare(material_key, request, **kwargs)
 
     async def prepare_second(material_key, request, **kwargs):
-        calls.append((material_key, request.attempt_id))
+        if kwargs.get('connection') is not None:
+            return await second_prepare(material_key, request, **kwargs)
+        calls.append(('second', material_key, request.attempt_id))
         second_ready.set()
         await release_second.wait()
         return await second_prepare(material_key, request, **kwargs)
@@ -47,15 +54,20 @@ async def concurrent_preparation(database):
         await asyncio.wait_for(first_ready.wait(), 20)
         second = asyncio.create_task(other.organize('actor', scope, 1, GENERATION))
         await asyncio.wait_for(second_ready.wait(), 20)
+        assert [call[0] for call in calls] == ['first', 'second']
+        assert calls[0][1:] == calls[1][1:]
+        assert (await state(database))['active_batch'] is None
+        release_first.set()
         first_outcome = await asyncio.wait_for(first, 20)
         assert first_outcome['state'] == 'waiting'
-        assert len(calls) == 2 and calls[0] == calls[1] and len(models.submitted) == 1
+        assert len(calls) == 2 and len(models.submitted) == 1
         original = models.submitted[0]
         persisted = (await state(database))['active_batch']
         assert persisted['material_key'] == original.intent_id
         assert persisted['lineage_id'] and persisted['recovery_version']
         yield growth, context, memory, models, scope, original, persisted, second, release_second
     finally:
+        release_first.set()
         release_second.set()
         for task in (first, second):
             if task is not None and not task.done():
