@@ -45,6 +45,11 @@ def review_available(batch, code):
     return code not in CORRECTABLE_ERRORS or correction_available(batch, code)
 
 
+def resumable_cancel(receipt):
+    return (receipt.status == 'cancelled' and receipt.error_code == 'consumer_interrupted'
+            and receipt.cancellation_reason == 'consumer_interrupted')
+
+
 def review_original(receipt, repair_ref=None):
     """Choose a Growth path from the original Models evidence, without guessing."""
     if receipt is None or receipt.status in {'queued', 'running', 'unknown'}:
@@ -52,7 +57,7 @@ def review_original(receipt, repair_ref=None):
     if receipt.cancellation_reason == 'explicit_cancel':
         return 'stop', 'explicit_cancel'
     if receipt.status == 'cancelled':
-        return (('transient', None) if transient_model_failure(receipt.error_code)
+        return (('transient', None) if resumable_cancel(receipt)
                 else ('stop', 'original_cancelled'))
     if receipt.status == 'succeeded':
         # The existing retry owner reparses the saved success and may make one

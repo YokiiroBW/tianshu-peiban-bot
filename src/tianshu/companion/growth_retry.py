@@ -18,9 +18,10 @@ from tianshu.runtime.serialization import wire
 from tianshu.types import RequestBudget
 from .growth_recovery import authorization_error, sequence
 from .growth_policy import (OWNER, bind_receipt, budget_on as recovery_budget_on,
-                            fail as fail_recovery, field, note_receipt_on, succeed as succeed_recovery)
+                            fail as fail_recovery, field, lock_receipt_on, note_receipt_on,
+                            succeed as succeed_recovery)
 from .growth_output_repair import (admitted_review_matches, correction_available, corrected_request,
-                                   output_diagnostic, review_available)
+                                   output_diagnostic, resumable_cancel, review_available)
 from .reflection_output import (CORRECTABLE_ERRORS, IDENTITY_PROTOCOL, OUTPUT_ERRORS, OUTPUT_PROTOCOL, REVIEW_ERRORS,
                                 frozen_episodes, frozen_material, prepare_reflections, validate_batch_request)
 
@@ -235,7 +236,11 @@ class GrowthRetries:
                     else receipt.error_code or 'reflection_generation_' + receipt.status)
             batch = current['batch']
             if not success:
-                await lock_recovery_facts_on(connection, request.attempt_id)
+                if (not material_error and receipt.cancellation_reason != 'explicit_cancel'
+                        and (receipt.status == 'failed' or resumable_cancel(receipt))):
+                    await lock_receipt_on(connection, receipt, generation)
+                else:
+                    await lock_recovery_facts_on(connection, request.attempt_id)
             if status == 'unknown':
                 from tianshu.runtime.recovery_policy import classify_failure
                 await self.growth.recovery_policy.resolve_unknown_on(connection, request.attempt_id,
@@ -312,7 +317,11 @@ class GrowthRetries:
                     material_error = await self.receipt_inputs_on(connection, state['actor_id'], state['scope_key'],
                         batch, batch.get('retry_key', batch['material_key']))
                 if observed_state == 'failed':
-                    await lock_recovery_facts_on(connection, attempt_id)
+                    if (not material_error and receipt.cancellation_reason != 'explicit_cancel'
+                            and (receipt.status == 'failed' or resumable_cancel(receipt))):
+                        await lock_receipt_on(connection, receipt, generation)
+                    else:
+                        await lock_recovery_facts_on(connection, attempt_id)
                 await self.growth.recovery_policy.resolve_unknown_on(connection, attempt_id,
                     observation_ref='models:'+attempt_id, state=observed_state,
                     code=None if observed_state == 'succeeded' else code,
@@ -395,6 +404,8 @@ class GrowthRetries:
             control_observation = batch.get('control_observation')
         observing_control = control_observation is not None
         retryable = correcting or transient_model_failure(code, cancelled=explicit_cancel)
+        if result is not None and result.receipt.status == 'cancelled' and not resumable_cancel(result.receipt):
+            retryable = False
         if batch.get('control_observation') and not observing_control:
             retryable = False
         delay = 30 if observing_control else 0 if correcting else retry_delay_seconds(number)
@@ -473,7 +484,16 @@ class GrowthRetries:
 
             budget = None
             if not observing_control and (result is None or result.receipt.status != 'succeeded'):
-                await lock_recovery_facts_on(connection, attempt_id)
+                current_receipt = None
+                if not material_error and not explicit_cancel:
+                    if uncertain and retryable and finished_unknown(status, attempt_id, generation):
+                        current_receipt = status
+                    elif result is not None and (result.receipt.status == 'failed' or resumable_cancel(result.receipt)):
+                        current_receipt = result.receipt
+                if current_receipt is not None:
+                    await lock_receipt_on(connection, current_receipt, generation)
+                else:
+                    await lock_recovery_facts_on(connection, attempt_id)
             if observing_control:
                 # A control-plane wait is not a Models physical outcome.
                 pass
@@ -698,7 +718,7 @@ class GrowthRetries:
                                 connection, self.growth.observations.review_event(current_retry), generation=generation)
                             await self.schedule_on(connection, current_retry)
                             return {'state': 'waiting_original', 'error_code': material_error, 'due_at': next_observation}
-                        await lock_recovery_facts_on(connection, request.attempt_id)
+                        await lock_receipt_on(connection, status, generation)
                         fixed_due = await self.growth.recovery_policy.record_computation_unknown_on(
                             connection, request.attempt_id, owner=OWNER, expected_version=row['batch']['recovery_version'],
                             model_receipt=status, retry_after=retry_delay_seconds(row['attempt_number']))
@@ -737,7 +757,12 @@ class GrowthRetries:
                             material_error = await self.receipt_inputs_on(
                                 connection, actor_id, scope_key, current_retry['batch'], retry_key)
                         if observed_state == 'failed':
-                            await lock_recovery_facts_on(connection, request.attempt_id)
+                            receipt = result.receipt
+                            if (not material_error and receipt.cancellation_reason != 'explicit_cancel'
+                                    and (receipt.status == 'failed' or resumable_cancel(receipt))):
+                                await lock_receipt_on(connection, receipt, generation)
+                            else:
+                                await lock_recovery_facts_on(connection, request.attempt_id)
                         await self.growth.recovery_policy.resolve_unknown_on(connection, request.attempt_id,
                             observation_ref='models:'+request.attempt_id, state=observed_state,
                             code=None if observed_state == 'succeeded' else observed_code,
@@ -770,6 +795,8 @@ class GrowthRetries:
                 return await self.postpone(row)
             if result and getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel":
                 return await self.postpone(row, code="explicit_cancel", blocked=True)
+            if result and result.receipt.status == 'cancelled' and not resumable_cancel(result.receipt):
+                return await self.postpone(row, code=result.receipt.error_code or 'original_cancelled', blocked=True)
             if unknown_receipt is None and result and result.receipt.status in {"queued", "running"}:
                 return await self.postpone(row)
             if request.business_deadline_at and request.business_deadline_at <= datetime.now(UTC):
@@ -824,6 +851,8 @@ class GrowthRetries:
                     return await self.postpone(row)
                 if result and getattr(result.receipt, "cancellation_reason", None) == "explicit_cancel":
                     return await self.postpone(row, code="explicit_cancel", blocked=True)
+                if result and result.receipt.status == 'cancelled' and not resumable_cancel(result.receipt):
+                    return await self.postpone(row, code=result.receipt.error_code or 'original_cancelled', blocked=True)
                 if row['explicit_retry'] and not admitted_review_matches(review, result.receipt):
                     return await self.postpone(row, code='growth_original_receipt_changed', blocked=True)
                 if result and result.receipt.status in {"queued", "running"}:
@@ -930,8 +959,12 @@ class GrowthRetries:
                     "reflection_identity_protocol": IDENTITY_PROTOCOL, "material_at": material_time(episodes).isoformat(),
                     **repair_update}
                 if successor:
+                    original_receipt = (unknown_receipt if unknown_receipt is not None else
+                                        result.receipt if not continuation and result is not None else None)
                     if not continuation:
-                        await lock_recovery_facts_on(connection, request.attempt_id)
+                        if original_receipt is None:
+                            raise AppError('recovery_model_receipt_unconfirmed', status=409)
+                        await lock_receipt_on(connection, original_receipt, generation)
                     claim = (await self.growth.recovery_policy.claim_continuation_on(connection,
                         batch['lineage_id'], owner=OWNER, expected_version=batch['recovery_version'],
                         prior_attempt_id=request.attempt_id, reason='schema_correction')) if continuation else (
@@ -941,8 +974,6 @@ class GrowthRetries:
                         dependency_wait = await self.growth.recovery_policy.inspect_wait_on(connection,
                             batch['lineage_id'], owner=OWNER, expected_version=batch['recovery_version'])
                         return False
-                    original_receipt = (unknown_receipt if unknown_receipt is not None else
-                                        result.receipt if not continuation and result is not None else None)
                     reservation_options = {'model_receipt': original_receipt} if original_receipt is not None else {}
                     reservation = await self.growth.recovery_policy.reserve_attempt_on(connection,
                         batch['lineage_id'], owner=OWNER, expected_version=batch['recovery_version'],
@@ -996,6 +1027,11 @@ class GrowthRetries:
         except (AppError, TimeoutError, aiohttp.ClientError) as error:
             if classify_database_failure(error) is not None:
                 raise
+            if (isinstance(error, AppError) and row['waiting_on_original'] and error.code in {
+                    'recovery_model_receipt_unconfirmed', 'recovery_model_receipt_mismatch',
+                    'recovery_model_outcome_changed'}):
+                return await self.postpone(row, code=error.code, waiting_on_original=True,
+                                           retry_at=datetime.now(UTC) + timedelta(minutes=5))
             if isinstance(error, AppError) and row['waiting_on_original'] and self.invalid_material_error(error):
                 return await self.postpone(row, code=error.code, waiting_on_original=True,
                                            retry_at=datetime.now(UTC) + timedelta(minutes=5))

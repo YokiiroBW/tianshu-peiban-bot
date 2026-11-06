@@ -12,7 +12,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryWait, recovery_wait_retryable
 
 from .growth_output_repair import review_original
-from .growth_policy import OWNER, bind_receipt, budget_on
+from .growth_policy import OWNER, bind_receipt, budget_on, lock_receipt_on
 
 
 async def _current_on(retries, connection, row, generation):
@@ -172,7 +172,7 @@ async def process_review(retries, row, generation):
 
         due = datetime.now(UTC)
         if action == 'repaired':
-            await lock_recovery_facts_on(connection, attempt_id)
+            await lock_receipt_on(connection, result.receipt, generation)
             qualification = await growth.recovery_policy.resume_repaired_on(
                 connection, saved['batch']['lineage_id'], owner=OWNER,
                 expected_version=saved['batch']['recovery_version'], original_attempt_id=attempt_id,

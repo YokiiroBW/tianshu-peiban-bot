@@ -241,6 +241,31 @@ async def test_cancellation_after_admission_stops_before_successor_reservation(d
 
 
 @pytest.mark.asyncio
+async def test_cancel_between_observation_and_claim_cannot_reserve_a_successor(database):
+    diagnostic = {'failure_stage': 'local_program', 'error_type': 'TypeError', 'original_output_reusable': False}
+    growth, context, _memory, models, scope, original, failure = await setup_original(
+        database, code='model_local_error', diagnostic=diagnostic)
+    await request_review(growth, context, database, failure['retry_key'], 'repair-race', 'repair:fix-v1')
+    admitted = await process_review(growth.retries, await retry_row(database), GENERATION)
+    assert admitted['state'] == 'review_admitted'
+    original_prepare = growth.generations.prepare
+
+    async def cancel_before_claim(*args, **kwargs):
+        # Commit the Models cancellation after the last RPC read and before
+        # Growth locks the authoritative facts and Runtime lineage.
+        await models.broker.ledger.request_cancel(original.attempt_id, reason='explicit_cancel')
+        return await original_prepare(*args, **kwargs)
+
+    growth.generations.prepare = cancel_before_claim
+    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+
+    lineage, attempts, _inputs = await ledger_state(database)
+    assert outcome == {'state': 'retry_blocked', 'error_code': 'recovery_model_cancelled'}
+    assert lineage['cancelled'] and lineage['attempts'] == 1 and len(models.submitted) == 1
+    assert attempts == [{'attempt_id': original.attempt_id, 'status': 'failed', 'error_code': 'model_local_error'}]
+
+
+@pytest.mark.asyncio
 async def test_changed_original_diagnostic_invalidates_prior_repair_review(database):
     diagnostic = {'failure_stage': 'local_program', 'error_type': 'TypeError', 'original_output_reusable': False}
     growth, context, _memory, models, scope, original, failure = await setup_original(
@@ -356,6 +381,21 @@ async def test_consumer_interruption_uses_its_actual_cancelled_receipt(database)
         'cancelled', 'consumer_interrupted', 'consumer_interrupted')
     assert attempts[0] == {'attempt_id': original.attempt_id, 'status': 'failed', 'error_code': 'consumer_interrupted'}
     assert len(models.submitted) == lineage['attempts'] == 2
+
+
+@pytest.mark.asyncio
+async def test_unconfirmed_cancelled_interruption_does_not_authorize_retry(database):
+    growth, context, _memory, models, scope, original, failure = await setup_original(
+        database, status='cancelled', code='consumer_interrupted')
+    assert failure['state'] == 'retry_blocked'
+    await request_review(growth, context, database, failure['retry_key'], 'inspect-cancelled')
+
+    outcome = await growth.retries.run('actor', scope, failure['retry_key'], GENERATION)
+
+    lineage, attempts, _inputs = await ledger_state(database)
+    assert outcome == {'state': 'review_stopped', 'reason': 'original_cancelled'}
+    assert lineage['attempts'] == 1 and len(models.submitted) == 1
+    assert attempts[0] == {'attempt_id': original.attempt_id, 'status': 'failed', 'error_code': 'consumer_interrupted'}
 
 
 @pytest.mark.asyncio

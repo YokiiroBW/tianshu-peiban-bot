@@ -2,8 +2,10 @@
 
 from tianshu.conversation.codec import signature
 from tianshu.models.ledger import submission_digest
+from tianshu.models.rbi_outcome_guard import lock_recovery_facts_on
 from tianshu.models.types import ModelReceipt
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.recovery_policy import validate_model_recovery_facts
 
 
 OWNER = 'companion.growth'
@@ -53,6 +55,13 @@ def bind_receipt(request, receipt):
             not isinstance(receipt.request_digest, str) or not receipt.request_digest
             or receipt.request_digest != submission_digest(request)):
         raise AppError('growth_recovery_receipt_mismatch', status=409)
+
+
+async def lock_receipt_on(connection, receipt, generation):
+    """Validate the fresh physical outcome before taking Runtime lineage locks."""
+    facts = await lock_recovery_facts_on(connection, receipt.attempt_id)
+    validate_model_recovery_facts(facts, receipt=receipt, expected_status=receipt.status,
+                                  data_generation=generation)
 
 
 async def budget_on(policy, connection, batch):
