@@ -716,7 +716,7 @@
       "priority": "P0",
       "owner": "Sources",
       "title": "多上下文完整来源批预锁，保留Goal与原回执原子合同",
-      "status": "implementing",
+      "status": "candidate_submitted",
       "depends_on": [
         "RBI-00"
       ],
@@ -744,7 +744,15 @@
         "来源撤回/版本/alias/空参数兼容的真实隔离用例代码"
       ],
       "actual_base": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
-      "implementation_turn_id": "01a1aeed-1670-7531-b9c2-0d583aae1a6e"
+      "implementation_turn_id": "01a1aeed-1670-7531-b9c2-0d583aae1a6e",
+      "source_commit": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
+      "handoff_commit": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
+      "candidate_head": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
+      "required_commits_in_order": [
+        "faa4f2f0f3cccdb736677a169e4757c6193886b6"
+      ],
+      "pending_followup": null,
+      "verification": "reported AST/full diff static only; PG/Goal/receipt integration tests not run"
     },
     {
       "id": "RBI-07",

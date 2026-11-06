@@ -465,7 +465,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
       "branch": "codex/rbi-sources-20261106",
       "card": "docs/development/rbi-work-packages/sources.md",
-      "status": "implementing",
+      "status": "candidate_submitted",
       "key": "sources",
       "title": "RBW 身份来源与失效传播",
       "allowed_paths": [
@@ -479,7 +479,7 @@
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
       "dispatched": true,
       "actual_base": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
@@ -501,7 +501,15 @@
       "verified": false,
       "integrated": false,
       "dispatched_at_utc": "2026-11-06 03:35:35 UTC",
-      "confirmed_interface": "prepare_event_writes(conn, context, events, *, additional_refs=(), scoped_refs=()); empty events supported; original alias tuple return"
+      "confirmed_interface": "prepare_event_writes(conn, context, events, *, additional_refs=(), scoped_refs=()); empty events supported; original alias tuple return",
+      "handoff_commit": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
+      "candidate_head": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
+      "required_commits_in_order": [
+        "faa4f2f0f3cccdb736677a169e4757c6193886b6"
+      ],
+      "pending_followup": null,
+      "verification": "reported AST/full diff static only; PG/Goal/receipt integration tests not run",
+      "ddl": false
     }
   ],
   "dispatched_at_utc": "2026-11-06 02:36:23 UTC",
@@ -522,7 +530,7 @@
       "Runtime repair/execution evidence"
     ],
     "validation": "wait for full slices; do not test each micro change or integrate intermediate candidate",
-    "sources_scoped_refs": "RBI-10 optional per-context source closure; preserve Goal and receipt transaction",
+    "sources_scoped_refs": "RBI-10 faa4f2f0 optional per-context closure; empty events supported; no DDL or extra assembly",
     "sources_source_of_truth": "scoped false remains optional; no widened context authorization",
     "native_history_bound": "native jobs/events: max16 jobs x128 events per tick, persistent upper/history/open cursors; current receipt ID existence check and array read/write scale with its registered IDs (current target2 each), not absolute constant transaction cost",
     "expression_actions": "runtime/product.py: ExpressionService(..., sources=sources, actions=caps.actions); bound Action 404 is not proof of Channel-only authority",
