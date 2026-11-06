@@ -437,12 +437,19 @@ class AttemptLedger:
         async with self.database.transaction(control=True) as conn:
             await conn.execute("UPDATE models.submissions SET stream_truncated=true WHERE attempt_id=%s", (attempt_id,))
 
-    async def save_observation(self, attempt_id, *, timing=None, diagnostic=None):
+    async def save_observation(self, attempt_id, *, timing=None, diagnostic=None, only_running=False):
+        """Optionally fence failure evidence to the currently owned running attempt."""
+        query = ("UPDATE models.attempts SET http_timing=COALESCE(%s,http_timing),"
+                 "diagnostic=COALESCE(%s,diagnostic),revision=revision+1 WHERE attempt_id=%s")
+        parameters = (Jsonb(timing) if timing is not None else None,
+                      Jsonb(diagnostic) if diagnostic is not None else None, attempt_id)
+        if only_running:
+            query += " AND status='running' AND broker_instance=%s RETURNING attempt_id"
+            parameters += (self.instance_id,)
         async with self.database.transaction(control=True) as conn:
-            await conn.execute("UPDATE models.attempts SET http_timing=COALESCE(%s,http_timing),"
-                "diagnostic=COALESCE(%s,diagnostic),revision=revision+1 WHERE attempt_id=%s",
-                (Jsonb(timing) if timing is not None else None,
-                 Jsonb(diagnostic) if diagnostic is not None else None, attempt_id))
+            cursor = await conn.execute(query, parameters)
+            if only_running:
+                return (await cursor.fetchone()) is not None
 
     async def cooldowns(self):
         async with self.database.transaction(control=True, read_only=True) as conn:

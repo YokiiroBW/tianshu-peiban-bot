@@ -36,6 +36,7 @@ from .timing import execution_budget, waiting_budget, waiting_timeout, waiting, 
 from .transport import validate_provider_session
 from .http_timing import HttpTiming, TimedResponse, retry_after, trace_config
 from .transport_diagnostic import describe_transport
+from .rbi_failure_diagnostic import failure_diagnostic
 
 MAX_RESPONSE_BYTES = 32 * 1024 * 1024
 MAX_SSE_EVENT_BYTES = 2 * 1024 * 1024
@@ -870,6 +871,7 @@ class ModelBroker:
         started = None
         timing = HttpTiming(row.get("queued_at"))
         read_complete = False
+        failure_site = "local"
         local_slots = self.diagnostic_slots if request.function == "ops.diagnose" else self.cloud_slots
         http_session = self.diagnostic_session if request.function == "ops.diagnose" else self.session
         try:
@@ -934,6 +936,7 @@ class ModelBroker:
                 await self.recheck_behaviors(request)
                 await self.ledger.assert_generation(request.attempt_id)
                 network_started = True
+                failure_site = "transport"
                 async with TimedResponse(http_session.post(
                     call.url,
                     json=call.body,
@@ -943,12 +946,14 @@ class ModelBroker:
                     trace_request_ctx=timing,
                 ), timing) as response:
                     timing.mark("response_headers")
+                    failure_site = "http_status"
                     if response.status >= 300:
                         if response.status in {429, 503}:
                             until = retry_after(response.headers.get("Retry-After"))
                             if until is None:
                                 from .retry import retry_delay_seconds
                                 until = datetime.now(UTC) + timedelta(seconds=retry_delay_seconds(1))
+                            failure_site = "local"
                             if response.status == 429:
                                 await self.ledger.defer_quota(plan.quota_group, until)
                                 await self.scheduler.defer_group(plan.quota_group, until)
@@ -956,12 +961,15 @@ class ModelBroker:
                                 await self.ledger.defer_route(plan.route_id, until)
                                 await self.scheduler.defer_route(plan.quota_group, plan.route_id, until)
                         # Provider error bodies may contain secrets or prompts; retain status only.
+                        failure_site = "http_status"
                         raise AppError("upstream_http_" + str(response.status), status=502)
                     if stream and plan.protocol not in {"openai.embedding", "cohere.rerank"}:
                         buffer = b""
                         first = True
                         observed_handle = None
+                        failure_site = "transport"
                         async for chunk in response.content.iter_chunked(32768):
+                            failure_site = "local"
                             if chunk:
                                 timing.mark("first_body_byte")
                             yield ModelEvent(
@@ -969,6 +977,7 @@ class ModelBroker:
                             )
                             buffer = (buffer + chunk).replace(b"\r\n", b"\n")
                             if len(buffer) > MAX_SSE_EVENT_BYTES:
+                                failure_site = "protocol"
                                 raise AppError("upstream_event_too_large", status=502)
                             while b"\n\n" in buffer:
                                 block, buffer = buffer.split(b"\n\n", 1)
@@ -979,13 +988,18 @@ class ModelBroker:
                                 )
                                 if not data or data == b"[DONE]":
                                     continue
+                                failure_site = "parse_json"
                                 value = json.loads(data)
+                                failure_site = "interpret"
                                 handle = _stream_handle(plan.protocol, value)
                                 if isinstance(handle, str) and handle and observed_handle is None:
+                                    failure_site = "local"
                                     await self.ledger.checkpoint(request.attempt_id, provider_handle=handle,
                                                                  output_observed=False)
                                     observed_handle = handle
+                                failure_site = "interpret"
                                 for part in collector.feed(value):
+                                    failure_site = "local"
                                     if first and (part.kind != "text" or part.text):
                                         timing.mark("first_valid_output")
                                         await self.ledger.checkpoint(
@@ -998,52 +1012,68 @@ class ModelBroker:
                                         text=part.text,
                                         part=part,
                                     )
+                            failure_site = "transport"
                         read_complete = True
                         timing.mark("read_complete")
+                        failure_site = "protocol"
                         if buffer.strip():
                             raise AppError("incomplete_native_stream", status=502)
                         if not collector.completed:
                             raise AppError("incomplete_native_stream", status=502)
                     else:
                         chunks, total_bytes = [], 0
+                        failure_site = "transport"
                         async for chunk in response.content.iter_chunked(65536):
+                            failure_site = "local"
                             if chunk:
                                 timing.mark("first_body_byte")
                             total_bytes += len(chunk)
                             if total_bytes > MAX_RESPONSE_BYTES:
+                                failure_site = "protocol"
                                 raise AppError("upstream_response_too_large", status=502)
                             chunks.append(chunk)
+                            failure_site = "transport"
                         raw = b"".join(chunks)
                         read_complete = True
                         timing.mark("read_complete")
+                        failure_site = "protocol"
                         if len(raw) > MAX_RESPONSE_BYTES:
                             raise AppError("upstream_response_too_large", status=502)
+                        failure_site = "parse_json"
                         value = json.loads(raw)
+                        failure_site = "interpret"
                         parts = collector.feed(value)
                         valid_output = any(part.kind != "text" or part.text for part in parts) or (
                                 plan.protocol == "openai.embedding" and value.get("data")) or (
                                 plan.protocol == "cohere.rerank" and value.get("results"))
                         if valid_output:
                             timing.mark("first_valid_output")
+                        failure_site = "local"
                         await self.ledger.checkpoint(
                             request.attempt_id,
                             provider_handle=value.get("id"),
                             first_output_ms=(time.monotonic() - started) * 1000 if valid_output else None,
                             output_observed=bool(valid_output),
                         )
+                        failure_site = "protocol"
                         if not collector.completed:
                             raise AppError("upstream_response_incomplete", status=502)
                         if plan.protocol == "openai.embedding":
+                            failure_site = "domain"
                             vectors = value.get("data", [])
                             if not vectors or any(
                                 len(item.get("embedding", [])) != 1024 for item in vectors
                             ):
                                 raise AppError("embedding_dimension_mismatch", status=502)
                 timing.http_phase = "finished"
+            failure_site = "interpret"
             extra = collector.tool_parts()
             for part in extra:
+                failure_site = "local"
                 yield ModelEvent("part", part=part)
+            failure_site = "interpret"
             usage = normalize_usage(plan.protocol, collector.raw_usage, estimate)
+            failure_site = "local"
             charged = (
                 usage.input_tokens + usage.output_tokens
                 if usage.input_tokens is not None and usage.output_tokens is not None
@@ -1059,7 +1089,9 @@ class ModelBroker:
                             "part_kinds": sorted({part.kind for part in collector.parts}),
                             "part_count": len(collector.parts), "native_completed": collector.completed})
             settled_status = "failed" if collector.completion.provider_status == "failed" else "succeeded"
+            failure_site = "interpret"
             provider_error = ((collector.native_response or {}).get("error") or {}).get("code")
+            failure_site = "local"
             row = await self.ledger.finish(
                 request.attempt_id,
                 settled_status,
@@ -1090,6 +1122,14 @@ class ModelBroker:
                 pass
             yield ModelEvent("receipt", receipt=result.receipt, data=result)
         except BaseException as exc:
+            if terminal:
+                # A failure while releasing capacity or closing an observer
+                # cannot undo a result which the ledger already settled.
+                if acquired:
+                    await finish_cleanup(self.scheduler.release(
+                        plan.quota_group, request.attempt_id, units={"tokens": charged}))
+                    acquired = False
+                raise
             if isinstance(exc, RecoveryWait) and not submitted:
                 if acquired:
                     await finish_cleanup(self.scheduler.release(plan.quota_group, request.attempt_id, not_started=True))
@@ -1124,8 +1164,12 @@ class ModelBroker:
             transport = (describe_transport(exc, timing, call.url, output_observed=bool(collector.parts),
                          provider_handle=row.get("provider_handle"), first_output_ms=row.get("first_output_ms"))
                          if network_started else None)
+            failure = failure_diagnostic(exc, site=failure_site, http_phase=timing.http_phase)
             not_sent = submitted and (not network_started or
                 (transport is not None and transport["evidence"] == "confirmed_not_sent"))
+            if transport is not None and transport["evidence"] == "confirmed_not_sent":
+                # There cannot be an output from this physical request.
+                failure["original_output_reusable"] = False
             incomplete = isinstance(exc, AppError) and exc.code in {"incomplete_native_stream", "upstream_response_incomplete"}
             if not_sent or (submitted and read_complete and not incomplete):
                 status = "failed"
@@ -1142,8 +1186,13 @@ class ModelBroker:
             )
             if not_sent and not isinstance(exc, AppError):
                 code = "transport_not_sent"
-            elif read_complete and not isinstance(exc, AppError) and not isinstance(exc, (asyncio.CancelledError, TimeoutError)):
-                code = "invalid_upstream_response"
+            elif not isinstance(exc, (AppError, asyncio.CancelledError, GeneratorExit, TimeoutError)):
+                if read_complete and failure["failure_stage"] == "protocol_decode":
+                    code = "invalid_upstream_response"
+                elif submitted and failure["failure_stage"] == "local_program":
+                    code = "model_local_error"
+                elif read_complete and failure["failure_stage"] == "unknown":
+                    code = "model_processing_unknown"
             if request.execution_timeout_seconds is not None and not submitted:
                 if isinstance(exc, AppError) and exc.code in {"queue_wait_expired", "business_deadline_expired"}:
                     status = "cancelled"
@@ -1170,38 +1219,50 @@ class ModelBroker:
                 if cancelled and cancelled.get("cancellation_reason"):
                     status, code = "cancelled", _cancelled_before_start(cancelled)
             if not terminal and not (not self.ready and not submitted):
-                category = ("not_sent" if not_sent else "incomplete_output" if incomplete else "known_invalid" if read_complete else
-                    "incomplete_output" if collector.parts else "upstream_unknown" if submitted else "not_started")
+                category = ("not_sent" if not_sent else "incomplete_output" if incomplete else
+                    "known_invalid" if read_complete and failure["failure_stage"] in {"protocol_decode", "domain_validation"} else
+                    "local_failure" if read_complete and failure["failure_stage"] == "local_program" else
+                    "processing_unknown" if read_complete else "incomplete_output" if collector.parts else
+                    "upstream_unknown" if submitted else "not_started")
                 diagnostic = {"category": category, "part_count": len(collector.parts),
                     "part_kinds": sorted({part.kind for part in collector.parts}),
                     "text_bytes": sum(len((part.text or "").encode()) for part in collector.parts if part.kind == "text"),
-                    "native_completed": collector.completed, "completion": wire(collector.completion)}
+                    "native_completed": collector.completed, "completion": wire(collector.completion), **failure}
                 if transport is not None:
                     diagnostic["transport"] = transport
+                recorded = None
                 if submitted:
-                    partial_usage = normalize_usage(plan.protocol, collector.raw_usage, estimate) if collector.raw_usage else None
-                    await finish_cleanup(self.ledger.save_observation(request.attempt_id,
-                        timing=timing.record(), diagnostic=diagnostic))
-                    row = await finish_cleanup(
-                        self.ledger.finish(request.attempt_id, status, error_code=code, usage=partial_usage,
-                            dispatch="not_started" if not_sent else None,
-                            charged_units={"tokens": 0} if not_sent else None)
-                    )
+                    try:
+                        partial_usage = normalize_usage(plan.protocol, collector.raw_usage, estimate) if collector.raw_usage else None
+                    except Exception:
+                        # A local usage-decoding bug must not prevent settlement
+                        # or fabricate a provider-reported usage value.
+                        partial_usage = None
+                    recorded = await finish_cleanup(self.ledger.save_observation(request.attempt_id,
+                        timing=timing.record(), diagnostic=diagnostic, only_running=True))
+                    if recorded:
+                        row = await finish_cleanup(
+                            self.ledger.finish(request.attempt_id, status, error_code=code, usage=partial_usage,
+                                dispatch="not_started" if not_sent else None,
+                                charged_units={"tokens": 0} if not_sent else None)
+                        )
+                    else:
+                        # Another terminal result or owner won the row. Read
+                        # the authority without rewriting its receipt.
+                        row = await finish_cleanup(self.ledger.get(request.attempt_id))
                 else:
                     row = await finish_cleanup(self.ledger.finish_before_start(request.attempt_id, status,
                         error_code=code, timing=timing.record(), diagnostic=diagnostic))
                 if acquired:
+                    release_options = ({"units": row.get("charged_units")} if row and row["status"] == "succeeded"
+                                       else {"not_started": not submitted or (not_sent and recorded is not False)})
                     await finish_cleanup(
-                        self.scheduler.release(
-                            plan.quota_group,
-                            request.attempt_id,
-                            not_started=not submitted or not_sent,
-                        )
+                        self.scheduler.release(plan.quota_group, request.attempt_id, **release_options)
                     )
                     acquired = False
-                if row is not None:
+                if row is not None and row["status"] in {"succeeded", "failed", "cancelled", "unknown"}:
                     try:
-                        await finish_cleanup(self.event("model.finished", status, request.attempt_id))
+                        await finish_cleanup(self.event("model.finished", row["status"], request.attempt_id))
                     except AppError:
                         pass
             elif acquired:

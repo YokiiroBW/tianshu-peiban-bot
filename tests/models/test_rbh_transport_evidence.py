@@ -211,6 +211,8 @@ async def test_broker_persists_original_failed_receipt_with_confirmed_connector_
     assert saved.request_digest and saved.data_generation and saved.provider_handle is None and saved.first_output_ms is None
     assert row["diagnostic"]["category"] == "not_sent"
     assert saved.diagnostic["transport"]["evidence"] == "confirmed_not_sent"
+    assert saved.diagnostic["failure_stage"] == "transport"
+    assert saved.diagnostic["original_output_reusable"] is False
     assert saved.http_timing["points_ms"]["connect_start"] is not None
     assert saved.http_timing["points_ms"]["connect_end"] is None
     assert receipt_from_wire(wire(saved)) == saved
@@ -291,7 +293,9 @@ async def test_close_error_cannot_reclassify_a_completed_response_as_not_sent(da
 
     _broker, _original, _row, saved = await run_broker_failure(database, post)
     assert saved.status == "failed" and saved.dispatch == "submitted"
+    assert saved.error_code == "transport_unknown"
     assert saved.provider_handle == "original-provider-id" and saved.first_output_ms is not None
+    assert saved.diagnostic["failure_stage"] == "transport"
     assert saved.diagnostic["transport"]["phase"] == "close"
     assert saved.diagnostic["transport"]["evidence"] == "sent_or_unknown"
 
