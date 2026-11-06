@@ -2,7 +2,7 @@
   "batch": "RBJ-20261106",
   "status": "dispatched_core_active_followups_queued",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.0",
+  "contract": "1.1",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -33,6 +33,7 @@
         "tests/sources/test_rbj_*.py",
         "tests/sources/test_rbf_proof_reuse.py",
         "tests/sources/test_rbi_scoped_preparation.py",
+        "tests/sources/test_rb_proof_batches.py",
         "docs/handoffs/RBJ-01.md"
       ],
       "work": "1. 阅读 Sources 的快速路径、旧递归及全部公共调用链。以迭代共享 DAG 求值消除技术深度 64 的性能断崖；保留权限、范围/片段、disclosure、撤回、AND/OR 与循环语义。不能仅扩大深度或关闭来源证明。\n2. 取图、子批、求值共用明确节点/边/工作量预算；预算耗尽用独立错误表达，不能当作来源 false，也不能无界退回旧递归。循环中有合法 OR 出口的分支仍能成立，不能将整张有环图简单拒绝。\n3. 复用现有同调用缓存/JIT 抑制；合并同 context、精确引用/locator 相同的准备。跨调用事务证明复用仅在完整权威读集保护到提交可证明时采用；否则保留新鲜校验，不引入权限缓存竞态。\n4. 新 SQL 使用 rbj_*.sql 增量迁移；不改历史 schema.sql/已发布 SQL。列出 root 的注册顺序及函数覆盖关系。性能主修不依赖旧数据迁移或来源压缩；生产者的祖先边收敛只在能证明语义等价时提出精确后续，不越界改 Life。\n5. 添加无正文现场拓扑夹具的必要用例代码：195 节点/8252 边规模、64→65→更深、新回执同事务可见、范围/权限 epoch/撤回、替代组短路、有/无出口循环、缺来源和预算。覆盖公共读取及 Memory 撤回/检索的关联调用行为。编写而不运行。",
@@ -52,7 +53,8 @@
       "latest_cursor": "51e724b4-908f-42ae-91ae-aef350a8ec29:15",
       "latest_turn_id": "01a1b09e-068a-7ef3-93e0-1d5550548d0b",
       "observed_at": "2026-11-06T11:29:25.638Z",
-      "acknowledgement": "我会在新建的 RBJ Sources 工作树中核对基线和冻结合同，然后完成来源图求值与同调用去重的整块实现，最后提交并向主协调窗口回执。"
+      "acknowledgement": "我会在新建的 RBJ Sources 工作树中核对基线和冻结合同，然后完成来源图求值与同调用去重的整块实现，最后提交并向主协调窗口回执。",
+      "contract": "1.1"
     },
     {
       "id": "RBJ-02",
@@ -90,7 +92,8 @@
       "latest_cursor": "ba4e245a-08f8-43f4-a361-c549a91b200a:17",
       "latest_turn_id": "01a1b09e-0cf6-7e10-ae40-b4f5a4ff4af4",
       "observed_at": "2026-11-06T11:29:25.638Z",
-      "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。"
+      "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
+      "contract": "1.1"
     },
     {
       "id": "RBJ-03",
@@ -125,7 +128,8 @@
       "latest_cursor": "ed71c713-e900-49c8-aab0-d7eff22a9ead:24",
       "latest_turn_id": "01a1b09e-133b-7a21-8cf2-56310a710f80",
       "observed_at": "2026-11-06T11:29:25.638Z",
-      "acknowledgement": "我会在指定的新工作树核对冻结合同和现有 Action／结果消费链路，完成 RBJ-03 的端口、回归用例与交接；测试和装配按约定留给协调者集中执行。"
+      "acknowledgement": "我会在指定的新工作树核对冻结合同和现有 Action／结果消费链路，完成 RBJ-03 的端口、回归用例与交接；测试和装配按约定留给协调者集中执行。",
+      "contract": "1.1"
     },
     {
       "id": "RBJ-04",
@@ -167,7 +171,8 @@
       "latest_cursor": "5a3a63c7-e3a3-48e9-979d-37b980e5d975:29",
       "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
       "observed_at": "2026-11-06T11:29:25.638Z",
-      "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。"
+      "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
+      "contract": "1.1"
     },
     {
       "id": "RBJ-05",
@@ -211,7 +216,8 @@
       "latest_cursor": "08fc417e-c152-40cc-a5e1-2b5ef1a02c61:68",
       "latest_turn_id": "01a1b09e-1c4c-7ae3-86c1-6fbd3052517b",
       "observed_at": "2026-11-06T11:29:25.638Z",
-      "acknowledgement": "我会先核对 RBJ 新工作树、任务卡和冻结接口，再沿 Life 的结果观察与业务落库链路检查需要调整的位置；本窗口只提交本卡代码和必要用例，由协调者集中验证。"
+      "acknowledgement": "我会先核对 RBJ 新工作树、任务卡和冻结接口，再沿 Life 的结果观察与业务落库链路检查需要调整的位置；本窗口只提交本卡代码和必要用例，由协调者集中验证。",
+      "contract": "1.1"
     },
     {
       "id": "RBJ-06",
@@ -247,7 +253,8 @@
       "latest_turn_id": "01a1b09e-2138-7720-bfd9-5ab0272ff963",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
-      "queue_release_required": true
+      "queue_release_required": true,
+      "contract": "1.1"
     },
     {
       "id": "RBJ-07",
@@ -285,9 +292,11 @@
       "latest_turn_id": "01a1b09e-258c-7e00-a0e7-e48e808cbcef",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
-      "queue_release_required": true
+      "queue_release_required": true,
+      "contract": "1.1"
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
-  "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged"
+  "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged",
+  "contract_revision_note": "Frozen after owner review: exact consumer proof; wake variant/object lock; attested legacy coverage; repair job binding; Life application inspection. No product implementation or production changes by coordinator."
 }

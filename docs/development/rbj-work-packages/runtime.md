@@ -1,13 +1,13 @@
 # RBJ-02：可靠唤醒身份、按对象执行与受限本地修复资格
 
-状态：第一批，准备后正式启动。这是新卡，不续写旧 RBI/RBH/RBG 已完成任务。
+状态：第一批，已派发并确认开始。这是新卡，不续写旧 RBI/RBH/RBG 已完成任务。
 
 - 既有窗口：RBW 运行时与故障隔离，thread `01a1a772-e95a-7922-a72f-1beb061dd287`，host local。
 - 唯一工作树：`C:\Users\Administrator\.codex\worktrees\rbj-runtime\tianshu-peiban-bot`；分支 `codex/rbj-runtime-20261106`。不要写旧 cwd 或协调检出。
 - 代码起点 `39da2d283deb17de2739b3c24fc1eeedc96cfa69`；实际准备提交由根正式派发消息及 dispatch 记录给出，必须核对一致。
 - gpt-6.1-terra / max，普通速度（service_tier=default、fast_mode=false），不自行开启 Fast。
 - 依赖：无跨窗口实现前置。依赖窗口使用冻结合同与夹具，不读写其可变目录；接口不明确即报根并继续自身独立工作。
-- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.0](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
+- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.1](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
 
 ## 完整交付范围
 
