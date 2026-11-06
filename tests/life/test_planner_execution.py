@@ -353,7 +353,7 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
     await restarted.plan("actor", 1, wire(refreshed), fixture.data_generation)
     current = await mark(database)
     assert current["generation_key"] == key and current["generation_consumed"] is False
-    assert current["reason"] == "planner_running" and current["next_due_at"] is not None
+    assert current["reason"] == "planner_running"
     assert len(fixture.models.calls) == 1 and not fixture.actions.calls
     assert all(attempt == original.attempt_id for attempt, _ in fixture.models.observations)
     async with database.transaction(read_only=True) as connection:

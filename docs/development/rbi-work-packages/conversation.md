@@ -48,6 +48,8 @@
 
 - tests/conversation/test_expression_order.py
 
+- tests/conversation/test_rbf_recovery.py
+
 ## 接口、依赖与执行
 
 基础依赖：RBI-00。集中装配依赖：RBI-01、RBI-04。公共语义已冻结，立即推进可独立实现部分；依赖方的新函数先按合同编写调用，真实装配由根集成。不把接口尚未到齐当作停止整个实现包的理由。接口不可行时尽早回报准确签名与原因，由根单写修订合同。

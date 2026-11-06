@@ -418,7 +418,8 @@
         "src/tianshu/conversation/rendering.py",
         "src/tianshu/conversation/service.py",
         "src/tianshu/conversation/expression.py",
-        "tests/conversation/test_expression_order.py"
+        "tests/conversation/test_expression_order.py",
+        "tests/conversation/test_rbf_recovery.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",

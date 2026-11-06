@@ -650,7 +650,8 @@
         "src/tianshu/conversation/rendering.py",
         "src/tianshu/conversation/service.py",
         "src/tianshu/conversation/expression.py",
-        "tests/conversation/test_expression_order.py"
+        "tests/conversation/test_expression_order.py",
+        "tests/conversation/test_rbf_recovery.py"
       ],
       "deliverables": [
         "先关联四个原/恢复消费任务的准确错误和事务结果，不用未关联QueryCanceled替代归因",
