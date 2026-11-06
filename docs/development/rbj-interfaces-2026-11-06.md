@@ -265,7 +265,7 @@ Conversation 对原 generation/action/receipt/revision、冻结 owner、consumer
 
 集中复验及静态追踪确认：候选盘点会导入 native doing 的 unknown；随后该任务失败，普通直接调用仍可取得独立 consumer 租约。仅有原 native failed 事实不能证明这个后来取得的 token 属于该物理 ordinal。原按 receipt 清理所有 running token 的方式可能干扰有效消费者并新增不必要任务。
 
-Conversation 复用原 result_consumer_progress 和队列，不新增 claim 系统或 SQL。所有 reconcile_stranded 入口均先以数据库时间检查并保护同一原 receipt 的当前消费租约；存在有效未过期 running lease 时，继续有界导入原 native 历史并保留失败证据，但不得 resolve 未决 unknown、解除/替换 claim 或签发新消费执行。返回 waiting/consumer_running 和最早真实 lease_until，携带未改写的执行预算；此规则优先于同原事件的普通/repair 预算拒绝或既有 pending 采用，包括 allow_successor。物理 worker/repair 的预检同样不得趁该租约 begin/resolve 或消耗修复额度。缺失或无效 lease 的 running 状态保持 unknown，不能猜测为已过期。
+Conversation 复用原 result_consumer_progress 和队列，不新增 claim 系统或 SQL。所有 reconcile_stranded 入口均先以数据库时间检查并保护同一原 receipt 的当前消费租约；存在有效未过期 running lease 时，继续有界导入原 native 历史并保留失败证据，但不得 resolve 未决 unknown、解除/替换 claim 或另行派发新消费任务。返回 waiting/consumer_running 和最早真实 lease_until，携带未改写的执行预算；此规则优先于同原事件的普通/repair 预算拒绝或既有 pending 采用，包括 allow_successor。物理 worker 同样不得因历史对账解除租约或 resolve 未知；已派发普通 worker 沿既有预算登记及 consumer CAS 等待/观察，不另造普通预检退出机制。repair 不得借该租约绕过资格或消耗修复额度。缺失或无效 lease 的 running 状态保持 unknown，不能猜测为已过期。
 
 租约期间保留原 failed/unknown/native ordinal、token、proof、due 和普通/repair 总预算；例如一条已归一 failed 加另一条先前 unknown、当前 native 已 failed 的执行仍应报告 failed_executions=1、unknown_held=1，不能提前改成两条已确认失败。消费者完成后依精确原 proof 对账；租约真正过期后再走已有来源/Action/领域 proof 与 CAS 路径。renderer/dialogue 没有完整效果证明仍 blocked/unknown，不能据另一 ordinal 的失败认定其成功或未发生。不得通过修改用例为 accepted、伪造 doing、重置预算或重放外部效果绕过。
 
