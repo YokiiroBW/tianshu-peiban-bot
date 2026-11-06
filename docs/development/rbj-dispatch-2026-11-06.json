@@ -2,7 +2,7 @@
   "batch": "RBJ-20261106",
   "status": "dispatched_core_active_followups_queued",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.1",
+  "contract": "1.2",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -54,7 +54,7 @@
       "latest_turn_id": "01a1b09e-068a-7ef3-93e0-1d5550548d0b",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我会在新建的 RBJ Sources 工作树中核对基线和冻结合同，然后完成来源图求值与同调用去重的整块实现，最后提交并向主协调窗口回执。",
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_notice_accepted_at": "2026-11-06T11:39:24.710Z"
     },
     {
@@ -94,7 +94,7 @@
       "latest_turn_id": "01a1b09e-0cf6-7e10-ae40-b4f5a4ff4af4",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。",
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_notice_accepted_at": "2026-11-06T11:39:24.788Z"
     },
     {
@@ -131,7 +131,7 @@
       "latest_turn_id": "01a1b09e-133b-7a21-8cf2-56310a710f80",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我会在指定的新工作树核对冻结合同和现有 Action／结果消费链路，完成 RBJ-03 的端口、回归用例与交接；测试和装配按约定留给协调者集中执行。",
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_notice_accepted_at": "2026-11-06T11:39:24.864Z"
     },
     {
@@ -175,7 +175,7 @@
       "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_notice_accepted_at": "2026-11-06T11:39:24.942Z"
     },
     {
@@ -221,7 +221,7 @@
       "latest_turn_id": "01a1b09e-1c4c-7ae3-86c1-6fbd3052517b",
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "我会先核对 RBJ 新工作树、任务卡和冻结接口，再沿 Life 的结果观察与业务落库链路检查需要调整的位置；本窗口只提交本卡代码和必要用例，由协调者集中验证。",
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_notice_accepted_at": "2026-11-06T11:39:25.012Z"
     },
     {
@@ -259,7 +259,7 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
       "queue_release_required": true,
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_read_on_release": true
     },
     {
@@ -299,12 +299,13 @@
       "observed_at": "2026-11-06T11:29:25.638Z",
       "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
       "queue_release_required": true,
-      "contract": "1.1",
+      "contract": "1.2",
       "contract_read_on_release": true
     }
   ],
   "dispatched_at": "2026-11-06T11:29:25.638Z",
   "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged",
   "contract_revision_note": "Frozen after owner review: exact consumer proof; wake variant/object lock; attested legacy coverage; repair job binding; Life application inspection. No product implementation or production changes by coordinator.",
-  "contract_commit": "315fc10bef2b4a5629341b7aea84bdf4e17ca98f"
+  "contract_commit": "315fc10bef2b4a5629341b7aea84bdf4e17ca98f",
+  "contract_1_2_note": "Only clarify nullable owner_id: Life resolves unique current owner under actor/action/consumer authority; unresolved stays unknown."
 }

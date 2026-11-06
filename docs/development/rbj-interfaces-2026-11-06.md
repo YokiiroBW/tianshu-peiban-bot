@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.1
+# RBJ 公共合同，2026-11-06，版本 1.2
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -148,6 +148,8 @@ async def LifeWorker.inspect_result_repair_on(self, connection, context, result,
 ```
 
 调用者先按 Sources→Action head 完成来源/权限与 head fence；Life 在同事务锁定自己目标、核对 actor/Action/代际/revision/CAS。返回 state=not_applied|verified|superseded|unknown，reason 必有，可含 owner_revision/proof。Conversation 先核对自己已持久化的精确 done proof；verified 只能基于完整同事务证明，不能凭 last_receipt、单个 Episode 或某条 Goal milestone 凑成完整提交。
+
+1.2 仅澄清首次初始化前 owner_resolved=false 的合法场景：owner_id 可为 None，由 Life 自己按 consumer 对应领域、已授权 actor+原 Action 精确解析当前唯一所有者，并返回 owner_id/owner_revision；显式传 owner_id 时严格核对。缺失、多匹配、身份冲突或不能证明归属时保持 unknown，不猜旧/新对象、不创建对象，Conversation 不因此跨查 Life 私表。其余 1.1 签名与语义不变。
 
 目标仍对应原 Action、版本明确低于原事件且允许应用时可返回 not_applied；明确取消/替换按 superseded；同版本异 receipt、回退、缺失/不一致，或同 receipt 已落账但无完整事务证明返回 unknown。旧直接路径缺 proof 的历史不补造 marker，不强推修复。实际 apply 在原领域事务重复同样检查；若预检后出现“同 receipt 已落账无 proof”的竞态，抛 AppError `local_result_application_unconfirmed`（409，带 consumer/owner 引用），Conversation 将本次执行记 unknown、保留同资格待对账，不作为真实修复失败、不再 apply；不把它包装为可自动重放的免费 wait。
 
