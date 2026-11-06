@@ -1,8 +1,8 @@
 {
   "batch": "RBJ-20261106",
-  "status": "local_integrated_verified_not_deployed",
+  "status": "deployed_original_recovery_blocked",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.9",
+  "contract": "2.0",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -14,7 +14,7 @@
   "fast_mode": false,
   "max_implementation_writers": 5,
   "validation_owner": "coordinator_only",
-  "production_changed": false,
+  "production_changed": true,
   "workers": [
     {
       "id": "RBJ-01",
@@ -636,13 +636,77 @@
   "product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
   "local_completed_at": "2026-11-06T14:03:27.039500+00:00",
   "release": {
-    "status": "authorized_preparing",
+    "status": "deployed_original_recovery_blocked",
     "authorized_at": "2026-11-06T14:12:38.143040+00:00",
     "authorization": "推送部署吧",
     "coordinator": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
     "tested_product_commit": "d8021aeb017776a53ec2e83e7b18d3e164c8f650",
     "previous_source": "44590b88b4d5db4c8ea0288751bc35cb40a70348",
     "handoff": "docs/handoffs/RBJ-08.md",
-    "production_changed": false
+    "production_changed": true,
+    "deployed_source": "e317734fcf0f1d9551a3f7838c95e0efbcfd464d",
+    "image": "sha256:3ef6809f59f2a9aee29e86ac1ac6a2a887ce5574b16e65551b691833a1e838e5",
+    "backup": {
+      "path": "/srv/tianshu-rbj-releases-20261106/e317734fcf0f/affected-domains.dump",
+      "bytes": 56275228,
+      "sha256": "8d2617ef2d770a3f5f54378770f6e2bdc2e7c8769153fac71af012b9e30b986f"
+    },
+    "preserved": {
+      "configuration": true,
+      "mounts": 11,
+      "other_containers": 2,
+      "data_generation": "0833be12-8fba-4db7-9e22-2120e8ea13ea",
+      "original_actions": 5,
+      "unknown_models": 67,
+      "existing_table_counts": 29
+    },
+    "first_repair_job_id": 145703,
+    "first_grant_id": 1,
+    "ordinary_failures_preserved": 4,
+    "repair_failures": 0,
+    "blocker": "foreign_native_live_tail_imported_unknown_before_business_begin",
+    "followups": [
+      {
+        "id": "RBJ-09",
+        "thread": "01a1a772-e95a-7922-a72f-1beb061dd287",
+        "scope": "native-inflight与not_started机械观察",
+        "paths": [
+          "src/tianshu/runtime/jobs.py",
+          "src/tianshu/runtime/rbi_execution_budget.py",
+          "src/tianshu/runtime/rbj_execution_repair.py",
+          "src/tianshu/runtime/rbj_native_admission.sql",
+          "tests/runtime/test_rbj_native_admission.py",
+          "tests/runtime/test_rbj_execution_repair.py",
+          "tests/runtime/test_rbi_execution_budget.py",
+          "docs/handoffs/RBJ-09.md"
+        ],
+        "branch": "codex/rbj-native-runtime-20261106",
+        "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-runtime\\tianshu-peiban-bot",
+        "status": "assigned",
+        "contract": "2.0",
+        "model": "gpt-6.1-terra",
+        "thinking": "max",
+        "service_tier": "default"
+      },
+      {
+        "id": "RBJ-10",
+        "thread": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+        "scope": "真实current执行接线与准入竞态联合用例",
+        "paths": [
+          "src/tianshu/conversation/rbi_result_wake.py",
+          "src/tianshu/conversation/results.py",
+          "tests/conversation/test_rbj_native_admission.py",
+          "docs/handoffs/RBJ-10.md"
+        ],
+        "branch": "codex/rbj-native-conversation-20261106",
+        "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-conversation\\tianshu-peiban-bot",
+        "status": "assigned",
+        "contract": "2.0",
+        "model": "gpt-6.1-terra",
+        "thinking": "max",
+        "service_tier": "default"
+      }
+    ],
+    "followup_frozen_at": "2026-11-06T14:30:27.236512+00:00"
   }
 }

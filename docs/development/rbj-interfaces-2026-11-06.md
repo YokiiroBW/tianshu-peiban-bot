@@ -270,3 +270,18 @@ Conversation 复用原 result_consumer_progress 和队列，不新增 claim 系�
 租约期间保留原 failed/unknown/native ordinal、token、proof、due 和普通/repair 总预算；例如一条已归一 failed 加另一条先前 unknown、当前 native 已 failed 的执行仍应报告 failed_executions=1、unknown_held=1，不能提前改成两条已确认失败。消费者完成后依精确原 proof 对账；租约真正过期后再走已有来源/Action/领域 proof 与 CAS 路径。renderer/dialogue 没有完整效果证明仍 blocked/unknown，不能据另一 ordinal 的失败认定其成功或未发生。不得通过修改用例为 accepted、伪造 doing、重置预算或重放外部效果绕过。
 
 实现者只完成整块代码、必要用例代码、静态 diff 审阅和提交，不运行测试/构建/烟测/模型/QQ/生产。根收齐后做必要 PG 联合验证，复用未变有效结果；不全量重跑 472 用例。发布和原对象恢复另由根串行执行，本次派发不代表已修复/验证/部署。
+
+
+## 18. 2.0 发布实证：原生领取与业务 begin 分离
+
+e317734f 的首个真实 repair145703:0 被 Operations 在业务 begin 前导入 native-start unknown；自身 cheap admission 随后拟写 preflight stop，却因已有 fact 抛 execution_repair_already_started。native retry 后 ordinal1 准确未应用退出，不能证明 ordinal0。Sources、Action和Life检查不是这次失败点，不能改模型路由或重置预算。
+
+仅对已持久绑定可信 grant 的 conversation.result repair，区分“原生doing但业务begin尚未提交”的短暂活跃尾与已提交业务事实。foreign observer不得把前者永久写成unknown，也不得将其遗漏为可运行：分页/非分页读取显式报告native_inflight；所有inspect/authorize/bind对该原身份仍准确阻断。当前真实worker只能经JobQueue当前执行上下文校验豁免精确自己的generation/job/native_attempt，随后仍在同一身份互斥和原生状态核对下提交begin，之后才能apply。已存在started/真实unknown、普通/未绑定任务、缺失锚点、abort/提交不明继续原规则，不能泛化免费化。
+
+native_inflight不是丢失历史，不设置Conversation rbi_history_gap或丢弃游标。历史的封闭前缀可完整，活跃尾由单独机械字段表达；snapshot必须在同一身份锁下核对该尾，使不带合法current_job的观察者始终不能借完整前缀获得eligible。超过有界可证明范围保持不可执行。Conversation在execution_budget_on向inspect传递真实current_job（JobQueue验证与当前上下文一致），保留真实分页、缺锚点与未知语义。确需真实续页时保存游标并沿同原任务有界等待，不能把未完扫描当完整或无due吞掉；是否需额外适配由必要用例确认。
+
+对已经持久的145703:0，不覆盖原unknown/evidence_ref/recorded_at，不把未开始强称failed、completed或资源wait。复用公开resolve_execution_on增加严格resolved_outcome=not_started；仅可信bound repair可用。Runtime验证精确generation/identity/grant/物理ordinal、原fact为native-start观察导入unknown且未resolve（而非begin插入的started或finish产生的真实unknown）、锚点和完整native终结历史、无当前doing及冲突事实。受信调用者先锁Sources→Action→Life，核验原事件、owner/revision/CAS、未应用和无有效consumer租约；再基于当时不可变e317代码的begin/seed同锁程序约束及同ordinal持久preflight错误日志提供唯一observation_ref。不得仅凭后ordinal stop、native succeeded/deferred或Life当前行推断。新命名增量迁移扩展现有resolved_outcome检查，保留原事实并追加resolved/observation，不另建业务账本。重入幂等，观察引用或身份冲突拒绝，其他普通/外部unknown不接受此类型。
+
+not_started仍计入原物理总执行历史，但不计业务失败/active/unknown，不关闭grant；普通失败仍4、repair失败仍0，原一次资格继续沿正常ResultRecovery恢复同一receipt。原生scheduled 557222.at=2026-11-06T14:18:20.664052Z是物理重排due证据，不能改成now或业务hold；它不单独证明回滚，也不需要把not_started伪装wait。历史再导入不得覆盖已验证not_started或制造新冲突。
+
+RBJ-09（原Runtime窗口）实现机械合同、公开窄口/增量SQL和必要用例；RBJ-10（原Conversation窗口）只改结果预算current_job/typed-live/真实续页的必要适配及联合用例。全局迁移注册、共享记录、集成验证和生产仍归根。新分支/独立工作树，不续旧完成卡、不建聊天/子代理；gpt-6.1-terra/max普通速度。实现者静态审阅提交，不运行测试/构建/烟测/生产/模型/QQ。根只补这次竞态、真实原结果及受影响调用验证，复用279个有效旧结果；不得为本次缺口全量重跑。

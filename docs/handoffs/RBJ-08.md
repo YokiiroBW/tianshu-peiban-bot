@@ -18,4 +18,10 @@
 
 部署前按当前代际有界扫描同缺陷未完成终态结果；部署后先查原head、来源、owner、CAS和既有proof，再经ResultRecovery可信登记及原事件端口恢复。保留四次普通失败，仅为已确认修复缺陷的原consumer签发一次受限repair，不invoke/resume原Action。分别记录五条原回执与新增同类目标的Life/Goal/Memory、consumer proof和aggregate；自然新增结果独立记录。403/429和外部unknown保持，不做模型/QQ测试。
 
-当前状态：发布准备中，尚未在本卡声称已推送或部署。后续将写入实际源码、镜像、备份、迁移、健康、原对象与自然样本结果及仍有影响的限制。
+实际已推送并部署e317734fcf0f1d9551a3f7838c95e0efbcfd464d，镜像sha256:3ef6809f59f2a9aee29e86ac1ac6a2a887ce5574b16e65551b691833a1e838e5。六角色就绪、0重启，首页和四项静态资源200，容量守护与宿主watcher active。五迁移完成，29张旧表记录数、五个原Action摘要与67条模型unknown在停写/迁移前后相同；配置、11挂载、原代际0833be12-8fba-4db7-9e22-2120e8ea13ea和两个其他容器保持。
+
+四域备份/srv/tianshu-rbj-releases-20261106/e317734fcf0f/affected-domains.dump，56275228字节，sha256:8d2617ef2d770a3f5f54378770f6e2bdc2e7c8769153fac71af012b9e30b986f。目录和TOC已验证；未倒灌数据库。
+
+业务验收尚未通过：首目标5bca45d3...经正常端口授权grant1、派发repair145703。Operations先观察其ordinal0 native started557219并持久化unknown，worker预检被该fact挡住，持久日志error_code=execution_repair_already_started。ordinal1随后写准确unknown stop并native succeeded，但Life仍未apply新rev5、无consumer proof/aggregate，不能称完成。普通失败4、repair失败0、原grant与unknown均保持；其余四项资格暂停。发布后新增两个delivery是旧external unknown/已有aggregate缺完整consumer proof的观察投影，不能当新外部执行或强补成功。
+
+冻结合同2.0及新卡RBJ-09/10交既有Runtime/Conversation窗口处理native-inflight和可信not_started对账；根集中必要验证后串行补发。自然新增业务样本尚未证明，不关闭原问题。
