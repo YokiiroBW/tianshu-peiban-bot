@@ -80,6 +80,8 @@ def rbj_runtime_migrations():
             files("tianshu.runtime").joinpath("rbj_wake.sql").read_text(encoding="utf-8")),
         Migration("rbj_execution_repair",
             files("tianshu.runtime").joinpath("rbj_execution_repair.sql").read_text(encoding="utf-8")),
+        Migration("rbj_native_admission",
+            files("tianshu.runtime").joinpath("rbj_native_admission.sql").read_text(encoding="utf-8")),
     )
 
 
