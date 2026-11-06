@@ -64,7 +64,7 @@ export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
         </article>
       ))}
       {editing && (
-        <ConnectionIdentity
+        <ConnectionIdentityEditor
           key={
             typeof editing === "string"
               ? editing
@@ -91,9 +91,7 @@ export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
             · {row.mention_required ? "需要被提及" : "不要求提及"} · 回复责任：
             {humanizeCode(row.reply_owner, "已登记回复服务")}
           </p>
-          <p>
-            {humanizeCode(row.kind, "聊天会话")}
-          </p>
+          <p>{humanizeCode(row.kind, "聊天会话")}</p>
           {row.reply_keywords.length > 0 && (
             <p>关键词：{row.reply_keywords.join("、")}</p>
           )}
@@ -127,14 +125,16 @@ export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
     </DetailCard>
   );
 }
-function ConnectionIdentity({
+export function ConnectionIdentityEditor({
   row,
   done,
   cancel,
+  preset,
 }: {
   row: RegisteredConnection | null;
-  done: () => void;
+  done: (connectionId: string) => void;
   cancel: () => void;
+  preset?: { connectionId: string; namespace: string };
 }) {
   const { roles } = useRoleWorkspace();
   const command = useDomainCommand(
@@ -169,22 +169,26 @@ function ConnectionIdentity({
             row?.revision ?? 0,
           )
           .then((answer) => {
-            if (answer) done();
+            if (answer) done(String(data.get("id")));
           });
       }}
     >
       <h4>{row ? "编辑机器人身份" : "登记机器人身份"}</h4>
       <div className="domain-grid">
-        <label>
-          连接标识
-          <input
-            name="id"
-            defaultValue={row?.connection_id}
-            readOnly={!!row}
-            required
-            maxLength={256}
-          />
-        </label>
+        {preset ? (
+          <input type="hidden" name="id" value={preset.connectionId} />
+        ) : (
+          <label>
+            连接标识
+            <input
+              name="id"
+              defaultValue={row?.connection_id}
+              readOnly={!!row}
+              required
+              maxLength={256}
+            />
+          </label>
+        )}
         <label>
           负责角色
           <select
@@ -200,17 +204,22 @@ function ConnectionIdentity({
           </select>
         </label>
         <label>
-          身份命名空间
+          聊天平台
           <input
             name="namespace"
-            defaultValue={row?.namespace ?? "qq"}
+            defaultValue={row?.namespace ?? preset?.namespace ?? "qq"}
             required
             placeholder="qq / telegram"
           />
         </label>
         <label>
           机器人平台账号ID
-          <input name="self" defaultValue={row?.self_external_id} required />
+          <input
+            name="self"
+            defaultValue={row?.self_external_id}
+            placeholder="例如 QQ 号或 Telegram 机器人账号"
+            required
+          />
         </label>
       </div>
       <label>

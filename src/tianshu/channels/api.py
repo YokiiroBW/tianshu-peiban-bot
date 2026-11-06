@@ -29,6 +29,7 @@ def bearer(header, token):
 def register_routes(app, service):
     async def view(request):
         context = require_context(request, "external.manage")
+        await service.identity.check_context(context)
         async with service.runtime.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute("SELECT body FROM channels.connections ORDER BY id")
@@ -50,11 +51,28 @@ def register_routes(app, service):
                 )
             ).fetchall()
         allowed = []
+        actor_contexts = {}
         for row in rows:
             try:
-                await service.identity.connection(context, row["body"]["id"])
+                actor_id = row["body"]["actor_id"]
+                if context.actor_id and actor_id != context.actor_id:
+                    continue
+                # Settings has a global context. Resolve each role through
+                # Identity before applying the existing connection check;
+                # a global actor=None is not a channel's role identity.
+                if context.actor_id is None:
+                    if actor_id not in actor_contexts:
+                        actor_contexts[actor_id] = await service.identity.context(
+                            context.principal_id, actor_id=actor_id,
+                            permission="external.manage",
+                        )
+                    connection_context = actor_contexts[actor_id]
+                else:
+                    connection_context = context
+                await service.identity.connection(connection_context, row["body"]["id"])
             except Exception as error:
-                if getattr(error, "status", None) in {403, 404}:
+                if (getattr(error, "status", None) in {403, 404}
+                        or getattr(error, "code", None) == "actor_disabled"):
                     continue
                 raise
             connection = dict(row["body"])

@@ -16,16 +16,18 @@ import { CommandFeedback } from "../../components/CommandFeedback";
 import { DetailCard } from "../../components/DetailCard";
 import { taskHref } from "../../api/commandRecovery";
 import { ChannelIdentityPanel } from "./ChannelIdentityPanel";
+import { ChannelConnectionEditor } from "./ChannelConnectionEditor";
+import { BotConnectorSetup } from "./BotConnectorSetup";
 import { connectionName } from "../people/types";
 import { humanizeCode } from "../../design/humanize";
 import {
   adapterLabels,
-  splitLines,
+  transportLabels,
+  providerLabels,
   type ChannelConnection,
   type ChannelView,
   type ChannelMatrix,
   type IdentityDirectory,
-  type RegisteredConnection,
 } from "./channelTypes";
 import "./bots.css";
 
@@ -62,8 +64,16 @@ export function BotAdapterPanel() {
         </button>
       </header>
       {view.error && <p role="alert">{view.error}</p>}
-      <section className="panel">
-        <h3>传输进程</h3>
+      <BotConnectorSetup
+        registrations={directory.data?.connections ?? []}
+        configuredIds={
+          view.data?.connections.map((connection) => connection.id) ?? []
+        }
+        canRegister={canIdentity}
+        refresh={refresh}
+      />
+      <DetailCard title="连接管理状态">
+        <h3>连接管理状态</h3>
         <p>
           {view.data?.owner
             ? `${view.data.owner.active ? "连接管理租约有效" : "连接管理租约已失效"} · 到期 ${new Date(view.data.owner.expires_at).toLocaleString("zh-CN")}`
@@ -72,11 +82,10 @@ export function BotAdapterPanel() {
         <p className="muted">
           连接配置与对端账号验证分别记录。外部宿主未提供可核验状态时保持未知。
         </p>
-      </section>
-      {canIdentity && <ChannelIdentityPanel onChanged={refresh} />}
+      </DetailCard>
       <section className="panel">
         <div className="section-heading">
-          <h3>传输连接</h3>
+          <h3>已添加的机器人</h3>
           <button
             className="button"
             onClick={() => setSelected("new")}
@@ -85,21 +94,24 @@ export function BotAdapterPanel() {
             配置已登记账号
           </button>
         </div>
-        {view.data?.connections.map((connection) => (
-          <ChannelCard
-            key={connection.id + ":" + connection.revision}
-            connection={connection}
-            refresh={refresh}
-            edit={() => setSelected(connection.id)}
-          />
-        ))}
+        <div className="bot-connection-grid">
+          {view.data?.connections.map((connection) => (
+            <ChannelCard
+              key={connection.id + ":" + connection.revision}
+              connection={connection}
+              refresh={refresh}
+              edit={() => setSelected(connection.id)}
+            />
+          ))}
+        </div>
+        {view.loading && !view.data && <p>正在读取机器人连接…</p>}
         {view.data && !view.data.connections.length && (
           <p className="muted">
-            还没有传输配置。先登记机器人账号，再配置连接。
+            还没有可显示的机器人连接。请选择上方的连接器卡片添加。
           </p>
         )}
         {selected && (
-          <ChannelEditor
+          <ChannelConnectionEditor
             key={
               selected +
               ":" +
@@ -116,6 +128,7 @@ export function BotAdapterPanel() {
           />
         )}
       </section>
+      {canIdentity && <ChannelIdentityPanel onChanged={refresh} />}
       {view.data && (
         <>
           <NativeApi connections={view.data.connections} />
@@ -145,7 +158,8 @@ export function BotAdapterPanel() {
             {view.data.observations.map((observation, index) => (
               <article className="domain-record" key={index}>
                 <strong>
-                  {humanizeCode(observation.kind, "连接观察")} · {humanizeCode(observation.name, "服务状态记录")}
+                  {humanizeCode(observation.kind, "连接观察")} ·{" "}
+                  {humanizeCode(observation.name, "服务状态记录")}
                 </strong>
                 <time>
                   {new Date(observation.observed_at).toLocaleString("zh-CN")}
@@ -179,7 +193,11 @@ function ChannelCard({
           <h3>{connectionName(connection)}</h3>
           <p>
             {adapterLabels[connection.adapter] ?? connection.adapter} ·{" "}
-            {connection.transport} · {connection.provider}
+            {transportLabels[connection.transport] ??
+              humanizeCode(connection.transport, "已配置传输")}{" "}
+            ·{" "}
+            {providerLabels[connection.provider] ??
+              humanizeCode(connection.provider, "已配置服务")}
           </p>
         </div>
         <span className="tasks-chip">
@@ -188,8 +206,12 @@ function ChannelCard({
         </span>
       </div>
       <p>
-        {connection.self_external_id} · {humanizeCode(connection.state, "状态尚未确认")}
-        {connection.reason ? ` · ${humanizeCode(connection.reason, "连接状态有待核对")}` : ""} · 修订
+        {connection.self_external_id} ·{" "}
+        {humanizeCode(connection.state, "状态尚未确认")}
+        {connection.reason
+          ? ` · ${humanizeCode(connection.reason, "连接状态有待核对")}`
+          : ""}{" "}
+        · 修订
         {connection.revision}
       </p>
       <div className="domain-actions">
@@ -306,249 +328,6 @@ function Matrix({ matrix }: { matrix: ChannelMatrix }) {
         </table>
       </div>
     </div>
-  );
-}
-const transports: Record<string, string[]> = {
-  onebot: ["http", "reverse_http", "ws", "reverse_ws"],
-  telegram: ["telegram_webhook", "telegram_poll"],
-  nonebot: ["bridge"],
-  astrbot: ["bridge"],
-};
-function ChannelEditor({
-  row,
-  registrations,
-  done,
-  close,
-}: {
-  row: ChannelConnection | null;
-  registrations: RegisteredConnection[];
-  done: () => void;
-  close: () => void;
-}) {
-  const [adapter, setAdapter] = useState(row?.adapter ?? "onebot");
-  const [transport, setTransport] = useState(row?.transport ?? "reverse_ws");
-  const [error, setError] = useState("");
-  const command = useDomainCommand(
-    "channel-config:" + (row?.id ?? "new"),
-    "global",
-  );
-  return (
-    <form
-      className="domain-form bot-wizard"
-      onSubmit={(event) => {
-        event.preventDefault();
-        setError("");
-        const form = event.currentTarget;
-        const data = new FormData(form);
-        const registered = row
-          ? { connection_id: row.id, actor_id: row.actor_id }
-          : registrations.find(
-              (x) => x.connection_id === data.get("connection"),
-            );
-        if (!registered) {
-          setError("当前登记身份不可读，请刷新身份列表。");
-          return;
-        }
-        let advanced: Record<string, unknown>;
-        try {
-          advanced = JSON.parse(String(data.get("advanced")));
-          if (
-            !advanced ||
-            Array.isArray(advanced) ||
-            typeof advanced !== "object"
-          )
-            throw new Error();
-        } catch {
-          setError("高级协议声明必须是JSON对象。");
-          return;
-        }
-        const token = String(data.get("token") ?? "");
-        void command
-          .run(
-            "channels/connections/save",
-            {
-              ...advanced,
-              ...actorScope(registered.actor_id),
-              id: registered.connection_id,
-              adapter,
-              transport,
-              provider: String(data.get("provider")),
-              endpoint: String(data.get("endpoint")) || null,
-              api_endpoint: String(data.get("api_endpoint")) || null,
-              enabled: data.get("enabled") === "on",
-              allow_at_all: data.get("at_all") === "on",
-              extension_apis: splitLines(String(data.get("extensions") ?? "")),
-              allowed_media_hosts: splitLines(String(data.get("hosts") ?? "")),
-              ...(token ? { token } : {}),
-            },
-            row?.revision ?? 0,
-          )
-          .then((answer) => {
-            if (answer) {
-              form.reset();
-              done();
-            }
-          });
-      }}
-    >
-      <h3>{row ? "编辑连接" : "配置传输"}</h3>
-      <div className="domain-grid">
-        <label>
-          已登记账号
-          <select
-            name="connection"
-            defaultValue={row?.id}
-            disabled={!!row}
-            required
-          >
-            {row &&
-              !registrations.some(
-                (value) => value.connection_id === row.id,
-              ) && (
-                <option value={row.id}>
-                  {connectionName(row)}
-                </option>
-              )}
-            {registrations.map((x) => (
-              <option key={x.connection_id} value={x.connection_id}>
-                {connectionName(x)}
-              </option>
-            ))}
-          </select>
-          {row && <input type="hidden" name="connection" value={row.id} />}
-        </label>
-        <label>
-          适配器
-          <select
-            value={adapter}
-            onChange={(event) => {
-              const value = event.target.value;
-              setAdapter(value);
-              setTransport(transports[value][0]);
-            }}
-          >
-            {Object.entries(adapterLabels).map(([id, title]) => (
-              <option key={id} value={id}>
-                {title}
-              </option>
-            ))}
-          </select>
-        </label>
-        <label>
-          传输
-          <select
-            value={transport}
-            onChange={(event) => setTransport(event.target.value)}
-          >
-            {transports[adapter].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          对端类型
-          <select name="provider" defaultValue={row?.provider ?? "generic"}>
-            {[
-              "generic",
-              "napcat",
-              "snowluma",
-              "telegram",
-              "nonebot",
-              "astrbot",
-            ].map((value) => (
-              <option key={value}>{value}</option>
-            ))}
-          </select>
-        </label>
-        <label>
-          服务地址
-          <input
-            name="endpoint"
-            defaultValue={row?.endpoint}
-            placeholder="https://… 或 wss://…"
-          />
-        </label>
-        <label>
-          独立API地址（可选）
-          <input name="api_endpoint" defaultValue={row?.api_endpoint} />
-        </label>
-        <label>
-          令牌（留空保留已保存值）
-          <input type="password" name="token" autoComplete="new-password" />
-        </label>
-      </div>
-      <label>
-        <input
-          type="checkbox"
-          name="enabled"
-          defaultChecked={row?.enabled ?? true}
-        />
-        启用连接
-      </label>
-      <label>
-        <input
-          type="checkbox"
-          name="at_all"
-          defaultChecked={row?.allow_at_all ?? false}
-        />
-        允许明确的@全体请求（仍核对当前群权限与额度）
-      </label>
-      <label>
-        明确扩展API（每行一项）
-        <textarea
-          name="extensions"
-          defaultValue={row?.extension_apis?.join("\n")}
-        />
-      </label>
-      <label>
-        允许获取媒体的远程主机（每行一项）
-        <textarea
-          name="hosts"
-          defaultValue={row?.allowed_media_hosts?.join("\n")}
-        />
-      </label>
-      <details>
-        <summary>协议声明、长媒体映射与SDK实例</summary>
-        <p className="muted">
-          本地与远程目录映射只用于已明确共享的媒体，不会把服务器路径发到浏览器预览。
-        </p>
-        <textarea
-          name="advanced"
-          rows={10}
-          defaultValue={JSON.stringify(
-            {
-              api_support: row?.api_support ?? {},
-              segment_support: row?.segment_support ?? {},
-              media_path_mappings: row?.media_path_mappings ?? [],
-              max_media_bytes: row?.max_media_bytes ?? 67108864,
-              max_inline_bytes: row?.max_inline_bytes ?? 4194304,
-              external_commands: row?.external_commands ?? [],
-              ...(row?.bridge_instance_id
-                ? { bridge_instance_id: row.bridge_instance_id }
-                : {}),
-              ...(row?.webhook_public_url
-                ? { webhook_public_url: row.webhook_public_url }
-                : {}),
-              ...(row?.webhook_secret_ref
-                ? { webhook_secret_ref: row.webhook_secret_ref }
-                : {}),
-            },
-            null,
-            2,
-          )}
-        />
-      </details>
-      {error && <p role="alert">{error}</p>}
-      <div className="domain-actions">
-        <button className="button primary" disabled={command.busy}>
-          保存连接配置
-        </button>
-        <button className="button" type="button" onClick={close}>
-          关闭
-        </button>
-      </div>
-      <CommandFeedback {...command} />
-    </form>
   );
 }
 function NativeApi({ connections }: { connections: ChannelConnection[] }) {

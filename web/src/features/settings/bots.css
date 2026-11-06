@@ -90,6 +90,53 @@
   display: grid;
   gap: var(--space-4);
 }
+.bot-connector-grid,
+.bot-connection-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: var(--space-4);
+}
+.bot-connector-card {
+  display: grid;
+  align-content: start;
+  gap: var(--space-3);
+  min-width: 0;
+  padding: var(--space-5);
+  text-align: left;
+  color: var(--color-text);
+  background: var(--color-input);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-panel);
+  font: inherit;
+  cursor: pointer;
+  overflow-wrap: anywhere;
+}
+.bot-connector-card > svg {
+  color: var(--color-accent-text);
+}
+.bot-connector-card > span {
+  color: var(--color-muted);
+}
+.bot-connector-card .bot-connector-add {
+  color: var(--color-accent-text);
+  font-weight: 600;
+}
+.bot-connector-card:hover:not(:disabled) {
+  border-color: var(--color-accent-text);
+}
+.bot-connector-card:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: var(--focus-offset);
+}
+.bot-connector-card:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+.bot-connector-flow {
+  display: grid;
+  gap: var(--space-4);
+  min-width: 0;
+}
 .bot-adapter {
   display: grid;
   gap: var(--space-4);

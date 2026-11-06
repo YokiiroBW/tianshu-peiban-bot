@@ -112,6 +112,23 @@ export const adapterLabels: Record<string, string> = {
   nonebot: "NoneBot",
   astrbot: "AstrBot",
 };
+export const transportLabels: Record<string, string> = {
+  http: "正向 HTTP",
+  reverse_http: "反向 HTTP",
+  ws: "正向 WebSocket",
+  reverse_ws: "反向 WebSocket",
+  telegram_webhook: "Webhook 推送",
+  telegram_poll: "主动轮询",
+  bridge: "宿主插件桥接",
+};
+export const providerLabels: Record<string, string> = {
+  generic: "通用 OneBot 服务",
+  napcat: "NapCat",
+  snowluma: "SnowLuma",
+  telegram: "Telegram",
+  nonebot: "NoneBot",
+  astrbot: "AstrBot",
+};
 export const splitLines = (value: string) => [
   ...new Set(
     value
