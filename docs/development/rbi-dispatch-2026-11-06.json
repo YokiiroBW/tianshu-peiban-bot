@@ -48,12 +48,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "implementing",
+      "status": "candidate_handoff_pending",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null,
+      "source_commit": "24bbcad9928d7662e6882c68df545cd08323cf01",
       "allowed_paths": [
         "src/tianshu/runtime/recovery_policy.py",
         "src/tianshu/runtime/jobs.py",
@@ -87,7 +87,24 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "verified": false,
-      "integrated": false
+      "integrated": false,
+      "handoff_commit": null,
+      "verification": "reported AST 10 files and diff check; no tests/build/smoke run",
+      "dependencies": [
+        "7715afa5144be098a8b9431d1cda03b1a3aae4ec"
+      ],
+      "root_migration_registration": {
+        "product_migrations": [
+          "rbi_recovery_repairs",
+          "rbi_execution_budget"
+        ],
+        "execution_migrations": [
+          "rbi_recovery_repairs",
+          "rbi_execution_budget"
+        ],
+        "order": "after corresponding original schema; inspect handoff before assembly",
+        "new_index": "public.procrastinate_events(job_id,id)"
+      }
     },
     {
       "id": "RBI-02",

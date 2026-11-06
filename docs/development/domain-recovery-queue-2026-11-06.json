@@ -329,7 +329,7 @@
       "priority": "P0",
       "owner": "Runtime",
       "title": "恢复领取机械边界与 role 内维护回调",
-      "status": "implementing",
+      "status": "candidate_handoff_pending",
       "depends_on": [
         "RBI-00"
       ],
@@ -366,7 +366,9 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "implementation_turn_id": "01a1aeb3-d82b-7962-9556-ebf9e035f077"
+      "implementation_turn_id": "01a1aeb3-d82b-7962-9556-ebf9e035f077",
+      "source_commit": "24bbcad9928d7662e6882c68df545cd08323cf01",
+      "verification": "static_only_not_tested_handoff_pending"
     },
     {
       "id": "RBI-02",
