@@ -48,7 +48,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -87,7 +87,7 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "handoff_commit": "ed52eee946f6d88f7f019e143fe593b8d3721036",
       "verification": "AST/diff static only; native ordinal corrected; tests/build/smoke/production not run",
       "dependencies": [
@@ -124,7 +124,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
       "branch": "codex/rbi-models-20261106",
       "card": "docs/development/rbi-work-packages/models.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -162,7 +162,7 @@
       },
       "superseded_candidate": "a11a26bf56a0dbc85f9594ed391efcdcbf8d5082",
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "pending_followup": null,
       "superseded_candidates": [
         "a11a26bf56a0dbc85f9594ed391efcdcbf8d5082",
@@ -178,7 +178,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -220,7 +220,7 @@
       },
       "pending_followup": null,
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "handoff_commit": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
       "required_commits_in_order": [
         "fef2b555e83594795f96351b1c0ead493653cb63",
@@ -237,7 +237,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -291,7 +291,7 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "scope_note": "仅针对consumer_interrupted纯计算状态映射修复两个实际写作调用方；generation SHARE可先于Sources，不为锁序扩大重构。",
       "handoff_commit": "f943befa74b75d8b093573d565e48650e3311a0d",
       "candidate_head": "f943befa74b75d8b093573d565e48650e3311a0d",
@@ -320,7 +320,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -366,7 +366,7 @@
       "handoff_commit": "d276fed872ceaaaf363230ea0af387a06e649df2",
       "pending_followup": null,
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "required_commits_in_order": [
         "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
         "4024a2ec97f5380a9452cefe2ff5104ed5009613",
@@ -385,7 +385,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -426,7 +426,7 @@
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "confirmed_history_interface": "ResultRecovery.recover_result(..., known_job_ids=()) / ensure_on(..., known_job_ids=()); authoritative old IDs appended before bounded history review; missing rows remain history_unknown",
       "handoff_commit": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
       "candidate_head": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
@@ -445,7 +445,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
       "branch": "codex/rbi-observability-20261106",
       "card": "docs/development/rbi-work-packages/observability.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -480,7 +480,7 @@
       },
       "handoff_commit": "7c18f274610a535cb400caf570f52ca87d6e690c",
       "verified": false,
-      "integrated": false
+      "integrated": true
     },
     {
       "id": "RBI-10",
@@ -489,7 +489,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
       "branch": "codex/rbi-sources-20261106",
       "card": "docs/development/rbi-work-packages/sources.md",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_assembly_and_validation",
       "key": "sources",
       "title": "RBW 身份来源与失效传播",
       "allowed_paths": [
@@ -523,7 +523,7 @@
         "thinking_override": "max"
       },
       "verified": false,
-      "integrated": false,
+      "integrated": true,
       "dispatched_at_utc": "2026-11-06 03:35:35 UTC",
       "confirmed_interface": "prepare_event_writes(conn, context, events, *, additional_refs=(), scoped_refs=()); empty events supported; original alias tuple return",
       "handoff_commit": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
@@ -620,5 +620,97 @@
     "RBI-04",
     "RBI-09",
     "RBI-06"
+  ],
+  "integration_receipts": [
+    {
+      "task": "RBI-02",
+      "source": "7715afa5144be098a8b9431d1cda03b1a3aae4ec",
+      "integrated": "38a226b39da4245982b99ead2db6551b5037c93f"
+    },
+    {
+      "task": "RBI-01",
+      "source": "24bbcad9928d7662e6882c68df545cd08323cf01",
+      "integrated": "323e35a1b0a483b8f3bd0be884576cb0975579e3"
+    },
+    {
+      "task": "RBI-01",
+      "source": "09c8350e263de115e41bb4ddbed5ba70521c020f",
+      "integrated": "b5ccbb0e867194f084d1e7ec3d205e9da2406145"
+    },
+    {
+      "task": "RBI-01",
+      "source": "d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c",
+      "integrated": "b221489e14f0f4210c954f65bdfec7efb1b1a818"
+    },
+    {
+      "task": "RBI-01",
+      "source": "9af6ac4f48de2307ab870b62e43297d1f7b296ab",
+      "integrated": "fa614778f7bf71f39c062a75fe7853d3b9565b68"
+    },
+    {
+      "task": "RBI-01",
+      "source": "ed52eee946f6d88f7f019e143fe593b8d3721036",
+      "integrated": "5eed5a0279d2beea9c8e4ea2b5d6a54adbd93e31"
+    },
+    {
+      "task": "RBI-10",
+      "source": "faa4f2f0f3cccdb736677a169e4757c6193886b6",
+      "integrated": "40dbf50f5ee32b27773f1af82f378f150b32cfd3"
+    },
+    {
+      "task": "RBI-03",
+      "source": "fef2b555e83594795f96351b1c0ead493653cb63",
+      "integrated": "3db7e81f5a8dd3521a076ee002c796b6412eeb16"
+    },
+    {
+      "task": "RBI-03",
+      "source": "fbd7f6863a84dd43727971e9da7e4750e41c0fc5",
+      "integrated": "58fddc7082f725cd6affb8ca7b37e4f19b148d4f"
+    },
+    {
+      "task": "RBI-05",
+      "source": "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
+      "integrated": "c410258f9bf9d73a3204db87f36770ac4cce5eec"
+    },
+    {
+      "task": "RBI-05",
+      "source": "4024a2ec97f5380a9452cefe2ff5104ed5009613",
+      "integrated": "208f8ef2be32707c44da6a723ab0ce00b98520c3"
+    },
+    {
+      "task": "RBI-05",
+      "source": "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
+      "integrated": "feb5add23f79a69f8980ea9ef5d51dd5d0ed9dd5"
+    },
+    {
+      "task": "RBI-05",
+      "source": "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+      "integrated": "e40ba3a71816b022ba7a977ee65a01c88c553a26"
+    },
+    {
+      "task": "RBI-05",
+      "source": "d276fed872ceaaaf363230ea0af387a06e649df2",
+      "integrated": "55d421f97841d030165af7653e73fddc71fe6db6"
+    },
+    {
+      "task": "RBI-04",
+      "source": "f943befa74b75d8b093573d565e48650e3311a0d",
+      "integrated": "9985569b6cc587bd17443daa6888b6e3d611cc04"
+    },
+    {
+      "task": "RBI-09",
+      "source": "448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5",
+      "integrated": "27499db643a4bbbe9fb717550a7a85254c5b3493"
+    },
+    {
+      "task": "RBI-06",
+      "source": "c869be9b7aa916082b57a424fbef6bb8b52c2bc9",
+      "integrated": "32d66de8412be3f131620492243f8eab9a56a8e1"
+    },
+    {
+      "task": "RBI-06",
+      "source": "7c18f274610a535cb400caf570f52ca87d6e690c",
+      "integrated": "6fe11cd7b73d9302f8d9affc14963896e4429a3d"
+    }
   ]
 }

@@ -19,7 +19,7 @@ async def fixture(database, monkeypatch):
     monkeypatch.setattr(planning_engine,"awake_window",lambda _routine,now:(now,now+timedelta(hours=6)))
     monkeypatch.setattr(clock,"awake_and_due",lambda _routine,now:(True,now+timedelta(hours=6)))
     value = await make_life(database)
-    await migrate(database,(Migration("rbi_life_activity_reconciliation_test",
+    await migrate(database,(Migration("rbi_activity_reconciliation",
         files("tianshu.life").joinpath("rbi_activity_reconciliation.sql").read_text(encoding="utf-8")),))
     return value
 

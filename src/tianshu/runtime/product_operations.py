@@ -19,7 +19,7 @@ def attach_operations(runtime, authority, actions, channels, *, life_worker=None
     from tianshu.conversation.rbg_result_recovery import ResultRecovery
 
     result_recovery = ResultRecovery(
-        runtime.database, runtime.jobs, authority.identity, RecoveryExecutor.guard_on
+        runtime.database, runtime.jobs, authority.identity, RecoveryExecutor.guard_on, actions=actions
     )
     plan_recovery = None
     if life_worker is not None:

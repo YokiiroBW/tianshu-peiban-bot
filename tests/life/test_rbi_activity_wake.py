@@ -17,7 +17,7 @@ from tianshu.types import Receipt
 
 async def fixture(database):
     value = await make_life(database)
-    await migrate(database,(Migration("rbi_life_wake_test",
+    await migrate(database,(Migration("rbi_activity_reconciliation",
         files("tianshu.life").joinpath("rbi_activity_reconciliation.sql").read_text(encoding="utf-8")),))
     value.jobs.register("life.activity_completed_wake",value.worker.activity_completed_wake,
         execution_lane=ExecutionLane.LIFE,resource_recovery=True)

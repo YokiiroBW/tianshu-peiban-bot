@@ -96,6 +96,8 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         queue.register("life.activity_step", worker.activity_step, retryable=False, resource_recovery=True)
         queue.register("life.activity_cancel", worker.cancel_activity, retryable=False)
         queue.register("life.activity_reconcile", worker.reconcile_activity, retryable=False, resource_recovery=True)
+        queue.register("life.activity_completed_wake", worker.activity_completed_wake,
+            execution_lane=ExecutionLane.LIFE, resource_recovery=True)
         queue.register("life.recovery_observe_activity", worker.recovery_observe_activity, retryable=False)
         queue.register("life.statistics_replay", worker.statistics_replay, retryable=False)
         queue.register("life.statistics_backfill", worker.statistics_backfill, retryable=False)
@@ -122,7 +124,11 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         from .statistics import enqueue_backfill
         await enqueue_backfill(worker)
 
+    async def maintenance(_runtime):
+        await worker.reconcile_due(limit=32)
+
     return DomainModule("life", register, start=start, register_tasks=tasks,
+        maintenance=maintenance, maintenance_roles=("bot-background",),
         migrations=(
             Migration("0031_life", files("tianshu.life").joinpath("schema.sql").read_text()),
             Migration("0033_life_contact_expiry", files("tianshu.life").joinpath("contact_expiry.sql").read_text()),
@@ -132,4 +138,5 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
             Migration("rbf_life_planning_wake", files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text()),
             Migration("rbg_plan_retirement", files("tianshu.life").joinpath("rbg_plan_retirement.sql").read_text()),
             Migration("rbh_transport_recovery", files("tianshu.life").joinpath("rbh_transport_recovery.sql").read_text(encoding="utf-8")),
+            Migration("rbi_activity_reconciliation", files("tianshu.life").joinpath("rbi_activity_reconciliation.sql").read_text(encoding="utf-8")),
         ))

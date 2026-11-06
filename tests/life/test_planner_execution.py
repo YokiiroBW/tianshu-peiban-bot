@@ -44,7 +44,7 @@ class Sources:
     async def check_many_on(self, connection, context, groups):
         return tuple([await self.validate_persistence(connection, context, group) for group in groups])
 
-    async def prepare_event_writes(self, connection, context, events, *, additional_refs=()):
+    async def prepare_event_writes(self, connection, context, events, *, additional_refs=(), scoped_refs=()):
         # This isolated fake has no source locks; still check the same full
         # dependency batch that a real Sources implementation validates.
         refs = [*additional_refs]
@@ -53,6 +53,8 @@ class Sources:
             refs.extend(event.get("support_refs", ()))
         if not await self.validate_persistence(connection, context, tuple(refs)):
             raise AppError("source_support_unavailable", status=403)
+        for scoped_context, scoped_group in scoped_refs:
+            await self.validate_persistence(connection, scoped_context, tuple(scoped_group))
 
 
 class Companion:
@@ -169,6 +171,7 @@ async def setup(database, output, *, lose_response=False, capability_id="content
             ),
             Migration("0040_life_execution", files("tianshu.life").joinpath("rb_life_execution.sql").read_text()),
             Migration("rbf_life_planning_wake", files("tianshu.life").joinpath("rbf_life_planning_wake.sql").read_text()),
+            Migration("rbi_activity_reconciliation", files("tianshu.life").joinpath("rbi_activity_reconciliation.sql").read_text(encoding="utf-8")),
         ),
     )
     identity, sources, jobs, actions = (

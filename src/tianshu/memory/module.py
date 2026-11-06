@@ -209,10 +209,15 @@ def create_module(memory, retrieval, workers, identity):
                     ),
                 )
 
+    async def maintenance(_runtime):
+        await workers.reconcile_due(limit=32)
+
     return DomainModule(
         "memory",
         routes,
         start=start,
+        maintenance=maintenance,
+        maintenance_roles=("bot-background",),
         register_tasks=tasks,
         migrations=(
             Migration("0020_memory", files("tianshu.memory").joinpath("schema.sql").read_text()),
@@ -222,5 +227,6 @@ def create_module(memory, retrieval, workers, identity):
             Migration("0024_memory_consolidation_retry", files("tianshu.memory").joinpath("0024_memory_consolidation_retry.sql").read_text()),
             Migration("0025_memory_write", files("tianshu.memory").joinpath("0025_memory_write.sql").read_text()),
             Migration("0026_memory_retrieval", files("tianshu.memory").joinpath("rb_retrieval.sql").read_text()),
+            Migration("rbi_memory_maintenance", files("tianshu.memory").joinpath("rbi_maintenance.sql").read_text(encoding="utf-8")),
         ),
     )

@@ -113,7 +113,17 @@ async def test_same_unknown_computation_still_requires_receipt_budget_and_expire
         assert first.probe_token == "original"
         receipt = ModelReceipt(attempt_id="original", intent_id="intent", status="unknown", dispatch="unknown",
             route_id="route", route_revision=1, provider_id="provider", model="model", protocol="openai",
-            quota_group="quota", finished_at=datetime.now(UTC), data_generation=original["data_generation"])
+            quota_group="quota", finished_at=datetime.now(UTC), data_generation=original["data_generation"],
+            request_digest="a" * 64)
+        await connection.execute(
+            "INSERT INTO models.attempts(attempt_id,intent_id,principal_id,function,service_class,route_id,"
+            "route_revision,provider_id,model,protocol,quota_group,request_digest,context_fingerprint,"
+            "status,dispatch,finished_at,deadline_at,data_generation) "
+            "VALUES(%s,%s,'fixture','growth','elastic','route',1,'provider','model','openai','quota',"
+            "'attempt-digest','fixture','unknown','unknown',%s,now()+interval '1 hour',%s)",
+            (receipt.attempt_id,receipt.intent_id,receipt.finished_at,receipt.data_generation))
+        await connection.execute("INSERT INTO models.submissions(attempt_id,request_digest,request,streaming) "
+            "VALUES(%s,%s,'{}'::jsonb,false)",(receipt.attempt_id,receipt.request_digest))
         await policy.record_computation_unknown_on(connection, "original", owner="growth", expected_version="v1",
                                                    model_receipt=receipt, random_value=0)
         await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",

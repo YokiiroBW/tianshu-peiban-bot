@@ -74,9 +74,14 @@ def create_module(service, expression, identity, result_consumer, renderer):
         for row in queued:
             await service._next(row["actor_id"], row["conversation_id"])
 
+    async def maintenance(_runtime):
+        await result_consumer.reconcile_due(limit=32)
+
     return DomainModule("conversation", register, start=start, register_tasks=tasks,
+        maintenance=maintenance, maintenance_roles=("bot-foreground",),
         migrations=(Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
                     Migration("0039_conversation_context_selection", files("tianshu.conversation").joinpath("context_selection.sql").read_text()),
                     Migration("0040_conversation_input_supplements", files("tianshu.conversation").joinpath("input_supplements.sql").read_text()),
                     Migration("0041_conversation_submission_confirmation", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text()),
-                    Migration("rbg_result_consumption", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text())))
+                    Migration("rbg_result_consumption", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text()),
+                    Migration("rbi_result_reconcile", files("tianshu.conversation").joinpath("rbi_result_reconcile.sql").read_text(encoding="utf-8"))))

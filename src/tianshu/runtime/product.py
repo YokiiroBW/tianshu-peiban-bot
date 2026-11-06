@@ -233,7 +233,7 @@ async def build_product(runtime):
         configuration=caps.configuration,
         web=WebPublication(db, sources),
     )
-    expression = ExpressionService(db, jobs, identity, channels.delivery, contacts, sources=sources)
+    expression = ExpressionService(db, jobs, identity, channels.delivery, contacts, sources=sources, actions=caps.actions)
     channels.bind_expression(expression)
     channels.bind_behavior_resolver(growth)
     channels.bind_recovery_policy(policy)
