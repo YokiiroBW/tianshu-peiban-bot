@@ -53,10 +53,11 @@ async def memory_probe_db(database):
                 "status,dispatch,deadline_at) VALUES(%s,'intent','owner','extract','elastic','route',1,'provider',"
                 "'model','openai.chat','quota','digest','context',%s,'unknown',now())", (f"attempt-{index}", status))
         await conn.execute("INSERT INTO memory.episodes(episode_id,event_id,actor_id,principal_id,revision,sequence,"
-            "origin_kind,occurred_at,summary,source_refs,scope_ids,content_hash,event_revision,event_content_hash,"
+            "origin_kind,occurred_at,summary,source_refs,scope_ids,coverage,content_hash,event_revision,event_content_hash,"
             "extraction_state,extraction_missing,consolidation_partition_id) "
-            "VALUES('episode-1','event-1','actor','owner',1,101,'human',now(),'fixture','[]','{}','digest',1,'digest',"
-            "'completed_with_missing',ARRAY['media_unavailable'],'partition-1')")
+            "VALUES('episode-1','event-1','actor','owner',1,101,'human',now(),'fixture','[]','{}',%s,'digest',1,'digest',"
+            "'completed_with_missing',ARRAY['media_unavailable'],'partition-1')",
+            (Jsonb({"complete": False, "missing": ["media_unavailable"]}),))
     return database
 
 
