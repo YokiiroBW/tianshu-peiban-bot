@@ -297,7 +297,9 @@ class ResultConsumer:
             return started
         if isinstance(started, dict) and started.get("state") == "preflight_stopped":
             if started.get("retry_at"):
-                raise RecoveryWait(started["reason"], started["retry_at"], dependency="result_consumer")
+                dependency = ("runtime:execution_history" if started["reason"] == "execution_history_more"
+                              else "result_consumer")
+                raise RecoveryWait(started["reason"], started["retry_at"], dependency=dependency)
             return
         if not started:
             return
@@ -337,9 +339,73 @@ class ResultConsumer:
             raise AppError("result_invalidation_unconfirmed", status=409)
         return result
 
+    async def _history_page_stop_on(self, connection, event, execution, repair_ref, repair_consumer, owner_id):
+        """Save this ordinal's no-apply fact before retrying a bounded history scan."""
+        from .rbj_result_repair import stop_preflight_on
+
+        stopped = await stop_preflight_on(connection, self.jobs, execution["data_generation"], event, execution,
+            repair_consumer, repair_ref, decision="blocked", reason="execution_history_more", owner_id=owner_id)
+        clock = await (await connection.execute("SELECT clock_timestamp()+interval '1 second' AS due_at")).fetchone()
+        stopped["retry_at"] = clock["due_at"]
+        return stopped
+
+    async def _normal_stop_on(self, connection, event, execution, *, reason, retry_at=None, display_reason=None):
+        """Record only a registered normal native ordinal's proven no-apply decision."""
+        from .rbi_result_wake import EXECUTION_OWNER, execution_identity
+
+        generation = execution["data_generation"]
+        observation = "result-preflight:" + signature([
+            generation, event, execution["job_id"], execution["native_attempt"], reason,
+        ])
+        stopped = await self.jobs.record_execution_preflight_stop_on(connection, owner=EXECUTION_OWNER,
+            identity=execution_identity(generation, event), data_generation=generation,
+            job_id=execution["job_id"], native_attempt=execution["native_attempt"],
+            reason=reason, observation_ref=observation)
+        if stopped.get("state") == "unregistered":
+            return None  # An old or adopted job does not acquire a new admission marker.
+        if stopped.get("state") != "preflight_stopped":
+            raise AppError(stopped.get("reason") or "result_preflight_stop_unconfirmed", status=409)
+        return {"state": "preflight_stopped", "reason": display_reason or reason, "retry_at": retry_at}
+
+    async def _normal_budget_wait_on(self, connection, event, execution, budget):
+        """Preserve real consumer and Runtime waits while scanning bounded history."""
+        from .rbi_result_wake import lock_consumer_leases_on
+
+        generation = execution["data_generation"]
+        reason = budget.get("reason")
+        if budget.get("history_more"):
+            claims = await lock_consumer_leases_on(connection, generation, event)
+            if claims["unknown"]:
+                return None
+            if claims["due_at"] is not None:
+                return await self._normal_stop_on(connection, event, execution, reason="execution_wait",
+                                                  retry_at=claims["due_at"], display_reason="consumer_running")
+            clock = await (await connection.execute("SELECT clock_timestamp()+interval '1 second' AS due_at")).fetchone()
+            return await self._normal_stop_on(connection, event, execution, reason="history_more",
+                                              retry_at=clock["due_at"], display_reason="execution_history_more")
+        if budget.get("consumer_lease_unknown"):
+            return None
+        if reason == "execution_wait" and budget.get("retry_at") is not None:
+            return await self._normal_stop_on(connection, event, execution, reason=reason, retry_at=budget["retry_at"])
+        current = (generation, execution["job_id"], execution["native_attempt"])
+        foreign = any((item.get("data_generation"), item.get("job_id"), item.get("native_attempt")) != current
+                      for item in budget.get("native_inflight", ()))
+        if reason == "execution_in_progress" and budget.get("native_inflight_complete") is True and foreign:
+            clock = await (await connection.execute("SELECT clock_timestamp()+interval '30 seconds' AS due_at")).fetchone()
+            return await self._normal_stop_on(connection, event, execution, reason=reason, retry_at=clock["due_at"])
+        return None
+
+    async def _normal_block_on(self, connection, event, execution, reason):
+        if reason == "execution_attempt_already_recorded":
+            return None  # A real execution fact cannot be replaced by a preflight exit.
+        decision = "unknown" if reason in {"history_unknown", "execution_outcome_unknown",
+                                           "result_consumer_lease_unknown"} else "blocked"
+        return await self._normal_stop_on(connection, event, execution, reason=decision, display_reason=reason)
+
     async def _cheap_admission(self, event, execution, *, repair_ref=None, repair_consumer=None):
         """Check the native envelope and budget before costly source proofs."""
-        from .rbi_result_wake import EXECUTION_OWNER, MAX_FAILURES, execution_budget_on, execution_identity, work_on
+        from .rbi_result_wake import (EXECUTION_OWNER, MAX_FAILURES, execution_budget_on,
+                                      execution_identity, lock_consumer_leases_on, work_on)
         from .rbj_result_budget import validate_repair
         from .rbj_result_repair import completed_progress, evidence_on, progress_on, stop_preflight_on
 
@@ -435,9 +501,27 @@ class ResultConsumer:
             if repairing:
                 evidence = await evidence_on(connection, generation, event, repair_consumer, repair_ref)
                 progress = await progress_on(connection, generation, event, repair_consumer)
+                if evidence and budget.get("history_more"):
+                    claims = await lock_consumer_leases_on(connection, generation, event)
+                    if claims["unknown"]:
+                        return await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                            repair_consumer, repair_ref, decision="unknown", reason="result_consumer_lease_unknown",
+                            owner_id=evidence["owner_id"])
+                    if claims["due_at"] is not None:
+                        stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                            repair_consumer, repair_ref, decision="blocked", reason="consumer_running",
+                            owner_id=evidence["owner_id"])
+                        stopped["retry_at"] = claims["due_at"]
+                        return stopped
+                    return await self._history_page_stop_on(connection, event, execution, repair_ref,
+                                                            repair_consumer, evidence["owner_id"])
                 if evidence and completed_progress(generation, event, repair_consumer, progress,
                                                    owner_id=evidence["owner_id"]):
                     return "reconcile"
+            else:
+                stopped = await self._normal_budget_wait_on(connection, event, execution, budget)
+                if stopped is not None:
+                    return stopped
             reason = selected.get("reason") or ("repair_not_authorized" if repairing else "execution_ineligible")
             due = selected.get("retry_at")
             if repairing and reason == "execution_in_progress" and due is None:
@@ -458,6 +542,9 @@ class ResultConsumer:
                     owner_id=evidence["owner_id"] if evidence else None)
                 if reason in {"execution_wait", "repair_wait", "execution_in_progress"} and due is not None:
                     stopped["retry_at"] = due
+                return stopped
+            stopped = await self._normal_block_on(connection, event, execution, reason)
+            if stopped is not None:
                 return stopped
             return False
 
@@ -494,9 +581,16 @@ class ResultConsumer:
             done = await (await connection.execute(
                 "SELECT 1 FROM conversation.result_consumption WHERE receipt_id=%s", (receipt_id,))).fetchone()
             if done or delivery["state"] != "pending":
+                stopped = await self._normal_stop_on(connection, event, execution,
+                    reason="closed" if done else "blocked", display_reason="result_already_terminal")
+                if stopped is not None:
+                    return stopped
                 return False
             budget = await execution_budget_on(connection, self.jobs, generation, event, delivery,
                                                current_job=execution, reconcile_stranded=True)
+            stopped = await self._normal_budget_wait_on(connection, event, execution, budget)
+            if stopped is not None:
+                return stopped
             if budget.get("eligible"):
                 budget = await self.jobs.begin_execution_on(connection, owner=EXECUTION_OWNER,
                     identity=execution_identity(generation, event), data_generation=generation,
@@ -513,6 +607,9 @@ class ResultConsumer:
                 "THEN now()+interval '30 seconds' ELSE NULL END "
                 "WHERE data_generation=%s AND receipt_id=%s AND state='pending'",
                 (reason, due, due, reason, generation, receipt_id))
+            stopped = await self._normal_block_on(connection, event, execution, reason)
+            if stopped is not None:
+                return stopped
             return False
 
     async def _record_head_stop(self, event, execution, repair_ref, repair_consumer):
@@ -578,8 +675,13 @@ class ResultConsumer:
                 stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
                     repair_consumer, repair_ref, decision=decision, reason=reconciled["reason"],
                     owner_id=evidence["owner_id"])
-                if reconciled["state"] == "waiting" and reconciled.get("due_at"):
-                    stopped["retry_at"] = reconciled["due_at"]
+                if reconciled["state"] == "waiting":
+                    due = reconciled.get("due_at")
+                    if due is None and reconciled.get("reason") == "execution_in_progress":
+                        clock = await (await connection.execute("SELECT now()+interval '30 seconds' AS due_at")).fetchone()
+                        due = clock["due_at"]
+                    if due is not None:
+                        stopped["retry_at"] = due
                 return stopped
             if cheap == "reconcile":
                 # An unresolved prior execution cannot authorize another apply.
@@ -601,6 +703,9 @@ class ResultConsumer:
                 return await stop_preflight_on(connection, self.jobs, generation, event, execution,
                     repair_consumer, repair_ref, decision="unknown", reason="result_consumer_lease_unknown",
                     owner_id=evidence["owner_id"])
+            if budget.get("history_more"):
+                return await self._history_page_stop_on(connection, event, execution, repair_ref,
+                                                        repair_consumer, evidence["owner_id"])
             if not budget.get("failure_digest") or budget["failure_digest"] != evidence["failure_digest"]:
                 return await stop_preflight_on(connection, self.jobs, generation, event, execution,
                     repair_consumer, repair_ref, decision="blocked", reason="repair_failure_history_changed",

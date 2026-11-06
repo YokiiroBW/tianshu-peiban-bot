@@ -199,9 +199,16 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
         data_generation=generation, max_failures=MAX_FAILURES, history=[], complete=complete)
     inspect_args = {"owner": EXECUTION_OWNER, "identity": identity, "data_generation": generation,
                     "max_failures": MAX_FAILURES}
+    if current_job is not None:
+        inspect_args["current_job"] = current_job
     if repair_ref is not None:
         inspect_args.update(repair_ref=repair_ref, consumer=consumer)
     budget = await jobs.inspect_execution_on(connection, **inspect_args)
+    if (not complete and not gap and budget.get("native_inflight_complete") is True
+            and budget.get("known_unknown_held") == 0 and budget.get("known_active_executions") == 0):
+        # A bounded page remains with no known unresolved execution or missing
+        # native anchor. The identity lock also protects the subsequent stop.
+        budget["history_more"] = True
     if claims and (claims["due_at"] is not None or claims["unknown"]):
         # A claim is not linked to a native ordinal. Keep the imported failure
         # proof and unresolved Runtime fact until the claim can be reconciled.
@@ -243,14 +250,14 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
                         native_attempt=item["native_attempt"], outcome="completed",
                         observation_ref=result_proof_observation(generation, event, target_consumer, target_ref,
                             owner_id=evidence["owner_id"], disposition=proof["disposition"],
-                            reason=proof["reason"], proof=proof["proof"]))
+                            reason=proof["reason"], proof=proof["proof"]), current_job=current_job)
                     if resolved.get("recorded"):
                         proven.pop(proof_key, None)
                     continue
                 resolved = await jobs.resolve_execution_on(connection, owner=EXECUTION_OWNER,
                     identity=identity, data_generation=generation, job_id=item["job_id"],
                     native_attempt=item["native_attempt"], outcome="failed",
-                    observation_ref=f"result-progress:{receipt_id}:{proof_key}")
+                    observation_ref=f"result-progress:{receipt_id}:{proof_key}", current_job=current_job)
                 if not resolved.get("recorded"):
                     continue
                 for part in progress:
@@ -579,7 +586,8 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
         key = "result-repair:" + execution_identity(generation, event) + ":" + str(uuid4())
     job_id = await jobs.enqueue(connection, JobSpec("conversation.result", key, payload,
         ServiceClass.INTERACTIVE, scheduled_at=scheduled_at,
-        subject_id=event["context"]["actor_id"], data_generation=generation),
+        subject_id=event["context"]["actor_id"], data_generation=generation,
+        execution_identity=None if repairing else execution_identity(generation, event)),
         queueing_lock=queueing_lock, wake_object_key=wake_key)
     if repairing:
         bound = await jobs.bind_execution_repair_job_on(connection, owner=EXECUTION_OWNER,

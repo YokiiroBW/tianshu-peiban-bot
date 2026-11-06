@@ -1,6 +1,7 @@
 """Reconcile one original Life consumer using its own durable proof."""
 
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.jobs import current_job_execution
 from .codec import document, signature
 from .rbg_result_ledger import TERMINAL, event_identity
 from .rbj_result_budget import matching_life_proof
@@ -133,8 +134,10 @@ async def close_from_proof_on(connection, jobs, generation, event, consumer, rep
                               disposition="done", reason=None, owner_id=None):
     """Close only this grant; unresolved original facts retain their identity."""
     identity = execution_identity(generation, event)
+    current_job = current_job_execution()
     budget = await jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER, identity=identity,
-        data_generation=generation, max_failures=MAX_FAILURES, repair_ref=repair_ref, consumer=consumer)
+        data_generation=generation, max_failures=MAX_FAILURES, repair_ref=repair_ref, consumer=consumer,
+        current_job=current_job)
     observation = result_proof_observation(generation, event, consumer, repair_ref, owner_id=owner_id,
         disposition=disposition, reason=reason, proof=proof)
     for item in budget.get("unresolved_executions", ()):
@@ -148,12 +151,12 @@ async def close_from_proof_on(connection, jobs, generation, event, consumer, rep
             return {"state": "blocked", "reason": "execution_outcome_unknown", "outcome": "unknown"}
         resolved = await jobs.resolve_execution_on(connection, owner=EXECUTION_OWNER, identity=identity,
             data_generation=generation, job_id=item["job_id"], native_attempt=item["native_attempt"],
-            outcome="completed", observation_ref=observation)
+            outcome="completed", observation_ref=observation, current_job=current_job)
         if not resolved.get("recorded") and resolved.get("outcome") != "completed":
             return {"state": "waiting", "reason": "execution_in_progress"}
     closed = await jobs.close_execution_repair_on(connection, owner=EXECUTION_OWNER, identity=identity,
         data_generation=generation, max_failures=MAX_FAILURES, repair_ref=repair_ref,
-        consumer=consumer, observation_ref=observation)
+        consumer=consumer, observation_ref=observation, current_job=current_job)
     if not closed.get("closed"):
         reason = closed.get("reason") or "repair_close_unconfirmed"
         return {"state": "waiting" if reason == "execution_in_progress" else "blocked",
