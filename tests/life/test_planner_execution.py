@@ -345,9 +345,8 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
         None,
     )
     await restarted.plan("actor", 1, wire(fixture.context), fixture.data_generation)
-    # This fixture has no finished physical receipt: keep observing the same
-    # attempt, rather than qualifying a computation retry from an in-memory value.
-    assert fixture.models.actual.receipt.finished_at is None
+    # An in-memory receipt, including its timestamps, cannot replace the
+    # authoritative Models attempt/submission needed to qualify a retry.
     assert (await mark(database))["reason"] == "planner_running"
     refreshed = replace(fixture.context, access_epoch=2)
     fixture.worker.life.identity.epoch=2
@@ -366,10 +365,14 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
         wake = await (await connection.execute(
             "SELECT min(scheduled_at) AS due FROM procrastinate_jobs WHERE task_name='life.plan' "
             "AND status='todo' AND args->>'actor_id'='actor'")).fetchone()
+        physical = await (await connection.execute(
+            "SELECT count(*) AS n FROM models.attempts WHERE attempt_id=%s",
+            (original.attempt_id,))).fetchone()
     assert len(rows) == 1 and rows[0]["attempt_id"] == original.attempt_id
     assert rows[0]["request"]["context"]["access_epoch"] == 1
     assert rows[0]["request"]["budget"]["deadline_at"] == original.budget.deadline_at.isoformat()
     assert wake["due"] is not None
+    assert physical["n"] == 0
 
 
 @pytest.mark.asyncio
