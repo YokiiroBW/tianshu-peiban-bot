@@ -1,3 +1,10 @@
+import { humanizeCode } from "../../design/humanize";
+
+export function connectionName(connection?: { namespace: string; self_external_id: string }): string {
+  if (!connection) return "渠道连接不可用";
+  return `${humanizeCode(connection.namespace, "机器人账号")} · ${connection.self_external_id}`;
+}
+
 export type Person = {
   person_id: string;
   display_name: string;
@@ -61,7 +68,7 @@ export type IdentityDirectory = {
   }[];
 };
 export const personName = (person: Person) =>
-  person.display_name || person.person_id;
+  person.display_name || "未命名人物";
 export function dateText(value: string | number | null) {
   if (value == null) return "未记录";
   const date = new Date(typeof value === "number" ? value * 1000 : value);

@@ -5,7 +5,6 @@ import { MediaPreview, type MediaRef } from "./MediaPreview";
 import {
   humanizeSourceKind,
   sanitizeInternalText,
-  shortHashTag,
 } from "../design/humanize";
 
 export type SourceRef = {
@@ -35,8 +34,7 @@ const representationLabels: Record<string, string> = {
 function describeSourceId(sourceId: string): string {
   const prefix = sourceId.split(/[_:]/)[0] ?? "";
   const kindLabel = humanizeSourceKind(prefix);
-  const shortCode = shortHashTag(sourceId);
-  return shortCode ? `${kindLabel} ${shortCode}` : kindLabel;
+  return kindLabel;
 }
 
 function Evidence({

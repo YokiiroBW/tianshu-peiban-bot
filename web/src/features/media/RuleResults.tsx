@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import { DetailCard } from "../../components/DetailCard";
 import type { Rule, RuleContext, RuleResult } from "./types";
 import { reasonWords, sourceWords } from "./wording";
@@ -129,7 +130,7 @@ export function RuleResults({
               <p className="muted">没有需要逐条执行的规则。</p>
             )}
             <DetailCard title="诊断数据">
-              <pre>{JSON.stringify(result.trace, null, 2)}</pre>
+              <pre>{readableRecord(result.trace)}</pre>
             </DetailCard>
           </DetailCard>
         </article>

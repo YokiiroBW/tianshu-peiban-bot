@@ -3,6 +3,8 @@ import type { CommandResult } from "../api/contracts";
 import type { CommandTarget } from "../api/client";
 import { recoverCommand, taskHref } from "../api/commandRecovery";
 import { useAuth } from "../app/Auth";
+import { humanizeCode } from "../design/humanize";
+import { Notification } from "./Notifications";
 import "./command-monitor.css";
 
 const labels: Record<string, string> = {
@@ -144,38 +146,48 @@ export function CommandMonitor() {
   }, []);
   if (!entries.length) return null;
   return (
-    <aside
-      className="command-monitor panel"
-      aria-live="polite"
-      aria-label="原操作状态"
-    >
-      {entries.map((item) => (
-        <div key={item.client_request_id}>
-          <span>{labels[item.state] ?? item.state} · </span>
-          <code>{item.client_request_id}</code> ·{" "}
-          <a href={taskHref(item)}>查看原任务</a>
-          <button
-            className="text-link"
-            disabled={!!checking}
-            onClick={() => void check(item)}
-          >
-            {checking === item.client_request_id ? "正在核对" : "核对原操作"}
-          </button>
-          {item.note && <span>{item.note}</span>}
-          <button
-            className="text-link"
-            onClick={() =>
-              setEntries((current) =>
-                current.filter(
-                  (value) => value.client_request_id !== item.client_request_id,
-                ),
-              )
-            }
-          >
-            收起记录
-          </button>
-        </div>
-      ))}
-    </aside>
+    <Notification>
+      <aside
+        className="command-monitor notification-card"
+        aria-live="polite"
+        aria-label="原操作状态"
+      >
+        {entries.map((item) => (
+          <div key={item.client_request_id}>
+            <strong className="command-monitor-message">
+              {labels[item.state] ?? "操作状态待确认"}
+            </strong>
+            <div className="command-monitor-actions">
+              <a className="text-link" href={taskHref(item)}>
+                查看原任务
+              </a>
+              <button
+                className="text-link"
+                disabled={!!checking}
+                onClick={() => void check(item)}
+              >
+                {checking === item.client_request_id
+                  ? "正在核对"
+                  : "核对原操作"}
+              </button>
+              <button
+                className="text-link"
+                onClick={() =>
+                  setEntries((current) =>
+                    current.filter(
+                      (value) =>
+                        value.client_request_id !== item.client_request_id,
+                    ),
+                  )
+                }
+              >
+                收起记录
+              </button>
+            </div>
+            {item.note && <p>{humanizeCode(item.note, "请核对原任务状态")}</p>}
+          </div>
+        ))}
+      </aside>
+    </Notification>
   );
 }

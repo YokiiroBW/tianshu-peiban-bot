@@ -70,7 +70,7 @@ test("Growth shows retry due time and lets only a stopped batch request explicit
   await expect(page.getByLabel("成长自动重试")).toContainText("2026");
   await page.getByText("重试批次与处理次数", { exact: true }).click();
   await expect(page.getByText(/已安排尝试 2 次/)).toBeVisible();
-  await expect(page.getByText(/执行记录：second-attempt/)).toBeVisible();
+  await expect(page.getByText("已关联本次执行记录", { exact: true })).toBeVisible();
   const review = page.getByRole("button", { name: "重新整理这批材料" });
   await expect(review).toHaveCount(1);
   await review.click();

@@ -1,3 +1,4 @@
+import { Notice } from "../../components/Notifications";
 import { DetailCard } from "../../components/DetailCard";
 import { useEffect, useState, type FormEvent } from "react";
 import { RefreshCw, Server } from "lucide-react";
@@ -124,9 +125,7 @@ export function NodeConnections() {
           </p>
         )}
         {notice && (
-          <p role="status" className="infra-notice">
-            {notice}
-          </p>
+          <Notice>{notice}</Notice>
         )}
         <div className="infra-toolbar">
           <button
@@ -155,7 +154,7 @@ export function NodeConnections() {
         ) : (
           <DetailCard title={"节点连接设置"}>
             {action.error && <p role="alert">{action.error}</p>}
-            {notice && <p role="status">{notice}</p>}
+            {notice && <Notice>{notice}</Notice>}
             <form className="infra-form" onSubmit={(event) => void save(event)}>
               {draftRevision !== null && draftRevision !== view.revision && (
                 <p className="infra-warning">

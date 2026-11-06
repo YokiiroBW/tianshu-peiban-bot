@@ -1,3 +1,5 @@
+import { speechConnectionName } from "./types";
+import { readableRecord } from "../../design/readableRecord";
 import { useState } from "react";
 import { useAuth } from "../../app/Auth";
 import {
@@ -69,7 +71,7 @@ export function SpeechTranscription({
             {connections
               .filter((x) => x.capabilities.asr)
               .map((x) => (
-                <option key={x.id}>{x.id}</option>
+                <option key={x.id} value={x.id}>{speechConnectionName(x, connections.indexOf(x))}</option>
               ))}
           </select>
         </label>
@@ -102,7 +104,7 @@ export function SpeechTranscription({
           </p>
           <details>
             <summary>真实转写、时间段与置信信息</summary>
-            <pre>{JSON.stringify(action.result.data.transcript, null, 2)}</pre>
+            <pre>{readableRecord(action.result.data.transcript)}</pre>
           </details>
         </>
       )}
@@ -166,7 +168,7 @@ export function VoiceBrowser({
             {connections
               .filter((x) => x.capabilities.voices)
               .map((x) => (
-                <option key={x.id}>{x.id}</option>
+                <option key={x.id} value={x.id}>{speechConnectionName(x, connections.indexOf(x))}</option>
               ))}
           </select>
         </label>
@@ -187,10 +189,9 @@ export function VoiceBrowser({
         {voices.map((voice, index) => (
           <article className="domain-record" key={voice.id + ":" + index}>
             <h4>{voice.name}</h4>
-            <code>{voice.id}</code>
             <p>
-              {voice.visibility ?? "可见范围未知"} · 所属{" "}
-              {voice.owner_id ?? "未知"}
+              {{ public: "公开音色", private: "私有音色", unlisted: "未公开音色" }[voice.visibility] ?? "可见范围未知"} · 所属{" "}
+              {voice.owner_id ? "已登记音色作者" : "作者未登记"}
             </p>
             {voice.preview && (
               <MediaPreview media={voice.preview} alt={voice.name + "试听"} />
@@ -275,7 +276,7 @@ function VoiceClone({ connections }: { connections: FishConnection[] }) {
           {connections
             .filter((x) => x.capabilities.clone)
             .map((x) => (
-              <option key={x.id}>{x.id}</option>
+              <option key={x.id} value={x.id}>{speechConnectionName(x, connections.indexOf(x))}</option>
             ))}
         </select>
       </label>
@@ -304,7 +305,7 @@ function VoiceClone({ connections }: { connections: FishConnection[] }) {
       {error && <p role="alert">{error}</p>}
       <CommandFeedback {...clone} />
       {clone.result?.data?.voice != null && (
-        <pre>{JSON.stringify(clone.result.data.voice, null, 2)}</pre>
+        <pre>{readableRecord(clone.result.data.voice)}</pre>
       )}
     </form>
   );

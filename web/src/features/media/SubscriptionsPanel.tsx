@@ -282,7 +282,7 @@ export function SubscriptionsPanel({ media }: { media: MediaController }) {
               </div>
               <div>
                 <dt>目标媒体库</dt>
-                <dd>{targets.get(item.target_id)?.label ?? item.target_id}</dd>
+                <dd>{targets.get(item.target_id)?.label ?? "媒体服务器暂不可用"}</dd>
               </div>
               <div>
                 <dt>整理方式</dt>

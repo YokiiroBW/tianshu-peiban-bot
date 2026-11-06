@@ -2,7 +2,6 @@ import { useState } from "react";
 import { useAuth } from "../../app/Auth";
 import { useDomainCommand } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
-import { shortHashTag } from "../../design/humanize";
 import RelationshipPanel from "../companion/relationships/RelationshipPanel";
 import { SharedPortrait } from "./SharedPortrait";
 import { Interactions } from "./Interactions";
@@ -41,11 +40,7 @@ export function PersonDetail({
         <div>
           <h2>{personName(person)}</h2>
           <p className="muted">
-            人物档案{" "}
-            <span className="curio-tech-code" title={person.person_id}>
-              {shortHashTag(person.person_id)}
-            </span>{" "}
-            · 修订 {person.revision}
+            人物档案 · 修订 {person.revision}
           </p>
         </div>
       </header>

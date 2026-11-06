@@ -819,7 +819,7 @@ function ActivityEditor({
             {value?.goal_id &&
               !goals.some((goal) => goal.id === value.goal_id) && (
                 <option value={value.goal_id}>
-                  当前关联目标 · {value.goal_id}
+                  当前关联目标
                 </option>
               )}
             {goals.map((goal) => (

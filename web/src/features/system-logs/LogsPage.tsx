@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, apiRead } from "../../api/client";
 import { GLOBAL_SCOPE } from "../../api/useDomainResource";
@@ -193,7 +194,7 @@ export default function LogsPage() {
           {linkId(selected, "attempt_id") && <a href={`#/system/tasks?attempt=${encodeURIComponent(linkId(selected, "attempt_id"))}`}>查看模型尝试</a>}
           {linkId(selected, "incident_id") && <a href={`#/system/operations?incident_id=${encodeURIComponent(linkId(selected, "incident_id"))}`}>查看运维事件</a>}
         </div>
-        <pre>{JSON.stringify(redact(selected.fields), null, 2)}</pre>
+        <pre>{readableRecord(redact(selected.fields))}</pre>
       </section>}
     </section>
   );

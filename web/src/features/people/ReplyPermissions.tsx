@@ -7,6 +7,7 @@ import {
 import type { Page } from "../../api/contracts";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { useIdentityDirectory } from "./api";
+import { humanizeCode } from "../../design/humanize";
 import type { Conversation, ConversationLink } from "./types";
 
 function LinkEditor({
@@ -54,7 +55,7 @@ function LinkEditor({
     >
       <h4>{conversation.label}</h4>
       <p className="muted">
-        {link.connection_id} · {link.external_id} · 当前修订 {link.revision}
+        渠道账号 {link.external_id} · 当前修订 {link.revision}
       </p>
       <label>
         准入行为
@@ -85,7 +86,7 @@ function LinkEditor({
         >
           {[...new Set(["tianshu", "external", link.reply_owner])].map(
             (value) => (
-              <option key={value}>{value}</option>
+              <option key={value} value={value}>{humanizeCode(value, "已登记的回复服务")}</option>
             ),
           )}
         </select>

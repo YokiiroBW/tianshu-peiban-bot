@@ -126,7 +126,7 @@ export function ArchivePanel({ scope }: { scope?: DomainTarget } = {}) {
             </option>
             {view.data?.connections.map((row) => (
               <option key={row.id} value={row.id}>
-                {row.name || row.id}
+                {row.name || "未命名档案连接"}
                 {row.enabled && row.configured ? "" : "（未配置或停用）"}
               </option>
             ))}
@@ -251,7 +251,7 @@ export function ArchivePanel({ scope }: { scope?: DomainTarget } = {}) {
               <option value="">新增连接</option>
               {view.data.configurations.map((row) => (
                 <option key={row.id} value={row.id}>
-                  {row.name || row.id}
+                  {row.name || "未命名档案连接"}
                 </option>
               ))}
             </select>

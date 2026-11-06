@@ -52,10 +52,10 @@ export default function HomePage() {
           {!view.data.connections.length && (
             <p className="muted">当前没有登记的设备连接。</p>
           )}
-          {view.data.connections.map((connection) => (
+          {view.data.connections.map((connection, index) => (
             <section key={connection.id} className="home-connector">
               <header className="section-heading">
-                <h3>{connection.id}</h3>
+                <h3>家庭设备连接 {index + 1}</h3>
                 <span className="badge">
                   {!connection.enabled
                     ? "已停用"
@@ -97,7 +97,7 @@ export default function HomePage() {
                         <h4>
                           {entity.label ||
                             reading?.attributes.friendly_name ||
-                            entity.entity_id}
+                            "未命名设备"}
                         </h4>
                         <StatusRail
                           tone={
@@ -116,7 +116,6 @@ export default function HomePage() {
                           }
                         />
                       </div>
-                      <code>{entity.entity_id}</code>
                       <p className="empty-title">
                         {reading?.state ?? "未知"}
                         {reading?.attributes.unit_of_measurement

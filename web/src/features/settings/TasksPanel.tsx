@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../app/Auth";
 import {
@@ -24,6 +25,8 @@ import type {
 import { ArtifactList, MediaPreview } from "../../components/MediaPreview";
 import { SourceEvidence } from "../../components/SourceEvidence";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import { humanizeCode } from "../../design/humanize";
+import { functionNames, protocolNames, type NativeProtocol } from "./providerTypes";
 import { DetailCard } from "../../components/DetailCard";
 import {
   ExecutionStatus,
@@ -56,7 +59,7 @@ const states: Record<string, string> = {
   delivered: "已投递",
 };
 function label(value: string) {
-  return states[value] ?? value;
+  return states[value] ?? humanizeCode(value, "状态尚未确认");
 }
 function originalQuery(): Query {
   const query = new URLSearchParams(window.location.hash.split("?")[1] ?? "");
@@ -144,10 +147,10 @@ export function TasksPanel() {
           <label>
             查询类型
             <select name="kind" defaultValue={query.kind}>
-              <option value="action">能力动作 action</option>
-              <option value="model">模型执行 attempt</option>
-              <option value="expression">公开表达 expression</option>
-              <option value="command">原命令 client_request_id</option>
+              <option value="action">能力动作</option>
+              <option value="model">模型执行</option>
+              <option value="expression">公开表达</option>
+              <option value="command">原操作请求</option>
             </select>
           </label>
           <label>
@@ -239,10 +242,10 @@ function ReceiptView({
   return (
     <section className="domain-record">
       <dl>
-        <dt>原Action</dt>
-        <dd>{receipt.action_id ?? "未知"}</dd>
-        <dt>原Attempt</dt>
-        <dd>{receipt.attempt_id ?? "未知"}</dd>
+        <dt>原能力动作</dt>
+        <dd>{receipt.action_id ? "已关联" : "未记录"}</dd>
+        <dt>原模型执行</dt>
+        <dd>{receipt.attempt_id ? "已关联" : "未记录"}</dd>
         <dt>执行</dt>
         <dd>{label(receipt.execution)}</dd>
         <dt>实际效果</dt>
@@ -250,14 +253,14 @@ function ReceiptView({
         <dt>消息投递</dt>
         <dd>{label(receipt.delivery)}</dd>
       </dl>
-      {receipt.error_code && <p role="alert">{receipt.error_code}</p>}
+      {receipt.error_code && <p role="alert">{humanizeCode(receipt.error_code, "执行未完成，请核对原任务")}</p>}
       <ArtifactList artifacts={receipt.artifacts} scope={scope} />
       {receipt.coverage && !receipt.coverage.complete && (
         <p>覆盖缺口：{receipt.coverage.missing.join("、") || "范围未知"}</p>
       )}
       <details>
         <summary>实际业务结果</summary>
-        <pre>{JSON.stringify(receipt.result, null, 2)}</pre>
+        <pre>{readableRecord(receipt.result)}</pre>
       </details>
     </section>
   );
@@ -286,7 +289,7 @@ function ActionTask({ id, scope }: { id: string; scope: DomainTarget }) {
       {row && (
         <>
           <p>
-            {String(row.action.capability_id)} · 结果修订 {row.result_revision}{" "}
+            {functionNames[String(row.action.capability_id)] ?? "能力执行"} · 结果修订 {row.result_revision}{" "}
             ·{" "}
             {row.result_observed_at
               ? new Date(row.result_observed_at).toLocaleString("zh-CN")
@@ -377,7 +380,7 @@ function CommandLookup({ value }: { value: OriginalCommand }) {
   return (
     <section className="panel">
       <h3>原命令身份</h3>
-      <p>{value.client_request_id}</p>
+      <p>已定位原操作请求</p>
       <button
         className="button"
         disabled={busy || !value.operation}
@@ -488,13 +491,12 @@ function ModelTask({ id, scope }: { id: string; scope: DomainTarget }) {
       {row && (
         <>
           <p>
-            {row.model} · {row.provider_id} · {row.protocol}
+            {row.model} · {protocolNames[row.protocol as NativeProtocol] ?? "模型服务"}
           </p>
           <p>
-            {label(row.status)} · {label(row.dispatch)} · 配额组{" "}
-            {row.quota_group}
+            {label(row.status)} · {label(row.dispatch)}
           </p>
-          {row.error_code && <p role="alert">{row.error_code}</p>}
+          {row.error_code && <p role="alert">{humanizeCode(row.error_code, "模型执行未完成，请核对原任务")}</p>}
           <dl>
             {(
               [
@@ -691,7 +693,7 @@ export function RuntimeTasks({
             </p>
             <details>
               <summary>实际注册信息</summary>
-              <pre>{JSON.stringify(process.registration, null, 2)}</pre>
+              <pre>{readableRecord(process.registration)}</pre>
             </details>
           </article>
         ))}
@@ -721,7 +723,7 @@ export function RuntimeTasks({
             {tasks.data?.jobs.map((job) => (
               <tr key={job.id} id={`job-${job.id}`} aria-label={String(job.id) === jobId ? `原任务 ${job.id}` : undefined}>
                 <td>
-                  {job.task_name} <small>#{job.id}</small>
+                  {executionLaneName(job.execution_lane)}任务
                 </td>
                 <td>{executionLaneName(job.execution_lane)}</td>
                 <td>
@@ -751,7 +753,7 @@ export function RuntimeTasks({
       )}
       {resources.data && (
         <DetailCard title="模型与资源Broker实际快照">
-          <pre>{JSON.stringify(resources.data.broker, null, 2)}</pre>
+          <pre>{readableRecord(resources.data.broker)}</pre>
         </DetailCard>
       )}
       {includeLogs && <RuntimeLogs />}

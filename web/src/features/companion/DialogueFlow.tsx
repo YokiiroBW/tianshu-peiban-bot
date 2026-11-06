@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 type FlowStage = { state: string; [key: string]: unknown };
 type FlowRound = {
   round: number;
@@ -35,12 +36,12 @@ export function DialogueFlowEvidence({ flow }: { flow?: DialogueFlow | null }) {
       {flow.coverage === "not_recorded" && <p>历史记录没有完整阶段明细。</p>}
       {!flow.rounds?.length && <p>没有记录模型轮次。</p>}
       {flow.rounds?.map((round, index) => <article key={`${round.round}:${round.attempt_id ?? index}`}>
-        <p>模型轮次 {round.round}{round.attempt_id ? ` · 尝试 ${round.attempt_id}` : " · 尝试未记录"}</p>
+        <p>模型轮次 {round.round}{round.attempt_id ? " · 已关联执行记录" : " · 尝试未记录"}</p>
         <ul>{stages.map(([key, label]) => {
           const stage = round[key];
           return <li key={key}><strong>{label}：</strong>{stage?.state ? (states[stage.state] ?? stage.state) : "未记录"}</li>;
         })}</ul>
-        <details><summary>阶段原始记录</summary><pre>{JSON.stringify(round, null, 2)}</pre></details>
+        <details><summary>阶段原始记录</summary><pre>{readableRecord(round)}</pre></details>
       </article>)}
     </>}
   </section>;

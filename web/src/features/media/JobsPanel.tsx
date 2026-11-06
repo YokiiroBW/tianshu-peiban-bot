@@ -344,7 +344,7 @@ export function JobsPanel({ media }: { media: MediaController }) {
                       ) : job.media_kind === "book" ? (
                         `${job.creator || "作者未提供"} · 书籍 · ${job.book_chapters_total ?? 0} 章`
                       ) : job.media_kind === "audio" ? (
-                        `${job.creator || "未知艺术家"} · ${providerNames[job.provider as keyof typeof providerNames] ?? "音乐"} ${job.source_id}`
+                        `${job.creator || "未知艺术家"} · ${providerNames[job.provider as keyof typeof providerNames] ?? "音乐"}`
                       ) : (
                         <>
                           {job.creator || "UP 主未提供"} · {job.bvid} ·{" "}
@@ -561,8 +561,8 @@ export function JobsPanel({ media }: { media: MediaController }) {
                   {deleteButton(detail.job)}
                   <dl className="media-facts">
                     <div>
-                      <dt>任务标识</dt>
-                      <dd>{detail.job.job_id}</dd>
+                      <dt>任务</dt>
+                      <dd>{detail.job.title || "当前任务"}</dd>
                     </div>
                     <div>
                       <dt>
@@ -684,7 +684,7 @@ export function JobsPanel({ media }: { media: MediaController }) {
                               />
                               <ReasonNote code={result.code} />
                               {result.item_id && (
-                                <p className="muted">条目 {result.item_id}</p>
+                                <p className="muted">已关联媒体库条目</p>
                               )}
                             </div>
                           ))

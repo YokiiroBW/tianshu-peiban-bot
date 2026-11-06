@@ -1,3 +1,4 @@
+import { humanizeCode } from "../../../design/humanize";
 import { useState } from "react";
 import { useDomainCommand } from "../../../api/useDomainResource";
 import { Drawer } from "../../../components/Drawer";
@@ -51,7 +52,7 @@ export function SkillSources({
               {new Date(source.last_refreshed_at).toLocaleString("zh-CN")}
             </p>
           )}
-          {source.error_code && <p role="alert">{source.error_code}</p>}
+          {source.error_code && <p role="alert">{humanizeCode(source.error_code, "能力来源读取未完成")}</p>}
           <SourceEvidence sources={source.source_refs ?? []} />
           <div className="domain-actions">
             {canSave && (

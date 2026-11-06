@@ -230,7 +230,7 @@ export function DayPlanPanel({
                     <li key={item.candidate_key}>
                       <strong>{applicationLabels[item.status] ?? item.status}</strong>
                       {item.reason && <> · {item.reason}</>}
-                      {item.activity_id && <> · 活动 {item.activity_id}</>}
+                      {item.activity_id && <> · 已关联活动</>}
                       {item.next_due_at && <> · 下次考虑 {timeLabel(item.next_due_at, zone)}</>}
                     </li>
                   ))}

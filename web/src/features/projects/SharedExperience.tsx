@@ -307,7 +307,7 @@ function LessonEvidence({
       <ul>
         {values.map((value) => (
           <li key={JSON.stringify(value)}>
-            {value.project_id} · {value.lesson_id} · v{value.version}
+            关联项目经验 · 版本 {value.version}
             <button
               type="button"
               className="button"

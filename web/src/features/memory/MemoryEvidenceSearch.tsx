@@ -5,7 +5,6 @@ import {
   type DomainTarget,
 } from "../../api/useDomainResource";
 import { SourceEvidence } from "../../components/SourceEvidence";
-import { shortHashTag } from "../../design/humanize";
 import {
   CoverageNote,
   EvidenceDetails,
@@ -117,9 +116,7 @@ export function MemoryEvidenceSearch({
                   <span className="celadon-tag">
                     {evidenceKinds[item.kind] ?? item.kind}
                   </span>{" "}
-                  <span className="curio-tech-code" title={item.id}>
-                    {shortHashTag(item.id)}
-                  </span>
+                  <span>版本 {item.revision}</span>
                 </h4>
                 <p className="memory-prewrap">{item.content}</p>
                 <EvidenceDetails item={item} scope={scope} />

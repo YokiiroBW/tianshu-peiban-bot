@@ -82,7 +82,7 @@ export function SourceForget({
       )}
       {view.data && (
         <p className="muted">
-          原作者：{view.data.speaker_id ?? "未登记"}
+          原作者：{view.data.speaker_id ? "已关联来源作者" : "未登记"}
           {view.data.can_revoke ? "" : " · 当前身份仅可读取此原件"}
         </p>
       )}

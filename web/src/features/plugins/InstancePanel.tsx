@@ -1,3 +1,5 @@
+import { humanizeCode } from "../../design/humanize";
+import { readableRecord } from "../../design/readableRecord";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { requestId } from "../../app/requestId";
 import { useEffect, useState } from "react";
@@ -331,9 +333,9 @@ export function InstancePanel({
                       : ""}
                   </p>
                 )}
-                {call.error && <p role="status">{call.error.code}</p>}
+                {call.error && <p role="status">{humanizeCode(call.error.code, "插件执行未完成")}</p>}
                 {call.result !== null && (
-                  <pre>{JSON.stringify(call.result, null, 2)}</pre>
+                  <pre>{readableRecord(call.result)}</pre>
                 )}
                 <div className="plugins-inline">
                   {["accepted", "running"].includes(call.execution) && (
@@ -369,7 +371,7 @@ export function InstancePanel({
           })}
           <details>
             <summary>周期任务（{schedules.length}）</summary>
-            <pre>{JSON.stringify(schedules, null, 2)}</pre>
+            <pre>{readableRecord(schedules)}</pre>
           </details>
         </div>
       )}
@@ -377,7 +379,7 @@ export function InstancePanel({
         <div className="plugins-records">
           {logs.length ? (
             logs.map((item, index) => (
-              <pre key={index}>{JSON.stringify(item, null, 2)}</pre>
+              <pre key={index}>{readableRecord(item)}</pre>
             ))
           ) : (
             <p>暂无插件日志。</p>

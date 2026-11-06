@@ -9,7 +9,7 @@ import type { DocumentRow, ReadUnitRef } from "./types";
 
 export const unitKey = (value: ReadUnitRef) => JSON.stringify(value);
 export const unitLabel = (value: ReadUnitRef) =>
-  `${value.document_id} · v${value.version} · ${value.unit_id}`;
+  `已读资料单元 · 版本 ${value.version}`;
 
 /** References are selected only after an actual versioned document read. */
 export function EvidencePicker({

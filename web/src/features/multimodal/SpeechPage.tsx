@@ -1,3 +1,4 @@
+import { speechConnectionName } from "./types";
 import { useState } from "react";
 import {
   actorScope,
@@ -171,7 +172,7 @@ function ConnectionCard({
   return (
     <article className="domain-record">
       <header>
-        <strong>{connection.id}</strong>
+        <strong>{speechConnectionName(connection)}</strong>
         <span className="badge">{connection.state}</span>
       </header>
       <dl>
@@ -508,7 +509,7 @@ function VoiceProfileEditor({
             >
               {view.connections.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.id} · {billingNames[item.billing_source]}
+                  {speechConnectionName(item, view.connections.indexOf(item))}
                 </option>
               ))}
             </select>

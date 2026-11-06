@@ -1,3 +1,4 @@
+import { readableRecord } from "../design/readableRecord";
 import type { ExecutionObservation } from "../api/commandRecovery";
 
 const lanes: Record<string, string> = {
@@ -96,7 +97,7 @@ export function ExecutionStatus({
       {execution && (
         <details className="curio-details-box">
           <summary className="ink-link">调度详情</summary>
-          <pre>{JSON.stringify(execution, null, 2)}</pre>
+          <pre>{readableRecord(execution)}</pre>
         </details>
       )}
     </div>

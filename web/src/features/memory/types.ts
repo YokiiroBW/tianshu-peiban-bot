@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import type { Coverage, SourceRef } from "../../api/contracts";
 export type MemoryTimeQuery = {
   time_mode: "current" | "valid_at" | "known_at";
@@ -207,10 +208,7 @@ export const matterStates: Record<string, string> = {
   uncertain: "进展未确认",
   completed: "已完成",
 };
-export const showValue = (value: unknown) =>
-  typeof value === "string"
-    ? value
-    : (JSON.stringify(value, null, 2) ?? "未记录");
+export const showValue = readableRecord;
 export function episodeOrigin(
   item: Pick<Episode, "origin_kind" | "actual_result">,
 ) {
