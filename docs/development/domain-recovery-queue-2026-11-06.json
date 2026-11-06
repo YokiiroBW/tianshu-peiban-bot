@@ -38,7 +38,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-02",
@@ -51,7 +52,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-03",
@@ -64,7 +66,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-04",
@@ -77,7 +80,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-05",
@@ -90,7 +94,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-09",
@@ -103,7 +108,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-06",
@@ -116,7 +122,8 @@
         "model": "gpt-6.1-terra",
         "reasoning_effort": "max",
         "service_tier": "default",
-        "fast_mode": false
+        "fast_mode": false,
+        "actual_base": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
       {
         "id": "RBI-10",
@@ -124,7 +131,13 @@
         "host_id": "local",
         "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
         "branch": "codex/rbi-sources-20261106",
-        "card": "docs/development/rbi-work-packages/sources.md"
+        "card": "docs/development/rbi-work-packages/sources.md",
+        "title": "RBW 身份来源与失效传播",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false,
+        "actual_base": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171"
       }
     ],
     "worktrees_created": true,
@@ -135,7 +148,7 @@
     "validation_owner": "coordinator",
     "production_writer_count": 1,
     "unaffected_validation_reused": true,
-    "authorization": "用户在本协调聊天明确要求交付对应窗口修复，已授权七个既有窗口实施和必要协作回执",
+    "authorization": "用户在本协调聊天明确要求交付对应窗口修复，已授权原七个既有窗口和保留Goal原子合同所需的Sources必要依赖实施及协作回执。",
     "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
     "integration_branch": "codex/rbi-integration-20261106",
     "parallel_work_started": true,
@@ -143,7 +156,8 @@
     "dispatch_manifest": "docs/development/rbi-dispatch-2026-11-06.json",
     "dispatched_at_utc": "2026-11-06 02:36:23 UTC",
     "contract_revision": "1.3",
-    "additional_dependency": "RBI-10 existing Sources window; required to preserve same-transaction Goal contract"
+    "additional_dependency": "RBI-10 existing Sources window; required to preserve same-transaction Goal contract",
+    "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171"
   },
   "shared_ownership": {
     "coordinator_only": [
@@ -488,7 +502,9 @@
         "src/tianshu/life/contacts.py",
         "tests/life/test_rbg_result_consumers.py",
         "tests/life/test_goal_source_transaction.py",
-        "tests/life/test_rb_plan_recovery.py"
+        "tests/life/test_rb_plan_recovery.py",
+        "src/tianshu/life/diary_retry.py",
+        "src/tianshu/life/writing.py"
       ],
       "deliverables": [
         "先补 job 78316 的冲突字段证据，再收敛唯一 ensure_reconcile_on",
@@ -518,7 +534,7 @@
       "priority": "P0",
       "owner": "Growth",
       "title": "按真实失败分类恢复原反思批与本域补漏",
-      "status": "candidate_followup_in_progress",
+      "status": "candidate_submitted",
       "depends_on": [
         "RBI-00",
         "RBI-01",
@@ -563,8 +579,15 @@
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
       "implementation_turn_id": "01a1aeb3-ea15-77a0-bbdc-605dfdc1a4ba",
-      "source_commit": "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
-      "handoff_commit": "4024a2ec97f5380a9452cefe2ff5104ed5009613"
+      "source_commit": "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
+      "handoff_commit": "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+      "required_commits_in_order": [
+        "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
+        "4024a2ec97f5380a9452cefe2ff5104ed5009613",
+        "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
+        "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7"
+      ],
+      "verification": "static_only_not_tested"
     },
     {
       "id": "RBI-09",
@@ -673,7 +696,7 @@
       "priority": "P0",
       "owner": "Sources",
       "title": "多上下文完整来源批预锁，保留Goal与原回执原子合同",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "depends_on": [
         "RBI-00"
       ],
@@ -699,7 +722,9 @@
         "private goal refs不能用public planning_context授权",
         "不同输入顺序锁序一致；context之间不越权复用证明",
         "来源撤回/版本/alias/空参数兼容的真实隔离用例代码"
-      ]
+      ],
+      "actual_base": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
+      "implementation_turn_id": "01a1aeed-1670-7531-b9c2-0d583aae1a6e"
     },
     {
       "id": "RBI-07",

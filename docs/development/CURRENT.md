@@ -1,6 +1,6 @@
 # 2026-11-06 RBI 进入对应窗口修复
 
-用户已批准[修订 2 队列](domain-recovery-queue-2026-11-06.md)并要求交付对应窗口。七个既有窗口已收到任务并在新的独立 RBI 分支/工作树实现，统一 gpt-6.1-terra/max/普通速度；共同准备提交 18d640c4，根收齐后集中必要验证。唯一协调聊天为 01a1ac6f-8494-7f82-8c4d-ec7d285f44ae。
+用户已批准[修订 2 队列](domain-recovery-queue-2026-11-06.md)并要求交付对应窗口。原七个既有窗口及补充的 Sources 窗口均已收到任务并在新的独立 RBI 分支/工作树实现，统一 gpt-6.1-terra/max/普通速度；原七包准备提交 18d640c4、Sources 准备 af226eeb，根收齐后集中必要验证。唯一协调聊天为 01a1ac6f-8494-7f82-8c4d-ec7d285f44ae。
 
 先读[方案](domain-recovery-plan-2026-11-06.md)、[公共合同](rbi-interfaces-2026-11-06.md)、[派发记录](rbi-dispatch-2026-11-06.json)和对应 rbi-work-packages 卡。代码起点 b32a606d；生产仍按最近巡检为 aa5662b7，尚未执行 RBI 发布。旧 RBH 原批恢复结果继续有效，原始证据与数据保留。下方为历史截面。
 

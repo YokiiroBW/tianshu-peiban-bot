@@ -85,7 +85,9 @@
         "branch_verified": true,
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
-      }
+      },
+      "verified": false,
+      "integrated": false
     },
     {
       "id": "RBI-02",
@@ -190,7 +192,9 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "pending_followup": "facts-before-lineage lock order"
+      "pending_followup": "facts-before-lineage lock order",
+      "verified": false,
+      "integrated": false
     },
     {
       "id": "RBI-04",
@@ -230,7 +234,9 @@
         "src/tianshu/life/contacts.py",
         "tests/life/test_rbg_result_consumers.py",
         "tests/life/test_goal_source_transaction.py",
-        "tests/life/test_rb_plan_recovery.py"
+        "tests/life/test_rb_plan_recovery.py",
+        "src/tianshu/life/diary_retry.py",
+        "src/tianshu/life/writing.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
@@ -250,7 +256,10 @@
         "branch_verified": true,
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
-      }
+      },
+      "verified": false,
+      "integrated": false,
+      "scope_note": "仅针对consumer_interrupted纯计算状态映射修复两个实际写作调用方；generation SHARE可先于Sources，不为锁序扩大重构。"
     },
     {
       "id": "RBI-05",
@@ -261,12 +270,12 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
-      "status": "candidate_followup_in_progress",
+      "status": "candidate_submitted",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
+      "source_commit": "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
       "allowed_paths": [
         "src/tianshu/companion/growth.py",
         "src/tianshu/companion/growth_retry.py",
@@ -304,8 +313,17 @@
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
       },
-      "handoff_commit": "4024a2ec97f5380a9452cefe2ff5104ed5009613",
-      "pending_followup": "unified current-facts validation before Runtime writes"
+      "handoff_commit": "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7",
+      "pending_followup": null,
+      "verified": false,
+      "integrated": false,
+      "required_commits_in_order": [
+        "b3dc0be71a92ffb74cbd7ece4ba9927f6de0ceaa",
+        "4024a2ec97f5380a9452cefe2ff5104ed5009613",
+        "300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f",
+        "a91bbed51ce2bc75a0b41ec3a6aa1e83f0b8a5e7"
+      ],
+      "verification": "AST/diff static only; tests not run"
     },
     {
       "id": "RBI-09",
@@ -355,7 +373,9 @@
         "branch_verified": true,
         "normal_speed_config": true,
         "head": "18d640c41bb3354ef82ffea41ff2e78b1338e3b3"
-      }
+      },
+      "verified": false,
+      "integrated": false
     },
     {
       "id": "RBI-06",
@@ -410,7 +430,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
       "branch": "codex/rbi-sources-20261106",
       "card": "docs/development/rbi-work-packages/sources.md",
-      "status": "prepared_not_sent",
+      "status": "implementing",
       "key": "sources",
       "title": "RBW 身份来源与失效传播",
       "allowed_paths": [
@@ -424,7 +444,28 @@
       "reasoning_effort": "max",
       "service_tier": "default",
       "fast_mode": false,
-      "source_commit": null
+      "source_commit": null,
+      "dispatched": true,
+      "actual_base": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
+      "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
+      "implementation_turn_id": "01a1aeed-1670-7531-b9c2-0d583aae1a6e",
+      "implementation_started_at": 1793936135,
+      "last_ack": "已核对指定Sources工作树、分支及af226eeb基线，开始RBI-10；无DDL、测试或生产执行。",
+      "preflight": {
+        "clean": true,
+        "branch_verified": true,
+        "normal_speed_config": true,
+        "head": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171"
+      },
+      "dispatch_result": {
+        "accepted": true,
+        "thread_id": "01a1a772-e813-76e3-9869-be43c2a4834c",
+        "model_override": "gpt-6.1-terra",
+        "thinking_override": "max"
+      },
+      "verified": false,
+      "integrated": false,
+      "dispatched_at_utc": "2026-11-06 03:35:35 UTC"
     }
   ],
   "dispatched_at_utc": "2026-11-06 02:36:23 UTC",
@@ -444,6 +485,22 @@
       "Conversation result reconciliation",
       "Runtime repair/execution evidence"
     ],
-    "validation": "wait for full slices; do not test each micro change or integrate intermediate candidate"
+    "validation": "wait for full slices; do not test each micro change or integrate intermediate candidate",
+    "sources_scoped_refs": "RBI-10 optional per-context source closure; preserve Goal and receipt transaction",
+    "sources_source_of_truth": "scoped false remains optional; no widened context authorization",
+    "native_history_bound": "per-receipt fixed upper/cursor plus per-job bounded event cursor; incomplete history blocks requeue"
+  },
+  "all_implementation_windows_started": true,
+  "sources_preparation_commit": "af226eeb9ebabad7ecbc1f86fc9b3f5fa6bd1171",
+  "dispatch_verification": {
+    "result": "passed",
+    "cards": 11,
+    "implementation_windows_started": 8,
+    "unique_existing_chats_worktrees_branches": true,
+    "acyclic_dependencies": true,
+    "write_scope_no_overlap": true,
+    "normal_speed_config_verified": true,
+    "both_roots_synchronized": true,
+    "product_tests_run": false
   }
 }
