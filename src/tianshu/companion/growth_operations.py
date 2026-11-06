@@ -7,8 +7,9 @@ import aiohttp
 from tianshu.conversation.codec import context_from_record, signature
 from tianshu.conversation.generation import attempt_for
 from tianshu.runtime.errors import AppError
-from .growth_output_repair import review_available
+from .growth_output_repair import review_available, review_original
 from .growth_policy import bind_receipt, budget_on as recovery_budget_on
+from .growth_recovery import authorization_error
 from .growth_retry import manual_retry_allowed
 from .reflection_output import frozen_episodes
 
@@ -58,6 +59,8 @@ class GrowthOperations:
             except AppError as error:
                 # A racing revoke/version change makes this row ineligible and
                 # remains visible to Operations; it must not hide other rows.
+                if error.code != 'recovery_version_changed':
+                    raise
                 row['budget'] = {'can_retry': False, 'retry_at': None, 'reason': error.code}
         return rows
 
@@ -90,7 +93,14 @@ class GrowthOperations:
                 try:
                     inspected = await self.inspect(None, target)
                     eligible = bool(inspected.get('eligible') and inspected.get('version') == str(row['revision']))
-                except (AppError, TimeoutError, aiohttp.ClientError):
+                except AppError as error:
+                    if not authorization_error(error) and error.code not in {
+                        'reflection_episode_unavailable', 'reflection_episode_revision_conflict',
+                        'generation_observation_context_mismatch', 'growth_recovery_receipt_mismatch',
+                    }:
+                        raise
+                    eligible = False
+                except (TimeoutError, aiohttp.ClientError):
                     eligible = False
             facts.append({'role': 'bot-background', 'material_id': row['retry_key'],
                 'target': target, 'dependency': row['dependency'], 'due_at': row['due_at'],
@@ -124,13 +134,6 @@ class GrowthOperations:
         elif (row['state'] != 'blocked' or not manual_retry_allowed(row['last_error'])
               or not review_available(row['batch'], row['last_error'])):
             return {'eligible': False, 'reason': 'growth_retry_not_available'}
-        if row['state'] == 'blocked':
-            async with self.growth.companion.database.transaction(read_only=True) as connection:
-                budget = await recovery_budget_on(self.growth.recovery_policy, connection, row['batch'])
-            if not budget['can_retry']:
-                return {'eligible': False, 'reason': budget.get('reason') or 'growth_retry_not_available'}
-            if budget.get('retry_at') and budget['retry_at'] > datetime.now(UTC):
-                return {'eligible': False, 'reason': 'growth_retry_not_due'}
         original = context_from_record(row['batch']['context'])
         current = await self.growth.recovery.reader(original)
         request = await self.growth.generations.observe_request(attempt_for(row['current_material_key']), observer=current)
@@ -142,6 +145,18 @@ class GrowthOperations:
         if getattr(result.receipt, 'cancellation_reason', None) == 'explicit_cancel':
             return {'eligible': False, 'reason': 'explicit_cancel', 'cancelled': True}
         bind_receipt(request, result.receipt)
+        action, reason = review_original(result.receipt)
+        if action == 'stop':
+            return {'eligible': False, 'reason': reason}
+        if row['state'] == 'blocked' and action == 'transient':
+            async with self.growth.companion.database.transaction(read_only=True) as connection:
+                budget = await recovery_budget_on(self.growth.recovery_policy, connection, row['batch'])
+            if not budget['can_retry']:
+                return {'eligible': False, 'reason': budget.get('reason') or 'growth_retry_not_available'}
+            if budget.get('retry_at') is None:
+                return {'eligible': False, 'reason': 'growth_recovery_due_unavailable'}
+            if budget['retry_at'] > datetime.now(UTC):
+                return {'eligible': False, 'reason': 'growth_retry_not_due'}
         versions = frozen_episodes(request)
         async with self.growth.companion.database.transaction() as connection:
             await self.growth._validate_material(connection, current, versions, request.source_refs,

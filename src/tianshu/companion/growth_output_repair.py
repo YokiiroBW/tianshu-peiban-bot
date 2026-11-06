@@ -1,11 +1,13 @@
 """Bounded correction of known reflection output within the Growth retry owner."""
 
 from dataclasses import replace
+from collections.abc import Mapping
 import json
 
 from tianshu.capabilities.contracts import model_json
 from tianshu.life.writing import generated_text
 from tianshu.models.budgets import BACKGROUND_INPUT_TOKENS
+from tianshu.models.retry import transient_model_failure
 from tianshu.models.types import ModelMessage, ModelPart
 from tianshu.runtime.errors import AppError
 from .reflection_output import (
@@ -41,6 +43,58 @@ def review_available(batch, code):
     if code in OUTPUT_ERRORS and batch.get("output_repair_count", 0) >= OUTPUT_REPAIR_LIMIT:
         return False
     return code not in CORRECTABLE_ERRORS or correction_available(batch, code)
+
+
+def review_original(receipt, repair_ref=None):
+    """Choose a Growth path from the original Models evidence, without guessing."""
+    if receipt is None or receipt.status in {'queued', 'running', 'unknown'}:
+        return 'stop', 'original_attempt_unresolved'
+    if receipt.cancellation_reason == 'explicit_cancel':
+        return 'stop', 'explicit_cancel'
+    if receipt.status == 'cancelled':
+        return (('transient', None) if transient_model_failure(receipt.error_code)
+                else ('stop', 'original_cancelled'))
+    if receipt.status == 'succeeded':
+        # The existing retry owner reparses the saved success and may make one
+        # bounded correction; no failed Models output is invented here.
+        return 'reuse', None
+    if receipt.status != 'failed':
+        return 'stop', 'original_attempt_unresolved'
+    diagnostic = receipt.diagnostic if isinstance(receipt.diagnostic, Mapping) else {}
+    stage = diagnostic.get('failure_stage')
+    if stage in {'local_program', 'protocol_decode'}:
+        # Existing reusable_result only accepts successes. A failed response
+        # marked reusable needs a Models reparse port, not a new request.
+        reusable = diagnostic.get('original_output_reusable')
+        if reusable is True:
+            return 'stop', 'original_reparse_unavailable'
+        if reusable is not None and reusable is not False:
+            return 'stop', 'growth_failure_diagnostic_incomplete'
+        # None does not assert that output was absent or free; qualification
+        # relies on the known failure, exact repair and original Runtime budget.
+        if not isinstance(diagnostic.get('error_type'), str) or not diagnostic['error_type']:
+            return 'stop', 'growth_failure_diagnostic_incomplete'
+        if not repair_ref:
+            return 'stop', 'growth_repair_ref_required'
+        return 'repaired', None
+    if stage in {None, 'unknown', 'transport'} and transient_model_failure(receipt.error_code):
+        return 'transient', None
+    if stage not in {'transport', 'domain_validation'}:
+        return 'stop', 'growth_failure_stage_unknown'
+    return 'stop', 'original_failure_not_retryable'
+
+
+def admitted_review_matches(review, receipt):
+    if review.get('state') != 'admitted':
+        return True
+    action, _reason = review_original(receipt, review.get('repair_ref'))
+    if action not in {'reuse', 'transient', 'repaired'} or receipt is None:
+        return False
+    diagnostic = receipt.diagnostic if isinstance(receipt.diagnostic, Mapping) else {}
+    return (review.get('original_attempt_id') == receipt.attempt_id
+            and review.get('error_code') == receipt.error_code
+            and review.get('failure_stage') == diagnostic.get('failure_stage')
+            and review.get('error_type') == diagnostic.get('error_type'))
 
 
 def _clip(value, maximum):

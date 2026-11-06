@@ -3,6 +3,7 @@ from tianshu.sources.dependencies import unique_refs
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 import json
+from uuid import uuid4
 
 import aiohttp
 
@@ -630,6 +631,10 @@ class GrowthService:
         await self.companion.identity.check(context)
         if body.get("retry_key") is not None and (not isinstance(body["retry_key"], str) or not body["retry_key"]):
             raise AppError("invalid_input")
+        repair_ref = body.get('repair_ref')
+        if repair_ref is not None and (not isinstance(repair_ref, str) or not repair_ref
+                                       or repair_ref != repair_ref.strip() or len(repair_ref) > 256):
+            raise AppError('invalid_input')
         scope_key=signature(sorted(context.scope_ids))
         async def apply(connection):
             await self.companion.validate_persistence(connection,context)
@@ -666,12 +671,12 @@ class GrowthService:
                 await self._enqueue(connection, context.actor_id, scope_key, updated['revision'], 'input-released', generation=row['runtime_generation'])
                 return CommandResult(body['client_request_id'], {'state': 'queued', 'recovery': 'retry_input'}, updated['revision'])
             if body.get("retry_key"):
-                current = await self.retries.resume_on(connection, row, context, body["retry_key"])
+                current = await self.retries.resume_on(connection, row, context, body["retry_key"], repair_ref=repair_ref)
                 return CommandResult(body["client_request_id"], {"state": "queued", "recovery": "retry_computation"}, current)
             if not row["active_batch"] and row["last_error"] not in REVIEW_ERRORS:
-                blocked = await self.retries.blocked_for_scene(connection, row, context)
+                blocked = await self.retries.blocked_for_scene(connection, row, context, repair_ref=repair_ref)
                 if blocked:
-                    current = await self.retries.resume_on(connection, row, context, blocked)
+                    current = await self.retries.resume_on(connection, row, context, blocked, repair_ref=repair_ref)
                     return CommandResult(body["client_request_id"], {"state": "queued", "recovery": "retry_computation"}, current)
             if row["last_error"] == AUTHORIZATION_BLOCKED or (
                 row["last_error"] not in REVIEW_ERRORS and
@@ -682,6 +687,12 @@ class GrowthService:
                     "observe_original_attempt" if row["active_batch"] else "reauthorize_original_scope")}, current)
             if row["last_error"] not in REVIEW_ERRORS:
                 raise AppError("reflection_original_attempt_unresolved",status=409)
+            if row['active_batch']:
+                # A review signal cannot replace the frozen active request or
+                # create a fresh lineage for the same work.
+                current = await self.recovery.resume(connection, row, context)
+                return CommandResult(body['client_request_id'],
+                    {'state': 'queued', 'recovery': 'observe_original_attempt'}, current)
             if row["last_error"] == "reflection_material_source_required" and not row["active_batch"]:
                 current = row["revision"] + 1
                 await connection.execute(
@@ -732,11 +743,7 @@ class GrowthService:
                 failure = await (await connection.execute(
                     'UPDATE companion.growth_material_failures SET due_at=%s WHERE actor_id=%s AND scope_key=%s '
                     'AND failure_key=%s RETURNING *', (due, context.actor_id, scope_key, key))).fetchone()
-                await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
-                    f"growth-input-retry:{state['runtime_generation']}:{key}:{failure['observation_revision']}",
-                    {'actor_id': context.actor_id, 'scope_key': scope_key, 'failure_key': key,
-                     'expected_revision': failure['observation_revision'], 'generation': state['runtime_generation']}, scheduled_at=due,
-                    subject_id=context.actor_id, data_generation=state['runtime_generation']))
+                await self._schedule_input_retry_on(connection, failure)
             await self.observations.emit_on(connection, self.observations.material_event(failure), generation=state['runtime_generation'])
             next_revision = current['revision'] + 1
             await connection.execute('UPDATE companion.organize_state SET revision=%s,updated_at=now() '
@@ -755,11 +762,12 @@ class GrowthService:
         if failure['due_at'] > datetime.now(UTC):
             async with self.companion.database.transaction() as connection:
                 await self.jobs.assert_generation_on(connection, generation)
-                await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
-                    f"growth-input-retry:{generation}:{failure_key}:{expected_revision}:due",
-                    {'actor_id': actor_id, 'scope_key': scope_key, 'failure_key': failure_key,
-                     'expected_revision': expected_revision, 'generation': generation}, scheduled_at=failure['due_at'],
-                    subject_id=actor_id, data_generation=generation))
+                current = await (await connection.execute(
+                    "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                    "AND failure_key=%s AND runtime_generation=%s AND state='blocked' FOR UPDATE",
+                    (actor_id, scope_key, failure_key, generation))).fetchone()
+                if current and current['observation_revision'] == expected_revision and current['due_at']:
+                    await self._schedule_input_retry_on(connection, current)
             return {'state': 'waiting'}
         original = context_from_record(failure['context'])
         try:
@@ -773,14 +781,25 @@ class GrowthService:
             except AppError as denied:
                 if not authorization_error(denied):
                     raise
-                return {'state': 'blocked', 'reason': denied.code}
+                return await self._stop_input_retry(failure, generation, denied.code)
         page = await self.companion.memory.episodes_by_refs(context,
             ((failure['episode_id'], failure['episode_revision']),))
         if not page.items:
-            return {'state': 'blocked', 'reason': 'episode_unavailable_or_revised'}
+            if 'unavailable_sources' in page.coverage.missing:
+                return await self._stop_input_retry(failure, generation, 'source_unavailable')
+            if 'episodes_unavailable_or_revised' in page.coverage.missing:
+                return await self._stop_input_retry(failure, generation, 'episode_unavailable_or_revised')
+            return await self._postpone_input_retry(failure, generation)
         async with self.companion.database.transaction() as connection:
             await self.jobs.assert_generation_on(connection, generation)
-            await self.companion.validate_persistence(connection, context, page.items[0].source_refs)
+            try:
+                await self.companion.validate_persistence(connection, context, page.items[0].source_refs)
+            except RecoveryWait:
+                raise
+            except AppError as error:
+                if not authorization_error(error):
+                    raise
+                return await self._stop_input_retry_on(connection, failure, generation, error.code)
             state = await (await connection.execute(
                 'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE',
                 (actor_id, scope_key))).fetchone()
@@ -807,6 +826,46 @@ class GrowthService:
                 'WHERE actor_id=%s AND scope_key=%s', (next_revision, actor_id, scope_key))
             await self._enqueue(connection, actor_id, scope_key, next_revision, 'input-retry', generation=generation)
         return {'state': 'queued'}
+
+    async def _stop_input_retry(self, failure, generation, reason):
+        async with self.companion.database.transaction() as connection:
+            return await self._stop_input_retry_on(connection, failure, generation, reason)
+
+    async def _postpone_input_retry(self, failure, generation):
+        async with self.companion.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+            current = await (await connection.execute(
+                "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                "AND failure_key=%s AND runtime_generation=%s AND state='blocked' FOR UPDATE",
+                (failure['actor_id'], failure['scope_key'], failure['failure_key'], generation))).fetchone()
+            if not current or current['observation_revision'] != failure['observation_revision'] or not current['due_at']:
+                return {'state': 'superseded'}
+            due = current['due_at']
+            if due <= datetime.now(UTC):
+                due = datetime.now(UTC) + timedelta(minutes=5)
+                current = await (await connection.execute(
+                    'UPDATE companion.growth_material_failures SET due_at=%s,updated_at=now() '
+                    'WHERE actor_id=%s AND scope_key=%s AND failure_key=%s AND runtime_generation=%s RETURNING *',
+                    (due, current['actor_id'], current['scope_key'], current['failure_key'], generation))).fetchone()
+            await self._schedule_input_retry_on(connection, current)
+        return {'state': 'waiting', 'reason': 'episode_observation_incomplete', 'due_at': due}
+
+    async def _stop_input_retry_on(self, connection, failure, generation, reason):
+        await self.jobs.assert_generation_on(connection, generation)
+        current = await (await connection.execute(
+            "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+            "AND failure_key=%s AND runtime_generation=%s AND state='blocked' FOR UPDATE",
+            (failure['actor_id'], failure['scope_key'], failure['failure_key'], generation))).fetchone()
+        if not current or current['observation_revision'] != failure['observation_revision'] or not current['due_at']:
+            return {'state': 'superseded'}
+        details = {**current['details'], 'retry_stop_reason': reason}
+        updated = await (await connection.execute(
+            'UPDATE companion.growth_material_failures SET details=%s,due_at=NULL,'
+            'observation_revision=observation_revision+1,updated_at=now() WHERE actor_id=%s '
+            'AND scope_key=%s AND failure_key=%s AND runtime_generation=%s RETURNING *',
+            (document(details), current['actor_id'], current['scope_key'], current['failure_key'], generation))).fetchone()
+        await self.observations.emit_on(connection, self.observations.material_event(updated), generation=generation)
+        return {'state': 'blocked', 'reason': reason}
 
     async def _unavailable(self, context, state, versions):
         """Close unavailable versions as coverage gaps, never successful reviews."""
@@ -951,37 +1010,60 @@ class GrowthService:
 
     async def recover(self):
         await self.retries.recover()
-        async with self.companion.database.transaction() as connection:
+        async with self.companion.database.transaction(read_only=True) as connection:
             generation = await self.jobs.current_generation_on(connection)
             failures = await (await connection.execute(
-                "SELECT * FROM companion.growth_material_failures WHERE state='blocked' AND due_at IS NOT NULL AND runtime_generation=%s",
+                "SELECT actor_id,scope_key,failure_key,observation_revision FROM companion.growth_material_failures "
+                "WHERE state='blocked' AND due_at IS NOT NULL AND runtime_generation=%s",
                 (generation,))).fetchall()
-            for failure in failures:
-                await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
-                    f"growth-input-recover:{generation}:{failure['failure_key']}:{failure['observation_revision']}:{datetime.now(UTC).isoformat()}",
-                    {'actor_id': failure['actor_id'], 'scope_key': failure['scope_key'],
-                     'failure_key': failure['failure_key'], 'expected_revision': failure['observation_revision'],
-                     'generation': failure['runtime_generation']},
-                    scheduled_at=failure['due_at'], subject_id=failure['actor_id'], data_generation=generation))
+        for failure in failures:
+            async with self.companion.database.transaction() as connection:
+                await self.jobs.assert_generation_on(connection, generation)
+                current = await (await connection.execute(
+                    "SELECT * FROM companion.growth_material_failures WHERE actor_id=%s AND scope_key=%s "
+                    "AND failure_key=%s AND runtime_generation=%s AND state='blocked' FOR UPDATE",
+                    (failure['actor_id'], failure['scope_key'], failure['failure_key'], generation))).fetchone()
+                if current and current['observation_revision'] == failure['observation_revision'] and current['due_at']:
+                    await self._schedule_input_retry_on(connection, current)
         if self.observations.statistics is not None:
             async with self.companion.database.transaction() as connection:
                 generation = await self.jobs.current_generation_on(connection)
                 await self.observations.schedule_on(connection, generation=generation)
         async with self.companion.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM companion.organize_state s WHERE runtime_generation=%s AND (last_error IS NULL OR last_error<>ALL(%s)) AND ("
+                "SELECT actor_id,scope_key,revision FROM companion.organize_state s WHERE runtime_generation=%s AND (last_error IS NULL OR last_error<>ALL(%s)) AND ("
                 "active_batch IS NOT NULL OR ((last_error IS NULL OR last_error<>ALL(%s)) AND "
                 "EXISTS(SELECT 1 FROM companion.growth_inputs i WHERE i.actor_id=s.actor_id AND i.scope_key=s.scope_key "
                 "AND reviewed_revision<i.revision AND retry_key IS NULL)))",
                 (generation, sorted({AUTHORIZATION_BLOCKED, IDENTITY_BLOCKED}), sorted(REVIEW_ERRORS)))).fetchall()
         for row in rows:
-            # Startup only schedules each current batch or pending material.
             async with self.companion.database.transaction() as connection:
-                await self.jobs.assert_generation_on(connection, row['runtime_generation'])
-                blocked = row['blocked_material'] or {}
+                await self.jobs.assert_generation_on(connection, generation)
+                current = await (await connection.execute(
+                    'SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s FOR UPDATE',
+                    (row['actor_id'], row['scope_key']))).fetchone()
+                if not current or current['runtime_generation'] != generation or current['revision'] != row['revision']:
+                    continue
+                blocked = current['blocked_material'] or {}
                 due = timestamp(blocked['retry_at']) if blocked.get('recovery') == 'dependency_wait' else None
                 await self._enqueue(connection, row['actor_id'], row['scope_key'], row['revision'], 'recover',
-                                    generation=row['runtime_generation'], scheduled_at=due)
+                                    generation=generation, scheduled_at=due)
+
+    async def reconcile_due(self, *, limit=32):
+        from .rbi_growth_maintenance import reconcile_due
+        return await reconcile_due(self, limit=limit)
+
+    async def _schedule_input_retry_on(self, connection, failure):
+        generation = failure['runtime_generation']
+        await self.jobs.assert_generation_on(connection, generation)
+        identity = f"{generation}:{failure['actor_id']}:{failure['scope_key']}:{failure['failure_key']}:{failure['observation_revision']}"
+        await self.jobs.enqueue(connection, JobSpec('companion.growth.input_retry',
+            f"growth-input-retry:{identity}:{uuid4()}",
+            {'actor_id': failure['actor_id'], 'scope_key': failure['scope_key'],
+             'failure_key': failure['failure_key'], 'expected_revision': failure['observation_revision'],
+             'generation': generation}, scheduled_at=failure['due_at'],
+            subject_id=failure['actor_id'], data_generation=generation),
+            queueing_lock='growth-input:'+identity)
 
     async def _rejected(self, actor_id, scope_key, material_key, code, *, result=None):
         async with self.companion.database.transaction(read_only=True) as connection:
@@ -1069,6 +1151,7 @@ class GrowthService:
                 (context.actor_id,signature(sorted(context.scope_ids))))).fetchone()
             retries = await (await connection.execute(
                 "SELECT retry_key,batch->'context' AS context,batch->'output_repair_count' AS output_repair_count,"
+                "batch->'rbi_review' AS recovery_review,"
                 "current_material_key,previous_material_key,attempt_number,"
                 "state,due_at,last_error,waiting_on_original,outcome,revision FROM companion.growth_retry_batches "
                 "WHERE actor_id=%s AND scope_key=%s ORDER BY CASE state WHEN 'active' THEN 0 WHEN 'waiting' THEN 1 "
@@ -1099,6 +1182,7 @@ class GrowthService:
             review["retry_batches"] = [{**{key: value for key, value in retry.items() if key != "context"},
                 "attempt_id": attempt_for(retry["current_material_key"]),
                 "can_request_review": retry["state"] == "blocked" and manual_retry_allowed(retry["last_error"])
+                    and (retry.get('recovery_review') or {}).get('state') != 'requested'
                     and review_available({"output_repair_count": retry.get("output_repair_count") or 0}, retry["last_error"])
                     and self.recovery.same_scene(context, context_from_record(retry["context"]))}
                 for retry in retries]
