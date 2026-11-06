@@ -16,6 +16,7 @@ from tianshu.runtime.files import FileStore
 from tianshu.runtime.jobs import JobQueue
 from tianshu.runtime.migrations import Migration, migrate
 from tianshu.runtime.serialization import wire
+from tianshu.sources.module import create_module as source_module
 from tianshu.sources.service import SourceService
 from tianshu.types import Coverage, OriginKind, Receipt
 
@@ -24,8 +25,7 @@ from tianshu.types import Coverage, OriginKind, Receipt
 async def source_life(database, tmp_path):
     await migrate(database, (
         Migration('0010_identity',files('tianshu.identity').joinpath('schema.sql').read_text()),
-        Migration('0011_sources',files('tianshu.sources').joinpath('schema.sql').read_text()
-            +'\n'+files('tianshu.sources').joinpath('functions.sql').read_text()),
+        *source_module(None,None).migrations,
         Migration('0031_life',files('tianshu.life').joinpath('schema.sql').read_text()),
         Migration('0038_life_computation_retry',files('tianshu.life').joinpath('0038_life_computation_retry.sql').read_text()),
         Migration('0032_conversation',files('tianshu.conversation').joinpath('schema.sql').read_text()),

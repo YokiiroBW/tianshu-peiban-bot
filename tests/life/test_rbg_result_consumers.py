@@ -118,6 +118,22 @@ async def fixture(database, *, activity=True, state="running", turn=True, intent
                               "original": original, "actions": actions, "memory": memory, "context": context})
 
 
+async def finish_failed_result_job(connection, jobs, job_id, generation, *, already_started=False):
+    """Record the native started/failed ordinal used by result history import."""
+    if not already_started:
+        changed = await (await connection.execute(
+            "UPDATE procrastinate_jobs SET status='doing' WHERE id=%s AND status='todo' RETURNING id",
+            (job_id,))).fetchone()
+        assert changed
+    await connection.execute("SELECT procrastinate_finish_job_v1(%s,'failed',false)",(job_id,))
+    native = await (await connection.execute("SELECT status,attempts FROM procrastinate_jobs WHERE id=%s",
+        (job_id,))).fetchone()
+    assert native == {"status":"failed", "attempts":1}
+    history = await jobs.observe_execution_history_on(connection,job_ids=[job_id],
+        data_generation=generation,task_name="conversation.result")
+    assert history["complete"] and [(item["native_attempt"],item["outcome"]) for item in history["executions"]] == [(0,"failed")]
+
+
 @pytest.mark.asyncio
 async def test_dialogue_commit_then_life_failure_resumes_only_missing_branch(database):
     value = await fixture(database)
@@ -306,7 +322,7 @@ async def test_unconfirmed_remote_rollback_stays_blocked_and_is_not_requeued(dat
     async with database.transaction() as connection:
         await ActionResultEvents(value.jobs).publish(connection, value.event())
         saved = await (await connection.execute("SELECT original_job_id,data_generation FROM conversation.result_deliveries")).fetchone()
-        await connection.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (saved["original_job_id"],))
+        await finish_failed_result_job(connection,value.jobs,saved["original_job_id"],saved["data_generation"])
     error = RecoveryWait("render_wait", datetime.now(UTC)+timedelta(seconds=5), dependency="render")
     error.remote_rollback_confirmed = False
     value.consumer.renderer.on_action_result = AsyncMock(side_effect=error)
@@ -315,12 +331,34 @@ async def test_unconfirmed_remote_rollback_stays_blocked_and_is_not_requeued(dat
     recovery = ResultRecovery(database, value.jobs, value.consumer.identity, actions=value.actions)
     candidates = await recovery.candidates()
     assert candidates[0]["eligible"] is False and candidates[0]["reason"] == "result_consumer_blocked"
-    with pytest.raises(AppError, match="result_consumer_blocked"):
-        await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
-            action_id=value.action.action_id, receipt_id=value.original.receipt_id, result_revision=1)
+    async with database.transaction(read_only=True) as connection:
+        before = await (await connection.execute(
+            "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,reason,proof,attempts "
+            "FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s ORDER BY consumer",
+            (saved["data_generation"],value.original.receipt_id))).fetchall()
+        original = await (await connection.execute("SELECT args,status,attempts FROM procrastinate_jobs WHERE id=%s",
+            (saved["original_job_id"],))).fetchone()
+        count = await (await connection.execute("SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+    result = await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
+        action_id=value.action.action_id, receipt_id=value.original.receipt_id, result_revision=1)
+    assert result["state"] == "blocked" and result["reason"] == "result_consumer_blocked"
+    assert result["budget"]["history_complete"] and result["budget"]["failed_executions"] == 1
+    assert "renderer" in result["blocked_consumers"]
     async with database.transaction(read_only=True) as connection:
         assert not await (await connection.execute("SELECT 1 FROM conversation.result_consumption")).fetchone()
+        after = await (await connection.execute(
+            "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,reason,proof,attempts "
+            "FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s ORDER BY consumer",
+            (saved["data_generation"],value.original.receipt_id))).fetchall()
+        same = await (await connection.execute("SELECT args,status,attempts FROM procrastinate_jobs WHERE id=%s",
+            (saved["original_job_id"],))).fetchone()
+        after_count = await (await connection.execute("SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+    renderer = next(item for item in before if item["consumer"] == "renderer")
+    assert renderer["disposition"] == "blocked" and renderer["reason"] == "render_wait"
+    assert same == original and original["args"]["event"] == value.event()
+    assert after == before and after_count == count
     value.actions.invoke.assert_not_awaited()
+    value.actions.resume.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -367,7 +405,7 @@ async def test_progress_observes_future_retry_other_wake_and_live_consumer_witho
     await agent.poll_progress()
     agent.incidents.ingest.assert_not_awaited()
     async with database.transaction() as connection:
-        await connection.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (saved["original_job_id"],))
+        await finish_failed_result_job(connection,value.jobs,saved["original_job_id"],saved["data_generation"])
         wake_id = await value.jobs.enqueue(connection, JobSpec("conversation.result", "other-valid-wake",
             {"event": value.event()}, ServiceClass.INTERACTIVE, scheduled_at=future, subject_id="actor"))
     facts = await recovery.candidates()
@@ -385,12 +423,27 @@ async def test_progress_observes_future_retry_other_wake_and_live_consumer_witho
     await agent.poll_progress()
     agent.incidents.ingest.assert_not_awaited()
     async with database.transaction() as connection:
-        await connection.execute("UPDATE procrastinate_jobs SET status='failed',worker_id=NULL WHERE id=%s", (wake_id,))
-        await connection.execute("INSERT INTO conversation.result_consumer_progress(data_generation,receipt_id,consumer,action_id,result_revision,"
-            "disposition,owner_token,lease_until) VALUES (%s,'original-receipt','renderer',%s,1,'running','owner',now()+interval '1 minute')",
-            (saved["data_generation"], value.action.action_id))
+        await finish_failed_result_job(connection,value.jobs,wake_id,saved["data_generation"],already_started=True)
+        running = await (await connection.execute("INSERT INTO conversation.result_consumer_progress(data_generation,receipt_id,consumer,action_id,result_revision,"
+            "disposition,owner_token,lease_until) VALUES (%s,'original-receipt','renderer',%s,1,'running','owner',now()+interval '1 minute') "
+            "RETURNING lease_until",(saved["data_generation"], value.action.action_id))).fetchone()
+        count = await (await connection.execute("SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
     facts = await recovery.candidates()
     assert facts[0]["executing"] and not facts[0]["waiting_dependency"]
+    agent.progress.return_value = facts
+    await agent.poll_progress()
+    agent.incidents.ingest.assert_not_awaited()
     result = await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
         action_id=value.action.action_id, receipt_id="original-receipt", result_revision=1)
-    assert result == {"state": "accepted", "reason": "consumer_running"}
+    assert result["state"] == "waiting" and result["reason"] == "consumer_running"
+    assert result["due_at"] == running["lease_until"]
+    assert result["budget"]["history_complete"] and result["budget"]["failed_executions"] == 2
+    async with database.transaction(read_only=True) as connection:
+        after = await (await connection.execute("SELECT disposition,owner_token,lease_until FROM conversation.result_consumer_progress "
+            "WHERE data_generation=%s AND receipt_id='original-receipt' AND consumer='renderer'",
+            (saved["data_generation"],))).fetchone()
+        after_count = await (await connection.execute("SELECT count(*) AS n FROM runtime.job_keys WHERE task='conversation.result'")).fetchone()
+    assert after == {"disposition":"running", "owner_token":"owner", "lease_until":running["lease_until"]}
+    assert after_count == count
+    value.actions.invoke.assert_not_awaited()
+    value.actions.resume.assert_not_awaited()

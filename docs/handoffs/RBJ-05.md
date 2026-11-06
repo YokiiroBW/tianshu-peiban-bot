@@ -17,3 +17,9 @@
 ## 本窗口验证状态
 
 已编写 terminal 交接、head 推进/回退/冲突、持续推进后继、proof 事务回滚、原 owner repair、历史唤醒身份与覆盖、承诺 404 等定向用例。本窗口只进行 Python AST 静态解析、完整 diff 静态审阅和 `git diff --check`；按本批约定未运行测试、构建、PostgreSQL、真实模型、QQ 或生产操作。集中集成和必要的真实数据库联合验证由协调者执行。
+
+## 集中验收后的定向夹具返修
+
+根协调者回报：RBJ-05 新增的四个测试文件共 24 例在集中真实 PostgreSQL 检查中通过；另有相关旧用例 6 例失败，本次仅调整其测试归属。`source_life` 通过 `source_module(...).migrations` 安装当前权威 Sources 迁移，覆盖使用同一夹具的 Goal fence 测试；没有复制新版 SQL 清单或修改产品装配。
+
+结果消费者的两个旧场景改用 native started→failed 和真实 attempts 计数构造完整历史，分别核对未确认远端回滚返回 `blocked/result_consumer_blocked`、活跃消费者返回 `waiting/consumer_running` 且 due 等于原 lease。测试继续核对原事件、消费者证据、失败事实、无额外唤醒和 Operations 不误报。此返修未在本窗口运行测试或 PostgreSQL；六例及其与根当前集成状态的装配仍由协调者定向复验，前述 24 例复用根已取得的结果。
