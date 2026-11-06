@@ -91,10 +91,20 @@ async def test_unknown_original_cannot_be_replayed_until_definitive_observation(
         assert [item["status"] for item in history] == ["unknown", "failed"]
 
 
-def model_unknown(attempt_id, generation):
-    return ModelReceipt(attempt_id=attempt_id, intent_id="intent", status="unknown", dispatch="unknown",
+async def model_unknown(connection, attempt_id, generation):
+    receipt = ModelReceipt(attempt_id=attempt_id, intent_id="intent", status="unknown", dispatch="unknown",
         route_id="route", route_revision=1, provider_id="provider", model="model", protocol="openai",
-        quota_group="quota", finished_at=datetime.now(UTC), data_generation=generation)
+        quota_group="quota", finished_at=datetime.now(UTC), request_digest="a" * 64, data_generation=generation)
+    await connection.execute(
+        "INSERT INTO models.attempts(attempt_id,intent_id,principal_id,function,service_class,route_id,"
+        "route_revision,provider_id,model,protocol,quota_group,request_digest,context_fingerprint,"
+        "status,dispatch,finished_at,deadline_at,data_generation) "
+        "VALUES(%s,'intent','fixture','fixture','elastic','route',1,'provider','model','openai','quota',"
+        "'physical-request-digest','fixture','unknown','unknown',%s,now()+interval '1 hour',%s)",
+        (attempt_id, receipt.finished_at, generation))
+    await connection.execute("INSERT INTO models.submissions(attempt_id,request_digest,request,streaming) "
+                             "VALUES(%s,%s,'{}'::jsonb,false)", (attempt_id, receipt.request_digest))
+    return receipt
 
 
 async def test_pure_unknown_requires_original_receipt_and_fences_superseded_result(database, policy):
@@ -107,7 +117,7 @@ async def test_pure_unknown_requires_original_receipt_and_fences_superseded_resu
             await policy.register_on(connection, **registration)
         await policy.reserve_attempt_on(connection, identity, owner="memory", expected_version="v1",
             attempt_id="original", request_digest="request", route="route", original_state="none")
-        receipt = model_unknown("original", row["data_generation"])
+        receipt = await model_unknown(connection, "original", row["data_generation"])
         for invalid in (None, {"status": "unknown"}, replace(receipt, attempt_id="other"),
                         replace(receipt, data_generation="other"), replace(receipt, status="queued"),
                         replace(receipt, status="running"), replace(receipt, finished_at=None),
@@ -168,7 +178,7 @@ async def test_unknown_external_effect_and_stale_or_blocked_lineages_do_not_retr
             identity = row["lineage_id"]
             await policy.reserve_attempt_on(connection, identity, owner="life", expected_version="v1",
                 attempt_id=name, request_digest="request", route="route", original_state="none")
-            receipt = model_unknown(name, row["data_generation"])
+            receipt = await model_unknown(connection, name, row["data_generation"])
             if name == "external":
                 with pytest.raises(AppError, match="recovery_not_pure_computation"):
                     await policy.record_computation_unknown_on(connection, name, owner="life",
@@ -209,7 +219,7 @@ async def test_late_original_does_not_change_successor_due_or_another_probe(data
         identity = row["lineage_id"]
         await policy.reserve_attempt_on(connection, identity, owner="memory", expected_version="v1",
             attempt_id="a1", request_digest="req", route="A", original_state="none")
-        receipt = model_unknown("a1", row["data_generation"])
+        receipt = await model_unknown(connection, "a1", row["data_generation"])
         await policy.record_computation_unknown_on(connection, "a1", owner="memory", expected_version="v1",
                                                    model_receipt=receipt, random_value=0)
         await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
@@ -253,7 +263,7 @@ async def test_unknown_probe_retry_respects_cooldown_and_transfers_probe(databas
         first = await policy.reserve_attempt_on(connection, identity, owner="growth", expected_version="v1",
             attempt_id="probe-1", request_digest="req", route="A", original_state="none")
         assert first.probe_token == "probe-1"
-        receipt = model_unknown("probe-1", row["data_generation"])
+        receipt = await model_unknown(connection, "probe-1", row["data_generation"])
         await policy.record_computation_unknown_on(connection, "probe-1", owner="growth", expected_version="v1",
                                                    model_receipt=receipt, random_value=0)
         await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
@@ -289,7 +299,7 @@ async def test_confirmed_pure_unknown_can_change_route_without_resetting_budget(
         change = dict(owner="memory", expected_version="v1", expected_dependency="quota-a", new_dependency="quota-b")
         with pytest.raises(AppError, match="recovery_original_not_settled"):
             await policy.update_dependency_on(connection, identity, **change)
-        receipt = model_unknown("route-1", row["data_generation"])
+        receipt = await model_unknown(connection, "route-1", row["data_generation"])
         due = await policy.record_computation_unknown_on(connection, "route-1", owner="memory", expected_version="v1",
                                                           model_receipt=receipt, random_value=0)
         changed = await policy.update_dependency_on(connection, identity, **change)
@@ -338,7 +348,7 @@ async def test_installation_generation_change_fences_unknown_retry(database, pol
         identity = row["lineage_id"]
         await policy.reserve_attempt_on(connection, identity, owner="memory", expected_version="v1",
             attempt_id="generation-1", request_digest="req", route="A", original_state="none")
-        receipt = model_unknown("generation-1", row["data_generation"])
+        receipt = await model_unknown(connection, "generation-1", row["data_generation"])
         await policy.record_computation_unknown_on(connection, "generation-1", owner="memory", expected_version="v1",
                                                    model_receipt=receipt, random_value=0)
         await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",
@@ -360,7 +370,7 @@ async def test_successful_correction_can_continue_past_superseded_unknown(databa
         identity = row["lineage_id"]
         await policy.reserve_attempt_on(connection, identity, owner="growth", expected_version="v1",
             attempt_id="correction-1", request_digest="req", route="A", original_state="none")
-        receipt = model_unknown("correction-1", row["data_generation"])
+        receipt = await model_unknown(connection, "correction-1", row["data_generation"])
         await policy.record_computation_unknown_on(connection, "correction-1", owner="growth", expected_version="v1",
                                                    model_receipt=receipt, random_value=0)
         await connection.execute("UPDATE runtime.recovery_lineages SET due_at=now()-interval '1 second' WHERE lineage_id=%s",

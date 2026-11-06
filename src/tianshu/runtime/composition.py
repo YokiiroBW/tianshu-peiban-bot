@@ -42,6 +42,8 @@ class DomainModule:
     register_tasks: Callable[[Any, RuntimeServices], None] | None = None
     migrations: tuple[Any, ...] = ()
     start_roles: tuple[str, ...] | None = None
+    maintenance: Callable[[RuntimeServices], Awaitable[None]] | None = None
+    maintenance_roles: tuple[str, ...] | None = None
 
 
 MODULE_START_ROLES = {
@@ -54,11 +56,19 @@ MODULE_START_ROLES = {
 }
 
 
+def module_start_roles(module):
+    return module.start_roles if module.start_roles is not None else MODULE_START_ROLES.get(module.name, ())
+
+
+def module_maintenance_roles(module):
+    return module.maintenance_roles if module.maintenance_roles is not None else module_start_roles(module)
+
+
 async def start_module(module, services):
     """Start only the owning role; a local optional failure stays local."""
     if services.module_status.get(module.name, {}).get("state") == "unavailable":
         return False
-    roles = module.start_roles if module.start_roles is not None else MODULE_START_ROLES.get(module.name, ())
+    roles = module_start_roles(module)
     if module.start is None or services.role not in roles:
         return False
     try:

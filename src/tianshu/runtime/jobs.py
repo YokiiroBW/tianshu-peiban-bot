@@ -13,7 +13,8 @@ from typing import Any, Awaitable, Callable, Mapping
 from uuid import uuid4
 
 import procrastinate
-from procrastinate.exceptions import AppNotOpen, ConnectorException
+from procrastinate.exceptions import AppNotOpen, ConnectorException, JobAborted
+from procrastinate.job_context import AbortReason
 from procrastinate.manager import JobManager
 from procrastinate.jobs import Job
 from procrastinate.retry import BaseRetryStrategy, RetryDecision, RetryStrategy
@@ -26,11 +27,20 @@ from .database import classify_database_failure, pool_application_name
 from .errors import AppError
 from .execution import ExecutionLane, TASK_LANES, job_observation, role_for_lane
 from .recovery_policy import RecoveryWait, recovery_wait_retryable
+from . import rbi_execution_budget
 
 DYNAMIC_TASK_LANES = frozenset({
     "conversation.run", "conversation.prepare", "capabilities.execute", "capabilities.media_job",
 })
 _execution_generation: ContextVar[str | None] = ContextVar("tianshu_execution_generation", default=None)
+_execution_identity: ContextVar[tuple[int, int, str] | None] = ContextVar("tianshu_job_execution", default=None)
+
+
+def current_job_execution():
+    """Return a copy of the current native job/ordinal/generation, or None."""
+    current = _execution_identity.get()
+    return ({"job_id": current[0], "native_attempt": current[1], "data_generation": current[2]}
+            if current is not None else None)
 
 
 def current_execution_generation() -> str | None:
@@ -216,6 +226,48 @@ class JobQueue:
         except Exception:
             pass  # Native retry persistence, not this attempt, determines whether it was scheduled.
 
+    async def seed_execution_history_on(self, connection, *, owner, identity, data_generation,
+                                        max_failures, history, complete):
+        return await rbi_execution_budget.seed_execution_history_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures, history=history, complete=complete)
+
+    async def inspect_execution_on(self, connection, *, owner, identity, data_generation, max_failures):
+        return await rbi_execution_budget.inspect_execution_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures)
+
+    async def begin_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt, max_failures):
+        if current_job_execution() != {"job_id": job_id, "native_attempt": native_attempt, "data_generation": data_generation}:
+            raise AppError("execution_current_job_mismatch", status=409)
+        return await rbi_execution_budget.begin_execution_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, job_id=job_id, native_attempt=native_attempt, max_failures=max_failures)
+
+    async def finish_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt,
+                                  outcome, error=None):
+        if current_job_execution() != {"job_id": job_id, "native_attempt": native_attempt, "data_generation": data_generation}:
+            raise AppError("execution_current_job_mismatch", status=409)
+        return await rbi_execution_budget.finish_execution_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, job_id=job_id, native_attempt=native_attempt, outcome=outcome, error=error)
+
+    async def resolve_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt,
+                                   outcome, observation_ref, retry_at=None):
+        return await rbi_execution_budget.resolve_execution_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, job_id=job_id, native_attempt=native_attempt,
+            outcome=outcome, observation_ref=observation_ref, retry_at=retry_at)
+
+    async def observe_execution_history_on(self, connection, *, job_ids, data_generation, task_name, current_job=None):
+        if current_job is not None and current_job != current_job_execution():
+            raise AppError("execution_current_job_mismatch", status=409)
+        return await rbi_execution_budget.observe_execution_history_on(connection, job_ids=job_ids,
+            data_generation=data_generation, task_name=task_name, current_job=current_job)
+
+    async def advance_execution_history_on(self, connection, *, owner, identity, data_generation, max_failures,
+                                           job_id, task_name, current_job=None, limit=128):
+        if current_job is not None and current_job != current_job_execution():
+            raise AppError("execution_current_job_mismatch", status=409)
+        return await rbi_execution_budget.advance_execution_history_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures, job_id=job_id, task_name=task_name,
+            current_job=current_job, limit=limit)
+
     @staticmethod
     async def current_generation_on(connection):
         row = await (await connection.execute(
@@ -336,9 +388,24 @@ class JobQueue:
         elif execution_lane is not None:
             self.unresolved_lanes.discard(name)
         self.task_lanes[name] = lane
+        retry = (ResourceRecoveryRetry(retryable=retryable, resource_recovery=resource_recovery)
+                 if resource_recovery or retryable else False)
+
+        async def release_if_retry(job_context, error):
+            # Procrastinate retries the original doing row as todo. If a
+            # successor already owns its queueing lock, both physical wakes
+            # can coexist only after detaching that lock from the original.
+            job = job_context.job
+            if not retry or not getattr(job, "queueing_lock", None):
+                return
+            if isinstance(error, JobAborted) and job_context.abort_reason() != AbortReason.SHUTDOWN:
+                return
+            if retry.get_retry_decision(exception=error, job=job) is not None:
+                await self._release_retry_queue_lock(job)
 
         async def execute(job_context, **kwargs):
             generation_token = None
+            execution_token = None
             try:
                 try:
                     row = await self.app.connector.execute_query_one_async(
@@ -347,16 +414,20 @@ class JobQueue:
                         "WHERE k.job_id=%(job_id)s AND k.cancelled_at IS NULL LIMIT 1) AS data_generation",
                         job_id=job_context.job.id)
                 except (PoolTimeout, ConnectorException) as error:
-                    marked = _mark_generation_lookup_pool_wait(
+                    _mark_generation_lookup_pool_wait(
                         error, role=getattr(self.database, "role", "unassigned"))
-                    if marked and resource_recovery:
-                        await self._release_retry_queue_lock(job_context.job)
+                    await release_if_retry(job_context, error)
                     # Do not claim it was deferred: the native queue still has to
                     # persist the retry after capacity becomes available.
                     raise
                 if row["data_generation"] is None:
                     raise AppError("job_generation_expired", status=409)
                 generation_token = _execution_generation.set(row["data_generation"])
+                job = job_context.job
+                number = getattr(job, "attempts", None)
+                execution = ((job.id, number, row["data_generation"])
+                             if type(job.id) is int and type(number) is int and number >= 0 else None)
+                execution_token = _execution_identity.set(execution)
                 if self.events:
                     try:
                         await self.events.emit("job.started", "started", task_name=name, job_id=job_context.job.id)
@@ -369,8 +440,7 @@ class JobQueue:
                     recovery_wait = exc if resource_recovery and recovery_wait_retryable(exc) else None
                     deferred = bool(resource_recovery and
                                     (recovery_wait or (resource_failure and resource_failure.retryable)))
-                    if deferred:
-                        await self._release_retry_queue_lock(job_context.job)
+                    await release_if_retry(job_context, exc)
                     if self.events:
                         try:
                             await self.events.emit(
@@ -395,6 +465,8 @@ class JobQueue:
                         pass
                 return result
             finally:
+                if execution_token is not None:
+                    _execution_identity.reset(execution_token)
                 if generation_token is not None:
                     _execution_generation.reset(generation_token)
                 try:
@@ -403,8 +475,6 @@ class JobQueue:
                 except Exception:
                     pass
 
-        retry = (ResourceRecoveryRetry(retryable=retryable, resource_recovery=resource_recovery)
-                 if resource_recovery or retryable else False)
         self.tasks[name] = self.app.task(name=name, retry=retry,
                                          pass_context=True)(execute)
         self.sync_tasks[name] = self.sync_app.task(name=name, retry=retry,

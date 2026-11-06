@@ -17,7 +17,7 @@ from tianshu.models.broker import ModelBroker
 from tianshu.models.client import ModelClient
 from tianshu.models.http import create_broker_app
 from tianshu.models.catalog import NATIVE_PROTOCOLS
-from .composition import DomainModule, RuntimeServices, create_app, start_module
+from .composition import DomainModule, RuntimeServices, create_app, module_maintenance_roles, start_module
 from .database import Database
 from .files import FileStore
 from .events import EventLog
@@ -31,6 +31,10 @@ from .listeners import start_sites
 from .static import register_static
 from .serialization import wire
 from .execution import PROCESS_ROLES, TASK_LANES, role_worker_groups
+
+
+RECOVERY_INTERVAL_SECONDS = 30
+MAINTENANCE_TIMEOUT_SECONDS = 20
 
 
 class ProcessHeartbeat:
@@ -166,9 +170,44 @@ async def recover_notifications(jobs, stop, role, *, reroute_more=False):
         if not jobs.recompute_tasks and not reroute_more:
             return
         try:
-            await asyncio.wait_for(stop.wait(), timeout=30)
+            await asyncio.wait_for(stop.wait(), timeout=RECOVERY_INTERVAL_SECONDS)
         except TimeoutError:
             pass
+
+
+async def maintain_domain(module, services, stop, *, interval=RECOVERY_INTERVAL_SECONDS,
+                          timeout=MAINTENANCE_TIMEOUT_SECONDS):
+    """Run one role-local short callback without blocking its sibling domains."""
+    while not stop.is_set():
+        try:
+            await asyncio.wait_for(module.maintenance(services), timeout=timeout)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            services.module_status.setdefault(module.name, {})["maintenance"] = {
+                "state": "failed", "error": type(exc).__name__}
+        else:
+            services.module_status.setdefault(module.name, {})["maintenance"] = {"state": "ready"}
+        try:
+            await asyncio.wait_for(stop.wait(), timeout=interval)
+        except TimeoutError:
+            pass
+
+
+def start_domain_maintenance(modules, services, stop):
+    """Start at most one callback loop per eligible module, in its owner role."""
+    return tuple(asyncio.create_task(maintain_domain(module, services, stop),
+                                     name="domain-maintenance:" + module.name)
+        for module in modules if module.maintenance is not None
+        and services.role in module_maintenance_roles(module)
+        and services.module_status.get(module.name, {}).get("state") != "unavailable")
+
+
+async def stop_domain_maintenance(tasks):
+    for task in tasks:
+        task.cancel()
+    if tasks:
+        await asyncio.gather(*tasks, return_exceptions=True)
 
 
 def register_domain_tasks(modules, services):
@@ -360,6 +399,8 @@ async def run(settings, role, *, initialize=False):
                             abort_poll_seconds=worker_settings.get("abort_poll_seconds", 2))
                     )
                 )
+            maintenance = start_domain_maintenance(modules, services, stop)
+            stack.push_async_callback(stop_domain_maintenance, maintenance)
 
             async def worker_ready():
                 if role == "operations":
@@ -404,6 +445,9 @@ async def run(settings, role, *, initialize=False):
         )
         await runner.setup()
         stack.push_async_callback(runner.cleanup)
+        if role == "interactive":
+            maintenance = start_domain_maintenance(modules, services, stop)
+            stack.push_async_callback(stop_domain_maintenance, maintenance)
         await start_sites(runner, settings, role)
         heartbeat = ProcessHeartbeat(database, role, registration, ready, jobs=jobs)
         await heartbeat.start()

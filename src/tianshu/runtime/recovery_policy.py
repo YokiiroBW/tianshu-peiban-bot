@@ -6,6 +6,7 @@ request, repeats an external effect, or declares a domain result successful.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import UTC, datetime, timedelta
 from email.utils import parsedate_to_datetime
@@ -118,6 +119,7 @@ class FailureCategory(StrEnum):
     SOURCE_INVALID = "source_invalid"
     UNKNOWN_EFFECT = "unknown_effect"
     INFRASTRUCTURE = "infrastructure"
+    INTERRUPTED = "interrupted"
     OTHER = "other"
 
 
@@ -126,6 +128,8 @@ def classify_failure(code: str | None, *, external_outcome_unknown=False) -> Fai
     if external_outcome_unknown:
         return FailureCategory.UNKNOWN_EFFECT
     value = (code or "").strip().lower()
+    if value == "consumer_interrupted":
+        return FailureCategory.INTERRUPTED
     if any(part in value for part in ("withdraw", "retract", "source_invalid", "source_revoked", "forgotten")):
         return FailureCategory.SOURCE_INVALID
     if any(part in value for part in ("cancel", "supersed", "state_changed", "stale", "revision_conflict", "permission")):
@@ -223,6 +227,50 @@ def _require_model_unknown(receipt, *, attempt_id, generation):
         raise AppError("recovery_model_unknown_unconfirmed", status=409)
 
 
+def validate_model_recovery_facts(facts, *, receipt, expected_status, data_generation):
+    """Compare locked Models facts to the original receipt without touching its table."""
+    if expected_status not in {"failed", "unknown", "cancelled"}:
+        raise ValueError("invalid_model_recovery_status")
+    if not isinstance(receipt, ModelReceipt):
+        raise AppError("recovery_model_receipt_mismatch", status=409)
+    required = {"attempt_id", "intent_id", "status", "dispatch", "error_code", "finished_at",
+                "data_generation", "request_digest", "cancellation_reason"}
+    if not isinstance(facts, Mapping) or not required <= facts.keys():
+        raise AppError("recovery_model_receipt_unconfirmed", status=409)
+    if facts["cancellation_reason"] == "explicit_cancel" or receipt.cancellation_reason == "explicit_cancel":
+        raise AppError("recovery_model_cancelled", status=409)
+    if (not isinstance(facts["finished_at"], datetime) or facts["finished_at"].utcoffset() is None
+            or not isinstance(receipt.finished_at, datetime) or receipt.finished_at.utcoffset() is None
+            or not isinstance(facts["request_digest"], str) or not facts["request_digest"]
+            or not isinstance(receipt.request_digest, str) or not receipt.request_digest
+            or not isinstance(receipt.intent_id, str) or not receipt.intent_id
+            or not isinstance(facts["data_generation"], str) or not facts["data_generation"]
+            or facts["cancellation_reason"] not in {None, "consumer_interrupted", "explicit_cancel"}):
+        raise AppError("recovery_model_receipt_unconfirmed", status=409)
+    if (facts["attempt_id"] != receipt.attempt_id or facts["intent_id"] != receipt.intent_id
+            or facts["data_generation"] != data_generation or receipt.data_generation != data_generation
+            or facts["request_digest"] != receipt.request_digest):
+        raise AppError("recovery_model_receipt_mismatch", status=409)
+    if (receipt.status != expected_status or facts["status"] != expected_status
+            or facts["dispatch"] != receipt.dispatch or facts["error_code"] != receipt.error_code
+            or facts["finished_at"] != receipt.finished_at or facts["cancellation_reason"] != receipt.cancellation_reason
+            or expected_status == "cancelled" and not (
+                receipt.error_code == "consumer_interrupted" and receipt.cancellation_reason == "consumer_interrupted"
+                and facts["cancellation_reason"] == "consumer_interrupted")):
+        raise AppError("recovery_model_outcome_changed", status=409)
+
+
+def _consumer_interruption(receipt):
+    return (isinstance(receipt, ModelReceipt) and receipt.status == "cancelled"
+            and receipt.error_code == "consumer_interrupted"
+            and receipt.cancellation_reason == "consumer_interrupted")
+
+
+def _automatic_failure(row, category):
+    return (category in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}
+            or category == FailureCategory.INTERRUPTED and row["recovery_kind"] == "pure_computation")
+
+
 async def _connection_budget_on(connection, row):
     result = await (await connection.execute(
         "SELECT count(*) AS total FROM runtime.recovery_not_sent WHERE lineage_id=%s",
@@ -280,7 +328,7 @@ async def _restore_failed_due_on(connection, row, attempt, result):
     if (not result["can_retry"] or not result["connection_attempts"]
             or attempt["attempt_number"] != row["attempts"] or row["due_at"] is not None
             or row["claim_token"] or attempt["status"] != "failed"
-            or row["failure_category"] not in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}):
+            or not _automatic_failure(row, row["failure_category"])):
         return row, result
     # fail_attempt_on established Retry-After even if the old budget was
     # exhausted. Keep both the dependency cooldown and any live probe lease.
@@ -347,6 +395,10 @@ class RecoveryPolicy:
             raise AppError("recovery_attempt_not_active", status=409)
         generation = await (await connection.execute(
             "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        interruption_facts = None
+        if _consumer_interruption(model_receipt):
+            from tianshu.models.rbi_outcome_guard import lock_recovery_facts_on
+            interruption_facts = await lock_recovery_facts_on(connection, model_receipt.attempt_id)
         row = await (await connection.execute(
             "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
             (original["lineage_id"],))).fetchone()
@@ -373,7 +425,12 @@ class RecoveryPolicy:
             # failure category are still required; unknown never authorizes it.
             if (model_receipt.status == "failed" and model_receipt.cancellation_reason is None
                     and isinstance(model_receipt.finished_at, datetime) and model_receipt.finished_at.utcoffset() is not None
-                    and isinstance(model_receipt.error_code, str) and classify_failure(model_receipt.error_code) in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}):
+                    and isinstance(model_receipt.error_code, str)
+                    and _automatic_failure(row, classify_failure(model_receipt.error_code))):
+                row, result = await _restore_failed_due_on(connection, row, attempt, result)
+            elif _consumer_interruption(model_receipt) and row["recovery_kind"] == "pure_computation":
+                validate_model_recovery_facts(interruption_facts, receipt=model_receipt, expected_status="cancelled",
+                                              data_generation=row["data_generation"])
                 row, result = await _restore_failed_due_on(connection, row, attempt, result)
             if result["can_retry"]:
                 result["reason"] = "not_confirmed_not_sent"
@@ -585,6 +642,120 @@ class RecoveryPolicy:
             "continuation_attempt_id=NULL,continuation_reason=NULL WHERE lineage_id=%s RETURNING *",
             (new_dependency, identity))).fetchone()
 
+    async def resume_repaired_on(self, connection, lineage_id, *, owner, expected_version,
+                                 original_attempt_id, model_receipt, repair_ref):
+        """Give a known failed original one fenced same-version repair wake.
+
+        The caller owns the repair evidence, frozen request digest comparison,
+        current business head and source/permission checks in this transaction.
+        A repair never settles, retries or replaces the physical attempt itself.
+        """
+        if (not isinstance(repair_ref, str) or not repair_ref.strip() or len(repair_ref) > 256
+                or any(ord(character) < 32 or ord(character) == 127 for character in repair_ref)):
+            raise ValueError("invalid_recovery_repair_ref")
+        if not isinstance(original_attempt_id, str) or not original_attempt_id:
+            raise ValueError("invalid_recovery_attempt")
+
+        def decision(reason=None, retry_at=None):
+            return {"eligible": reason is None, "reason": reason, "lineage_id": lineage_id,
+                    "retry_at": retry_at, "repair_ref": repair_ref}
+
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        from tianshu.models.rbi_outcome_guard import lock_recovery_facts_on
+        facts = await lock_recovery_facts_on(connection, original_attempt_id)
+        row = await (await connection.execute(
+            "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE",
+            (lineage_id,))).fetchone()
+        if not row or row["owner"] != owner:
+            raise AppError("recovery_owner_mismatch", status=409)
+        if not generation or generation["id"] != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        if row["current_version"] != expected_version:
+            raise AppError("recovery_version_changed", status=409)
+        if row["source_withdrawn"]:
+            return decision("recovery_source_withdrawn")
+        if row["cancelled"]:
+            return decision("recovery_cancelled")
+        if row["paused"]:
+            return decision("recovery_paused")
+
+        attempt = await (await connection.execute(
+            "SELECT * FROM runtime.recovery_attempts WHERE attempt_id=%s FOR UPDATE",
+            (original_attempt_id,))).fetchone()
+        if not attempt or attempt["lineage_id"] != lineage_id:
+            raise AppError("recovery_attempt_not_active", status=409)
+        if attempt["version"] != expected_version:
+            raise AppError("recovery_version_changed", status=409)
+        if not isinstance(model_receipt, ModelReceipt) or model_receipt.attempt_id != original_attempt_id:
+            raise AppError("recovery_model_receipt_mismatch", status=409)
+        if model_receipt.data_generation != row["data_generation"]:
+            raise AppError("job_generation_expired", status=409)
+        if model_receipt.status != "failed":
+            return decision("recovery_model_not_failed")
+        if model_receipt.cancellation_reason == "explicit_cancel":
+            raise AppError("recovery_model_cancelled", status=409)
+        if (not isinstance(model_receipt.finished_at, datetime) or model_receipt.finished_at.utcoffset() is None
+                or not isinstance(model_receipt.intent_id, str) or not model_receipt.intent_id
+                or not isinstance(model_receipt.request_digest, str) or not model_receipt.request_digest):
+            return decision("recovery_model_receipt_unconfirmed")
+
+        previous = await (await connection.execute(
+            "SELECT attempt_id,attempt_version,model_intent_id,model_request_digest,models_finished_at "
+            "FROM runtime.recovery_repairs WHERE lineage_id=%s AND repair_ref=%s",
+            (lineage_id, repair_ref))).fetchone()
+        if previous and (previous["attempt_id"] != original_attempt_id
+                or previous["attempt_version"] != expected_version
+                or previous["model_intent_id"] != model_receipt.intent_id
+                or previous["model_request_digest"] != model_receipt.request_digest
+                or previous["models_finished_at"] != model_receipt.finished_at):
+            raise AppError("recovery_repair_ref_conflict", status=409)
+
+        latest = await (await connection.execute(
+            "SELECT attempt_id,attempt_number,status FROM runtime.recovery_attempts WHERE lineage_id=%s "
+            "ORDER BY attempt_number DESC LIMIT 1", (lineage_id,))).fetchone()
+        if (not latest or latest["attempt_id"] != original_attempt_id
+                or latest["attempt_number"] != row["attempts"]):
+            return decision("recovery_attempt_superseded")
+        if attempt["status"] == "unknown":
+            return decision("recovery_original_unknown")
+        if attempt["status"] == "reserved":
+            return decision("recovery_original_in_progress")
+        if attempt["status"] != "failed":
+            return decision("recovery_original_not_failed")
+        active = await (await connection.execute(
+            "SELECT 1 FROM runtime.recovery_attempts a WHERE a.lineage_id=%s "
+            "AND a.status IN ('reserved','unknown') AND NOT EXISTS "
+            "(SELECT 1 FROM runtime.recovery_attempts newer WHERE newer.supersedes_attempt_id=a.attempt_id) LIMIT 1",
+            (lineage_id,))).fetchone()
+        if active:
+            return decision("recovery_original_not_settled")
+        reason = await _budget_reason_on(connection, row)
+        if reason:
+            return decision(reason)
+        if row["claim_token"] and (row["claim_expires_at"] is None or row["claim_expires_at"] > row["now"]):
+            return decision("recovery_claim_in_progress", row["claim_expires_at"])
+        if previous and row["due_at"] is None:
+            # The same authorization must never recreate a consumed wake.
+            return decision("recovery_repair_already_consumed")
+
+        # Models facts were locked before the Runtime lineage and remain held
+        # until this domain transaction commits or rolls back.
+        validate_model_recovery_facts(facts, receipt=model_receipt, expected_status="failed",
+                                      data_generation=row["data_generation"])
+        if not previous:
+            await connection.execute(
+                "INSERT INTO runtime.recovery_repairs(lineage_id,repair_ref,attempt_id,attempt_version,"
+                "model_intent_id,model_request_digest,models_finished_at) VALUES(%s,%s,%s,%s,%s,%s,%s)",
+                (lineage_id, repair_ref, original_attempt_id, expected_version,
+                 model_receipt.intent_id, model_receipt.request_digest, model_receipt.finished_at))
+            if row["due_at"] is None:
+                row = await (await connection.execute(
+                    "UPDATE runtime.recovery_lineages SET due_at=now() WHERE lineage_id=%s RETURNING *,now() AS now",
+                    (lineage_id,))).fetchone()
+        budget = await _budget_mapping_on(connection, row)
+        return decision(retry_at=budget["retry_at"])
+
     async def update_version_on(self, connection, identity, *, owner, expected_version,
                                 current_version, paused=None, cancelled=None,
                                 source_withdrawn=None, resume_due=False):
@@ -682,6 +853,12 @@ class RecoveryPolicy:
             raise ValueError("invalid_recovery_attempt")
         generation = await (await connection.execute(
             "SELECT id FROM runtime.installation_generation WHERE singleton=true FOR SHARE")).fetchone()
+        facts = None
+        if original_state in {"failed", "unknown"} and model_receipt is not None:
+            if not isinstance(model_receipt, ModelReceipt) or not model_receipt.attempt_id:
+                raise AppError("recovery_model_receipt_mismatch", status=409)
+            from tianshu.models.rbi_outcome_guard import lock_recovery_facts_on
+            facts = await lock_recovery_facts_on(connection, model_receipt.attempt_id)
         row = await (await connection.execute(
             "SELECT *,now() AS now FROM runtime.recovery_lineages WHERE lineage_id=%s FOR UPDATE", (identity,))).fetchone()
         if not row or row["owner"] != owner:
@@ -766,6 +943,18 @@ class RecoveryPolicy:
                                dependency=row["dependency"])
         if dependency["cooldown_until"] is not None or dependency["probe_token"]:
             probe = attempt_id
+        if previous and original_state in {"failed", "unknown"} and model_receipt is not None:
+            if not isinstance(model_receipt, ModelReceipt) or model_receipt.attempt_id != previous["attempt_id"]:
+                raise AppError("recovery_model_receipt_mismatch", status=409)
+            # A consumer interruption is a known stopped pure computation,
+            # while the original Models receipt still truthfully says cancelled.
+            interruption = original_state == "failed" and _consumer_interruption(model_receipt)
+            if interruption and row["recovery_kind"] != "pure_computation":
+                raise AppError("recovery_original_not_failed", status=409)
+            # Facts were locked before the Runtime lineage, not after it.
+            validate_model_recovery_facts(facts, receipt=model_receipt,
+                expected_status="cancelled" if interruption else original_state,
+                data_generation=row["data_generation"])
         inserted = await (await connection.execute(
             "INSERT INTO runtime.recovery_attempts(attempt_id,lineage_id,request_digest,route,dependency,version,attempt_number,dependency_probe,continuation_of,continuation_reason,supersedes_attempt_id) "
             "VALUES(%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING attempt_id",
@@ -813,7 +1002,7 @@ class RecoveryPolicy:
         await connection.execute(
             "INSERT INTO runtime.recovery_attempt_observations(attempt_id,status,error_code,observation_ref) "
             "VALUES(%s,%s,%s,%s)", (attempt_id, attempt["status"], code, attempt["observation_ref"]))
-        can_retry = (category in {FailureCategory.TRANSPORT, FailureCategory.INFRASTRUCTURE}
+        can_retry = (_automatic_failure(row, category)
                      and not await _budget_reason_on(connection, row)
                      and not row["paused"]
                      and not row["cancelled"] and not row["source_withdrawn"]
