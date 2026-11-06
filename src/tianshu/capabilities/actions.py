@@ -10,6 +10,7 @@ from uuid import uuid4
 from jsonschema import Draft202012Validator, ValidationError
 from tianshu.types import Action, Attempt, Receipt, ServiceClass
 from tianshu.sources.dependencies import unique_refs
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.serialization import wire
@@ -20,6 +21,17 @@ from .external import execution_service_class
 from .routing import execution_lane
 
 logger = logging.getLogger(__name__)
+_RESULT_HEAD_READ_LIMIT = 3
+
+
+def _result_event(action, receipt, revision, observed_at):
+    """Build the existing result envelope from the persisted Action head."""
+    actual = wire(receipt)
+    return {"type": "capability.result", "version": 1, "event_id": actual["receipt_id"],
+            "action_id": actual["action_id"], "result_revision": revision,
+            "result_observed_at": observed_at.isoformat() if observed_at else None,
+            "context": action["context"], "source_refs": action.get("source_refs", []),
+            "receipt": actual}
 
 
 class Actions:
@@ -299,7 +311,13 @@ class Actions:
         if json.loads(row["document"]).get("data_generation") != data_generation:
             raise Fault("job_generation_expired", 409)
         if row["result_revision"] > result_revision:
-            raise Fault("result_head_advanced", 409)
+            error = Fault("result_head_advanced", 409)
+            # Retain only an internal comparison token; callers see the same
+            # error contract, while a bounded reread can detect a rollback or
+            # a same-version receipt mutation after this locked observation.
+            error._observed_result_head = (row["result_revision"], digest([row["action"], row["receipt"]]),
+                                           row["receipt"].get("receipt_id"))
+            raise error
         if row["result_revision"] < result_revision:
             raise Fault("result_head_regressed", 409)
         if canonical(row["receipt"]) != canonical(wire(expected_receipt)):
@@ -310,6 +328,113 @@ class Actions:
             raise Fault("result_source_set_changed", 409)
         return {"action_id": action_id, "receipt_id": row["receipt"]["receipt_id"],
                 "result_revision": row["result_revision"]}
+
+    async def ensure_result_consumption(self, context, action_id, *, data_generation,
+                                        expected_result_revision=None, expected_receipt_id=None) -> dict:
+        """Hand off only the current original terminal result to its consumer.
+
+        A stale caller may refer to an older head. Each fresh head is source-
+        checked and locked before the event port runs; this never executes or
+        resumes the Action or infers an unknown effect's outcome.
+        """
+        if not isinstance(data_generation, str) or not data_generation:
+            raise Fault("action_generation_unavailable", 400)
+        if (expected_result_revision is None) != (expected_receipt_id is None):
+            raise Fault("result_expectation_incomplete", 400)
+        if expected_result_revision is not None and (
+                type(expected_result_revision) is not int or expected_result_revision < 0
+                or not isinstance(expected_receipt_id, str) or not expected_receipt_id):
+            raise Fault("result_expectation_invalid", 400)
+
+        previous = None
+        observed_head = None
+        for read_number in range(_RESULT_HEAD_READ_LIMIT):
+            snapshot = await self.get(action_id, context)
+            async with self.database.transaction(read_only=True) as connection:
+                if await self.jobs.current_generation_on(connection) != data_generation:
+                    raise Fault("job_generation_expired", 409)
+            action = action_from(snapshot["action"])
+            actual = snapshot["receipt"]
+            revision = snapshot["result_revision"]
+            if (action.action_id != action_id or type(revision) is not int or revision < 0
+                    or not isinstance(actual, dict) or not isinstance(snapshot["attempt"], dict)
+                    or actual.get("action_id") != action_id
+                    or actual.get("attempt_id") != snapshot["attempt"].get("attempt_id")
+                    or not isinstance(actual.get("attempt_id"), str) or not actual["attempt_id"]
+                    or not isinstance(actual.get("receipt_id"), str) or not actual["receipt_id"]):
+                raise Fault("result_receipt_revision_conflict", 409)
+            if expected_result_revision is not None:
+                if revision < expected_result_revision:
+                    raise Fault("result_head_regressed", 409)
+                if ((revision == expected_result_revision and actual["receipt_id"] != expected_receipt_id)
+                        or (revision > expected_result_revision and actual["receipt_id"] == expected_receipt_id)):
+                    raise Fault("result_receipt_revision_conflict", 409)
+            if observed_head is not None:
+                minimum_revision, receipt_digest, observed_receipt_id = observed_head
+                if revision < minimum_revision:
+                    raise Fault("result_head_regressed", 409)
+                if (revision == minimum_revision and receipt_digest is not None
+                        and digest([snapshot["action"], actual]) != receipt_digest):
+                    raise Fault("result_receipt_revision_conflict", 409)
+                if revision > minimum_revision and observed_receipt_id == actual["receipt_id"]:
+                    raise Fault("result_receipt_revision_conflict", 409)
+            if previous is not None:
+                prior_revision, prior_receipt = previous
+                if revision < prior_revision:
+                    raise Fault("result_head_regressed", 409)
+                if ((revision == prior_revision and canonical(actual) != canonical(prior_receipt))
+                        or (revision > prior_revision and actual["receipt_id"] == prior_receipt["receipt_id"])):
+                    raise Fault("result_receipt_revision_conflict", 409)
+            previous = (revision, actual)
+            refs = unique_refs(action.source_refs, result_sources(receipt_from(actual)))
+            fence_error = None
+            try:
+                async with self.database.transaction() as connection:
+                    try:
+                        await self.assert_result_head_on(connection, context, action_id=action_id,
+                            expected_receipt=actual, result_revision=revision,
+                            data_generation=data_generation, source_refs=refs)
+                    except AppError as error:
+                        if error.code == "result_head_advanced":
+                            fence_error = error
+                        raise
+                    head = await (await connection.execute(
+                        "SELECT action,attempt,receipt,result_revision,result_observed_at FROM capabilities.actions "
+                        "WHERE id=%s AND principal_id=%s", (action_id, context.principal_id))).fetchone()
+                    if (not head or head["result_revision"] != revision
+                            or not isinstance(head["attempt"], dict)
+                            or head["attempt"].get("attempt_id") != actual["attempt_id"]
+                            or canonical(head["receipt"]) != canonical(actual)
+                            or canonical(head["action"]) != canonical(snapshot["action"])
+                            or head["result_observed_at"] != snapshot["result_observed_at"]):
+                        raise Fault("result_receipt_revision_conflict", 409)
+                    execution = actual.get("execution")
+                    if execution in {"pending", "running"}:
+                        return {"state": "waiting", "reason": "action_" + execution,
+                                "action_id": action_id, "receipt_id": None, "result_revision": None,
+                                "consumer_progress": {}}
+                    if execution not in {"succeeded", "failed", "cancelled", "unknown"}:
+                        raise Fault("result_receipt_state_invalid", 409)
+                    identity = {"action_id": action_id, "receipt_id": actual["receipt_id"],
+                                "result_revision": revision}
+                    ensure_on = getattr(self.events, "ensure_on", None)
+                    if not callable(ensure_on):
+                        return {"state": "blocked", "reason": "result_events_unavailable",
+                                "consumer_progress": {}, **identity}
+                    outcome = await ensure_on(connection, _result_event(
+                        head["action"], head["receipt"], revision, head["result_observed_at"]))
+                    if (not isinstance(outcome, dict)
+                            or outcome.get("state") not in {"accepted", "waiting", "blocked", "verified"}
+                            or not isinstance(outcome.get("reason"), str) or not outcome["reason"]
+                            or not isinstance(outcome.get("consumer_progress"), dict)):
+                        raise Fault("result_wake_contract_invalid", 503)
+                    return {**outcome, **identity}
+            except AppError as error:
+                # Catch only the fence's own advancement; the transaction has
+                # rolled back before any reread, and all other errors escape.
+                if error is not fence_error or read_number == _RESULT_HEAD_READ_LIMIT - 1:
+                    raise
+                observed_head = getattr(error, "_observed_result_head", (revision + 1, None, None))
 
     async def inspect_recovery(self, action_id, context):
         """Inspect only the canonical Action, attempt, receipt and queue identity."""
@@ -767,20 +892,7 @@ class Actions:
                 and receipt.execution in {"succeeded", "failed", "cancelled", "unknown"}
                 and old["receipt"] != wire(receipt)
             ):
-                await self.events.publish(
-                    conn,
-                    {
-                        "type": "capability.result",
-                        "version": 1,
-                        "event_id": receipt.receipt_id,
-                        "action_id": receipt.action_id,
-                        "result_revision": revision,
-                        "result_observed_at": observed_at.isoformat() if observed_at else None,
-                        "context": old["action"]["context"],
-                        "source_refs": old["action"].get("source_refs", []),
-                        "receipt": wire(receipt),
-                    },
-                )
+                await self.events.publish(conn, _result_event(old["action"], receipt, revision, observed_at))
         if (changed and receipt.execution in {"failed", "unknown"}
                 and receipt.result.get("outcome") != "wait"):
             log = getattr(self.jobs, "events", None)
