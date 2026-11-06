@@ -313,7 +313,7 @@ class GenerationRecovery:
             from tianshu.runtime.recovery_policy import RecoveryWait
             original = await (await connection.execute("SELECT request,state FROM conversation.generation_requests "
                 "WHERE attempt_id=%s",(attempt_id,))).fetchone()
-            if (not observation or not observation["valid"] or not original or original["request"] is None
+            if (not observation or not original or original["request"] is None
                     or original["state"] == "invalidated" or observation["context"] != row["context"]
                     or observation["source_refs"] != row["source_refs"]
                     or observation["request_digest"] != signature(original["request"])):
@@ -331,6 +331,8 @@ class GenerationRecovery:
                     dependency="models:original-observation") from error
         if status == "unknown":
             from .computation_retry import finished_unknown
+            if observation is not None and not observation["valid"]:
+                return "observing", None
             if allow_unknown_retry and finished_unknown(model_receipt, attempt_id, frozen_data_generation(row["recipe"])):
                 due = await self.policy.record_computation_unknown_on(connection, attempt_id,
                     owner=row["recovery_owner"], expected_version=row["recovery_version"],
@@ -360,6 +362,10 @@ class GenerationRecovery:
                 category = classify_failure(code)
             if not interrupted(model_receipt) and category == FailureCategory.OTHER and transient_model_failure(code):
                 category = FailureCategory.TRANSPORT
+            if observation is not None and not observation["valid"] and allow_unknown_retry:
+                # Source/authority loss prevents a recovery schedule even
+                # though the original Models failure itself can be recorded.
+                category = FailureCategory.STATE_CHANGED
             if state == "unknown":
                 due = await self.policy.resolve_unknown_on(connection, attempt_id,
                     observation_ref=f"models:{attempt_id}:{status}", state="failed", code=code or status,
@@ -371,6 +377,10 @@ class GenerationRecovery:
                 due = None
             else:
                 return state, None
+            if observation is not None and not observation["valid"] and allow_unknown_retry:
+                # A confirmed physical failure remains a fact even when its
+                # source can no longer authorize not-sent credit or a retry.
+                return "ineligible", None
             if status == "failed" and model_receipt is not None and allow_unknown_retry:
                 from tianshu.models.codec import request_from_wire
                 from .computation_retry import validate_original_receipt

@@ -2,13 +2,13 @@
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from importlib.resources import files
-from unittest.mock import AsyncMock
 
 import pytest
 
 from test_planner_execution import mark
 from test_rbf_planning_recovery import make_life, run_plan, REST
 from test_rbh_transport_recovery import advance_retry, budget_for
+from test_rbi_models_fixture import record_outcome
 from tianshu.conversation.generation import attempt_for
 from tianshu.life import clock, planning_engine
 from tianshu.runtime.migrations import Migration, migrate
@@ -75,9 +75,9 @@ async def test_new_local_day_can_start_a_new_decision(database,monkeypatch):
 
 
 @pytest.mark.parametrize("change,code",[
-    ({"status":"succeeded"},"recovery_model_outcome_changed"),
-    ({"cancellation_reason":"explicit_cancel"},"recovery_model_cancelled"),
-    ({"request_digest":"different"},"recovery_model_receipt_mismatch"),
+    ("succeeded","recovery_model_outcome_changed"),
+    ("explicit_cancel","recovery_model_cancelled"),
+    ("request_digest","recovery_model_receipt_mismatch"),
 ])
 async def test_planning_recovery_rejects_changed_original_facts(database,monkeypatch,change,code):
     from tianshu.life import rbi_model_recovery as guard
@@ -85,16 +85,40 @@ async def test_planning_recovery_rejects_changed_original_facts(database,monkeyp
     await run_plan(value)
     attempt = attempt_for((await mark(database))["generation_key"])
     frozen = value.broker.requests[attempt]
-    receipt = replace(value.broker.receipts[attempt],status="failed",dispatch="submitted",
-        error_code="upstream_http_429",finished_at=datetime.now(UTC))
-    facts = {name:getattr(receipt,name) for name in ("attempt_id","intent_id","status","dispatch","error_code",
-        "finished_at","data_generation","request_digest","cancellation_reason")}
-    monkeypatch.setattr(guard,"lock_recovery_facts_on",AsyncMock(return_value={**facts,**change}))
-    with pytest.raises(AppError,match=code):
-        await guard.lock_original_on(None,frozen,receipt,value.data_generation)
+    initial = "unknown" if change == "succeeded" else "failed"
+    error = "transport_unknown" if initial == "unknown" else "upstream_http_429"
+    ledger, observed = await record_outcome(database,value.broker,attempt,status=initial,error_code=error)
+    if change == "succeeded":
+        # Models may settle an earlier unknown with a late definite result.
+        await ledger.finish(attempt,"succeeded",dispatch="submitted")
+    elif change == "explicit_cancel":
+        await ledger.request_cancel(attempt,reason="explicit_cancel")
+    else:
+        # Simulate changed frozen-submission evidence, without changing the
+        # previously observed receipt or the Life request.
+        async with database.transaction() as connection:
+            await connection.execute("UPDATE models.submissions SET request_digest='different' WHERE attempt_id=%s",
+                (attempt,))
+    async with database.transaction() as connection:
+        with pytest.raises(AppError,match=code):
+            await guard.lock_original_on(connection,frozen,observed,value.data_generation)
 
 
 async def test_consumer_interruption_keeps_raw_receipt_and_uses_computation_budget(database,monkeypatch):
+    value = await fixture(database,monkeypatch)
+    await run_plan(value)
+    attempt = attempt_for((await mark(database))["generation_key"])
+    _, original = await record_outcome(database,value.broker,attempt,status="cancelled",
+        error_code="consumer_interrupted",cancellation_reason="consumer_interrupted")
+    await run_plan(value)
+    current = await mark(database)
+    budget = await budget_for(database,value.worker.life.recovery_policy,attempt)
+    assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None
+    assert budget["computation_attempts"] == 1 and budget["connection_attempts"] == 0
+    assert value.broker.receipts[attempt] == original
+
+
+async def test_unconfirmed_planning_interruption_keeps_original_attempt(database,monkeypatch):
     value = await fixture(database,monkeypatch)
     await run_plan(value)
     attempt = attempt_for((await mark(database))["generation_key"])
@@ -102,11 +126,10 @@ async def test_consumer_interruption_keeps_raw_receipt_and_uses_computation_budg
         error_code="consumer_interrupted",cancellation_reason="consumer_interrupted",finished_at=datetime.now(UTC))
     await run_plan(value)
     current = await mark(database)
+    assert current["reason"] == "planner_queued" and not current["generation_consumed"]
+    assert current["repair_due_at"] is None and list(value.broker.requests) == [attempt]
     budget = await budget_for(database,value.worker.life.recovery_policy,attempt)
-    assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None
-    assert budget["computation_attempts"] == 1 and budget["connection_attempts"] == 0
-    assert value.broker.receipts[attempt].status == "cancelled"
-    assert value.broker.receipts[attempt].cancellation_reason == "consumer_interrupted"
+    assert budget["total_attempts"] == 1 and budget["connection_attempts"] == 0
 
 
 async def test_429_exhausted_original_stays_stopped_until_real_new_intent_and_shared_cooldown(database,monkeypatch):
@@ -116,13 +139,19 @@ async def test_429_exhausted_original_stays_stopped_until_real_new_intent_and_sh
         await run_plan(value)
         attempt = attempt_for((await mark(database))["generation_key"])
         originals.append(attempt)
-        hold = datetime.now(UTC)+timedelta(minutes=3)
-        value.broker.receipts[attempt] = replace(value.broker.receipts[attempt],status="failed",dispatch="submitted",
-            error_code="upstream_http_429",finished_at=datetime.now(UTC),hold_until=hold)
+        await record_outcome(database,value.broker,attempt,status="failed",error_code="upstream_http_429")
         await run_plan(value)
         current = await mark(database)
+        async with database.transaction(read_only=True) as connection:
+            timing = await (await connection.execute(
+                "SELECT l.due_at,d.cooldown_until,now() AS observed_at FROM runtime.recovery_attempts a "
+                "JOIN runtime.recovery_lineages l ON l.lineage_id=a.lineage_id "
+                "JOIN runtime.recovery_dependencies d ON d.data_generation=l.data_generation "
+                "AND d.dependency=l.dependency WHERE a.attempt_id=%s",(attempt,))).fetchone()
+        assert timing["cooldown_until"] > timing["observed_at"]
         if index < 2:
-            assert current["repair_due_at"] >= hold
+            assert current["repair_due_at"] >= timing["due_at"] > timing["observed_at"]
+            assert current["repair_due_at"] >= timing["cooldown_until"]
             await advance_retry(database,"life.plan_watermarks","actor")
     exhausted = await mark(database)
     assert exhausted["reason"] == "planner_attempts_exhausted" and exhausted["repair_due_at"] is None
@@ -135,10 +164,9 @@ async def test_429_exhausted_original_stays_stopped_until_real_new_intent_and_sh
     assert current["reason"] == "planner_attempts_exhausted" and current["repair_due_at"] is None
     assert current["planned_watermark"] == current["change_watermark"]
     assert current["generation_key"] == exhausted["generation_key"] and list(value.broker.requests) == originals
-    cooldown = datetime.now(UTC)+timedelta(minutes=4)
-    async with database.transaction() as connection:
-        await connection.execute("UPDATE runtime.recovery_dependencies SET cooldown_until=%s,probe_token=NULL,"
-            "probe_expires_at=NULL",(cooldown,))
+    # The exhausted attempt itself must leave the shared Runtime dependency
+    # cooling, including when a real semantic change starts a new lineage.
+    cooldown = timing["cooldown_until"]
     await value.worker.life.signal(value.context,"reconsider:rbi-new-intent",change={"reason":"new constraint"})
     await run_plan(value)
     cooling = await mark(database)

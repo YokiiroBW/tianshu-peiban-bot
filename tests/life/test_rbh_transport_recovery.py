@@ -11,22 +11,17 @@ from historical_support import migrations
 from test_planner_execution import mark
 from test_pure_unknown_recovery import setup_generation
 from test_rbf_planning_recovery import make_life, run_plan
+from test_rbi_models_fixture import record_outcome
 from tianshu.conversation.generation import attempt_for
 from tianshu.life.rbg_plan_operations import RBGPlanOperationsRecovery
 from tianshu.life.planning_engine import PlanningEngine
-from tianshu.models.http_timing import HttpTiming
+from tianshu.models.ledger import receipt as model_receipt
 from tianshu.runtime.errors import AppError
 
 
-def not_sent(receipt, *, headers_sent=None):
-    timing = HttpTiming(receipt.queued_at)
-    timing.connection_reused = False
-    timing.mark("connect_start")
-    if headers_sent is not None:
-        timing.points["headers_sent"] = headers_sent
-    return replace(receipt,status="failed",dispatch="not_started",error_code="transport_not_sent",
-        finished_at=datetime.now(UTC),diagnostic={"category":"not_sent","part_count":0,
-            "text_bytes":0,"part_kinds":[],"native_completed":False},http_timing=timing.record())
+async def not_sent(database, broker, attempt_id, *, headers_sent=None):
+    return await record_outcome(database,broker,attempt_id,status="failed",
+        error_code="transport_not_sent",dispatch="not_started",headers_sent=headers_sent)
 
 
 def capture_reconciliation(monkeypatch):
@@ -79,7 +74,7 @@ async def test_four_confirmed_plan_connect_failures_keep_the_same_three_computat
         current = await mark(database)
         attempt = attempt_for(current["generation_key"])
         originals.append(attempt)
-        value.broker.receipts[attempt] = not_sent(value.broker.receipts[attempt])
+        await not_sent(database,value.broker,attempt)
         await run_plan(value)
         current = await mark(database)
         assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None, {
@@ -106,7 +101,7 @@ async def test_authored_connect_failures_keep_original_recipe_and_budget(databas
         request = value.models.requests[attempt]
         frozen_messages = frozen_messages or request.messages
         assert request.messages == frozen_messages
-        value.models.receipts[attempt] = not_sent(value.models.receipts[attempt])
+        await not_sent(database,value.models,attempt)
         await generate(attempt)
         row = await current()
         assert row["generation_id"] == attempt and row["generation_retry_due_at"] is not None, {
@@ -128,7 +123,8 @@ async def test_mismatched_original_intent_cannot_be_classified(database):
     value = await make_life(database)
     await run_plan(value)
     attempt = attempt_for((await mark(database))["generation_key"])
-    value.broker.receipts[attempt] = replace(not_sent(value.broker.receipts[attempt]),intent_id="wrong-intent")
+    _, original = await not_sent(database,value.broker,attempt)
+    value.broker.receipts[attempt] = replace(original,intent_id="wrong-intent")
     with pytest.raises(AppError,match="recovery_model_receipt_mismatch"):
         await run_plan(value)
     async with database.transaction(read_only=True) as connection:
@@ -141,8 +137,7 @@ async def test_mismatched_original_intent_cannot_be_classified(database):
 async def test_withdrawn_authored_sources_preserve_failure_without_classifying_or_retrying(database,kind):
     value,attempt,generate,_current = await setup_generation(database,kind)
     await generate(attempt)
-    receipt = not_sent(value.models.receipts[attempt])
-    value.models.receipts[attempt] = receipt
+    _, receipt = await not_sent(database,value.models,attempt)
     policy = value.diaries.recovery.policy
     policy.note_not_sent_on = AsyncMock(wraps=policy.note_not_sent_on)
     value.life.sources.validate_persistence = AsyncMock(return_value=False)
@@ -152,9 +147,12 @@ async def test_withdrawn_authored_sources_preserve_failure_without_classifying_o
     assert state == "ineligible" and due is None
     policy.note_not_sent_on.assert_not_awaited()
     async with database.transaction(read_only=True) as connection:
-        original = await (await connection.execute("SELECT status FROM runtime.recovery_attempts WHERE attempt_id=%s",
+        original = await (await connection.execute(
+            "SELECT a.status,a.error_code,l.due_at FROM runtime.recovery_attempts a "
+            "JOIN runtime.recovery_lineages l ON l.lineage_id=a.lineage_id WHERE a.attempt_id=%s",
             (attempt,))).fetchone()
-    assert original["status"] == "failed" and value.models.receipts[attempt] == receipt
+    assert original == {"status":"failed","error_code":"transport_not_sent","due_at":None}
+    assert value.models.receipts[attempt] == receipt
     assert list(value.models.requests) == [attempt]
 
 
@@ -164,7 +162,7 @@ async def test_withdrawn_plan_source_keeps_physical_failure_and_stops_lineage(da
     saved = await mark(database)
     attempt = attempt_for(saved["generation_key"])
     frozen = await value.worker.generations.observe_request(attempt,observer=value.context)
-    value.broker.receipts[attempt] = not_sent(value.broker.receipts[attempt])
+    await not_sent(database,value.broker,attempt)
     value.worker.life.sources.validate_persistence = AsyncMock(return_value=False)
     engine = PlanningEngine(value.worker,data_generation=value.data_generation)
     await engine.computation_failure(value.context,saved,saved["generation_material"],datetime.now(UTC),frozen=frozen)
@@ -187,7 +185,7 @@ async def test_contradictory_send_evidence_still_exhausts_real_computation_budge
         await run_plan(value)
         attempt = attempt_for((await mark(database))["generation_key"])
         originals.append(attempt)
-        value.broker.receipts[attempt] = not_sent(value.broker.receipts[attempt],headers_sent=2.0)
+        await not_sent(database,value.broker,attempt,headers_sent=2.0)
         await run_plan(value)
         if index < 2:
             await advance_retry(database,"life.plan_watermarks","actor")
@@ -198,7 +196,8 @@ async def test_contradictory_send_evidence_still_exhausts_real_computation_budge
     assert len(value.broker.requests) == 3
 
 
-async def test_confirmed_history_reopens_only_the_current_original_and_cancel_stays_stopped(database,monkeypatch):
+@pytest.mark.parametrize("cancel_latest",[False,True])
+async def test_confirmed_history_reopens_only_the_current_original_and_cancel_stays_stopped(database,monkeypatch,cancel_latest):
     from tianshu.life import clock, planning_engine
     monkeypatch.setattr(planning_engine,"awake_window",lambda _routine,now:(now,now+timedelta(hours=6)))
     monkeypatch.setattr(clock,"awake_and_due",lambda _routine,now:(True,now+timedelta(hours=6)))
@@ -216,12 +215,13 @@ async def test_confirmed_history_reopens_only_the_current_original_and_cancel_st
         return await policy.computation_budget_on(connection,row["recovery_lineage_id"],
             owner=owner,expected_version=expected_version)
     monkeypatch.setattr(policy,"note_not_sent_on",old_budget)
-    attempts = []
+    attempts, ledgers = [], []
     for index in range(3):
         await run_plan(value)
         attempt = attempt_for((await mark(database))["generation_key"])
         attempts.append(attempt)
-        value.broker.receipts[attempt] = not_sent(value.broker.receipts[attempt])
+        ledger, _ = await not_sent(database,value.broker,attempt)
+        ledgers.append(ledger)
         await run_plan(value)
         if index < 2:
             await advance_retry(database,"life.plan_watermarks","actor")
@@ -229,11 +229,14 @@ async def test_confirmed_history_reopens_only_the_current_original_and_cancel_st
     assert exhausted["reason"] == "planner_attempts_exhausted" and exhausted["repair_due_at"] is None
     monkeypatch.setattr(policy,"note_not_sent_on",note)
     adapter = RBGPlanOperationsRecovery(value.worker,None)
-    value.broker.receipts[attempts[-1]] = replace(value.broker.receipts[attempts[-1]],cancellation_reason="explicit_cancel")
-    stopped = await adapter.reconcile_transport_waits(limit=10)
-    assert stopped["scheduled"] == 0 and (await mark(database))["repair_due_at"] is None, (stopped,observations)
-    assert ("plan","original_not_retryable") in observations, (stopped,observations)
-    value.broker.receipts[attempts[-1]] = replace(value.broker.receipts[attempts[-1]],cancellation_reason=None)
+    if cancel_latest:
+        await ledgers[-1].request_cancel(attempts[-1],reason="explicit_cancel")
+        value.broker.receipts[attempts[-1]] = model_receipt(await ledgers[-1].get(attempts[-1]))
+        stopped = await adapter.reconcile_transport_waits(limit=10)
+        assert stopped["scheduled"] == 0 and (await mark(database))["repair_due_at"] is None, (stopped,observations)
+        assert ("plan","original_not_retryable") in observations, (stopped,observations)
+        assert (await ledgers[-1].get(attempts[-1]))["cancellation_reason"] == "explicit_cancel"
+        return
     observations.clear()
     result = await adapter.reconcile_transport_waits(limit=10,force=True)
     restored = await mark(database)
@@ -259,7 +262,7 @@ async def test_history_rebinds_original_diary_only_when_closed_day_is_unchanged(
     for index in range(3):
         await generate(attempt)
         attempts.append(attempt)
-        value.models.receipts[attempt] = not_sent(value.models.receipts[attempt])
+        await not_sent(database,value.models,attempt)
         await generate(attempt)
         row = await current()
         if index < 2:

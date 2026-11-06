@@ -1,13 +1,17 @@
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
+from importlib.resources import files
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
 
 from tianshu.life import plan_recovery
-from tianshu.models.types import ModelReceipt
+from tianshu.models.types import ModelReceipt, ModelRequest
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.migrations import Migration, migrate
+from tianshu.types import OriginKind, RequestBudget, ServiceClass, TrustedContext
+from test_rbi_models_fixture import record_outcome
 
 
 @dataclass(frozen=True)
@@ -38,17 +42,44 @@ def previous(state, *, attempts=1, dependency="models:quota:quota"):
         "reason": "planner_output_invalid"}
 
 
-async def reserve(p, old=None, *, quota="quota", continuation=True, model_receipt=None):
-    return await plan_recovery.reserve_on(SimpleNamespace(recovery_policy=p), SimpleNamespace(execute=AsyncMock()),
+async def reserve(p, old=None, *, quota="quota", continuation=True, model_receipt=None,
+                  original_request=None, connection=None):
+    connection = connection or SimpleNamespace(execute=AsyncMock())
+    generation = original_request.data_generation if original_request else "installation-generation"
+    return await plan_recovery.reserve_on(SimpleNamespace(recovery_policy=p), connection,
         context=SimpleNamespace(actor_id="actor"), scene={"actor_id": "actor"}, material="material", key="next",
-        frozen=Request("second-attempt", "route"), profile={"quota_group": quota}, previous=old,
-        continuation=continuation, model_receipt=model_receipt)
+        frozen=Request("second-attempt", "route",generation), profile={"quota_group": quota}, previous=old,
+        continuation=continuation, model_receipt=model_receipt,original_request=original_request)
+
+
+async def original_in_models(database, *, status="failed"):
+    await migrate(database,(Migration("0031_life",files("tianshu.life").joinpath("schema.sql").read_text()),
+        Migration("0040_life_execution",files("tianshu.life").joinpath("rb_life_execution.sql").read_text())))
+    async with database.transaction() as connection:
+        generation = await (await connection.execute(
+            "SELECT id FROM runtime.installation_generation WHERE singleton")).fetchone()
+        await connection.execute("INSERT INTO life.plan_generations"
+            "(generation_key,actor_id,day,material_fingerprint,base_revision,context) "
+            "VALUES('first','actor',current_date,'material',1,'{}')")
+    generation = str(generation["id"])
+    context = TrustedContext("author","actor",None,None,("scope",),("scope",),1,OriginKind.ACTOR)
+    attempt = plan_recovery.attempt_for("first")
+    request = ModelRequest("intent",attempt,"reflect",ServiceClass.ELASTIC,context,
+        RequestBudget(datetime.now(UTC)+timedelta(minutes=2)),(),route_id="route",route_revision=1,
+        execution_timeout_seconds=60,data_generation=generation)
+    queued = ModelReceipt(attempt,"intent","queued","not_started","route",1,"provider","model","native","quota")
+    broker = SimpleNamespace(requests={attempt:request},receipts={attempt:queued})
+    error = "transport_unknown" if status == "unknown" else "upstream_http_429"
+    _, observed = await record_outcome(database,broker,attempt,status=status,error_code=error)
+    return request, observed
 
 
 @pytest.mark.asyncio
-async def test_failed_physical_attempt_and_correction_share_original_lineage():
+async def test_failed_physical_attempt_and_correction_share_original_lineage(database):
     p = policy()
-    await reserve(p, previous("failed"))
+    original, observed = await original_in_models(database)
+    async with database.transaction() as connection:
+        await reserve(p, previous("failed"),connection=connection,original_request=original,model_receipt=observed)
     assert p.reserve_attempt_on.await_args.args[1] == "lineage"
     assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "failed"
     assert p.reserve_attempt_on.await_args.kwargs["claim_token"] == "claim"
@@ -62,44 +93,54 @@ async def test_failed_physical_attempt_and_correction_share_original_lineage():
 
 
 @pytest.mark.asyncio
-async def test_changed_quota_keeps_budget_but_unknown_requires_a_finished_receipt():
+async def test_changed_quota_keeps_budget_but_unknown_requires_a_finished_receipt(database):
     p = policy()
-    await reserve(p, previous("failed"), quota="new-quota")
-    assert p.update_dependency_on.await_args.kwargs["new_dependency"] == "models:quota:new-quota"
-    assert p.reserve_attempt_on.await_args.args[1] == "lineage"
+    original, observed = await original_in_models(database)
+    async with database.transaction() as connection:
+        options = {"connection":connection,"original_request":original,"model_receipt":observed}
+        await reserve(p, previous("failed"), quota="new-quota",**options)
+        assert p.update_dependency_on.await_args.kwargs["new_dependency"] == "models:quota:new-quota"
+        assert p.reserve_attempt_on.await_args.args[1] == "lineage"
 
-    p.reserve_attempt_on.reset_mock()
-    assert (await reserve(p, previous("reserved")))["state"] == "waiting"
-    assert (await reserve(p, previous("unknown")))["state"] == "waiting"
-    p.computation_budget_on.return_value = {"can_retry":False,"reason":"recovery_budget_exhausted"}
-    assert (await reserve(p, previous("failed", attempts=3)))["state"] == "exhausted"
-    p.reserve_attempt_on.assert_not_awaited()
-    p.computation_budget_on.return_value = {"can_retry":True,"reason":"confirmed_not_sent"}
-    await reserve(p, previous("failed", attempts=4))
-    assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "failed"
-    original = ModelReceipt(plan_recovery.attempt_for("first"),"intent","unknown","unknown","route",1,
-        "provider","model","native","quota",finished_at=datetime.now(UTC),data_generation="installation-generation")
-    await reserve(p, previous("unknown"), model_receipt=original)
-    assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "unknown"
-    assert p.reserve_attempt_on.await_args.kwargs["model_receipt"] is original
+        p.reserve_attempt_on.reset_mock()
+        assert (await reserve(p, previous("reserved")))["state"] == "waiting"
+        with pytest.raises(AppError,match="recovery_model_receipt_mismatch"):
+            await reserve(p,previous("unknown"),connection=connection,original_request=original)
+        p.computation_budget_on.return_value = {"can_retry":False,"reason":"recovery_budget_exhausted"}
+        assert (await reserve(p, previous("failed", attempts=3),**options))["state"] == "exhausted"
+        p.reserve_attempt_on.assert_not_awaited()
+        p.computation_budget_on.return_value = {"can_retry":True,"reason":"confirmed_not_sent"}
+        await reserve(p, previous("failed", attempts=4),**options)
+        assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "failed"
 
 
 @pytest.mark.asyncio
-async def test_changed_quota_is_remembered_while_the_claim_is_not_due():
+async def test_finished_unknown_uses_its_original_models_ledger(database):
+    p = policy()
+    original, observed = await original_in_models(database,status="unknown")
+    async with database.transaction() as connection:
+        await reserve(p,previous("unknown"),connection=connection,original_request=original,model_receipt=observed)
+    assert p.reserve_attempt_on.await_args.kwargs["original_state"] == "unknown"
+    assert p.reserve_attempt_on.await_args.kwargs["model_receipt"] is observed
+
+
+@pytest.mark.asyncio
+async def test_changed_quota_is_remembered_while_the_claim_is_not_due(database):
     p = policy()
     p.claim_lineage_due_on.return_value = None
-    connection = SimpleNamespace(execute=AsyncMock())
+    original, observed = await original_in_models(database)
     old = previous("failed")
-    result = await plan_recovery.reserve_on(SimpleNamespace(recovery_policy=p), connection,
-        context=SimpleNamespace(actor_id="actor"), scene={"actor_id": "actor"}, material="material", key="next",
-        frozen=Request("second-attempt", "new-route"), profile={"quota_group": "new-quota"},
-        previous=old, continuation=True)
-    assert result["state"] == "waiting"
-    assert connection.execute.await_args.args[1] == ("models:quota:new-quota", "first")
-    old["recovery_current_dependency"] = "models:quota:new-quota"
-    p.update_dependency_on.reset_mock()
-    await reserve(p, old, quota="new-quota")
-    p.update_dependency_on.assert_not_awaited()
+    async with database.transaction() as connection:
+        options = {"connection":connection,"original_request":original,"model_receipt":observed}
+        result = await reserve(p,old,quota="new-quota",**options)
+        assert result["state"] == "waiting"
+        saved = await (await connection.execute("SELECT recovery_current_dependency FROM life.plan_generations "
+            "WHERE generation_key='first'")).fetchone()
+        assert saved["recovery_current_dependency"] == "models:quota:new-quota"
+        old["recovery_current_dependency"] = "models:quota:new-quota"
+        p.update_dependency_on.reset_mock()
+        await reserve(p, old, quota="new-quota",**options)
+        p.update_dependency_on.assert_not_awaited()
 
 
 @pytest.mark.asyncio
@@ -128,13 +169,12 @@ class Connection:
 
 
 @pytest.mark.asyncio
-async def test_unknown_receipt_is_recorded_then_resolved_only_from_original_result():
+async def test_unknown_receipt_is_recorded_then_resolved_only_from_original_result(database):
     p = policy()
     p.record_computation_unknown_on, p.resolve_unknown_on = AsyncMock(), AsyncMock()
     p.succeed_attempt_on = AsyncMock()
     life, connection = SimpleNamespace(recovery_policy=p), Connection()
-    receipt = ModelReceipt(plan_recovery.attempt_for("first"),"intent","unknown","unknown","route",1,
-        "provider","model","native","quota",finished_at=datetime.now(UTC))
+    _, receipt = await original_in_models(database,status="unknown")
     await plan_recovery.unknown_on(life, connection, "first", receipt)
     assert connection.row["recovery_state"] == "unknown"
     assert p.record_computation_unknown_on.await_args.kwargs["model_receipt"] is receipt

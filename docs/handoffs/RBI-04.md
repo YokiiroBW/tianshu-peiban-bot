@@ -37,3 +37,12 @@
 ## 验证状态
 
 静态解析了本包 27 个 Python 文件，`git diff --cached --check` 通过。本窗口不运行测试、构建、烟测、生产或真实模型/QQ。模块装配、集成测试、实际恢复和生产验收均未完成；不得把源码或测试文件称为已通过的联合验证。
+
+## RBI-07 集中验收返修
+
+- 返修基线为本包 `f943befa74b75d8b093573d565e48650e3311a0d`，集中失败发生在协调者集成基线 `438cf678`。依据 `rest-failures.xml` 与 `remaining-1.xml` 定位，返修提交 SHA 以提交回执为准。
+- 修复一处实际的 Life 回归：`GenerationRecovery.observe_on` 在已确认原 Models 物理失败、但原来源或授权不可用时，不再提前遗失失败事实。它先核对冻结请求及 Models attempt/submission/cancellation 的锁定事实，将原错误写入 Runtime；来源不合格时使用状态变化阻断恢复，返回 ineligible，不记未发送信用、不安排新的重试。未确认或已变化的原回执仍只等待观察；未知结果不能因来源失效被当成失败。
+- 新增的测试帮助模块通过实际 `AttemptLedger.create/started/finish/finish_before_start/request_cancel` 建立隔离的 Models 尝试、提交和取消记录，模型响应本身仍由原 Life 测试 Broker 提供，不表示真实模型调用。日记、章节、规划和传输恢复测试用真实账本回执，并核对原请求、计算预算、取消优先级和未确认时不创建新尝试。历史补证的取消与可恢复场景分别使用独立测试，避免模拟撤销用户明确取消。
+- 规划 429 测试不再把 `ModelReceipt.hold_until` 当成 HTTP Retry-After：Models 将提供方的 Retry-After 保存在自己的 quota cooldown，hold 是尝试的资源占用时间；Life 用例实际核对 Runtime 原 lineage due、共享 dependency cooldown 和耗尽后真实新意图的准入。该用例不验证 Models 调度器对提供方冷却的真实执行。
+- `tests/life/test_rbi_contacts.py` 直接构造真实 `Contacts` 测试事务与幂等。四个结果原子性用例需要协调者已修的共享 Conversation 结果表迁移及 Actions fence 夹具；`tests/life/test_planner_execution.py` 和 `tests/life/test_rbg_result_consumers.py` 继续由协调者单写。
+- 本窗口仅做静态源码解析和 diff 检查，未执行测试、构建或生产操作。请协调者集成后集中复验 `test_rb_plan_recovery.py`、`test_rbh_transport_recovery.py`、`test_rbi_authored_recovery.py`、`test_rbi_planning_trace.py`、`test_rbi_contacts.py`、`test_rbi_result_atomicity.py` 及共享夹具受影响用例；尚不能声称集中失败已通过。
