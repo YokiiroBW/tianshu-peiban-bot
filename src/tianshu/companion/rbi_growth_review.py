@@ -64,7 +64,9 @@ async def _finish(retries, row, generation, *, reason=None, due_at=None, delay=N
         if delay is not None:
             due_at = await database_now_on(connection) + delay
         await _finish_on(retries, connection, saved, generation, reason=reason, due_at=due_at)
-    return {'state': 'review_stopped' if reason else 'review_waiting', 'reason': reason, 'due_at': due_at}
+    if reason:
+        return {'state': 'review_stopped', 'reason': reason}
+    return {'state': 'review_waiting', 'reason': None, 'due_at': due_at}
 
 
 async def block_unclaimable(retries, row, generation, *, reason='growth_recovery_due_unavailable'):

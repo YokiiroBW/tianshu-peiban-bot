@@ -47,3 +47,7 @@
 - Growth 的 retry 和 input 到期判断、修复资格允许后的立即续接、Runtime 预算/冷却比较、Operations 判定、补漏退避及新建定时唤醒，使用数据库 `clock_timestamp()` 或同一数据库查询得到的时间。未来 due 和冷却仍必须等待；输入材料读取后若并发推迟了 due，在领域提交前再次检查并安排原到期时间。
 - 新增客户端时钟快慢、数据库立即到期、未来复核/输入、Runtime 冷却以及材料读取期间推迟 due 的回归用例代码。测试夹具中的 Models 物理尝试执行 deadline 也改为按数据库时间创建；没有引入容差或睡眠，也没有直接移除 future guard。
 - 根明确批准单文件扩围后，既有 `tests/companion/test_rb_growth_operations.py` 的 `ProgressProbe` 和 `metadata` 人工候选已补入各测试对应的 `db_now`，以匹配真实 `_waiting_rows_on`；生产路径没有回退到客户端时间。此文件仍需由根在集中验证中执行。
+
+## 停止响应一致性返修
+
+- 根的时钟返修复验确认其余 Growth 用例通过；source/authorization 两例已正确停止，但 `_finish` 在停止响应中附带 `due_at=None`。现统一为 `state` 与 `reason`，等待响应继续携带真实 `due_at`；沿用既有门禁断言，由根复验。
