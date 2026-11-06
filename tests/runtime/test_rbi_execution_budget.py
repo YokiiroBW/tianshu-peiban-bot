@@ -19,7 +19,9 @@ from tianshu.runtime.recovery_policy import RecoveryWait
 @pytest_asyncio.fixture
 async def queue(database):
     await migrate(database, (Migration("rbi_execution_budget",
-        files("tianshu.runtime").joinpath("rbi_execution_budget.sql").read_text(encoding="utf-8")),))
+        files("tianshu.runtime").joinpath("rbi_execution_budget.sql").read_text(encoding="utf-8")),
+        Migration("rbj_wake", files("tianshu.runtime").joinpath("rbj_wake.sql").read_text(encoding="utf-8")),
+        Migration("rbj_execution_repair", files("tianshu.runtime").joinpath("rbj_execution_repair.sql").read_text(encoding="utf-8"))))
     jobs = JobQueue(database.config.dsn, database=database)
     await jobs.open()
     try:

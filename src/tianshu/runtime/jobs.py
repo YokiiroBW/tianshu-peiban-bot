@@ -28,6 +28,7 @@ from .errors import AppError
 from .execution import ExecutionLane, TASK_LANES, job_observation, role_for_lane
 from .recovery_policy import RecoveryWait, recovery_wait_retryable
 from . import rbi_execution_budget
+from . import rbj_wake
 
 DYNAMIC_TASK_LANES = frozenset({
     "conversation.run", "conversation.prepare", "capabilities.execute", "capabilities.media_job",
@@ -215,10 +216,15 @@ class JobQueue:
         except AppNotOpen:
             return None
 
-    async def _release_retry_queue_lock(self, job):
-        if not getattr(job, "queueing_lock", None):
-            return
+    async def _release_retry_queue_lock(self, job, *, task=None, retry_at=None, retry_delay=None):
         try:
+            if task in rbj_wake.WAKE_TASKS and self.database is not None:
+                async with self.database.transaction() as connection:
+                    if await rbj_wake.release_retry_on(connection, task=task, job_id=job.id,
+                                                       retry_at=retry_at, retry_delay=retry_delay):
+                        return
+            if not getattr(job, "queueing_lock", None):
+                return
             # Keep the original job/key/payload and a concurrent pending wake.
             await self.app.connector.execute_query_async(
                 query="UPDATE procrastinate_jobs SET queueing_lock=NULL "
@@ -231,15 +237,72 @@ class JobQueue:
         return await rbi_execution_budget.seed_execution_history_on(connection, owner=owner, identity=identity,
             data_generation=data_generation, max_failures=max_failures, history=history, complete=complete)
 
-    async def inspect_execution_on(self, connection, *, owner, identity, data_generation, max_failures):
-        return await rbi_execution_budget.inspect_execution_on(connection, owner=owner, identity=identity,
-            data_generation=data_generation, max_failures=max_failures)
+    async def register_execution_repair_on(self, connection, *, owner, repair_ref, repair_revision, defect_key, consumer):
+        from .rbj_execution_repair import register_execution_repair_on
+        return await register_execution_repair_on(connection, owner=owner, repair_ref=repair_ref,
+            repair_revision=repair_revision, defect_key=defect_key, consumer=consumer)
 
-    async def begin_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt, max_failures):
+    async def authorize_execution_repair_on(self, connection, *, owner, identity, data_generation, max_failures,
+                                            repair_ref, repair_revision, defect_key, failure_digest, consumer):
+        from .rbj_execution_repair import authorize_execution_repair_on
+        return await authorize_execution_repair_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref,
+            repair_revision=repair_revision, defect_key=defect_key, failure_digest=failure_digest, consumer=consumer)
+
+    async def bind_execution_repair_job_on(self, connection, *, owner, identity, data_generation, max_failures,
+                                           repair_ref, consumer, job_id):
+        from .rbj_execution_repair import bind_execution_repair_job_on
+        return await bind_execution_repair_job_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref,
+            consumer=consumer, job_id=job_id)
+
+    async def close_execution_repair_on(self, connection, *, owner, identity, data_generation, max_failures,
+                                        repair_ref, consumer, observation_ref):
+        from .rbj_execution_repair import close_execution_repair_on
+        return await close_execution_repair_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref,
+            consumer=consumer, observation_ref=observation_ref)
+
+    async def record_repair_preflight_stop_on(self, connection, *, owner, identity, data_generation,
+                                              repair_ref, consumer, job_id, native_attempt, reason, observation_ref):
+        if current_job_execution() != {"job_id": job_id, "native_attempt": native_attempt, "data_generation": data_generation}:
+            raise AppError("execution_current_job_mismatch", status=409)
+        from .rbj_execution_repair import record_repair_preflight_stop_on
+        return await record_repair_preflight_stop_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, repair_ref=repair_ref, consumer=consumer, job_id=job_id,
+            native_attempt=native_attempt, reason=reason, observation_ref=observation_ref)
+
+    async def adopt_wake_on(self, connection, job_id, *, expected_task, expected_generation,
+                            expected_payload, wake_key):
+        return await rbj_wake.adopt_on(connection, job_id, expected_task=expected_task,
+            expected_generation=expected_generation, expected_payload=expected_payload,
+            wake_key=wake_key, notify=self._notify_pending)
+
+    async def cover_wake_on(self, connection, job_id, *, expected_task, expected_generation, expected_payload,
+                            covered_by_job_id, expected_covering_payload, wake_key, coverage_ref, not_before=None):
+        return await rbj_wake.cover_on(connection, job_id, expected_task=expected_task,
+            expected_generation=expected_generation, expected_payload=expected_payload,
+            covered_by_job_id=covered_by_job_id, expected_covering_payload=expected_covering_payload,
+            wake_key=wake_key, coverage_ref=coverage_ref, not_before=not_before, notify=self._notify_pending)
+
+    async def redact_wake_on(self, connection, job_id, *, expected_task, expected_generation, expected_payload,
+                             redacted_payload, invalidation_ref, wake_object_key=None):
+        return await rbj_wake.redact_wake_on(connection, job_id, expected_task=expected_task,
+            expected_generation=expected_generation, expected_payload=expected_payload, redacted_payload=redacted_payload,
+            invalidation_ref=invalidation_ref, wake_object_key=wake_object_key)
+
+    async def inspect_execution_on(self, connection, *, owner, identity, data_generation, max_failures,
+                                   repair_ref=None, consumer=None):
+        return await rbi_execution_budget.inspect_execution_on(connection, owner=owner, identity=identity,
+            data_generation=data_generation, max_failures=max_failures, repair_ref=repair_ref, consumer=consumer)
+
+    async def begin_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt, max_failures,
+                                 repair_ref=None, consumer=None):
         if current_job_execution() != {"job_id": job_id, "native_attempt": native_attempt, "data_generation": data_generation}:
             raise AppError("execution_current_job_mismatch", status=409)
         return await rbi_execution_budget.begin_execution_on(connection, owner=owner, identity=identity,
-            data_generation=data_generation, job_id=job_id, native_attempt=native_attempt, max_failures=max_failures)
+            data_generation=data_generation, job_id=job_id, native_attempt=native_attempt, max_failures=max_failures,
+            repair_ref=repair_ref, consumer=consumer)
 
     async def finish_execution_on(self, connection, *, owner, identity, data_generation, job_id, native_attempt,
                                   outcome, error=None):
@@ -396,12 +459,15 @@ class JobQueue:
             # successor already owns its queueing lock, both physical wakes
             # can coexist only after detaching that lock from the original.
             job = job_context.job
-            if not retry or not getattr(job, "queueing_lock", None):
+            if not retry:
                 return
             if isinstance(error, JobAborted) and job_context.abort_reason() != AbortReason.SHUTDOWN:
                 return
             if retry.get_retry_decision(exception=error, job=job) is not None:
-                await self._release_retry_queue_lock(job)
+                failure = classify_database_failure(error)
+                wait_at = error.retry_at if isinstance(error, RecoveryWait) and recovery_wait_retryable(error) else None
+                delay = (min(300, 10 * 2 ** min(job.attempts, 5)) if failure and failure.retryable else None)
+                await self._release_retry_queue_lock(job, task=name, retry_at=wait_at, retry_delay=delay)
 
         async def execute(job_context, **kwargs):
             generation_token = None
@@ -434,7 +500,50 @@ class JobQueue:
                     except Exception:
                         pass
                 try:
+                    wake = None
+                    if name in rbj_wake.WAKE_TASKS and self.database is not None:
+                        async with self.database.transaction() as connection:
+                            wake = await rbj_wake.enter_on(connection, task=name, generation=row["data_generation"],
+                                job_id=job_context.job.id, native_attempt=getattr(job_context.job, "attempts", None))
+                        if wake["state"] == "covered":
+                            if self.events:
+                                try:
+                                    await self.events.emit("job.finished", "succeeded", task_name=name,
+                                        job_id=job_context.job.id, error_code="wake_covered",
+                                        dependency_ref="wake-job:" + str(wake["covered_by"]))
+                                except Exception:
+                                    pass
+                            return {"state": "covered", "covered_by": wake["covered_by"]}
+                        if wake["state"] == "invalidated":
+                            if self.events:
+                                try:
+                                    await self.events.emit("job.finished", "succeeded", task_name=name,
+                                        job_id=job_context.job.id, error_code="wake_source_invalidated")
+                                except Exception:
+                                    pass
+                            return {"state": "invalidated", "reason": "source_invalidated"}
                     result = await handler(**kwargs)
+                    if wake and isinstance(result, Mapping) and result.get("state") == "covered":
+                        async with self.database.transaction() as connection:
+                            target = await rbj_wake.record_exit_on(connection, task=name, generation=row["data_generation"],
+                                job_id=job_context.job.id, native_attempt=getattr(job_context.job, "attempts", None))
+                        result = {**result, "covered_by": target}
+                    elif wake and isinstance(result, Mapping) and result.get("state") == "invalidated":
+                        async with self.database.transaction() as connection:
+                            result = await rbj_wake.record_invalidated_exit_on(connection, task=name,
+                                generation=row["data_generation"], job_id=job_context.job.id,
+                                native_attempt=getattr(job_context.job, "attempts", None))
+                    elif wake and wake["state"] == "ready":
+                        try:
+                            async with self.database.transaction() as connection:
+                                await rbj_wake.complete_on(connection, task=name, generation=row["data_generation"],
+                                    job_id=job_context.job.id, native_attempt=getattr(job_context.job, "attempts", None),
+                                    wake_key=wake["wake_key"],
+                                    object_key=wake["object_key"], started_at=wake["started_at"])
+                        except Exception:
+                            # A later wake may run; never turn a committed domain
+                            # result into a reason to replay the domain handler.
+                            pass
                 except BaseException as exc:
                     resource_failure = classify_database_failure(exc)
                     recovery_wait = exc if resource_recovery and recovery_wait_retryable(exc) else None
@@ -460,7 +569,13 @@ class JobQueue:
                     raise
                 if self.events:
                     try:
-                        await self.events.emit("job.finished", "succeeded", task_name=name, job_id=job_context.job.id)
+                        covered = isinstance(result, Mapping) and result.get("state") == "covered"
+                        invalidated = isinstance(result, Mapping) and result.get("state") == "invalidated"
+                        preflight_stopped = isinstance(result, Mapping) and result.get("state") == "preflight_stopped"
+                        await self.events.emit("job.finished", "succeeded", task_name=name, job_id=job_context.job.id,
+                            error_code=("wake_covered" if covered else "wake_source_invalidated" if invalidated
+                                        else "repair_preflight_stopped" if preflight_stopped else None),
+                            dependency_ref="wake-job:" + str(result.get("covered_by")) if covered else None)
                     except Exception:
                         pass
                 return result
@@ -535,7 +650,7 @@ class JobQueue:
         connection.execute("UPDATE runtime.job_keys SET job_id=%s WHERE key=%s", (job_id, spec.key))
         return job_id
 
-    async def enqueue(self, connection, spec: JobSpec, *, queueing_lock=None) -> int:
+    async def enqueue(self, connection, spec: JobSpec, *, queueing_lock=None, wake_object_key=None) -> int:
         """Optionally merge equivalent wake signals under the caller's business lock.
 
         Ordinary jobs retain permanent key idempotency. A coalescing caller must
@@ -548,6 +663,23 @@ class JobQueue:
         if spec.service_class not in {ServiceClass.INTERACTIVE, ServiceClass.DUE, ServiceClass.ELASTIC}:
             raise AppError("invalid_persistent_job_class")
         spec = await self._bind_generation_on(connection, spec)
+        wake_key = object_key = None
+        if wake_object_key is not None and (spec.task not in rbj_wake.WAKE_TASKS or queueing_lock is None):
+            raise AppError("wake_task_not_registered", status=409)
+        if spec.task in rbj_wake.WAKE_TASKS and queueing_lock is not None:
+            wake_key, object_key = rbj_wake.keys(spec.task, queueing_lock, wake_object_key)
+            await rbj_wake.lock_variant_on(connection, spec.task, spec.data_generation, wake_key)
+            await rbj_wake.lock_on(connection, spec.task, spec.data_generation, object_key)
+            await rbj_wake.assert_object_not_invalidated_on(connection, generation=spec.data_generation,
+                                                            task=spec.task, object_key=object_key)
+        if spec.task == "conversation.result":
+            try:
+                protected_digest = rbj_wake.payload_digest(spec.payload)
+            except ValueError:
+                raise AppError("invalid_job_payload") from None
+            await rbj_wake.lock_payload_on(connection, spec.task, rbj_wake.redaction_lock_digest(spec.payload))
+            await rbj_wake.assert_payload_not_invalidated_on(connection, task=spec.task,
+                generation=spec.data_generation, digest=protected_digest, event_hash=rbj_wake.event_digest(spec.payload))
         if queueing_lock is not None:
             if not isinstance(queueing_lock, str) or not queueing_lock:
                 raise AppError("invalid_job_queueing_lock")
@@ -555,16 +687,24 @@ class JobQueue:
         digest = _identity_digest(spec)
         # Check an existing identity before considering a coalesced signal.
         row = await (await connection.execute(
-            "SELECT job_id,task,cancelled_at,payload_digest,subject_id,matter_id,payload_version,data_generation "
+            "SELECT job_id,task,cancelled_at,payload_digest,subject_id,matter_id,payload_version,data_generation,"
+            "wake_key,wake_object_key "
             "FROM runtime.job_keys WHERE key=%s", (spec.key,))).fetchone()
         if row:
             if row["task"] != spec.task or (row["payload_digest"] is not None and row["payload_digest"] != digest):
                 raise AppError("job_identity_conflict", status=409)
             if row["cancelled_at"]:
                 raise AppError("job_cancelled", status=409)
+            if wake_key is not None and row["wake_key"] is not None and (
+                    row["wake_key"] != wake_key or row["wake_object_key"] != object_key):
+                raise AppError("job_identity_conflict", status=409)
             pending = None
             if queueing_lock is not None:
-                pending = await self._coalesce_pending(connection, spec, queueing_lock)
+                pending = (await rbj_wake.coalesce_on(connection, generation=spec.data_generation, task=spec.task,
+                    wake_key=wake_key, object_key=object_key, digest=digest, payload=spec.payload,
+                    scheduled_at=spec.scheduled_at, priority=100 if spec.service_class == ServiceClass.DUE else 0,
+                    notify=self._notify_pending) if wake_key is not None else
+                    await self._coalesce_pending(connection, spec, queueing_lock))
             row = await (await connection.execute(
                 "SELECT job_id,task,cancelled_at,payload_digest,subject_id,matter_id,payload_version,data_generation "
                 "FROM runtime.job_keys WHERE key=%s FOR UPDATE", (spec.key,))).fetchone()
@@ -573,9 +713,22 @@ class JobQueue:
         if queueing_lock is not None:
             if not isinstance(queueing_lock, str) or not queueing_lock:
                 raise AppError("invalid_job_queueing_lock")
-            pending = await self._coalesce_pending(connection, spec, queueing_lock)
+            pending = (await rbj_wake.coalesce_on(connection, generation=spec.data_generation, task=spec.task,
+                wake_key=wake_key, object_key=object_key, digest=digest, payload=spec.payload,
+                scheduled_at=spec.scheduled_at, priority=100 if spec.service_class == ServiceClass.DUE else 0,
+                notify=self._notify_pending) if wake_key is not None else
+                await self._coalesce_pending(connection, spec, queueing_lock))
             if pending is not None:
-                return await self._record_coalesced_key(connection, spec, digest, pending)
+                job_id = await self._record_coalesced_key(connection, spec, digest, pending)
+                if wake_key is not None:
+                    await rbj_wake.assign_key_on(connection, spec.key, wake_key=wake_key, object_key=object_key)
+                return job_id
+        if wake_key is not None:
+            lower = await rbj_wake._not_before_on(connection, spec.data_generation, spec.task, object_key)
+            if lower is not None:
+                now = (await (await connection.execute("SELECT now() AS now")).fetchone())["now"]
+                if lower > (spec.scheduled_at or now):
+                    spec = replace(spec, scheduled_at=lower)
         lane = await self._resolve_lane(connection, spec.task, spec.payload, spec.execution_lane)
         cursor = await connection.execute(
             "INSERT INTO runtime.job_keys(key,task,subject_id,matter_id,payload_digest,payload_version,data_generation) VALUES (%s,%s,%s,%s,%s,%s,%s) "
@@ -590,14 +743,15 @@ class JobQueue:
             await self._check_identity_on(connection, spec, digest, row)
             return row["job_id"]
         task = self.tasks.get(spec.task) or self.route_tasks[spec.task]
-        job_id = await task.configure(
-            connection=connection, queue=lane.value,
-            schedule_at=spec.scheduled_at, queueing_lock=queueing_lock,
-            # Future work never shares a global actor lock that blocks earlier deadlines.
-            priority=100 if spec.service_class == ServiceClass.DUE else 0,
-        ).defer_async(**dict(spec.payload))
+        options = {"connection": connection, "queue": lane.value, "schedule_at": spec.scheduled_at,
+                   "queueing_lock": queueing_lock, "priority": 100 if spec.service_class == ServiceClass.DUE else 0}
+        if wake_key is not None:
+            options["lock"] = rbj_wake.object_lock(spec.task, spec.data_generation, object_key)
+        job_id = await task.configure(**options).defer_async(**dict(spec.payload))
         await connection.execute("UPDATE runtime.job_keys SET job_id=%s WHERE key=%s",
                                  (job_id, spec.key))
+        if wake_key is not None:
+            await rbj_wake.assign_key_on(connection, spec.key, wake_key=wake_key, object_key=object_key)
         return job_id
 
     @staticmethod
@@ -944,7 +1098,10 @@ class JobQueue:
             raise ValueError("one_job_identity_required")
         row = await (await connection.execute(
             "SELECT j.id AS job_id,j.status AS job_state,j.queue_name,j.attempts,"
-            "j.priority,j.scheduled_at,coalesce(j.scheduled_at>now(),false) AS scheduled "
+            "j.priority,j.scheduled_at,coalesce(j.scheduled_at>now(),false) AS scheduled,"
+            "(SELECT k.wake_covered_by FROM runtime.job_keys k WHERE k.job_id=j.id "
+            "AND k.cancelled_at IS NULL AND k.wake_covered_by IS NOT NULL ORDER BY k.created_at,k.key LIMIT 1) AS covered_by,"
+            "EXISTS (SELECT 1 FROM runtime.rbj_wake_redactions r WHERE r.job_id=j.id) AS source_invalidated "
             "FROM procrastinate_jobs j WHERE "
             "(%s::bigint IS NOT NULL AND j.id=%s) OR "
             "(%s::text IS NOT NULL AND j.id=(SELECT job_id FROM runtime.job_keys WHERE key=%s))",
