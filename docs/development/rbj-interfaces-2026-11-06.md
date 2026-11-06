@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.7
+# RBJ 公共合同，2026-11-06，版本 1.8
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -252,5 +252,13 @@ RBJ-04 同时单写 dependencies.py 中向撤回 helper 传递既有 self.jobs �
 Conversation 收到 waiting 后在原 sources.notify 派生通知事务外层抛出 RecoveryWait（source_redaction_lock_busy，dependency=runtime:wake_redaction，使用返回 retry_at），沿已有 resource_recovery 原任务延期，不成功吞掉待办。回滚的是尚未提交的派生通知，Source 权威撤回早已提交；不回滚权威状态、不手动提交调用者事务，不为局部进度加第二业务队列。其他已提交失效保持，未提交局部擦除按原事务重试。仅真实锁未取得可如此等待，普通 SQL/计算错误或提交未知不借此免费重试。
 
 1.7 只补充去敏 waiting/已去敏/缺任务的返回与既有通知延期语义；第11节 preflight-stop、第12节保留未知及第13节索引口径保持，方法参数不变。handler 旧入参遇已去敏 native 时依精确原 action/receipt/revision 和 Runtime 持久失效事实判定本次退出；不恢复正文，不把旧业务推断为未发生，已 begin/unknown 原事实不抹。
+
+## 16. 1.8 成功修复后的重复证明观察
+
+真实集中验收确认：repair 成功的 `finish_execution_on` 使用 `execution:{job_id}:{native_attempt}:completed` 机械引用关闭资格；随后领域用完整原消费证明调用 close，引用不同会触发旧严格字符串冲突。机械完成与领域证明是两个可追溯事实，不能用跳过检查、改写首次关闭引用或只见 closed 就认定业务完成解决。
+
+Runtime 保持 close 的公开签名。只有资格的首次关闭引用精确对应同 generation/identity/grant 的真实 `completed` 执行事实，且历史完整、无 active/unknown 时，才允许把第一个可信领域证明引用绑定到该事实已有的 `observation_ref`。首次 `closed_at/close_observation_ref`、原执行/失败事实均不改；同领域引用重入幂等，不同引用仍冲突。失败、unknown、等待和不对应原完成事实的关闭不走此分支；原领域直接关闭、resolve 关闭继续遵循已有严格证明规则。不新增业务判定、迁移或平行账本。
+
+Conversation 对原 generation/action/receipt/revision、冻结 owner、consumer、disposition 和持久 proof 生成统一稳定引用；历史预算对账 resolve 与 close 使用同一规则。不得从 native succeeded、grant closed 或 Life 行状态推断完整消费证明。合法非应用终态保留自身 disposition 与理由，不改成 done。重复观察只对账原证明，不再运行原 Action/模型/外部发送，原普通四次失败与一次修复失败限制不变。
 
 实现者只完成整块代码、必要用例代码、静态 diff 审阅和提交，不运行测试/构建/烟测/模型/QQ/生产。根收齐后做必要 PG 联合验证，复用未变有效结果；不全量重跑 472 用例。发布和原对象恢复另由根串行执行，本次派发不代表已修复/验证/部署。
