@@ -443,7 +443,10 @@ class ConsolidationWait:
             if not current or batch_snapshot(current) != batch_snapshot(snapshot):
                 return "blocked"
             wait = current["manifest"].get("local_wait")
-            if not wait or current["status"] != "quarantined" or current.get("retry_due_at") and current["retry_due_at"] > datetime.now(UTC):
+            # The persisted due time and lease use PostgreSQL's transaction
+            # clock. Do not let host clock skew delay or advance this wait.
+            if (not wait or current["status"] != "quarantined"
+                    or current.get("retry_due_at") and current["retry_due_at"] > state["lock_time"]):
                 return "blocked"
             resume_status = wait.get("resume_status")
             if resume_status not in ACTIVE | {"quarantined"}:

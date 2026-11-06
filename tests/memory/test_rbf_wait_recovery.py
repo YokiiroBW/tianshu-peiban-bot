@@ -7,6 +7,7 @@ import json
 
 import pytest
 
+from tianshu.memory import consolidation_wait
 from tianshu.models.types import ModelPart, ModelReceipt, ModelResult
 from tianshu.models.codec import request_from_wire
 from tianshu.models.catalog import RoutePlan
@@ -134,6 +135,62 @@ async def test_prepared_wait_keeps_batch_and_lets_later_input_run(core, ordinary
                                             (batch_id,))).fetchall()
     assert restored["status"] == "applied" and restored["step_ids"] == [step_id] and len(attempts) == 1
     assert len(model.submissions) == 2
+
+
+async def test_local_wait_reactivation_uses_database_clock(core, ordinary_users, monkeypatch):
+    alice, _ = ordinary_users
+    model, policy = Model(), RecoveryPolicy()
+    examples.configure(core, model)
+    core.memory.bind_observability(statistics=None, recovery_policy=policy)
+    reserve = policy.reserve_attempt_on
+    blocked = True
+
+    async def wait_once(*args, **kwargs):
+        nonlocal blocked
+        if blocked:
+            blocked = False
+            raise RecoveryWait("recovery_dependency_probe_in_progress", datetime.now(UTC) + timedelta(minutes=5),
+                               dependency="models:fixture")
+        return await reserve(*args, **kwargs)
+
+    monkeypatch.setattr(policy, "reserve_attempt_on", wait_once)
+    item = await examples.episode(core, alice, "rbf-wait-database-clock")
+    partition, _ = await batch_for_episode(core, item.episode_id)
+    await core.workers.consolidate(partition)
+    _, waiting = await batch_for_episode(core, item.episode_id)
+    assert waiting["status"] == "quarantined" and not model.submissions
+    batch_id, step_id = waiting["batch_id"], waiting["step_ids"][0]
+
+    class HostClock(datetime):
+        offset = timedelta(hours=1)
+
+        @classmethod
+        def now(cls, tz=None):
+            return datetime.now(tz) + cls.offset
+
+    monkeypatch.setattr(consolidation_wait, "datetime", HostClock)
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE memory.consolidation_batches SET retry_due_at=now()+interval '5 minutes' "
+                           "WHERE batch_id=%s", (batch_id,))
+    # A fast client clock must not make a real future database deadline due.
+    assert await core.memory.consolidation.waits.reactivate(batch_id, owner=None) == "blocked"
+    async with core.database.transaction(read_only=True) as conn:
+        unchanged = await (await conn.execute("SELECT status,step_ids FROM memory.consolidation_batches "
+                                              "WHERE batch_id=%s", (batch_id,))).fetchone()
+    assert unchanged["status"] == "quarantined" and unchanged["step_ids"] == [step_id]
+    assert not model.submissions
+
+    await force_batch_due(core, batch_id)
+    HostClock.offset = -timedelta(hours=1)
+    # A slow client clock must not suppress a wait already due in PostgreSQL.
+    assert await core.memory.consolidation.waits.reactivate(batch_id, owner=None) == "active"
+    monkeypatch.setattr(consolidation_wait, "datetime", datetime)
+    await core.workers.consolidate(partition)
+    async with core.database.transaction(read_only=True) as conn:
+        restored = await (await conn.execute("SELECT status,step_ids FROM memory.consolidation_batches "
+                                             "WHERE batch_id=%s", (batch_id,))).fetchone()
+    assert restored["status"] == "applied" and restored["step_ids"] == [step_id]
+    assert len(model.submissions) == 1
 
 
 @pytest.mark.parametrize("stale_episode", [False, True])
