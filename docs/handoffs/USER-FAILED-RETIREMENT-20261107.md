@@ -64,3 +64,17 @@ python -m tianshu.operations.failed_work_cleanup --settings <实际配置路径>
 
 生产完成后请回收实际退役/归档/跳过数量和原因，并核对原快照中 Episodes、Models unknown 和 Action unknown 的摘要。
 自然增长的数据单独核对，不能要求总量静止。本批不修复聊天准入、日记材料续接、模型测试或商汤协议问题。
+
+## 协调者最终发布与执行回执
+
+最终产品f9a98a8a45792f782ba85badac1259ebb1f0c777，镜像sha256:310a8b825c44a4b143fce629a75038d6ee9991e8434e98b761266642f7d72523，容器abd5ce916e14e3439cacb7874ebff4c7ec773465c1552d3233ab9c531af74544。北京时间2026-11-07 03:11:51六角色ready、HTTP200、0重启/无OOM，容量与巡检active，配置SHA/11挂载/原代际/其他2容器保持。初版0c4f9abf新增唯一user_work_retirement，停写迁移前后35张既有表数量、原Action和75条unknown相同；Runtime受影响域备份保留。
+
+原清单预览保存后，逐对象领域端口实际退役Runtime968/1182、Memory450/452、Growth14/17，归档Operations68/79，共1500，保护跳过230。Runtime194关联unknown Action、20有RBI执行证明；Memory2原模型未决；Growth2原模型未决和1非已知终态失败；Operations6未知问题、5CAS变化。清单外当前quota_group_not_configured与新告警保留，未扩清单。
+
+6861经历原ID/revision/正文/来源/结果摘要、全部1182原生任务和452Memory原行保持；14退役Growth原行摘要保持。原74条及执行时75条Models unknown、3条Action unknown、604个execution facts/1份repair/5份grant/6份repair job完整摘要不变。两条未退役waiting Growth行由正常维护自然更新。原失败/原预算/unknown不改，不重放或发QQ/模型测试。
+
+上线后真实RuntimeDiagnostics.tasks初版计数因逐行work_is_retired在约15.7万任务上超时，已由根f9a98a8a改同语义集合anti-join（现场0.091秒、可见failed214），最终实际默认列表、退役job精确失败历史和proof job可见性均通过；IncidentStore默认18/含归档86且默认无归档项，Memory原failed452中450已退役、Growth原未完成17中14已退役。原2323条经历整理失败仍如实保留，不能当业务恢复。24acfc60仅补Memory退休状态可读文案，同一最终发布完成。
+
+原60个不同受影响PG用例有效结果复用，根补修AST/diff、不可变镜像构建及实际只读查询/端口通过；没有重跑全套，另一分支679bbc45的新断言未运行、未合入。临时PG在0测试库/0其他连接后按精确owner与容器ID销毁，专属目录及本地临时凭据已删除。
+
+精确结构化回执及保护校验位于协调者.runtime/failed-cleanup-20261107/execution-final.json、execution-receipt.md、preservation-verification.json；两次发布分别在.runtime/user-failed-retirement-release-20261107和.runtime/user-failed-retirement-final-20261107。本批只处理用户历史失败工作，不含聊天准入、日记对账、模型测试及DSF修复。

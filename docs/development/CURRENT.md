@@ -1,3 +1,9 @@
+# 2026-11-07 失败工作退役与旧告警归档已执行
+
+唯一生产写者01a1ac6f-8494-7f82-8c4d-ec7d285f44ae已串行上线f9a98a8a45792f782ba85badac1259ebb1f0c777（镜像310a8b825c44）。北京时间03:11:51六角色ready、HTTP200、0重启/无OOM，配置/11挂载/代际/其他2容器保持。新增唯一user_work_retirement增量迁移，只追加管理退役元数据；原1730候选中实际Runtime968、Memory450、Growth14、Operations68，共1500，另230因unknown/执行证明/CAS或非终态保护保留。经历原文、失败账本、原请求/回执/预算与74条原及75条当前模型unknown、3条Action unknown保持；归档不等于resolved。
+
+复用60个不同受影响PG用例有效结果；现场发现大表计数逐行函数超时，根补成集合anti-join，同现场0.091秒，最终真实默认列表及精确历史读回通过，Memory退役文案同时补齐。临时PG及凭据已按owner销毁。本批没有修复真实回复准入/超时、日记材料对账、模型测试或DSF协议，不称全链路收敛。详见docs/handoffs/USER-FAILED-RETIREMENT-20261107.md；下方为历史阶段。
+
 # 2026-11-07 机器人连接器卡片及全局读取已修复上线
 
 实际线上c277d7ea929edccefa9fa006eebb54a59b39b57b，镜像ec15ff59214c。北京时间2026-11-07 02:08:08六角色ready、HTTP200、0重启/无OOM，守护及巡检active，配置SHA/11挂载/其他两个容器保持。恢复QQ/OneBot、Telegram、NoneBot、AstrBot卡片入口，复用原Identity/Channels表单连续配置。channels/view按每个角色重新取得现有Identity权限后校验，修复全局actor=None误过滤全部连接；真实账号权限下只读管理处理器发布前0条、发布后2条，原连接配置和身份摘要不变。未运行测试、未备份或迁移数据库，未做浏览器或QQ/模型验收；4项回归用例仅已补代码。详见docs/handoffs/BOT-CONNECTOR-CARDS-20261107.md。下方为历史阶段。
