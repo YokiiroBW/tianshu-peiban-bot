@@ -682,11 +682,14 @@
         ],
         "branch": "codex/rbj-native-runtime-20261106",
         "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-runtime\\tianshu-peiban-bot",
-        "status": "assigned",
+        "status": "local_integrated_verified_not_deployed",
         "contract": "2.1",
         "model": "gpt-6.1-terra",
         "thinking": "max",
-        "service_tier": "default"
+        "service_tier": "default",
+        "implementation_commit": "1e16b553b788fe7a73493f62e979408a6dbc3087",
+        "integrated_commit": "908dba0dacc38a1813122d781426e9cc83db0d2f",
+        "handoff_commit": "edd229e977f851e09acf85dfda0caf6f887cc5df"
       },
       {
         "id": "RBJ-10",
@@ -701,14 +704,36 @@
         ],
         "branch": "codex/rbj-native-conversation-20261106",
         "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-native-conversation\\tianshu-peiban-bot",
-        "status": "assigned",
+        "status": "local_integrated_verified_not_deployed",
         "contract": "2.1",
         "model": "gpt-6.1-terra",
         "thinking": "max",
-        "service_tier": "default"
+        "service_tier": "default",
+        "implementation_commit": "a6a2ae0ad06e6c674a9f32380c1708178d4e33d7",
+        "integrated_commit": "e3a945ac",
+        "handoff_commit": "a6a2ae0ad06e6c674a9f32380c1708178d4e33d7"
       }
     ],
     "followup_frozen_at": "2026-11-06T14:30:27.236512+00:00",
-    "ordinary_native_race_confirmed": "Same observer-before-begin path is reachable; prospective trusted enqueue markers only, never retro-mark old jobs."
+    "ordinary_native_race_confirmed": "Same observer-before-begin path is reachable; prospective trusted enqueue markers only, never retro-mark old jobs.",
+    "native_admission_validation": {
+      "state": "verified",
+      "product_commit": "7cc1f85c1eb296ba446107c60e68757bdeb6e86b",
+      "product_code_commit": "908dba0dacc38a1813122d781426e9cc83db0d2f",
+      "passed": 139,
+      "failed": 0,
+      "error": 0,
+      "skipped": 0,
+      "cases": 139,
+      "reports": [
+        "native-admission.json",
+        "legacy-fixtures.json"
+      ],
+      "reused_passes": 135,
+      "targeted_fixture_passes": 4,
+      "initial_fixture_failures_retained": 4,
+      "production_repair_complete": false,
+      "evidence_directory": ".runtime/rbj-native-execution-20261106"
+    }
   }
 }

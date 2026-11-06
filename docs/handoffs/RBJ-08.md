@@ -25,3 +25,14 @@
 业务验收尚未通过：首目标5bca45d3...经正常端口授权grant1、派发repair145703。Operations先观察其ordinal0 native started557219并持久化unknown，worker预检被该fact挡住，持久日志error_code=execution_repair_already_started。ordinal1随后写准确unknown stop并native succeeded，但Life仍未apply新rev5、无consumer proof/aggregate，不能称完成。普通失败4、repair失败0、原grant与unknown均保持；其余四项资格暂停。发布后新增两个delivery是旧external unknown/已有aggregate缺完整consumer proof的观察投影，不能当新外部执行或强补成功。
 
 冻结合同2.0及新卡RBJ-09/10交既有Runtime/Conversation窗口处理native-inflight和可信not_started对账；根集中必要验证后串行补发。自然新增业务样本尚未证明，不关闭原问题。
+
+
+## 准入补修集中验证与补发准备
+
+Runtime 1e16b553→908dba0d、Conversation a6a2ae0a→e3a945ac，合同2.1及新命名rbj_native_admission迁移已装配在产品和执行两条公共路径。新普通物理结果只在可信发布时持久标记，旧job/adopt/coalesce不补标；原生inflight与业务begin分开，真unknown与其它doing仍阻断；历史分页沿同native保留精确未应用出口，不刷新预算或重建外部Action。
+
+11个受影响用例文件集中PG最终139个不同用例通过，0失败/错误/跳过；首运行135通过、4旧夹具失败均保留。根7cc1f85c只让旧历史/租约用例经公开Queue创建未标旧任务，再按真实事件发布/采用，未删除marker或放宽unknown、lease、receipt及budget断言，4个定向重跑通过；未变135不重复运行。原279例中未变有效结果继续复用，不重跑完整472旧套件。完整真实Sources/Life/Goal/Memory及新普通/repair观察交错、同native分页、not_started精确机械对账和真实unknown保护已覆盖；并非仅stub结果。
+
+补发使用新不可变源码镜像，仅Runtime有新增增量迁移，因此该次停写仅再备份Runtime，原四域备份/源镜像/事实与原生历史保留。实际原145703:0仍待新版本上线后，由根受限脚本逐项核验不可变e317代码、同序号持久日志、原事件与来源/Action/Life CAS/租约，再公开resolve追加not_started。其原unknown/evidence/recorded_at保留，不以稍后ordinal1的退出或native succeeded推导；随后只复用grant1和原结果正常恢复。其余四条同样先核对新鲜权威与来源再签发原consumer受限资格。
+
+独立巡检仍报告Memory新批连续403，45个关联回执均同主路由、未见可关联备用路由尝试，未调整路由/配置或制造模型测试。同期部分池commit_unknowns增加但未建立具体对象关联，不能据计数改写或重放未知。此处仅保留问题和证据，不称本批全部业务已收敛。
