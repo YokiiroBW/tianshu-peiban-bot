@@ -184,8 +184,9 @@
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
   gap: var(--space-4);
 }
-.model-function-card {
+.model-function {
   display: grid;
+  align-content: start;
   gap: var(--space-3);
   min-width: 0;
   padding: var(--space-4);
@@ -193,16 +194,17 @@
   border-radius: var(--radius-panel);
   background: var(--color-input);
 }
-.model-function-card h4,
-.model-function-card p {
+.model-function h4,
+.model-function p {
   margin: 0;
   overflow-wrap: anywhere;
 }
-.model-function-card label {
+.model-function label {
   display: grid;
   gap: var(--space-2);
+  min-width: 0;
 }
-.model-function-card select {
+.model-function select {
   width: 100%;
   min-width: 0;
   min-height: var(--control-height);
@@ -213,6 +215,25 @@
   color: var(--color-text);
   font: inherit;
 }
+.model-function fieldset {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+  margin: 0;
+  padding: var(--space-3);
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+}
+.model-function fieldset .models-actions label {
+  flex: 1 1 100%;
+}
+.model-function fieldset .models-actions {
+  min-width: 0;
+  max-width: 100%;
+}
+.model-function fieldset .button {
+  justify-self: start;
+}
 .model-function-effective {
   font-size: var(--text-small);
 }
@@ -221,6 +242,9 @@
   .models-actions {
     align-items: stretch;
     flex-direction: column;
+  }
+  .model-function fieldset .models-actions label {
+    flex: 0 1 auto;
   }
 }
 
@@ -388,14 +412,6 @@
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
   gap: 0.8rem;
 }
-.model-function {
-  padding: 1rem;
-  border: 1px solid var(--color-line);
-  border-radius: var(--radius-panel);
-  display: grid;
-  gap: 0.6rem;
-}
-.model-function label,
 .models > label {
   display: grid;
   gap: 0.4rem;

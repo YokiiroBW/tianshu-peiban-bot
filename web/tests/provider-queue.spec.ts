@@ -90,3 +90,33 @@ test("model binding saves ordered fallback routes with the current revision", as
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0]).toMatchObject({ function: "chat", route_id: "primary", fallback_routes: ["backup-b", "backup-a"], expected_revision: 3 });
 });
+
+test("long model routes and fallback controls stay inside their cards", async ({ page }) => {
+  await nativeSession(page);
+  const longId = `provider-${"longidentifier".repeat(8)}`;
+  const provider = { provider_id: "p", name: "测试供应商", base_url: "https://example.test", protocol: "openai.chat", enabled: true, revision: 1 };
+  const route = (id: string) => ({ route_id: id, provider_id: "p", model: `model-${longId}`, quota_group: id, enabled: true, revision: 1, verified_capabilities: ["text"], verification: null, parameters: {} });
+  const catalog = {
+    providers: [provider], routes: [route(longId), route(`${longId}-backup`)], quota_groups: [],
+    bindings: ["*", "chat"].map((functionId) => ({ function: functionId, service_class: "interactive", actor_id: "", route_id: longId, fallback_routes: [`${longId}-backup`], revision: 1 })),
+    functions: ["chat", "vision"], protocols: ["openai.chat"], embedding_profile: null,
+  };
+  await page.route(apiPath("models/catalog"), (route) => answer(route, catalog));
+  await page.goto("/#/settings/models");
+  const cards = page.locator(".model-function");
+  await expect(cards).toHaveCount(3);
+  const overflows = await cards.evaluateAll((elements) => elements.flatMap((card) => {
+    const bounds = card.getBoundingClientRect();
+    return Array.from(card.querySelectorAll("p, label, select, fieldset, button"))
+      .filter((element) => {
+        const rect = element.getBoundingClientRect();
+        return rect.left < bounds.left - 1 || rect.right > bounds.right + 1;
+      })
+      .map((element) => `${element.tagName}: ${element.textContent?.slice(0, 60)}`);
+  }));
+  expect(overflows).toEqual([]);
+  const chat = page.getByRole("heading", { name: "对话", exact: true }).locator("..");
+  await expect(chat.getByLabel("备用路由 1")).toHaveValue(`${longId}-backup`);
+  await chat.getByRole("button", { name: "移除" }).click();
+  await expect(chat.getByLabel("备用路由 1")).toHaveCount(0);
+});
