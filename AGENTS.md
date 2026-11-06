@@ -1,3 +1,11 @@
+# 2026-11-06 RBJ 来源求值、可靠唤醒与原结果修复已授权
+
+用户已要求“分发给对应窗口修复”。本批 RBJ-01 至 RBJ-07 复用既有 Sources/Runtime/Capabilities/Conversation/Life/Growth/Memory 窗口，新独立分支与工作树，不续写旧完成卡，不创建新聊天或子代理。按 docs/development/source-result-repair-plan-2026-11-06.md、rbj-interfaces-2026-11-06.md 和 rbj-work-packages 本号卡；准确状态以 rbj-dispatch-2026-11-06.json 为准。第一批五实现者，Growth/Memory 排队，根释放名额前只阅读不写产品/用例。
+
+统一 gpt-6.1-terra/max/普通速度。实现者整块代码、必要用例代码与静态 diff 审阅后提交，不运行测试/构建/烟测/生产/真实模型或QQ命令；根收齐集中必要验证，复用未变成功结果。actions.py 本批只归 Capabilities，result events/consumer/ledger 只归 Conversation，Life 保留领域应用；所有 module.py、runtime/product、全局 types、既有 schema/迁移注册、配置/依赖、共享记录和生产仍归唯一协调者01a1ac6f-8494-7f82-8c4d-ec7d285f44ae。
+
+保留六角色、原ID/请求/回执/unknown、来源权限/版本/CAS/代际、总attempt与原预算，不清库或重放未知效果。偶发403/429及备用路由不改。本条是本地修复派发，不表示已验证/部署；下方为历史阶段。用户已授权本批既有窗口相互派发和向根回执。
+
 # 2026-11-06 RBI 已授权并保留数据发布
 
 用户明确要求“发布部署”。唯一协调/生产写者仍为01a1ac6f-8494-7f82-8c4d-ec7d285f44ae；.230已运行44590b88，六角色就绪、配置/11挂载/代际及其他容器保持。RBI-08已执行正常原对象恢复，仍有上游403、来源校验超时/结果消费及外部unknown，详见docs/handoffs/RBI-08.md。14:04自然巡检及14:12摘要已回收，业务未整体收敛，不把已部署当业务完成；不重放unknown、不reset预算、不发QQ测试。本条覆盖下方本地阶段“未部署”，其余归属与保护要求保持。
