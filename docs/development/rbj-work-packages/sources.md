@@ -18,6 +18,7 @@
 5. 添加无正文现场拓扑夹具的必要用例代码：195 节点/8252 边规模、64→65→更深、新回执同事务可见、范围/权限 epoch/撤回、替代组短路、有/无出口循环、缺来源和预算。覆盖公共读取及 Memory 撤回/检索的关联调用行为。编写而不运行。
 6. 1.4 补充 archives.lock_selected 的锁闭包：selected/writable/alias_keys 的 supports/alias 扩展须有界，并和本次公共调用的锁后新鲜复核、证明求值共享预算；不得先完整展开再 LIMIT。保留有序共享/独占锁和集合变化回滚，不截断锁集继续提交。添加深图、高扇出 alias、预算耗尽、锁等待期间集合变化，以及受影响归档/撤回/更正的必要用例代码。实际运行仍由根集中执行。
 7. 锁闭包实现收口：register_archive 可移除仅用于锁 seed 的冗余 bound 预读，由完整 extra_aliases/新根/write_ids 发现锁集；保留锁后权威绑定/撤回/片段/版本判断，并将元数据读取和逐记录证明计入同一公共调用预算。多记录后段预算耗尽必须回滚本事务前面已写记录，不能伪装 allowed=false 后继续提交。其他公开写入口仅沿同一“锁→证明”链传递私有预算，不扩大为整模块重构；交接列出实际受影响入口供根选取必要验证。
+8. evidence.py 的 prove_many_on(lock=True) 同属该链，允许显式传递私有预算，贯穿 manifest 展开、锁定与后续证明，不按 EvidenceSet/子组重置；lock=False 与 register_on 复用既有证明/validate_persistence 路径。保留 required/generation/alternative 语义、缺失证据 false、确定性 ID 和既有业务上限；技术预算耗尽抛错，公共签名和证据注册权限不改。
 
 ## 独占可写文件
 
@@ -25,6 +26,7 @@
 - `src/tianshu/sources/service.py`
 - `src/tianshu/sources/ports.py`
 - `src/tianshu/sources/archives.py`
+- `src/tianshu/sources/evidence.py`
 - `src/tianshu/sources/rbj_*.py`
 - `src/tianshu/sources/rbj_*.sql`
 - `tests/sources/test_rbj_*.py`
