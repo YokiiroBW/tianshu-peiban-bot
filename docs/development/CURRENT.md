@@ -1,8 +1,8 @@
 # 2026-11-06 RBJ-03 已交付待集成，Growth 已释放名额
 
-用户要求把完整方案分发给对应既有窗口。公共合同/独占路径已按[队列](rbj-queue-2026-11-06.md)冻结。Sources、Runtime、Capabilities、Conversation、Life 均已收到新卡并确认开始，Growth/Memory 均已回执排队、未启动实现，根释放名额前只读。七个新工作树同起点ec4b26a6，模型gpt-6.1-terra/max普通速度；精确窗口/状态见[记录](rbj-dispatch-2026-11-06.json)。六角色与领域所有权保留；生产仍为RBI-08版本，本批尚未验证/部署。
+用户授权的RBJ修复继续使用既有窗口与独立工作树。Sources、Runtime、Conversation、Life、Growth 五包已确认开发中；Capabilities 的 RBJ-03 已整块提交待集中集成/验证，Memory 的 RBJ-07 继续排队。七个工作树同起点ec4b26a6，模型gpt-6.1-terra/max普通速度；精确提交/状态见[记录](rbj-dispatch-2026-11-06.json)。六角色与领域所有权保留；生产仍为RBI-08版本，本批尚未验证/部署。
 
-RBJ-03 已提交 f6c6955d，根已核对提交/交接与路径归属，尚未集成或行为验证。释放该实现名额后已向 Growth 正式发出 RBJ-06 启动指令，Memory 继续排队；Sources 锁前/锁后闭包已加入本卡，合同1.4为d888b8dc，公开签名保持。上段五包启动/两包排队为初始派发截面，当前状态以JSON为准。
+RBJ-03 已提交 f6c6955d，根已核对提交/交接与路径归属，尚未集成或行为验证。释放该实现名额后Growth 已回执 RBJ-06 正式开始，Memory 继续排队；Sources 锁前/锁后闭包已加入本卡，合同1.4为d888b8dc，公开签名保持。当前状态以JSON为准。
 
 统一gpt-6.1-terra/max普通速度。实现者只写整块代码、必要用例和静态审阅后提交，根集中必要验证及共享装配；不清数据、重置预算、重放unknown或发QQ测试。偶发403/429和备用路由不改。下方为历史截面。
 
