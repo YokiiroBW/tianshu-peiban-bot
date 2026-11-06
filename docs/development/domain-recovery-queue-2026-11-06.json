@@ -385,7 +385,7 @@
       "priority": "P0",
       "owner": "Models",
       "title": "invalid_upstream_response 准确归因与原输出复用证据",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "depends_on": [
         "RBI-00"
       ],
@@ -429,7 +429,7 @@
       "priority": "P0",
       "owner": "Memory",
       "title": "新鲜回执驱动续接、原批恢复与本域补漏",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "depends_on": [
         "RBI-00"
       ],
@@ -451,7 +451,8 @@
         "tests/memory/test_rbh_memory_transport_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py",
         "docs/handoffs/RBI-03.md",
-        "src/tianshu/memory/rbh_transport.py"
+        "src/tianshu/memory/rbh_transport.py",
+        "src/tianshu/memory/consolidation_wait.py"
       ],
       "deliverables": [
         "同次权威观测原子同步领域投影和 Runtime 记账，直接传递新鲜 outcome",
@@ -488,7 +489,7 @@
       "conditional_priority": "P1 planning investigation",
       "owner": "Life",
       "title": "稳定观察原 Action、可靠唤醒与条件式规划修复",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "depends_on": [
         "RBI-00"
       ],
@@ -562,7 +563,7 @@
       "priority": "P0",
       "owner": "Growth",
       "title": "按真实失败分类恢复原反思批与本域补漏",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "depends_on": [
         "RBI-00",
         "RBI-01",
@@ -586,7 +587,8 @@
         "tests/companion/test_growth_output.py",
         "tests/companion/test_rb_growth_pure_retry.py",
         "tests/companion/test_rbh_growth_receipt_sources.py",
-        "docs/handoffs/RBI-05.md"
+        "docs/handoffs/RBI-05.md",
+        "tests/companion/test_rb_growth_operations.py"
       ],
       "deliverables": [
         "先复现 waiting 但 Runtime due=NULL 的衔接风险",
@@ -623,7 +625,7 @@
       "priority": "P0",
       "owner": "Conversation",
       "title": "成功结果消费停滞、恢复观察空转与前台本域补漏",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "depends_on": [
         "RBI-00"
       ],
@@ -647,7 +649,8 @@
         "src/tianshu/capabilities/rbi_result_head.py",
         "src/tianshu/conversation/rendering.py",
         "src/tianshu/conversation/service.py",
-        "src/tianshu/conversation/expression.py"
+        "src/tianshu/conversation/expression.py",
+        "tests/conversation/test_expression_order.py"
       ],
       "deliverables": [
         "先关联四个原/恢复消费任务的准确错误和事务结果，不用未关联QueryCanceled替代归因",
@@ -684,7 +687,7 @@
       "priority": "P1",
       "owner": "Logs/Operations",
       "title": "业务推进、物理未知与逐项采样覆盖",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "depends_on": [
         "RBI-00"
       ],

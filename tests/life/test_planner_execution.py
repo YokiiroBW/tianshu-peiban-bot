@@ -345,13 +345,16 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
         None,
     )
     await restarted.plan("actor", 1, wire(fixture.context), fixture.data_generation)
-    assert (await mark(database))["reason"] == "planner_retry_wait"
+    # This fixture has no finished physical receipt: keep observing the same
+    # attempt, rather than qualifying a computation retry from an in-memory value.
+    assert fixture.models.actual.receipt.finished_at is None
+    assert (await mark(database))["reason"] == "planner_running"
     refreshed = replace(fixture.context, access_epoch=2)
     fixture.worker.life.identity.epoch=2
     await restarted.plan("actor", 1, wire(refreshed), fixture.data_generation)
     current = await mark(database)
-    assert current["generation_key"] == key and current["generation_consumed"] is True
-    assert current["reason"] == "planner_retry_wait" and current["repair_due_at"] is not None
+    assert current["generation_key"] == key and current["generation_consumed"] is False
+    assert current["reason"] == "planner_running" and current["next_due_at"] is not None
     assert len(fixture.models.calls) == 1 and not fixture.actions.calls
     assert all(attempt == original.attempt_id for attempt, _ in fixture.models.observations)
     async with database.transaction(read_only=True) as connection:
@@ -360,9 +363,13 @@ async def test_lost_response_and_refreshed_clock_only_observe_original_attempt(d
                 "SELECT request,attempt_id FROM conversation.generation_requests"
             )
         ).fetchall()
+        wake = await (await connection.execute(
+            "SELECT min(scheduled_at) AS due FROM procrastinate_jobs WHERE task_name='life.plan' "
+            "AND status='todo' AND args->>'actor_id'='actor'")).fetchone()
     assert len(rows) == 1 and rows[0]["attempt_id"] == original.attempt_id
     assert rows[0]["request"]["context"]["access_epoch"] == 1
     assert rows[0]["request"]["budget"]["deadline_at"] == original.budget.deadline_at.isoformat()
+    assert wake["due"] is not None
 
 
 @pytest.mark.asyncio

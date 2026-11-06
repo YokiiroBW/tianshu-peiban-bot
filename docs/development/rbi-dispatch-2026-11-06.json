@@ -124,7 +124,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
       "branch": "codex/rbi-models-20261106",
       "card": "docs/development/rbi-work-packages/models.md",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -178,7 +178,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -197,7 +197,8 @@
         "tests/memory/test_rbh_memory_transport_recovery.py",
         "tests/memory/test_rbf_wait_recovery.py",
         "docs/handoffs/RBI-03.md",
-        "src/tianshu/memory/rbh_transport.py"
+        "src/tianshu/memory/rbh_transport.py",
+        "src/tianshu/memory/consolidation_wait.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
@@ -237,7 +238,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -320,7 +321,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -342,7 +343,8 @@
         "tests/companion/test_growth_output.py",
         "tests/companion/test_rb_growth_pure_retry.py",
         "tests/companion/test_rbh_growth_receipt_sources.py",
-        "docs/handoffs/RBI-05.md"
+        "docs/handoffs/RBI-05.md",
+        "tests/companion/test_rb_growth_operations.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
@@ -385,7 +387,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -404,7 +406,8 @@
         "src/tianshu/capabilities/rbi_result_head.py",
         "src/tianshu/conversation/rendering.py",
         "src/tianshu/conversation/service.py",
-        "src/tianshu/conversation/expression.py"
+        "src/tianshu/conversation/expression.py",
+        "tests/conversation/test_expression_order.py"
       ],
       "code_base": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
       "dependency_state": "公共语义冻结，可推进独立实现；正式共享装配由根负责",
@@ -445,7 +448,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
       "branch": "codex/rbi-observability-20261106",
       "card": "docs/development/rbi-work-packages/observability.md",
-      "status": "integrated_pending_validation",
+      "status": "integration_followup",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -721,6 +724,53 @@
     "status": "running",
     "database": "task-owned disposable pgvector, 192.168.31.230:25026",
     "production_data_used": false,
-    "test_commands_in_implementer_windows": false
+    "test_commands_in_implementer_windows": false,
+    "runs": [
+      {
+        "label": "central-1",
+        "source": "438cf678",
+        "passed": 12,
+        "failed": 20,
+        "state": "stopped_at_failure_limit"
+      },
+      {
+        "label": "central-rest",
+        "source": "438cf678",
+        "passed": 293,
+        "failed": 17,
+        "errors": 2,
+        "state": "interrupted_on_legacy_event_wait",
+        "evidence": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\central-rest-progress-recovered.json"
+      },
+      {
+        "label": "rest-failures",
+        "source": "438cf678",
+        "passed": 0,
+        "failed": 17,
+        "errors": 2,
+        "state": "failed_cases_reproduced"
+      },
+      {
+        "label": "remaining-1",
+        "source": "7e34b2a7",
+        "passed": 47,
+        "failed": 25,
+        "state": "completed"
+      },
+      {
+        "label": "memory-diagnostic",
+        "source": "7e34b2a7",
+        "passed": 2,
+        "state": "diagnostic_timing_only_not_final_repair_evidence"
+      }
+    ],
+    "unique_passing_before_repairs": 352,
+    "open_failure_classes": [
+      "database/client due-clock boundary",
+      "Model cancel receipt enrichment",
+      "Life physical failure projection and real ledger fixtures",
+      "legacy expression Action authority and release fence",
+      "missing isolated fixture schemas"
+    ]
   }
 }
