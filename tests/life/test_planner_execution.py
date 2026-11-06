@@ -156,6 +156,19 @@ class Actions:
             "result_observed_at": datetime.now(UTC),
         }
 
+    async def assert_result_head_on(self, connection, context, *, action_id, expected_receipt,
+                                    result_revision, data_generation, source_refs=()):
+        # An explicit in-memory port double; real Action row locking has its
+        # own PostgreSQL integration coverage.
+        current = await self.get(action_id, context)
+        if current["result_revision"] > result_revision:
+            raise AppError("result_head_advanced", status=409)
+        if current["result_revision"] < result_revision:
+            raise AppError("result_head_regressed", status=409)
+        if current["receipt"] != wire(expected_receipt):
+            raise AppError("result_receipt_revision_conflict", status=409)
+        return {"action_id": action_id, "result_revision": result_revision}
+
 
 async def setup(database, output, *, lose_response=False, capability_id="content.read"):
     await migrate(

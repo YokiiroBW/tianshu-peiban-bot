@@ -30,6 +30,7 @@ async def fixture(database, *, activity=True, state="running", turn=True, intent
     await migrate(database, (
         Migration("rbg_submission", files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text()),
         Migration("rbg_results", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text()),
+        Migration("rbi_result_reconcile", files("tianshu.conversation").joinpath("rbi_result_reconcile.sql").read_text()),
     ))
     context = replace(value.context, conversation_id="chat")
     action_id = str(uuid5(NAMESPACE_URL, intent)) if intent.startswith("commitment:") else "original-action"
@@ -49,6 +50,17 @@ async def fixture(database, *, activity=True, state="running", turn=True, intent
             assert requested == action_id
             return {"action": wire(action), "receipt": wire(self.current), "result_revision": self.revision,
                     "result_observed_at": observed_at}
+
+        async def assert_result_head_on(self, connection, context, *, action_id, expected_receipt,
+                                        result_revision, data_generation, source_refs=()):
+            current = await self.get(action_id, context)
+            if current["result_revision"] > result_revision:
+                raise AppError("result_head_advanced", status=409)
+            if current["result_revision"] < result_revision:
+                raise AppError("result_head_regressed", status=409)
+            if current["receipt"] != wire(expected_receipt):
+                raise AppError("result_receipt_revision_conflict", status=409)
+            return {"action_id": action_id, "result_revision": result_revision}
 
         async def handler(self, _action):
             return value.worker.catalog.handler("content.read")
@@ -142,11 +154,20 @@ async def test_parallel_delivery_uses_one_consumer_claim_and_one_episode(databas
     value = await fixture(database, turn=False)
     value.memory.entered, value.memory.release = asyncio.Event(), asyncio.Event()
     first = asyncio.create_task(value.consumer.consume(value.event()))
-    await value.memory.entered.wait()
-    with pytest.raises(RecoveryWait):
-        await value.consumer.consume(value.event())
-    value.memory.release.set()
-    await first
+    entered = asyncio.create_task(value.memory.entered.wait())
+    try:
+        done, _ = await asyncio.wait((first, entered), timeout=5, return_when=asyncio.FIRST_COMPLETED)
+        if first in done:
+            await first
+        assert entered in done and entered.result(), "consumer did not reach its transaction"
+        with pytest.raises(RecoveryWait):
+            await value.consumer.consume(value.event())
+        value.memory.release.set()
+        await first
+    finally:
+        value.memory.release.set()
+        entered.cancel()
+        await asyncio.gather(first, entered, return_exceptions=True)
     await value.consumer.consume(value.event())
     async with database.transaction(read_only=True) as connection:
         episodes = await (await connection.execute("SELECT count(*) AS n FROM test_result_episodes")).fetchone()
@@ -269,7 +290,7 @@ async def test_recovery_rechecks_source_under_lock_before_adding_an_original_eve
         saved = await (await connection.execute("SELECT original_job_id,data_generation FROM conversation.result_deliveries")).fetchone()
         await connection.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (saved["original_job_id"],))
     value.worker.life.sources.validate_persistence = AsyncMock(return_value=False)
-    recovery = ResultRecovery(database, value.jobs, value.consumer.identity)
+    recovery = ResultRecovery(database, value.jobs, value.consumer.identity, actions=value.actions)
     with pytest.raises(AppError, match="source_unavailable"):
         await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
             action_id=value.action.action_id, receipt_id=value.original.receipt_id, result_revision=1)
@@ -291,7 +312,7 @@ async def test_unconfirmed_remote_rollback_stays_blocked_and_is_not_requeued(dat
     value.consumer.renderer.on_action_result = AsyncMock(side_effect=error)
     with pytest.raises(RecoveryWait):
         await value.consumer.consume(value.event())
-    recovery = ResultRecovery(database, value.jobs, value.consumer.identity)
+    recovery = ResultRecovery(database, value.jobs, value.consumer.identity, actions=value.actions)
     candidates = await recovery.candidates()
     assert candidates[0]["eligible"] is False and candidates[0]["reason"] == "result_consumer_blocked"
     with pytest.raises(AppError, match="result_consumer_blocked"):
@@ -313,7 +334,7 @@ async def test_failed_native_result_job_requeues_exact_original_event_without_ca
         saved = await (await connection.execute("SELECT original_job_id,data_generation FROM conversation.result_deliveries "
             "WHERE receipt_id='original-receipt'")).fetchone()
         await connection.execute("UPDATE procrastinate_jobs SET status='failed' WHERE id=%s", (saved["original_job_id"],))
-    recovery = ResultRecovery(database, value.jobs, value.consumer.identity)
+    recovery = ResultRecovery(database, value.jobs, value.consumer.identity, actions=value.actions)
     candidates = await recovery.candidates()
     assert any(item["target"]["id"] == str(saved["original_job_id"]) for item in candidates)
     queued = await recovery.recover_result(saved["original_job_id"], data_generation=saved["data_generation"],
@@ -336,7 +357,7 @@ async def test_progress_observes_future_retry_other_wake_and_live_consumer_witho
         saved = await (await connection.execute("SELECT original_job_id,data_generation FROM conversation.result_deliveries")).fetchone()
         await connection.execute("UPDATE runtime.job_keys SET created_at=now()-interval '1 hour' WHERE job_id=%s", (saved["original_job_id"],))
         await connection.execute("UPDATE procrastinate_jobs SET scheduled_at=%s WHERE id=%s", (future, saved["original_job_id"]))
-    recovery = ResultRecovery(database, value.jobs, value.consumer.identity)
+    recovery = ResultRecovery(database, value.jobs, value.consumer.identity, actions=value.actions)
     facts = await recovery.candidates()
     assert len(facts) == 1 and facts[0]["due_at"] == future and facts[0]["waiting_dependency"]
     agent = OperationsAgent.__new__(OperationsAgent)
