@@ -28,6 +28,7 @@ def waiting(**changes):
         'cancelled': False, 'claimed': False, 'cooldown_until': None,
         'probe_token': None, 'probe_status': None,
         'attempt_id': attempt_for('material'), 'attempt_status': 'failed',
+        'db_now': NOW,
     }
     return {**row, **changes}
 
@@ -94,10 +95,16 @@ class ProgressProbe(GrowthOperations):
 async def test_progress_reports_only_sanitized_rows_and_checks_the_original():
     # Rows may contain private implementation fields; none are copied to Ops.
     now = datetime.now(UTC)
-    rows = [waiting(due_at=now-timedelta(days=1), lineage_due_at=now-timedelta(days=1), secret='do not report'),
-            waiting(retry_key='changed', revision=5, due_at=now-timedelta(days=1), lineage_due_at=now-timedelta(days=1)),
-            waiting(retry_key='unavailable', due_at=now-timedelta(days=1), lineage_due_at=now-timedelta(days=1)),
-            waiting(retry_key='future', due_at=now+timedelta(days=1), lineage_due_at=now-timedelta(days=1))]
+    rows = [
+        waiting(due_at=now-timedelta(days=1), lineage_due_at=now-timedelta(days=1), db_now=now,
+                secret='do not report'),
+        waiting(retry_key='changed', revision=5, due_at=now-timedelta(days=1),
+                lineage_due_at=now-timedelta(days=1), db_now=now),
+        waiting(retry_key='unavailable', due_at=now-timedelta(days=1),
+                lineage_due_at=now-timedelta(days=1), db_now=now),
+        waiting(retry_key='future', due_at=now+timedelta(days=1),
+                lineage_due_at=now-timedelta(days=1), db_now=now),
+    ]
     probe = ProgressProbe(rows, {'retry': {'eligible': True, 'version': '3'},
         'changed': {'eligible': True, 'version': '4'},
         'unavailable': AppError('source_unavailable')})
@@ -116,8 +123,8 @@ async def test_operations_wakes_only_the_guarded_current_retry(monkeypatch):
     row = {'actor_id': 'actor', 'scope_key': 'scope', 'retry_key': 'retry',
            'current_material_key': 'material', 'state': 'waiting', 'revision': 3,
            'batch': {'context': {}, 'runtime_generation': generation}}
-    meta = waiting(due_at=datetime.now(UTC)-timedelta(minutes=3),
-                   lineage_due_at=datetime.now(UTC)-timedelta(minutes=3))
+    now = datetime.now(UTC)
+    meta = waiting(due_at=now-timedelta(minutes=3), lineage_due_at=now-timedelta(minutes=3), db_now=now)
     state = {'actor_id': 'actor', 'scope_key': 'scope', 'runtime_generation': generation, 'active_batch': None}
     current = {'latest': row}
 
