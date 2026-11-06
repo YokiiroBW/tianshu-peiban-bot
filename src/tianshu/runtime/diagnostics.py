@@ -40,9 +40,12 @@ class RuntimeDiagnostics:
             ).fetchall()
             counts = await (
                 await conn.execute(
-                    "SELECT queue_name,status,count(*) AS count "
-                    "FROM procrastinate_jobs WHERE NOT runtime.work_is_retired('runtime',jsonb_build_object('job_id',id)) "
-                    "GROUP BY queue_name,status"
+                    "SELECT j.queue_name,j.status,count(*) AS count "
+                    "FROM procrastinate_jobs j WHERE NOT EXISTS ("
+                    "SELECT 1 FROM runtime.user_work_retirements r "
+                    "JOIN runtime.installation_generation g ON g.singleton AND g.id::text=r.data_generation "
+                    "WHERE r.owner='runtime' AND r.object_key=jsonb_build_object('job_id',j.id)) "
+                    "GROUP BY j.queue_name,j.status"
                 )
             ).fetchall()
         return {"jobs": [job_observation(row) for row in jobs], "counts": counts,
