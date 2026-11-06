@@ -29,3 +29,9 @@
 - `tests/companion/test_rbi_growth_recovery.py` 编写了真实 Models/Runtime 账本夹具，覆盖原 due 缺口、旧等待旁路、已知修复与相同引用、原材料 revision、预算/取消/换代、真实 429、真实 `cancelled/consumer_interrupted`、原成功重解析和纠正次数；需要合入最新 Models、Runtime 与其迁移后，在显式隔离的 PostgreSQL 环境运行。
 - `tests/companion/test_rbi_growth_maintenance.py` 覆盖原生 todo 合并、doing 与后继、游标推进、lane 轮转、无权威缺失原因时的延后观察；需由协调者在同一集成环境运行，并联合验证 Sources/Models/Runtime 锁序及取消先后线性化。既有相关 Growth 用例中若使用不落 Models 账本的替身，应按真实权威回执合同调整，不能以替身通过冒称跨域通过。
 - 历史 `invalid_upstream_response` 目标的原阶段和故障类型仍不可得：不能据此声称已经修复、编造 `repair_ref` 或重发；本实现会明确停止。已恢复的 15 个旧批次以及本轮 429 后恢复的 5 批/10 个 reviewed 版本未在本窗口重做或验证；实际材料 revision 2、线上收敛与业务结果由协调者独立核对。
+
+## 事实核验增量
+
+- 增量代码提交 `300d1a64c944ed3372d8cadfa0d3b5c3aa1ec71f`，依赖 Runtime 新增的 `validate_model_recovery_facts`。Growth 在原 attempt 的 Models 事实锁下、Runtime 首个 lineage 写操作前，核对 fresh receipt 的实际状态、原请求身份与代际；修复资格、后继 claim/reserve 及基于原回执的 unknown 记账均走此路径。来源或取消已失效时的原始历史归档不伪造成可续接事实。
+- 仅当原回执同时满足 `status=cancelled`、`error_code=consumer_interrupted`、`cancellation_reason=consumer_interrupted` 才视为可续接的消费者中断。unknown 在事实未确认、身份不一致或状态发生变化时保持原请求观察，不据此提交后继。
+- 已补真实 Models 账本回归代码：在最后一次回执读取后、领取前提交明确取消，断言拒绝新 attempt；另覆盖没有消费者中断原因的 cancelled 回执。此增量仅做了 5 个 Python 文件的 AST 解析和 `git diff --check`，没有运行用例。协调者仍须合并 Runtime 并集中验证实际锁序、拒绝码和竞争事务。
