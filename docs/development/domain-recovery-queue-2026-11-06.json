@@ -1,0 +1,780 @@
+{
+  "schema_version": 1,
+  "planning_id": "RBI-20261106",
+  "date": "2026-11-06",
+  "timezone": "Asia/Shanghai",
+  "state": "dispatch_preparing",
+  "canonical_queue": "docs/development/domain-recovery-queue-2026-11-06.md",
+  "design": "docs/development/domain-recovery-plan-2026-11-06.md",
+  "scope": "保留六角色与领域状态机，修复新鲜回执续接、可靠观察唤醒、已知失败修复后领取和领域有界补漏",
+  "product_implementation_started": false,
+  "dispatch_performed": false,
+  "production_operations_performed": false,
+  "baseline": {
+    "integration_checkout": "C:/Users/Administrator/.codex/worktrees/rb-integration/tianshu-peiban-bot",
+    "integration_head": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
+    "integration_tracked_changes_at_inspection": false,
+    "production_revision_from_existing_record": "aa5662b74e172facf2cda62294adfeb23a15a178",
+    "production_rechecked_via_device_in_this_queue_task": false,
+    "patrol_summary_as_of": "2026-11-06T02:09:27.289775+00:00",
+    "patrol_summary_local_time": "2026-11-06T10:09:27+08:00",
+    "previous_patrol_summary_as_of": "2026-11-05T17:07:39.447850+00:00",
+    "patrol_observed_at": "2026-11-06T02:04:46.931268+00:00",
+    "patrol_thread": "01a1a772-e809-7d61-82da-427139b602b2",
+    "patrol_turn": "01a1ae99-b7c4-76f3-bdbe-b95f0d35b43e",
+    "patrol_turn_completed": true,
+    "patrol_evidence": ".runtime/rbh-execution-20261105/full-chain-20261106T020445Z.json"
+  },
+  "execution": {
+    "assignees": [
+      {
+        "id": "RBI-01",
+        "thread_id": "01a1a772-e95a-7922-a72f-1beb061dd287",
+        "host_id": "local",
+        "title": "RBW 运行时与故障隔离",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
+        "branch": "codex/rbi-runtime-20261106",
+        "card": "docs/development/rbi-work-packages/runtime.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      },
+      {
+        "id": "RBI-02",
+        "thread_id": "01a1a772-e93b-73d0-9b3f-33cd579098da",
+        "host_id": "local",
+        "title": "RBW Models异步执行与计时",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
+        "branch": "codex/rbi-models-20261106",
+        "card": "docs/development/rbi-work-packages/models.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      },
+      {
+        "id": "RBI-03",
+        "thread_id": "01a1a772-e983-7ad0-b572-61409937e393",
+        "host_id": "local",
+        "title": "RBW Memory写入历史与共享整理",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
+        "branch": "codex/rbi-memory-20261106",
+        "card": "docs/development/rbi-work-packages/memory.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      },
+      {
+        "id": "RBI-04",
+        "thread_id": "01a1a772-e80b-7fa0-95d3-d32d50649745",
+        "host_id": "local",
+        "title": "RBW Life日程与后台执行",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
+        "branch": "codex/rbi-life-20261106",
+        "card": "docs/development/rbi-work-packages/life.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      },
+      {
+        "id": "RBI-05",
+        "thread_id": "01a1a772-e96f-7600-a841-94ca8dd26ab6",
+        "host_id": "local",
+        "title": "RBW Companion学习与表达样例",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
+        "branch": "codex/rbi-growth-20261106",
+        "card": "docs/development/rbi-work-packages/growth.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      },
+      {
+        "id": "RBI-09",
+        "thread_id": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+        "host_id": "local",
+        "title": "RBW 对话接入与上下文表达",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
+        "branch": "codex/rbi-result-consumption-20261106",
+        "card": "docs/development/rbi-work-packages/conversation.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      },
+      {
+        "id": "RBI-06",
+        "thread_id": "01a1a772-e81f-7a10-8a21-5221bed680f8",
+        "host_id": "local",
+        "title": "RBW 日志后端与持久链",
+        "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
+        "branch": "codex/rbi-observability-20261106",
+        "card": "docs/development/rbi-work-packages/observability.md",
+        "model": "gpt-6.1-terra",
+        "reasoning_effort": "max",
+        "service_tier": "default",
+        "fast_mode": false
+      }
+    ],
+    "worktrees_created": false,
+    "branches_created": false,
+    "reuse_existing_domain_windows_when_dispatched": true,
+    "worktree_policy": "每个实现包一个独立新分支/工作树；不续写已完成 RBH/RBG 卡；实际派发前复核最新集成头",
+    "implementation_delivery": "整块实现、必要回归用例和静态审阅后提交；实现窗口不运行测试、构建、烟测或生产命令",
+    "validation_owner": "coordinator",
+    "production_writer_count": 1,
+    "unaffected_validation_reused": true,
+    "authorization": "用户在本协调聊天明确要求交付对应窗口修复，已授权七个既有窗口实施和必要协作回执",
+    "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
+    "integration_branch": "codex/rbi-integration-20261106"
+  },
+  "shared_ownership": {
+    "coordinator_only": [
+      "src/tianshu/**/module.py",
+      "src/tianshu/types/**",
+      "src/tianshu/runtime/product*.py",
+      "src/tianshu/runtime/migrations.py",
+      "src/tianshu/**/schema.sql",
+      "配置与依赖清单",
+      "本批公共合同、队列和集中交接",
+      "部署脚本与生产写入",
+      "活跃巡检探针代码的替换（沿用既有路径，避免与巡检并写）"
+    ],
+    "exception": "runtime/process.py 和 runtime/composition.py 的维护回调机械边界归 RBI-01；各 module.py/product 装配仍归 RBI-07",
+    "rule": "未列明的跨域文件先交协调者确定唯一归属；不由实现者跨写"
+  },
+  "acceptance_axes": [
+    "代码与必要定向验证",
+    "部署版本与受影响入口健康",
+    "准确原对象及原材料版本的业务结果",
+    "原物理结果/费用 unknown 和真实样本覆盖"
+  ],
+  "invariants": [
+    "六角色、消费组和领域业务所有权不变，不新增中心业务推进服务",
+    "保留原 ID、冻结请求、回执、attempt 总序号、连接/计算预算与 unknown",
+    "保留来源、权限、材料版本/CAS、data_generation、取消和迟到结果隔离",
+    "事件加速；所属领域持久状态和有界检查负责漏通知、漏入队补缺，Operations 不成为运行前提",
+    "已知 failed 修复领取与 unknown 观察/纯计算后继严格分开",
+    "不清库、覆盖配置、主动发送 QQ 或重放未知外部副作用",
+    "不重做前批已恢复材料，不以新批成功代替原材料覆盖",
+    "观察者租约续期不是业务进展；已知成功结果的本地消费停滞与外部副作用 unknown 分开",
+    "同 episode/revision 可有不同合法输入片段；按真实片段/游标范围和应用证据判断重复，不按 episode 粗暴去重"
+  ],
+  "original_targets": [
+    {
+      "domain": "Memory",
+      "batch_id": "memory_batch_5c7f0abf426d4339a8094b48f274a329",
+      "lineage": "963e0087076f9abd4d990c46f2554bb91047f752fe90b20a6654c9caa56f4141",
+      "attempts": [
+        "49a73a1a-6bcf-5fb6-857e-2bd25bb00e67",
+        "274302c8-8252-5326-b13c-107f79745598"
+      ],
+      "evidence_state": "连续 unknown 与领域 queued 错配已见；新鲜回执驱动的完整时序需回归验证",
+      "completion": "原材料正常覆盖或有来源/版本/预算等真实退出证据；后续非重叠批次不计恢复"
+    },
+    {
+      "domain": "Life",
+      "job_id": 78316,
+      "activity_id": "a94fa880-1849-5b89-9fa8-c9ab5cc31420",
+      "action_id": "13505667-5d2b-5e12-969d-1ca2a6735ca7",
+      "evidence_state": "job_identity_conflict 已见；具体冲突键及身份字段差异待补证",
+      "completion": "原 Action 观察链可靠、应继续时有持久唤醒且零新增外部动作；外部结果仍可为 unknown"
+    },
+    {
+      "domain": "Growth",
+      "retry_key": "organize:53fb749e3db5bd7d83b313e06ac19293d4e990cec012e59b7169b275142d5060",
+      "attempt_id": "0e17c5e9-24e0-58cb-b08a-1eace1535da9",
+      "material_source": "action:786c35e7-a40d-5f82-a22e-025954f7f23c",
+      "material_revision": 2,
+      "evidence_state": "invalid_upstream_response 已见；错误阶段和 due=NULL 领取缺口尚需准确归因/时序复现",
+      "completion": "正确分类后按原预算和正常处理器恢复原材料，或保留明确不合格原因"
+    },
+    {
+      "domain": "LifePlanning",
+      "issue": "life_planning_same_material_repeated_metered_calls",
+      "evidence_state": "相同语义指纹的两次计量调用已见；请求等价和无合法 review 原因未确认",
+      "completion": "先解释触发原因；只有证实无效重算才修改，合法时间窗口和定时重评必须保留"
+    },
+    {
+      "domain": "ConversationResult",
+      "action_id": "141a5380-f847-5d77-bbe2-115157313cee",
+      "receipt_id": "5bca45d3-6f88-4195-93cc-5d74fb6efaaa",
+      "result_revision": 5,
+      "original_job_id": 99471,
+      "recovery_job_id": 99627,
+      "activity_id": "6953da53-5e01-5be2-b12a-f63a6e79a819",
+      "operations_recovery": "opsrec_249cd99c5e854bbb90f7bfb78845278b",
+      "evidence_state": "10:04 原 Action succeeded；消费 pending，最近定向中 renderer/dialogue 为 not_applicable、其余四项 pending",
+      "completion": "只补缺少消费者；保留原成功回执、任务失败和版本，不重新执行 Action、模型或渠道发送"
+    },
+    {
+      "domain": "ConversationResult",
+      "action_id": "e8c9ded7-bdec-5297-bba7-2bc59a4668aa",
+      "receipt_id": "58375a65-0bff-401d-ad44-2d74486b81ba",
+      "result_revision": 2,
+      "original_job_id": 99817,
+      "recovery_job_id": 100073,
+      "activity_id": "7d802c35-db07-555c-a5d1-efa5326538c6",
+      "operations_recovery": "opsrec_f32f182e01144516a999a21b6df2387f",
+      "evidence_state": "10:04 原 Action succeeded；消费 pending，最近定向中 renderer/dialogue 为 not_applicable、其余四项 pending",
+      "completion": "只补缺少消费者；保留原成功回执、任务失败和版本，不重新执行 Action、模型或渠道发送"
+    }
+  ],
+  "waves": [
+    {
+      "id": "W0",
+      "tasks": [
+        "RBI-00"
+      ],
+      "rule": "冻结必要公共语义和证据边界"
+    },
+    {
+      "id": "W1",
+      "tasks": [
+        "RBI-01",
+        "RBI-02",
+        "RBI-03",
+        "RBI-04",
+        "RBI-06",
+        "RBI-09"
+      ],
+      "rule": "按可用既有窗口和并发额度组织；是依赖可并行关系，不代表同时启动全部"
+    },
+    {
+      "id": "W2",
+      "tasks": [
+        "RBI-05"
+      ],
+      "rule": "可先核对本域现状；依赖 RBI-01/02 的正式端口完成联接"
+    },
+    {
+      "id": "W3",
+      "tasks": [
+        "RBI-07"
+      ],
+      "rule": "收齐实现、串行集成和集中必要验证"
+    },
+    {
+      "id": "W4",
+      "tasks": [
+        "RBI-08"
+      ],
+      "rule": "单写发布、准确原对象正常恢复、复用下一轮自然巡检"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "RBI-00",
+      "priority": "P0",
+      "owner": "coordinator",
+      "title": "冻结窄合同、当前基线和补证清单",
+      "status": "contract_frozen",
+      "depends_on": [],
+      "kind": "coordination",
+      "write_scope": [
+        "docs/development/rbi-interfaces-2026-11-06.md",
+        "docs/development/domain-recovery-queue-2026-11-06.md",
+        "docs/development/domain-recovery-queue-2026-11-06.json",
+        "docs/handoffs/RBI-00.md"
+      ],
+      "deliverables": [
+        "新鲜回执与 head/CAS 语义",
+        "稳定唤醒与最早 due 合并语义",
+        "已知 failed 修复领取合同",
+        "role 维护回调和领域短扫描接口",
+        "Life/Growth/规划未证实项的字段级补证要求",
+        "结果消费身份、正常续接与无有效执行时的观察语义；429 冷却/预算与真实新意图边界"
+      ],
+      "acceptance": [
+        "无中心业务推进接口",
+        "无公共文件多写者",
+        "确认现有端口可复用部分及必须新增部分，未知不猜测"
+      ],
+      "handoff": "docs/handoffs/RBI-00.md",
+      "contract": "docs/development/rbi-interfaces-2026-11-06.md"
+    },
+    {
+      "id": "RBI-01",
+      "priority": "P0",
+      "owner": "Runtime",
+      "title": "恢复领取机械边界与 role 内维护回调",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-runtime-20261106",
+      "write_scope": [
+        "src/tianshu/runtime/recovery_policy.py",
+        "src/tianshu/runtime/jobs.py",
+        "src/tianshu/runtime/process.py",
+        "src/tianshu/runtime/composition.py",
+        "src/tianshu/runtime/rbi_*.py",
+        "src/tianshu/runtime/rbi_*.sql",
+        "tests/runtime/test_rbi_*.py",
+        "tests/runtime/test_rb_recovery_policy.py",
+        "tests/runtime/test_rbf_database_jobs.py",
+        "docs/handoffs/RBI-01.md"
+      ],
+      "deliverables": [
+        "优先复用现有端口；确有缺口才补 repair_ref 幂等修复领取",
+        "保留普通永久任务键语义，验证原生锁/合并/重试边界",
+        "复用现有维护周期，按 role 调用领域短回调并隔离故障",
+        "验证既有 Retry-After、依赖冷却和单探针在跨领域/版本变更后仍成立；按证据修缺口，不笼统扩大重试"
+      ],
+      "acceptance": [
+        "真实 failed 且 due=NULL 可合法领取或返回明确拒绝原因",
+        "重复 repair_ref 不重置预算、不重复领取；unknown/有效原尝试不走该端口",
+        "doing+一个 todo、提前合并和原生 retry 均不丢未来唤醒",
+        "单域回调失败和 Operations 不可用不阻塞其他领域",
+        "429 不冒充 transport_not_sent；新通知或新 key 不更新相同业务的原预算；跨领域共享依赖冷却保持"
+      ],
+      "thread_id": "01a1a772-e95a-7922-a72f-1beb061dd287",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
+      "branch": "codex/rbi-runtime-20261106",
+      "card": "docs/development/rbi-work-packages/runtime.md"
+    },
+    {
+      "id": "RBI-02",
+      "priority": "P0",
+      "owner": "Models",
+      "title": "invalid_upstream_response 准确归因与原输出复用证据",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-models-20261106",
+      "write_scope": [
+        "src/tianshu/models/broker.py",
+        "src/tianshu/models/transport_diagnostic.py",
+        "src/tianshu/models/codec.py",
+        "src/tianshu/models/rbi_*.py",
+        "tests/models/test_rbi_*.py",
+        "tests/models/test_rbh_transport_evidence.py",
+        "tests/models/test_result_recovery.py",
+        "docs/handoffs/RBI-02.md"
+      ],
+      "deliverables": [
+        "原 Growth attempt 的去敏阶段/异常类型证据",
+        "既有 diagnostic 内区分协议解析、领域内容、程序异常与传输事实",
+        "复用已留存原输出的合法本地解析路径，缺证据保持 unknown",
+        "429/502/503 的发送、结果、用量/hold_until 语义与去敏原身份关联；缺失证据不推断"
+      ],
+      "acceptance": [
+        "不把 read_complete 后所有本地异常当作模型坏输出",
+        "不扩大正文日志或伪造完整输出",
+        "原请求/失败回执/未知费用保留，不由 Models 做 Growth 业务转换",
+        "既有六次429/五Growth批恢复证据复用；429本身不证明未发送或零费用，502/503已发出时保留unknown"
+      ],
+      "thread_id": "01a1a772-e93b-73d0-9b3f-33cd579098da",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
+      "branch": "codex/rbi-models-20261106",
+      "card": "docs/development/rbi-work-packages/models.md"
+    },
+    {
+      "id": "RBI-03",
+      "priority": "P0",
+      "owner": "Memory",
+      "title": "新鲜回执驱动续接、原批恢复与本域补漏",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "assembly_depends_on": [
+        "RBI-01"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-memory-20261106",
+      "write_scope": [
+        "src/tianshu/memory/consolidation.py",
+        "src/tianshu/memory/consolidation_retry.py",
+        "src/tianshu/memory/model_outcome.py",
+        "src/tianshu/memory/workers.py",
+        "src/tianshu/memory/recovery.py",
+        "src/tianshu/memory/operations_recovery.py",
+        "src/tianshu/memory/rbi_*.py",
+        "src/tianshu/memory/rbi_*.sql",
+        "tests/memory/test_rbi_*.py",
+        "tests/memory/test_rbh_memory_transport_recovery.py",
+        "tests/memory/test_rbf_wait_recovery.py",
+        "docs/handoffs/RBI-03.md"
+      ],
+      "deliverables": [
+        "同次权威观测原子同步领域投影和 Runtime 记账，直接传递新鲜 outcome",
+        "head/版本变化后重读，不以旧 queued 投影判断物理结果",
+        "特定本地程序失败的正常原批恢复入口",
+        "从现有 recover 抽取有限到期元数据检查并复用同一安排函数",
+        "P1 核查280批高用量的真实片段身份、输入摘要、游标范围和应用进度；有重复证据才修复"
+      ],
+      "acceptance": [
+        "连续两次 unknown 且第二次本地 queued 不再触发错误永久失败",
+        "head 改变/租约过期/迟到成功不能覆盖当前选择",
+        "漏通知/漏入队在 Operations 停用时仍可由本域发现",
+        "原批材料覆盖可追查；原 unknown 和原预算不变",
+        "同 revision 不同片段可正常推进；同片段已应用/仅已知缺失且无新可用输入时不再触发无效模型计算；不把 completed_with_missing 说成完整成功"
+      ],
+      "conditional_priority": "P1 material-cursor/high-usage investigation",
+      "thread_id": "01a1a772-e983-7ad0-b572-61409937e393",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
+      "branch": "codex/rbi-memory-20261106",
+      "card": "docs/development/rbi-work-packages/memory.md"
+    },
+    {
+      "id": "RBI-04",
+      "priority": "P0",
+      "conditional_priority": "P1 planning investigation",
+      "owner": "Life",
+      "title": "稳定观察原 Action、可靠唤醒与条件式规划修复",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "assembly_depends_on": [
+        "RBI-01"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-life-20261106",
+      "write_scope": [
+        "src/tianshu/life/worker.py",
+        "src/tianshu/life/recovery.py",
+        "src/tianshu/life/service.py",
+        "src/tianshu/life/clock.py",
+        "src/tianshu/life/operations_recovery.py",
+        "src/tianshu/life/planning.py",
+        "src/tianshu/life/planning_engine.py",
+        "src/tianshu/life/plan_recovery.py",
+        "src/tianshu/life/rbg_plan_operations.py",
+        "src/tianshu/life/rbi_*.py",
+        "src/tianshu/life/rbi_*.sql",
+        "tests/life/test_rbi_*.py",
+        "tests/life/test_activity_execution_context.py",
+        "tests/life/test_rbf_planning_recovery.py",
+        "tests/life/test_rbh_transport_recovery.py",
+        "docs/handoffs/RBI-04.md"
+      ],
+      "deliverables": [
+        "先补 job 78316 的冲突字段证据，再收敛唯一 ensure_reconcile_on",
+        "稳定 activity/action/generation 载荷、新物理 key、最早 due 合并",
+        "观察元数据与 frozen_action/执行截止分离",
+        "本域短扫描补漏，正常/重启/恢复同路径",
+        "规划触发原因、语义指纹、请求摘要和合法 review 边界；有证据才改重复计算",
+        "Life 结果回调与 RBI-09 对接；429 下核对合法 future due、原3/3终止及真实材料变化，保留新规划正常推进"
+      ],
+      "acceptance": [
+        "旧键+重启+合法上下文刷新不冲突且不重复 invoke",
+        "404/unknown/资源等待/重复通知始终保留合法后续观察",
+        "观察 due 不延长原 Action deadline，睡眠/未来唤醒保持",
+        "纯通知且当前决策有效不新增模型；合法 review/跨日/新约束仍可重评",
+        "真实 ResultConsumer 调用 Life 回调时，业务提交和消费者完成证据原子一致；异常后可合法补缺，不重做 Action",
+        "相同有效业务输入不因通知revision或新generation_key重开预算；真实语义输入/业务意图变化仍允许新规划且遵守依赖冷却"
+      ],
+      "thread_id": "01a1a772-e80b-7fa0-95d3-d32d50649745",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
+      "branch": "codex/rbi-life-20261106",
+      "card": "docs/development/rbi-work-packages/life.md"
+    },
+    {
+      "id": "RBI-05",
+      "priority": "P0",
+      "owner": "Growth",
+      "title": "按真实失败分类恢复原反思批与本域补漏",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00",
+        "RBI-01",
+        "RBI-02"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-growth-20261106",
+      "write_scope": [
+        "src/tianshu/companion/growth.py",
+        "src/tianshu/companion/growth_retry.py",
+        "src/tianshu/companion/growth_policy.py",
+        "src/tianshu/companion/growth_operations.py",
+        "src/tianshu/companion/growth_output_repair.py",
+        "src/tianshu/companion/reflection_output.py",
+        "src/tianshu/companion/growth_recovery.py",
+        "src/tianshu/companion/growth_statistics.py",
+        "src/tianshu/companion/rbi_*.py",
+        "src/tianshu/companion/rbi_*.sql",
+        "tests/companion/test_rbi_*.py",
+        "tests/companion/test_growth_retry.py",
+        "tests/companion/test_growth_output.py",
+        "tests/companion/test_rb_growth_pure_retry.py",
+        "tests/companion/test_rbh_growth_receipt_sources.py",
+        "docs/handoffs/RBI-05.md"
+      ],
+      "deliverables": [
+        "先复现 waiting 但 Runtime due=NULL 的衔接风险",
+        "消费 Models 真实证据，区分本地重解析/有限输出纠正/程序修复后续接/明确停止",
+        "真实版本改变复用 update_version_on；同版本修复走合法 repair_ref 领取",
+        "复用 request_review/retry 和本域有界补漏",
+        "复用本轮五个429后已恢复批次、十个reviewed版本证据，仅核对兼容性不重做"
+      ],
+      "acceptance": [
+        "不只改领域 waiting 留下无人可领取的批次",
+        "同一 repair_ref 幂等、纠正次数和原预算不清零",
+        "unknown/来源失效/取消/换代不被修复入口绕过",
+        "原材料 revision 2 正常消费或留明确退出原因，已恢复 15 批不重做"
+      ],
+      "thread_id": "01a1a772-e96f-7600-a841-94ca8dd26ab6",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
+      "branch": "codex/rbi-growth-20261106",
+      "card": "docs/development/rbi-work-packages/growth.md"
+    },
+    {
+      "id": "RBI-09",
+      "priority": "P0",
+      "owner": "Conversation",
+      "title": "成功结果消费停滞、恢复观察空转与前台本域补漏",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "assembly_depends_on": [
+        "RBI-01",
+        "RBI-04"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-result-consumption-20261106",
+      "write_scope": [
+        "src/tianshu/conversation/results.py",
+        "src/tianshu/conversation/rbg_result_recovery.py",
+        "src/tianshu/conversation/rbg_result_ledger.py",
+        "src/tianshu/conversation/rbi_*.py",
+        "src/tianshu/conversation/rbi_*.sql",
+        "tests/conversation/test_rbi_*.py",
+        "tests/conversation/test_rbg_result_withdrawal.py",
+        "docs/handoffs/RBI-09.md"
+      ],
+      "deliverables": [
+        "先关联四个原/恢复消费任务的准确错误和事务结果，不用未关联QueryCanceled替代归因",
+        "复用result_deliveries/result_consumer_progress，只补pending消费者，保留not_applicable及已提交分支",
+        "领域统一ensure消费安排和bot-foreground短扫描；稳定receipt/action/revision/generation绑定、新物理key，不把同一opsrec引用再次命中旧failed任务",
+        "观察时核对原回执/当前head、消费者租约与进展、live job和合法due；无有效工作不无限返回无解释pending",
+        "保留真实消费者依赖，只让相互独立的合法分支公平推进；不为一分支失败回滚已提交分支",
+        "Life回调由RBI-04负责，真实域组合用例由RBI-07负责；新增SQL仅确需持久字段/索引时交根注册"
+      ],
+      "acceptance": [
+        "精确原Action已succeeded且原/恢复任务均failed时，不重复执行Action、模型或渠道发送",
+        "Operations停用或只续观察租约时，所属前台进程仍能发现应继续的消费并按原重试预算/版本续接，或给准确终止原因",
+        "某分支已提交后中断、另一分支失败、重复/乱序通知和旧head到达时，只补缺项且不重复记忆/生活提交",
+        "未知提交先查幂等回执，来源撤回/权限变化/换代/取消仍阻止旧结果写入",
+        "两条原receipt的四项pending能按业务事实完成/不适用/失效，不能靠改汇总状态伪造完成"
+      ],
+      "thread_id": "01a1a772-e842-7d80-864f-3edb1c0443ae",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
+      "branch": "codex/rbi-result-consumption-20261106",
+      "card": "docs/development/rbi-work-packages/conversation.md"
+    },
+    {
+      "id": "RBI-06",
+      "priority": "P1",
+      "owner": "Logs/Operations",
+      "title": "业务推进、物理未知与逐项采样覆盖",
+      "status": "prepared_not_sent",
+      "depends_on": [
+        "RBI-00"
+      ],
+      "assembly_depends_on": [
+        "RBI-02",
+        "RBI-03",
+        "RBI-04",
+        "RBI-05",
+        "RBI-09"
+      ],
+      "kind": "implementation",
+      "branch_candidate": "codex/rbi-observability-20261106",
+      "write_scope": [
+        "scripts/ops/rbf_monitor_summary.py",
+        "src/tianshu/operations/statistics.py",
+        "src/tianshu/operations/rbi_*.py",
+        "tests/operations/test_rbf_monitor_summary.py",
+        "tests/operations/test_rbi_*.py",
+        "docs/handoffs/RBI-06.md"
+      ],
+      "deliverables": [
+        "当前业务阻塞/恢复中/已恢复但原结果未知/待样本/明确终态分开",
+        "last_evaluated 与 last_recurred 分开",
+        "按准确对象和版本关闭缺口，分别报告账本/生产者/真实样本覆盖",
+        "为既有 chain_probe 提供有界SQL修订：当前候选、历史未知页、指定原对象分开；根单写活跃探针，不新建采样器",
+        "报告 live job/合法due/消费者进度与观察租约的差别；保留 unscoped/uncorrelated 事件，不能猜因果"
+      ],
+      "acceptance": [
+        "新非重叠批完成不能关闭原批问题",
+        "业务恢复不抹去物理 unknown，旧 unknown 不无限误报同一业务卡住",
+        "历史 append-only 账本不改写；汇总不执行模型或领域写入",
+        "QueryCanceled 后该项为 unknown；单对象查到/有限页为空/账本输入完整均不能代替整体业务或生产者覆盖"
+      ],
+      "thread_id": "01a1a772-e81f-7a10-8a21-5221bed680f8",
+      "host_id": "local",
+      "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
+      "branch": "codex/rbi-observability-20261106",
+      "card": "docs/development/rbi-work-packages/observability.md"
+    },
+    {
+      "id": "RBI-07",
+      "priority": "P0",
+      "owner": "coordinator",
+      "title": "串行集成、共享装配与集中必要时序验证",
+      "status": "planned",
+      "depends_on": [
+        "RBI-01",
+        "RBI-02",
+        "RBI-03",
+        "RBI-04",
+        "RBI-05",
+        "RBI-06",
+        "RBI-09"
+      ],
+      "kind": "integration",
+      "write_scope": [
+        "src/tianshu/**/module.py",
+        "src/tianshu/types/**",
+        "src/tianshu/runtime/product*.py",
+        "src/tianshu/runtime/migrations.py",
+        "src/tianshu/**/schema.sql",
+        "实际需要的配置/依赖清单",
+        "tests/integration/test_rbi_domain_recovery.py",
+        "docs/handoffs/RBI-20261106-integration.md",
+        "tests/core/test_episode_semantics.py",
+        "既有活跃 chain_probe.py 的集中SQL装配"
+      ],
+      "deliverables": [
+        "公共装配和必要迁移集中注册",
+        "真实 RecoveryPolicy + 真实领域服务 + 现有隔离数据库组合时序验证",
+        "实现/测试/未知事项的单次集中回收"
+      ],
+      "acceptance": [
+        "连续 unknown、旧键重启、due=NULL、提前合并/处理中再通知时序成立",
+        "中断/租约过期/迟到结果/撤回权限换代保护保持",
+        "Operations 停用且漏通知/缺入队后，领域自身仍能补缺",
+        "不为同状态重复检查，不默认全量矩阵；无关旧失败明确单列",
+        "两个成功Action原消费及一次恢复任务均failed、无live job、Operations持续观察时，领域仍能按原身份补缺或明确停止；真实ResultConsumer与Life回调联合验证"
+      ]
+    },
+    {
+      "id": "RBI-08",
+      "priority": "P0",
+      "owner": "coordinator-production-writer",
+      "title": "保留数据发布、准确原对象恢复与下一轮自然巡检",
+      "status": "planned",
+      "depends_on": [
+        "RBI-07"
+      ],
+      "kind": "release_and_observation",
+      "write_scope": [
+        "本批精确发布回执与运行证据",
+        "授权范围内单写生产发布",
+        "原对象的正常领域恢复入口",
+        "既有巡检汇总的本批部署更新"
+      ],
+      "deliverables": [
+        "源码/镜像/容器、配置挂载代际和受影响入口回执",
+        "Memory/Life/Growth 准确原对象恢复结果",
+        "下一轮自然巡检的本批复发和样本覆盖结论",
+        "两条原成功Action回执的缺少消费者结果；已恢复五Growth批与十材料不重复执行"
+      ],
+      "acceptance": [
+        "不清数据或覆盖配置，不发送 QQ 测试，不重放未知外部动作",
+        "Memory/Growth 看原材料覆盖，Life 看原 Action 观察链与零额外 invoke",
+        "无真实样本保留待样本，外部 unknown 和费用未知不假报成功",
+        "代码验证、部署健康、业务结果和外部未知分开交付",
+        "检查下一轮原请求观察查询的逐项覆盖；未取得完整/真实样本则保留unknown，不以探针运行成功替代"
+      ]
+    }
+  ],
+  "planning_revision": 2,
+  "change_log": [
+    {
+      "revision": 2,
+      "evidence_cutoff": "2026-11-06T02:09:27.289775+00:00",
+      "added_tasks": [
+        "RBI-09"
+      ],
+      "changes": [
+        "把两条已成功 Action 的消费停滞提升为 P0 独立 Conversation 实现包",
+        "现有 Runtime/Models/Life/Growth 卡补 429、Retry-After、原预算与实际业务意图边界，不为已恢复批次增加自动重试",
+        "Memory 卡补 P1 游标/输入片段与高用量核查；未证实重复调用则不强制去重",
+        "监控卡补反复 QueryCanceled 的有界采样与逐项覆盖；不把账本完整当整体业务覆盖",
+        "集中验证加入真实 ResultConsumer + Life 回调及恢复任务失败后无 live job 的时序"
+      ],
+      "existing_task_ids_preserved": true,
+      "dispatch_or_execution_started": false
+    }
+  ],
+  "patrol_review": {
+    "queue_previous_cutoff": "2026-11-05T17:07:39.447850+00:00",
+    "latest_snapshot": "2026-11-06T02:04:46.931268+00:00",
+    "summary_as_of": "2026-11-06T02:09:27.289775+00:00",
+    "ledger": {
+      "observation_records": 69,
+      "issue_records": 182,
+      "issue_fingerprints": 53,
+      "input_complete": true
+    },
+    "finding_count_is_not_new_bug_count": true,
+    "findings": [
+      {
+        "kind": "new_business_blocker",
+        "owner": "RBI-09",
+        "fact": "两条成功 Action 的结果仍 pending；每条原任务和一次恢复任务失败，各有四个消费者 pending；Operations 持续观察不等于消费工作仍存活",
+        "snapshot": "10:04 两条仍 pending；09:34 定向年龄约62/56分钟",
+        "failure_cause": "failed jobs 的具体原因未关联，不能从 unscoped QueryCanceled 推断"
+      },
+      {
+        "kind": "recovered_rate_limit",
+        "owners": [
+          "RBI-01",
+          "RBI-02",
+          "RBI-05",
+          "RBI-06"
+        ],
+        "fact": "最新五个 Growth 批有六次429，五批完成，十个冻结原材料版本 reviewed；原失败用量和实际费用仍 unknown",
+        "action": "保留为兼容/恢复证据，不再次恢复"
+      },
+      {
+        "kind": "bounded_recovery_and_intent_change",
+        "owners": [
+          "RBI-01",
+          "RBI-02",
+          "RBI-04"
+        ],
+        "fact": "Life 一条包含原 unknown 的链达到3/3后因材料变化被替代；另两链中一条新规划 applied，另一条预算内运行",
+        "action": "确认原预算、真实业务变化和依赖冷却；不凭新 generation_key 重置相同工作预算"
+      },
+      {
+        "kind": "investigation_only",
+        "owner": "RBI-03",
+        "fact": "此前目标30分钟窗口有280次成功计算、280批应用；抽样同 revision 出现121/78/69批但游标分别前进",
+        "action": "先比较片段身份、游标范围、摘要和应用证据；不能从同 episode 或高用量判定死循环/重复收费"
+      },
+      {
+        "kind": "probe_coverage_gap",
+        "owner": "RBI-06",
+        "fact": "memory_original_observation 在09:04取消、09:34恢复、10:04再次QueryCanceled；整体原请求观察样本 unknown",
+        "action": "修订既有探针的候选页/历史页/指定对象采样；LIMIT输出不代表输入扫描有界"
+      },
+      {
+        "kind": "uncorrelated_incidents",
+        "owners": [
+          "RBI-02",
+          "RBI-06",
+          "RBI-09"
+        ],
+        "fact": "model-broker unknown/attempt_not_found 与 conversation.result QueryCanceled 存在未关联事件",
+        "action": "保留 unscoped/uncorrelated，只有精确 attempt/job/receipt 链可作因果依据"
+      }
+    ]
+  }
+}

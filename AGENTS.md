@@ -1,3 +1,13 @@
+# 2026-11-06 RBI 分域恢复修复已授权
+
+用户已审阅修订 2 并要求“交付对应窗口修复吧”。本批 RBI-01/02/03/04/05/06/09 复用 Runtime、Models、Memory、Life、Growth、Logs、Conversation 七个既有窗口，各自全新独立工作树/分支；统一 gpt-6.1-terra / max / 普通速度，不创建新聊天或子代理，不续写旧完成卡。
+
+以 docs/development/domain-recovery-plan-2026-11-06.md、domain-recovery-queue-2026-11-06.md、rbi-interfaces-2026-11-06.md 和 rbi-work-packages 本号卡为准。本批唯一协调聊天为 01a1ac6f-8494-7f82-8c4d-ec7d285f44ae；用户现有派发与回执授权沿用本批协作，不回到已收尾的旧协调卡。
+
+保留六角色和领域业务所有权，Runtime 仅管理恢复预算/领取/唤醒与进程维护回调；ResultConsumer 在 bot-foreground，Memory/Life/Growth 在 bot-background。Life 回调由 RBI-04、Conversation 结果消费账本由 RBI-09 单写。全部 module.py、runtime/product、types、已有 schema.sql、迁移注册、配置/依赖、共享记录、活跃探针替换和生产归根；Runtime process/composition 的机械回调合同归 RBI-01。
+
+实现者整块实现、必要用例代码和静态审阅后提交，不运行测试、构建、烟测、生产或真实模型/QQ命令。根收齐集中必要验证，复用未变有效结果。原 ID/请求/回执/unknown、来源权限/版本/CAS/代际、总 attempt 与连接/计算预算全部保留；不清库、覆盖配置、主动发 QQ 或重放未知效果。当前仅进入开发派发，不表示已修复、验证或部署。
+
 # 2026-11-05 RBH 连接恢复与完整唤醒修复
 
 用户已批准连接恢复预算分离、依赖恢复后原批次续接、规划完整唤醒、记忆接口和诊断指标方案，并要求“安排对应窗口修复吧”。本批RBH-01至06复用对应六个既有窗口、独立工作树/新分支，统一gpt-6.1-terra/max普通速度；覆盖下方旧阶段/角色范围，不续写旧完成卡。
