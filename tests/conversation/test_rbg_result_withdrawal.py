@@ -19,8 +19,10 @@ from tianshu.types import OriginKind, Receipt, ServiceClass, SourceRef, TrustedC
 @pytest.mark.asyncio
 async def test_fragment_withdrawal_scrubs_each_native_copy_and_blocks_recovery(database):
     await migrate(database, (
+        Migration("rbi_execution_budget", files("tianshu.runtime").joinpath("rbi_execution_budget.sql").read_text()),
         Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),
         Migration("rbg_results", files("tianshu.conversation").joinpath("rbg_result_consumption.sql").read_text()),
+        Migration("rbi_result_reconcile", files("tianshu.conversation").joinpath("rbi_result_reconcile.sql").read_text()),
     ))
     jobs = JobQueue(database.config.dsn, database=database)
     jobs.register_static_routes()

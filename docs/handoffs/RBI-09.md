@@ -1,6 +1,16 @@
 # RBI-09 结果消费恢复交接
 
-本包基线 `18d640c41bb3354ef82ffea41ff2e78b1338e3b3`，分支 `codex/rbi-result-consumption-20261106`。交接提交以该文件所在提交为准。该包尚未集成、运行测试或发布。
+本包基线 `18d640c41bb3354ef82ffea41ff2e78b1338e3b3`，分支 `codex/rbi-result-consumption-20261106`；首次实现提交 `448cdc0bbff1a25cb3db5164a93fabae4fd4b7d5`，集中验证返修以本文件最新提交为准。该包尚未完成最终联合验收或发布。
+
+## 集中验证返修
+
+根的 `remaining-1.xml` 记录本包相关 13 项失败：来源撤回测试夹具未注册 RBI Runtime/Conversation SQL；表达测试的模拟回执携带 Action ID，但未提供 Action 头与事务 fence，另有联系人 mock 未支持 `connection`。其中“回执先于发送确认”也因缺少 Action 头触发异常并表现为 unknown；不能将其直接当作真实投递结论。
+
+`test_expression_order.py` 现使用隔离数据库中的真实 `capabilities.actions` 行和 `Actions.assert_result_head_on`，显式推进原 Action 回执/revision；无 Action 的纯 Channel 测试回执不虚构 Action ID。联系人失败用例验证表达和联系人投影同事务回滚、以原回执恢复且不重发。来源撤回测试补齐 `rbi_execution_budget.sql` 和 `rbi_result_reconcile.sql`。
+
+同时补齐 `ExpressionRenderer.release`：发送调用返回后，以最新 Channel Action 头为准，在表达计划结果投影事务内先持锁完整来源、校验 Action，再使用原计划 revision CAS 写回；已有 Action 的头缺失或前进时保留原收据待对账，不重复发送。本地 synthetic unknown 和真正无 Action 的 Channel 回执仍按原语义处理。新增真实 Action 行并发变更用例，验证旧头不能覆盖计划且没有第二次发送。
+
+本窗口对返修仅执行 AST 与 diff 静态检查，未运行测试、构建或生产；上述 13 项及新增用例须由根在完整装配后复验。
 
 ## 实现
 

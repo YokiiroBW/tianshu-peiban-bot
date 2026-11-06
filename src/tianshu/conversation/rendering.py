@@ -400,10 +400,34 @@ class ExpressionRenderer:
                         await connection.execute("UPDATE conversation.expression_plans SET state='ready' "
                             "WHERE expression_id=%s AND state='delivering' AND revision=%s", (expression_id, fresh["revision"]))
             raise
+        result_fence = None
+        synthetic = (result.execution == "unknown" and result.receipt_id ==
+                     str(uuid5(NAMESPACE_URL, "expression-receipt:" + expression_id)))
+        if result.action_id and not synthetic:
+            if self.actions is None:
+                raise AppError("action_head_unavailable", status=503)
+            from .rbi_result_fence import action_result_fence
+            result, _, result_fence = await action_result_fence(
+                self.database, self.jobs, self.actions, context, result, refresh=True)
         state = "cancelled" if result.execution == "cancelled" and result.result.get("contact_preflight") else delivery_state(result)
         if state == "unknown":
             state = "delivery_unknown"
         async with self.database.transaction() as connection:
+            if result_fence:
+                snapshot = await (await connection.execute(
+                    "SELECT source_refs FROM conversation.expression_plans WHERE expression_id=%s",
+                    (expression_id,))).fetchone()
+                if not snapshot:
+                    return None
+                refs = unique_refs(plan.source_refs, source_refs(snapshot["source_refs"]), result_fence.source_refs)
+                if not await self.sources.validate_persistence(connection, context, refs):
+                    raise AppError("source_unavailable", status=403)
+                await result_fence(connection)
+                current = await (await connection.execute(
+                    "SELECT revision,source_refs FROM conversation.expression_plans WHERE expression_id=%s FOR UPDATE",
+                    (expression_id,))).fetchone()
+                if not current or signature(snapshot["source_refs"]) != signature(current["source_refs"]):
+                    raise MaterialSnapshotChanged(current.get("revision") if current else None)
             row=await (await connection.execute("UPDATE conversation.expression_plans SET state=%s,receipt=%s,reason=%s,revision=revision+1,updated_at=now() WHERE expression_id=%s AND state='delivering' AND revision=%s AND (state<>%s OR receipt IS DISTINCT FROM %s) RETURNING *",(state,document(result),result.error_code,expression_id,fresh["revision"],state,document(result)))).fetchone()
             if row:
                 await self._event(connection,context,expression_id,row["revision"])
