@@ -20,6 +20,14 @@ class MemoryWorkers:
         self.index_jobs = IndexJobs(self)
 
     async def consolidate(self, partition_id, batch_id=None):
+        if batch_id is not None:
+            async with self.database.transaction(read_only=True) as conn:
+                batch = await (await conn.execute("SELECT status,error_code FROM memory.consolidation_batches "
+                    "WHERE batch_id=%s AND partition_id=%s", (batch_id, partition_id))).fetchone()
+            if batch and batch["status"] == "failed" and batch["error_code"] == "recovery_original_not_failed":
+                result = await self.recovery.resume_local_failure(batch_id, repair_ref="rbi-local-recovery:"+batch_id)
+                if result["reason"] not in {"reopened", "already_reopened"}:
+                    return result
         return await self.consolidation.run(partition_id,target_batch_id=batch_id)
 
     async def index_object(self, kind, id, revision, generation=None):
@@ -27,6 +35,18 @@ class MemoryWorkers:
 
     async def index_retry(self, index_id, completed_attempt_id=None, generation=None):
         return await self.index_jobs.run(index_id, completed_attempt_id=completed_attempt_id, generation=generation)
+
+    async def reconcile_due(self, *, limit=32):
+        """Scan one bounded partition page; complete means this traversal reached its end."""
+        generation = current_execution_generation()
+        if generation is None:
+            async with self.database.transaction(read_only=True) as conn:
+                generation = await self.memory.jobs.current_generation_on(conn)
+        return await self._reconcile_due(generation=generation, limit=limit)
+
+    async def _reconcile_due(self, *, generation, limit):
+        from .rbi_maintenance import reconcile_due
+        return await reconcile_due(self, generation=generation, limit=limit)
 
     async def recover(self, generation=None):
         executing = current_execution_generation()
@@ -42,39 +62,7 @@ class MemoryWorkers:
         await self.consolidation.claim_due_recoveries(generation=generation)
         if self.memory.statistics is not None:
             await self.memory.backfill_statistics(generation=generation)
-        async with self.database.transaction() as conn:
-            await self.memory.jobs.assert_generation_on(conn,generation)
-            rows = await (await conn.execute(
-                "SELECT partition_id FROM memory.consolidation_state WHERE "
-                "((active_batch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memory.consolidation_batches a "
-                "WHERE a.batch_id=memory.consolidation_state.active_batch_id AND a.manifest ? 'remote_wait_unresolved')) "
-                "OR wake_due_at<=now() OR EXISTS(SELECT 1 FROM memory.consolidation_batches b "
-                "WHERE b.partition_id=memory.consolidation_state.partition_id AND b.status='quarantined' "
-                "AND NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only'))) AND "
-                "(lease_until IS NULL OR lease_until<now()) ORDER BY updated_at LIMIT 64"
-            )).fetchall()
-        for row in rows:
-            # Recovery and new input share the partition row lock, without one
-            # recovery transaction retaining locks on every scanned partition.
-            async with self.database.transaction() as conn:
-                await self.memory.jobs.assert_generation_on(conn,generation)
-                current = await (await conn.execute(
-                    "SELECT partition_id FROM memory.consolidation_state WHERE partition_id=%s "
-                    "AND ((active_batch_id IS NOT NULL AND NOT EXISTS (SELECT 1 FROM memory.consolidation_batches a "
-                    "WHERE a.batch_id=memory.consolidation_state.active_batch_id AND a.manifest ? 'remote_wait_unresolved')) "
-                    "OR wake_due_at<=now() OR EXISTS(SELECT 1 FROM memory.consolidation_batches b "
-                    "WHERE b.partition_id=memory.consolidation_state.partition_id AND b.status='quarantined' "
-                    "AND NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only'))) AND (lease_until IS NULL OR lease_until<now()) "
-                    "FOR UPDATE SKIP LOCKED", (row["partition_id"],))).fetchone()
-                if current:
-                    state=await (await conn.execute("SELECT active_batch_id,EXISTS(SELECT 1 FROM memory.consolidation_batches b "
-                        "WHERE b.batch_id=memory.consolidation_state.active_batch_id "
-                        "AND b.manifest ? 'remote_wait_unresolved') AS active_unresolved "
-                        "FROM memory.consolidation_state WHERE partition_id=%s",(row["partition_id"],))).fetchone()
-                    if state["active_batch_id"] is not None and not state["active_unresolved"]:
-                        await self.consolidation._schedule_on(conn,row["partition_id"],datetime.now(UTC),suffix="recover")
-                    elif state["active_batch_id"] is None:
-                        await self.consolidation.retries.arm_on(conn,row["partition_id"])
+        await self._reconcile_due(generation=generation, limit=64)
         async with self.database.transaction() as conn:
             await self.memory.jobs.assert_generation_on(conn,generation)
             now = datetime.now(UTC)

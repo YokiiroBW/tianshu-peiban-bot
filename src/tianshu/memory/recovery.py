@@ -24,6 +24,11 @@ class ConsolidationRecovery:
         from .consolidation_attribution import ConsolidationAttribution
         self.attribution = ConsolidationAttribution(memory)
 
+    async def resume_local_failure(self, batch_id, *, repair_ref):
+        """Observe and reopen the original local-failure batch without replaying it."""
+        from .rbi_recovery import resume_local_failure
+        return await resume_local_failure(self, batch_id, repair_ref=repair_ref)
+
     async def statuses_on(self,conn,context,episodes):
         if not episodes:
             return {}
@@ -119,7 +124,9 @@ class ConsolidationRecovery:
             result["blocks_following"]=False
             result["retry_due_at"]=wire(batch.get("retry_due_at"))
             result["selected_step_id"]=batch.get("selected_step_id")
-        if batch and batch["status"] == "failed" and batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT:
+        if batch and batch["status"] == "failed" and (
+                batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT
+                or batch.get("error_code") == "recovery_original_not_failed"):
             result["action"] = "resume_original_batch"
         if batch and batch["manifest"].get("local_wait"):
             result["action"] = "wait_for_dependency"
@@ -274,6 +281,12 @@ class ConsolidationRecovery:
         elif batch and batch["status"] == "failed" and batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT:
             if await self.memory.consolidation.waits.reopen_failed_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="resume_original_batch")
+        elif batch and batch["status"] == "failed" and batch.get("error_code") == "recovery_original_not_failed":
+            # The targeted worker observes Models outside this command's
+            # transaction and reopens only the same still-eligible batch.
+            await self.memory.consolidation._schedule_on(conn, batch["partition_id"], datetime.now(UTC),
+                suffix="local-recovery:"+body["client_request_id"], target_batch_id=batch["batch_id"])
+            data.update(queued=True, action="resume_original_batch")
         elif rpc_recovery_available(batch):
             if await self.memory.consolidation.retries.resume_rpc_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="observe_original_attempt")

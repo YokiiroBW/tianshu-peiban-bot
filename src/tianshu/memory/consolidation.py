@@ -301,149 +301,32 @@ class Consolidation:
         return await reconcile_transport_waits(self,limit=limit)
 
     async def _policy_outcome(self, batch_id, step_id, *, status, code=None, observation_ref=None,
-                              retry_after=None, model_receipt=None):
-        policy = self.memory.recovery_policy
-        if policy is None:
-            return
-        from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
-        receipt = model_receipt
-        if status in {"failed", "unknown"}:
-            # Read the original Models authority outside the domain transaction.
-            # An absent control result does not create not-sent evidence.
-            from .model_outcome import original_status
-            recorded, original = await self.steps.recorded(step_id)
-            if receipt is None:
-                receipt = await original_status(self.steps.models, original)
-            if receipt is not None:
-                from .rbh_transport import validate_original_receipt
-                validate_original_receipt(original,receipt)
-        if receipt is not None and receipt.status != status:
-            # A newer original observation supersedes the earlier exception.
-            return
-        if status == "unknown":
-            from .model_outcome import confirmed_computation_unknown
-            if not confirmed_computation_unknown(receipt):
-                return
+                              retry_after=None, model_receipt=None, outcome=None, recorded_step=None, original_request=None,
+                              expected_batch=None, expected_attempt=None, owner=None):
+        """Reconcile one Models receipt with its original, still-current batch head."""
+        from .model_outcome import OriginalOutcome, original_status
+        from .rbi_outcome import lock_observation_on, reconcile_locked_on
+
+        if expected_batch is None:
+            async with self.database.transaction(read_only=True) as conn:
+                expected_batch = await (await conn.execute(
+                    "SELECT * FROM memory.consolidation_batches WHERE batch_id=%s", (batch_id,))).fetchone()
+        if not expected_batch or not expected_batch.get("step_ids") or expected_batch["step_ids"][-1] != step_id:
+            return {"authority_block": "memory_consolidation_batch_changed"}
+        if recorded_step is None or original_request is None:
+            recorded, request = await self.steps.recorded(step_id)
+        else:
+            recorded, request = recorded_step, original_request
+        if outcome is None:
+            receipt = model_receipt if model_receipt is not None else await original_status(self.steps.models, request)
+            outcome = OriginalOutcome(receipt=receipt)
         async with self.database.transaction() as conn:
-            snapshot = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s",
-                (batch_id,))).fetchone()
-            if not snapshot:
-                return
-            await self._assert_batch_generation_on(conn, snapshot)
-            authority_block = None
-            if status in {"failed","unknown"}:
-                # Sources and identity are locked before the partition and
-                # batch, matching source withdrawal's established ordering.
-                context = context_from_bound(snapshot["manifest"]["authority_bound"])
-                valid = await self.sources.validate_persistence(conn,context,codec.refs(snapshot["dependency_refs"]))
-                if valid:
-                    try:
-                        await self.identity.check_context(context,connection=conn)
-                    except RecoveryWait:
-                        raise
-                    except AppError as error:
-                        if error.status not in {401,403,409}:
-                            raise
-                        valid = False
-                if not valid:
-                    authority_block = "source_unavailable"
-            await self._lock_owned_partition(conn,snapshot["partition_id"],None)
-            batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
-                (batch_id,))).fetchone()
-            if not batch:
-                return
-            await self._assert_batch_generation_on(conn, batch)
-            if status in {"failed","unknown"} and (
-                    batch["partition_id"] != snapshot["partition_id"]
-                    or batch["dependency_refs"] != snapshot["dependency_refs"]
-                    or batch["context_fingerprint"] != snapshot["context_fingerprint"]
-                    or batch["manifest"].get("authority_bound") != snapshot["manifest"].get("authority_bound")
-                    or batch["manifest"].get("recovery") != snapshot["manifest"].get("recovery")
-                    or batch["step_ids"] != snapshot["step_ids"]
-                    or snapshot["context_fingerprint"] != body_hash(context_record(context))):
-                authority_block = "memory_consolidation_batch_changed"
-            row = await (await conn.execute("SELECT * FROM memory.consolidation_attempts WHERE batch_id=%s "
-                "AND step_id=%s FOR UPDATE", (batch_id,step_id))).fetchone()
-            if not row or not row.get("recovery_lineage_id"):
-                return
-            attempt_id = row["model_attempt_id"]
-            previous = row.get("recovery_policy_state")
-            recovery = batch["manifest"].get("recovery")
-            if not recovery or recovery["lineage_id"] != row["recovery_lineage_id"]:
-                raise AppError("memory_recovery_lineage_changed",status=409)
-
-            async def blocked_outcome():
-                if authority_block == "source_unavailable":
-                    # Match the existing revoked-batch path in the same
-                    # transaction as archival, before any other claimant wakes.
-                    await self.cancel_recovery_on(conn,batch["manifest"])
-                return {"authority_block":authority_block}
-
-            if previous in {"succeeded","cancelled"}:
-                return await blocked_outcome() if authority_block else None
-            if status in {"failed","unknown"} and receipt is not None:
-                from .rbh_transport import validate_frozen_attempt_on
-                if not authority_block:
-                    # Sources hold the request's authority stable; do not
-                    # acquire the step lock after the batch while invalidation
-                    # locks it first.
-                    step = await (await conn.execute("SELECT request,state FROM memory.model_steps WHERE step_id=%s",
-                        (step_id,))).fetchone()
-                    if not step or step["state"] == "source_revoked" or step["request"] != recorded["request"]:
-                        raise AppError("memory_consolidation_attempt_changed",status=409)
-                await validate_frozen_attempt_on(conn,attempt_id,recovery,recorded["request"])
-            if previous == "failed":
-                # Historical and duplicate failure observations may add only
-                # Runtime-validated evidence to the existing failed attempt.
-                if authority_block:
-                    return await blocked_outcome()
-                if status == "failed" and receipt is not None:
-                    result = await policy.note_not_sent_on(conn,attempt_id,owner=recovery["owner"],
-                        expected_version=recovery["version"],model_receipt=receipt)
-                    if result["can_retry"]:
-                        await conn.execute("UPDATE memory.consolidation_batches SET manifest=manifest-'rbh_claim_budget' "
-                            "WHERE batch_id=%s",(batch_id,))
-                    return result
-                return
-            if status == "succeeded":
-                if previous == "unknown":
-                    await policy.resolve_unknown_on(conn,attempt_id,observation_ref=observation_ref or "models:"+attempt_id,
-                        state="succeeded")
-                else:
-                    await policy.succeed_attempt_on(conn,attempt_id)
-                settled = "succeeded"
-            elif status in {"failed","cancelled"}:
-                category = classify_failure(code or "model_outcome_"+status)
-                # Models already names these failures as temporary. Preserve
-                # that domain evidence when the shared classifier is generic.
-                if category == FailureCategory.OTHER and transient_model_failure(code):
-                    category = FailureCategory.TRANSPORT
-                if previous == "unknown":
-                    await policy.resolve_unknown_on(conn,attempt_id,observation_ref=observation_ref or "models:"+attempt_id,
-                        state="failed",code=code or "model_outcome_"+status,category=category,retry_after=retry_after)
-                else:
-                    await policy.fail_attempt_on(conn,attempt_id,code=code or "model_outcome_"+status,
-                        category=category,retry_after=retry_after)
-                settled = status
-            elif status == "unknown" and previous != "unknown":
-                await policy.record_computation_unknown_on(conn,attempt_id,owner=recovery["owner"],
-                    expected_version=recovery["version"],model_receipt=receipt,retry_after=retry_after)
-                settled = "unknown"
-            else:
-                return await blocked_outcome() if authority_block else None
-            await conn.execute("UPDATE memory.consolidation_attempts SET recovery_policy_state=%s "
-                "WHERE batch_id=%s AND step_id=%s",(settled,batch_id,step_id))
-            if authority_block:
-                # Commit the original outcome even when its sources or frozen
-                # authority are no longer eligible to grant a new retry.
-                return await blocked_outcome()
-            if status in {"failed", "unknown"} and receipt is not None:
-                result = await policy.note_not_sent_on(conn,attempt_id,owner=recovery["owner"],
-                    expected_version=recovery["version"],model_receipt=receipt)
-                if result["can_retry"]:
-                    await conn.execute("UPDATE memory.consolidation_batches SET manifest=manifest-'rbh_claim_budget' "
-                        "WHERE batch_id=%s",(batch_id,))
-                return result
+            batch, attempt, block = await lock_observation_on(self, conn, expected_batch, recorded, request,
+                owner=owner, expected_attempt=expected_attempt)
+            if batch is None:
+                return {"authority_block": block}
+            return await reconcile_locked_on(self, conn, batch, attempt, recorded, request, outcome,
+                                             retry_after=retry_after, authority_block=block)
 
     async def _assert_attempt_applicable_on(self, conn, batch, step_id):
         recovery = batch["manifest"].get("recovery")
@@ -1190,11 +1073,13 @@ class Consolidation:
                 if owner:
                     renewed=await (await conn.execute("UPDATE memory.consolidation_state "
                         "SET lease_until=now()+%s*interval '1 second' WHERE partition_id=%s AND lease_owner=%s "
-                        "RETURNING partition_id",(LEASE_SECONDS,batch["partition_id"],owner))).fetchone()
+                        "AND lease_until>now() RETURNING partition_id",(LEASE_SECONDS,batch["partition_id"],owner))).fetchone()
                     if not renewed:
                         raise AppError("memory_consolidation_lease_changed",status=409)
-                await conn.execute("UPDATE memory.consolidation_batches SET status='waiting_model',updated_at=now() "
-                    "WHERE batch_id=%s AND status='prepared' AND NOT (manifest ? 'remote_wait_unresolved')", (batch_id,))
+                updated = await (await conn.execute("UPDATE memory.consolidation_batches SET status='waiting_model',updated_at=now() "
+                    "WHERE batch_id=%s AND status='prepared' AND NOT (manifest ? 'remote_wait_unresolved') RETURNING *", (batch_id,))).fetchone()
+                if updated:
+                    batch = updated
             manifest = batch["manifest"]
             if manifest.get("remote_wait_unresolved"):
                 if (manifest["remote_wait_unresolved"].get("stage") == "route_profile"
@@ -1257,9 +1142,14 @@ class Consolidation:
                     await self.retries._postpone(batch,code="model_outcome_unconfirmed",owner=owner)
                 return None
             result, recorded = observed
-            await self._policy_outcome(batch_id,step_id,status="succeeded",
-                observation_ref="models:"+recorded.attempt_id)
-            await self.retries.succeeded(batch_id, step_id)
+            from .model_outcome import OriginalOutcome
+            policy_result = await self._policy_outcome(batch_id, step_id, status="succeeded",
+                outcome=OriginalOutcome(result=result, receipt=result.receipt), expected_batch=batch, owner=owner)
+            block = policy_result.get("authority_block") if policy_result else None
+            if block == "source_unavailable":
+                raise AppError(block, status=403)
+            if block:
+                return None
             frozen = manifest["steps"][step_id]
             context_attempted = False
             try:
@@ -1402,16 +1292,20 @@ class Consolidation:
         frozen_digest = body_hash(frozen)
         async with self.database.transaction() as conn:
             await self._assert_batch_generation_on(conn, batch)
-            await self._assert_attempt_applicable_on(conn, batch, step_id)
             if not await self.sources.validate_persistence(conn, context, codec.refs(batch["dependency_refs"])):
                 raise AppError("source_unavailable", status=403)
+            await self.identity.check_context(context, connection=conn)
             await self._lock_owned_partition(conn, batch["partition_id"], owner)
             current = await (await conn.execute(
                 "SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",
                 (batch["batch_id"],))).fetchone()
             if not current or current["status"] not in _OBSERVABLE:
                 raise AppError("memory_consolidation_batch_terminal", status=409)
-            await self.identity.check_context(context, connection=conn)
+            if step_id is not None:
+                if not current["step_ids"] or current["step_ids"][-1] != step_id:
+                    raise AppError("memory_consolidation_attempt_changed", status=409)
+                await self._validate_submission_on(conn, current, context, step_id)
+                await self._assert_attempt_applicable_on(conn, current, step_id)
             saved_frozen = current["manifest"]["steps"].get(step_id) if step_id else current["manifest"]["frozen"]
             if saved_frozen != frozen or current["dependency_refs"] != batch["dependency_refs"]:
                 raise AppError("memory_consolidation_attempt_changed", status=409)
@@ -1645,9 +1539,10 @@ class Consolidation:
         return append_context_material(frozen["materials"],read,extra=values)
 
     async def _lock_owned_partition(self,conn,partition_id,owner):
-        state=await (await conn.execute("SELECT * FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
+        state=await (await conn.execute("SELECT *,now() AS lock_time FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
             (partition_id,))).fetchone()
-        if owner is not None and (not state or state["lease_owner"] != owner):
+        if owner is not None and (not state or state["lease_owner"] != owner
+                                  or state["lease_until"] is None or state["lease_until"] <= state["lock_time"]):
             raise AppError("memory_consolidation_lease_changed",status=409)
         return state
 
@@ -1655,10 +1550,10 @@ class Consolidation:
         digest = body_hash(proposal)
         async with self.database.transaction() as conn:
             await self._assert_batch_generation_on(conn, batch)
-            await self._assert_attempt_applicable_on(conn, batch, step_id)
-            # This order matches Sources withdrawal: sources -> partition -> batch -> stable domain objects.
+            # Sources and identity precede the partition, batch, materials and Runtime ledger.
             if not await self.sources.validate_persistence(conn,context,codec.refs(batch["dependency_refs"])):
                 raise AppError("source_unavailable",status=403)
+            await self.identity.check_context(context,connection=conn)
             await self._lock_owned_partition(conn,batch["partition_id"],owner)
             current = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch["batch_id"],))).fetchone()
             if current["status"] == "applied":
@@ -1674,7 +1569,7 @@ class Consolidation:
             if step_id is not None and not compilation:
                 raise AppError("memory_consolidation_compilation_missing", status=409)
             if step_id is not None:
-                if (step_id not in current["step_ids"] or current["manifest"]["steps"].get(step_id) != frozen
+                if (not current["step_ids"] or step_id != current["step_ids"][-1] or current["manifest"]["steps"].get(step_id) != frozen
                         or current.get("selected_step_id") not in {None,step_id}):
                     raise AppError("memory_consolidation_attempt_changed",status=409)
                 selected = await (await conn.execute("UPDATE memory.consolidation_batches SET selected_step_id=%s "
@@ -1686,11 +1581,14 @@ class Consolidation:
                 raise AppError("memory_consolidation_proposal_changed",status=409)
             if current["context_fingerprint"] != body_hash(context_record(context)):
                 raise AppError("memory_consolidation_authority_changed",status=409)
-            await self.identity.check_context(context,connection=conn)
-            for episode in current["manifest"]["episodes"]:
+            for episode in sorted(current["manifest"]["episodes"], key=lambda item: item["episode_id"]):
                 row = await (await conn.execute("SELECT * FROM memory.episodes WHERE episode_id=%s FOR UPDATE",(episode["episode_id"],))).fetchone()
-                if not row or not row["active"] or row["revision"] != episode["revision"] or row["sequence"] != episode["sequence"] or row["extraction_cursor"] != episode["before"]:
+                if (not row or not row["active"] or row["revision"] != episode["revision"]
+                        or row["sequence"] != episode["sequence"] or row["extraction_cursor"] != episode["before"]
+                        or episode.get("content_digest") is not None and row["content_hash"] != episode["content_digest"]):
                     raise AppError("memory_consolidation_episode_changed",status=409)
+            await self.memory.claims.revisions.validate_read_set_on(conn, context, frozen)
+            await self._assert_attempt_applicable_on(conn, current, step_id)
             result = await self.memory.claims.revisions.apply_operations_on(conn,context,batch_id=batch["batch_id"],
                 frozen=frozen,operations=proposal["operations"])
             if result.get("derived_invalidations"):
@@ -1753,24 +1651,39 @@ class Consolidation:
             # The expired writer has no authority to settle or reset its work.
             return
         details = getattr(exc,"details",None) or {}
+        if batch_id and (transient_model_failure(code) or details.get("status") in {"queued","running","succeeded"}
+                or details.get("original_observation") in {"confirmed","missing","unavailable"}):
+            try:
+                if await self.retries.defer(batch_id,exc,owner=owner):
+                    return
+            except AppError as error:
+                if error.code not in {"source_unavailable", "memory_consolidation_episode_changed",
+                        "memory_read_set_changed", "memory_read_revision_conflict", "claim_revision_conflict",
+                        "matter_revision_conflict", "memory_consolidation_read_changed"}:
+                    raise
+                await self._failure(partition_id, batch_id, error, owner=owner, generation=generation)
+                return
         if batch_id and details.get("status") in {"unknown","failed","cancelled"}:
             async with self.database.transaction(read_only=True) as conn:
-                attempt = await (await conn.execute("SELECT step_id FROM memory.consolidation_attempts "
+                attempt = await (await conn.execute("SELECT step_id,model_attempt_id FROM memory.consolidation_attempts "
                     "WHERE batch_id=%s ORDER BY number DESC LIMIT 1", (batch_id,))).fetchone()
+            if attempt and details.get("attempt_id") and attempt["model_attempt_id"] != details["attempt_id"]:
+                return
             if attempt:
                 policy_result = await self._policy_outcome(batch_id,attempt["step_id"],status=details["status"],
                     code=details.get("receipt_error_code") or code,
                     observation_ref="models:"+str(details.get("attempt_id") or "unknown"),
-                    retry_after=details.get("retry_after"))
+                    retry_after=details.get("retry_after"), owner=owner)
                 block = policy_result.get("authority_block") if policy_result else None
-                if block == "memory_consolidation_batch_changed":
+                if block and block != "source_unavailable":
                     return
                 if block == "source_unavailable":
                     code, details = block, {}
-        if batch_id and (transient_model_failure(code) or details.get("status") in {"queued","running","succeeded"}
-                or details.get("original_observation") in {"confirmed","missing","unavailable"}):
-            if await self.retries.defer(batch_id,exc,owner=owner):
-                return
+                elif policy_result and (policy_result.get("unconfirmed") or
+                        policy_result.get("status") not in {None, details["status"]}):
+                    # The exception described an older observation. Let the
+                    # current owner re-observe the same head on its next wake.
+                    return
         revoked = code in {"source_unavailable","access_changed","delivery_access_changed","actor_forbidden","conversation_forbidden"}
         stale = code in {"revision_conflict","memory_consolidation_read_changed","memory_consolidation_episode_changed",
             "memory_read_set_changed","memory_read_revision_conflict","claim_revision_conflict","matter_revision_conflict",
@@ -1791,8 +1704,9 @@ class Consolidation:
                     if error.code == "job_generation_expired":
                         return
                     raise
-            ownership = await (await conn.execute("SELECT lease_owner FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",(partition_id,))).fetchone()
-            if owner is not None and (not ownership or ownership["lease_owner"] != owner):
+            ownership = await (await conn.execute("SELECT lease_owner,lease_until>now() AS leased FROM memory.consolidation_state "
+                "WHERE partition_id=%s FOR UPDATE",(partition_id,))).fetchone()
+            if owner is not None and (not ownership or ownership["lease_owner"] != owner or not ownership["leased"]):
                 return
             if batch_id:
                 batch = await (await conn.execute("SELECT * FROM memory.consolidation_batches WHERE batch_id=%s FOR UPDATE",(batch_id,))).fetchone()
