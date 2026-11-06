@@ -197,7 +197,7 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
                 if proof_key not in proven:
                     continue
                 progress = await (await connection.execute(
-                    "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,proof,owner_token "
+                    "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,reason,proof,owner_token "
                     "FROM conversation.result_consumer_progress "
                     "WHERE data_generation=%s AND receipt_id=%s ORDER BY consumer FOR UPDATE",
                     (generation, receipt_id))).fetchall()
@@ -206,7 +206,7 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
                     # COMMIT failed. Only its exact original consumer proof can
                     # resolve the held physical attempt as completed.
                     from .rbj_result_budget import matching_life_proof
-                    from .rbj_result_repair import evidence_on
+                    from .rbj_result_repair import evidence_on, result_proof_observation
                     target_consumer, target_ref = item.get("consumer"), item.get("repair_ref")
                     if not target_consumer or not target_ref:
                         continue
@@ -218,7 +218,9 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
                     resolved = await jobs.resolve_execution_on(connection, owner=EXECUTION_OWNER,
                         identity=identity, data_generation=generation, job_id=item["job_id"],
                         native_attempt=item["native_attempt"], outcome="completed",
-                        observation_ref=f"result-proof:{receipt_id}:{target_consumer}:{proof_key}")
+                        observation_ref=result_proof_observation(generation, event, target_consumer, target_ref,
+                            owner_id=evidence["owner_id"], disposition=proof["disposition"],
+                            reason=proof["reason"], proof=proof["proof"]))
                     if resolved.get("recorded"):
                         proven.pop(proof_key, None)
                     continue

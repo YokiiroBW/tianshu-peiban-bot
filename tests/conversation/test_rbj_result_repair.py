@@ -218,6 +218,63 @@ async def test_trusted_target_grant_is_idempotent_and_only_life_runs(database):
 
 
 @pytest.mark.asyncio
+async def test_finished_repair_reobserves_original_proof_without_reapplying(database):
+    value = await setup(database)
+    saved = await exhaust(database, value)
+    assert (await register_and_authorize(database, value, saved))["state"] == "accepted"
+    wake = await schedule_repair(value, saved)
+    await run_native(database, value, saved, wake["job_id"])
+    async with database.transaction() as connection:
+        await connection.execute("UPDATE procrastinate_jobs SET status='succeeded',attempts=attempts+1 WHERE id=%s",
+                                 (wake["job_id"],))
+        grant_before = await (await connection.execute(
+            "SELECT closed_at,close_observation_ref,failure_digest FROM runtime.rbj_execution_repair_grants "
+            "WHERE repair_ref=%s AND consumer=%s", (REPAIR_REF, CONSUMER))).fetchone()
+        fact_before = await (await connection.execute(
+            "SELECT outcome,resolved_outcome,observation_ref FROM runtime.rbi_execution_facts "
+            "WHERE data_generation=%s AND job_id=%s AND native_attempt=0",
+            (saved["data_generation"], wake["job_id"]))).fetchone()
+    assert grant_before["close_observation_ref"] == f"execution:{wake['job_id']}:0:completed"
+    assert fact_before == {"outcome": "completed", "resolved_outcome": None, "observation_ref": None}
+    for _ in range(2):
+        observed = await schedule_repair(value, saved)
+        assert observed["state"] == "verified" and observed["disposition"] == "done"
+        assert observed["proof"] == {"activity_id": "activity", "last_result_revision": 1,
+                                     "last_receipt_id": "receipt"}
+    async with database.transaction() as connection:
+        grant_after = await (await connection.execute(
+            "SELECT closed_at,close_observation_ref,failure_digest FROM runtime.rbj_execution_repair_grants "
+            "WHERE repair_ref=%s AND consumer=%s", (REPAIR_REF, CONSUMER))).fetchone()
+        fact_after = await (await connection.execute(
+            "SELECT outcome,resolved_outcome,observation_ref FROM runtime.rbi_execution_facts "
+            "WHERE data_generation=%s AND job_id=%s AND native_attempt=0",
+            (saved["data_generation"], wake["job_id"]))).fetchone()
+        # Simulate a conflicting persisted proof without changing its original identity.
+        await connection.execute(
+            "UPDATE conversation.result_consumer_progress SET proof=proof || %s::jsonb "
+            "WHERE data_generation=%s AND receipt_id='receipt' AND consumer='life_activity'",
+            (Jsonb({"conflicting_evidence": True}), saved["data_generation"]))
+    assert grant_after == grant_before
+    assert fact_after["outcome"] == "completed" and fact_after["resolved_outcome"] is None
+    assert fact_after["observation_ref"].startswith("result-proof:")
+    with pytest.raises(AppError, match="execution_repair_close_conflict"):
+        await schedule_repair(value, saved)
+    async with database.transaction(read_only=True) as connection:
+        fact_final = await (await connection.execute(
+            "SELECT outcome,resolved_outcome,observation_ref FROM runtime.rbi_execution_facts "
+            "WHERE data_generation=%s AND job_id=%s AND native_attempt=0",
+            (saved["data_generation"], wake["job_id"]))).fetchone()
+        budget = await value.jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER,
+            identity=execution_identity(saved["data_generation"], value.event),
+            data_generation=saved["data_generation"], max_failures=MAX_FAILURES,
+            repair_ref=REPAIR_REF, consumer=CONSUMER)
+    assert fact_final == fact_after and budget["failed_executions"] == 4
+    assert value.life.activity_calls == 1
+    value.actions.invoke.assert_not_awaited()
+    value.actions.resume.assert_not_awaited()
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("stage", ["source", "goal", "memory", "proof"])
 async def test_repair_local_effects_and_proof_roll_back_together(database, stage):
     value = await setup(database)
@@ -260,6 +317,15 @@ async def test_done_proof_reconciles_lost_finish_without_reapplying(database):
     async with database.transaction() as connection:
         await connection.execute("UPDATE procrastinate_jobs SET status='failed',attempts=attempts+1 WHERE id=%s",
                                  (wake["job_id"],))
+    async with database.transaction() as connection:
+        assert await value.identity.validate_persistence(connection, value.action.context, ())
+        await value.actions.assert_result_head_on(connection, value.action.context, action_id="action",
+            expected_receipt=value.event["receipt"], result_revision=1,
+            data_generation=saved["data_generation"], source_refs=())
+        stranded = await ensure_on(connection, value.jobs, saved["data_generation"], value.event,
+            reconcile_stranded=True, repair_ref=REPAIR_REF, repair_consumer=CONSUMER)
+    assert stranded["budget"]["unknown_held"] == stranded["budget"]["active_executions"] == 0
+    assert stranded["budget"]["failed_executions"] == 4 and stranded["budget"]["repair"]["reason"] == "repair_closed"
     reconciled = await schedule_repair(value, saved)
     assert reconciled["state"] == "verified"
     assert value.life.activity_calls == 1

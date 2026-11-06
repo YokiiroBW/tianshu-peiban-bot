@@ -122,14 +122,21 @@ async def stop_preflight_on(connection, jobs, generation, event, execution, cons
     return {"state": "preflight_stopped", "reason": reason, "decision": decision}
 
 
+def result_proof_observation(generation, event, consumer, repair_ref, *, owner_id, disposition, reason, proof):
+    """Identify the persisted consumer outcome, independent of the observing path."""
+    action_id, receipt_id, revision = event_identity(event)
+    return "result-proof:" + signature([generation, action_id, receipt_id, revision, consumer, repair_ref,
+                                        owner_id, disposition, reason or disposition, proof])
+
+
 async def close_from_proof_on(connection, jobs, generation, event, consumer, repair_ref, proof, *,
                               disposition="done", reason=None, owner_id=None):
     """Close only this grant; unresolved original facts retain their identity."""
     identity = execution_identity(generation, event)
     budget = await jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER, identity=identity,
         data_generation=generation, max_failures=MAX_FAILURES, repair_ref=repair_ref, consumer=consumer)
-    observation = "result-proof:" + signature([generation, event["action_id"], event["event_id"],
-        event["result_revision"], consumer, repair_ref, owner_id, disposition, reason, proof])
+    observation = result_proof_observation(generation, event, consumer, repair_ref, owner_id=owner_id,
+        disposition=disposition, reason=reason, proof=proof)
     for item in budget.get("unresolved_executions", ()):
         if (item.get("purpose") != "repair" or item.get("repair_ref") != repair_ref
                 or item.get("consumer") != consumer):

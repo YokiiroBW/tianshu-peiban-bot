@@ -36,3 +36,10 @@
 - 根在集成提交 `a3c4ea31888300281ca8491b3ad935fb467feb1f` 的真实 PostgreSQL 检查中发现两条旧无锁 result wake 用例的 `job_identity_conflict`。静态对照确认，两条夹具漏传 `subject_id`，而原始 `ActionResultEvents.publish`（`1d087637`、`06ce91b2`）及 RBI 的 result 唤醒（`27499db6`）均设置为事件的 actor ID。Runtime 冻结摘要包含该字段，因此原夹具与 canonical job 的身份不同。
 - 两条夹具改为忠实构造历史生产者的 actor；另写用例确认相同 event 但不同 subject 不会被 adopt，原任务身份和待办状态不被改写。与 Runtime 单写窗口对照后确认不修改 Runtime 身份规则，不将不同摘要混并。若之后发现真实历史任务缺失 subject，须按实际证据另行判断，不能据此猜补身份。
 - 本返修仅静态审阅和 AST 解析，不运行测试或 PostgreSQL；由根集中复验原失败用例及新增冲突用例。
+
+## 1.8 成功修复后的证明观察返修
+
+- 根在 `247ed3f7602d58da1c19ff316aa213faa996b6b5` 的真实 Sources/Life/Goal/Memory 回归中确认：目标本地事务与六消费者聚合均已提交，但成功 `finish_execution_on` 使用的机械关闭引用与再次观察的领域证明引用不同，触发 `execution_repair_close_conflict`。根的取消后全域回滚参数已通过；成功后的重复观察此前未通过。
+- 按合同 `1d56370f` 第 16 节，Conversation 将原 generation、action、receipt、revision、consumer、repair_ref、冻结 owner、disposition、稳定 reason 和完整持久 proof 统一生成 `result-proof` 引用。预算历史对账 resolve 和领域 close 共用该规则；两条路径均先核对原目标与 Life proof，不因 grant closed 或 native succeeded 猜测业务完成。非应用终态保留原 disposition 和理由。
+- Runtime 按 1.8 在同一已完成物理事实中绑定首次领域观察引用，保留最初的机械关闭引用；重复相同证明幂等，不同证明仍冲突。此提交不更改 Runtime、SQL 或公共签名；双方提交必须一起集成。若既有环境已持久记录本批旧格式的证明引用，不改写原证据或猜测两种引用等价，须由根按事实处理。
+- 新增定向用例覆盖正常 finish 后同一原证明两次观察、不重跑 Life/Action、保留机械关闭和普通预算，以及故意改变 fixture proof 后继续拒绝冲突；补充已提交但 finish 回执丢失时由预算历史先 resolve、随后领域 close 的同引用对账。仅静态检查，相关 PostgreSQL 验证由根执行；真实域测试位于根提交中，不在本卡重复复制。
