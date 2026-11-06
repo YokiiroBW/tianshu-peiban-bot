@@ -50,7 +50,6 @@ export function ConnectionsPanel() {
                 <div>
                   <h3>{item.definition.title}</h3>
                   <p>{item.definition.description}</p>
-                  <code>{item.definition.id}</code>
                   {item.availability.reason && (
                     <p>{capabilityReason(item.availability.reason)}</p>
                   )}

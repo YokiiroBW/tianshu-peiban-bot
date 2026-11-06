@@ -48,7 +48,7 @@ export function SkillsPanel({ actorId }: { actorId?: string }) {
           type="search"
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="名称、能力标识或说明"
+          placeholder="搜索名称或说明"
         />
       </label>
       <div className="domain-grid">
@@ -70,7 +70,7 @@ export function SkillsPanel({ actorId }: { actorId?: string }) {
               </header>
               <p>{item.definition.description}</p>
               <small>
-                {item.definition.id} · 定义修订 {item.definition.version} ·{" "}
+                定义修订 {item.definition.version} ·{" "}
                 {item.definition.effect === "read" ? "读取能力" : "会产生变更"}
               </small>
               {item.availability.reason && (

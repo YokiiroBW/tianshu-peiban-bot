@@ -5,6 +5,7 @@ import { ProviderManager } from "./ProviderManager";
 import { ModelFunctionsPanel } from "./ModelFunctionsPanel";
 import { QuotaEditor } from "./ProviderEditors";
 import { useModelCatalog, useModelCommand } from "./providerApi";
+import { modelRouteName, quotaGroupName } from "./providerPresentation";
 import type { ModelCatalog, QuotaGroup } from "./providerTypes";
 import "./models.css";
 
@@ -78,7 +79,7 @@ function EmbeddingEditor({
           <option value="">请选择嵌入协议路由</option>
           {routes.map((row) => (
             <option key={row.route_id} value={row.route_id}>
-              {row.model} · {row.route_id}
+              {modelRouteName(catalog, row.route_id)}
             </option>
           ))}
         </select>
@@ -182,7 +183,7 @@ export function ProviderModelsPanel({
               >
                 <option value="">新增容量组</option>
                 {catalog.data.quota_groups.map((row) => (
-                  <option key={row.quota_group}>{row.quota_group}</option>
+                  <option key={row.quota_group} value={row.quota_group}>{quotaGroupName(catalog.data!, row.quota_group)}</option>
                 ))}
               </select>
             </label>

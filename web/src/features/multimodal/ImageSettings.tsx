@@ -228,7 +228,7 @@ export function ProfileEditor({
               <option value="">请选择</option>
               {view.engines.map((engine) => (
                 <option key={engine.id} value={engine.id}>
-                  {engineNames[engine.engine]} · {engine.id}
+                  {engineNames[engine.engine]} · {engine.model || "默认模型"}
                 </option>
               ))}
             </select>

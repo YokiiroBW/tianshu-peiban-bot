@@ -155,7 +155,7 @@ export default function GrowthPage() {
                           保留了较新经历形成的当前状态；此批只补充历史手记，原判断仍可追溯。
                         </p>
                       )}
-                      <p className="muted">执行记录：{retry.attempt_id}</p>
+                      <p className="muted">已关联本次执行记录</p>
                       {view.data?.can_review && retry.can_request_review && (
                         <button
                           className="button"
@@ -205,13 +205,13 @@ export default function GrowthPage() {
                 <details open>
                   <summary>本次固定经历批次</summary>
                   <p>
-                    材料标识：{sanitizeInternalText(review.batch.material_key)}
+                    本次整理使用已固定的经历材料
                   </p>
                   {review.batch.inputs?.length ? (
                     <ul>
                       {review.batch.inputs.map(([id, revision]) => (
                         <li key={`${id}:${revision}`}>
-                          {sanitizeInternalText(id)} · v{revision}
+                          经历材料 · 版本 {revision}
                         </li>
                       ))}
                     </ul>
@@ -238,7 +238,7 @@ export default function GrowthPage() {
                     可恢复的中断会保留原记录，并另行安排重试。
                   </p>
                   <p className="muted">
-                    原 attempt：{review.attempt_id ?? "尚未取得"}
+                    原执行：{review.attempt_id ? "已关联" : "尚未取得"}
                   </p>
                   <button
                     className="button"

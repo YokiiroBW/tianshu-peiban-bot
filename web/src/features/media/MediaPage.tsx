@@ -1,3 +1,4 @@
+import { Notice } from "../../components/Notifications";
 import { RefreshCw } from "lucide-react";
 import { StatePanel } from "../../components/StatePanel";
 import { StatusRail } from "../../components/StatusRail";
@@ -46,14 +47,10 @@ export default function MediaPage({ section = 4 }: { section?: number }) {
         </div>
       )}
       {media.error && (
-        <div className="media-message media-warning" role="alert">
-          {media.error}
-        </div>
+        <Notice error>{media.error}</Notice>
       )}
       {media.notice && (
-        <div className="media-message" role="status">
-          {media.notice}
-        </div>
+        <Notice>{media.notice}</Notice>
       )}
       {media.stale && media.view && (
         <p className="media-warning" role="status">

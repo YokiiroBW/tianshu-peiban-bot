@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { useModelCatalog, useModelCommand } from "./providerApi";
+import { modelRouteName } from "./providerPresentation";
 import {
   functionNames,
   serviceNames,
@@ -56,12 +57,12 @@ function Binding({
   );
   return (
     <article className="model-function">
-      <h4>{functionNames[functionId] ?? functionId}</h4>
+      <h4>{functionNames[functionId] ?? "其他模型功能"}</h4>
       <p className="muted">
         {own
-          ? `当前：${own.route_id} · 修订 ${own.revision}`
+          ? `当前：${modelRouteName(catalog, own.route_id)}`
           : inherited
-            ? `继承：${inherited.route_id}`
+            ? `继承：${modelRouteName(catalog, inherited.route_id)}`
             : "尚无绑定或系统默认"}
       </p>
       <label>
@@ -78,16 +79,11 @@ function Binding({
             {functionId === "*" ? "请选择系统默认路由" : "使用系统继承"}
           </option>
           {own && !routes.some((row) => row.route_id === own.route_id) && (
-            <option value={own.route_id}>{own.route_id}（不可用）</option>
+            <option value={own.route_id}>原模型配置（当前不可用）</option>
           )}
           {routes.map((route) => (
             <option key={route.route_id} value={route.route_id}>
-              {
-                catalog.providers.find(
-                  (provider) => provider.provider_id === route.provider_id,
-                )?.name
-              }{" "}
-              / {route.model} · {route.route_id}
+              {modelRouteName(catalog, route.route_id)}
             </option>
           ))}
         </select>
@@ -101,9 +97,9 @@ function Binding({
               const next = event.target.value;
               setFallbacks((current) => current.map((value, position) => position === index ? next : value));
             }}>
-              {!routes.some((route) => route.route_id === id) && <option value={id}>{id}（当前不可用）</option>}
+              {!routes.some((route) => route.route_id === id) && <option value={id}>原备用模型（当前不可用）</option>}
               {routes.filter((route) => route.route_id !== selected && (route.route_id === id || !fallbacks.includes(route.route_id))).map((route) =>
-                <option key={route.route_id} value={route.route_id}>{route.model} · {route.route_id}</option>)}
+                <option key={route.route_id} value={route.route_id}>{modelRouteName(catalog, route.route_id)}</option>)}
             </select>
           </label>
           <button type="button" className="button" disabled={index === 0} onClick={() => setFallbacks((current) => {

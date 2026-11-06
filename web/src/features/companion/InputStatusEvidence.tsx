@@ -1,7 +1,7 @@
 import type { SourceRef } from "../../api/contracts";
 import type { DomainTarget } from "../../api/useDomainResource";
 import { SourceEvidence } from "../../components/SourceEvidence";
-import { sanitizeInternalText } from "../../design/humanize";
+import { humanizeCode } from "../../design/humanize";
 
 type ContextAttempt = {
   attempt_id: string | null;
@@ -76,13 +76,13 @@ function Attempts({ attempts }: { attempts?: ContextAttempt[] }) {
       {attempts.map((attempt, index) => (
         <li key={`${attempt.attempt_id ?? "unknown"}:${index}`}>
           {attempt.round != null ? `轮次 ${attempt.round}` : "轮次未记录"} ·
-          尝试 {attempt.attempt_id ?? "未记录"} ·{" "}
+          执行记录{attempt.attempt_id ? "已关联" : "未记录"} ·{" "}
           {attempt.selected === true
             ? "这条输入已进入该轮冻结请求"
             : attempt.selected === false
               ? "这条输入未进入该轮冻结请求"
               : "该轮选材未记录"}{" "}
-          · {dispatches[attempt.dispatch] ?? attempt.dispatch}
+          · {dispatches[attempt.dispatch] ?? "提交状态未记录"}
         </li>
       ))}
     </ul>
@@ -97,7 +97,7 @@ function InputStatusRecord({ item, scope }: { item: InputStatus; scope: DomainTa
   return (
     <article>
       <p>
-        输入 {item.input_id} · 事件 {item.event_id}
+        本条输入的处理记录
         {item.event_revision != null ? ` · 版本 ${item.event_revision}` : " · 版本未记录"}
       </p>
       <p>选材：{selections[item.context?.selection] ?? item.context?.selection ?? "未记录"}</p>
@@ -111,7 +111,7 @@ function InputStatusRecord({ item, scope }: { item: InputStatus; scope: DomainTa
           <summary>本条输入材料仍有未覆盖部分</summary>
           <ul>
             {learning.coverage_missing.map((reason, index) => (
-              <li key={`${reason}:${index}`}>{sanitizeInternalText(reason) || "原因未记录"}</li>
+              <li key={`${reason}:${index}`}>{humanizeCode(reason, "部分材料尚未覆盖")}</li>
             ))}
           </ul>
         </details>
@@ -128,9 +128,9 @@ function InputStatusRecord({ item, scope }: { item: InputStatus; scope: DomainTa
           <ul>
             {learning.revision_evidence.map((evidence) => (
               <li key={`${evidence.rule_id}:${evidence.revision}:${evidence.proposal_id}`}>
-                {evidence.action === "revise" ? "修订" : "撤回"}规则 {evidence.rule_id} ·
+                {evidence.action === "revise" ? "修订" : "撤回"}规则 ·
                 版本 {evidence.revision} · 语义版本 {evidence.semantic_revision} ·
-                提案 {evidence.proposal_id} · 原执行 {evidence.attempt_id}
+                已关联修订提案与原执行
               </li>
             ))}
           </ul>
@@ -144,9 +144,9 @@ function InputStatusRecord({ item, scope }: { item: InputStatus; scope: DomainTa
         <details>
           <summary>学习状态记录</summary>
           {learning.episode_id && (
-            <p>关联经历：{learning.episode_id} · 版本 {learning.episode_revision ?? "未记录"}</p>
+            <p>已关联学习经历 · 版本 {learning.episode_revision ?? "未记录"}</p>
           )}
-          {learning.reason && <p>原因：{learning.reason}</p>}
+          {learning.reason && <p>原因：{humanizeCode(learning.reason, "学习处理仍有待确认的材料")}</p>}
           {!!learning.source_refs?.length && <SourceEvidence sources={learning.source_refs} scope={scope} />}
         </details>
       )}

@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import { useState } from "react";
 import { useAuth } from "../../app/Auth";
 import {
@@ -15,6 +16,8 @@ import { CommandFeedback } from "../../components/CommandFeedback";
 import { DetailCard } from "../../components/DetailCard";
 import { taskHref } from "../../api/commandRecovery";
 import { ChannelIdentityPanel } from "./ChannelIdentityPanel";
+import { connectionName } from "../people/types";
+import { humanizeCode } from "../../design/humanize";
 import {
   adapterLabels,
   splitLines,
@@ -63,8 +66,8 @@ export function BotAdapterPanel() {
         <h3>传输进程</h3>
         <p>
           {view.data?.owner
-            ? `${view.data.owner.active ? "租约有效" : "租约已失效"} · ${view.data.owner.owner_id} · epoch ${view.data.owner.epoch} · 到期 ${new Date(view.data.owner.expires_at).toLocaleString("zh-CN")}`
-            : "当前没有传输owner记录"}
+            ? `${view.data.owner.active ? "连接管理租约有效" : "连接管理租约已失效"} · 到期 ${new Date(view.data.owner.expires_at).toLocaleString("zh-CN")}`
+            : "当前没有连接管理记录"}
         </p>
         <p className="muted">
           连接配置与对端账号验证分别记录。外部宿主未提供可核验状态时保持未知。
@@ -135,22 +138,21 @@ export function BotAdapterPanel() {
                     },
                   })}
                 >
-                  {delivery.expression_id}
+                  查看本次投递记录
                 </a>
               ))}
             </div>
             {view.data.observations.map((observation, index) => (
               <article className="domain-record" key={index}>
                 <strong>
-                  {observation.connection_id} · {observation.kind} /{" "}
-                  {observation.name}
+                  {humanizeCode(observation.kind, "连接观察")} · {humanizeCode(observation.name, "服务状态记录")}
                 </strong>
                 <time>
                   {new Date(observation.observed_at).toLocaleString("zh-CN")}
                 </time>
                 <details>
                   <summary>实际观察</summary>
-                  <pre>{JSON.stringify(observation.body, null, 2)}</pre>
+                  <pre>{readableRecord(observation.body)}</pre>
                 </details>
               </article>
             ))}
@@ -174,7 +176,7 @@ function ChannelCard({
     <article className="bot-wizard">
       <div className="section-heading">
         <div>
-          <h3>{connection.id}</h3>
+          <h3>{connectionName(connection)}</h3>
           <p>
             {adapterLabels[connection.adapter] ?? connection.adapter} ·{" "}
             {connection.transport} · {connection.provider}
@@ -186,8 +188,8 @@ function ChannelCard({
         </span>
       </div>
       <p>
-        {connection.self_external_id} · {connection.state}
-        {connection.reason ? ` · ${connection.reason}` : ""} · 修订
+        {connection.self_external_id} · {humanizeCode(connection.state, "状态尚未确认")}
+        {connection.reason ? ` · ${humanizeCode(connection.reason, "连接状态有待核对")}` : ""} · 修订
         {connection.revision}
       </p>
       <div className="domain-actions">
@@ -404,12 +406,12 @@ function ChannelEditor({
                 (value) => value.connection_id === row.id,
               ) && (
                 <option value={row.id}>
-                  {row.id} · {row.self_external_id}
+                  {connectionName(row)}
                 </option>
               )}
             {registrations.map((x) => (
               <option key={x.connection_id} value={x.connection_id}>
-                {x.connection_id} · {x.self_external_id}
+                {connectionName(x)}
               </option>
             ))}
           </select>
@@ -681,7 +683,7 @@ function NativeApi({ connections }: { connections: ChannelConnection[] }) {
         {command.result?.data != null && (
           <details>
             <summary>本次实际业务结果</summary>
-            <pre>{JSON.stringify(command.result.data, null, 2)}</pre>
+            <pre>{readableRecord(command.result.data)}</pre>
           </details>
         )}
       </form>

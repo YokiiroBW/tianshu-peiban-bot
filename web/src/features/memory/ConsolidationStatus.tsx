@@ -9,7 +9,6 @@ import { CommandFeedback } from "../../components/CommandFeedback";
 import {
   humanizeScopeTarget,
   sanitizeInternalText,
-  shortHashTag,
 } from "../../design/humanize";
 import { showValue, type Consolidation } from "./types";
 import "./memory.css";
@@ -86,14 +85,14 @@ export function ConsolidationStatus({
   identities?: Record<string, string>;
 }) {
   const recovery = value.action ? actions[value.action] : undefined;
-  const batchDisplay = value.batch_id ? shortHashTag(value.batch_id) : null;
+  const batchDisplay = !!value.batch_id;
 
   return (
     <div className="memory-consolidation curio-consolidation-bar">
       <div className="curio-consolidation-summary">
         <strong>整理状态：{stateNames[value.status] ?? "状态尚未确认"}</strong>
-        <span className="curio-tech-code" title={value.batch_id ?? undefined}>
-          {batchDisplay ? `批次 ${batchDisplay}` : "尚无固定批次"}
+        <span>
+          {batchDisplay ? "当前整理批次" : "尚无固定批次"}
         </span>
       </div>
       {value.held_for_refresh && (
@@ -105,7 +104,7 @@ export function ConsolidationStatus({
       {value.required_context_missing?.length ? <details open><summary>必要上下文仍有 {value.required_context_missing.length} 项缺失</summary><pre>{showValue(value.required_context_missing)}</pre></details> : null}
       {value.indexing && (
         <details>
-          <summary>索引状态：{indexStates[value.indexing.state] ?? value.indexing.state}</summary>
+          <summary>索引状态：{indexStates[value.indexing.state] ?? "索引状态尚未确认"}</summary>
           {value.commit_state === "applied" && value.indexing.state === "pending" && (
             <p>记忆已应用，部分对象仍在等待索引。</p>
           )}
@@ -113,8 +112,8 @@ export function ConsolidationStatus({
             <ul>
               {value.indexing.objects.map((item) => (
                 <li key={`${item.kind}:${item.id}:${item.revision}`}>
-                  {item.kind} · {item.id} · 版本 {item.revision} · {item.state ? (indexStates[item.state] ?? item.state) : "状态未记录"}
-                  {item.profile_key && <> · 索引档案 {item.profile_key}</>}
+                  索引记录 · 版本 {item.revision} · {item.state ? (indexStates[item.state] ?? "索引状态尚未确认") : "状态未记录"}
+                  {item.profile_key && <> · 已关联索引档案</>}
                   {item.generation != null && <> · 数据代际 {item.generation}</>}
                 </li>
               ))}

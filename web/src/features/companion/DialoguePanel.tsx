@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import { useEffect, useState } from "react";
 import { useAuth } from "../../app/Auth";
 import type { ConversationSelection } from "../../app/RoleWorkspace";
@@ -381,7 +382,7 @@ function PublicParts({ parts }: { parts: Part[] }) {
               <summary>
                 {part.channel} · {part.segment.type}
               </summary>
-              <pre>{JSON.stringify(part.segment.data, null, 2)}</pre>
+              <pre>{readableRecord(part.segment.data)}</pre>
             </details>
           );
         return (
@@ -394,9 +395,6 @@ function PublicParts({ parts }: { parts: Part[] }) {
                 channel_segment: "渠道消息段",
               } as Record<string, string>
             )[part.kind] ?? part.kind}
-            {part.message_id !== undefined || part.id !== undefined
-              ? ` · ${part.message_id ?? part.id}`
-              : ""}
             {part.text ? ` · ${part.text}` : ""}
           </span>
         );

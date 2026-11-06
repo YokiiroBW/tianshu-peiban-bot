@@ -1,3 +1,4 @@
+import { Notice } from "../../../components/Notifications";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, Globe, RefreshCw, Search } from "lucide-react";
 import { Drawer } from "../../../components/Drawer";
@@ -371,7 +372,7 @@ export function BookWarehouse({
               </button>
             </>
           )}
-          {notice && <p role="status">{notice}</p>}
+          {notice && <Notice>{notice}</Notice>}
           {addingFailed && (
             <p role="alert">{media.error || "未能确认添加结果，请重试。"}</p>
           )}

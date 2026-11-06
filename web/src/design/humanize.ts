@@ -4,7 +4,10 @@
  * 直接裸露在界面卡片上造成乱码刷屏的问题，将其转化为温润易读的中文业务语义。
  */
 
-const HEX_ID_PATTERN = /\b([a-z_]+?)[_:]?([0-9a-f]{12,64})\b/gi;
+const HEX_ID_PATTERN =
+  /\b([a-z_]+(?:[:_][a-z_]+)*)[-_:]([0-9a-f]{12,64})(?::[a-z][a-z0-9_.-]*)?\b/gi;
+const UUID_PATTERN =
+  /\b[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\b/gi;
 
 const ENTITY_PREFIX_LABELS: Record<string, string> = {
   memory_batch: "记忆归档批次",
@@ -21,23 +24,13 @@ const ENTITY_PREFIX_LABELS: Record<string, string> = {
   diary: "日记卷宗",
   writing: "创作篇章",
   commitment: "约定事项",
+  provider: "模型供应商",
+  source: "来源记录",
+  rule: "学习规则",
+  request: "操作请求",
+  attempt: "执行记录",
+  connection: "渠道连接",
 };
-
-/**
- * 提取短码（如 #284f70），仅在二级技术溯源折叠面板内按需展示
- */
-export function shortHashTag(raw: string | null | undefined): string {
-  if (!raw) return "";
-  const cleaned = raw.trim();
-  const match = cleaned.match(/([0-9a-f]{6,64})$/i);
-  if (match) {
-    return `#${match[1].slice(0, 6)}`;
-  }
-  if (cleaned.length > 14) {
-    return `#${cleaned.slice(-6)}`;
-  }
-  return cleaned;
-}
 
 /**
  * 将 `group:conversation_b3455cc...` 或 `person_8e242a...` 转化为人类可读名称
@@ -57,19 +50,19 @@ export function humanizeScopeTarget(
   }
 
   if (/^group:conversation_/i.test(trimmed)) {
-    return `群聊会话 (${shortHashTag(trimmed)})`;
+    return "群聊会话";
   }
   if (/^conversation_/i.test(trimmed)) {
-    return `对话会话 (${shortHashTag(trimmed)})`;
+    return "对话会话";
   }
   if (/^person_/i.test(trimmed)) {
-    return `对话伙伴 (${shortHashTag(trimmed)})`;
+    return "对话伙伴";
   }
   if (/^actor[_:]/i.test(trimmed)) {
-    return `伴生角色 (${shortHashTag(trimmed)})`;
+    return "伴生角色";
   }
   if (/^memory_batch_/i.test(trimmed)) {
-    return `归档批次 ${shortHashTag(trimmed)}`;
+    return "记忆整理批次";
   }
 
   return sanitizeInternalText(trimmed, knownNames);
@@ -83,16 +76,81 @@ export function sanitizeInternalText(
   knownNames?: Record<string, string>,
 ): string {
   if (!text) return "";
-  return text.replace(HEX_ID_PATTERN, (full, prefix: string, hash: string) => {
-    if (knownNames?.[full]) return knownNames[full];
-    const normalized = prefix.toLowerCase().replace(/_$/, "");
-    const label = ENTITY_PREFIX_LABELS[normalized];
-    const shortCode = `#${hash.slice(0, 6)}`;
-    if (label) {
-      return `${label} ${shortCode}`;
-    }
-    return shortCode;
-  });
+  if (knownNames?.[text]) return knownNames[text];
+  return text
+    .replace(HEX_ID_PATTERN, (full, prefix: string) => {
+      if (knownNames?.[full]) return knownNames[full];
+      const normalized = prefix.toLowerCase().replace(/_$/, "");
+      const label = ENTITY_PREFIX_LABELS[normalized];
+      return label ?? "关联记录";
+    })
+    .replace(UUID_PATTERN, (full) => knownNames?.[full] ?? "关联记录")
+    .replace(/\b[0-9a-f]{24,64}\b/gi, "关联记录");
+}
+
+const codeNames: Record<string, string> = {
+  pending: "等待处理",
+  queued: "排队中",
+  running: "正在执行",
+  doing: "正在执行",
+  succeeded: "执行成功",
+  failed: "执行失败",
+  cancelled: "已取消",
+  unknown: "结果尚未确认",
+  active: "已启用",
+  disabled: "已停用",
+  enabled: "已启用",
+  ready: "已就绪",
+  unavailable: "当前不可用",
+  not_recorded: "未记录",
+  not_started: "尚未提交",
+  submitted: "已提交",
+  delivered: "已送达",
+  complete: "已完成",
+  partial: "部分完成",
+  not_requested: "未请求",
+  verified: "已验证",
+  unverified: "尚未验证",
+  applied: "已应用",
+  stale: "需要更新",
+  private: "私聊",
+  group: "群聊",
+  web: "网页",
+  qq: "QQ",
+  onebot: "机器人连接",
+  napcat: "QQ 机器人",
+  tianshu: "天枢",
+  external: "外部服务",
+  reply: "允许回复",
+  observe: "仅观察",
+  ignore: "忽略",
+  permission_denied: "当前账号没有操作权限",
+  forbidden: "服务拒绝访问，请检查账号权限",
+  unauthorized: "身份验证未通过，请检查登录或密钥",
+  rate_limited: "请求过于频繁，请稍后再试",
+  provider_rate_limited: "供应商请求额度暂时用尽",
+  timeout: "服务响应超时",
+  connection_failed: "服务连接中断",
+  provider_unavailable: "供应商暂时不可用",
+  outcome_unknown: "提交结果尚未确认，请查看原任务",
+  not_found: "记录不存在或已不可用",
+  revision_conflict: "内容已更新，请刷新后重试",
+  version_conflict: "内容已更新，请刷新后重试",
+  source_unavailable: "原始材料当前不可读取",
+  source_withdrawn: "原始材料已撤回",
+  context_window_exceeded: "输入内容超过模型容量",
+  invalid_response: "服务未返回有效结果",
+};
+
+/** Known codes get a translation; unknown codes stay explicitly unresolved. */
+export function humanizeCode(
+  value: string | null | undefined,
+  fallback = "详情尚未说明",
+): string {
+  if (!value) return fallback;
+  if (codeNames[value]) return codeNames[value];
+  if (/^[a-z0-9_.:/-]+$/i.test(value)) return fallback;
+  return sanitizeInternalText(value);
 }
 
 /**
@@ -172,7 +230,7 @@ export function humanizeSourceKind(kind: string | null | undefined): string {
     case "knowledge":
       return "资料典籍";
     default:
-      return kind ? sanitizeInternalText(kind) : "原始记录";
+      return "来源记录";
   }
 }
 

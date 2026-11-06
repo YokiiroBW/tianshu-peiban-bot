@@ -7,7 +7,6 @@ import type { LifeAccessView, LifeState } from "../life/domainTypes";
 import { activityLabels } from "../life/domainTypes";
 import type { DevicesView } from "../home/deviceTypes";
 import { CurioSectionHead } from "../../components/curio/OrientalWidgets";
-import { sanitizeInternalText } from "../../design/humanize";
 
 type Upcoming = {
   id: string;
@@ -137,10 +136,10 @@ export default function WorkbenchPage() {
                     key={`${row.connection_id}:${row.entity_id}`}
                   >
                     <div>
-                      <strong>{row.label || row.entity_id}</strong>
+                      <strong>{row.label || "未命名设备"}</strong>
                       <br />
                       <small className="muted">
-                        {sanitizeInternalText(row.connection_id)} ·{" "}
+                        家庭设备 ·{" "}
                         {new Date(row.observed_at).toLocaleString("zh-CN")}
                       </small>
                     </div>

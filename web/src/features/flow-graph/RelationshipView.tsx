@@ -12,6 +12,8 @@ import {
 import type { Page } from "../../api/contracts";
 import type { IdentityDirectory } from "../settings/channelTypes";
 import { GraphBoard, type GraphEdge } from "./GraphBoard";
+import { connectionName } from "../people/types";
+import { humanizeCode } from "../../design/humanize";
 
 type Conversation = ConversationSelection & {
   scope_id: string;
@@ -108,13 +110,13 @@ export default function RelationshipView() {
                 aria-pressed={selected === "connection:" + row.connection_id}
                 onClick={() => setSelected("connection:" + row.connection_id)}
               >
-                <strong>{row.connection_id}</strong>
+                <strong>{connectionName(row)}</strong>
                 <span>
                   {row.namespace} · {row.self_external_id}
                 </span>
                 <small>
                   {row.enabled ? "身份启用" : "身份停用"} · 新私聊{" "}
-                  {row.default_mode}
+                  {humanizeCode(row.default_mode, "策略未读取")}
                 </small>
               </button>
             ))}
@@ -141,7 +143,6 @@ export default function RelationshipView() {
                 }}
               >
                 <strong>{row.name}</strong>
-                <span>{row.id}</span>
                 <small>{row.state === "active" ? "已启用" : "已停用"}</small>
               </button>
             ))}
@@ -170,16 +171,15 @@ export default function RelationshipView() {
                 >
                   <strong>{row.label}</strong>
                   <span>
-                    {row.kind} · {row.adapter}
+                    {humanizeCode(row.kind, "聊天会话")} · {humanizeCode(row.adapter, "聊天渠道")}
                   </span>
                   <small>
                     {link
-                      ? `${link.mode} · 回复责任 ${link.reply_owner}`
+                      ? `${humanizeCode(link.mode, "策略未读取")} · 回复责任 ${humanizeCode(link.reply_owner, "已登记回复服务")}`
                       : row.adapter === "web"
                         ? "网页会话"
                         : "策略当前未读取"}
                   </small>
-                  <code>{row.conversation_id}</code>
                 </button>
               );
             })}

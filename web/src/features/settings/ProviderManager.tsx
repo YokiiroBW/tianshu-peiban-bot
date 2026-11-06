@@ -8,6 +8,8 @@ import { useEffect, useRef, useState } from "react";
 import { Drawer } from "../../components/Drawer";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { StatusRail } from "../../components/StatusRail";
+import { humanizeCode } from "../../design/humanize";
+import { capabilityNames, modelRouteName, quotaGroupName } from "./providerPresentation";
 import { useDomainCommand } from "../../api/useDomainResource";
 import { SourceEditor, ModelEditor } from "./ProviderEditors";
 import { useModelCommand, type ProbeResult } from "./providerApi";
@@ -358,22 +360,23 @@ export function ProviderManager({
               {models.map((route) => (
                 <article className="provider-model-row" key={route.route_id}>
                   <div className="provider-model-heading">
-                    <strong>{route.model}</strong>
+                    <strong>{modelRouteName(catalog, route.route_id)}</strong>
                     <span>
                       {route.enabled ? "启用" : "停用"} · 容量组{" "}
-                      {route.quota_group}
+                      {quotaGroupName(catalog, route.quota_group)}
                     </span>
                   </div>
                   <p className="muted">
-                    {route.route_id} · 修订 {route.revision} ·{" "}
                     {route.verified_capabilities.length
-                      ? `已登记能力：${route.verified_capabilities.join("、")}`
+                      ? `已登记能力：${route.verified_capabilities.map((value) => capabilityNames[value] ?? "其他能力").join("、")}`
                       : "能力尚未验证"}
                   </p>
                   {route.verification && (
                     <details>
                       <summary>能力依据</summary>
-                      <pre>{JSON.stringify(route.verification, null, 2)}</pre>
+                      <p>{typeof route.verification.note === "string" ? humanizeCode(route.verification.note, "已保存能力核验记录") : "已保存能力核验记录"}</p>
+                      {typeof route.verification.context_window_tokens === "number" && <p>上下文容量：{route.verification.context_window_tokens.toLocaleString()} 个词元</p>}
+                      {typeof route.verification.observed_at === "string" && <p>核验时间：{new Date(route.verification.observed_at).toLocaleString("zh-CN")}</p>}
                     </details>
                   )}
                   {command.manageable && (
@@ -425,10 +428,8 @@ export function ProviderManager({
             </div>
             {probe.result?.data.receipt && (
               <p role="status">
-                最近测试：{probe.result.data.receipt.status} ·{" "}
-                {probe.result.data.receipt.error_code ??
-                  probe.result.data.verification}{" "}
-                · 尝试 {probe.result.data.receipt.attempt_id}
+                最近测试：{humanizeCode(probe.result.data.receipt.status, "测试状态尚未确认")}
+                {probe.result.data.receipt.error_code && ` · ${humanizeCode(probe.result.data.receipt.error_code, "测试未完成，请查看原任务")}`}
               </p>
             )}
             {command.manageable && (
@@ -442,7 +443,7 @@ export function ProviderManager({
                   >
                     <option value="">选择容量组</option>
                     {catalog.quota_groups.map((row) => (
-                      <option key={row.quota_group}>{row.quota_group}</option>
+                      <option key={row.quota_group} value={row.quota_group}>{quotaGroupName(catalog, row.quota_group)}</option>
                     ))}
                   </select>
                 </label>
@@ -468,13 +469,12 @@ export function ProviderManager({
                 {readError && <p role="alert">{readError}</p>}
                 {directory?.provider_id === source.provider_id && (
                   <p role="status">
-                    枚举状态：{directory.state} ·{" "}
+                    目录读取：{humanizeCode(directory.state, "状态尚未确认")} ·{" "}
                     {directory.coverage.complete
                       ? "已取得完整目录"
-                      : `覆盖缺口：${directory.coverage.missing.join("、")}`}{" "}
+                      : `目录仍有 ${directory.coverage.missing.length} 项未取得`}{" "}
                     ·{" "}
-                    {directory.model_receipt.error_code ??
-                      directory.model_receipt.attempt_id}
+                    {directory.model_receipt.error_code && humanizeCode(directory.model_receipt.error_code, "读取未完成，请查看原任务")}
                   </p>
                 )}
                 <div className="provider-model-directory">

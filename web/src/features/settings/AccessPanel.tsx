@@ -1,3 +1,4 @@
+import { Notice } from "../../components/Notifications";
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { GLOBAL_SCOPE, useDomainCommand, useDomainResource } from "../../api/useDomainResource";
@@ -46,7 +47,7 @@ export function AccessPanel() {
     <div className="section-heading"><div><h2 id="access-title">访问地址与 HTTPS</h2><p>管理用户实际打开的地址、连接方式和已安装证书。</p></div>
       <button type="button" className="button secondary" onClick={() => void resource.refresh()} disabled={resource.loading || command.busy}>刷新</button></div>
     {(resource.error || command.error) && <p role="alert">{command.error || resource.error}</p>}
-    {notice && <p role="status">{notice}</p>}
+    {notice && <Notice>{notice}</Notice>}
     {resource.loading && !view && <p role="status">正在读取访问设置…</p>}
     {view && !view.available && <p>此部署未配置访问地址管理。</p>}
     {view?.available && draft && <>

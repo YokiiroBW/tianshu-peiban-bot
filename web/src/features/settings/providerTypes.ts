@@ -130,4 +130,5 @@ export const functionNames: Record<string, string> = {
   "image.plan": "图像规划",
   "image.consistency": "图像一致性检查",
   "video.observe": "视频观察",
+  "ops.diagnose": "运行诊断",
 };

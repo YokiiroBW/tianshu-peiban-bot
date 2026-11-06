@@ -191,7 +191,7 @@ function NoteBody({ note, scope }: { note: Note; scope: DomainTarget }) {
                 .map((value) =>
                   value.kind === "unit"
                     ? unitLabel(value.reference)
-                    : `${value.reference.note_id} · v${value.reference.version}`,
+                    : `关联研究记录 · 版本 ${value.reference.version}`,
                 )
                 .join("；")}
             </p>
@@ -460,7 +460,7 @@ function NoteEditor({
               <li key={index}>
                 {value.kind === "unit"
                   ? unitLabel(value.reference)
-                  : `${value.reference.note_id} · v${value.reference.version}`}
+                  : `关联研究记录 · 版本 ${value.reference.version}`}
                 <button
                   type="button"
                   className="button"

@@ -28,6 +28,7 @@ import {
 import { Drawer } from "../components/Drawer";
 import { PageBoundary } from "../components/PageBoundary";
 import { CommandMonitor } from "../components/CommandMonitor";
+import { NotificationProvider } from "../components/Notifications";
 import { StatePanel } from "../components/StatePanel";
 import { UnavailablePage } from "../components/UnavailablePage";
 import { BrandAstrolabeSvg } from "../components/curio/OrientalWidgets";
@@ -174,12 +175,14 @@ function readGenerationNotice() {
 
 export function App() {
   return (
-    <AuthProvider>
-      <RoleWorkspaceProvider>
-        <CommandMonitor />
-        <AppShell />
-      </RoleWorkspaceProvider>
-    </AuthProvider>
+    <NotificationProvider>
+      <AuthProvider>
+        <RoleWorkspaceProvider>
+          <CommandMonitor />
+          <AppShell />
+        </RoleWorkspaceProvider>
+      </AuthProvider>
+    </NotificationProvider>
   );
 }
 

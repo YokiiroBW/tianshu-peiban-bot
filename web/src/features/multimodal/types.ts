@@ -1,6 +1,12 @@
 import type { ArtifactRef, Coverage, SourceRef } from "../../api/contracts";
 import type { MediaRef } from "../../components/MediaPreview";
 
+export function speechConnectionName(connection: Pick<FishConnection, "transport" | "billing_source">, index?: number): string {
+  const transport = { mcp: "Fish Plus", native: "Fish Audio", edge: "Edge 语音", compatible: "兼容语音服务" }[connection.transport];
+  const billing = { plus: "会员额度", api: "接口额度", free: "免费额度" }[connection.billing_source];
+  return `${transport} · ${billing}${index == null ? "" : ` · 连接 ${index + 1}`}`;
+}
+
 export type FishConnection = {
   id: string;
   revision: number;

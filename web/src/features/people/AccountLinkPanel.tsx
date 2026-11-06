@@ -8,7 +8,7 @@ import {
 import type { Page } from "../../api/contracts";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { useIdentityDirectory } from "./api";
-import type { Person, Account } from "./types";
+import { connectionName, type Person, type Account } from "./types";
 
 export function AccountLinkPanel({
   person,
@@ -59,10 +59,10 @@ export function AccountLinkPanel({
         {accounts.map((row) => (
           <li key={`${row.connection_id}:${row.external_id}`}>
             <strong>
-              {row.connection_id} / {row.external_id}
+              {connectionName(connections.find((item) => item.connection_id === row.connection_id))} / {row.external_id}
             </strong>{" "}
-            → {row.person_id}
-            {row.principal_id && ` · 应用主体 ${row.principal_id}`}
+            → {person?.display_name || people.data?.items.find((item) => item.person_id === row.person_id)?.display_name || "已关联人物"}
+            {row.principal_id && ` · 登录账号：${directory.data?.principals.find((item) => item.principal_id === row.principal_id)?.display_name || "已关联"}`}
             <button
               className="text-link"
               onClick={() => {
@@ -113,8 +113,7 @@ export function AccountLinkPanel({
             <option value="">请选择</option>
             {connections.map((row) => (
               <option key={row.connection_id} value={row.connection_id}>
-                {row.connection_id} · {row.namespace} · 账号{" "}
-                {row.self_external_id}
+                {connectionName(row)}
               </option>
             ))}
           </select>
@@ -143,7 +142,7 @@ export function AccountLinkPanel({
               {personId &&
                 !people.data?.items.some(
                   (row) => row.person_id === personId,
-                ) && <option value={personId}>{personId}（当前选择）</option>}
+                ) && <option value={personId}>当前已关联人物</option>}
               {people.data?.items.map((row) => (
                 <option key={row.person_id} value={row.person_id}>
                   {row.display_name}

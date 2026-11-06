@@ -482,7 +482,7 @@ export function MusicPanel({ media }: { media: MediaController }) {
                     <tr key={track.position}>
                       <td>{track.position}</td>
                       <td>
-                        {track.title || `暂不可用的歌曲 (${track.source_id})`}
+                        {track.title || "暂不可用的歌曲"}
                       </td>
                       <td>{track.artists.join("、") || "未知"}</td>
                       <td>{track.album || "未知"}</td>

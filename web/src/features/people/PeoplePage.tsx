@@ -9,7 +9,6 @@ import {
 } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import { CommandFeedback } from "../../components/CommandFeedback";
-import { shortHashTag } from "../../design/humanize";
 import { AccountLinkPanel } from "./AccountLinkPanel";
 import { PersonDetail } from "./PersonDetail";
 import { personName, type Person } from "./types";
@@ -90,9 +89,7 @@ export default function PeoplePage({ section }: { section: number }) {
                     </span>
                     <span>
                       <strong>{personName(row)}</strong>
-                      <small className="curio-tech-code" title={row.person_id}>
-                        {shortHashTag(row.person_id)}
-                      </small>
+
                     </span>
                   </button>
                 </li>

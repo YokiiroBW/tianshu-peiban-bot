@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { requestId } from "../../app/requestId";
+import { quotaGroupName } from "./providerPresentation";
 import { providerPresets } from "./providerPresets";
 import {
   protocolNames,
@@ -23,7 +25,7 @@ export function SourceEditor({
   cancel: () => void;
 }) {
   const [draft, setDraft] = useState<SourceDraft>({
-    provider_id: source?.provider_id ?? "",
+    provider_id: source?.provider_id ?? requestId(),
     name: source?.name ?? "",
     base_url: source?.base_url ?? "",
     protocol: source?.protocol ?? "openai.chat",
@@ -69,17 +71,6 @@ export function SourceEditor({
             </select>
           </label>
         )}
-        <label>
-          供应商标识
-          <input
-            required
-            readOnly={!!source}
-            value={draft.provider_id}
-            onChange={(event) =>
-              setDraft({ ...draft, provider_id: event.target.value })
-            }
-          />
-        </label>
         <label>
           名称
           <input
@@ -180,7 +171,7 @@ export function ModelEditor({
 }) {
   const [draft, setDraft] = useState<ModelRoute>(
     route ?? {
-      route_id: "",
+      route_id: requestId(),
       provider_id: providerId,
       model: "",
       quota_group: catalog.quota_groups[0]?.quota_group ?? "",
@@ -255,17 +246,6 @@ export function ModelEditor({
     >
       <fieldset disabled={busy}>
         <label>
-          路由标识
-          <input
-            required
-            readOnly={!!route}
-            value={draft.route_id}
-            onChange={(event) =>
-              setDraft({ ...draft, route_id: event.target.value })
-            }
-          />
-        </label>
-        <label>
           模型 ID
           <input
             required
@@ -286,7 +266,7 @@ export function ModelEditor({
           >
             <option value="">选择已配置容量组</option>
             {catalog.quota_groups.map((group) => (
-              <option key={group.quota_group}>{group.quota_group}</option>
+              <option key={group.quota_group} value={group.quota_group}>{quotaGroupName(catalog, group.quota_group)}</option>
             ))}
           </select>
         </label>

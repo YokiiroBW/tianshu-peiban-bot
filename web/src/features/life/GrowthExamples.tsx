@@ -4,6 +4,7 @@ import { SourceEvidence } from "../../components/SourceEvidence";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { useMemoryCursor } from "../memory/pagination";
 import { time } from "../memory/types";
+import { humanizeCode } from "../../design/humanize";
 
 type Example = { id: string; rule_id: string; rule_revision: number; semantic_revision: number; turn_id: string; expression_id: string | null; input_message_ids: (string | number)[]; output_message_ids: (string | number)[]; state: string; reason: string | null; revision: number; exposures: number; delivered_uses: number; source_refs: SourceRef[]; created_at: string };
 type ExamplePage = { items: Example[]; next_cursor: string | null; missing: string[] };
@@ -19,9 +20,9 @@ export function GrowthExamples({ scope, canReview }: { scope: DomainTarget; canR
     {view.loading && !view.data && <p role="status">正在读取样例…</p>}
     {view.data?.missing?.length ? <p>部分来源不可读取：{view.data.missing.join("、")}</p> : null}
     {view.data?.items.map((item) => <article className="domain-record" key={item.id}>
-      <p>状态：{item.state} {item.reason ? `· ${item.reason}` : ""} · 规则 {item.rule_id} v{item.rule_revision} · 语义版本 {item.semantic_revision}</p>
+      <p>状态：{humanizeCode(item.state, "样例状态尚未确认")} {item.reason ? `· ${humanizeCode(item.reason, "处理原因尚未说明")}` : ""} · 规则版本 {item.rule_revision} · 语义版本 {item.semantic_revision}</p>
       <p>进入上下文 {item.exposures} 次 · 已投递 {item.delivered_uses} 次 · {time(item.created_at)}</p>
-      <p>原轮次 {item.turn_id} · 输入消息 {item.input_message_ids.join("、") || "未记录"} · 输出消息 {item.output_message_ids.join("、") || "未记录"}</p>
+      <p>已关联原对话 · 输入消息 {item.input_message_ids.length} 条 · 输出消息 {item.output_message_ids.length} 条</p>
       <SourceEvidence sources={item.source_refs ?? []} scope={scope} />
       {item.expression_id && <a href={`#/system/tasks?expression=${encodeURIComponent(item.expression_id)}`}>查看原表达</a>}
       {canReview && item.state !== "rejected" && <button className="button" disabled={action.busy} onClick={() => {

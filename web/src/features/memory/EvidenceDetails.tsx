@@ -9,7 +9,6 @@ import { DetailCard } from "../../components/DetailCard";
 import {
   humanizeScopeTarget,
   sanitizeInternalText,
-  shortHashTag,
 } from "../../design/humanize";
 import { useMemoryCursor } from "./pagination";
 import {
@@ -268,7 +267,7 @@ function RelationEndpoint({
       <p>
         <strong>
           {evidenceKinds[fallback.kind] ?? fallback.kind} ·{" "}
-          {shortHashTag(fallback.id)} · v{fallback.revision}
+          版本 {fallback.revision}
         </strong>
       </p>
       {item ? (

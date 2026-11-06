@@ -14,6 +14,8 @@ import type {
   ConversationLink,
 } from "./channelTypes";
 import { splitLines } from "./channelTypes";
+import { connectionName } from "../people/types";
+import { humanizeCode } from "../../design/humanize";
 
 export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
   const directory = useDomainResource<IdentityDirectory>(
@@ -51,7 +53,7 @@ export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
       </div>
       {directory.data?.connections.map((row) => (
         <article className="domain-record" key={row.connection_id}>
-          <strong>{row.connection_id}</strong>
+          <strong>{connectionName(row)}</strong>
           <p>
             {row.namespace} · {row.self_external_id} ·{" "}
             {row.enabled ? "已启用" : "已停用"} · 修订{row.revision}
@@ -82,15 +84,15 @@ export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
           key={row.connection_id + ":" + row.external_id}
         >
           <strong>
-            {row.connection_id} · {row.external_id}
+            {row.label || "未命名会话"} · 账号 {row.external_id}
           </strong>
           <p>
             {{ reply: "允许回复", observe: "仅观察", ignore: "忽略" }[row.mode]}{" "}
             · {row.mention_required ? "需要被提及" : "不要求提及"} · 回复责任：
-            {row.reply_owner}
+            {humanizeCode(row.reply_owner, "已登记回复服务")}
           </p>
           <p>
-            {row.label} · {row.kind} · {row.target_ref}
+            {humanizeCode(row.kind, "聊天会话")}
           </p>
           {row.reply_keywords.length > 0 && (
             <p>关键词：{row.reply_keywords.join("、")}</p>
@@ -100,7 +102,6 @@ export function ChannelIdentityPanel({ onChanged }: { onChanged: () => void }) {
               当前继承连接的新私聊策略；保存此会话后成为明确覆盖。
             </p>
           )}
-          <code>{row.conversation_id}</code>
           <button className="text-link" onClick={() => setLink(row)}>
             编辑会话策略
           </button>
@@ -313,7 +314,7 @@ function ConversationPolicy({
           >
             {connections.map((x) => (
               <option key={x.connection_id} value={x.connection_id}>
-                {x.connection_id} · {x.self_external_id}
+                {connectionName(x)}
               </option>
             ))}
           </select>

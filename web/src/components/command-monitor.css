@@ -1,4 +1,24 @@
-.command-monitor { position: fixed; z-index: 70; right: 18px; bottom: 18px; width: min(38rem, calc(100vw - 36px)); max-height: 30vh; overflow: auto; padding: 12px 16px; box-shadow: 0 8px 32px #1c20401f; font-size: 12px; }
-.command-monitor > div { display: flex; flex-wrap: wrap; align-items: baseline; gap: 5px; padding: 5px 0; }
-.command-monitor code { overflow-wrap: anywhere; }
-.command-monitor .text-link { margin-left: auto; white-space: nowrap; }
+.command-monitor {
+  margin: 0;
+}
+.command-monitor > div + div {
+  margin-top: 0.75rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--color-line);
+}
+.command-monitor-message {
+  display: block;
+}
+.command-monitor-actions {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+  margin-top: 0.4rem;
+}
+.command-monitor-actions .text-link {
+  white-space: nowrap;
+}
+.command-monitor p {
+  margin: 0.4rem 0 0;
+}

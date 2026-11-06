@@ -1,3 +1,4 @@
+import { readableRecord } from "../../design/readableRecord";
 import { useEffect, useRef, useState } from "react";
 import { apiRead, commandTarget } from "../../api/client";
 import {
@@ -161,7 +162,7 @@ function ImageWorkspace({ settings }: { settings: boolean }) {
                     key={engine.id + engine.revision}
                   >
                     <h4>
-                      {engineNames[engine.engine]} · {engine.id}
+                      {engineNames[engine.engine]} · {engine.model || "默认模型"}
                     </h4>
                     <p>
                       {engine.enabled ? "启用" : "停用"} ·{" "}
@@ -595,7 +596,7 @@ function ImageCompilation({ preview }: { preview: ImagePreview }) {
         {preview.compiled.negative_prompt && (
           <p>排除内容：{preview.compiled.negative_prompt}</p>
         )}
-        <pre>{JSON.stringify(preview.compiled.parameters, null, 2)}</pre>
+        <pre>{readableRecord(preview.compiled.parameters)}</pre>
         <div className="domain-grid">
           {preview.compiled.references.map((media, index) => (
             <MediaPreview key={media.media_id + index} media={media} />

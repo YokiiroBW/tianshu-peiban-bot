@@ -443,7 +443,7 @@ export default function CommitmentsPage() {
                 </p>
                 <p>目标：{item.target_ref ?? "无投递目标"}</p>
                 {item.reason && <p>{item.reason}</p>}
-                {item.matter_id && <p>关联事项：{item.matter_id}</p>}
+                {item.matter_id && <p>已关联对应事项</p>}
                 <SourceEvidence
                   sources={item.source_refs}
                   scope={{
