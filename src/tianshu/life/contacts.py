@@ -74,15 +74,17 @@ class Contacts:
                 + "ORDER BY delivered_at DESC NULLS LAST LIMIT 64",
                 (context.actor_id, context.conversation_id if conversation_only else context.person_id))).fetchall()
 
-    async def record_delivery(self, context, plan, result):
+    async def record_delivery(self, context, plan, result, *, connection=None):
         if result.delivery != "delivered":
             return
-        async with self.database.transaction() as connection:
-            await connection.execute(
-                "INSERT INTO life.contacts(expression_id,actor_id,person_id,conversation_id,candidate_id,delivered_at,signature,receipt) "
-                "VALUES (%s,%s,%s,%s,%s,now(),%s,%s) ON CONFLICT DO NOTHING",
-                (plan.expression_id, context.actor_id, context.person_id, context.conversation_id,
-                 getattr(plan, "candidate_id", None), document(fingerprint(" ".join(part.get("text", "") for part in plan.public_parts), [ref.source_id for ref in plan.source_refs])), document(result)))
+        if connection is None:
+            async with self.database.transaction() as transaction:
+                return await self.record_delivery(context,plan,result,connection=transaction)
+        await connection.execute(
+            "INSERT INTO life.contacts(expression_id,actor_id,person_id,conversation_id,candidate_id,delivered_at,signature,receipt) "
+            "VALUES (%s,%s,%s,%s,%s,now(),%s,%s) ON CONFLICT DO NOTHING",
+            (plan.expression_id, context.actor_id, context.person_id, context.conversation_id,
+             getattr(plan, "candidate_id", None), document(fingerprint(" ".join(part.get("text", "") for part in plan.public_parts), [ref.source_id for ref in plan.source_refs])), document(result)))
 
     async def received(self, context, occurred_at=None, *, input_id, connection=None):
         at = occurred_at or datetime.now(UTC)

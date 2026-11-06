@@ -323,13 +323,13 @@ class LifeService:
                 due = timestamp(pending_recovery.get("due_at"),optional=True) or datetime.now(UTC)
                 next_revision = row["revision"]+1
                 await connection.execute("UPDATE life.activities SET state='dormant',revision=%s,waiting_reason='capability_recovery',"
-                    "resume_condition='original_action_recovery',next_due_at=%s,updated_at=now() WHERE id=%s",
-                    (next_revision,due,activity_id))
+                    "resume_condition='original_action_recovery',updated_at=now() WHERE id=%s",
+                    (next_revision,activity_id))
                 await connection.execute("UPDATE life.day_slots SET state='waiting_result',revision=revision+1 "
                     "WHERE activity_id=%s AND state='paused'",(activity_id,))
-                await self.jobs.enqueue(connection,JobSpec("life.activity_reconcile",f"activity-resume-recovery:{activity_id}:{next_revision}",
-                    {"activity_id":activity_id,"context":self._context(context),"sequence":0},
-                    scheduled_at=max(due,datetime.now(UTC)),subject_id=context.actor_id))
+                from .rbi_activity_reconciliation import ensure_reconcile_on
+                await ensure_reconcile_on(self,connection,activity_id=activity_id,action_id=row["action_id"],
+                    due_at=max(due,datetime.now(UTC)),reason="explicit_resume")
                 await self.signal(context,f"activity-user:{activity_id}:{next_revision}",connection=connection)
                 return CommandResult(body["client_request_id"],{"id":activity_id,"revision":next_revision,
                     "state":"dormant","action_id":row["action_id"]},next_revision)

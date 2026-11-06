@@ -141,8 +141,17 @@ class DiaryAutomation:
                         from tianshu.conversation.codec import source_refs
                         async with self.life.database.transaction() as connection:
                             await self.life.jobs.assert_generation_on(connection,data_generation)
-                            current=await self.life.lock_row(connection,context,
-                                "SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary["id"],))
+                            if self.diaries.recovery is None:
+                                raise AppError("recovery_policy_unavailable",status=503)
+                            observation = await self.diaries.recovery.prepare_observation_on(
+                                connection,diary["generation_id"],receipt.status,receipt,kind="diary",item_id=diary["id"],
+                                additional_context=context,additional_refs=source_refs(diary["source_refs"]))
+                            if observation is not None and not observation["valid"]:
+                                return {"state":"blocked","reason":"original_material_unavailable"}
+                            current=await (await connection.execute(
+                                "SELECT * FROM life.diaries WHERE id=%s FOR UPDATE",(diary["id"],))).fetchone()
+                            if signature(current) != signature(diary):
+                                return {"state":"changed_since_review"}
                             if (not current or current["generation_id"]!=diary["generation_id"]
                                     or current["state"] not in UNRESOLVED or current["generation_cancel_requested"]):
                                 return {"state":"changed_since_review"}
@@ -156,10 +165,8 @@ class DiaryAutomation:
                             if current["generation_recipe"] is not None:
                                 await freeze_recipe(self.life,connection,"diary",current["id"],current["generation_id"],context,
                                     current["generation_recipe"],source_refs(current["source_refs"]))
-                            if self.diaries.recovery is None:
-                                raise AppError("recovery_policy_unavailable",status=503)
                             observed,_ = await self.diaries.recovery.observe_on(connection,current["generation_id"],receipt.status,
-                                receipt.error_code,model_receipt=receipt)
+                                receipt.error_code,model_receipt=receipt,observation=observation)
                             if observed == "unregistered":
                                 raise AppError("recovery_original_lineage_missing",status=409)
                             await self.diaries.recovery.assert_replaceable_on(connection,current["generation_id"])

@@ -1,5 +1,6 @@
 """Wake formal Life waits from real domain events; reports do not execute commands."""
-from tianshu.conversation.codec import context_from_record, document, source_refs
+from tianshu.conversation.codec import context_from_record, document, signature
+from tianshu.conversation.persistence import MaterialSnapshotChanged
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.serialization import wire
@@ -34,23 +35,44 @@ async def wake(life, context, *, kind, subject_id, event_id, connection):
                 continue
             original = context_from_record(row["context"])
             current = await life.identity.refresh_scheduled_context(original, permission="life.manage", connection=connection)
-            snapshot=row
-            row=await life.lock_row(connection,current,f"SELECT * FROM life.{table} WHERE id=%s AND actor_id=%s FOR UPDATE",(row['id'],context.actor_id))
-            if row['revision']!=snapshot['revision'] or row['wake_condition']!=snapshot['wake_condition'] or row['state'] not in {'waiting','dormant','paused','scheduled'}:
-                continue
-            version = row["revision"] + 1
-            if table == "activities":
-                await connection.execute(
-                    "UPDATE life.activities SET state='planned',wake_condition=NULL,waiting_reason=NULL,resume_condition=NULL,"
-                    "next_due_at=now(),revision=%s,context=%s WHERE id=%s", (version, document(current), row["id"]))
-                task, payload = "life.activity_step", {"activity_id": row["id"], "expected_revision": version, "context": wire(current)}
-            else:
-                await connection.execute(
-                    "UPDATE life.commitments SET state='scheduled',wake_condition=NULL,due_at=now(),reason=NULL,revision=%s,context=%s WHERE id=%s",
-                    (version, document(current), row["id"]))
-                task, payload = "life.commitment_due", {"commitment_id": row["id"], "expected_revision": version}
-            await life.jobs.enqueue(connection, JobSpec(task, f"life-event:{table}:{row['id']}:{version}:{event_id}", payload,
-                ServiceClass.DUE, subject_id=context.actor_id))
+            await wake_target(life,context,table=table,snapshot=row,current_context=current,kind=kind,
+                subject_id=subject_id,event_id=event_id,connection=connection)
+
+
+async def wake_target(life, context, *, table, snapshot, current_context, kind, subject_id, event_id,
+                      connection, due_at=None, source_prelocked=False):
+    """Apply the existing wake rule to one captured target and revision."""
+    if table not in {"activities", "commitments"} or kind not in KINDS:
+        raise AppError("invalid_life_event")
+    query = f"SELECT * FROM life.{table} WHERE id=%s AND actor_id=%s FOR UPDATE"
+    parameters = (snapshot["id"], context.actor_id)
+    if source_prelocked:
+        row = await (await connection.execute(query,parameters)).fetchone()
+        if signature(row) != signature(snapshot):
+            raise MaterialSnapshotChanged(row["revision"] if row else None)
+    else:
+        row = await life.lock_row(connection,current_context,query,parameters)
+    if (not row or row["revision"] != snapshot["revision"]
+            or row["wake_condition"] != {"kind":kind,"subject_id":subject_id}
+            or row["state"] not in {"waiting","dormant","paused","scheduled"}
+            or (table == "activities" and (row["action_id"] or row["waiting_reason"] == "paused_by_user"))):
+        return False
+    version = row["revision"] + 1
+    previous_due = row["next_due_at"] if table == "activities" else row["due_at"]
+    selected_due = min(due_at,previous_due) if due_at and previous_due else due_at
+    if table == "activities":
+        await connection.execute(
+            "UPDATE life.activities SET state='planned',wake_condition=NULL,waiting_reason=NULL,resume_condition=NULL,"
+            "next_due_at=COALESCE(%s,now()),revision=%s,context=%s WHERE id=%s", (selected_due,version,document(current_context),row["id"]))
+        task, payload = "life.activity_step", {"activity_id":row["id"],"expected_revision":version,"context":wire(current_context)}
+    else:
+        await connection.execute(
+            "UPDATE life.commitments SET state='scheduled',wake_condition=NULL,due_at=COALESCE(%s,now()),reason=NULL,revision=%s,context=%s WHERE id=%s",
+            (selected_due,version,document(current_context),row["id"]))
+        task, payload = "life.commitment_due", {"commitment_id":row["id"],"expected_revision":version}
+    await life.jobs.enqueue(connection, JobSpec(task,f"life-event:{table}:{row['id']}:{version}:{event_id}",
+        payload,ServiceClass.DUE,selected_due,context.actor_id))
+    return True
 
 
 async def available(life,context,choices,*,data_generation):

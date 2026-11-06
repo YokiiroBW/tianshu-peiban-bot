@@ -54,7 +54,20 @@ async def recover(worker):
                 if row["waiting_reason"] in {"video_checkpoint_unavailable", "read_checkpoint_unavailable"}:
                     continue
                 if not action_resolved(row):
-                    task, payload, due = "life.activity_reconcile", {"activity_id": row["id"], "context": wire(context), "sequence": 0}, None
+                    from .rbi_activity_reconciliation import ensure_reconcile_on, generation_matches, observation, recovery_due, timestamp
+                    async with life.database.transaction() as connection:
+                        await life.jobs.assert_generation_on(connection,generation)
+                        current = await life.lock_row(connection,context,
+                            "SELECT * FROM life.activities WHERE id=%s AND actor_id=%s FOR UPDATE",
+                            (row["id"],context.actor_id))
+                        if (not current or current["action_id"] != row["action_id"]
+                                or not generation_matches(current,generation)):
+                            continue
+                        saved = observation(current,generation)
+                        due = timestamp(saved.get("due_at")) or recovery_due(current) or datetime.now(UTC)
+                        await ensure_reconcile_on(life,connection,activity_id=current["id"],
+                            action_id=current["action_id"],data_generation=generation,due_at=due,reason="startup")
+                    continue
                 elif row["state"] in {"planned", "running"}:
                     task, payload, due = "life.activity_step", {"activity_id": row["id"], "context": wire(context), "expected_revision": row["revision"]}, row["next_due_at"]
                 elif (row["state"] == "dormant" and row["waiting_reason"] == "continuation_available"

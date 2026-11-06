@@ -1,8 +1,6 @@
 """Operations may reconcile one original activity Action, never replay it."""
 from tianshu.conversation.codec import context_from_record, signature, source_refs
 from tianshu.runtime.errors import AppError
-from tianshu.runtime.jobs import JobSpec
-from tianshu.runtime.serialization import wire
 from .continuation import READ_CAPABILITIES, action_resolved
 from .recovery import scheduled_context
 
@@ -90,9 +88,11 @@ class LifeOperationsRecovery:
                     or material(current) != facts["material_digest"] or current["state"] not in {"running", "dormant"}
                     or current["waiting_reason"] not in ERROR_FAMILIES):
                 return {"state": "failed", "reason": "activity_changed"}
-            await self.life.jobs.enqueue(connection, JobSpec("life.recovery_observe_activity", "life-recovery:" + attempt_id,
-                {"activity_id": row["id"], "expected_revision": current["revision"], "context": wire(context),
-                 "attempt_id": attempt_id, "owner_token": recovery["owner_token"]}, subject_id=context.actor_id))
+            from .rbi_activity_reconciliation import ensure_reconcile_on
+            queued = await ensure_reconcile_on(self.life,connection,activity_id=current["id"],action_id=current["action_id"],
+                reason="operations",immediate=True)
+            if queued is None:
+                return {"state": "failed", "reason": "activity_not_waiting_for_original"}
         return {"state": "accepted", "activity_id": row["id"], "action_id": current["action_id"]}
 
     async def observe(self, _recovery, target, facts, _attempt_id):

@@ -217,6 +217,14 @@ async def _reconcile_one(worker, candidate):
             return False,"material_changed"
         routine,day = await _recheck_domain(worker,connection,candidate,fresh,context,data_generation,
             chapter_before,related_before)
+        from .rbi_model_recovery import lock_original_on
+        # Both observations can point at different physical attempts. Acquire
+        # their Models locks in a stable order before Runtime touches the lineage.
+        originals = {original_request.attempt_id:(original_request,receipt),
+                     current_request.attempt_id:(current_request,latest)}
+        for attempt in sorted(originals):
+            request, physical_receipt = originals[attempt]
+            await lock_original_on(connection,request,physical_receipt,data_generation)
         policy = plan_recovery.policy_for(life)
         attempt_id = attempt_for(original_id) if kind == "plan" else original_id
         budget = await policy.note_not_sent_on(connection,attempt_id,owner=original_fresh["recovery_owner"],

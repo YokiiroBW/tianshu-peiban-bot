@@ -77,7 +77,9 @@ async def activity(value):
 async def recovery_job(value):
     async with value.database.transaction(read_only=True) as connection:
         return await (await connection.execute("SELECT k.task,j.args FROM runtime.job_keys k JOIN procrastinate_jobs j ON j.id=k.job_id "
-            "WHERE k.key LIKE 'life-recover:activities:resumed-context:%%'")).fetchone()
+            "WHERE k.key LIKE 'life-recover:activities:resumed-context:%%' "
+            "OR (k.task='life.activity_reconcile' AND j.args->>'activity_id'='resumed-context' "
+            "AND j.args ? 'data_generation') ORDER BY j.id DESC LIMIT 1")).fetchone()
 
 
 @pytest.mark.asyncio
@@ -120,7 +122,9 @@ async def test_explicit_resume_freezes_its_authorized_context_for_restart_reconc
     await restarted.recover()
     recovered = await recovery_job(value)
     assert recovered["task"] == "life.activity_reconcile"
-    assert set(recovered["args"]["context"]["scope_ids"]) == set(current.scope_ids)
+    assert recovered["args"]["action_id"] == started["action_id"]
+    assert set(recovered["args"]) == {"activity_id","action_id","data_generation"}
+    assert set(started["context"]["scope_ids"]) == set(current.scope_ids)
     await restarted.reconcile_activity(**recovered["args"])
     await restarted.reconcile_activity(**recovered["args"])
     settled = await activity(value)

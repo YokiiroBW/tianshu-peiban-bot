@@ -31,7 +31,7 @@ def finished_plan_unknown(receipt, attempt_id, data_generation):
 
 
 async def reserve_on(life, connection, *, context, scene, material, key, frozen, profile, previous,
-                     continuation, model_receipt=None):
+                     continuation, model_receipt=None, original_request=None):
     policy = policy_for(life)
     if not getattr(frozen, "data_generation", None):
         raise AppError("job_generation_missing", status=409)
@@ -49,6 +49,12 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
         state = previous.get("recovery_state")
         if state not in {"failed", "succeeded", "unknown"}:
             return {"state": "waiting"}
+        if state in {"failed", "unknown"}:
+            from .rbi_model_recovery import lock_original_on, failed_or_interrupted
+            await lock_original_on(connection, original_request, model_receipt, frozen.data_generation)
+            if ((state == "failed" and not failed_or_interrupted(model_receipt))
+                    or (state == "unknown" and model_receipt.status != "unknown")):
+                raise AppError("recovery_model_outcome_changed", status=409)
         budget = await policy.computation_budget_on(connection,lineage_id,owner=owner,
             expected_version=previous["recovery_version"])
         if not budget["can_retry"]:
@@ -89,7 +95,7 @@ async def reserve_on(life, connection, *, context, scene, material, key, frozen,
             current_version=material, max_attempts=MAX_ATTEMPTS, data_generation=frozen.data_generation,
             recovery_kind="pure_computation")
         lineage_id = lineage["lineage_id"]
-    extra = {"model_receipt": model_receipt} if original_state == "unknown" else {}
+    extra = {"model_receipt": model_receipt} if original_state in {"failed", "unknown"} else {}
     attempt = await policy.reserve_attempt_on(connection, lineage_id, owner=owner, expected_version=material,
         attempt_id=frozen.attempt_id, request_digest=signature(frozen), route=frozen.route_id,
         original_state=original_state, claim_token=claim_token, **extra)

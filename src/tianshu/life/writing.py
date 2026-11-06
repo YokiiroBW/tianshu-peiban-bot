@@ -400,7 +400,9 @@ class WritingService:
                 code=getattr(error,"code",None) or generation_error(result,"chapter_generation_failed")
             else:
                 when = (due or current["generation_retry_due_at"]) if ledger=="failed" else None
-                state = "unknown" if when is not None else "cancelled" if status=="cancelled" else "failed"
+                from .rbi_model_recovery import interrupted
+                state = ("unknown" if when is not None else "cancelled" if status=="cancelled"
+                    and not interrupted(receipt) else "failed")
                 next_attempt = when is not None and when<=datetime.now(UTC)
                 if ledger=="unregistered":
                     code="recovery_original_lineage_missing"

@@ -381,29 +381,43 @@ class PlanningEngine:
                 reason = "planner_context_budget_exceeded" if "budget" in error.code else "planner_model_unavailable"
                 await self.failure(context, mark, reason, material, now)
                 return
-            original_receipt = None
-            if previous and previous.get("recovery_state") == "unknown" and same_recovery_material and not supersede_reason:
+            original_receipt, original_request = None, None
+            if (previous and previous.get("recovery_state") in {"failed", "unknown"}
+                    and same_recovery_material and not supersede_reason):
                 # Do not carry a cached observation across the delay or a
                 # control-plane outage when reserving the successor.
                 try:
+                    original_request = await self.worker.generations.observe_request(
+                        attempt_for(previous["generation_key"]), observer=context)
                     original_receipt = await self.worker.models.status(attempt_for(previous["generation_key"]))
                 except Exception as error:
                     if isinstance(error, RecoveryWait) or getattr(error, "database_failure", None) is not None or getattr(error, "code", None) == "recovery_claim_lost":
                         raise
-                if not plan_recovery.finished_plan_unknown(original_receipt, attempt_for(previous["generation_key"]), self.data_generation):
+                if original_request is None or original_receipt is None:
                     async with self.transaction() as connection:
                         await self.schedule(connection, context, mark, now + timedelta(seconds=30), "observe-retry")
                     return
             async with self.transaction() as connection:
-                await self.life.validate_persistence(connection, context, frozen.source_refs)
+                await self.life.validate_persistence(connection, context, unique_refs(frozen.source_refs,
+                    original_request.source_refs if original_request else ()))
                 fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (actor_id,))).fetchone()
                 if (fresh["revision"] != revision or fresh["generation_key"] != mark["generation_key"]
                         or fresh["generation_consumed"] != mark["generation_consumed"]):
                     return
                 previous = await plan_recovery.generation_on(connection, fresh["generation_key"], lock=True)
-                recovery = await plan_recovery.reserve_on(self.life, connection, context=context, scene=scene(context),
-                    material=recovery_material, key=key, frozen=frozen, profile=profile, previous=previous,
-                    continuation=bool(fresh["last_error"] and same_recovery_material and not supersede_reason), model_receipt=original_receipt)
+                try:
+                    recovery = await plan_recovery.reserve_on(self.life, connection, context=context, scene=scene(context),
+                        material=recovery_material, key=key, frozen=frozen, profile=profile, previous=previous,
+                        continuation=bool(fresh["last_error"] and same_recovery_material and not supersede_reason),
+                        model_receipt=original_receipt,original_request=original_request)
+                except AppError as error:
+                    from .rbi_model_recovery import OBSERVE_AGAIN
+                    if isinstance(error,RecoveryWait):
+                        raise
+                    if error.code not in OBSERVE_AGAIN:
+                        raise
+                    await self.schedule(connection,context,fresh,now+timedelta(seconds=30),"observe-retry")
+                    return
                 if recovery["state"] == "waiting":
                     await self.schedule(connection, context, fresh, now + timedelta(seconds=30), "recovery-claim")
                     return
@@ -429,12 +443,16 @@ class PlanningEngine:
                             "retirement_data_generation=%s,retired_at=COALESCE(retired_at,now()) "
                             "WHERE generation_key=%s",(supersede_status,original_status,observe_after(original_status,now),
                                 self.data_generation,fresh["generation_key"]))
+                from .rbi_planning_trace import decision_trace
+                trace = decision_trace(fresh,previous,day=day,material=material,recovery_material=recovery_material,
+                    now=now,review_at=decision_review_at(fresh),supersede_reason=supersede_reason,
+                    repair_ready=repair_ready,frozen=frozen)
                 await connection.execute(
                     "INSERT INTO life.plan_generations(generation_key,actor_id,day,material_fingerprint,base_revision,context,previous_generation_key,"
-                    "recovery_lineage_id,recovery_owner,recovery_version,recovery_probe_token,recovery_attempt_number,recovery_state,recovery_dependency,recovery_current_dependency,submission_confirmed,admission_started) "
-                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'reserved',%s,%s,false,false) ON CONFLICT DO NOTHING",
+                    "recovery_lineage_id,recovery_owner,recovery_version,recovery_probe_token,recovery_attempt_number,recovery_state,recovery_dependency,recovery_current_dependency,submission_confirmed,admission_started,decision_trace) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'reserved',%s,%s,false,false,%s) ON CONFLICT DO NOTHING",
                     (key, actor_id, day, material, revision, document(context), mark["generation_key"], recovery["lineage_id"],
-                     recovery["owner"], recovery_material, recovery["probe_token"], recovery["number"], recovery["dependency"], recovery["dependency"]))
+                     recovery["owner"], recovery_material, recovery["probe_token"], recovery["number"], recovery["dependency"], recovery["dependency"],document(trace)))
                 repairs = fresh["repair_count"] if fresh["generation_material"] == material else 0
                 await connection.execute("UPDATE life.plan_watermarks SET generation_material=%s,generation_key=%s,generation_consumed=false,"
                     "repair_count=%s,computation_retry_count=%s,repair_due_at=NULL,review_after=NULL,reason='planner_running' WHERE actor_id=%s",
@@ -647,8 +665,20 @@ class PlanningEngine:
             return
         if status == "unknown" and code != "explicit_cancel" and plan_recovery.finished_plan_unknown(receipt, attempt_for(mark["generation_key"]), self.data_generation):
             async with self.transaction() as connection:
+                await self.life.validate_persistence(connection,context,frozen.source_refs)
                 fresh = await (await connection.execute("SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE", (context.actor_id,))).fetchone()
                 if not fresh or fresh["revision"] != mark["revision"] or fresh["generation_key"] != mark["generation_key"] or fresh["generation_consumed"]:
+                    return
+                await plan_recovery.generation_on(connection,mark["generation_key"],lock=True)
+                from .rbi_model_recovery import lock_original_on, OBSERVE_AGAIN
+                try:
+                    await lock_original_on(connection,frozen,receipt,self.data_generation)
+                except AppError as guard_error:
+                    if isinstance(guard_error,RecoveryWait):
+                        raise
+                    if guard_error.code not in OBSERVE_AGAIN:
+                        raise
+                    await self.schedule(connection,context,fresh,now+timedelta(seconds=30),"observe-retry")
                     return
                 retry_at = await plan_recovery.unknown_on(self.life, connection, mark["generation_key"], receipt)
                 if retry_at:
@@ -677,12 +707,14 @@ class PlanningEngine:
                 status_reason="planner_cancelled" if code=="explicit_cancel" or status=="cancelled" else "planner_failed",
                 physical_failure=status in {"failed", "cancelled"} or code == "explicit_cancel")
             return
-        if status == "failed" and receipt is not None:
+        from .rbi_model_recovery import interrupted
+        physical_failure = receipt is not None and (status == "failed" or interrupted(receipt))
+        if physical_failure:
             from .computation_retry import validate_original_receipt
             validate_original_receipt(frozen,receipt,self.data_generation)
         async with self.transaction() as connection:
             source_current = True
-            if status == "failed" and receipt is not None:
+            if physical_failure:
                 try:
                     # Sources precede the watermark and recovery locks, as in
                     # other source-bound Life writes and withdrawal callbacks.
@@ -695,6 +727,18 @@ class PlanningEngine:
             if (not fresh or fresh["revision"]!=mark["revision"] or fresh["generation_key"]!=mark["generation_key"]
                     or fresh["generation_consumed"]):
                 return
+            await plan_recovery.generation_on(connection,mark["generation_key"],lock=True)
+            if physical_failure:
+                from .rbi_model_recovery import lock_original_on, OBSERVE_AGAIN
+                try:
+                    await lock_original_on(connection,frozen,receipt,self.data_generation)
+                except AppError as guard_error:
+                    if isinstance(guard_error,RecoveryWait):
+                        raise
+                    if guard_error.code not in OBSERVE_AGAIN:
+                        raise
+                    await self.schedule(connection,context,fresh,now+timedelta(seconds=30),"observe-retry")
+                    return
             count=(fresh["computation_retry_count"] if fresh["generation_material"]==material else 0)+1
             retry_at=now+timedelta(seconds=retry_delay_seconds(count))
             recovery = await plan_recovery.fail_on(self.life, connection, mark["generation_key"], code, retry_after=retry_at)
@@ -799,6 +843,31 @@ class PlanningEngine:
                     await self.schedule(connection,context,mark,now+timedelta(seconds=30),"observe-retry")
                 return None
             if retry:
+                if mark["repair_due_at"] is None:
+                    # A notification cannot turn an exhausted original into a
+                    # new budget or invent a due when Runtime has none.
+                    async with self.transaction() as connection:
+                        fresh = await (await connection.execute(
+                            "SELECT * FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",(context.actor_id,))).fetchone()
+                        if (not fresh or fresh["revision"] != mark["revision"]
+                                or fresh["generation_key"] != mark["generation_key"] or not fresh["generation_consumed"]):
+                            return None
+                        previous = await plan_recovery.generation_on(connection,mark["generation_key"],lock=True)
+                        if not previous or not previous.get("recovery_lineage_id"):
+                            raise AppError("planner_recovery_lineage_missing",status=409)
+                        budget = await plan_recovery.policy_for(self.life).computation_budget_on(connection,
+                            previous["recovery_lineage_id"],owner=previous["recovery_owner"],
+                            expected_version=previous["recovery_version"])
+                        retry_at = budget.get("retry_at") if budget["can_retry"] else None
+                        reason = ("planner_retry_wait" if retry_at is not None else
+                            "planner_recovery_not_due" if budget["can_retry"] else
+                            "planner_attempts_exhausted" if budget["reason"] == "recovery_budget_exhausted" else budget["reason"])
+                        await connection.execute("UPDATE life.plan_watermarks SET planned_watermark=change_watermark,"
+                            "reason=%s,repair_due_at=%s,next_due_at=%s WHERE actor_id=%s",
+                            (reason,retry_at,retry_at,context.actor_id))
+                        if retry_at is not None:
+                            await self.schedule(connection,context,fresh,retry_at,"runtime-due")
+                    return None
                 if not due(mark["repair_due_at"],now):
                     await self.finish(context,mark,"planner_retry_wait",next_due=mark["repair_due_at"])
                     return None

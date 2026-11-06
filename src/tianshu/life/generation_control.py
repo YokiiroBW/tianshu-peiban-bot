@@ -39,13 +39,44 @@ class GenerationRecovery:
     def __init__(self, policy, *, life):
         self.policy, self.life = policy, life
 
-    async def _sources_current_on(self, connection, row, request):
+    async def _sources_current_on(self, connection, row, request, *, additional_context=None, additional_refs=()):
         from tianshu.conversation.codec import source_refs
         from tianshu.conversation.generation import GenerationRequests
         from tianshu.sources.dependencies import unique_refs
 
         original = context_from_record(row["context"])
         refs = unique_refs(source_refs(row["source_refs"]),request.source_refs)
+        if additional_context is not None:
+            # Batch both independent authorities before taking any source or
+            # diary lock. Refresh the original scene before assembling the batch.
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            selected = original
+            try:
+                try:
+                    await self.life.identity.check_context(original,connection=connection)
+                except AppError as error:
+                    if isinstance(error,RecoveryWait):
+                        raise
+                    if error.status not in {401,403,409,410}:
+                        raise
+                    selected = await self.life.identity.refresh_scheduled_context(original,
+                        permission="life.manage",connection=connection)
+                    GenerationRequests.observer_context(original,selected)
+            except AppError as error:
+                if isinstance(error,RecoveryWait):
+                    raise
+                if error.status not in {401,403,409,410}:
+                    raise
+                await self.life.validate_persistence(connection,additional_context,additional_refs)
+                return False
+            try:
+                await self.life.sources.prepare_event_writes(connection,additional_context,(),
+                    additional_refs=additional_refs,scoped_refs=((selected,refs),))
+            except AppError as error:
+                if error.code != "source_support_unavailable":
+                    raise
+                raise AppError("source_unavailable", "材料已失效，请重新读取当前内容", status=409) from error
+            return await self.life.sources.validate_persistence(connection,selected,refs)
         try:
             try:
                 await self.life.validate_persistence(connection,original,refs)
@@ -67,9 +98,14 @@ class GenerationRecovery:
         return True
 
     async def prepare_observation_on(self, connection, attempt_id, status, model_receipt, *, allow_unknown_retry=True,
-                                     kind=None, item_id=None):
+                                     kind=None, item_id=None, additional_context=None, additional_refs=()):
         """Lock the original source closure before taking domain/recovery locks."""
-        if status != "failed" or model_receipt is None or not allow_unknown_retry:
+        from .rbi_model_recovery import interrupted
+        needs_sources = (status in {"failed", "unknown"} or interrupted(model_receipt)
+            or (status == "succeeded" and additional_context is not None))
+        if not needs_sources or model_receipt is None or not allow_unknown_retry:
+            if additional_context is not None:
+                await self.life.validate_persistence(connection,additional_context,additional_refs)
             return None
         from tianshu.models.codec import request_from_wire
         from tianshu.conversation.generation import GenerationRequests
@@ -82,11 +118,14 @@ class GenerationRecovery:
         frozen = await (await connection.execute("SELECT request,state FROM conversation.generation_requests "
             "WHERE attempt_id=%s",(attempt_id,))).fetchone()
         if not row or not row.get("recipe") or not frozen or frozen["request"] is None or frozen["state"] == "invalidated":
+            if additional_context is not None:
+                await self.life.validate_persistence(connection,additional_context,additional_refs)
             return {"valid":False}
         request = request_from_wire(frozen["request"])
         validate_original_receipt(request,model_receipt,frozen_data_generation(row["recipe"]))
         GenerationRequests.observer_context(request.context,context_from_record(row["context"]))
-        valid = await self._sources_current_on(connection,row,request)
+        valid = await self._sources_current_on(connection,row,request,additional_context=additional_context,
+            additional_refs=additional_refs)
         return {"valid":valid,"context":row["context"],"source_refs":row["source_refs"],
             "request_digest":signature(frozen["request"])}
 
@@ -103,6 +142,7 @@ class GenerationRecovery:
             raise AppError("recovery_original_lineage_missing", status=409)
 
     async def reserve_on(self, connection, kind, item_id, request, *, quota_group, model_receipt=None):
+        from .rbi_model_recovery import failed_or_interrupted
         if not isinstance(quota_group, str) or not quota_group:
             raise AppError("model_quota_group_unavailable", status=503)
         row = await (await connection.execute(
@@ -134,13 +174,45 @@ class GenerationRecovery:
         material_id = await _material_id_on(connection,kind,item_id,row,saved['revision'])
         material_version = signature({"recipe": row["recipe"], "source_refs": row["source_refs"]})
         previous = await (await connection.execute(
-            "SELECT recovery_lineage_id,recovery_owner,recovery_material_digest,recovery_dependency,recovery_version "
+            "SELECT generation_id,recovery_lineage_id,recovery_owner,recovery_material_digest,recovery_dependency,recovery_version "
             "FROM life.generation_recipes WHERE recovery_material_id=%s AND generation_id<>%s "
             "AND recovery_lineage_id IS NOT NULL ORDER BY created_at DESC LIMIT 1",
             (material_id,request.attempt_id))).fetchone()
         material_digest = row["recovery_material_digest"] or (
             previous["recovery_material_digest"] if previous else material_version)
         prior = row if identity else previous
+        original_id = row["previous_generation_id"] or (previous["generation_id"] if previous else None)
+        if original_id and not row["recovery_request_digest"]:
+            from tianshu.models.codec import request_from_wire
+            from tianshu.conversation.generation import GenerationRequests
+            from tianshu.conversation.codec import source_refs
+            from .rbi_model_recovery import lock_original_on, OBSERVE_AGAIN
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            original = await (await connection.execute("SELECT request,state FROM conversation.generation_requests "
+                "WHERE attempt_id=%s",(original_id,))).fetchone()
+            if not model_receipt or not original or original["request"] is None or original["state"] == "invalidated":
+                raise RecoveryWait("recovery_model_receipt_unconfirmed",datetime.now(UTC)+timedelta(seconds=30),
+                    dependency="models:original-observation")
+            original_request = request_from_wire(original["request"])
+            GenerationRequests.observer_context(original_request.context,request.context)
+            original_recipe = await (await connection.execute("SELECT source_refs FROM life.generation_recipes "
+                "WHERE generation_id=%s",(original_id,))).fetchone()
+            if not original_recipe:
+                raise AppError("recovery_original_lineage_missing",status=409)
+            available = {signature(ref) for ref in (*request.source_refs,*source_refs(row["source_refs"]))}
+            originals = (*original_request.source_refs,*source_refs(original_recipe["source_refs"]))
+            if any(signature(ref) not in available for ref in originals):
+                raise AppError("recovery_original_source_changed",status=409)
+            await self.life.jobs.assert_generation_on(connection,data_generation)
+            try:
+                await lock_original_on(connection,original_request,model_receipt,data_generation)
+            except AppError as error:
+                if isinstance(error,RecoveryWait):
+                    raise
+                if error.code not in OBSERVE_AGAIN:
+                    raise
+                raise RecoveryWait(error.code,datetime.now(UTC)+timedelta(seconds=30),
+                    dependency="models:original-observation") from error
         if prior and prior["recovery_dependency"] != dependency:
             if row["recovery_request_digest"]:
                 raise AppError("recovery_dependency_changed", status=409)
@@ -202,12 +274,14 @@ class GenerationRecovery:
                 raise wait or RecoveryWait("recovery_claim_observe",datetime.now(UTC)+timedelta(seconds=5))
             claim = claimed["claim_token"]
             original_state = "failed"
-            if model_receipt is not None:
+            if model_receipt is not None and model_receipt.status == "unknown":
                 from .computation_retry import finished_unknown
                 if not row["previous_generation_id"] or not finished_unknown(model_receipt, row["previous_generation_id"], data_generation):
                     raise AppError("recovery_original_observation_unavailable", status=409)
                 original_state = "unknown"
-        extra = {"model_receipt": model_receipt} if original_state == "unknown" else {}
+            elif not failed_or_interrupted(model_receipt):
+                raise AppError("recovery_model_outcome_changed",status=409)
+        extra = {"model_receipt": model_receipt} if original_state in {"failed", "unknown"} else {}
         reservation = await self.policy.reserve_attempt_on(connection, identity, owner=owner,
             expected_version=version, attempt_id=request.attempt_id, request_digest=digest, route=route,
             original_state=original_state, claim_token=claim, **extra)
@@ -222,8 +296,9 @@ class GenerationRecovery:
         """Record Models' physical receipt, never infer business completion."""
         from tianshu.runtime.recovery_policy import FailureCategory, classify_failure
         from tianshu.models.retry import transient_model_failure
+        from .rbi_model_recovery import interrupted
 
-        if status == "failed" and model_receipt is not None and allow_unknown_retry and observation is None:
+        if (status in {"failed", "unknown"} or interrupted(model_receipt)) and model_receipt is not None and allow_unknown_retry and observation is None:
             observation = await self.prepare_observation_on(connection,attempt_id,status,model_receipt,
                 allow_unknown_retry=allow_unknown_retry)
         row = await (await connection.execute(
@@ -232,6 +307,28 @@ class GenerationRecovery:
             return "unregistered", None
         if status in {"queued", "running", "absent", "unavailable"}:
             return "observing", None
+        if (status in {"failed", "unknown"} or interrupted(model_receipt)) and model_receipt is not None and allow_unknown_retry:
+            from tianshu.models.codec import request_from_wire
+            from .rbi_model_recovery import lock_original_on, OBSERVE_AGAIN
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            original = await (await connection.execute("SELECT request,state FROM conversation.generation_requests "
+                "WHERE attempt_id=%s",(attempt_id,))).fetchone()
+            if (not observation or not observation["valid"] or not original or original["request"] is None
+                    or original["state"] == "invalidated" or observation["context"] != row["context"]
+                    or observation["source_refs"] != row["source_refs"]
+                    or observation["request_digest"] != signature(original["request"])):
+                return "observing" if status == "unknown" else "ineligible", None
+            await self.life.jobs.assert_generation_on(connection,frozen_data_generation(row["recipe"]))
+            try:
+                await lock_original_on(connection,request_from_wire(original["request"]),model_receipt,
+                    frozen_data_generation(row["recipe"]))
+            except AppError as error:
+                if isinstance(error,RecoveryWait):
+                    raise
+                if error.code not in OBSERVE_AGAIN:
+                    raise
+                raise RecoveryWait(error.code,datetime.now(UTC)+timedelta(seconds=30),
+                    dependency="models:original-observation") from error
         if status == "unknown":
             from .computation_retry import finished_unknown
             if allow_unknown_retry and finished_unknown(model_receipt, attempt_id, frozen_data_generation(row["recipe"])):
@@ -256,12 +353,12 @@ class GenerationRecovery:
         if status in {"failed", "cancelled"}:
             if state == "succeeded":
                 raise AppError("recovery_attempt_outcome_conflict", status=409)
-            if status == "cancelled":
+            if status == "cancelled" and not interrupted(model_receipt):
                 code = code if code and "cancel" in code else "cancelled"
                 category = FailureCategory.STATE_CHANGED
             else:
                 category = classify_failure(code)
-            if category == FailureCategory.OTHER and transient_model_failure(code):
+            if not interrupted(model_receipt) and category == FailureCategory.OTHER and transient_model_failure(code):
                 category = FailureCategory.TRANSPORT
             if state == "unknown":
                 due = await self.policy.resolve_unknown_on(connection, attempt_id,
@@ -470,6 +567,47 @@ async def defer_generation(life, kind, item_id, attempt_id, actor_id, data_gener
     return {"state":row["state"],"attempt_id":attempt_id,"reason":wait.reason,"retry_due_at":wait.retry_at}
 
 
+async def original_for_submission(life, models, generations, kind, item_id, request):
+    """Refresh the prior physical outcome before entering a successor transaction."""
+    async with life.database.transaction(read_only=True) as connection:
+        row = await (await connection.execute("SELECT * FROM life.generation_recipes WHERE generation_id=%s",
+            (request.attempt_id,))).fetchone()
+        if not row or row["recovery_request_digest"]:
+            return None
+        original_id = row["previous_generation_id"]
+        if not original_id:
+            revision_table = "life.diary_revisions" if kind == "diary" else "life.chapter_revisions"
+            item_column = "diary_id" if kind == "diary" else "chapter_id"
+            saved = await (await connection.execute(
+                f"SELECT coalesce(max(revision),0) AS revision FROM {revision_table} "
+                f"WHERE {item_column}=%s AND model_attempt_id IS NOT NULL",(item_id,))).fetchone()
+            material = await _material_id_on(connection,kind,item_id,row,saved["revision"])
+            previous = await (await connection.execute(
+                "SELECT generation_id FROM life.generation_recipes WHERE recovery_material_id=%s AND generation_id<>%s "
+                "AND recovery_lineage_id IS NOT NULL ORDER BY created_at DESC LIMIT 1",
+                (material,request.attempt_id))).fetchone()
+            original_id = previous["generation_id"] if previous else None
+    if not original_id:
+        return None
+    original = await generations.observe_request(original_id,observer=request.context)
+    from tianshu.runtime.recovery_policy import RecoveryWait
+    try:
+        receipt = await models.status(original_id)
+    except Exception as error:
+        if isinstance(error,RecoveryWait) or getattr(error,"database_failure",None) is not None:
+            raise
+        if isinstance(error,AppError) and error.status in {401,403,410}:
+            raise
+        raise RecoveryWait("recovery_model_receipt_unconfirmed",datetime.now(UTC)+timedelta(seconds=30),
+            dependency="models:original-observation") from error
+    if original is None or receipt is None:
+        raise RecoveryWait("recovery_model_receipt_unconfirmed",datetime.now(UTC)+timedelta(seconds=30),
+            dependency="models:original-observation")
+    from .computation_retry import validate_original_receipt
+    validate_original_receipt(original,receipt,request.data_generation)
+    return receipt
+
+
 async def submit_frozen(life, models, generations, material_key, request, *, guard, completion, kind, item_id, recovery):
     """Admit the saved intent and release the domain worker after acceptance."""
     if recovery is None:
@@ -483,13 +621,28 @@ async def submit_frozen(life, models, generations, material_key, request, *, gua
     if request.route_id is not None and (profile.get("route_id") != request.route_id
             or profile.get("route_revision") != request.route_revision):
         raise AppError("model_route_changed", status=409)
+    original_receipt = await original_for_submission(life,models,generations,kind,item_id,request)
+    async with life.database.transaction(read_only=True) as connection:
+        recipe = await (await connection.execute("SELECT source_refs FROM life.generation_recipes WHERE generation_id=%s",
+            (request.attempt_id,))).fetchone()
+    if not recipe:
+        raise AppError("generation_recipe_missing",status=409)
+    from tianshu.conversation.codec import source_refs
+    from tianshu.sources.dependencies import unique_refs
     async with life.database.transaction() as connection:
         await life.jobs.assert_generation_on(connection,completion.data_generation)
+        await life.validate_persistence(connection,request.context,unique_refs(request.source_refs,source_refs(recipe["source_refs"])))
         request = await generations.prepare(material_key, request, connection=connection, guard=guard)
+        current_recipe = await (await connection.execute("SELECT source_refs FROM life.generation_recipes WHERE generation_id=%s",
+            (request.attempt_id,))).fetchone()
+        if not current_recipe or current_recipe["source_refs"] != recipe["source_refs"]:
+            from tianshu.runtime.recovery_policy import RecoveryWait
+            raise RecoveryWait("source_lock_set_changed",datetime.now(UTC)+timedelta(seconds=5),
+                dependency="life:generation_sources")
         admission = waiting_budget(request)
         if admission is not None and admission.deadline_at <= datetime.now(UTC):
             raise AppError("generation_request_expired", status=409)
-        await recovery.reserve_on(connection, kind, item_id, request,quota_group=quota_group)
+        await recovery.reserve_on(connection, kind, item_id, request,quota_group=quota_group,model_receipt=original_receipt)
         await connection.execute(
             "UPDATE conversation.generation_requests SET state='claimed',claimed_at=coalesce(claimed_at,now()) "
             "WHERE material_key=%s AND state='prepared'", (material_key,))
