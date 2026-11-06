@@ -73,6 +73,9 @@ class NotificationOutbox:
         if kind not in {"opened", "escalated", "resolved"}:
             raise ValueError("invalid_notification_kind")
         async with self.database.transaction(control=True) as conn:
+            from tianshu.runtime.work_retirement import recorded_on
+            if await recorded_on(conn, "operations", {"incident_id": incident["incident_id"], "episode": incident["episode"]}):
+                return
             if kind == "opened":
                 # Suppress only a proven dependent incident while all of its
                 # recorded roots are still active in their original episodes.
@@ -127,6 +130,7 @@ class NotificationOutbox:
                 return
             rows = await (await conn.execute(
                 "SELECT i.* FROM operations.incidents i WHERE i.state IN ('open','observing','escalated') "
+                "AND NOT runtime.work_is_retired('operations',jsonb_build_object('incident_id',i.incident_id,'episode',i.episode)) "
                 "AND EXISTS (SELECT 1 FROM operations.incident_causes c WHERE c.incident_id=i.incident_id "
                 "AND c.episode=i.episode) AND (i.uncorrelated_occurrences>0 OR EXISTS "
                 "(SELECT 1 FROM operations.incident_causes c JOIN operations.incidents r ON r.incident_id=c.root_incident_id "
@@ -149,6 +153,7 @@ class NotificationOutbox:
             rows = await (await conn.execute(
                 "SELECT * FROM operations.notification_outbox WHERE (status IN ('pending','observing') "
                 "OR (status='unknown' AND channel='qq')) AND due_at<=now() "
+                "AND NOT runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode)) "
                 "ORDER BY due_at,notification_id LIMIT %s FOR UPDATE SKIP LOCKED", (min(limit, 4),))).fetchall()
             for row in rows:
                 token = uuid4().hex

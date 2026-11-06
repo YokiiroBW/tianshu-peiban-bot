@@ -599,12 +599,14 @@ class GrowthRetries:
         async with self.database.transaction() as connection:
             await self.growth.jobs.assert_generation_on(connection, generation)
             row = await (await connection.execute(
-                "SELECT *,clock_timestamp() AS db_now FROM companion.growth_retry_batches "
+                "SELECT *,clock_timestamp() AS db_now,runtime.work_is_retired('growth',jsonb_build_object('actor_id',actor_id,'scope_key',scope_key,'retry_key',retry_key)) AS user_retired FROM companion.growth_retry_batches "
                 "WHERE actor_id=%s AND scope_key=%s AND retry_key=%s",
                 (actor_id, scope_key, retry_key))).fetchone()
             state = await (await connection.execute(
                 "SELECT * FROM companion.organize_state WHERE actor_id=%s AND scope_key=%s",
                 (actor_id, scope_key))).fetchone()
+        if row and row["user_retired"]:
+            return {"state": "retired"}
         pending_review = bool(row and row['state'] == 'blocked'
                               and (row['batch'].get('rbi_review') or {}).get('state') == 'requested')
         if not row or not state or (row["state"] not in {"waiting", "active"} and not pending_review):
@@ -1077,6 +1079,9 @@ class GrowthRetries:
         row = await (await connection.execute(
             "SELECT * FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s AND retry_key=%s FOR UPDATE",
             (current["actor_id"], current["scope_key"], retry_key))).fetchone()
+        from tianshu.runtime.work_retirement import recorded_on
+        if await recorded_on(connection, "growth", {"actor_id": current["actor_id"], "scope_key": current["scope_key"], "retry_key": retry_key}):
+            raise AppError("work_retired_by_user", status=409)
         if not row or row['batch'].get('control_observation') or row['waiting_on_original']:
             raise AppError("reflection_retry_not_available", status=409)
         if not self.growth.recovery.same_scene(caller, context_from_record(row["batch"]["context"])):
@@ -1116,6 +1121,7 @@ class GrowthRetries:
             "SELECT retry_key,batch->'context' AS context,batch->'output_repair_count' AS output_repair_count,"
             "last_error FROM companion.growth_retry_batches "
             "WHERE actor_id=%s AND scope_key=%s AND state='blocked' AND NOT waiting_on_original "
+            "AND NOT runtime.work_is_retired('growth',jsonb_build_object('actor_id',actor_id,'scope_key',scope_key,'retry_key',retry_key)) "
             "AND COALESCE(batch->'rbi_review'->>'state','')<>'requested' "
             "AND NOT (batch ? 'control_observation') ORDER BY created_at,retry_key",
             (state["actor_id"], state["scope_key"]))).fetchall()
@@ -1134,6 +1140,7 @@ class GrowthRetries:
             rows = await (await connection.execute(
                 "SELECT * FROM companion.growth_retry_batches WHERE (state IN ('waiting','active') "
                 "OR (state='blocked' AND batch->'rbi_review'->>'state'='requested')) "
+                "AND NOT runtime.work_is_retired('growth',jsonb_build_object('actor_id',actor_id,'scope_key',scope_key,'retry_key',retry_key)) "
                 "AND batch->>'runtime_generation'=%s ORDER BY actor_id,scope_key,retry_key FOR UPDATE", (generation,))).fetchall()
             for row in rows:
                 await self.schedule_on(connection, row)

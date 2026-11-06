@@ -1221,13 +1221,16 @@ class GrowthService:
                 "batch->'rbi_review' AS recovery_review,"
                 "current_material_key,previous_material_key,attempt_number,"
                 "state,due_at,last_error,waiting_on_original,outcome,revision FROM companion.growth_retry_batches "
-                "WHERE actor_id=%s AND scope_key=%s ORDER BY CASE state WHEN 'active' THEN 0 WHEN 'waiting' THEN 1 "
+                "WHERE actor_id=%s AND scope_key=%s AND NOT runtime.work_is_retired('growth',"
+                "jsonb_build_object('actor_id',actor_id,'scope_key',scope_key,'retry_key',retry_key)) "
+                "ORDER BY CASE state WHEN 'active' THEN 0 WHEN 'waiting' THEN 1 "
                 "WHEN 'blocked' THEN 2 ELSE 3 END,due_at NULLS LAST,updated_at DESC LIMIT 20",
                 (context.actor_id, signature(sorted(context.scope_ids))))).fetchall()
             retry_summary = await (await connection.execute(
                 "SELECT count(*) FILTER(WHERE state='waiting') AS waiting,count(*) FILTER(WHERE state='active') AS active,"
                 "count(*) FILTER(WHERE state='blocked') AS blocked,min(due_at) FILTER(WHERE state='waiting') AS next_retry_at "
-                "FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s",
+                "FROM companion.growth_retry_batches WHERE actor_id=%s AND scope_key=%s "
+                "AND NOT runtime.work_is_retired('growth',jsonb_build_object('actor_id',actor_id,'scope_key',scope_key,'retry_key',retry_key))",
                 (context.actor_id, signature(sorted(context.scope_ids))))).fetchone()
             input_failures = await (await connection.execute(
                 "SELECT failure_key,episode_id,episode_revision,error_code,details,context FROM companion.growth_material_failures "

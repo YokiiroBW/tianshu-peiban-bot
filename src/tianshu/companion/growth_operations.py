@@ -38,6 +38,7 @@ class GrowthOperations:
             "LEFT JOIN LATERAL (SELECT attempt_id,status FROM runtime.recovery_attempts "
             "WHERE lineage_id=l.lineage_id ORDER BY attempt_number DESC LIMIT 1) a ON true "
             "WHERE r.state='waiting' AND r.last_error IS NOT NULL AND r.batch->>'runtime_generation'=%s "
+            "AND NOT runtime.work_is_retired('growth',jsonb_build_object('actor_id',r.actor_id,'scope_key',r.scope_key,'retry_key',r.retry_key)) "
             "AND s.runtime_generation=%s AND r.due_at<=now() AND NOT r.waiting_on_original "
             "AND s.active_batch IS NULL AND l.lineage_id IS NOT NULL AND NOT l.paused AND NOT l.cancelled "
             "AND NOT l.source_withdrawn "

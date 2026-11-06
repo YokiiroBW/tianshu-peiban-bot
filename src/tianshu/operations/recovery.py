@@ -159,9 +159,9 @@ class RecoveryExecutor:
         target = recovery_target(target or {})
         tid = target_id(target) if target else None
         async with self.database.transaction(control=True) as conn:
-            row = await (await conn.execute("SELECT revision,state FROM operations.incidents WHERE incident_id=%s FOR UPDATE",
+            row = await (await conn.execute("SELECT revision,state,runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode)) AS archived FROM operations.incidents WHERE incident_id=%s FOR UPDATE",
                                             (incident["incident_id"],))).fetchone()
-            if not row or row["revision"] != incident["revision"] or row["state"] == "resolved":
+            if not row or row["revision"] != incident["revision"] or row["state"] == "resolved" or row["archived"]:
                 return None
             old = await (await conn.execute(
                 "SELECT attempt_id FROM operations.recoveries WHERE incident_id=%s AND action=%s "
@@ -178,12 +178,19 @@ class RecoveryExecutor:
     async def claim_retries(self):
         async with self.database.transaction(control=True) as conn:
             candidates = await (await conn.execute(
-                "SELECT DISTINCT l.lineage_id FROM runtime.recovery_lineages l JOIN operations.recoveries r "
+                "SELECT DISTINCT l.lineage_id,r.incident_id FROM runtime.recovery_lineages l JOIN operations.recoveries r "
                 "ON r.lineage_id=l.lineage_id WHERE l.owner='operations' AND r.policy_mode='reserved' "
+                "AND EXISTS(SELECT 1 FROM operations.incidents i WHERE i.incident_id=r.incident_id "
+                "AND NOT runtime.work_is_retired('operations',jsonb_build_object('incident_id',i.incident_id,'episode',i.episode))) "
                 "AND l.due_at<=now() AND NOT EXISTS (SELECT 1 FROM operations.recoveries a "
                 "WHERE a.lineage_id=l.lineage_id AND a.state IN ('requested','inspecting','executing','observing')) "
                 "ORDER BY l.lineage_id LIMIT 32")).fetchall()
             for candidate in candidates:
+                current = await (await conn.execute(
+                    "SELECT runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode)) AS archived "
+                    "FROM operations.incidents WHERE incident_id=%s FOR UPDATE", (candidate["incident_id"],))).fetchone()
+                if not current or current["archived"]:
+                    continue
                 claim = await self.policy.claim_lineage_due_on(conn, candidate["lineage_id"],
                                                                owner="operations", lease_seconds=120)
                 if not claim:

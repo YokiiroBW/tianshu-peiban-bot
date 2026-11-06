@@ -40,6 +40,7 @@ async def _claim(growth, limit):
             "LEFT JOIN companion.rbh_growth_transport_scans c ON c.runtime_generation=%s "
             "AND c.actor_id=r.actor_id AND c.scope_key=r.scope_key AND c.retry_key=r.retry_key "
             "WHERE r.state='blocked' AND NOT r.waiting_on_original "
+            "AND NOT runtime.work_is_retired('growth',jsonb_build_object('actor_id',r.actor_id,'scope_key',r.scope_key,'retry_key',r.retry_key)) "
             "AND NOT (r.batch ? 'control_observation') AND r.batch->>'runtime_generation'=%s "
             "AND s.runtime_generation=%s AND r.last_error IS NOT NULL "
             "AND EXISTS (SELECT 1 FROM jsonb_array_elements(r.history) AS h "

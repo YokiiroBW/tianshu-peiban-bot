@@ -38,7 +38,8 @@ class ConsolidationRecovery:
         budgets={state["partition_id"]:state["budget_failure"] for state in states}
         selectors=[Jsonb([{"episode_id":episode["episode_id"],"sequence":episode["sequence"]}]) for episode in episodes]
         batches=await (await conn.execute(
-            "SELECT b.* FROM memory.consolidation_batches b JOIN memory.consolidation_state s USING(partition_id) "
+            "SELECT b.*,runtime.work_is_retired('memory',jsonb_build_object('batch_id',b.batch_id)) AS user_retired "
+            "FROM memory.consolidation_batches b JOIN memory.consolidation_state s USING(partition_id) "
             "WHERE s.actor_id=%s AND b.manifest->'episodes' @> ANY(%s::jsonb[]) ORDER BY b.created_at DESC",
             (context.actor_id,selectors))).fetchall()
         by_episode={}
@@ -175,6 +176,8 @@ class ConsolidationRecovery:
             result["required_context_missing"] = [value for value in missing if value in {
                 "semantic_unresolved", "referenced_context_incomplete", "quoted_context_unavailable",
                 "quoted_material_incomplete", "media_unavailable", "image_original_unavailable"}]
+        if batch and batch.get("user_retired"):
+            result.update(status="retired", original_status=batch["status"], action="retired", user_retired=True)
         return result
 
     async def replay_resume_on(self,conn,context,body,original):
@@ -237,6 +240,9 @@ class ConsolidationRecovery:
             if not state or not batch or batch_snapshot(batch) != previous_batch or (
                     state_bound is not None and state["authority_bound"] != state_bound["authority_bound"]):
                 raise AppError("memory_consolidation_batch_changed",status=409)
+            from tianshu.runtime.work_retirement import recorded_on
+            if await recorded_on(conn, "memory", {"batch_id": batch["batch_id"]}):
+                raise AppError("work_retired_by_user", status=409)
         elif state_bound is not None:
             state = await (await conn.execute("SELECT authority_bound FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
                 (snapshot["consolidation_partition_id"],))).fetchone()

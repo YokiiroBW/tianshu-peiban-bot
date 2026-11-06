@@ -23,7 +23,8 @@ class Diagnosis:
         async with self.database.transaction(control=True) as conn:
             incident = await (await conn.execute(
                 "UPDATE operations.incidents SET state='escalated',diagnostic_state=%s "
-                "WHERE incident_id=%s AND state<>'resolved' AND (%s::bigint IS NULL OR revision=%s) RETURNING *",
+                "WHERE incident_id=%s AND state<>'resolved' AND NOT runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode)) "
+                "AND (%s::bigint IS NULL OR revision=%s) RETURNING *",
                 (reason, incident_id, expected_revision, expected_revision))).fetchone()
         if incident:
             await self.outbox.enqueue(incident, "escalated")
@@ -33,6 +34,9 @@ class Diagnosis:
             current = await (await conn.execute("SELECT * FROM operations.incidents WHERE incident_id=%s FOR UPDATE",
                                                 (incident["incident_id"],))).fetchone()
             if not current or current["state"] == "resolved" or current["revision"] != incident["revision"]:
+                return False
+            from tianshu.runtime.work_retirement import recorded_on
+            if await recorded_on(conn, "operations", {"incident_id": current["incident_id"], "episode": current["episode"]}):
                 return False
             if fallback:
                 if current["diagnosis_count"] != 1 or current["diagnostic_state"] != "submitted":

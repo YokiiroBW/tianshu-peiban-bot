@@ -49,6 +49,9 @@ class ConsolidationOperations:
             (snapshot["batch_id"],))).fetchone()
         if not state or not batch or self._snapshot(batch) != self._snapshot(snapshot):
             return {"eligible":False,"reason":"memory_batch_changed"}
+        from tianshu.runtime.work_retirement import recorded_on
+        if await recorded_on(conn, "memory", {"batch_id": batch["batch_id"]}):
+            return {"eligible":False,"reason":"work_retired_by_user"}
         if batch["manifest"].get("remote_wait_unresolved") or batch["manifest"].get("original_observation_only"):
             return {"eligible":False,"reason":"memory_original_observation_only"}
         now = datetime.now(UTC)
@@ -163,7 +166,8 @@ class ConsolidationOperations:
             raise AppError("invalid_memory_recovery_candidate_limit")
         async with self.database.transaction(read_only=True) as conn:
             rows = await (await conn.execute("SELECT batch_id FROM memory.consolidation_batches "
-                "WHERE status IN ('failed','quarantined') AND manifest->>'data_generation'="
+                "WHERE NOT runtime.work_is_retired('memory',jsonb_build_object('batch_id',batch_id)) "
+                "AND status IN ('failed','quarantined') AND manifest->>'data_generation'="
                 "(SELECT id FROM runtime.installation_generation WHERE singleton=true) "
                 "AND (status='failed' OR retry_due_at<=now()) "
                 "ORDER BY COALESCE(retry_due_at,updated_at),batch_id LIMIT %s",(min(limit*4,512),))).fetchall()

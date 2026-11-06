@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import replace
+from datetime import datetime
 import hashlib
 import json
 import re
@@ -155,13 +156,25 @@ class IncidentStore:
                 "INSERT INTO operations.incidents(incident_id,fingerprint,dependency,error_family,version,severity,summary,affected) "
                 "VALUES(%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(fingerprint) DO NOTHING",
                 (incident_id, key, dependency, family, version, severity, Jsonb(safe_summary(event)), Jsonb(affected)))
-            row = await (await conn.execute("SELECT * FROM operations.incidents WHERE fingerprint=%s FOR UPDATE", (key,))).fetchone()
+            row = await (await conn.execute("SELECT *,runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode)) AS archived FROM operations.incidents WHERE fingerprint=%s FOR UPDATE", (key,))).fetchone()
             inserted = await (await conn.execute(
                 "INSERT INTO operations.incident_events(event_id,incident_id) VALUES(%s,%s) "
                 "ON CONFLICT(event_id) DO NOTHING RETURNING event_id", (event_id, row["incident_id"]))).fetchone()
             if not inserted:
                 return row
-            episode = row["episode"] + (1 if row["state"] == "resolved" else 0)
+            if row["archived"]:
+                from tianshu.runtime.work_retirement import recorded_on
+                archive = await recorded_on(conn, "operations", {"incident_id": row["incident_id"], "episode": row["episode"]})
+                # Delayed ingestion of pre-cleanup logs is still historical evidence.
+                # Record its event ID without reopening an archived episode.
+                try:
+                    occurred_at = datetime.fromisoformat(event.get("timestamp", "").replace("Z", "+00:00"))
+                except (AttributeError, TypeError, ValueError):
+                    occurred_at = None
+                if occurred_at and occurred_at.tzinfo and occurred_at <= archive["retired_at"]:
+                    return row
+            reopened = row["state"] == "resolved" or row["archived"]
+            episode = row["episode"] + int(reopened)
             root_id = event.get("root_incident_id")
             root = None
             if isinstance(root_id, str) and _NAME.fullmatch(root_id) and root_id != row["incident_id"]:
@@ -175,24 +188,24 @@ class IncidentStore:
             if target:
                 await conn.execute("INSERT INTO operations.incident_targets(incident_id,episode,target_id,target) VALUES(%s,%s,%s,%s) "
                                    "ON CONFLICT DO NOTHING", (row["incident_id"], episode, target_id(target), Jsonb(target)))
-            severity_increased = (row["state"] != "resolved" and row["occurrences"] > 0
+            severity_increased = (not reopened and row["occurrences"] > 0
                                   and _SEVERITY[severity] > _SEVERITY[row["severity"]])
-            if row["state"] != "resolved":
+            if not reopened:
                 severity = max((row["severity"], severity), key=lambda item: _SEVERITY[item])
-            changed = row["state"] == "resolved" or severity != row["severity"]
-            joined = affected if row["state"] == "resolved" else sorted(set(row["affected"]) | set(affected))
+            changed = reopened or severity != row["severity"]
+            joined = affected if reopened else sorted(set(row["affected"]) | set(affected))
             row = await (await conn.execute(
-                "UPDATE operations.incidents SET occurrences=occurrences+1,unscoped_occurrences=CASE WHEN state='resolved' THEN %s "
-                "ELSE unscoped_occurrences+%s END,uncorrelated_occurrences=CASE WHEN state='resolved' THEN %s "
+                "UPDATE operations.incidents SET occurrences=occurrences+1,unscoped_occurrences=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN %s "
+                "ELSE unscoped_occurrences+%s END,uncorrelated_occurrences=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN %s "
                 "ELSE uncorrelated_occurrences+%s END,last_seen=now(),severity=%s,"
-                "state=CASE WHEN state='resolved' THEN 'open' ELSE state END,"
-                "episode=CASE WHEN state='resolved' THEN episode+1 ELSE episode END,"
-                "diagnosis_count=CASE WHEN state='resolved' THEN 0 ELSE diagnosis_count END,"
-                "diagnostic_state=CASE WHEN state='resolved' THEN 'pending' ELSE diagnostic_state END,"
-                "recovery_action=CASE WHEN state='resolved' THEN NULL ELSE recovery_action END,"
-                "recovery_lineage=CASE WHEN state='resolved' THEN NULL ELSE recovery_lineage END,"
-                "last_observation=CASE WHEN state='resolved' THEN NULL ELSE last_observation END,"
-                "revision=revision+%s,summary=%s,affected=%s,resolved_at=CASE WHEN state='resolved' THEN NULL ELSE resolved_at END "
+                "state=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN 'open' ELSE state END,"
+                "episode=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN episode+1 ELSE episode END,"
+                "diagnosis_count=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN 0 ELSE diagnosis_count END,"
+                "diagnostic_state=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN 'pending' ELSE diagnostic_state END,"
+                "recovery_action=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN NULL ELSE recovery_action END,"
+                "recovery_lineage=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN NULL ELSE recovery_lineage END,"
+                "last_observation=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN NULL ELSE last_observation END,"
+                "revision=revision+%s,summary=%s,affected=%s,resolved_at=CASE WHEN (state='resolved' OR runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) THEN NULL ELSE resolved_at END "
                 "WHERE incident_id=%s RETURNING *",
                 (0 if target else 1, 0 if target else 1, 0 if root else 1, 0 if root else 1,
                  severity, 1 if changed else 0, Jsonb(safe_summary(event)), Jsonb(joined), row["incident_id"]))).fetchone()
@@ -222,12 +235,17 @@ class IncidentStore:
         row["notifications"] = await (await conn.execute(
             "SELECT notification_id,kind,channel,status,attempts,receipt,last_error,updated_at "
             "FROM operations.notification_outbox WHERE incident_id=%s ORDER BY created_at", (incident_id,))).fetchall()
+        from tianshu.runtime.work_retirement import recorded_on
+        row["archive"] = await recorded_on(conn, "operations", {"incident_id": row["incident_id"], "episode": row["episode"]})
         return row
 
     async def list(self, body):
         limit = body.get("limit", 50)
         if type(limit) is not int or not 1 <= limit <= 100:
             raise AppError("invalid_limit")
+        include_archived = body.get("include_archived", False)
+        if type(include_archived) is not bool:
+            raise AppError("invalid_archived_filter")
         state = body.get("state")
         if state is not None and state not in {"open", "observing", "escalated", "resolved"}:
             raise AppError("invalid_incident_state")
@@ -237,8 +255,9 @@ class IncidentStore:
         async with self.database.transaction(control=True, read_only=True) as conn:
             rows = await (await conn.execute(
                 "SELECT * FROM operations.incidents WHERE (%s::text IS NULL OR state=%s) "
+                "AND (%s OR NOT runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode))) "
                 "AND (%s::text IS NULL OR incident_id>%s) ORDER BY incident_id LIMIT %s",
-                (state, state, cursor, cursor, limit + 1))).fetchall()
+                (state, state, include_archived, cursor, cursor, limit + 1))).fetchall()
         return {"items": rows[:limit], "next_cursor": rows[limit-1]["incident_id"] if len(rows) > limit else None,
                 "coverage": {"complete": len(rows) <= limit}}
 
@@ -331,6 +350,9 @@ class IncidentStore:
             row = await (await conn.execute("SELECT * FROM operations.incidents WHERE incident_id=%s FOR UPDATE", (incident_id,))).fetchone()
             if not row:
                 raise AppError("incident_not_found", status=404)
+            from tianshu.runtime.work_retirement import recorded_on
+            if await recorded_on(conn, "operations", {"incident_id": row["incident_id"], "episode": row["episode"]}):
+                raise AppError("work_retired_by_user", status=409)
             if row["revision"] != revision or row["state"] == "resolved":
                 raise AppError("revision_conflict", status=409)
             attempt = "opsrec_" + uuid4().hex

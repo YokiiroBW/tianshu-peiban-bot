@@ -63,6 +63,7 @@ async def _retry_rows(connection, generation, limit, cursor):
         "LEFT JOIN companion.rbi_growth_maintenance_scans c ON c.runtime_generation=%s "
         "AND c.lane='retry' AND c.actor_id=r.actor_id AND c.scope_key=r.scope_key AND c.work_key=r.retry_key "
         "WHERE r.batch->>'runtime_generation'=%s AND r.due_at IS NOT NULL AND r.due_at<=now() "
+        "AND NOT runtime.work_is_retired('growth',jsonb_build_object('actor_id',r.actor_id,'scope_key',r.scope_key,'retry_key',r.retry_key)) "
         "AND (r.state='waiting' OR (r.state='blocked' AND r.batch->'rbi_review'->>'state'='requested')) "
         + after + "ORDER BY r.due_at,r.actor_id,r.scope_key,r.retry_key "
         "LIMIT %s FOR UPDATE OF r SKIP LOCKED", params)).fetchall()

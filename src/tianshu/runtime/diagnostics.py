@@ -18,7 +18,9 @@ class RuntimeDiagnostics:
         self.database, self.models, self.settings = database, models, settings
         self.events = events
 
-    async def tasks(self, *, limit=50, job_id=None):
+    async def tasks(self, *, limit=50, job_id=None, include_retired=False):
+        if type(include_retired) is not bool:
+            raise AppError("invalid_retired_filter")
         limit = max(1, min(int(limit), 100))
         if job_id is not None:
             if isinstance(job_id, bool) or not str(job_id).isdecimal() or int(job_id) < 1:
@@ -28,16 +30,19 @@ class RuntimeDiagnostics:
             jobs = await (
                 await conn.execute(
                     "SELECT id,task_name,queue_name,status,scheduled_at,attempts,abort_requested,"
-                    "coalesce(scheduled_at>now(),false) AS scheduled "
+                    "coalesce(scheduled_at>now(),false) AS scheduled,"
+                    "runtime.work_is_retired('runtime',jsonb_build_object('job_id',id)) AS retired "
                     "FROM procrastinate_jobs WHERE (%s::bigint IS NULL OR id=%s) "
+                    "AND (%s OR %s::bigint IS NOT NULL OR NOT runtime.work_is_retired('runtime',jsonb_build_object('job_id',id))) "
                     "ORDER BY id DESC LIMIT %s",
-                    (job_id, job_id, limit),
+                    (job_id, job_id, include_retired, job_id, limit),
                 )
             ).fetchall()
             counts = await (
                 await conn.execute(
                     "SELECT queue_name,status,count(*) AS count "
-                    "FROM procrastinate_jobs GROUP BY queue_name,status"
+                    "FROM procrastinate_jobs WHERE NOT runtime.work_is_retired('runtime',jsonb_build_object('job_id',id)) "
+                    "GROUP BY queue_name,status"
                 )
             ).fetchall()
         return {"jobs": [job_observation(row) for row in jobs], "counts": counts,

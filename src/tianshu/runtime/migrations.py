@@ -38,6 +38,7 @@ def product_migrations():
         Migration("rbi_memory_maintenance",
             files("tianshu.memory").joinpath("rbi_maintenance.sql").read_text(encoding="utf-8")),
         *model_recovery_migrations(),
+        *user_work_migrations(),
         Migration("0041_conversation_submission_confirmation",
             files("tianshu.conversation").joinpath("submission_confirmation.sql").read_text(encoding="utf-8")),
         Migration("rbg_result_consumption",
@@ -110,7 +111,13 @@ def execution_migrations(jobs):
         Migration("0008_models_async_execution", files("tianshu.models").joinpath("async_execution.sql").read_text()),
         Migration("0009_models_generation_fence", files("tianshu.models").joinpath("generation_fence.sql").read_text()),
         *model_recovery_migrations(),
+        *user_work_migrations(),
     )
+
+
+def user_work_migrations():
+    return (Migration("user_work_retirement",
+        files("tianshu.runtime").joinpath("user_work_retirement.sql").read_text(encoding="utf-8")),)
 
 
 async def migrate(database: Database, migrations: tuple[Migration, ...]):

@@ -169,6 +169,7 @@ class OperationsAgent:
         async with self.database.transaction(control=True, read_only=True) as conn:
             incidents = await (await conn.execute("SELECT * FROM operations.incidents "
                 "WHERE state IN ('open','observing') AND diagnostic_state='pending' "
+                "AND NOT runtime.work_is_retired('operations',jsonb_build_object('incident_id',incident_id,'episode',episode)) "
                 "AND NOT EXISTS (SELECT 1 FROM operations.recoveries r WHERE r.incident_id=operations.incidents.incident_id "
                 "AND r.state IN ('requested','inspecting','executing','observing')) "
                 "ORDER BY first_seen LIMIT 32")).fetchall()
