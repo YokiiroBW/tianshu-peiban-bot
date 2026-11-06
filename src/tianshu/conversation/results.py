@@ -23,12 +23,17 @@ class ActionResultEvents:
     def __init__(self, jobs):
         self.jobs = jobs
 
-    async def publish(self, connection, event):
+    async def ensure_on(self, connection, event):
         ledger.event_identity(event)
         from .rbi_result_wake import ensure_on
         generation = await self.jobs.current_generation_on(connection)
-        await ensure_on(connection, self.jobs, generation, event,
-                        initial_key="capability.result:" + event["event_id"], allow_successor=True)
+        result = await ensure_on(connection, self.jobs, generation, event,
+                                 initial_key="capability.result:" + event["event_id"], allow_successor=True)
+        result["consumer_progress"] = await ledger.progress_on(connection, generation, event["event_id"])
+        return result
+
+    async def publish(self, connection, event):
+        await self.ensure_on(connection, event)
 
 
 class ResultConsumer:
@@ -38,17 +43,26 @@ class ResultConsumer:
         self.memory, self.growth,self.renderer = memory, growth,renderer
         self.jobs = conversation.jobs
 
-    async def recovery_candidates(self, *, limit=32, cursor=None):
+    async def recovery_candidates(self, *, limit=32, cursor=None, repair_ref=None, repair_consumer=None):
         from .rbg_result_recovery import ResultRecovery
-        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions).candidates(limit=limit, cursor=cursor)
+        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions,
+            life_worker=self.life_worker).candidates(limit=limit, cursor=cursor, repair_ref=repair_ref,
+                                                     repair_consumer=repair_consumer)
 
     async def recover_result(self, job_id, **expected):
         from .rbg_result_recovery import ResultRecovery
-        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions).recover_result(job_id, **expected)
+        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions,
+                                    life_worker=self.life_worker).recover_result(job_id, **expected)
+
+    async def authorize_local_repair(self, job_id, **expected):
+        from .rbg_result_recovery import ResultRecovery
+        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions,
+                                    life_worker=self.life_worker).authorize_local_repair(job_id, **expected)
 
     async def reconcile_due(self, *, limit=32):
         from .rbg_result_recovery import ResultRecovery
-        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions).reconcile_due(limit=limit)
+        return await ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions,
+                                    life_worker=self.life_worker).reconcile_due(limit=limit)
 
     async def technical_result(self, action, result):
         if action["capability_id"] == "channels.read":
@@ -155,7 +169,8 @@ class ResultConsumer:
                         pass
             blocked = ((isinstance(error, RecoveryWait) and not recovery_wait_retryable(error))
                        or uncertain_database and not atomic_not_committed
-                       or getattr(error, "code", None) in {"render_continuation_unconfirmed", "result_consumer_claim_lost"})
+                       or getattr(error, "code", None) in {"render_continuation_unconfirmed", "result_consumer_claim_lost",
+                                                           "local_result_application_unconfirmed"})
             retry_at = (error.retry_at if isinstance(error, RecoveryWait) and recovery_wait_retryable(error)
                         else failure.retry_at if failure and failure.retryable else None)
             async with self.database.transaction() as connection:
@@ -166,29 +181,39 @@ class ResultConsumer:
             raise
 
     async def _head_changed(self, event, context, generation):
-        current = await self.actions.get(event["action_id"], context)
-        actual = current.get("receipt")
-        if not actual:
-            raise AppError("result_head_unavailable", status=409)
-        if current["result_revision"] == event["result_revision"] and actual["receipt_id"] == event["event_id"]:
-            if signature(actual) != signature(event["receipt"]):
-                raise AppError("result_event_identity_mismatch", status=409)
-            return None
-        if current["result_revision"] < event["result_revision"]:
-            raise AppError("result_head_regressed", status=409)
-        async with self.database.transaction() as connection:
-            await self.jobs.assert_generation_on(connection, generation)
-            actual_result = receipt(actual)
-            refs = unique_refs(source_refs(event.get("source_refs", ())), result_sources(receipt(event["receipt"])),
-                               source_refs(current["action"].get("source_refs", ())), result_sources(actual_result))
-            if not await self.conversation.sources.validate_persistence(connection, context, refs):
-                raise AppError("source_unavailable", status=403)
-            await self.actions.assert_result_head_on(connection, context, action_id=event["action_id"],
-                expected_receipt=actual, result_revision=current["result_revision"],
-                data_generation=generation, source_refs=refs)
-            await ledger.queue_head_on(connection, self.jobs, generation, current)
-            await ledger.supersede_on(connection, generation, event["event_id"])
-        return current
+        for _ in range(3):
+            current = await self.actions.get(event["action_id"], context)
+            actual = current.get("receipt")
+            if not actual:
+                raise AppError("result_head_unavailable", status=409)
+            if current["result_revision"] == event["result_revision"]:
+                if actual["receipt_id"] != event["event_id"] or signature(actual) != signature(event["receipt"]):
+                    raise AppError("result_receipt_revision_conflict", status=409)
+                return None
+            if current["result_revision"] < event["result_revision"]:
+                raise AppError("result_head_regressed", status=409)
+            try:
+                async with self.database.transaction() as connection:
+                    await self.jobs.assert_generation_on(connection, generation)
+                    actual_result = receipt(actual)
+                    refs = unique_refs(source_refs(event.get("source_refs", ())), result_sources(receipt(event["receipt"])),
+                                       source_refs(current["action"].get("source_refs", ())), result_sources(actual_result))
+                    if not await self.conversation.sources.validate_persistence(connection, context, refs):
+                        raise AppError("source_unavailable", status=403)
+                    await self.actions.assert_result_head_on(connection, context, action_id=event["action_id"],
+                        expected_receipt=actual, result_revision=current["result_revision"],
+                        data_generation=generation, source_refs=refs)
+                    from .rbg_result_recovery import ResultRecovery
+                    recovery = ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions,
+                                              life_worker=self.life_worker)
+                    await recovery._handoff_head_on(connection, generation, event, context, current)
+                return current
+            except AppError as error:
+                if error.code != "result_head_advanced":
+                    raise
+        async with self.database.transaction(read_only=True) as connection:
+            clock = await (await connection.execute("SELECT now()+interval '30 seconds' AS due_at")).fetchone()
+        raise RecoveryWait("result_head_changing", clock["due_at"], dependency="result_head")
 
     async def _verify_completed_identity(self, event, context, generation):
         """An old aggregate completion never authorizes replay or masks a known collision."""
@@ -217,40 +242,78 @@ class ResultConsumer:
                 head["result_revision"] != event["result_revision"] or signature(current) != signature(event["receipt"])):
             raise AppError("result_receipt_revision_conflict", status=409)
 
-    async def consume(self, event):
-        if event.get("source_invalidated"):
-            return  # The Sources callback has already made this original unusable.
+    async def consume(self, event, *, repair_ref=None, repair_consumer=None):
+        from .rbj_result_budget import validate_repair
+        repairing = validate_repair(repair_ref, repair_consumer)
         execution = current_job_execution()
+        if event.get("source_invalidated"):
+            if execution is not None:
+                async with self.database.transaction() as connection:
+                    native = await (await connection.execute(
+                        "SELECT j.args FROM procrastinate_jobs j WHERE j.id=%s AND j.task_name='conversation.result' "
+                        "AND EXISTS (SELECT 1 FROM runtime.job_keys k WHERE k.job_id=j.id "
+                        "AND k.data_generation=%s AND k.cancelled_at IS NULL)",
+                        (execution["job_id"], execution["data_generation"]))).fetchone()
+                    payload = (native or {}).get("args") or {}
+                    if (signature(payload.get("event")) == signature(event)
+                            and payload.get("repair_ref") == repair_ref
+                            and payload.get("repair_consumer") == repair_consumer):
+                        return await self._confirmed_invalidation_on(connection, event, execution, payload,
+                                                                    repair_ref, repair_consumer)
+                raise AppError("result_invalidation_unconfirmed", status=409)
+            return  # The Sources callback has already made this original unusable.
         if execution is None:
+            if repairing:
+                raise AppError("repair_native_execution_required", status=409)
             # Direct in-process callers have no native attempt to account for.
             return await self._consume_result(event)
         try:
-            started = await self._begin_execution(event, execution)
+            started = (await self._begin_repair_execution(event, execution, repair_ref, repair_consumer)
+                       if repairing else await self._begin_execution(event, execution))
         except AppError as error:
             if error.code == "result_head_advanced":
                 if await self._head_changed(event, context_from_record(event["context"]),
                                             execution["data_generation"]):
+                    if repairing:
+                        return await self._record_head_stop(event, execution, repair_ref, repair_consumer)
                     return
             if error.code in {"source_unavailable", "source_support_unavailable", "source_suppressed",
                               "source_withdrawn", "source_revoked"}:
                 async with self.database.transaction() as connection:
                     await self.jobs.assert_generation_on(connection, execution["data_generation"])
                     await ledger.invalidate_on(connection, execution["data_generation"], event, error.code)
+                    if repairing:
+                        from .rbj_result_repair import evidence_on, stop_preflight_on
+                        evidence = await evidence_on(connection, execution["data_generation"], event,
+                                                     repair_consumer, repair_ref)
+                        await stop_preflight_on(connection, self.jobs, execution["data_generation"], event, execution,
+                            repair_consumer, repair_ref, decision="blocked", reason=error.code,
+                            owner_id=evidence["owner_id"] if evidence else None)
                 return
             raise
+        if isinstance(started, dict) and started.get("state") == "covered":
+            return started
+        if isinstance(started, dict) and started.get("state") == "invalidated":
+            return started
+        if isinstance(started, dict) and started.get("state") == "preflight_stopped":
+            if started.get("retry_at"):
+                raise RecoveryWait(started["reason"], started["retry_at"], dependency="result_consumer")
+            return
         if not started:
             return
         try:
-            value = await self._consume_result(event)
+            value = (await self._consume_repair_result(event, repair_consumer, started["owner_id"])
+                     if repairing else await self._consume_result(event))
         except BaseException as error:
             failure = classify_database_failure(error)
             if isinstance(error, RecoveryWait):
                 outcome = "wait" if recovery_wait_retryable(error) else "unknown"
             elif failure and failure.retryable:
                 outcome = "wait"
-            elif (not isinstance(error, Exception) or failure and failure.receipt_required
+            elif (getattr(error, "code", None) == "local_result_application_unconfirmed"
+                  or (not isinstance(error, Exception) or failure and failure.receipt_required
                   or isinstance(error, (PsycopgError, ConnectorException, TimeoutError, OSError))
-                  and not getattr(error, "rbi_atomic_proof_checked", False)):
+                  and not getattr(error, "rbi_atomic_proof_checked", False))):
                 outcome = "unknown"
             else:
                 outcome = "failed"
@@ -259,9 +322,152 @@ class ResultConsumer:
         await self._finish_execution(event, execution, "completed")
         return value
 
+    async def _confirmed_invalidation_on(self, connection, event, execution, payload, repair_ref, repair_consumer):
+        action_id, receipt_id, revision = ledger.event_identity(event)
+        generation = execution["data_generation"]
+        wake_key = f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}"
+        if repair_ref is not None:
+            wake_key += ":repair:" + signature([repair_ref, repair_consumer])
+        result = await self.jobs.adopt_wake_on(connection, execution["job_id"],
+            expected_task="conversation.result", expected_generation=generation,
+            expected_payload=payload, wake_key=wake_key)
+        if result.get("state") != "invalidated":
+            raise AppError("result_invalidation_unconfirmed", status=409)
+        return result
+
+    async def _cheap_admission(self, event, execution, *, repair_ref=None, repair_consumer=None):
+        """Check the native envelope and budget before costly source proofs."""
+        from .rbi_result_wake import EXECUTION_OWNER, MAX_FAILURES, execution_budget_on, execution_identity, work_on
+        from .rbj_result_budget import validate_repair
+        from .rbj_result_repair import completed_progress, evidence_on, progress_on, stop_preflight_on
+
+        action_id, receipt_id, revision = ledger.event_identity(event)
+        generation = execution["data_generation"]
+        repairing = repair_ref is not None
+        expected_payload = {"event": event}
+        if repairing:
+            expected_payload.update(repair_ref=repair_ref, repair_consumer=repair_consumer)
+        async with self.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+            native = await (await connection.execute(
+                "SELECT j.args,j.queueing_lock FROM procrastinate_jobs j WHERE j.id=%s "
+                "AND j.task_name='conversation.result' AND EXISTS (SELECT 1 FROM runtime.job_keys k "
+                "WHERE k.job_id=j.id AND k.data_generation=%s AND k.cancelled_at IS NULL)",
+                (execution["job_id"], generation))).fetchone()
+            if not native:
+                raise AppError("original_result_job_unavailable", status=409)
+            observed = await self.jobs.observe_on(connection, execution["job_id"])
+            if signature(native["args"]) != signature(expected_payload):
+                saved_payload = native["args"] or {}
+                saved_event = saved_payload.get("event") or {}
+                old_receipt, saved_receipt = event.get("receipt") or {}, saved_event.get("receipt") or {}
+                unchanged = (saved_event.get("source_invalidated")
+                    and ledger.event_identity(saved_event) == (action_id, receipt_id, revision)
+                    and saved_event.get("context") == event.get("context")
+                    and all(saved_receipt.get(key) == old_receipt.get(key)
+                            for key in ("attempt_id", "execution", "effect", "delivery"))
+                    and saved_payload.get("repair_ref") == repair_ref
+                    and saved_payload.get("repair_consumer") == repair_consumer)
+                if unchanged and observed and observed.get("source_invalidated"):
+                    return await self._confirmed_invalidation_on(connection, saved_event, execution, saved_payload,
+                                                                 repair_ref, repair_consumer)
+                raise AppError("original_result_job_unavailable", status=409)
+            if observed and observed.get("covered_by") is not None:
+                return {"state": "covered", "covered_by": observed["covered_by"]}
+            if not repairing and native["queueing_lock"] is None:
+                wake_key = f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}"
+                adopted = await self.jobs.adopt_wake_on(connection, execution["job_id"],
+                    expected_task="conversation.result", expected_generation=generation,
+                    expected_payload=expected_payload, wake_key=wake_key)
+                if adopted.get("state") == "covered":
+                    return adopted
+                if adopted.get("covered_by") is not None:
+                    return {"state": "covered", "covered_by": adopted["covered_by"]}
+            original = await (await connection.execute(
+                "SELECT job_id FROM runtime.job_keys WHERE key=%s AND task='conversation.result' "
+                "AND data_generation=%s AND cancelled_at IS NULL",
+                ("capability.result:" + receipt_id, generation))).fetchone()
+            delivery = await ledger.register_on(connection, generation, event, original["job_id"] if original else None)
+            budget = await execution_budget_on(connection, self.jobs, generation, event, delivery,
+                current_job=execution, repair_ref=repair_ref, consumer=repair_consumer)
+            selected = (budget.get("repair") or {}) if repairing else budget
+            if selected.get("eligible"):
+                return True
+            if not repairing and budget.get("reason") == "execution_failure_budget_exhausted" \
+                    and budget.get("failure_digest"):
+                work = await work_on(connection, generation, event, jobs=self.jobs)
+                for successor in work["jobs"]:
+                    payload = successor["args"] or {}
+                    if successor["status"] != "todo" or set(payload) != {"event", "repair_ref", "repair_consumer"}:
+                        continue
+                    try:
+                        validate_repair(payload["repair_ref"], payload["repair_consumer"])
+                    except AppError:
+                        continue
+                    bound = await evidence_on(connection, generation, event,
+                                              payload["repair_consumer"], payload["repair_ref"])
+                    if not bound or bound["failure_digest"] != budget["failure_digest"]:
+                        continue
+                    repair_budget = await self.jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER,
+                        identity=execution_identity(generation, event), data_generation=generation,
+                        max_failures=MAX_FAILURES, repair_ref=payload["repair_ref"], consumer=payload["repair_consumer"])
+                    repair = repair_budget.get("repair") or {}
+                    if not repair.get("eligible") and repair.get("reason") not in {"repair_wait", "execution_wait"}:
+                        continue
+                    wake_key = f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}"
+                    repair_key = wake_key + ":repair:" + signature([payload["repair_ref"], payload["repair_consumer"]])
+                    coverage = "result-budget:" + signature([execution_identity(generation, event),
+                        budget["failure_digest"], bound["defect_evidence_ref"],
+                        payload["repair_ref"], payload["repair_consumer"]])
+                    target_progress = next((part for part in work["progress"]
+                                            if part["consumer"] == payload["repair_consumer"]), None)
+                    lower_bound = max((value for value in (repair.get("retry_at"),
+                        target_progress.get("rbi_retry_at") if target_progress else None) if value is not None), default=None)
+                    covered = await self.jobs.cover_wake_on(connection, execution["job_id"],
+                        expected_task="conversation.result", expected_generation=generation,
+                        expected_payload=expected_payload, covered_by_job_id=successor["id"],
+                        expected_covering_payload=payload, wake_key=repair_key, coverage_ref=coverage,
+                        not_before=lower_bound)
+                    if covered.get("state") == "covered":
+                        return covered
+            if repairing:
+                evidence = await evidence_on(connection, generation, event, repair_consumer, repair_ref)
+                progress = await progress_on(connection, generation, event, repair_consumer)
+                if evidence and completed_progress(generation, event, repair_consumer, progress,
+                                                   owner_id=evidence["owner_id"]):
+                    return "reconcile"
+            reason = selected.get("reason") or ("repair_not_authorized" if repairing else "execution_ineligible")
+            due = selected.get("retry_at")
+            if repairing and reason == "execution_in_progress" and due is None:
+                clock = await (await connection.execute("SELECT now()+interval '30 seconds' AS due_at")).fetchone()
+                due = clock["due_at"]
+            await connection.execute(
+                "UPDATE conversation.result_deliveries SET rbi_reconcile_reason=%s,"
+                "rbi_reconcile_due_at=CASE WHEN %s::timestamptz IS NOT NULL THEN %s "
+                "WHEN %s IN ('execution_in_progress','execution_outcome_unknown','history_unknown') "
+                "THEN now()+interval '30 seconds' ELSE NULL END "
+                "WHERE data_generation=%s AND receipt_id=%s AND state='pending'",
+                (reason, due, due, reason, generation, receipt_id))
+            if repairing:
+                decision = "unknown" if reason in {"history_unknown", "execution_outcome_unknown",
+                                                    "repair_outcome_unknown"} else "blocked"
+                stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision=decision, reason=reason,
+                    owner_id=evidence["owner_id"] if evidence else None)
+                if reason in {"execution_wait", "repair_wait", "execution_in_progress"} and due is not None:
+                    stopped["retry_at"] = due
+                return stopped
+            return False
+
     async def _begin_execution(self, event, execution):
         """Admit only this native attempt against the receipt's shared budget."""
         from .rbi_result_wake import EXECUTION_OWNER, MAX_FAILURES, execution_budget_on, execution_identity
+
+        cheap = await self._cheap_admission(event, execution)
+        if isinstance(cheap, dict):
+            return cheap
+        if not cheap:
+            return False
 
         action_id, receipt_id, revision = ledger.event_identity(event)
         generation = execution["data_generation"]
@@ -306,6 +512,196 @@ class ResultConsumer:
                 "WHERE data_generation=%s AND receipt_id=%s AND state='pending'",
                 (reason, due, due, reason, generation, receipt_id))
             return False
+
+    async def _record_head_stop(self, event, execution, repair_ref, repair_consumer):
+        from .rbj_result_repair import evidence_on, stop_preflight_on
+
+        action_id, receipt_id, revision = ledger.event_identity(event)
+        generation = execution["data_generation"]
+        async with self.database.transaction() as connection:
+            delivery = await (await connection.execute(
+                "SELECT state,action_id,result_revision FROM conversation.result_deliveries "
+                "WHERE data_generation=%s AND receipt_id=%s", (generation, receipt_id))).fetchone()
+            if not delivery or (delivery["state"], delivery["action_id"], delivery["result_revision"]) != (
+                    "superseded", action_id, revision):
+                raise AppError("result_head_handoff_unconfirmed", status=409)
+            evidence = await evidence_on(connection, generation, event, repair_consumer, repair_ref)
+            return await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                repair_consumer, repair_ref, decision="blocked", reason="newer_action_result",
+                owner_id=evidence["owner_id"] if evidence else None)
+
+    async def _begin_repair_execution(self, event, execution, repair_ref, repair_consumer):
+        from .rbg_result_recovery import ResultRecovery
+        from .rbj_result_repair import evidence_on, stop_preflight_on
+        from .rbi_result_wake import EXECUTION_OWNER, MAX_FAILURES, execution_budget_on, execution_identity, work_on
+
+        cheap = await self._cheap_admission(event, execution, repair_ref=repair_ref,
+                                            repair_consumer=repair_consumer)
+        if isinstance(cheap, dict):
+            return cheap
+        if not cheap:
+            return False
+        action_id, receipt_id, revision = ledger.event_identity(event)
+        generation = execution["data_generation"]
+        context = context_from_record(event["context"])
+        recovery = ResultRecovery(self.database, self.jobs, self.identity, actions=self.actions,
+                                  life_worker=self.life_worker)
+        current = await recovery._head(event, context)
+        if current["result_revision"] > revision:
+            if not await self._head_changed(event, context, generation):
+                raise AppError("result_head_regressed", status=409)
+            return await self._record_head_stop(event, execution, repair_ref, repair_consumer)
+        refs = unique_refs(source_refs(event.get("source_refs", ())),
+                           source_refs(current["action"].get("source_refs", ())),
+                           result_sources(receipt(event["receipt"])))
+        async with self.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+            if not await self.conversation.sources.validate_persistence(connection, context, refs):
+                raise AppError("source_unavailable", status=403)
+            await self.actions.assert_result_head_on(connection, context, action_id=action_id,
+                expected_receipt=event["receipt"], result_revision=revision,
+                data_generation=generation, source_refs=refs)
+            evidence = await evidence_on(connection, generation, event, repair_consumer, repair_ref)
+            if not evidence:
+                return await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision="blocked", reason="repair_evidence_missing")
+            target = await recovery._target_on(connection, generation, event, context, current,
+                                               repair_consumer, evidence=evidence)
+            if target["state"] != "not_applied":
+                reconciled = await recovery._terminal_target_on(connection, generation, event, repair_consumer,
+                                                                target, evidence=evidence)
+                decision = ("closed" if reconciled["state"] == "verified" else
+                            "unknown" if target["state"] == "unknown" or reconciled.get("outcome") == "unknown"
+                            else "blocked")
+                stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision=decision, reason=reconciled["reason"],
+                    owner_id=evidence["owner_id"])
+                if reconciled["state"] == "waiting" and reconciled.get("due_at"):
+                    stopped["retry_at"] = reconciled["due_at"]
+                return stopped
+            if cheap == "reconcile":
+                # An unresolved prior execution cannot authorize another apply.
+                return await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision="unknown", reason="execution_outcome_unknown",
+                    owner_id=evidence["owner_id"])
+            delivery = await (await connection.execute(
+                "SELECT * FROM conversation.result_deliveries WHERE data_generation=%s AND receipt_id=%s FOR UPDATE",
+                (generation, receipt_id))).fetchone()
+            budget = await execution_budget_on(connection, self.jobs, generation, event, delivery,
+                current_job=execution, reconcile_stranded=True, repair_ref=repair_ref, consumer=repair_consumer)
+            if not budget.get("failure_digest") or budget["failure_digest"] != evidence["failure_digest"]:
+                return await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision="blocked", reason="repair_failure_history_changed",
+                    owner_id=evidence["owner_id"])
+            selected = budget.get("repair") or {}
+            if not selected.get("eligible"):
+                reason = selected.get("reason") or "repair_not_authorized"
+                decision = "unknown" if reason in {"history_unknown", "execution_outcome_unknown",
+                                                    "repair_outcome_unknown"} else "blocked"
+                stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision=decision, reason=reason, owner_id=evidence["owner_id"])
+                due = selected.get("retry_at")
+                if reason == "execution_in_progress" and due is None:
+                    clock = await (await connection.execute("SELECT now()+interval '30 seconds' AS due_at")).fetchone()
+                    due = clock["due_at"]
+                if reason in {"execution_wait", "repair_wait", "execution_in_progress"} and due:
+                    stopped["retry_at"] = due
+                return stopped
+            work = await work_on(connection, generation, event, jobs=self.jobs)
+            wake_key = f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}"
+            repair_key = wake_key + ":repair:" + signature([repair_ref, repair_consumer])
+            payload = {"event": event, "repair_ref": repair_ref, "repair_consumer": repair_consumer}
+            coverage = "result-budget:" + signature([execution_identity(generation, event),
+                budget["failure_digest"], evidence["defect_evidence_ref"], repair_ref, repair_consumer])
+            for old in work["jobs"]:
+                if old["status"] != "todo" or set(old["args"] or {}) != {"event"}:
+                    continue
+                covered = await self.jobs.cover_wake_on(connection, old["id"],
+                    expected_task="conversation.result", expected_generation=generation,
+                    expected_payload=old["args"], covered_by_job_id=execution["job_id"],
+                    expected_covering_payload=payload, wake_key=repair_key, coverage_ref=coverage)
+                if covered.get("state") == "waiting":
+                    stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                        repair_consumer, repair_ref, decision="blocked", reason=covered.get("reason") or "wake_cover_partial",
+                        owner_id=evidence["owner_id"])
+                    clock = await (await connection.execute("SELECT now()+interval '1 second' AS due_at")).fetchone()
+                    stopped["retry_at"] = clock["due_at"]
+                    return stopped
+            started = await self.jobs.begin_execution_on(connection, owner=EXECUTION_OWNER,
+                identity=execution_identity(generation, event), data_generation=generation,
+                job_id=execution["job_id"], native_attempt=execution["native_attempt"],
+                max_failures=MAX_FAILURES, repair_ref=repair_ref, consumer=repair_consumer)
+            if not started.get("eligible"):
+                reason = started.get("reason") or "repair_not_authorized"
+                if reason == "execution_attempt_already_recorded":
+                    return False
+                decision = "unknown" if reason in {"history_unknown", "execution_outcome_unknown",
+                                                    "repair_outcome_unknown"} else "blocked"
+                stopped = await stop_preflight_on(connection, self.jobs, generation, event, execution,
+                    repair_consumer, repair_ref, decision=decision, reason=reason, owner_id=evidence["owner_id"])
+                due = started.get("retry_at")
+                if reason == "execution_in_progress" and due is None:
+                    clock = await (await connection.execute("SELECT now()+interval '30 seconds' AS due_at")).fetchone()
+                    due = clock["due_at"]
+                if reason in {"execution_wait", "repair_wait", "execution_in_progress"} and due:
+                    stopped["retry_at"] = due
+                return stopped
+            await connection.execute(
+                "INSERT INTO conversation.result_consumer_progress(data_generation,receipt_id,consumer,action_id,result_revision) "
+                "VALUES (%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
+                (generation, receipt_id, repair_consumer, action_id, revision))
+            return {"owner_id": evidence["owner_id"]}
+
+    async def _consume_repair(self, event, consumer, owner_id):
+        """Only the frozen original Life callback is allowed on a repair job."""
+        action_id, receipt_id, revision = ledger.event_identity(event)
+        generation = current_execution_generation()
+        if generation is None:
+            raise AppError("repair_native_execution_required", status=409)
+        context = context_from_record(event["context"])
+        result = receipt(event["receipt"])
+        current = await self.actions.get(action_id, context)
+        if await self._head_changed(event, context, generation):
+            return
+        action = current["action"]
+        refs = unique_refs(source_refs(event.get("source_refs", ())),
+                           source_refs(action.get("source_refs", ())), result_sources(result))
+        await self.identity.check(context, refs)
+        observed_at = (datetime.fromisoformat(event["result_observed_at"])
+                       if event.get("result_observed_at") else current["result_observed_at"])
+
+        async def fence(connection):
+            await self.actions.assert_result_head_on(connection, context, action_id=action_id,
+                expected_receipt=event["receipt"], result_revision=revision,
+                data_generation=generation, source_refs=refs)
+
+        method = (self.life_worker._activity_result if consumer == "life_activity"
+                  else self.life_worker._commitment_result)
+
+        async def work(complete):
+            await method(context, result, revision, observed_at, action["capability_id"],
+                         on_complete=complete, expected_owner_id=owner_id)
+
+        await self._branch(generation, result, consumer, work, atomic=True, fence=fence, source_refs=refs)
+        async with self.database.transaction() as connection:
+            await self.jobs.assert_generation_on(connection, generation)
+            await ledger.finish_on(connection, generation, receipt_id)
+
+    async def _consume_repair_result(self, event, consumer, owner_id):
+        try:
+            return await self._consume_repair(event, consumer, owner_id)
+        except AppError as error:
+            generation = current_execution_generation()
+            if error.code == "result_head_advanced":
+                if await self._head_changed(event, context_from_record(event["context"]), generation):
+                    return
+                raise
+            if error.code not in {"source_unavailable", "source_support_unavailable", "source_suppressed",
+                                   "source_withdrawn", "source_revoked"}:
+                raise
+            async with self.database.transaction() as connection:
+                await self.jobs.assert_generation_on(connection, generation)
+                await ledger.invalidate_on(connection, generation, event, error.code)
 
     async def _finish_execution(self, event, execution, outcome, *, error=None):
         from .rbi_result_wake import EXECUTION_OWNER, execution_identity

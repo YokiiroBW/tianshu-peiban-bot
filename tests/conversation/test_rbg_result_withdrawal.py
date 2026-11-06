@@ -86,4 +86,6 @@ async def test_fragment_withdrawal_scrubs_each_native_copy_and_blocks_recovery(d
     actions.get.assert_not_awaited()
     actions.invoke.assert_not_awaited()
     recovery = ResultRecovery(database, jobs, identity)
-    assert (await recovery.inspect(None, {"id": str(copies[0]["id"])}))["reason"] == "source_withdrawn"
+    inspection = await recovery.inspect(None, {"id": str(copies[0]["id"])})
+    assert inspection["reason"] == "source_withdrawn_consumer_outcome_unknown"
+    assert inspection["outcome"] == "unknown"

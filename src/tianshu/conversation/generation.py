@@ -245,13 +245,18 @@ class GenerationRequests:
         return replace(original, access_epoch=current.access_epoch, permissions=permissions,
                        origin_kind=current.origin_kind)
 
-    async def request(self, attempt_id, context):
-        async with self.database.transaction(read_only=True) as connection:
-            row = await (await connection.execute("SELECT * FROM conversation.generation_requests WHERE attempt_id=%s", (attempt_id,))).fetchone()
+    async def request(self, attempt_id, context, *, connection=None, material_key=None):
+        if connection is None:
+            async with self.database.transaction(read_only=True) as transaction:
+                return await self.request(attempt_id, context, connection=transaction, material_key=material_key)
+        row = await (await connection.execute(
+            "SELECT * FROM conversation.generation_requests WHERE attempt_id=%s", (attempt_id,))).fetchone()
         if not row:
             return None
         if row["context_key"] != self.context_key(context):
             raise AppError("generation_context_changed", status=409)
+        if material_key is not None and row["material_key"] != material_key:
+            raise AppError("generation_identity_conflict", status=409)
         if row["state"] == "invalidated":
             raise AppError("source_unavailable", status=409)
         return request_from_wire(row["request"])

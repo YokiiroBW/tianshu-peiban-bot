@@ -40,7 +40,8 @@ class ConversationDependencies:
     async def _invalidate(self, connection, source_refs, kind, *, actor_id=None, filter_actor=False):
         changes, selector = changes_for(source_refs)
         from .rbg_result_withdrawal import invalidate as invalidate_results
-        await invalidate_results(connection, changes, selector, kind, actor_id=actor_id, filter_actor=filter_actor)
+        await invalidate_results(connection, changes, selector, kind, actor_id=actor_id,
+                                 filter_actor=filter_actor, jobs=self.jobs)
         actor_sql = " AND actor_id IS NOT DISTINCT FROM %s" if filter_actor else ""
         parameters = (selector, actor_id) if filter_actor else (selector,)
         selection_actor = " AND t.actor_id IS NOT DISTINCT FROM %s" if filter_actor else ""

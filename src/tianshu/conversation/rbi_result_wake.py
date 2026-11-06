@@ -1,6 +1,5 @@
 """One native wake for a frozen result identity, shared by every entry point."""
 
-from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
 from tianshu.runtime.errors import AppError
@@ -23,7 +22,8 @@ def execution_identity(generation, event):
 
 
 async def execution_budget_on(connection, jobs, generation, event, delivery, *, current_job=None,
-                              initial_key=None, known_keys=(), reconcile_stranded=False):
+                              initial_key=None, known_keys=(), reconcile_stranded=False,
+                              repair_ref=None, consumer=None):
     """Advance bounded native history under the already locked delivery row.
 
     Runtime persists the event cursor for each job; this domain persists the
@@ -179,8 +179,11 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
         (sorted(known), sorted(opened), cursor, next_upper, gap, open_cursor, document(proven), generation, receipt_id))
     await jobs.seed_execution_history_on(connection, owner=EXECUTION_OWNER, identity=identity,
         data_generation=generation, max_failures=MAX_FAILURES, history=[], complete=complete)
-    budget = await jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER, identity=identity,
-                                             data_generation=generation, max_failures=MAX_FAILURES)
+    inspect_args = {"owner": EXECUTION_OWNER, "identity": identity, "data_generation": generation,
+                    "max_failures": MAX_FAILURES}
+    if repair_ref is not None:
+        inspect_args.update(repair_ref=repair_ref, consumer=consumer)
+    budget = await jobs.inspect_execution_on(connection, **inspect_args)
     if reconcile_stranded and complete and budget.get("unresolved_executions"):
         # Sources and Action are already fenced by the caller. Do not revoke a
         # progress token while another native worker is still executing.
@@ -194,9 +197,31 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
                 if proof_key not in proven:
                     continue
                 progress = await (await connection.execute(
-                    "SELECT consumer,disposition,owner_token FROM conversation.result_consumer_progress "
+                    "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,proof,owner_token "
+                    "FROM conversation.result_consumer_progress "
                     "WHERE data_generation=%s AND receipt_id=%s ORDER BY consumer FOR UPDATE",
                     (generation, receipt_id))).fetchall()
+                if item.get("purpose") == "repair":
+                    # A failed native job is not proof that an atomic repair's
+                    # COMMIT failed. Only its exact original consumer proof can
+                    # resolve the held physical attempt as completed.
+                    from .rbj_result_budget import matching_life_proof
+                    from .rbj_result_repair import evidence_on
+                    target_consumer, target_ref = item.get("consumer"), item.get("repair_ref")
+                    if not target_consumer or not target_ref:
+                        continue
+                    proof = next((part for part in progress if part["consumer"] == target_consumer), None)
+                    evidence = await evidence_on(connection, generation, event, target_consumer, target_ref)
+                    if not evidence or not matching_life_proof(event, target_consumer, proof, generation=generation,
+                                                               owner_id=evidence["owner_id"]):
+                        continue
+                    resolved = await jobs.resolve_execution_on(connection, owner=EXECUTION_OWNER,
+                        identity=identity, data_generation=generation, job_id=item["job_id"],
+                        native_attempt=item["native_attempt"], outcome="completed",
+                        observation_ref=f"result-proof:{receipt_id}:{target_consumer}:{proof_key}")
+                    if resolved.get("recorded"):
+                        proven.pop(proof_key, None)
+                    continue
                 resolved = await jobs.resolve_execution_on(connection, owner=EXECUTION_OWNER,
                     identity=identity, data_generation=generation, job_id=item["job_id"],
                     native_attempt=item["native_attempt"], outcome="failed",
@@ -219,8 +244,7 @@ async def execution_budget_on(connection, jobs, generation, event, delivery, *, 
             await connection.execute(
                 "UPDATE conversation.result_deliveries SET rbi_failed_native=%s "
                 "WHERE data_generation=%s AND receipt_id=%s", (document(proven), generation, receipt_id))
-            budget = await jobs.inspect_execution_on(connection, owner=EXECUTION_OWNER, identity=identity,
-                                                     data_generation=generation, max_failures=MAX_FAILURES)
+            budget = await jobs.inspect_execution_on(connection, **inspect_args)
     return budget
 
 
@@ -255,15 +279,16 @@ def waiting_consumers(progress):
         and (item["consumer"] not in {"dialogue", "detached", "memory"} or renderer_done))
 
 
-async def work_on(connection, generation, event):
+async def work_on(connection, generation, event, *, jobs=None):
     """Read live native work and leases for the complete original identity."""
     action_id, receipt_id, revision = event_identity(event)
     progress = await (await connection.execute(
-        "SELECT consumer,disposition,reason,lease_until,rbi_retry_at,now() AS observed_at "
+        "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,reason,proof,"
+        "lease_until,rbi_retry_at,now() AS observed_at "
         "FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s "
         "ORDER BY consumer", (generation, receipt_id))).fetchall()
-    jobs = await (await connection.execute(
-        "SELECT j.id,j.status,j.scheduled_at,j.args,"
+    job_rows = await (await connection.execute(
+        "SELECT j.id,j.status,j.scheduled_at,j.args,j.queueing_lock,"
         "(j.status='doing' AND w.last_heartbeat>now()-interval '30 seconds') AS live_doing "
         "FROM procrastinate_jobs j LEFT JOIN procrastinate_workers w ON w.id=j.worker_id "
         "WHERE j.task_name='conversation.result' AND j.status IN ('todo','doing') "
@@ -273,12 +298,15 @@ async def work_on(connection, generation, event):
         "AND k.data_generation=%s AND k.cancelled_at IS NULL) ORDER BY j.id",
         (receipt_id, action_id, str(revision), generation))).fetchall()
     live = []
-    for job in jobs:
+    for job in job_rows:
         saved = (job["args"] or {}).get("event") or {}
         if saved.get("source_invalidated"):
             continue
         if signature(saved) != signature(event):
             raise AppError("result_receipt_revision_conflict", status=409)
+        observation = await jobs.observe_on(connection, job["id"]) if jobs is not None else None
+        if observation and observation.get("covered_by") is not None:
+            continue
         if job["status"] == "todo" or job["live_doing"]:
             live.append(job)
     running = [item for item in progress if item["disposition"] == "running"
@@ -288,9 +316,28 @@ async def work_on(connection, generation, event):
             "runnable": ready, "blocked": blocked, "waiting": waiting_consumers(progress)}
 
 
+async def terminal_delivery_on(connection, generation, event, disposition):
+    action_id, receipt_id, revision = event_identity(event)
+    progress = await (await connection.execute(
+        "SELECT consumer,action_id,result_revision,disposition FROM conversation.result_consumer_progress "
+        "WHERE data_generation=%s AND receipt_id=%s", (generation, receipt_id))).fetchall()
+    if any((item["action_id"], item["result_revision"]) != (action_id, revision) for item in progress):
+        raise AppError("result_receipt_revision_conflict", status=409)
+    aggregate = await (await connection.execute(
+        "SELECT 1 FROM conversation.result_consumption WHERE receipt_id=%s", (receipt_id,))).fetchone()
+    if (not aggregate or len(progress) != len(CONSUMERS)
+            or any(item["disposition"] not in TERMINAL for item in progress)):
+        return {"state": "blocked", "reason": "result_consumer_outcome_unknown", "outcome": "unknown",
+                "disposition": disposition}
+    return {"state": "verified", "reason": disposition, "disposition": disposition}
+
+
 async def ensure_on(connection, jobs, generation, event, *, initial_key=None, scheduled_at=None,
-                    allow_successor=False, known_keys=(), known_job_ids=(), reconcile_stranded=False):
+                    allow_successor=False, known_keys=(), known_job_ids=(), reconcile_stranded=False,
+                    repair_ref=None, repair_consumer=None):
     """Serialize a result identity; never reuse a terminal physical job key."""
+    from .rbj_result_budget import validate_repair
+    repairing = validate_repair(repair_ref, repair_consumer)
     action_id, receipt_id, revision = event_identity(event)
     await jobs.assert_generation_on(connection, generation)
     await connection.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s,0))",
@@ -313,7 +360,7 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
                     "rbi_history_upper": None if restart else delivery.get("rbi_history_upper")}
     if event.get("source_invalidated"):
         await invalidate_on(connection, generation, event, "source_unavailable")
-        return {"state": "verified", "reason": "source_withdrawn"}
+        return await terminal_delivery_on(connection, generation, event, "invalidated")
     original_id = delivery.get("original_job_id")
     if original_id is None and initial_key:
         original_key = await (await connection.execute(
@@ -339,60 +386,146 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
             raise AppError("result_receipt_revision_conflict", status=409)
         event = stored
     if delivery["state"] != "pending":
-        return {"state": "verified", "reason": delivery["state"]}
+        return await terminal_delivery_on(connection, generation, event, delivery["state"])
     consumed = await (await connection.execute(
         "SELECT 1 FROM conversation.result_consumption WHERE receipt_id=%s", (receipt_id,))).fetchone()
     if consumed:
-        return {"state": "verified", "reason": "result_already_consumed"}
-    work = await work_on(connection, generation, event)
+        return await terminal_delivery_on(connection, generation, event, "result_already_consumed")
+    work = await work_on(connection, generation, event, jobs=jobs)
+    wake_key = f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}"
+    for job in work["jobs"]:
+        if job["queueing_lock"] is not None:
+            continue
+        # A legacy unlocked wake is adopted only after the complete immutable
+        # envelope and generation have been checked. Extra job arguments are
+        # not silently folded into the ordinary purpose.
+        payload = job["args"] or {}
+        if set(payload) != {"event"}:
+            continue
+        await jobs.adopt_wake_on(connection, job["id"], expected_task="conversation.result",
+                                 expected_generation=generation, expected_payload=payload, wake_key=wake_key)
+    work = await work_on(connection, generation, event, jobs=jobs)
     if (len(work["progress"]) == len(CONSUMERS)
             and all(item["disposition"] in TERMINAL for item in work["progress"])):
         if await finish_on(connection, generation, receipt_id):
             return {"state": "verified", "reason": "result_already_consumed"}
-    pending = [job for job in work["jobs"] if job["status"] == "todo"]
-    if pending:
-        job = pending[0]
-        return {"state": "accepted", "job_id": job["id"], "reason": "already_queued",
-                "due_at": job["scheduled_at"]}
-    if work["running"] and not allow_successor:
-        return {"state": "accepted", "reason": "consumer_running"}
-    doing = [job for job in work["jobs"] if job["status"] == "doing"]
-    if doing and not allow_successor:
-        return {"state": "accepted", "job_id": doing[0]["id"], "reason": "already_executing"}
-    if not work["runnable"] and not work["waiting"]:
-        return {"state": "blocked", "reason": "result_consumer_blocked" if work["blocked"] else "result_no_runnable_consumer",
-                "blocked_consumers": work["blocked"]}
-    if not work["runnable"]:
-        scheduled_at = min(item["rbi_retry_at"] for item in work["waiting"])
+    # A native todo/doing record does not establish execution eligibility. In
+    # particular, old unlocked wakes can remain after the shared budget ran out.
     budget = await execution_budget_on(connection, jobs, generation, event, delivery,
                                        initial_key=initial_key, known_keys=known_keys,
-                                       reconcile_stranded=reconcile_stranded)
-    if not budget.get("eligible"):
-        reason, retry_at = budget.get("reason") or "execution_ineligible", budget.get("retry_at")
+                                       reconcile_stranded=reconcile_stranded,
+                                       repair_ref=repair_ref, consumer=repair_consumer)
+    selected = (budget.get("repair") or {}) if repairing else budget
+    if not selected.get("eligible"):
+        reason, retry_at = selected.get("reason") or ("repair_not_authorized" if repairing else "execution_ineligible"), selected.get("retry_at")
+        scheduled_repair_wait = repairing and reason in {"execution_wait", "repair_wait"} and retry_at is not None
+        if scheduled_repair_wait:
+            scheduled_at = max(value for value in (scheduled_at, retry_at) if value is not None)
         if reason == "execution_in_progress":
-            retry_at = datetime.now(UTC) + timedelta(seconds=30)
-        if reason in {"execution_wait", "execution_in_progress"} and retry_at is not None:
+            clock = await (await connection.execute("SELECT now()+interval '30 seconds' AS due_at")).fetchone()
+            retry_at = clock["due_at"]
+        if not scheduled_repair_wait and reason in {"execution_wait", "execution_in_progress", "repair_wait"} and retry_at is not None:
             await connection.execute(
                 "UPDATE conversation.result_deliveries SET rbi_reconcile_due_at=%s,rbi_reconcile_reason=%s "
                 "WHERE data_generation=%s AND receipt_id=%s AND state='pending'",
                 (retry_at, reason, generation, receipt_id))
-            return {"state": "accepted", "reason": reason, "due_at": retry_at}
-        return {"state": "blocked", "reason": reason, "budget": budget}
+            return {"state": "waiting", "reason": reason, "due_at": retry_at, "budget": budget}
+        if not scheduled_repair_wait:
+            return {"state": "blocked", "reason": reason, "budget": budget}
     if reconcile_stranded:
-        work = await work_on(connection, generation, event)
-        if not work["runnable"] and not work["waiting"]:
-            return {"state": "blocked", "reason": "result_consumer_blocked" if work["blocked"] else "result_no_runnable_consumer",
-                    "blocked_consumers": work["blocked"]}
-        if not work["runnable"]:
-            scheduled_at = min(item["rbi_retry_at"] for item in work["waiting"])
+        work = await work_on(connection, generation, event, jobs=jobs)
+    if repairing:
+        from .rbj_result_repair import completed_progress, evidence_on
+        evidence = await evidence_on(connection, generation, event, repair_consumer, repair_ref)
+        if not evidence:
+            return {"state": "blocked", "reason": "repair_evidence_missing", "budget": budget}
+        if not budget.get("failure_digest") or evidence["failure_digest"] != budget["failure_digest"]:
+            return {"state": "blocked", "reason": "repair_failure_history_changed", "budget": budget}
+        part = next((item for item in work["progress"] if item["consumer"] == repair_consumer), None)
+        completed = completed_progress(generation, event, repair_consumer, part, owner_id=evidence["owner_id"])
+        if completed:
+            return completed
+        if part and part["disposition"] == "blocked":
+            return {"state": "blocked", "reason": part["reason"] or "result_consumer_blocked", "budget": budget}
+        if part and part["rbi_retry_at"] and part["rbi_retry_at"] > part["observed_at"]:
+            scheduled_at = max(value for value in (scheduled_at, part["rbi_retry_at"]) if value is not None)
+    def same_purpose(job):
+        args = job["args"] or {}
+        return ((args.get("repair_ref"), args.get("repair_consumer")) == (repair_ref, repair_consumer)
+                and set(args) == ({"event", "repair_ref", "repair_consumer"} if repairing else {"event"}))
+
+    async def cover_exhausted_normal(repair_job_id, repair_payload, repair_key):
+        coverage_ref = "result-budget:" + signature([execution_identity(generation, event),
+            budget.get("failure_digest"), evidence["defect_evidence_ref"], repair_ref, repair_consumer])
+        for old in work["jobs"]:
+            if old["status"] != "todo" or set(old["args"] or {}) != {"event"}:
+                continue
+            covered = await jobs.cover_wake_on(connection, old["id"], expected_task="conversation.result",
+                expected_generation=generation, expected_payload=old["args"], covered_by_job_id=repair_job_id,
+                expected_covering_payload=repair_payload, wake_key=repair_key,
+                coverage_ref=coverage_ref, not_before=scheduled_at)
+            if covered.get("state") == "waiting":
+                return covered
+        return None
+
+    pending = [job for job in work["jobs"] if job["status"] == "todo" and same_purpose(job)]
+    if pending:
+        job = pending[0]
+        if repairing:
+            bound = await jobs.bind_execution_repair_job_on(connection, owner=EXECUTION_OWNER,
+                identity=execution_identity(generation, event), data_generation=generation, max_failures=MAX_FAILURES,
+                repair_ref=repair_ref, consumer=repair_consumer, job_id=job["id"])
+            if not bound.get("bound"):
+                raise AppError(bound.get("reason") or "repair_job_binding_failed", status=409)
+            cover_wait = await cover_exhausted_normal(job["id"], job["args"],
+                wake_key + ":repair:" + signature([repair_ref, repair_consumer]))
+            if cover_wait:
+                return {**cover_wait, "state": "waiting", "job_id": job["id"], "budget": budget}
+        clock = await (await connection.execute("SELECT now() AS observed_at")).fetchone()
+        due_at = max((value for value in (job["scheduled_at"], scheduled_at) if value is not None), default=None)
+        waiting = bool(due_at and due_at > clock["observed_at"])
+        return {"state": "waiting" if waiting else "accepted", "job_id": job["id"],
+                "reason": "result_dependency_wait" if waiting else "already_queued",
+                "due_at": due_at, "budget": budget}
+    if work["running"] and not allow_successor:
+        return {"state": "waiting", "reason": "consumer_running", "budget": budget,
+                "due_at": min(item["lease_until"] for item in work["running"])}
+    doing = [job for job in work["jobs"] if job["status"] == "doing"]
+    if doing and not allow_successor:
+        return {"state": "waiting", "job_id": doing[0]["id"], "reason": "already_executing", "budget": budget}
+    cover_wait = None
+    if repairing:
+        other_repair = [job for job in work["jobs"] if (job["args"] or {}).get("repair_ref")
+                        and not same_purpose(job)]
+        if other_repair:
+            return {"state": "waiting", "reason": "other_repair_target_pending",
+                    "job_id": other_repair[0]["id"], "due_at": other_repair[0]["scheduled_at"], "budget": budget}
+    if not repairing and not work["runnable"] and not work["waiting"]:
+        return {"state": "blocked", "reason": "result_consumer_blocked" if work["blocked"] else "result_no_runnable_consumer",
+                "blocked_consumers": work["blocked"], "budget": budget}
+    if not repairing and not work["runnable"]:
+        scheduled_at = min(item["rbi_retry_at"] for item in work["waiting"])
     key = (initial_key if initial_key and original_id is None else
            "result-wake:" + execution_identity(generation, event) + ":" + str(uuid4()))
     # A permanent legacy key may already identify a failed job. Never accept it
     # as the newly requested wake, even when an Operations attempt is reused.
-    job_id = await jobs.enqueue(connection, JobSpec("conversation.result", key, {"event": event},
+    payload = {"event": event}
+    queueing_lock = wake_key
+    if repairing:
+        payload.update(repair_ref=repair_ref, repair_consumer=repair_consumer)
+        queueing_lock = wake_key + ":repair:" + signature([repair_ref, repair_consumer])
+        key = "result-repair:" + execution_identity(generation, event) + ":" + str(uuid4())
+    job_id = await jobs.enqueue(connection, JobSpec("conversation.result", key, payload,
         ServiceClass.INTERACTIVE, scheduled_at=scheduled_at,
         subject_id=event["context"]["actor_id"], data_generation=generation),
-        queueing_lock=f"conversation.result:{generation}:{action_id}:{revision}:{receipt_id}")
+        queueing_lock=queueing_lock, wake_object_key=wake_key)
+    if repairing:
+        bound = await jobs.bind_execution_repair_job_on(connection, owner=EXECUTION_OWNER,
+            identity=execution_identity(generation, event), data_generation=generation, max_failures=MAX_FAILURES,
+            repair_ref=repair_ref, consumer=repair_consumer, job_id=job_id)
+        if not bound.get("bound"):
+            raise AppError(bound.get("reason") or "repair_job_binding_failed", status=409)
+        cover_wait = await cover_exhausted_normal(job_id, payload, queueing_lock)
     await connection.execute(
         "UPDATE conversation.result_deliveries SET rbi_job_ids=ARRAY("
         "SELECT DISTINCT unnest(rbi_job_ids || ARRAY[%s]::bigint[])),rbi_open_job_ids=ARRAY("
@@ -400,4 +533,8 @@ async def ensure_on(connection, jobs, generation, event, *, initial_key=None, sc
         "WHERE data_generation=%s AND receipt_id=%s", (job_id, job_id, generation, receipt_id))
     if original_id is None:
         await register_on(connection, generation, event, job_id)
-    return {"state": "accepted", "job_id": job_id, "reason": "scheduled", "due_at": scheduled_at}
+    if cover_wait:
+        return {**cover_wait, "state": "waiting", "job_id": job_id, "budget": budget}
+    return {"state": "waiting" if scheduled_at else "accepted", "job_id": job_id,
+            "reason": "result_dependency_wait" if scheduled_at else "scheduled", "due_at": scheduled_at,
+            "budget": budget}

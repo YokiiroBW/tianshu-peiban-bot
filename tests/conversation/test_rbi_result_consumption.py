@@ -520,10 +520,11 @@ async def test_future_wake_and_live_original_do_not_create_an_unproved_successor
                                     allow_successor=True)
         same = await ensure_on(connection, value.jobs, saved["data_generation"], value.event,
                                allow_successor=False)
-    assert successor["state"] in {"blocked", "accepted"} and successor["reason"] in {
+    assert successor["state"] in {"blocked", "waiting"} and successor["reason"] in {
         "execution_in_progress", "execution_outcome_unknown"}
     assert successor.get("job_id") is None
-    assert same["job_id"] == saved["original_job_id"]
+    assert same["state"] in {"blocked", "waiting"}
+    assert same["reason"] in {"execution_in_progress", "execution_outcome_unknown"}
 
 
 @pytest.mark.asyncio

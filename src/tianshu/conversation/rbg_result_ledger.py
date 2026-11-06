@@ -81,6 +81,17 @@ async def initialize_on(connection, generation, event, action, actor_id):
     return {**row, "owner_activity_id": owners[0], "owner_commitment_id": owners[1], "owner_resolved": True}
 
 
+async def progress_on(connection, generation, receipt_id):
+    """Expose only proofs actually recorded for this original receipt."""
+    rows = await (await connection.execute(
+        "SELECT consumer,data_generation,action_id,receipt_id,result_revision,disposition,reason,proof "
+        "FROM conversation.result_consumer_progress "
+        "WHERE data_generation=%s AND receipt_id=%s ORDER BY consumer",
+        (generation, receipt_id))).fetchall()
+    fields = ("data_generation", "action_id", "receipt_id", "result_revision", "disposition", "reason", "proof")
+    return {row["consumer"]: {key: row[key] for key in fields} for row in rows}
+
+
 async def claim_on(connection, generation, receipt_id, consumer):
     row = await (await connection.execute(
         "SELECT *,now() AS now FROM conversation.result_consumer_progress "
@@ -130,8 +141,11 @@ async def finish_on(connection, generation, receipt_id):
         "SELECT * FROM conversation.result_deliveries WHERE data_generation=%s AND receipt_id=%s FOR UPDATE",
         (generation, receipt_id))).fetchone()
     progress = await (await connection.execute(
-        "SELECT disposition FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s",
+        "SELECT action_id,result_revision,disposition FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s",
         (generation, receipt_id))).fetchall()
+    if row and any((item["action_id"], item["result_revision"]) != (row["action_id"], row["result_revision"])
+                   for item in progress):
+        raise AppError("result_receipt_revision_conflict", status=409)
     if row and len(progress) == len(CONSUMERS) and all(item["disposition"] in TERMINAL for item in progress):
         await connection.execute(
             "UPDATE conversation.result_deliveries SET state='completed',updated_at=now() WHERE data_generation=%s AND receipt_id=%s AND state='pending'",
@@ -147,6 +161,10 @@ async def queue_head_on(connection, jobs, generation, current):
     actual = current.get("receipt")
     if not actual:
         raise AppError("result_head_unavailable", status=409)
+    if actual.get("execution") in {"pending", "running"}:
+        return {"state": "waiting", "reason": "action_not_terminal"}
+    if actual.get("execution") not in {"succeeded", "failed", "cancelled", "unknown"}:
+        raise AppError("result_head_unavailable", status=409)
     action = current["action"]
     observed = current.get("result_observed_at")
     event = {"type": "capability.result", "version": 1, "event_id": actual["receipt_id"],
@@ -154,9 +172,8 @@ async def queue_head_on(connection, jobs, generation, current):
              "result_observed_at": observed.isoformat() if observed else None,
              "context": action["context"], "source_refs": action.get("source_refs", []), "receipt": actual}
     from .rbi_result_wake import ensure_on
-    result = await ensure_on(connection, jobs, generation, event,
+    return await ensure_on(connection, jobs, generation, event,
         initial_key=f"result-head:{generation}:{actual['action_id']}:{current['result_revision']}:{actual['receipt_id']}")
-    return result.get("job_id")
 
 
 async def supersede_on(connection, generation, receipt_id):
@@ -164,14 +181,18 @@ async def supersede_on(connection, generation, receipt_id):
         "SELECT receipt_id FROM conversation.result_deliveries WHERE data_generation=%s AND receipt_id=%s FOR UPDATE",
         (generation, receipt_id))
     await connection.execute(
-        "UPDATE conversation.result_consumer_progress SET disposition='superseded',reason='newer_action_result',"
+        "UPDATE conversation.result_consumer_progress SET disposition='blocked',"
+        "reason=COALESCE(reason,'result_head_advanced_execution_unconfirmed'),"
         "owner_token=NULL,lease_until=NULL,updated_at=now() WHERE data_generation=%s AND receipt_id=%s "
-        "AND disposition IN ('pending','running','blocked')", (generation, receipt_id))
+        "AND disposition IN ('pending','running')", (generation, receipt_id))
     row = await (await connection.execute(
         "UPDATE conversation.result_deliveries SET state='superseded',reason='newer_action_result',updated_at=now() "
         "WHERE data_generation=%s AND receipt_id=%s AND state='pending' RETURNING action_id",
         (generation, receipt_id))).fetchone()
-    if row:
+    progress = await (await connection.execute(
+        "SELECT disposition FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s",
+        (generation, receipt_id))).fetchall()
+    if row and len(progress) == len(CONSUMERS) and all(part["disposition"] in TERMINAL for part in progress):
         await connection.execute("INSERT INTO conversation.result_consumption(receipt_id,action_id) VALUES (%s,%s) ON CONFLICT DO NOTHING",
                                  (receipt_id, row["action_id"]))
 
@@ -186,12 +207,16 @@ async def invalidate_on(connection, generation, event, reason):
             "VALUES (%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING",
             (generation, row["receipt_id"], consumer, row["action_id"], row["result_revision"]))
     await connection.execute(
-        "UPDATE conversation.result_consumer_progress SET disposition='invalidated',reason=%s,owner_token=NULL,"
-        "lease_until=NULL,updated_at=now() WHERE data_generation=%s AND receipt_id=%s "
-        "AND disposition IN ('pending','running','blocked')", (reason, generation, row["receipt_id"]))
+        "UPDATE conversation.result_consumer_progress SET disposition='blocked',"
+        "reason=COALESCE(reason,'source_withdrawal_execution_unconfirmed'),owner_token=NULL,lease_until=NULL,updated_at=now() "
+        "WHERE data_generation=%s AND receipt_id=%s AND disposition IN ('pending','running')", (generation, row["receipt_id"]))
     await connection.execute(
         "UPDATE conversation.result_deliveries SET state='invalidated',reason=%s,updated_at=now() "
         "WHERE data_generation=%s AND receipt_id=%s AND state='pending'", (reason, generation, row["receipt_id"]))
-    await connection.execute(
-        "INSERT INTO conversation.result_consumption(receipt_id,action_id) VALUES (%s,%s) ON CONFLICT DO NOTHING",
-        (row["receipt_id"], row["action_id"]))
+    progress = await (await connection.execute(
+        "SELECT disposition FROM conversation.result_consumer_progress WHERE data_generation=%s AND receipt_id=%s",
+        (generation, row["receipt_id"]))).fetchall()
+    if len(progress) == len(CONSUMERS) and all(part["disposition"] in TERMINAL for part in progress):
+        await connection.execute(
+            "INSERT INTO conversation.result_consumption(receipt_id,action_id) VALUES (%s,%s) ON CONFLICT DO NOTHING",
+            (row["receipt_id"], row["action_id"]))
