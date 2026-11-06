@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "batch": "RBI-20261106",
-  "state": "integration_in_progress",
+  "state": "central_validation_in_progress",
   "user_authorization": "交付对应窗口修复吧",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "baseline_source": "b32a606df8238e398c9dcd58e2e145f2ecff9fb3",
@@ -19,7 +19,7 @@
   "fast_mode": false,
   "verification": "实现窗口仅全包实现+必要用例+静态审阅；根集中运行必要验证",
   "protected": "不清库、不覆盖配置、不发QQ测试、不重放未知副作用；原身份/请求/回执/unknown/来源权限/CAS/代际和预算保留",
-  "product_verification_started": false,
+  "product_verification_started": true,
   "production_operations_performed": true,
   "coordination": [
     {
@@ -29,7 +29,7 @@
     },
     {
       "id": "RBI-07",
-      "state": "integration_in_progress",
+      "state": "central_validation_in_progress",
       "owner": "coordinator"
     },
     {
@@ -48,7 +48,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot",
       "branch": "codex/rbi-runtime-20261106",
       "card": "docs/development/rbi-work-packages/runtime.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -124,7 +124,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-models/tianshu-peiban-bot",
       "branch": "codex/rbi-models-20261106",
       "card": "docs/development/rbi-work-packages/models.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -178,7 +178,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-memory/tianshu-peiban-bot",
       "branch": "codex/rbi-memory-20261106",
       "card": "docs/development/rbi-work-packages/memory.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -237,7 +237,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-life/tianshu-peiban-bot",
       "branch": "codex/rbi-life-20261106",
       "card": "docs/development/rbi-work-packages/life.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -320,7 +320,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-growth/tianshu-peiban-bot",
       "branch": "codex/rbi-growth-20261106",
       "card": "docs/development/rbi-work-packages/growth.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -385,7 +385,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-conversation/tianshu-peiban-bot",
       "branch": "codex/rbi-result-consumption-20261106",
       "card": "docs/development/rbi-work-packages/conversation.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -445,7 +445,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-observability/tianshu-peiban-bot",
       "branch": "codex/rbi-observability-20261106",
       "card": "docs/development/rbi-work-packages/observability.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "model": "gpt-6.1-terra",
       "reasoning_effort": "max",
       "service_tier": "default",
@@ -489,7 +489,7 @@
       "worktree": "C:/Users/Administrator/.codex/worktrees/rbi-sources/tianshu-peiban-bot",
       "branch": "codex/rbi-sources-20261106",
       "card": "docs/development/rbi-work-packages/sources.md",
-      "status": "integrated_pending_assembly_and_validation",
+      "status": "integrated_pending_validation",
       "key": "sources",
       "title": "RBW 身份来源与失效传播",
       "allowed_paths": [
@@ -712,5 +712,15 @@
       "source": "7c18f274610a535cb400caf570f52ca87d6e690c",
       "integrated": "6fe11cd7b73d9302f8d9affc14963896e4429a3d"
     }
-  ]
+  ],
+  "assembly_commit": "6f640be52c88ff80c31c10fd80125aaa0dc7289f",
+  "central_validation": {
+    "targets": "C:\\YOKI\\Codex\\tianshu-peiban-bot\\.runtime\\rbi-execution-20261106\\central-targets.json",
+    "test_files": 42,
+    "label": "central-1",
+    "status": "running",
+    "database": "task-owned disposable pgvector, 192.168.31.230:25026",
+    "production_data_used": false,
+    "test_commands_in_implementer_windows": false
+  }
 }

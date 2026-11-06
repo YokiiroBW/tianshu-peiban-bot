@@ -3,7 +3,7 @@
   "planning_id": "RBI-20261106",
   "date": "2026-11-06",
   "timezone": "Asia/Shanghai",
-  "state": "integration_in_progress",
+  "state": "central_validation_in_progress",
   "canonical_queue": "docs/development/domain-recovery-queue-2026-11-06.md",
   "design": "docs/development/domain-recovery-plan-2026-11-06.md",
   "scope": "保留六角色与领域状态机，修复新鲜回执续接、可靠观察唤醒、已知失败修复后领取和领域有界补漏",
@@ -329,7 +329,7 @@
       "priority": "P0",
       "owner": "Runtime",
       "title": "恢复领取机械边界与 role 内维护回调",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -385,7 +385,7 @@
       "priority": "P0",
       "owner": "Models",
       "title": "invalid_upstream_response 准确归因与原输出复用证据",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -429,7 +429,7 @@
       "priority": "P0",
       "owner": "Memory",
       "title": "新鲜回执驱动续接、原批恢复与本域补漏",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -488,7 +488,7 @@
       "conditional_priority": "P1 planning investigation",
       "owner": "Life",
       "title": "稳定观察原 Action、可靠唤醒与条件式规划修复",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -562,7 +562,7 @@
       "priority": "P0",
       "owner": "Growth",
       "title": "按真实失败分类恢复原反思批与本域补漏",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00",
         "RBI-01",
@@ -623,7 +623,7 @@
       "priority": "P0",
       "owner": "Conversation",
       "title": "成功结果消费停滞、恢复观察空转与前台本域补漏",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -684,7 +684,7 @@
       "priority": "P1",
       "owner": "Logs/Operations",
       "title": "业务推进、物理未知与逐项采样覆盖",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -733,7 +733,7 @@
       "priority": "P0",
       "owner": "Sources",
       "title": "多上下文完整来源批预锁，保留Goal与原回执原子合同",
-      "status": "candidate_submitted",
+      "status": "integrated_pending_validation",
       "depends_on": [
         "RBI-00"
       ],
@@ -776,7 +776,7 @@
       "priority": "P0",
       "owner": "coordinator",
       "title": "串行集成、共享装配与集中必要时序验证",
-      "status": "integration_in_progress",
+      "status": "central_validation_in_progress",
       "depends_on": [
         "RBI-01",
         "RBI-02",
@@ -954,5 +954,6 @@
     "RBI-04",
     "RBI-09",
     "RBI-06"
-  ]
+  ],
+  "product_verification_started": true
 }
