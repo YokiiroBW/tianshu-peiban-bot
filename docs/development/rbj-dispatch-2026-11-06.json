@@ -1,10 +1,10 @@
 {
   "batch": "RBJ-20261106",
-  "status": "prepared_not_dispatched",
+  "status": "dispatched_core_active_followups_queued",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
   "contract": "1.0",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
-  "preparation_commit": null,
+  "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
   "integration_worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rb-integration\\tianshu-peiban-bot",
   "product_baseline": "8034743c455191a426567e89227bcf30f72554fa",
@@ -44,8 +44,15 @@
       "fast_mode": false,
       "branch": "codex/rbj-sources-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-sources\\tianshu-peiban-bot",
-      "status": "prepared_not_sent",
-      "handoff": "docs/handoffs/RBJ-01.md"
+      "status": "implementation_started_confirmed",
+      "handoff": "docs/handoffs/RBJ-01.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:19.341365+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:29.079Z",
+      "latest_cursor": "51e724b4-908f-42ae-91ae-aef350a8ec29:15",
+      "latest_turn_id": "01a1b09e-068a-7ef3-93e0-1d5550548d0b",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "我会在新建的 RBJ Sources 工作树中核对基线和冻结合同，然后完成来源图求值与同调用去重的整块实现，最后提交并向主协调窗口回执。"
     },
     {
       "id": "RBJ-02",
@@ -75,8 +82,15 @@
       "fast_mode": false,
       "branch": "codex/rbj-runtime-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-runtime\\tianshu-peiban-bot",
-      "status": "prepared_not_sent",
-      "handoff": "docs/handoffs/RBJ-02.md"
+      "status": "implementation_started_confirmed",
+      "handoff": "docs/handoffs/RBJ-02.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:20.367666+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:30.721Z",
+      "latest_cursor": "ba4e245a-08f8-43f4-a361-c549a91b200a:17",
+      "latest_turn_id": "01a1b09e-0cf6-7e10-ae40-b4f5a4ff4af4",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "已接收 RBJ-02。我会先核对新工作树和冻结合同，再沿现有唤醒与恢复调用链完成本卡实现；本窗口只做静态审阅，测试由协调者集中执行。"
     },
     {
       "id": "RBJ-03",
@@ -103,8 +117,15 @@
       "fast_mode": false,
       "branch": "codex/rbj-capabilities-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-capabilities\\tianshu-peiban-bot",
-      "status": "prepared_not_sent",
-      "handoff": "docs/handoffs/RBJ-03.md"
+      "status": "implementation_started_confirmed",
+      "handoff": "docs/handoffs/RBJ-03.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:21.911614+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:32.153Z",
+      "latest_cursor": "ed71c713-e900-49c8-aab0-d7eff22a9ead:24",
+      "latest_turn_id": "01a1b09e-133b-7a21-8cf2-56310a710f80",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "我会在指定的新工作树核对冻结合同和现有 Action／结果消费链路，完成 RBJ-03 的端口、回归用例与交接；测试和装配按约定留给协调者集中执行。"
     },
     {
       "id": "RBJ-04",
@@ -138,8 +159,15 @@
       "fast_mode": false,
       "branch": "codex/rbj-conversation-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-conversation\\tianshu-peiban-bot",
-      "status": "prepared_not_sent",
-      "handoff": "docs/handoffs/RBJ-04.md"
+      "status": "implementation_started_confirmed",
+      "handoff": "docs/handoffs/RBJ-04.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:25.151432+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:33.316Z",
+      "latest_cursor": "5a3a63c7-e3a3-48e9-979d-37b980e5d975:29",
+      "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。"
     },
     {
       "id": "RBJ-05",
@@ -175,8 +203,15 @@
       "fast_mode": false,
       "branch": "codex/rbj-life-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-life\\tianshu-peiban-bot",
-      "status": "prepared_not_sent",
-      "handoff": "docs/handoffs/RBJ-05.md"
+      "status": "implementation_started_confirmed",
+      "handoff": "docs/handoffs/RBJ-05.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:33.585989+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:34.522Z",
+      "latest_cursor": "08fc417e-c152-40cc-a5e1-2b5ef1a02c61:68",
+      "latest_turn_id": "01a1b09e-1c4c-7ae3-86c1-6fbd3052517b",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "我会先核对 RBJ 新工作树、任务卡和冻结接口，再沿 Life 的结果观察与业务落库链路检查需要调整的位置；本窗口只提交本卡代码和必要用例，由协调者集中验证。"
     },
     {
       "id": "RBJ-06",
@@ -203,8 +238,16 @@
       "fast_mode": false,
       "branch": "codex/rbj-growth-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-growth\\tianshu-peiban-bot",
-      "status": "queued_not_sent",
-      "handoff": "docs/handoffs/RBJ-06.md"
+      "status": "acknowledged_queued_not_started",
+      "handoff": "docs/handoffs/RBJ-06.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:40.009152+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:35.743Z",
+      "latest_cursor": "0d504bbe-1a48-4fa1-a5b2-79c1d9d2f50e:53",
+      "latest_turn_id": "01a1b09e-2138-7720-bfd9-5ab0272ff963",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
+      "queue_release_required": true
     },
     {
       "id": "RBJ-07",
@@ -233,8 +276,18 @@
       "fast_mode": false,
       "branch": "codex/rbj-memory-20261106",
       "worktree": "C:\\Users\\Administrator\\.codex\\worktrees\\rbj-memory\\tianshu-peiban-bot",
-      "status": "queued_not_sent",
-      "handoff": "docs/handoffs/RBJ-07.md"
+      "status": "acknowledged_queued_not_started",
+      "handoff": "docs/handoffs/RBJ-07.md",
+      "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
+      "worktree_created_at": "2026-11-06T11:27:41.107284+00:00",
+      "dispatch_accepted_at": "2026-11-06T11:28:36.869Z",
+      "latest_cursor": "aa11dc72-cf69-41ae-88eb-3f2e7e3c7379:36",
+      "latest_turn_id": "01a1b09e-258c-7e00-a0e7-e48e808cbcef",
+      "observed_at": "2026-11-06T11:29:25.638Z",
+      "acknowledgement": "已读排队，未启动实现；新工作树/分支/准备SHA及普通速度配置已核对，未写产品或用例，等待根释放实现名额。",
+      "queue_release_required": true
     }
-  ]
+  ],
+  "dispatched_at": "2026-11-06T11:29:25.638Z",
+  "dispatch_acceptance": "five_core_implementation_acknowledged_two_followups_queue_acknowledged"
 }
