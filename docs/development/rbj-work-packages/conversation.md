@@ -7,7 +7,7 @@
 - 代码起点 `39da2d283deb17de2739b3c24fc1eeedc96cfa69`；实际准备提交由根正式派发消息及 dispatch 记录给出，必须核对一致。
 - gpt-6.1-terra / max，普通速度（service_tier=default、fast_mode=false），不自行开启 Fast。
 - 依赖：RBJ-02, RBJ-03。依赖窗口使用冻结合同与夹具，不读写其可变目录；接口不明确即报根并继续自身独立工作。
-- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.3](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
+- 先读本卡、[完整方案](../source-result-repair-plan-2026-11-06.md)、[公共合同 1.5](../rbj-interfaces-2026-11-06.md)；CURRENT/AGENTS 顶部 RBJ 条款覆盖旧阶段。
 
 ## 完整交付范围
 
@@ -17,10 +17,12 @@
 4. Life/Goal/Memory/consumer proof 同事务完成；未知提交先读原 proof 和相关业务引用，不凭 activity.completed 推断完整成功。新 head/撤回/换代/取消按真实 superseded/invalidated 等收口，不重放旧结果。保留已有 head fence 和同版本冲突拒绝。
 5. 复用 Runtime 的 wake 合同；对旧无锁 result jobs 仅在核对完整信封/代际后 adopt。不直接写 Runtime 内部事实，不碰 Actions 文件。
 6. 添加四次失败耗尽、一次修复资格重入、repair 无外部调用、proof 丢应答对账、来源/Goal/Memory/proof 任一点回滚、head 推进与旧任务覆盖的必要用例代码。编写不运行。
+7. 1.5 扩展既有 GenerationRequests.request 的可选 connection/material_key，供 Growth 在原 prepare guard 同事务核对既有冻结请求；只读不补造，不取得新 Sources 锁，旧调用保持兼容。添加最小有意义端口用例代码，实际运行由根集中执行。
 
 ## 独占可写文件
 
 - `src/tianshu/conversation/results.py`
+- `src/tianshu/conversation/generation.py`
 - `src/tianshu/conversation/rbi_result_wake.py`
 - `src/tianshu/conversation/rbg_result_recovery.py`
 - `src/tianshu/conversation/rbg_result_ledger.py`

@@ -1,4 +1,4 @@
-# RBJ 公共合同，2026-11-06，版本 1.4
+# RBJ 公共合同，2026-11-06，版本 1.5
 
 用户已要求分发修复。本合同随准备提交冻结；语义调整先由根更新版本并通知受影响窗口，不各自改名猜接口。基线 39da2d28（产品代码 8034743c）；仍保留六角色，领域业务状态机不转移到 Runtime。
 
@@ -117,6 +117,8 @@ inspect 返回现有 normal 字段，同时明确普通计数与 repair 状态/r
 
 1.3 增加 close 窄口：可信领域在 grant 授权后、begin 前读到精确原提交 proof，可用 observation_ref 请求关闭同目标 grant，不制造执行、不耗一次失败。Runtime 只在无 started/unknown 等未决事实且可信登记/资格一致时关闭；已有未决必须先依真实 proof 通过原 resolve_execution_on 对账，不能用任意字符串抹掉 unknown。同一关闭证明重入幂等，closed grant 不再安排。真实 repair 成功时 finish 也依持久 purpose 关闭 grant；资源 wait 保留同资格。
 
+1.5 澄清 close 也可基于同一原目标明确持久化的合法非应用终态（superseded/invalidated 等），无需另造退役端口。可信领域先持正确来源/Action/领域锁确认终态，Conversation 在同事务写入精确原事件/owner/consumer 的对应终态与证据后调用 close；Runtime 仍只核验机械资格与无未决事实，业务 disposition 原样保留，不能把非应用终态算成 done/已应用。有 started/unknown 时不直接关闭、不以取消/替换推断旧执行未提交，仍先对账原物理事实。
+
 ## 6. Conversation：精准本地消费恢复（RBJ-04）
 
 ```python
@@ -173,5 +175,20 @@ root 单写全部 module.py、runtime/product*.py、全局 types、已发布 sch
 ## 9. 1.1 修订范围
 
 根根据 RBJ-01/02/03/04/05 读卡反馈，澄清 consumer_progress 精确证明、调用方摘要边界、不同历史 payload 的可信覆盖口、跨 purpose 对象锁、repair job 预绑定以及 Life 原业务预检；不改变六角色、原事件身份、普通预算或文件归属。Sources 的 prepare 多 context 独立判定并共享整次预算；允许修改现有 test_rb_proof_batches.py 的对应总预算断言。新增必要用例由各所有者编写，根集中执行。实现者按根通知中的不可变合同提交读取本修订，不 rebase/覆盖他人可变工作树。
+
+## 10. 1.5 Growth 原批与冻结请求的同事务读取
+
+复用并扩展已有 GenerationRequests.request，Conversation 在 generation.py 单写：
+
+```python
+async def GenerationRequests.request(self, attempt_id, context, *,
+                                     connection=None, material_key=None): ...
+```
+
+不传 connection 时保持原有独立只读事务；传入时只使用该事务连接，不另开连接/事务，不插入/prepare/claim/confirm/submit，不重新取得 Sources 锁。保留已有 context_key 与 invalidated 检查；返回原冻结请求或缺行时 None。material_key 有值时额外核对同一既存行的材料键，不符报 generation_identity_conflict；同 attempt 的材料/上下文冲突不能返回 None 假装不存在。不改变既有 expired 请求可被观察的语义。
+
+Growth 在 prepare 的 guard 已完成外层来源及 generation 锁、锁定自己的 current organize_state 后，先重载权威 active_batch，再使用原 attempt/context/material_key 和同一 connection 读取既有冻结请求，核对原身份/代际。命中原批但冻结请求缺失/不一致时必须停止当前 prepare、保持原批并明确缺失/未知，不继续插入 B 的候选请求，不重复 reserve、不补造谱系；有效时沿用原批 lineage/recovery_version 与原请求，后续使用权威材料继续记账。
+
+Growth 不直接读取或更新 conversation.generation_requests，不复制其 context/state/解码规则；Conversation 不写 Growth 私表。RBJ-04 白名单增加 generation.py 及原 tests/conversation/test_rbj_*.py 范围内必要端口用例，RBJ-06 使用冻结接口写交错用例。两个原生 organize 的真实交错复现由根集中执行；静态已定位不等于实测通过。
 
 实现者只完成整块代码、必要用例代码、静态 diff 审阅和提交，不运行测试/构建/烟测/模型/QQ/生产。根收齐后做必要 PG 联合验证，复用未变有效结果；不全量重跑 472 用例。发布和原对象恢复另由根串行执行，本次派发不代表已修复/验证/部署。

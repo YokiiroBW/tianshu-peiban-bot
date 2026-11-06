@@ -2,7 +2,7 @@
   "batch": "RBJ-20261106",
   "status": "five_implementations_active_rbj03_committed_memory_queued",
   "coordinator_thread": "01a1ac6f-8494-7f82-8c4d-ec7d285f44ae",
-  "contract": "1.4",
+  "contract": "1.5",
   "baseline": "39da2d283deb17de2739b3c24fc1eeedc96cfa69",
   "preparation_commit": "ec4b26a652d53d3dc40ab42a9f61734ff12e320d",
   "integration_branch": "codex/rbj-integration-20261106",
@@ -160,6 +160,7 @@
       ],
       "paths": [
         "src/tianshu/conversation/results.py",
+        "src/tianshu/conversation/generation.py",
         "src/tianshu/conversation/rbi_result_wake.py",
         "src/tianshu/conversation/rbg_result_recovery.py",
         "src/tianshu/conversation/rbg_result_ledger.py",
@@ -188,10 +189,11 @@
       "latest_turn_id": "01a1b09e-17b7-7d13-b752-76972bc524e0",
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "我已接收 RBJ-04，会先核对新工作树和冻结合同，再沿结果消费、预算诊断与原记录对账的调用链完成本包实现。验证和生产操作仍由协调窗口统一执行。",
-      "contract": "1.3",
+      "contract": "1.5",
       "contract_notice_accepted_at": "2026-11-06T11:44:52.801Z",
       "contract_notice_commit": "bf408fa5af0daabace0059dd501d22166dd02bcd",
-      "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。"
+      "latest_progress": "修订合同已明确三处关键接口：目标消费者的完整 proof、普通与修复任务共享对象锁，以及 Life 自己负责确认原业务是否真正落账。现在正在把可信修复资格、任务预绑定和丢失应答后的原证明对账接起来。",
+      "generation_read_extension": "request(attempt_id,context,*,connection=None,material_key=None); read-only existing port, no new Sources lock"
     },
     {
       "id": "RBJ-05",
@@ -248,7 +250,9 @@
       "title": "RBW Companion学习与表达样例",
       "wave": 2,
       "scope": "同 material 并发准备时权威 batch 谱系重载疑点",
-      "dependencies": [],
+      "dependencies": [
+        "RBJ-04"
+      ],
       "paths": [
         "src/tianshu/companion/growth.py",
         "src/tianshu/companion/growth_retry.py",
@@ -276,13 +280,14 @@
       "observed_at": "2026-11-06T11:52:01.179384+00:00",
       "acknowledgement": "已收到释放名额并正式开始；新工作树干净、准备SHA和合同1.4已复核，未运行测试。",
       "queue_release_required": false,
-      "contract": "1.4",
+      "contract": "1.5",
       "contract_read_on_release": true,
       "release_at": "2026-11-06T11:50:48.017441+00:00",
       "released_by": "RBJ-03 whole-package commit receipt",
       "release_contract_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
       "latest_progress": "RBJ-06 已收到启动信号。我会先追踪同一材料被两个执行者并发准备时的实际调用链，再按可达性完成定向修复和用例代码。",
-      "contract_notice_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe"
+      "contract_notice_commit": "d888b8dcef0db2bb5e07842bd3a5284b5baa69fe",
+      "generation_read_extension": "Use public same-transaction request; missing frozen request stops prepare; do not query Conversation private table"
     },
     {
       "id": "RBJ-07",
@@ -360,5 +365,6 @@
     "Sources Python public calls map source_dependency_budget_exceeded; direct SQL callers retain distinct SQLSTATE 54000. Verify affected Memory read/retraction semantics without treating budget as business false.",
     "Runtime wake-exit proof for exact covered generation/job/native ordinal must prevent importing native succeeded as repair applied; require persisted covered_by and no existing begin fact. Domain handlers propagate the verified covered result. SQL/central validation pending."
   ],
-  "contract_1_4_note": "Sources owns bounded lock-closure discovery and fresh post-lock verification; private budget spans lock graph and proof evaluation; no public signature or other domain ownership change."
+  "contract_1_4_note": "Sources owns bounded lock-closure discovery and fresh post-lock verification; private budget spans lock graph and proof evaluation; no public signature or other domain ownership change.",
+  "contract_1_5_note": "Reuse GenerationRequests.request with optional same connection/material_key; Growth cannot recreate a missing frozen request. Close may use exact durable legal non-application terminal evidence without erasing unresolved attempts."
 }
