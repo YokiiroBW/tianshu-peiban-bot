@@ -3,7 +3,7 @@
 - 工作树：`C:/Users/Administrator/.codex/worktrees/rbi-runtime/tianshu-peiban-bot`
 - 分支：`codex/rbi-runtime-20261106`
 - 基线：`18d640c41bb3354ef82ffea41ff2e78b1338e3b3`
-- 代码及必要用例提交：`24bbcad9928d7662e6882c68df545cd08323cf01`；本文件在其后单独提交，以便记录精确代码 SHA。
+- 代码及必要用例提交：`24bbcad9928d7662e6882c68df545cd08323cf01`，随后必须应用原生序号修正 `d9e4fd08edf8054d1d1e4d14b3683a5a9973b55c`；两者之间的 `09c8350e263de115e41bb4ddbed5ba70521c020f` 是本交接初版。
 - 依赖 RBI-06 Models 提交 `7715afa5144be098a8b9431d1cda03b1a3aae4ec` 的 `tianshu.models.rbi_outcome_guard.lock_recovery_facts_on`。本窗口未跨树集成该提交。
 
 ## 实现与边界
@@ -21,6 +21,7 @@
 - `seed_execution_history_on(..., history, complete)` 接受带证据的原生历史；`complete=False` 持久标记整份历史未知。它支持增量追加，已证实事实不被粗粒度 native 观察覆盖；需显式 resolve unknown。`observe_execution_history_on(..., job_ids, task_name, current_job=None)` 的 complete 仅覆盖给定 ID 集合。
 - 大历史使用 `advance_execution_history_on(connection, *, owner, identity, data_generation, max_failures, job_id, task_name, current_job=None, limit=128)`。它以 `(job_id,event_id)` 有序分页，每次最多处理 `limit` 个事件，在同一事务写事实和内部游标，并把全身份历史标记为 unknown。返回 `complete/reason/executions/events_read/job_status`；`execution_history_more` 表示后续页，`execution_history_job_missing_or_changed`、`execution_history_incomplete` 是证据缺口。complete 只代表此 job 当前尾部。后续同一调用可从游标观察新增事件；doing/aborting 且不是调用者当前 job 的原序号记为 unknown。只有精确的 `current_job_execution()` 可排除自身当前序号。
 - 领域负责完整枚举原始及恢复 job ID、持久自身跨 tick 扫描进度、继续刷新可能追加事件的 job、处理证据缺口；仅全体 job 确认追平且无缺口后才 `seed_execution_history_on(..., history=[], complete=True)`。分页本身已写入本页 `executions`，不可把单页 complete 当全域完整。未知历史不能默认为零；native retry 事件本身不能证明 typed wait。
+- 原生 started 使用开始前的 attempts 作为物理序号；正常 finish 和 doing→todo 重试都递增 attempts，failed→todo 人工重试再递增一次，故序号可跳号。todo 直接结束不产生物理执行。遇到 `abort_requested` 时原生一条 retry 分支可能不递增，事件本身不足以选择路径，观察返回 incomplete 而不猜序号。分页恢复时验证最后 checkpoint event 仍属于原 job；若锚点丢失则继续 unknown。游标和已投影事实保留先前观察，但锚点校验不能检测之后对更早中间原事件的任意单独删除；需要全量证明时由原事件保留/清理合同或额外证据提供，不能把锚点存在当作全源完整证明。
 
 ## 协调者装配
 
@@ -35,6 +36,6 @@ Migration("rbi_execution_budget", files("tianshu.runtime").joinpath("rbi_executi
 
 ## 必要验证与未完成
 
-- 新增/更新用例覆盖同版本幂等、未知/取消/代际/预算与并发取消、原始 consumer interruption、跨领域 429 冷却和单探针、doing/todo/native retry、角色回调隔离、跨新 job 的四次失败、typed wait 与 unknown、原生序号/分页及事务回滚。只编写了用例，**尚未运行**。
+- 新增/更新用例覆盖同版本幂等、未知/取消/代际/预算与并发取消、原始 consumer interruption、跨领域 429 冷却和单探针、doing/todo/native retry、角色回调隔离、跨新 job 的四次失败、typed wait 与 unknown、原生结束/重试函数的序号、分页及事务回滚。只编写了用例，**尚未运行**。
 - 已做 10 个变更 Python 文件的 AST 解析和提交 diff 的 `git diff --check`，均通过；未执行测试、构建、烟测、真实模型/QQ 或生产操作。最终由协调者集成后运行受影响验证，区分静态结果、集成测试与真实业务证据。
 - 集中验收需将白名单外 `tests/runtime/test_rbf_probe_leases.py` 中使用合成 unknown 回执的旧夹具更新为真实隔离 Models attempts/submissions 事实；新 guard 不再接受缺失原账本/提交摘要的伪回执。必要时检查其他域同类假回执夹具。此窗口未改白名单外文件。
