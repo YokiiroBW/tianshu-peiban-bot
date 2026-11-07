@@ -82,7 +82,8 @@ def media_for(kind="book_feed", field="feed_id", *, rows=None, previous=None):
         return operation(*args, **kwargs)
 
     docs = Documents(rows or [{field: "first", "state": "active", "revision": 1,
-        "next_scan_at": 1, "interval_seconds": 3600, "context": wire(previous), "source_refs": []}])
+        "next_scan_at": 1, "interval_seconds": 3600, "settings_revision": 1,
+        "context": wire(previous), "source_refs": []}])
     actions = SimpleNamespace(invoke=AsyncMock(side_effect=invoke), find=AsyncMock(side_effect=find))
     media = SimpleNamespace(repo=docs, local=local, capabilities=SimpleNamespace(
         authority=identity, actions=actions, catalog=SimpleNamespace(handler=lambda _key:
@@ -141,6 +142,7 @@ async def test_role_timer_default_still_requires_an_actor():
     ("comic_subscription", "comic_id", "comics.subscriptions.scan"),
     ("music_playlist", "playlist_id", "music.playlists.scan"),
     ("book_feed", "feed_id", "books.feeds.refresh"),
+    ("music_library", "library_id", "music.library.scan"),
 ])
 async def test_timer_epoch_refresh_preserves_original_authority_ceiling(kind, field, capability):
     media, identity, admitted = media_for(kind, field)

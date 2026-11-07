@@ -643,12 +643,12 @@ class Catalog:
         row = db.execute('SELECT body FROM jobs WHERE dedupe=%s', ("book:" + key,)).fetchone()
         existing = json.loads(row[0]) if row else None
         if existing:
+            require(existing["state"] != "unknown", "media_job_requires_reconciliation", 409)
             if existing["state"] in {
                 "completed",
                 "published",
                 "cancelled",
                 "failed",
-                "unknown",
                 "auth_required",
                 "waiting_metadata",
             }:
@@ -661,7 +661,6 @@ class Catalog:
                         "cancel_requested": False,
                         "refresh_directory": refresh,
                         "book_rule_snapshot": None,
-                        "attempts": 0,
                     },
                     db=db,
                 )

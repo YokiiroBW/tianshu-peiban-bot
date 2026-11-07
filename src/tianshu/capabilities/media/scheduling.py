@@ -12,7 +12,15 @@ from ..serialization import context_from
 
 SCAN_TASKS = {"subscription": "subscriptions", "book_subscription": "book_subscriptions",
               "comic_subscription": "comic_subscriptions", "music_playlist": "music_playlists",
-              "book_feed": "book_sources"}
+              "book_feed": "book_sources", "music_library": "music_imports"}
+SCAN_CAPABILITIES = {
+    "subscription": "media.subscriptions.scan",
+    "book_subscription": "books.subscriptions.scan",
+    "comic_subscription": "comics.subscriptions.scan",
+    "music_playlist": "music.playlists.scan",
+    "book_feed": "books.feeds.refresh",
+    "music_library": "music.library.scan",
+}
 TRACKING_STATES = ("dispatching", "submitted", "pending", "retry_wait")
 
 
@@ -54,7 +62,6 @@ def wake_document(repository, connection, kind, body):
     timed = {
         "book_audio_job": ("book_audio", "next_at"),
         "comic_extension_policy": ("comic_extensions", "next_check_at"),
-        "music_import_scan": ("music_imports", "next_scan_at"),
         "music_navidrome_playlist": ("music_navidrome", "next_sync_at"),
         "music_quality_check": ("music_maintenance", "next_check_at"),
         "music_lyrics": ("music_lyrics", "next_check_at"),
@@ -81,12 +88,11 @@ def author_schedule(kind, body, action):
     """An explicit author edit/resume can replace a blocked timer's old grant."""
     if action is None or action.origin_kind not in {OriginKind.HUMAN, OriginKind.ACTOR}:
         return body
-    domain = {"subscription": "media", "book_subscription": "books",
-              "comic_subscription": "comics", "music_playlist": "music", "book_feed": "books"}[kind]
+    domain = SCAN_CAPABILITIES[kind].split(".", 1)[0]
     operation = action.capability_id.removeprefix(domain + ".")
     if not action.capability_id.startswith(domain + ".") or operation not in {
         "subscriptions.save", "subscriptions.control", "feeds.save", "feeds.control",
-        "warehouse.subscribe", "playlists.subscribe", "playlists.control",
+        "warehouse.subscribe", "playlists.subscribe", "playlists.control", "settings.save", "library.scan",
     }:
         return body
     refs = unique_refs(tuple(SourceRef(**value) for value in body.get("source_refs", [])), action.source_refs)
@@ -123,12 +129,7 @@ async def scan_due(media, kind, identity_field, scan):
         key = action_key(kind, identity, row)
         begin = not unresolved_schedule(saved)
         admitted = bool(saved.get("action_admitted", saved.get("state") in {"submitted", "pending"})) if not begin else False
-        domain = {"subscription": "media", "book_subscription": "books",
-                  "comic_subscription": "comics", "music_playlist": "music",
-                  "book_feed": "books"}[kind]
-        operation = ("feeds.refresh" if kind == "book_feed" else "playlists.scan"
-                     if kind == "music_playlist" else "subscriptions.scan")
-        capability = domain + "." + operation
+        capability = SCAN_CAPABILITIES[kind]
         state, code, failures = "submitted", None, saved.get("failures", 0)
         retry_generation = saved.get("retry_generation", 0)
         context = None
@@ -170,6 +171,8 @@ async def scan_due(media, kind, identity_field, scan):
                 if row["state"] != "active":
                     raise Fault("scheduled_subscription_inactive", 409)
                 body = {identity_field: identity}
+                if kind == "music_library":
+                    body = {"expected_revision": row["settings_revision"]}
                 if kind == "subscription":
                     body.update(recompute=False, client_request_id=key)
                 receipt = await media.capabilities.actions.invoke(Action(
@@ -202,7 +205,8 @@ async def scan_due(media, kind, identity_field, scan):
             code = getattr(error, "code", "media_schedule_failed")
             blocked = (isinstance(error, AppError) and error.status in {401, 403, 410}
                        or code in {"actor_disabled", "subscription_context_required", "idempotency_conflict",
-                                   "source_revoked", "scheduled_action_missing", "scheduled_subscription_inactive"})
+                                   "source_revoked", "scheduled_action_missing", "scheduled_subscription_inactive",
+                                   "media_job_requires_reconciliation"})
             state = "blocked" if blocked else "retry_wait"
             failures += 1
             # Preserve a possibly admitted execution through transport/epoch

@@ -103,8 +103,9 @@ export function BookSubscriptions({
               </select>
               <button
                 className="button"
-                disabled={busy}
                 onClick={() => onScan(subscription)}
+                disabled={busy || subscription.state !== "active"}
+                title={subscription.state === "active" ? undefined : "恢复追更后可检查更新"}
               >
                 <RefreshCw aria-hidden="true" />
                 立即检查

@@ -152,8 +152,10 @@ class MusicLibrary:
         )
         return {"account": public_account(account)}
 
-    def settings(self):
-        return self.repo.get("music_settings", "library") or {
+    def settings(self, db=None):
+        saved = (self.repo._document(db, "music_settings", "library") if db is not None
+                 else self.repo.get("music_settings", "library"))
+        return saved or {
             "revision": 0,
             "directory": "",
             "layout": "artist_album",

@@ -105,6 +105,7 @@ export type MusicView = {
   navidrome?: NavidromeView;
   imports?: {
     state: string;
+    schedule?: { state: string; code?: string | null };
     checked_at?: number;
     total?: number;
     failed?: number;

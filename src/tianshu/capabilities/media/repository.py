@@ -44,7 +44,7 @@ OVERVIEW_STATES = {
 VISIBLE = "id NOT IN (SELECT id FROM documents WHERE kind='deleted_job')"
 READ_BATCH_SIZE = 256
 SUBSCRIPTIONS = frozenset(
-    {"subscription", "book_subscription", "comic_subscription", "music_playlist", "book_feed"}
+    {"subscription", "book_subscription", "comic_subscription", "music_playlist", "book_feed", "music_library"}
 )
 
 
@@ -142,7 +142,6 @@ class Repository:
                     "AND p.id=j.body::jsonb->>'book_id' AND (p.body::jsonb->>'paused')::boolean IS TRUE)").fetchone()
                 return {"known": True, "due": row["due"]}
             timed = {"comic_extensions": ("comic_extension_policy", "next_check_at"),
-                     "music_imports": ("music_import_scan", "next_scan_at"),
                      "music_navidrome": ("music_navidrome_playlist", "next_sync_at"),
                      "music_maintenance": ("music_quality_check", "next_check_at"),
                      "music_lyrics": ("music_lyrics", "next_check_at")}
@@ -755,23 +754,25 @@ class Repository:
                 409,
             )
             # Membership is accumulated: deleting and later re-adding a member does not download twice.
-            db.executemany(
-                'INSERT INTO members VALUES(%s,%s) ON CONFLICT DO NOTHING',
-                ((subscription["subscription_id"], bvid) for bvid in members),
-            )
+            with db.cursor() as cursor:
+                cursor.executemany(
+                    'INSERT INTO members VALUES(%s,%s) ON CONFLICT DO NOTHING',
+                    ((subscription["subscription_id"], bvid) for bvid in members),
+                )
             before = db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0]
             for job in jobs:
                 self.enqueue(job, db=db)
             queued = db.execute('SELECT COUNT(*) FROM jobs').fetchone()[0] - before
             if part_members:
-                db.executemany(
-                    'INSERT INTO member_parts VALUES(%s,%s,%s) ON CONFLICT DO NOTHING',
-                    (
-                        (subscription["subscription_id"], bvid, cid)
-                        for bvid, cids in part_members.items()
-                        for cid in cids
-                    ),
-                )
+                with db.cursor() as cursor:
+                    cursor.executemany(
+                        'INSERT INTO member_parts VALUES(%s,%s,%s) ON CONFLICT DO NOTHING',
+                        (
+                            (subscription["subscription_id"], bvid, cid)
+                            for bvid, cids in part_members.items()
+                            for cid in cids
+                        ),
+                    )
             count = db.execute(
                 'SELECT COUNT(*) FROM members WHERE subscription_id=%s',
                 (subscription["subscription_id"],),

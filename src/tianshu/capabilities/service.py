@@ -697,6 +697,9 @@ class Capabilities:
                 clean["client_request_id"] = client_id
             return await self.web_plugins.route(operation, clean, context)
         if domain in {"media", "books", "music", "comics"}:
+            # The console envelope supplies a nullable CAS even to non-CAS commands.
+            if clean.get("expected_revision") is None:
+                clean.pop("expected_revision", None)
             adapter = self.web_media if domain == "media" else getattr(self.web_media, domain)
             return await adapter.route(
                 "/api/v1/media/" + operation if domain == "media" else operation, clean, context
