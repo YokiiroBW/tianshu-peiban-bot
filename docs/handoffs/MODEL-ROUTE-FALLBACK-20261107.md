@@ -49,3 +49,16 @@
 沿用同一隔离PG及既有验证框架，适用旧结果复用，不重复传输、UI或无关全套。
 最后由既定唯一生产写者串行发布，读回原turn377c076d.../attempt fc59d93f...的自然推进，
 不得把本地通过或备用选择当作实际回复送达。主旧probe timeout_unknown继续保留。
+
+
+## 根集中验证、串行发布与真实业务结果
+
+2026-11-07 18:19，北京时间。源dbbe09d3在根串行集成为27f5e7aa；共享maintenance/humanize两行装配a06d28b2；测试断言补修df5ac062集成为b3c76eee。实际部署产品b3c76eee2c31d4bb825398c6880f5f49a93cf392，镜像sha256:bc06e3b3123c6236214dcbd623717b4e35579198f4b938bc2dca8e24d30b7528，容器6983b0223716d8010f898d729025f14cb357dbfd3fd4368b3ac0e3506e591486。
+
+- 41个不同定向用例有效通过，0未决失败/错误/跳过。初次40通过/1失败为测试误期望remaining()返回负数；产品profile已经成功。只修断言、单项重跑通过，40项直接复用，产品无新变更。临时PG及凭据已按owner/容器ID回收。
+- 不可变Git归档、8个固定基础镜像构建并推送github；单生产写者串行切换。18:19:05六角色ready、HTTP200、0重启/无OOM，两个守护active，7个实际安装Python模块SHA256与Git逐一匹配。中文提示仅静态检查及正常前端构建，未做浏览器视觉验收。
+- 原turn377c076d-1912-56a1-9c57-e332c073633e/原attempt fc59d93f-f360-4821-a21b-d7ebf8a47a23在18:17:54自动准入第一合格备用Gemini3.8（provider-ed51ac379e2746ecb2fa5b1d6e1435fe，revision2），18:18:01模型succeeded，18:18:07上下文done，18:18:08.901 send_private_msg confirmed，18:18:13原turn completed。expression delivered，execution=succeeded、effect=confirmed，回执baeb90d0-4c11-4d99-94bd-3cc72a5877d4；这是自然业务路径，不是主动QQ测试或手动重放。
+- 配置/11挂载/另2容器/代际/模型绑定、供应商、路由能力与窗口均保持。原231条Models unknown、3条Action unknown和1500退役记录保持，本次新增unknown=0。执行事实计数912→916随自然业务变化，不宣称该表摘要相同；repair grants原5份摘要保持。
+- 主旧probe timeout_unknown未重发，未知容量仍unknown，已入账/提交/unknown不另起备用；本轮只覆盖准入选路及无候选恢复，不声明Memory本地错误、日记对账或全部成长支路已修复。
+
+完整本机证据：C:/YOKI/Codex/tianshu-peiban-bot/.runtime/model-route-fallback-release-20261107/。包括validation-final.json、test-pg-cleanup.json、build-result.json、release-status.json、final-health.json、preservation.json、conversation-before.json、conversation-after.json、execution-final.json。

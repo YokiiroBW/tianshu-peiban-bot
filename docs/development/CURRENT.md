@@ -1,3 +1,9 @@
+# 2026-11-07 模型准入自动回退已发布，原会话实际送达
+
+线上产品b3c76eee（镜像bc06e3b3123c），18:19六角色ready/HTTP200/0重启无OOM，7个安装模块SHA256与Git匹配。主路由能力/协议/已知容量不符合时按配置顺序选择合格备用；容量未知仍保留unknown并允许原预算有界尝试，全部无候选则明确等待、停止空转，现有前台maintenance检查后唤醒原ID。41个不同定向用例有效通过（40复用+1测试断言补修单项通过），临时PG及凭据回收，无迁移或绑定/配置修改。
+
+原turn377c076d/attempt fc59d93f在18:17:54自然选择第一备用Gemini3.8，18:18:01模型成功，18:18:07上下文消费，18:18:08 send_private_msg confirmed，18:18:13会话completed且expression delivered。没有人工QQ/模型测试或重放。配置/11挂载/另2容器/代际、1500退役与原231 Models unknown/3Action unknown保持，本次新增unknown0。该原会话阻塞已实际解除；Memory本地失败、日记对账等独立问题仍另列。详见docs/handoffs/MODEL-ROUTE-FALLBACK-20261107.md；下方为历史阶段。
+
 # 2026-11-07 显式备用能力检测补修发布与真实登记完成
 
 线上产品2821fa3a（镜像7b2a95079d3a），六角色ready、HTTP200、0重启/OOM，安装catalog SHA256与Git一致。源修复e8a5109f仅调整授权显式probe目标解析，8项定向PG通过且临时PG/凭据已回收。两个备用各两轮真实tools检测成功并由正式handler登记，Gemini3.8 revision1→2、DeepSeek4.1 revision2→3；主Gemini4原timeout_unknown未重发/未登记，未改绑定或填造窗口。
