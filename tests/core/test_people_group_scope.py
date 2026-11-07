@@ -79,6 +79,8 @@ async def test_group_claim_category_filters_do_not_mix_people_or_other_groups(co
     from tianshu.types import OriginKind
 
     group = await group_for(core, core.actor, "one", ["alice"])
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE identity.principals SET person_id='alice' WHERE principal_id=%s", (core.owner.principal_id,))
     refs = await core.sources.record_event(group, producer="web", event_id="group-notes", revision=1,
         occurred_at=datetime.now(UTC), parts=({"text": "猫粮指群里分享的猫照片。群里常聊养猫。"},), origin_kind=OriginKind.HUMAN)
     async with core.database.transaction() as conn:
@@ -88,9 +90,37 @@ async def test_group_claim_category_filters_do_not_mix_people_or_other_groups(co
         ):
             await core.claims.put_on(conn, group, {"subject_id": "group:" + group.conversation_id,
                 "predicate": predicate, "value": value, "memory_kind": memory_kind,
-                "assertion": "inferred", "source_refs": refs}, automatic=True)
+                "assertion": "inferred", "speaker_id": "alice", "source_refs": refs}, automatic=True)
     terms = await core.claims.list(group, subject_id="group:" + group.conversation_id, predicate="language.term_meaning", limit=1)
     impressions = await core.claims.list(group, subject_id="group:" + group.conversation_id, exclude_predicate="language.term_meaning", limit=1)
     assert [item.predicate for item in terms.items] == ["language.term_meaning"]
     assert [item.predicate for item in impressions.items] == ["group.impression"]
     assert terms.next_cursor is None and impressions.next_cursor is None
+
+
+async def test_group_insights_reads_authorized_sql_records_and_hides_withdrawn_sources(core):
+    from datetime import UTC, datetime
+    from importlib.resources import files
+    from types import SimpleNamespace
+
+    from tianshu.conversation.codec import document
+    from tianshu.conversation.group_insights import group_insights
+    from tianshu.runtime.migrations import Migration, migrate
+    from tianshu.types import OriginKind
+
+    await migrate(core.database, (Migration("0032_conversation", files("tianshu.conversation").joinpath("schema.sql").read_text()),))
+    group = await group_for(core, core.actor, "one", ["alice"])
+    refs = await core.sources.record_event(group, producer="web", event_id="heat", revision=1,
+        occurred_at=datetime.now(UTC), parts=({"kind": "text", "text": "猫粮"},), origin_kind=OriginKind.HUMAN)
+    async with core.database.transaction() as conn:
+        await conn.execute("INSERT INTO conversation.messages(actor_id,conversation_id,speaker,parts,source_refs,scope_ids) "
+            "VALUES(%s,%s,'user',%s,%s,%s)", (core.actor, group.conversation_id,
+            document([{"kind": "text", "text": "猫粮"}]), document(refs), list(group.scope_ids)))
+    service = SimpleNamespace(database=core.database, identity=core.identity, sources=core.sources)
+    result = await group_insights(service, group, {"days": 7})
+    assert result["message_count"] == 1 and result["topics"][0]["label"] == "猫粮"
+    assert result["coverage"].complete
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE sources.originals SET state='retracted' WHERE source_id=%s", (refs[0].source_id,))
+    hidden = await group_insights(service, group, {"days": 7})
+    assert hidden["message_count"] == 0 and not hidden["coverage"].complete

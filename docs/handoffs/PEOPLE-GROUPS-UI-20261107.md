@@ -2,7 +2,7 @@
 
 本地候选分支：`codex/people-groups-20261107`；基线 `2e03ab0a803f6da9560be853ebea7903409063b3`。
 工作树：`C:/Users/Administrator/.codex/worktrees/people-groups-20261107/tianshu-peiban-bot`。
-尚未合入协调工作树、推送或部署；没有生产读写、数据库迁移、真实模型或聊天调用。
+用户已授权提交部署。产品提交 `bac6eea59ac2910721716452845b37b462969441` 已快进合入协调分支并推送；当前发布阶段以文末记录为准。无数据库迁移或真实模型/聊天测试。
 
 ## 已实现
 
@@ -25,7 +25,7 @@
 - 人格用例从全新页面进入，检查正文占满表单宽度、字段纵向排列、无横向溢出、保存时完整正文/其他字段保持、原角色固定修订不被自动改写。
 - Python 定向运行 32 通过、6 失败、6 跳过。其中新增群统计 9 项通过。
 - 6 个失败均在原工作树相同基线复现：`test_input_layout_change_rearms_only_a_known_blocked_receipt`、4 个 `test_truncation_limits_apply_only_to_the_same_unadvanced_source_prefix`、`test_group_partition_ignores_current_speaker_and_keeps_authority_domain`。涉及旧恢复夹具/已变化接口，本批未修改这些恢复实现。
-- 缺少明确隔离 PG DSN，新增 `tests/core/test_people_group_scope.py` 4 项和既有 Scene 的 2 项 PG 用例跳过，不能称数据库权限/保存链已实测通过。新增 PG 用例覆盖跨角色列表与分页、群成员准入及撤销、私有关系设置与权限、黑话/印象筛选。
+- 部署前在本聊天独占的临时 PG/vector 容器补验：8 个不同用例通过（新增范围 5 项、既有 Scene 3 项）。覆盖跨角色列表与分页、群成员准入及撤销、私有关系设置与权限、黑话/印象筛选，以及群热度真实 SQL 读取与来源撤回隐藏。修正黑话测试夹具的已核验发言作者，未放宽产品的来源要求。
 - 页面统计最多读取最近 1000 条当前可读消息，并显示不完整范围；关系图最多展示 60 位成员。关键词点云的连线表示原消息共现，成员连线表示核验的提及/回复次数。
 - 未整理出有来源的黑话/群印象时显示空状态，不凭空填充群结论。经历网页列表使用显式场景筛选；后台领域原有 `episodes_since/between` 默认消费范围保持。
 - 浏览器图片是拦截 API 的合成界面验收，位于本工作树 `.runtime/people-groups-ui/`，不代表线上真实群数据验收。
