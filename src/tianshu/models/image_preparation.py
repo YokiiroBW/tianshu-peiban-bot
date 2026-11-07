@@ -71,10 +71,9 @@ def _encoded(image, *, lossless, quality=None):
         return output.getvalue(), "image/jpeg"
 
 
-def _image_copy(files, media, target, *, scale):
-    """Return the smallest bounded-quality candidate, never a flattened animation."""
+def _image_copy(files, media, *, scale, quality):
+    """Prepare one batch-wide quality stage, never a flattened animation."""
     raw = files.read_bytes(media)
-    best = None
     try:
         with Image.open(BytesIO(raw)) as source:
             if getattr(source, "is_animated", False):
@@ -95,16 +94,9 @@ def _image_copy(files, media, target, *, scale):
                         )
                         image.close()
                         image = resized
-                    for quality in (None, *_QUALITIES):
-                        try:
-                            data, mime = _encoded(image, lossless=quality is None, quality=quality)
-                        except (OSError, ValueError):
-                            continue
-                        if len(data) < len(raw) and (best is None or len(data) < len(best.data)):
-                            best = _ImageCopy(data, mime, *image.size,
-                                              quality is None, quality, scale)
-                        if best is not None and len(best.data) <= target:
-                            return best
+                    data, mime = _encoded(image, lossless=quality is None, quality=quality)
+                    if len(data) < len(raw):
+                        return _ImageCopy(data, mime, *image.size, quality is None, quality, scale)
                 finally:
                     image.close()
             finally:
@@ -114,7 +106,7 @@ def _image_copy(files, media, target, *, scale):
         # Other images can still supply enough savings. Never omit this image
         # or quietly lower the quality floor to make a request appear to fit.
         return None
-    return best
+    return None
 
 
 def prepare_inline_images(files, request, *, byte_limit=MAX_INLINE_MEDIA_BYTES):
@@ -148,21 +140,21 @@ def prepare_inline_images(files, request, *, byte_limit=MAX_INLINE_MEDIA_BYTES):
                 counts[key] += 1
     order = sorted(images, key=lambda key: -images[key].size_bytes)
     prepared = {}
-    # Try all useful full-resolution savings before reducing any dimensions.
+    # Complete each quality stage for the whole batch before lowering quality.
+    # Savings from another image may make any lossy conversion unnecessary.
     for scale in (1.0, *_SCALES):
-        for key in order:
+        for quality in (None, *_QUALITIES):
+            for key in order:
+                if total <= byte_limit:
+                    break
+                media = images[key]
+                current_size = len(prepared[key].data) if key in prepared else media.size_bytes
+                candidate = _image_copy(files, media, scale=scale, quality=quality)
+                if candidate is not None and len(candidate.data) < current_size:
+                    prepared[key] = candidate
+                    total -= (current_size - len(candidate.data)) * counts[key]
             if total <= byte_limit:
                 break
-            media = images[key]
-            current_size = len(prepared[key].data) if key in prepared else media.size_bytes
-            image_total = sum((len(prepared[k].data) if k in prepared else images[k].size_bytes)
-                              * counts[k] for k in images)
-            available = max(0, byte_limit - (total - image_total))
-            target = max(1, current_size * available // max(1, image_total))
-            candidate = _image_copy(files, media, target, scale=scale)
-            if candidate is not None and len(candidate.data) < current_size:
-                prepared[key] = candidate
-                total -= (current_size - len(candidate.data)) * counts[key]
         if total <= byte_limit:
             break
     if total > byte_limit:

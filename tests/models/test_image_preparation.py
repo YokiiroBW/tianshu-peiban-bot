@@ -112,6 +112,34 @@ def test_full_resolution_high_quality_encoding_precedes_any_resizing(tmp_path):
     image.close()
 
 
+def test_combined_lossless_savings_are_used_before_lowering_any_image_quality(tmp_path):
+    files = FileStore(tmp_path)
+    texture = Image.frombytes("L", (768, 768), random.Random(731).randbytes(768 * 768)).convert("RGB")
+    output = BytesIO()
+    texture.save(output, format="PNG", compress_level=0)
+    photo = replace(files.put_bytes(output.getvalue(), media_type="image/png"), media_id="source:photo:1")
+    graphic = replace(picture(files, size=(640, 640)), media_id="source:graphic:1")
+    texture.close()
+    lossless_sizes = []
+    for media in (photo, graphic):
+        with Image.open(BytesIO(files.read_bytes(media))) as image:
+            encoded = BytesIO()
+            image.save(encoded, format="WEBP", lossless=True, method=1, exact=True)
+            lossless_sizes.append(len(encoded.getvalue()))
+    limit = sum(lossless_sizes) + 1024
+    assert lossless_sizes[0] + graphic.size_bytes > limit
+    assert photo.size_bytes + lossless_sizes[1] > limit
+    original = request((ModelPart("image", media=photo), ModelPart("image", media=graphic)))
+    prepared, selected_files, facts = prepare_inline_images(files, original, byte_limit=limit)
+    assert facts["prepared_bytes"] <= limit
+    assert len(facts["images"]) == 2
+    assert all(item["lossless_encoding"] and item["scale"] == 1 for item in facts["images"])
+    for before, after in zip(original.messages[0].parts, prepared.messages[0].parts, strict=True):
+        with Image.open(BytesIO(files.read_bytes(before.media))) as source, Image.open(
+                BytesIO(selected_files.read_bytes(after.media))) as decoded:
+            assert source.convert("RGB").tobytes() == decoded.convert("RGB").tobytes()
+
+
 def test_unrealistic_target_does_not_turn_small_text_into_a_tiny_thumbnail(tmp_path):
     files = FileStore(tmp_path)
     media = picture(files)
