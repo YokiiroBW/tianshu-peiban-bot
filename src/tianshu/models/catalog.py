@@ -184,6 +184,9 @@ class ModelCatalog:
         ):
             raise AppError("invalid_model_budget")
         validate_timing(request)
+        probing = request.capability_probe and bool(
+            {"*", "models.probe", "models.manage"} & request.context.permissions
+        )
         async with self.database.transaction(waiting_budget(request), read_only=True) as conn:
             binding = None
             if frozen_attempt is not None:
@@ -233,7 +236,9 @@ class ModelCatalog:
             primary = row
             selection_reason = "selected_binding"
             primary_route_id = route_id
-            if (binding and request.route_id in binding["fallback_routes"]
+            # An authorized probe tests its explicit target, rather than moving
+            # a business request from the bound primary to a configured fallback.
+            if (binding and not probing and request.route_id in binding["fallback_routes"]
                     and request.route_id != binding["route_id"]):
                 primary_route_id = binding["route_id"]
                 selection_reason = "configured_fallback_selected"
@@ -318,9 +323,6 @@ class ModelCatalog:
                 selection_reason != "selected_binding" or frozen_attempt is not None
                 and (not request.route_id or request.allow_configured_fallback)):
             raise AppError("native_protocol_mismatch", status=422)
-        probing = request.capability_probe and bool(
-            {"*", "models.probe", "models.manage"} & request.context.permissions
-        )
         if request.required_capabilities - set(row["verified_capabilities"]) and not probing:
             raise AppError(
                 "model_capability_unverified",

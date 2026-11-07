@@ -113,3 +113,49 @@ async def test_fixed_route_and_revision_do_not_change_quota_when_primary_is_cool
                            "WHERE function='reflect' AND service_class='elastic' AND actor_id='actor'")
     with pytest.raises(AppError, match="model_route_binding_changed"):
         await broker.generation_profile(frozen)
+
+
+@pytest.mark.parametrize("permissions", [
+    frozenset({"models.manage"}),
+    frozenset({"models.route", "models.probe"}),
+    frozenset({"*"}),
+])
+async def test_explicit_capability_probe_uses_target_without_business_fallback_evidence(rb_database, permissions):
+    await seed_routes(rb_database)
+    async with rb_database.transaction() as conn:
+        await conn.execute("UPDATE models.routes SET verification=NULL WHERE route_id='r2'")
+        await conn.execute("UPDATE models.providers SET protocol='gemini.generate' WHERE provider_id='p2'")
+    original = request()
+    probe = replace(original, context=replace(original.context, permissions=permissions),
+        route_id="r2", route_revision=1, protocol="gemini.generate", capability_probe=True,
+        required_capabilities=frozenset({"tools"}))
+    broker = ModelBroker(rb_database, None, None)
+    profile = await broker.generation_profile(probe)
+    assert (profile["route_id"], profile["route_revision"], profile["quota_group"]) == (
+        "r2", 1, "backup-quota")
+    plan = await broker.catalog.resolve(probe)
+    assert (plan.primary_route_id, plan.primary_protocol) == ("r2", "gemini.generate")
+    async with rb_database.transaction(read_only=True) as conn:
+        row = await (await conn.execute(
+            "SELECT verification,verified_capabilities FROM models.routes WHERE route_id='r2'")).fetchone()
+    assert row["verification"] is None and row["verified_capabilities"] == ["text"]
+
+
+@pytest.mark.parametrize("probe_flag", [False, True])
+async def test_business_fallback_or_unprivileged_probe_still_requires_context_evidence(rb_database, probe_flag):
+    await seed_routes(rb_database)
+    async with rb_database.transaction() as conn:
+        await conn.execute("UPDATE models.routes SET verification=NULL WHERE route_id='r2'")
+    original = request()
+    frozen = replace(original, route_id="r2", route_revision=1, capability_probe=probe_flag)
+    with pytest.raises(AppError, match="model_fallback_context_unverified"):
+        await ModelBroker(rb_database, None, None).generation_profile(frozen)
+
+
+async def test_explicit_capability_probe_keeps_route_revision_fence(rb_database):
+    await seed_routes(rb_database)
+    original = request()
+    probe = replace(original, context=replace(original.context, permissions=frozenset({"models.manage"})),
+        route_id="r2", route_revision=2, capability_probe=True)
+    with pytest.raises(AppError, match="model_route_revision_conflict"):
+        await ModelBroker(rb_database, None, None).generation_profile(probe)
