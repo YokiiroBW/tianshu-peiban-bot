@@ -45,3 +45,13 @@ TokenPlan DSF 沿用 OpenAI Chat、`https://token.sensenova.cn/v1`、`deepseek-f
 商汤 TokenPlan 文档确认视频仅可走 Chat Completions，但未给完整视频字段示例。
 本批扩展通用兼容传输并提供真实视频测试入口，**尚未验证商汤 DSF 服务端是否接受这一扩展或当前账号能否使用视频**。
 不通过测试的能力不会登记；不将旧版 SenseCore 字符串字段/响应包装套在 TokenPlan 接口上。
+
+## 协调者最终验证与发布
+
+唯一生产写者已上线c542e702b04897bd48cf549641e1caeba0a5c99c，镜像sha256:3a258b68c35512ff2392498a296fb9a371c1c91ed83be8b119ed2bdac50bb3b8，容器34cfaae64941d63119ea419abb1d5fc6e0cee978d333070867b77cfa1ec1f0d4。北京时间2026-11-07 10:34:18六角色ready、HTTP200、0重启/无OOM，守护与watcher active，配置SHA/11挂载/代际/其他2容器保持。无依赖/配置/迁移或本批备份，不做真实模型/QQ测试。
+
+缺少6个PG用例已在新专用pgvector实例全部通过，0失败/错误/跳过；此前78 Python、4UI有效结果复用。不可变镜像构建通过；同Linux镜像network none离线生成PNG5898/WAV272044/MP4 7469字节，确认PyAV/libx264；实际安装configuration返回6协议测试目录、8供应商/13路由，8模块SHA与提交一致。没有调用route probe，DSF服务端视频扩展和账号支持继续未验证。
+
+Models供应商/路由/绑定/容量组摘要、1500退役元数据、604执行facts及5grant摘要一致，原75条unknown Models与3条unknown Action逐对象不变。运行中新增两条Life规划unknown：60b8cece...在10:31提交、10:33:22因broker_stopping；ceafebe4...在09:23提交、10:33:34被标broker_restarted_after_submit。两条有sent_or_unknown事实，保留原请求/回执/预算，不重放或推断未发送/未计费，不把部署健康称业务完成。普通聊天准入/超时、日记对账仍是独立范围。
+
+临时PG f6677d5e...在0测试库/0其他客户端后，核对owner/精确ID及独立挂载销毁；目录及本地临时凭据已删除。精确回执：协调者.runtime/model-capability-release-20261107/execution-final.json、execution-receipt.md、probe-pg-validation.json、preservation-verification.json、catalogue-readback.json、offline-image-readback.json及test-pg-cleanup.json。

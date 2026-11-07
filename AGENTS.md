@@ -1,3 +1,9 @@
+# 2026-11-07 模型能力测试及DSF续接修复已部署
+
+线上c542e702b04897bd48cf549641e1caeba0a5c99c（镜像3a258b68c355），北京时间10:34:18六角色ready、HTTP200、0重启/无OOM。逐项工具/图片/音频/视频/JSON/嵌入/重排序测试及通过登记、DSF私有reasoning_content工具续接和有限上游错误分类已上线。原78 Python/4桌面手机用例复用，根仅补6个PG用例全部通过；同Linux镜像离线多模态样本及实际能力目录读回通过，8个安装模块SHA匹配。没有实际模型/QQ或商汤视频账号验收。
+
+配置/代际/11挂载/其他2容器、Models配置摘要、1500退役记录、原75模型unknown和3Action unknown、执行证明均保持；无新迁移。切换时两条life.plan分别因broker_stopping/提交后重启转unknown，已单独保留、未重放，不能称业务全收敛。本批不修普通聊天准入/超时或日记对账。专用PG及临时凭据已回收。详见docs/handoffs/MODEL-CAPABILITY-PROBES-20261107.md；下方为历史阶段。
+
 # 2026-11-07 失败工作退役与旧告警归档已执行
 
 唯一生产写者01a1ac6f-8494-7f82-8c4d-ec7d285f44ae已串行上线f9a98a8a45792f782ba85badac1259ebb1f0c777（镜像310a8b825c44）。北京时间03:11:51六角色ready、HTTP200、0重启/无OOM，配置/11挂载/代际/其他2容器保持。新增唯一user_work_retirement增量迁移，只追加管理退役元数据；原1730候选中实际Runtime968、Memory450、Growth14、Operations68，共1500，另230因unknown/执行证明/CAS或非终态保护保留。经历原文、失败账本、原请求/回执/预算与74条原及75条当前模型unknown、3条Action unknown保持；归档不等于resolved。
