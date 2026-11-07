@@ -241,9 +241,13 @@ test("role administrator binding is available after basic profile and can be rev
       { principal_id: "owner", display_name: "YOKI", username: "owner" },
     ],
   });
-  await page.route(apiPath("identity/role-administrator"), (route) =>
-    answer(route, current()),
-  );
+  await page.route(apiPath("identity/role-administrator"), (route) => {
+    expect(route.request().method()).toBe("GET");
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get("actor_id")).toBe("actor");
+    expect(query.get("person_id")).toBe("alice");
+    return answer(route, current());
+  });
   await page.route(apiPath("identity/role-administrator.save"), (route) => {
     const body = route.request().postDataJSON();
     expect(body).toMatchObject({
