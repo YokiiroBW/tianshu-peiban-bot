@@ -76,6 +76,7 @@ def create_module(service, expression, identity, result_consumer, renderer):
 
     async def maintenance(_runtime):
         await result_consumer.reconcile_due(limit=32)
+        await service.resume_model_admissions(limit=32)
 
     return DomainModule("conversation", register, start=start, register_tasks=tasks,
         maintenance=maintenance, maintenance_roles=("bot-foreground",),

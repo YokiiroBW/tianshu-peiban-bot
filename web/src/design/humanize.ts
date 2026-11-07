@@ -102,6 +102,7 @@ const codeNames: Record<string, string> = {
   enabled: "已启用",
   ready: "已就绪",
   unavailable: "当前不可用",
+  model_no_compatible_route: "当前没有符合请求要求的模型，等待配置更新",
   not_recorded: "未记录",
   not_started: "尚未提交",
   submitted: "已提交",
