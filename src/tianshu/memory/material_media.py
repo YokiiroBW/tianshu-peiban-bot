@@ -2,10 +2,8 @@
 
 import json
 
-from tianshu.models.budgets import MAX_INLINE_MEDIA_BYTES
 from tianshu.runtime.serialization import wire
 from tianshu.types import MediaRef
-
 
 IMAGE_MIME_TYPES = frozenset({"image/png", "image/jpeg", "image/webp", "image/gif"})
 STRUCTURAL_PARTS = frozenset({"reply", "mention", "mention_all", "reference"})
@@ -54,9 +52,6 @@ def read_view(read):
             image=None
         elif size<0:
             missing.add("image_size_invalid")
-            image=None
-        elif size>MAX_INLINE_MEDIA_BYTES:
-            missing.add("image_inline_limit_exceeded")
             image=None
     if image is None and (kind == "image" or mime.startswith("image/")):
         # Failed image intake is stored as transport JSON, potentially paged in

@@ -127,7 +127,11 @@ class ModelBroker:
                     actual, refs = await self.media_resolver(request.context, part.media)
                     if actual.size_bytes is None:
                         raise AppError("media_size_unknown", status=422)
-                    inline_bytes += actual.size_bytes
+                    # Image bytes are fitted by the shared compiler, in its
+                    # existing bounded preparation thread. Ownership and the
+                    # frozen request keep the original media reference.
+                    if part.kind != "image":
+                        inline_bytes += actual.size_bytes
                     count += 1
                     if inline_bytes > MAX_INLINE_MEDIA_BYTES or count > MAX_INLINE_MEDIA_PARTS:
                         raise AppError("model_inline_media_budget_exceeded", status=413)
@@ -878,7 +882,9 @@ class ModelBroker:
             await self.ledger.record_wire(request.attempt_id, digest(call.body),
                 {"route_id": plan.route_id, "quota_domain": plan.quota_group,
                  "protocol": plan.protocol, "primary_route_id": plan.primary_route_id,
-                 "reason": plan.selection_reason})
+                 "reason": plan.selection_reason,
+                 **({"image_preparation": call.image_preparation}
+                    if getattr(call, "image_preparation", None) else {})})
             policy = self.scheduler.policies[plan.quota_group]
             age = ((datetime.now(UTC) - row["queued_at"]).total_seconds()
                    if row.get("queued_at") is not None else 0)

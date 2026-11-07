@@ -4,14 +4,16 @@ from __future__ import annotations
 
 import base64
 import json
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any
 from urllib.parse import quote, urlsplit
 
 from tianshu.runtime.errors import AppError
-from .types import ModelPart, ModelUsage
+
+from .budgets import effective_output_tokens, merged_parameters, with_output_tokens
+from .image_preparation import prepare_inline_images
 from .transport import provider_headers, validate_provider_session
-from .budgets import effective_output_tokens, with_output_tokens, merged_parameters
+from .types import ModelPart, ModelUsage
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +21,7 @@ class NativeCall:
     url: str
     headers: dict[str, str]
     body: dict[str, Any]
+    image_preparation: dict[str, Any] | None = None
 
 
 def chat_video_part(uri):
@@ -119,6 +122,15 @@ class NativeCompiler:
         return value
 
     def compile(self, plan, request, *, stream, api_key=None):
+        prepared, files, facts = prepare_inline_images(self.files, request)
+        if facts is None:
+            return self._compile(plan, request, stream=stream, api_key=api_key)
+        compiler = NativeCompiler(files, self.secrets)
+        compiler.session_generation = self.session_generation
+        return replace(compiler._compile(plan, prepared, stream=stream, api_key=api_key),
+                       image_preparation=facts)
+
+    def _compile(self, plan, request, *, stream, api_key=None):
         parsed = urlsplit(plan.base_url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname or parsed.username:
             raise AppError("invalid_provider_base_url")

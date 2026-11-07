@@ -12,7 +12,7 @@ from psycopg.types.json import Jsonb
 
 from tianshu.models.types import ModelMessage, ModelPart, ModelRequest
 from tianshu.models.codec import request_from_wire
-from tianshu.models.budgets import MAX_INLINE_MEDIA_BYTES, MAX_INLINE_MEDIA_PARTS
+from tianshu.models.budgets import IMAGE_PREPARATION_POLICY, MAX_INLINE_MEDIA_PARTS
 from tianshu.runtime.commands import body_hash
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.database import classify_database_failure
@@ -597,9 +597,11 @@ class Consolidation:
         images = [part.media for message in messages for part in message.parts if part.kind == "image" and part.media]
         invalid_sizes = sum(type(media.size_bytes) is not int or media.size_bytes < 0 for media in images)
         media_bytes = sum(media.size_bytes for media in images if type(media.size_bytes) is int and media.size_bytes >= 0)
-        if invalid_sizes or media_bytes > MAX_INLINE_MEDIA_BYTES or len(images) > MAX_INLINE_MEDIA_PARTS:
+        # Models fits authorized image copies before compiling native bytes.
+        # Reject invalid metadata/count here, not the originals' aggregate size.
+        if invalid_sizes or len(images) > MAX_INLINE_MEDIA_PARTS:
             raise AppError("memory_consolidation_input_budget", details={
-                "media_bytes":media_bytes,"media_bytes_limit":MAX_INLINE_MEDIA_BYTES,
+                "media_bytes":media_bytes,"image_preparation":IMAGE_PREPARATION_POLICY,
                 "media_parts":len(images),"media_parts_limit":MAX_INLINE_MEDIA_PARTS,"media_size_invalid":invalid_sizes,
                 "new_characters":sum(len(item["text"]) for item in payload["materials"] if item["role"]=="new")})
         instruction = consolidation_instruction(frozen)
@@ -943,6 +945,7 @@ class Consolidation:
         # These settings determine the smallest complete input we can prepare.
         # Scheduling changes alone do not make a rejected input fit its budget.
         return {**self._budget_record(),"input_layout":"consolidation-fitted-materials-v3",
+            "image_preparation":IMAGE_PREPARATION_POLICY,
             **{name:getattr(self.policy,name) for name in
             ("max_episodes","max_subjects","max_materials","max_old_records",
              "context_messages","max_source_characters","time_zone")}}

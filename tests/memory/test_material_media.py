@@ -250,7 +250,6 @@ async def test_paged_missing_image_metadata_never_becomes_a_text_fact():
 @pytest.mark.asyncio
 @pytest.mark.parametrize(("size", "missing"), [
     (None, "image_size_unknown"), (-1, "image_size_invalid"),
-    (MAX_INLINE_MEDIA_BYTES+1, "image_inline_limit_exceeded"),
 ])
 async def test_single_unusable_image_does_not_poison_other_text_in_the_batch(size, missing):
     image = original("oversized", mime="image/png")
@@ -263,6 +262,23 @@ async def test_single_unusable_image_does_not_poison_other_text_in_the_batch(siz
     assert frozen["materials"]["m1"]["evidence_kind"] == "reference"
     assert material_capabilities(frozen) == frozenset({"text"})
     assert all(part.kind != "image" for part in model_messages(frozen, selected.policy)[0].parts)
+
+
+@pytest.mark.asyncio
+async def test_large_original_is_kept_for_shared_models_image_preparation():
+    from tianshu.memory.consolidation import Consolidation
+
+    image = original("compressible-original", mime="image/png")
+    image["media"]["size_bytes"] = MAX_INLINE_MEDIA_BYTES + 1
+    selected = builder((image,))
+    frozen = await selected.build(CONTEXT, [episode(1, [image])], "batch_large_image")
+    assert "image_inline_limit_exceeded" not in frozen["episodes"][0]["missing"]
+    assert material_capabilities(frozen) == frozenset({"text", "vision"})
+    pipeline = Consolidation(SimpleNamespace(database=None, identity=None, sources=None, jobs=None))
+    pipeline.policy, pipeline.counter = selected.policy, TokenCounter()
+    model_request = pipeline._request(CONTEXT, frozen, "batch_large_image:step:0")
+    assert next(part.media for part in model_request.messages[0].parts if part.kind == "image").size_bytes == MAX_INLINE_MEDIA_BYTES + 1
+    assert pipeline._input_budget_record()["image_preparation"]
 
 
 @pytest.mark.asyncio

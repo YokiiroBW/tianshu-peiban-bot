@@ -5,6 +5,7 @@ from tianshu.runtime.errors import AppError
 BACKGROUND_INPUT_TOKENS = 200000
 MAX_INLINE_MEDIA_BYTES = 32 * 1024 * 1024
 MAX_INLINE_MEDIA_PARTS = 128
+IMAGE_PREPARATION_POLICY = "detail-preserving-images-v1"
 
 
 def merged_parameters(plan, request):
