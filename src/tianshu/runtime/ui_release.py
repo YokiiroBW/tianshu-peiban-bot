@@ -348,7 +348,7 @@ def verify_release_directory(
         if not has_versioned_base:
             raise ValueError("entrypoint_base_mismatch")
         other_match = re.search(
-            r"/_ui/releases/(?!" + re.escape(build_id) + r"/)[^/"'\s]+/",
+            "/_ui/releases/(?!" + re.escape(build_id) + "/)[^/\"'\\s]+/",
             index_text,
         )
         if other_match:

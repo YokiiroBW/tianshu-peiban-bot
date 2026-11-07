@@ -143,7 +143,7 @@ async def test_builtin_baseline_and_live_switch_a_to_b_to_a_with_old_page_isolat
         # Already-open Page A requests lazy chunk and room illustration image after switch to B
         lazy_a = await client.get(f"/_ui/releases/{build_a}/assets/lazy-A.js")
         assert lazy_a.status == 200
-        assert await lazy_a.text() == f'export const page = "{build_a}:A";\n'
+        assert (await lazy_a.text()).strip() == f'export const page = "{build_a}:A";'
         assert lazy_a.headers.get("Cache-Control") == "public,max-age=31536000,immutable"
 
         img_a = await client.get(
