@@ -1,3 +1,9 @@
+# 2026-11-07 模型测试旧回执版本补修已部署
+
+线上b872affa1920fa67897a880200dbec42d97b9aba（镜像e52273f78cb8）包含914fa1d0补修，北京时间2026-11-07 10:45:29六角色ready、HTTP200、0重启/无OOM。原测试回执必须匹配attempt/intent/route/revision/protocol，防止登记CAS失败后同号旧回执给新配置登记；不改probe_id或预算、不新发模型。配置/代际/11挂载/其他2容器保持。
+
+新增3边界通过，probe文件34项及其它未变有效结果复用，合计87不同Python与4UI；实际目录和8模块SHA匹配。1500退役元数据/Models配置/原77模型unknown/3Action unknown与原666执行事实摘要保持，另有正常完成事实追加。前次2条Life规划unknown继续未决，DSF真实视频/账号、聊天准入和日记缺口仍独立保留。详见docs/handoffs/MODEL-CAPABILITY-PROBES-20261107.md；下方为历史阶段。
+
 # 2026-11-07 模型能力测试及DSF续接修复已部署
 
 线上c542e702b04897bd48cf549641e1caeba0a5c99c（镜像3a258b68c355），北京时间10:34:18六角色ready、HTTP200、0重启/无OOM。逐项工具/图片/音频/视频/JSON/嵌入/重排序测试及通过登记、DSF私有reasoning_content工具续接和有限上游错误分类已上线。原78 Python/4桌面手机用例复用，根仅补6个PG用例全部通过；同Linux镜像离线多模态样本及实际能力目录读回通过，8个安装模块SHA匹配。没有实际模型/QQ或商汤视频账号验收。

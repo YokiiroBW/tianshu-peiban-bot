@@ -55,3 +55,11 @@ TokenPlan DSF 沿用 OpenAI Chat、`https://token.sensenova.cn/v1`、`deepseek-f
 Models供应商/路由/绑定/容量组摘要、1500退役元数据、604执行facts及5grant摘要一致，原75条unknown Models与3条unknown Action逐对象不变。运行中新增两条Life规划unknown：60b8cece...在10:31提交、10:33:22因broker_stopping；ceafebe4...在09:23提交、10:33:34被标broker_restarted_after_submit。两条有sent_or_unknown事实，保留原请求/回执/预算，不重放或推断未发送/未计费，不把部署健康称业务完成。普通聊天准入/超时、日记对账仍是独立范围。
 
 临时PG f6677d5e...在0测试库/0其他客户端后，核对owner/精确ID及独立挂载销毁；目录及本地临时凭据已删除。精确回执：协调者.runtime/model-capability-release-20261107/execution-final.json、execution-receipt.md、probe-pg-validation.json、preservation-verification.json、catalogue-readback.json、offline-image-readback.json及test-pg-cleanup.json。
+
+## 同号旧回执版本补修上线
+
+追加914fa1d0的原回执attempt/intent/route/revision/protocol校验，防止首轮成功但登记CAS失败后，同client_request_id+新revision复用旧证据登记新配置。不一致409且不新发模型，不改原probe_id或预算。新增3纯回归边界通过，probe文件34项及此前未变6PG/其它结果适用，合计87不同Python与4UI。
+
+最终线上b872affa1920fa67897a880200dbec42d97b9aba，镜像sha256:e52273f78cb863e2ee7098aaa31759683e9671392659ea94037acefea291a78e，容器68e2049621cf8a10dece99f229407a82de762d14c6f30df9c65e5fc1a05d2fe1。北京时间2026-11-07 10:45:29六角色ready/HTTP200/0重启，守护watcher active；配置/代际/11挂载/其他2容器保持。实际目录读回和8模块SHA匹配。Models配置、1500退役元数据、原77模型unknown/3Action unknown与5grant摘要保持，本轮无新增unknown；原666执行事实完整摘要复核一致，另有正常history_complete/completed事实追加。
+
+没有新迁移、模型/QQ调用或重放。前次2条Life unknown仍未决，DSF真实视频/账号支持、聊天准入/超时与日记对账仍是独立范围。精确回执：协调者.runtime/model-capability-fence-release-20261107/execution-final.json、execution-receipt.md、preservation-verification.json、proof-growth-observation.json、catalogue-readback.json、final-receipt.json。
