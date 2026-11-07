@@ -1,3 +1,9 @@
+# 2026-11-08 SnowLuma 统一内部接口已部署
+
+用户明确授权“推送部署吧，然后项目放一份接口文档”。本聊天串行上线 `40e32ff1cc5c35e6710622940664ed4ab7cf416b`，镜像 `1b048f5e79f1`，已合入最终订阅概览补修42251a33和全部此前已上线功能。北京时间01:05:25六角色ready、HTTP200、0重启/无OOM，容量守护healthy、守护及巡检active。两条实际SnowLuma连接只读目录各222动作/213可执行/6别名，9上游占位明确拒绝；统一调用入口为product.channels.native及插件channels.native，复用原Actions/Expression/Channels/FileStore。开发文档在 `docs/development/snowluma-native-interfaces.md`，README有入口。
+
+59个不同定向用例及未变有效结果复用，223官方示例、schema和wheel资源检查通过；3个旧管理页mock签名错误在原代码复现。20安装文件及5网页入口资源SHA匹配，配置文件/两连接/15媒体配置/模型绑定/代际/迁移登记/11挂载/其他2容器保持。原245模型unknown和4Action unknown关键事实保持；切换中memory.extract因broker_stopping新增1模型unknown、media.acquire因interrupted新增1Action unknown，原回执保留、未重放，不能称业务全收敛。无新迁移或QQ/模型测试。详见 `docs/handoffs/SNOWLUMA-INTERFACES-20261108.md`；下方为历史阶段。
+
 # 2026-11-08 订阅扫描修复已部署
 
 用户明确授权“部署吧”。本聊天串行上线 `ec917b0484c110a6e7f75647f31fb4c1bd1208b6`，镜像 `e1852f8a42c1`；北京时间00:43:35六角色ready、HTTP200、0重启/无OOM，守护及巡检active。保留私聊/管理员入口及所有已提交功能，未带入根目录SnowLuma未提交修改。视频来源/参数/PG批量基线、音乐授权自动调度与真实失败呈现、书籍暂停恢复和unknown/预算保护已上线。
