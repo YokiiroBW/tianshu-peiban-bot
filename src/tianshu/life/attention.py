@@ -46,7 +46,7 @@ class AttentionPolicy:
             if candidate["due_at"] >= expires:
                 return AttentionDecision("cancel", "contact_window_before_due_time")
             return AttentionDecision("defer", "not_due", candidate["due_at"])
-        if not preferences.get("enabled", True) and not candidate.get("explicit"):
+        if not preferences.get("enabled", False) and not candidate.get("explicit"):
             return AttentionDecision("archive", "contact_disabled")
         if candidate.get("explicit"):
             return AttentionDecision("send", "explicit_commitment_at_requested_time", target_ref=candidate["target_ref"])
@@ -70,7 +70,7 @@ class AttentionPolicy:
     def window(self, preferences, history, *, now=None):
         """One contact budget also gates unsolicited group participation."""
         now = now or datetime.now(UTC)
-        if not preferences.get("enabled", True):
+        if not preferences.get("enabled", False):
             return AttentionDecision("archive", "contact_disabled")
         until = quiet_until(now, preferences["timezone"], preferences["quiet_start"], preferences["quiet_end"])
         if until:

@@ -56,7 +56,7 @@ CREATE TABLE life.contact_preferences (
     timezone text NOT NULL DEFAULT 'Asia/Shanghai', quiet_start text NOT NULL DEFAULT '23:00',
     quiet_end text NOT NULL DEFAULT '08:00', cooldown_seconds integer NOT NULL DEFAULT 1800,
     daily_quota integer NOT NULL DEFAULT 3, unanswered_limit integer NOT NULL DEFAULT 3,
-    responsiveness double precision NOT NULL DEFAULT 0.5, enabled boolean NOT NULL DEFAULT true,
+    responsiveness double precision NOT NULL DEFAULT 0.5, enabled boolean NOT NULL DEFAULT false,
     availability text NOT NULL DEFAULT 'unknown', available_until timestamptz,
     availability_event_id text, availability_occurred_at timestamptz, availability_source_refs jsonb NOT NULL DEFAULT '[]',
     scope_ids text[] NOT NULL, PRIMARY KEY(actor_id,person_id)

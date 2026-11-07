@@ -10,6 +10,7 @@ import { useIdentityDirectory } from "./api";
 import { humanizeCode } from "../../design/humanize";
 import type { Conversation, ConversationLink } from "./types";
 import { GroupParticipationControl } from "./GroupParticipationControl";
+import { PrivateContactControl } from "./PrivateContactControl";
 
 function LinkEditor({
   link,
@@ -154,6 +155,15 @@ export function ReplyPermissions({
       <p className="muted">
         决定当前角色是否接收和回复此会话。关闭接收后不再处理新消息。
       </p>
+      {personId && (
+        <PrivateContactControl
+          scope={{
+            actor_id: actorId,
+            person_id: personId,
+            conversation_id: null,
+          }}
+        />
+      )}
       {!directory.manageable && (
         <p>当前身份可读人物资料；会话策略需要身份管理权限。</p>
       )}
@@ -165,6 +175,7 @@ export function ReplyPermissions({
         <p>尚无与此人物关联的私聊。群内接收与回复可在“群画像”的权限页调整。</p>
       )}
       {available.map((row) => {
+        if (row.kind === "private" && personId) return null;
         const links = directory.data?.conversation_links.filter(
           (item) => item.conversation_id === row.conversation_id,
         );

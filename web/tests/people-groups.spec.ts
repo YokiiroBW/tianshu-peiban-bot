@@ -116,6 +116,174 @@ async function session(page: Page) {
   );
 }
 
+test("private chat uses one disabled passive active control in both profile tabs", async ({
+  page,
+}) => {
+  await session(page);
+  await page.route(apiPath("identity/people"), (route) =>
+    answer(route, { ...emptyPage, items: [person] }),
+  );
+  await page.route(apiPath("identity/conversations"), (route) =>
+    answer(route, {
+      ...emptyPage,
+      items: [
+        {
+          ...conversation,
+          person_id: person.person_id,
+          kind: "private",
+          adapter: "qq",
+        },
+      ],
+    }),
+  );
+  let mode = "passive";
+  let revision: number | null = null;
+  const saves: string[] = [];
+  const current = () => ({
+    mode,
+    token: "policy-" + String(revision),
+    contact_revision: revision,
+    can_manage: true,
+    links: [
+      { connection_id: "qq", external_id: "private:123", label: "小明私聊" },
+    ],
+  });
+  await page.route(apiPath("life/private-contact-policy"), (route) =>
+    answer(route, current()),
+  );
+  await page.route(apiPath("life/private-contact-policy.save"), (route) => {
+    const body = route.request().postDataJSON();
+    expect(body).toMatchObject({
+      actor_id: "actor",
+      person_id: "alice",
+      conversation_id: null,
+      expected_revision: revision,
+      policy_token: current().token,
+    });
+    mode = body.mode;
+    saves.push(mode);
+    revision = (revision ?? 0) + 1;
+    return answer(route, command(body, current()));
+  });
+  await page.route(apiPath("life/contact-preferences"), (route) =>
+    answer(route, {
+      revision: revision ?? 0,
+      edit_revision: revision,
+      timezone: "Asia/Shanghai",
+      quiet_start: "23:00",
+      quiet_end: "08:00",
+      cooldown_seconds: 1800,
+      daily_quota: 3,
+      unanswered_limit: 3,
+      enabled: mode === "active",
+    }),
+  );
+  await page.goto("/#/people");
+  await page.getByRole("button", { name: "会话权限", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "私聊模式", exact: true }),
+  ).toHaveValue("passive");
+  for (const selected of ["active", "passive", "disabled"]) {
+    await page
+      .getByRole("combobox", { name: "私聊模式", exact: true })
+      .selectOption(selected);
+    await page
+      .getByRole("button", { name: "保存私聊模式", exact: true })
+      .click();
+    await expect
+      .poll(() => saves.length)
+      .toBe(["active", "passive", "disabled"].indexOf(selected) + 1);
+    await expect(
+      page.getByRole("button", { name: "保存私聊模式", exact: true }),
+    ).toBeEnabled();
+  }
+  await expect(
+    page.getByText(
+      "不接收、不回复、不主动联系。新消息在入口过滤，不触发后续处理。",
+      { exact: true },
+    ),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "主动联系", exact: true }).click();
+  await expect(
+    page.getByRole("combobox", { name: "私聊模式", exact: true }),
+  ).toHaveValue("disabled");
+  await expect(page.getByText("允许普通主动联系", { exact: true })).toHaveCount(
+    0,
+  );
+  await expect(page.getByLabel("安静时段开始")).toHaveValue("23:00");
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBeTruthy();
+});
+
+test("role administrator binding is available after basic profile and can be revoked", async ({
+  page,
+}) => {
+  await session(page);
+  await page.route(apiPath("identity/people"), (route) =>
+    answer(route, { ...emptyPage, items: [person] }),
+  );
+  let enabled = false;
+  let revision = 0;
+  const current = () => ({
+    revision,
+    can_manage: true,
+    is_selected: enabled,
+    current: enabled
+      ? { person_name: "小明", account_name: "YOKI", enabled }
+      : null,
+    accounts: [
+      { connection_id: "qq", external_id: "1248465005", namespace: "qq" },
+    ],
+    principals: [
+      { principal_id: "owner", display_name: "YOKI", username: "owner" },
+    ],
+  });
+  await page.route(apiPath("identity/role-administrator"), (route) =>
+    answer(route, current()),
+  );
+  await page.route(apiPath("identity/role-administrator.save"), (route) => {
+    const body = route.request().postDataJSON();
+    expect(body).toMatchObject({
+      actor_id: "actor",
+      person_id: "alice",
+      principal_id: "owner",
+      expected_revision: revision,
+    });
+    enabled = body.enabled;
+    revision++;
+    return answer(route, command(body, current()));
+  });
+  await page.goto("/#/people");
+  await expect(page.getByRole("navigation", { name: "人物详情" })).toBeVisible();
+  const tabs = await page
+    .getByRole("navigation", { name: "人物详情" })
+    .getByRole("button")
+    .allTextContents();
+  expect(tabs.slice(-2)).toEqual(["基本资料", "主要用户／管理员"]);
+  await page
+    .getByRole("button", { name: "主要用户／管理员", exact: true })
+    .click();
+  await expect(
+    page.getByText("QQ · 1248465005", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "绑定为当前角色管理员", exact: true })
+    .click();
+  await expect(
+    page.getByText("此人物已是当前角色的主要用户／管理员。", { exact: true }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "解除管理员绑定", exact: true })
+    .click();
+  await expect(
+    page.getByText("此角色尚未绑定渠道管理员。", { exact: true }),
+  ).toBeVisible();
+  expect(revision).toBe(2);
+});
+
 test("profiles follow the visible role and keep experience diagnostics inside the card", async ({
   page,
 }) => {

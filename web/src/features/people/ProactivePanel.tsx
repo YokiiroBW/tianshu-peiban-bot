@@ -5,6 +5,7 @@ import {
   type DomainTarget,
 } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import { PrivateContactControl } from "./PrivateContactControl";
 type Preferences = {
   revision: number;
   timezone: string;
@@ -14,6 +15,8 @@ type Preferences = {
   daily_quota: number;
   unanswered_limit: number;
   enabled: boolean;
+  edit_revision?: number | null;
+  inherited?: boolean;
   availability?: string;
 };
 export function ProactivePanel({ scope }: { scope: DomainTarget }) {
@@ -32,8 +35,9 @@ export function ProactivePanel({ scope }: { scope: DomainTarget }) {
     <section>
       <h3>主动联系</h3>
       <p className="muted">
-        决定角色是否可以主动找这个人聊天，以及何时保持安静。已约定的提醒另行执行。
+        通过私聊模式选择是否允许主动联系。下方只调整联系节奏，已约定的提醒另行执行。
       </p>
+      <PrivateContactControl scope={scope} changed={view.refresh} />
       {view.error && <p role="alert">{view.error}</p>}
       {view.loading && <p role="status">正在读取联系设置…</p>}
       {draft && (
@@ -45,22 +49,15 @@ export function ProactivePanel({ scope }: { scope: DomainTarget }) {
               await command.run(
                 "life/contact-preferences.save",
                 { ...scope, ...draft },
-                draft.revision,
+                draft.edit_revision === null || draft.inherited
+                  ? null
+                  : (draft.edit_revision ?? draft.revision),
               )
             )
               await view.refresh();
           }}
         >
-          <label>
-            <input
-              type="checkbox"
-              checked={draft.enabled}
-              onChange={(event) =>
-                setDraft({ ...draft, enabled: event.target.checked })
-              }
-            />
-            允许普通主动联系
-          </label>
+          <h4>联系节奏</h4>
           <label>
             时区
             <input

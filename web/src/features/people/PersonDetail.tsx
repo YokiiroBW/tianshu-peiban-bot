@@ -9,6 +9,7 @@ import { Interactions } from "./Interactions";
 import { ReplyPermissions } from "./ReplyPermissions";
 import { ProactivePanel } from "./ProactivePanel";
 import { AccountLinkPanel } from "./AccountLinkPanel";
+import { AdministratorPanel } from "./AdministratorPanel";
 import { personName, type Person } from "./types";
 
 export function PersonDetail({
@@ -59,6 +60,7 @@ export function PersonDetail({
           ["proactive", "主动联系"],
           ["accounts", "账号关联"],
           ["overview", "基本资料"],
+          ["administrator", "主要用户／管理员"],
         ].map(([id, label]) => (
           <button
             key={id}
@@ -138,6 +140,9 @@ export function PersonDetail({
         {!!actorId && tab === "proactive" && <ProactivePanel scope={scope} />}
         {tab === "accounts" && (
           <AccountLinkPanel person={person} actorId={actorId} />
+        )}
+        {!!actorId && tab === "administrator" && (
+          <AdministratorPanel scope={scope} />
         )}
       </div>
     </section>

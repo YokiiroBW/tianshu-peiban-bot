@@ -8,6 +8,8 @@ from .generation_control import GenerationControl
 
 
 def create_module(service, presentation, writing, diaries, reading, worker, identity, clock):
+    from .private_contact_policy import PrivateContactPolicy
+    private_contacts = PrivateContactPolicy(service)
     generation_control = GenerationControl(service, writing, diaries)
     def register(app, _runtime):
         async def access(request):
@@ -55,6 +57,8 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         route("commitments.cancel", service.cancel_commitment, write=True)
         route("contact-preferences", lambda ctx, _body: service.contacts.preferences(ctx))
         route("contact-preferences.save", service.save_contact_preferences, write=True)
+        route("private-contact-policy", lambda ctx, _body: private_contacts.view(ctx))
+        route("private-contact-policy.save", private_contacts.save, write=True)
         route("room", lambda ctx, _body: presentation.room(ctx))
         route("room.save", presentation.save_room, write=True)
         route("outfits", lambda ctx, body: presentation.outfits(ctx, cursor=body.get("cursor"), limit=body.get("limit", 40)))
@@ -139,4 +143,5 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
             Migration("rbg_plan_retirement", files("tianshu.life").joinpath("rbg_plan_retirement.sql").read_text()),
             Migration("rbh_transport_recovery", files("tianshu.life").joinpath("rbh_transport_recovery.sql").read_text(encoding="utf-8")),
             Migration("rbi_activity_reconciliation", files("tianshu.life").joinpath("rbi_activity_reconciliation.sql").read_text(encoding="utf-8")),
+            Migration("private_contact_default", files("tianshu.life").joinpath("private_contact_default.sql").read_text(encoding="utf-8")),
         ))

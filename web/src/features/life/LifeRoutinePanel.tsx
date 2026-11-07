@@ -145,7 +145,7 @@ export function LifeRoutinePanel({
           {workspace.conversation
             ? `当前对象：${workspace.conversation.label}`
             : "当前设置用于角色的默认联系节奏"}
-          。明确说好的时间按约定执行；普通分享使用以下节奏。
+          。明确说好的时间按约定执行；普通分享使用以下节奏。私聊是否主动联系以用户档案中的私聊模式为准，默认不主动。
         </p>
         {preferences.error && <p role="alert">{preferences.error}</p>}
         {preferences.data && (
@@ -188,7 +188,9 @@ export function LifeRoutinePanel({
                 defaultChecked={preferences.data.enabled}
                 disabled={!canManage}
               />
-              允许随兴联系
+              {workspace.conversation?.person_id
+                ? "允许此人物的普通主动联系"
+                : "允许已开启主动参与的群使用此联系节奏"}
             </label>
             <div className="domain-grid">
               <label>

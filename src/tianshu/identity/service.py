@@ -216,10 +216,12 @@ class IdentityService:
                 delivery_allowed = bool(
                     link and link["mode"] == "reply" and link["reply_owner"] == "tianshu"
                 )
-                if link:
+                if link and not await self.channel_administrator_on(
+                    conn, principal_id, actor_id, person_id
+                ):
                     allowed = set(link["event_permissions"])
                     permissions = allowed if "*" in permissions else permissions & allowed
-                else:
+                elif not link:
                     permissions = set()
             if person_id and conversation_kind == "group":
                 visible = await (
@@ -288,6 +290,16 @@ class IdentityService:
             conversation_kind,
             delivery_allowed,
         )
+
+    async def channel_administrator_on(self, connection, principal_id, actor_id, person_id):
+        if not actor_id or not person_id:
+            return False
+        return bool(await (await connection.execute(
+            "SELECT 1 FROM identity.role_administrators a JOIN identity.principals p USING(principal_id) "
+            "WHERE a.actor_id=%s AND a.person_id=%s AND a.principal_id=%s AND a.enabled AND p.enabled "
+            "AND p.permissions && ARRAY['*','identity.manage']",
+            (actor_id, person_id, principal_id),
+        )).fetchone())
 
     async def check_context(self, context, *, connection=None):
         async def check(conn):
@@ -725,10 +737,14 @@ class IdentityService:
             await (
                 await conn.execute(
                     "SELECT c.connection_id FROM identity.connections c JOIN identity.conversation_links l "
-                    "USING(connection_id) WHERE c.enabled AND (c.principal_id=%s OR EXISTS(SELECT 1 FROM identity.accounts a WHERE a.connection_id=c.connection_id AND a.principal_id=%s AND a.person_id=%s)) AND c.actor_id=%s AND l.conversation_id=%s "
+                    "USING(connection_id) WHERE c.enabled AND (c.principal_id=%s OR EXISTS(SELECT 1 FROM identity.accounts a WHERE a.connection_id=c.connection_id AND a.principal_id=%s AND a.person_id=%s) "
+                    "OR EXISTS(SELECT 1 FROM identity.role_administrators r WHERE r.actor_id=c.actor_id AND r.principal_id=%s AND r.person_id=%s AND r.enabled)) "
+                    "AND c.actor_id=%s AND l.conversation_id=%s "
                     "AND %s=c.namespace||':'||c.connection_id",
                     (
                         context.principal_id,
+                        context.principal_id,
+                        context.person_id,
                         context.principal_id,
                         context.person_id,
                         context.actor_id,
@@ -1117,12 +1133,19 @@ class IdentityService:
                     event.event_id,
                     event.revision,
                 )
-            selected_principal = sender["principal_id"] or connection["principal_id"]
+            administrator = await (await conn.execute(
+                "SELECT principal_id FROM identity.role_administrators "
+                "WHERE actor_id=%s AND person_id=%s AND enabled",
+                (connection["actor_id"], sender["person_id"]),
+            )).fetchone()
+            selected_principal = (administrator["principal_id"] if administrator else
+                                  sender["principal_id"] or connection["principal_id"])
             try:
                 context = await self.context_on(
                     conn,
                     selected_principal,
                     actor_id=connection["actor_id"],
+                    person_id=sender["person_id"],
                     conversation_id=link["conversation_id"],
                     origin_kind=OriginKind.REPLAY if event.archived else OriginKind.HUMAN,
                 )
@@ -1135,16 +1158,13 @@ class IdentityService:
                     conn,
                     connection["principal_id"],
                     actor_id=connection["actor_id"],
+                    person_id=sender["person_id"],
                     conversation_id=link["conversation_id"],
                     origin_kind=OriginKind.REPLAY if event.archived else OriginKind.HUMAN,
                 )
             allowed = frozenset(connection["event_permissions"])
-            context = replace(
-                context,
-                permissions=allowed
-                if "*" in context.permissions
-                else context.permissions & allowed,
-            )
+            if not await self.channel_administrator_on(conn, context.principal_id, context.actor_id, sender["person_id"]):
+                context = replace(context, permissions=allowed if "*" in context.permissions else context.permissions & allowed)
             # Current speaker and quoted author remain different identities.
             context = replace(context, person_id=sender["person_id"])
             mode = link["mode"]
