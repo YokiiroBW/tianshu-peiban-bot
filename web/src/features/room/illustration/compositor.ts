@@ -273,7 +273,7 @@ export function mountIllustration(
         };
         image.onerror = () =>
           reject(new Error(`Cannot load illustration layer: ${file}`));
-        image.src = `/room-illustration-assets/${file}`;
+        image.src = publicAssetUrl(`room-illustration-assets/${file}`, import.meta.env.BASE_URL);
       }),
   );
   void Promise.all(loads)

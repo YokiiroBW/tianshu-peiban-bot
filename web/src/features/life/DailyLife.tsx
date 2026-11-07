@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { publicAssetUrl } from "../../app/uiRelease";
 import { BookOpen } from "lucide-react";
 import { DayPeriodArt } from "./DayPeriodArt";
 import { WeatherCard } from "./WeatherCard";
@@ -197,7 +198,7 @@ export function DailyLife({ state }: { state: LifeState }) {
               }
             />
             <div className="scene-mount">
-              <img className="life-scene" src="/life-evening.png" alt="" />
+              <img className="life-scene" src={publicAssetUrl("life-evening.png", import.meta.env.BASE_URL)} alt="" />
               <div className="scene-badge-bar">
                 <span className="scene-glass-pill">📍 {placeName}</span>
                 <span className="scene-glass-pill">
