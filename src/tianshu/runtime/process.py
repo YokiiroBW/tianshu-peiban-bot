@@ -343,11 +343,20 @@ async def run(settings, role, *, initialize=False):
 
             register_native_proxy(app, settings)
             if settings.get("http", {}).get("static_directory"):
-                register_static(app, settings["http"]["static_directory"])
+                register_static(
+                    app,
+                    settings["http"]["static_directory"],
+                    ui_release_directory=settings.ui_release_directory,
+                )
             registration = {"domains": [module.name for module in modules]}
 
             async def ready():
                 registration["modules"] = services.module_status
+                if app.get("ui_release_manager") is not None:
+                    try:
+                        registration["ui"] = app["ui_release_manager"].status()
+                    except Exception as exc:
+                        registration["ui"] = {"degraded": True, "error": type(exc).__name__}
                 if getattr(product, "channels", None):
                     try:
                         registration["channels"] = await product.channels.status()

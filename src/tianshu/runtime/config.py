@@ -117,3 +117,16 @@ class Settings:
     def artifact_directory(self):
         path = Path(self.document.get("artifacts", "data/artifacts"))
         return path if path.is_absolute() else self.base_directory / path
+
+    @property
+    def ui_release_directory(self):
+        http = self.document.get("http", {})
+        if "ui_release_directory" in http:
+            configured = http["ui_release_directory"]
+            if configured is None:
+                return None
+            path = Path(configured)
+            return path if path.is_absolute() else self.base_directory / path
+        if "artifacts" in self.document:
+            return self.artifact_directory.parent / "ui"
+        return None
