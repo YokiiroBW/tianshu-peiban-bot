@@ -233,6 +233,7 @@ def matched(result, capability, expected):
 async def _observe_or_run(models, request, *, stream=False):
     original = await models.result(request.attempt_id, context=request.context)
     if original is not None:
+        _check_original(request, original)
         return original, False
     saw_stream = False
     try:
@@ -245,7 +246,22 @@ async def _observe_or_run(models, request, *, stream=False):
         original = await models.result(request.attempt_id, context=request.context)
         if original is None:
             raise
+        _check_original(request, original)
         return original, saw_stream
+
+
+def _check_original(request, result):
+    original = result.receipt
+    if (
+        original.attempt_id != request.attempt_id
+        or original.intent_id != request.intent_id
+        or original.route_id != request.route_id
+        or original.route_revision != request.route_revision
+        or original.protocol != request.protocol
+    ):
+        raise AppError(
+            "probe_original_route_changed", status=409, details={"attempt_id": original.attempt_id}
+        )
 
 
 async def run(models, request, capability):
