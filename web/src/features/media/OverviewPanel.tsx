@@ -61,7 +61,15 @@ export function OverviewPanel({
   responseMs: number | null;
   stale: boolean;
 }) {
-  const [medium, setMedium] = useState<"video" | "audio" | "book">("video");
+  const [medium, setMedium] = useState<"video" | "audio" | "book">(
+    () =>
+      (["video", "audio", "book"] as const).find(
+        (kind) =>
+          (view.overview?.recent?.[kind]?.length ??
+            view.jobs.filter((job) => (job.media_kind ?? "video") === kind)
+              .length) > 0,
+      ) ?? "video",
+  );
   const counts = view.overview?.jobs;
   const available =
     counts &&
@@ -162,8 +170,8 @@ export function OverviewPanel({
                   录
                 </div>
                 <div>
-                  <h2 className="section-title">最近下载</h2>
-                  <div className="section-sub">三类媒体最近活动队列</div>
+                  <h2 className="section-title">最近任务</h2>
+                  <div className="section-sub">下载、导入与曲库扫描</div>
                 </div>
               </div>
               <a className="ink-link overview-text-link" href="#/media/jobs">

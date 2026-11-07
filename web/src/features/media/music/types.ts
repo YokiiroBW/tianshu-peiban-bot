@@ -94,6 +94,16 @@ export type MusicSettings = {
   filename: "artist_title";
   revision: number;
 };
+export type MusicImportStatus = {
+  state: string;
+  schedule?: { state: string; code?: string | null };
+  checked_at?: number;
+  total?: number;
+  indexed?: number;
+  unchanged?: number;
+  failed?: number;
+  queued?: number;
+};
 export type MusicView = {
   lyrics?: {
     tracked: number;
@@ -103,14 +113,7 @@ export type MusicView = {
   };
   maintenance?: MusicMaintenanceView;
   navidrome?: NavidromeView;
-  imports?: {
-    state: string;
-    schedule?: { state: string; code?: string | null };
-    checked_at?: number;
-    total?: number;
-    failed?: number;
-    queued?: number;
-  };
+  imports?: MusicImportStatus;
   providers?: {
     provider: MusicProvider;
     label: string;

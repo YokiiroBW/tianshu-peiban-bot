@@ -1,3 +1,5 @@
+import type { MusicImportStatus } from "./music/types";
+
 export type Quality = {
   mode: "best" | "exact";
   quality_id: string | null;
@@ -264,6 +266,7 @@ export type MediaView = {
       auto_download: number;
       members: number;
       files: number;
+      scan?: MusicImportStatus;
     };
     books?: {
       total: number;

@@ -320,6 +320,7 @@ class Media:
             **await self.local(self.repo.dashboard_details),
             "runtime": await self.local(self.runtime_sample.view),
         }
+        overview["music"]["scan"] = await self.local(self.music.imports.view)
         music_settings = await self.local(self.repo.get, "music_settings", "library")
         overview["music_storage"] = await self.local(
             media_storage,

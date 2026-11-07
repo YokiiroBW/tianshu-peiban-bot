@@ -137,6 +137,16 @@
   font-size: 12px;
 }
 
+.overview-scan-summary {
+  margin-top: 12px;
+  overflow-wrap: anywhere;
+  font-size: 12px;
+}
+
+.overview-scan-summary p {
+  margin: 4px 0;
+}
+
 /* 三栏十卡博古列阵 (.media-dashboard-grid.overview-columns) */
 .media-dashboard-grid.overview-columns {
   display: grid;
