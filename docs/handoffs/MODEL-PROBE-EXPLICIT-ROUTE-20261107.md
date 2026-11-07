@@ -20,3 +20,18 @@ model_fallback_context_unverified 拦截，尚未调用供应商。
 
 本地语法解析、diff检查和测试文件Ruff通过；未执行PG用例。
 catalog.py的全文件Ruff仍有原导入I001/UP035，本次未改导入，不借此清理无关代码。
+
+
+# 真实工具检测与登记最终回执
+
+2026-11-07 12:58，当前产品2821fa3a。显式目标误走业务回退校验的最小catalog补修已部署；8项定向PG通过，测试PG与临时凭据已回收。六角色ready、HTTP200、0重启/OOM，安装catalog SHA256与Git一致。
+
+- 主Gemini4：原180秒timeout_unknown；没有新号/续时重试，没有登记tools。
+- Gemini3.8备用：原两轮probe成功，正式handler登记text/tools，revision1→2。
+- DeepSeek4.1备用：原两轮probe成功，正式handler登记stream/text/tools，revision2→3。
+- 共4次成功+1次unknown实际模型attempt。两备用保持原client_request_id/probe IDs，主未重发；无绑定/供应商/协议/窗口/预算修改，无直接能力表写入。原note/window/其它能力证据逐项保留。
+- 执行经真实Identity权限、安装管理handler、真实Models和CommandStore，使用私有loopback管理传输，未创建浏览器会话。
+- 原会话12:58:48仍waiting_external，无同attempt Models/无expression。检测成功不等于聊天送达，未QQ测试或重放。
+- 发布配置/11挂载/其它2容器/代际/1500退役与原78 Models unknown、3Action unknown、执行证明保持。发布中另1条Memory调用broker_stopping转unknown，最终79条Models unknown，原对象保留未重放。
+
+完整逐路证据见final-receipt.json及../real-tools-probes-continuation-20261107/。本轮成功登记2路，主路由能力仍未知。

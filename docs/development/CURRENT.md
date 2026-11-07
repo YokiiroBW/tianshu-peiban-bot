@@ -1,3 +1,9 @@
+# 2026-11-07 显式备用能力检测补修发布与真实登记完成
+
+线上产品2821fa3a（镜像7b2a95079d3a），六角色ready、HTTP200、0重启/OOM，安装catalog SHA256与Git一致。源修复e8a5109f仅调整授权显式probe目标解析，8项定向PG通过且临时PG/凭据已回收。两个备用各两轮真实tools检测成功并由正式handler登记，Gemini3.8 revision1→2、DeepSeek4.1 revision2→3；主Gemini4原timeout_unknown未重发/未登记，未改绑定或填造窗口。
+
+配置/11挂载/另2容器/代际、1500退役与原78 Models unknown和3Action unknown保持；本次切换新增1条Memory broker_stopping unknown，原对象保留未重放，当前79条。原真实会话12:58仍waiting_external/无Models/expression，不能称聊天恢复。日记材料对账、Memory本地处理失败及Growth少量未完成支路仍独立存在。详见docs/handoffs/MODEL-PROBE-EXPLICIT-ROUTE-20261107.md；下方均为历史阶段。
+
 # 2026-11-07 模型测试旧回执版本补修已部署
 
 线上b872affa1920fa67897a880200dbec42d97b9aba（镜像e52273f78cb8）包含914fa1d0补修，北京时间2026-11-07 10:45:29六角色ready、HTTP200、0重启/无OOM。原测试回执必须匹配attempt/intent/route/revision/protocol，防止登记CAS失败后同号旧回执给新配置登记；不改probe_id或预算、不新发模型。配置/代际/11挂载/其他2容器保持。
