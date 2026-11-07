@@ -142,13 +142,13 @@ async def test_explicit_capability_probe_uses_target_without_business_fallback_e
 
 
 @pytest.mark.parametrize("probe_flag", [False, True])
-async def test_business_fallback_or_unprivileged_probe_still_requires_context_evidence(rb_database, probe_flag):
+async def test_business_fallback_or_unprivileged_probe_still_rejects_known_context_overflow(rb_database, probe_flag):
     await seed_routes(rb_database)
     async with rb_database.transaction() as conn:
-        await conn.execute("UPDATE models.routes SET verification=NULL WHERE route_id='r2'")
+        await conn.execute("UPDATE models.routes SET verification='{\"context_window_tokens\":1}' WHERE route_id='r2'")
     original = request()
     frozen = replace(original, route_id="r2", route_revision=1, capability_probe=probe_flag)
-    with pytest.raises(AppError, match="model_fallback_context_unverified"):
+    with pytest.raises(AppError, match="model_context_window_exceeded"):
         await ModelBroker(rb_database, None, None).generation_profile(frozen)
 
 

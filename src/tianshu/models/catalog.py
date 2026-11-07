@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-import json
 import math
 from typing import Any, Mapping
 
@@ -11,7 +10,7 @@ from tianshu.runtime.errors import AppError
 from .types import ModelRequest
 from .timing import validate_timing, waiting_budget
 from tianshu.runtime.commands import body_hash
-from tianshu.runtime.serialization import wire
+from .route_requirements import compatible_request, no_compatible_route, rejection
 
 FUNCTIONS = (
     "chat",
@@ -51,26 +50,6 @@ def embedding_fingerprint(row):
     return body_hash(
         {key: row[key] for key in ("provider_id", "model", "protocol", "base_url", "parameters")}
     )
-
-
-def fallback_fits(request, row):
-    """Use configured evidence; never assume another model has the same window."""
-    params = request.parameters
-    generation = params.get("generationConfig") or {}
-    if not isinstance(generation, dict):
-        return False
-    json_mode = (params.get("response_format") is not None or
-                 generation.get("responseMimeType") == "application/json")
-    if json_mode and "json" not in row["verified_capabilities"]:
-        return False
-    evidence = row.get("verification") or {}
-    window = evidence.get("context_window_tokens") if isinstance(evidence, dict) else None
-    estimate = request.estimated_input_tokens
-    if estimate is None:
-        estimate = len(json.dumps(wire((request.system, request.messages, request.tools)),
-            ensure_ascii=False).encode()) + 2048 * sum(
-                part.media is not None for message in request.messages for part in message.parts)
-    return type(window) is int and estimate + request.max_output_tokens <= window
 
 
 @dataclass(frozen=True, slots=True)
@@ -224,7 +203,12 @@ class ModelCatalog:
                     raise AppError("embedding_profile_not_configured", status=503)
                 route_id = profile["route_id"]
             else:
-                route_id = await self.bound_route(conn, request)
+                try:
+                    route_id = await self.bound_route(conn, request)
+                except AppError as error:
+                    if error.code != "model_function_not_configured":
+                        raise
+                    raise no_compatible_route([rejection(None, error)]) from error
             cursor = await conn.execute(
                 "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled,"
                 "p.revision AS provider_revision "
@@ -242,8 +226,6 @@ class ModelCatalog:
                     and request.route_id != binding["route_id"]):
                 primary_route_id = binding["route_id"]
                 selection_reason = "configured_fallback_selected"
-                if request.function != "embed" and row and not fallback_fits(request, row):
-                    raise AppError("model_fallback_context_unverified", status=422)
             if request.function == "embed":
                 profile = await (
                     await conn.execute("SELECT * FROM models.embedding_profile WHERE singleton")
@@ -269,28 +251,42 @@ class ModelCatalog:
                 route_cooldown = await (await conn.execute(
                     "SELECT blocked_until FROM models.route_cooldowns WHERE route_id=%s AND blocked_until>now()",
                     (primary_route_id,))).fetchone()
-            unavailable = not primary or not primary["enabled"] or not primary["provider_enabled"]
             # Native proxy aliases and explicitly privileged route choices must
             # stay exact. Backups are only those configured for this binding.
             pinned = request.route_id is not None and request.route_revision is not None
             may_fallback = (frozen_attempt is None and not pinned and request.function != "ops.diagnose" and request.native_payload is None
                             and (not request.route_id or request.allow_configured_fallback))
-            if may_fallback and (unavailable or cooldown or route_cooldown):
+            source_protocol = request.protocol or (primary["protocol"] if primary else None)
+            primary_error = None
+            try:
+                compatible_request(request, primary, source_protocol=source_protocol, probing=probing,
+                    allow_adaptation=may_fallback or selection_reason == "configured_fallback_selected"
+                    or frozen_attempt is not None and (not request.route_id or request.allow_configured_fallback))
+            except AppError as error:
+                primary_error = error
+            rejections = [rejection(route_id, primary_error)] if primary_error else []
+            if may_fallback and (primary_error or cooldown or route_cooldown):
                 try:
                     binding = await self.bound_binding(conn, request)
                 except AppError:
                     binding = None
                 if binding and binding["route_id"] == primary_route_id:
+                    seen = {route_id}
                     for candidate_id in binding["fallback_routes"]:
+                        if candidate_id in seen:
+                            continue
+                        seen.add(candidate_id)
                         candidate = await (await conn.execute(
                             "SELECT r.*,p.base_url,p.credential_ref,p.protocol,p.enabled AS provider_enabled,"
                             "p.revision AS provider_revision "
                             "FROM models.routes r JOIN models.providers p USING(provider_id) WHERE r.route_id=%s",
                             (candidate_id,))).fetchone()
                         if not candidate or not candidate["enabled"] or not candidate["provider_enabled"]:
+                            rejections.append({"route_id": candidate_id, "reason": "model_route_unavailable"})
                             continue
                         # A second key in the same quota domain is not an independent fallback.
                         if cooldown and candidate["quota_group"] == primary["quota_group"]:
+                            rejections.append({"route_id": candidate_id, "reason": "primary_quota_cooldown"})
                             continue
                         blocked = await (await conn.execute(
                             "SELECT 1 FROM models.quota_cooldowns WHERE quota_group=%s AND blocked_until>now()",
@@ -299,40 +295,29 @@ class ModelCatalog:
                             "SELECT 1 FROM models.route_cooldowns WHERE route_id=%s AND blocked_until>now()",
                             (candidate_id,))).fetchone()
                         if blocked or route_blocked:
-                            continue
-                        if request.required_capabilities - set(candidate["verified_capabilities"]):
+                            rejections.append({"route_id": candidate_id, "reason": "model_route_cooldown"})
                             continue
                         if request.function == "embed":
                             if embedding_fingerprint(candidate) != profile["route_fingerprint"]:
+                                rejections.append({"route_id": candidate_id, "reason": "embedding_profile_rebuild_required"})
                                 continue
-                        else:
-                            from .route_adaptation import adapt_request
-                            try:
-                                adapted = adapt_request(request, primary["protocol"], candidate["protocol"])
-                            except AppError:
-                                continue
-                            if not fallback_fits(adapted, candidate):
-                                continue
+                        try:
+                            compatible_request(request, candidate, source_protocol=source_protocol,
+                                probing=probing, allow_adaptation=True)
+                        except AppError as error:
+                            rejections.append(rejection(candidate_id, error))
+                            continue
                         row = candidate
-                        selection_reason = ("primary_quota_cooldown" if cooldown else
-                                            "primary_route_cooldown" if route_cooldown else "primary_unavailable")
+                        if primary_error:
+                            selection_reason = ("primary_unavailable" if primary_error.code == "model_route_unavailable"
+                                                else "primary_" + primary_error.code.removeprefix("model_"))
+                        else:
+                            selection_reason = "primary_quota_cooldown" if cooldown else "primary_route_cooldown"
                         break
-        if not row or not row["enabled"] or not row["provider_enabled"]:
-            raise AppError("model_route_unavailable", status=503)
-        if request.protocol and request.protocol != row["protocol"] and not (
-                selection_reason != "selected_binding" or frozen_attempt is not None
-                and (not request.route_id or request.allow_configured_fallback)):
-            raise AppError("native_protocol_mismatch", status=422)
-        if request.required_capabilities - set(row["verified_capabilities"]) and not probing:
-            raise AppError(
-                "model_capability_unverified",
-                status=422,
-                details={
-                    "missing": sorted(
-                        request.required_capabilities - set(row["verified_capabilities"])
-                    )
-                },
-            )
+            if row is primary and primary_error:
+                if may_fallback:
+                    raise no_compatible_route(rejections) from primary_error
+                raise primary_error
         return RoutePlan(
             row["route_id"],
             row["revision"],
@@ -346,7 +331,7 @@ class ModelCatalog:
             row["parameters"],
             primary_route_id,
             selection_reason,
-            (request.protocol or primary["protocol"]) if primary else None,
+            source_protocol or row["protocol"],
             row["provider_revision"],
         )
 

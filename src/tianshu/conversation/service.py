@@ -27,6 +27,7 @@ from .participation import GroupParticipation
 from .expression import expression_turn_state
 from .context.assembly import ContextMessage
 from .generation import GenerationRequests
+from .model_admission import BLOCKED_ROUTE, ModelAdmissionWaits
 from .recovery import can_retry_resource_wait, is_resource_wait, raise_resource_wait
 
 
@@ -53,6 +54,8 @@ class ConversationService:
         self.collector = ConversationCollector(database, jobs, policy)
         self.participation = GroupParticipation(self)
         self.generation = GenerationRequests(database, sources, models)
+        self.model_admissions = ModelAdmissionWaits(database, models, self.generation, jobs,
+                                                   self._schedule_model_observation)
         self.statistics = None
         if hasattr(self.assembler, "bind_behavior_resolver"):
             self.assembler.bind_behavior_resolver(growth)
@@ -900,24 +903,34 @@ class ConversationService:
                                          "WHERE attempt_id=%s AND model_receipt IS NULL",
                                          (document(accepted), attempt_id))
                 await self.generation.confirm(attempt_id, connection=connection)
+                await connection.execute("UPDATE conversation.turns SET error_code=NULL "
+                    "WHERE turn_id=%s AND model_attempt_id=%s AND error_code=%s",
+                    (turn_id, attempt_id, BLOCKED_ROUTE))
                 if accepted.dispatch == "submitted":
                     await self._enqueue_example_usage(connection, attempt_id=attempt_id, turn_id=turn_id,
                                                       actor_id=row["actor_id"], outcome="selected")
         except Exception as error:
             await self._raise_model_resource(error, attempt_id, frozen["deployment_generation"])
+            if await self.model_admissions.block(row, attempt_id, error):
+                return
             # Submission may have reached Models. The next job observes the same
             # attempt and can only re-admit the same unconfirmed frozen identity.
             await self._schedule_model_observation(row, attempt_id)
 
-    async def _schedule_model_observation(self, row, attempt_id, *, submit=False):
+    async def _schedule_model_observation(self, row, attempt_id, *, submit=False, connection=None):
         task = "conversation.model_submit" if submit else "conversation.model_complete"
-        async with self.database.transaction() as connection:
-            if row["deployment_generation"] is not None:
-                await self.jobs.assert_generation_on(connection, row["deployment_generation"])
-            await self.jobs.enqueue(connection, JobSpec(task, f"model-wake:{attempt_id}:{uuid4()}",
-                {"turn_id": row["turn_id"], "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
-                datetime.now(UTC)+timedelta(seconds=10), row["actor_id"],
-                execution_lane=ExecutionLane.CONVERSATION, data_generation=row["deployment_generation"]))
+        if connection is None:
+            async with self.database.transaction() as transaction:
+                return await self._schedule_model_observation(row, attempt_id, submit=submit, connection=transaction)
+        if row["deployment_generation"] is not None:
+            await self.jobs.assert_generation_on(connection, row["deployment_generation"])
+        await self.jobs.enqueue(connection, JobSpec(task, f"model-wake:{attempt_id}:{uuid4()}",
+            {"turn_id": row["turn_id"], "attempt_id": attempt_id}, ServiceClass.INTERACTIVE,
+            datetime.now(UTC)+timedelta(seconds=10), row["actor_id"],
+            execution_lane=ExecutionLane.CONVERSATION, data_generation=row["deployment_generation"]))
+
+    async def resume_model_admissions(self, *, limit=32):
+        await self.model_admissions.reconcile(limit=limit)
 
     async def _raise_model_resource(self, error, attempt_id, generation):
         if not is_resource_wait(error):
@@ -985,9 +998,13 @@ class ConversationService:
             result = await self.models.result(attempt_id, context=context)
         except Exception as error:
             await self._raise_model_resource(error, attempt_id, frozen["deployment_generation"])
+            if row.get("error_code") == BLOCKED_ROUTE:
+                return
             await self._schedule_model_observation(row, attempt_id)
             return
         if result is None:
+            if row.get("error_code") == BLOCKED_ROUTE:
+                return
             # Missing observation is never a not-started receipt. Only an
             # unconfirmed intent can re-enter Models' idempotent admission.
             confirmed = frozen["model_receipt"] is not None or (generation and generation["submission_confirmed"])
@@ -997,6 +1014,9 @@ class ConversationService:
             if frozen["deployment_generation"] is not None:
                 await self.jobs.assert_generation_on(connection, frozen["deployment_generation"])
             await self.generation.confirm(attempt_id, connection=connection)
+            await connection.execute("UPDATE conversation.turns SET error_code=NULL "
+                "WHERE turn_id=%s AND model_attempt_id=%s AND error_code=%s",
+                (turn_id, attempt_id, BLOCKED_ROUTE))
         if result.receipt.status == "succeeded":
             try:
                 original_request = await self.generation.request(attempt_id, context)

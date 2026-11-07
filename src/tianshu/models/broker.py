@@ -720,8 +720,7 @@ class ModelBroker:
 
     async def generation_profile(self, request):
         """Read the selected native route without creating an attempt or permit."""
-        request.budget.check()
-        async with request.budget.timeout():
+        async with asyncio.timeout(10), waiting(request):
             await self.recheck(request)
             plan = await self.catalog.resolve(request)
         output = effective_output_tokens(plan, request)

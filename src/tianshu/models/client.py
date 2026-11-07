@@ -340,8 +340,9 @@ class ModelClient:
         return await self._json("/internal/v1/models/embedding-profile", control=True, method="GET")
 
     async def generation_profile(self, request):
+        remaining = waiting_timeout(request)
         return await self._json("/internal/v1/models/generation-profile", body=request,
-                                control=True, timeout=min(10, request.budget.remaining()))
+                                control=True, timeout=10 if remaining is None else min(10, remaining))
 
     async def observe_external(self, attempt_id, *, context, provider_handle, state):
         value = await self._json("/internal/v1/models/attempts/"+attempt_id+"/external-observation",
