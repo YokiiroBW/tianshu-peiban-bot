@@ -23,7 +23,7 @@ async def test_profile_can_recheck_unadmitted_request_with_expired_legacy_budget
                            quota_group="quota", parameters={}, verified_capabilities=frozenset({"text"}))
     broker.catalog = SimpleNamespace(resolve=AsyncMock(return_value=plan))
     profile = await broker.generation_profile(original)
-    assert profile["route_id"] == "route" and original.budget.remaining() < 0
+    assert profile["route_id"] == "route" and original.budget.deadline_at < datetime.now(UTC)
     broker.catalog.resolve.assert_awaited_once_with(original)
 
 
