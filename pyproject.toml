@@ -64,6 +64,7 @@ tianshu-plugin = { path = "packages/tianshu-plugin" }
 "tianshu.life" = ["*.sql"]
 "tianshu.conversation" = ["*.sql"]
 "tianshu.channels" = ["*.sql"]
+"tianshu.channels.snowluma" = ["*.json"]
 "tianshu.operations" = ["*.sql"]
 
 [tool.pytest.ini_options]

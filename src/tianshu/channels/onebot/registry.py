@@ -4,9 +4,12 @@ Names/parameters follow the upstream standard. Provider support is a separate
 observation; declaring a standard method does not claim the remote implements it.
 """
 
+from collections.abc import Mapping
+from copy import deepcopy
 from dataclasses import dataclass
-from typing import Mapping
+
 from ..contracts import ChannelError
+from ..snowluma import catalog as snowluma
 
 SPEC_COMMIT = "d4456ee706f9ada9c2dfde56a2bcfc69752600e4"
 SPEC_URL = "https://github.com/botuniverse/onebot-11/tree/" + SPEC_COMMIT
@@ -57,6 +60,15 @@ class ApiSpec:
     sensitive: bool = False
     target: str | None = None
     public: bool = True
+    provider: str | None = None
+    summary: str = ""
+    category: str = ""
+    input_schema: Mapping | None = None
+    output_schema: Mapping | None = None
+    stream: bool = False
+    delivery: bool = False
+    implemented: bool = True
+    invariants: tuple[str, ...] = ()
 
 
 APIS = (
@@ -181,7 +193,29 @@ NAPCAT_APIS = (
         "upload_private_file", ("user_id", "file", "name"), ("user_id",), "send", target="private"
     ),
 )
-BY_NAME = {item.name: item for item in (*APIS, QUICK_OPERATION, *NAPCAT_APIS)}
+SNOWLUMA_APIS = tuple(
+    ApiSpec(
+        row["name"], tuple(row["input_schema"].get("required", ())),
+        tuple(key for key, value in row["input_schema"].get("properties", {}).items()
+              if value.get("x-role") in {"group_id", "user_id"}),
+        snowluma.effect(row), row["name"] in snowluma.SENSITIVE,
+        provider="snowluma", summary=row["summary"], category=row["category"],
+        input_schema=row["input_schema"], output_schema=row["output_schema"],
+        stream=row["stream"], delivery=row["name"] in snowluma.DELIVERY_APIS,
+        implemented=snowluma.implemented(row["name"]), invariants=tuple(row["invariants"]),
+    ) for row in snowluma.ACTIONS.values()
+)
+SNOWLUMA_BY_NAME = {item.name: item for item in SNOWLUMA_APIS}
+SNOWLUMA_BY_NAME.update({alias: SNOWLUMA_BY_NAME[name] for alias, name in snowluma.ALIASES.items()})
+LEGACY_BY_NAME = {item.name: item for item in (*APIS, QUICK_OPERATION, *NAPCAT_APIS)}
+BY_NAME = {**SNOWLUMA_BY_NAME, **LEGACY_BY_NAME}
+
+
+def resolve_api(name, connection=None):
+    base = name.removesuffix("_async")
+    if (connection or {}).get("provider") == "snowluma":
+        return SNOWLUMA_BY_NAME.get(base) or LEGACY_BY_NAME.get(base)
+    return BY_NAME.get(base)
 
 
 def qq_id(value):
@@ -206,21 +240,33 @@ def message_id(value):
 
 
 def validate_call(name, params, connection):
-    base = name[:-6] if name.endswith("_async") else name
-    spec = BY_NAME.get(base)
+    if not isinstance(name, str) or not name:
+        raise ChannelError("channel_api_parameters", 400)
+    base = name.removesuffix("_async")
+    spec = resolve_api(name, connection)
     if spec is None:
         raise ChannelError("channel_api_not_implemented", 400)
+    if not spec.implemented:
+        raise ChannelError("provider_api_not_implemented", 409)
+    if (spec.provider == "snowluma" and connection.get("provider") != "snowluma"
+            and base not in connection.get("extension_apis", [])):
+        raise ChannelError("provider_extension_not_declared", 409)
     if (
         base in {x.name for x in NAPCAT_APIS}
-        and connection["provider"] != "napcat"
+        and connection["provider"] not in {"napcat", "snowluma"}
         and base not in connection.get("extension_apis", [])
     ):
         raise ChannelError("provider_extension_not_declared", 409)
-    if connection.get("api_support", {}).get(base) is False:
+    if (connection.get("api_support", {}).get(base) is False
+            or connection.get("api_support", {}).get(spec.name) is False):
         raise ChannelError("provider_api_unsupported", 409)
     if not isinstance(params, Mapping) or any(key not in params for key in spec.required):
         raise ChannelError("channel_api_parameters", 400)
     clean = dict(params)
+    if spec.input_schema is not None:
+        from ..snowluma.parameters import validate_parameters
+
+        return spec, validate_parameters(spec, clean)
     for key in spec.ids:
         if clean.get(key) is not None:
             clean[key] = qq_id(clean[key])
@@ -239,6 +285,14 @@ def matrix(connection=None):
     connection = connection or {}
     support = connection.get("api_support", {})
     observations = connection.get("observations", {})
+    if connection.get("provider") == "snowluma":
+        api_specs = SNOWLUMA_APIS + (QUICK_OPERATION,)
+    elif connection:
+        declared = connection.get("extension_apis", [])
+        api_specs = (*LEGACY_BY_NAME.values(), *(item for item in SNOWLUMA_APIS
+            if item.name in declared and item.name not in LEGACY_BY_NAME))
+    else:
+        api_specs = tuple({item.name: item for item in BY_NAME.values()}.values())
     return {
         "standard": "onebot.v11",
         "spec_commit": SPEC_COMMIT,
@@ -255,6 +309,7 @@ def matrix(connection=None):
             }
             for x in SEGMENTS
         ],
+        "provider_revision": snowluma.REVISION if connection.get("provider") == "snowluma" else None,
         "apis": [
             {
                 "name": x.name,
@@ -263,11 +318,21 @@ def matrix(connection=None):
                 "effect": x.effect,
                 "sensitive": x.sensitive,
                 "required": x.required,
-                "implemented": True,
-                "provider_supported": support.get(x.name),
+                "implemented": x.implemented,
+                "provider_supported": False if not x.implemented else support.get(x.name),
                 "verified_at": observations.get("apis", {}).get(x.name),
+                "provider": x.provider,
+                "summary": x.summary,
+                "category": x.category,
+                "input_schema": deepcopy(x.input_schema),
+                "output_schema": deepcopy(x.output_schema),
+                "invariants": x.invariants,
+                "stream": x.stream,
+                "delivery": x.delivery,
+                "reason": None if x.implemented else "provider_api_not_implemented",
+                "aliases": list(snowluma.ACTIONS.get(x.name, {}).get("aliases", [])),
             }
-            for x in (*APIS, QUICK_OPERATION, *NAPCAT_APIS)
+            for x in api_specs
         ],
         "transports": ["http", "reverse_http", "ws", "reverse_ws"],
     }

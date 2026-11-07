@@ -28,7 +28,7 @@ from .schema import (
 from .vault import Vault
 
 AVAILABLE = frozenset(
-    {"state.kv", "http.client", "secrets.read", "jobs.manage", "notifications.emit", "models.generate", "files.store", "sources.read", "messages.present"}
+    {"state.kv", "http.client", "secrets.read", "jobs.manage", "notifications.emit", "models.generate", "files.store", "sources.read", "messages.present", "channels.native"}
 )
 
 

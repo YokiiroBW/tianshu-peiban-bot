@@ -25,7 +25,7 @@ async def execute_capability(executions, context, name, operation, value):
     host, repo = executions.host, executions.repo
     instance, call = context["instance"], context["call"]
     require(isinstance(value, dict), "invalid_input", 400)
-    if name in {"models.generate","files.store","sources.read","messages.present"}:
+    if name in {"models.generate","files.store","sources.read","messages.present","channels.native"}:
         return await host.domain_ports.host_port(context,name,operation,value)
     if name == "comics.files":
         from ..media.comics.plugin import capability as comic_capability

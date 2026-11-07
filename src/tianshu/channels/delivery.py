@@ -595,6 +595,22 @@ async def compile_calls(service, context, target, connection, parts):
                             },
                         }
                     rows.append(segment)
+            elif kind == "channel_action":
+                if part.get("channel") != "onebot.v11":
+                    raise ChannelError("channel_segment_mismatch", 400)
+                from .onebot.registry import validate_call
+
+                spec, params = validate_call(part["api_name"], part["params"], connection)
+                if not spec.delivery:
+                    raise ChannelError("channel_action_not_delivery", 400)
+                if "*" not in context.permissions and "external.manage" not in context.permissions:
+                    raise ChannelError("forbidden", 403)
+                service.verify_target(target, params, connection["id"])
+                from .snowluma.delivery import parameters
+
+                params = parameters(spec, params, target)
+                flush()
+                calls.append((spec.name, params))
             elif kind == "forward":
                 await forward(part["nodes"])
             else:

@@ -8,7 +8,7 @@ from tianshu.runtime.serialization import wire
 from tianshu.capabilities.catalog import CapabilityDefinition, Availability
 from tianshu.capabilities.contracts import canonical
 from .contracts import ChannelError
-from .onebot.registry import BY_NAME, validate_call
+from .onebot.registry import BY_NAME, resolve_api, validate_call
 from .telegram import BOT_API_METHODS
 
 
@@ -32,6 +32,15 @@ def technical_api(name):
         return True
     spec = BY_NAME.get(name)
     return bool(spec and (spec.sensitive or spec.effect == "control"))
+
+
+def expression_api(name, connection):
+    if connection["adapter"] == "telegram":
+        return name.startswith("send") and name != "sendChatAction"
+    spec = resolve_api(name, connection)
+    return bool(spec and (spec.delivery or spec.name in {
+        "send_msg", "send_private_msg", "send_group_msg",
+        "send_group_forward_msg", "send_private_forward_msg"}))
 
 
 class Operation:
@@ -131,12 +140,14 @@ class Operation:
             spec, params = validate_call(name, params, connection)
             effect = spec.effect
             sensitive = spec.sensitive
+            if connection.get("provider") == "snowluma":
+                name = spec.name
         if self.name == "read" and (
             action.origin_kind != OriginKind.OBSERVATION
             or name not in {"get_msg", "get_forward_msg", "get_image", "get_record", "getFile"}
         ):
             raise ChannelError("channel_internal_read_only", 403)
-        if effect in {"send", "write"} and name.startswith("send") and name != "sendChatAction":
+        if expression_api(name, connection):
             if self.service.expression is None:
                 raise ChannelError("expression_port_unavailable", 503)
             target = await self.service.identity.channel_target(
@@ -149,6 +160,9 @@ class Operation:
                 if name != "sendMessage":
                     raise ChannelError("native_send_use_ordered_expression", 409)
                 parts = ({"kind": "text", "text": params["text"]},)
+            elif connection.get("provider") == "snowluma":
+                parts = ({"kind": "channel_action", "channel": "onebot.v11",
+                          "api_name": name, "params": params},)
             else:
                 from .onebot.messages import segments
 
@@ -287,6 +301,16 @@ class Operation:
         }
         if sensitive:
             result["sensitive_result_ref"] = rows[-1]["id"]
+        from tianshu.capabilities.serialization import artifact_from
+
+        artifacts = tuple(
+            artifact_from(outcome.data["artifact"])
+            for row, outcome in zip(rows, outcomes)
+            if row["api_name"] in {"download_file_stream", "download_file_image_stream",
+                                   "download_file_record_stream"}
+            and outcome.state == "confirmed" and isinstance(outcome.data, dict)
+            and "artifact" in outcome.data
+        )
         return Receipt(
             str(uuid4()),
             action.action_id,
@@ -299,6 +323,7 @@ class Operation:
             else "confirmed",
             "not_requested",
             result=result,
+            artifacts=artifacts,
             error_code=next((x.error_code for x in outcomes if x.error_code), None),
         )
 
@@ -309,7 +334,11 @@ class Operation:
             else action.arguments
         )
         name = arguments.get("api_name", "")
-        delegated = name.startswith("send") and name != "sendChatAction" and self.name != "read"
+        connection = (
+            await self.service.repository.connection(arguments["connection_id"], action.context)
+            if name else {"adapter": "onebot"}
+        )
+        delegated = expression_api(name, connection) and self.name != "read"
         quick_reply = name == ".handle_quick_operation" and "reply" in arguments.get(
             "params", {}
         ).get("operation", {})
@@ -328,7 +357,8 @@ class Operation:
                     result={**actual.result, "expression_id": expression_id},
                 )
         return await self.receipt(
-            action, attempt, sensitive=bool(BY_NAME.get(name) and BY_NAME[name].sensitive)
+            action, attempt, sensitive=bool(resolve_api(name, connection)
+                                            and resolve_api(name, connection).sensitive)
         )
 
     async def cancel(self, action, attempt):

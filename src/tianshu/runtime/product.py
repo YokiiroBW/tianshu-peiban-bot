@@ -239,6 +239,7 @@ async def build_product(runtime):
     channels.bind_recovery_policy(policy)
     channels.bind_statistics(statistics)
     caps.bind_expression(expression)
+    caps.bind_channels(channels)
     from .product_behaviors import validate_action_behaviors
 
     async def behavior_validator(context, refs, *, purpose):

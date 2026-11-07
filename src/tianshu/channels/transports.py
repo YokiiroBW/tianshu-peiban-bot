@@ -11,7 +11,8 @@ MAX_RESPONSE = 4 * 1024 * 1024
 
 
 def onebot_result(raw):
-    if not isinstance(raw, dict) or not isinstance(raw.get("retcode"), int):
+    if (not isinstance(raw, dict) or not isinstance(raw.get("retcode"), int)
+            or isinstance(raw.get("retcode"), bool)):
         return TransportResult("unknown", error_code="onebot_invalid_response")
     code = raw["retcode"]
     status = raw.get("status")
@@ -25,7 +26,7 @@ def onebot_result(raw):
             data,
             code,
             message_ids=(str(identifier),)
-            if isinstance(identifier, (str, int)) and not isinstance(identifier, bool)
+            if isinstance(identifier, (str, int)) and not isinstance(identifier, bool) and str(identifier) != "0"
             else (),
             raw=raw,
         )
@@ -56,6 +57,7 @@ class OneBotTransport:
         self.task = None
         self.sockets = {}
         self.pending = {}
+        self.streams = {}
         self.stopped = False
 
     async def start(self):
@@ -75,7 +77,7 @@ class OneBotTransport:
                     self.connection["endpoint"],
                     headers={"Authorization": "Bearer " + self.token},
                     heartbeat=20,
-                    max_msg_size=MAX_RESPONSE,
+                    max_msg_size=48 * 1024 * 1024 if self.connection.get("provider") == "snowluma" else MAX_RESPONSE,
                 ) as socket:
                     delay = 1
                     await self.attach(socket, "Universal")
@@ -110,6 +112,15 @@ class OneBotTransport:
                         break
                     if "echo" in body and "retcode" in body:
                         echo = str(body["echo"])
+                        stream = self.streams.get(echo)
+                        if stream is not None and stream[0] is socket:
+                            from .snowluma.streaming import enqueue
+
+                            await enqueue(stream[1], stream[2], body)
+                            continue
+                        if body.get("stream") == "stream-action":
+                            # A late frame cannot prove a complete, validated download.
+                            continue
                         result = onebot_result(body)
                         pending = self.pending.get(echo)
                         future = pending[1] if pending and pending[0] is socket else None
@@ -122,6 +133,11 @@ class OneBotTransport:
                 elif message.type in {aiohttp.WSMsgType.CLOSED, aiohttp.WSMsgType.ERROR}:
                     break
         finally:
+            for stream_socket, queue, _closed in tuple(self.streams.values()):
+                if stream_socket is socket:
+                    if queue.full():
+                        queue.get_nowait()
+                    queue.put_nowait(None)
             if self.sockets.get(role) is socket:
                 self.sockets.pop(role, None)
             if role in {"Universal", "API"}:
@@ -131,7 +147,15 @@ class OneBotTransport:
                             TransportResult("unknown", error_code="onebot_ws_disconnected")
                         )
 
-    async def call(self, identifier, name, params, submitted, *, context=None):
+    async def call(self, identifier, name, params, submitted, *, context=None, source_refs=()):
+        from .onebot.registry import resolve_api
+
+        spec = resolve_api(name, self.connection)
+        if spec is not None and spec.stream:
+            from .snowluma.streaming import call
+
+            return await call(self, identifier, name, params, submitted,
+                              context=context, source_refs=source_refs)
         transport = self.connection["transport"]
         if transport in {"ws", "reverse_ws"}:
             socket = self.sockets.get("API") or self.sockets.get("Universal")

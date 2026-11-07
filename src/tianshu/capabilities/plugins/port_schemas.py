@@ -103,6 +103,11 @@ OPERATIONS = {
 }
 
 OPERATIONS.update({
+    ("channels.native", "describe"): (request({"connection_id": TEXT, "api_name": TEXT,
+        "category": TEXT}, optional=("api_name", "category")), OBJECT),
+    ("channels.native", "invoke"): (request({"connection_id": TEXT, "api_name": TEXT,
+        "params": OBJECT, "request_id": TEXT}), OBJECT),
+    ("channels.native", "get"): (request({"action_id": TEXT}), OBJECT),
     ("models.generate","generate"):(request({"request_key":TEXT,"function":TEXT,"messages":{"type":"array","minItems":1,"maxItems":32},"system":{"type":"string","maxLength":32000},"required_capabilities":{"type":"array","items":{"type":"string"}},"max_output_tokens":{"type":"integer","minimum":1,"maximum":8192}},optional=("system","required_capabilities","max_output_tokens")),OBJECT),
     ("files.store","put"):(request({"data_base64":{"type":"string","maxLength":699052},"media_type":TEXT}),OBJECT),
     ("files.store","get"):(request({"media":OBJECT}),OBJECT),

@@ -914,6 +914,10 @@ class Capabilities:
         if self.plugins is not None:
             self.plugins.expression = expression
 
+    def bind_channels(self, channels):
+        if self.plugins is not None:
+            self.plugins.channels = channels.native
+
     def bind_result_events(self, events):
         self.actions.events = events
 

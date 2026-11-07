@@ -72,6 +72,9 @@ master key 是部署生成并保管的 32 字节随机密钥的 base64url 编码
 
 ## 公共端口
 
+SnowLuma 能力的内部调用、插件声明、参数目录和回执处理见
+[SnowLuma 内部接口文档](docs/development/snowluma-native-interfaces.md)。
+
 公开业务路由统一 `/api/v1/`，写入使用 `client_request_id` 和对象 `expected_revision`，返回 CommandResult。
 读取分页使用 Page。未知状态保持 null，写请求不会因网络超时自动重发。
 同源 Cookie/CSRF、身份与来源策略由 identity/sources 注册，领域通过真实 handler 注册自己的按钮操作。

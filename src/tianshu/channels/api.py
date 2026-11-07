@@ -241,7 +241,7 @@ def register_routes(app, service):
         transport = service.transports.get(connection["id"])
         if transport is None:
             raise ChannelError("channel_transport_unavailable", 503)
-        socket = web.WebSocketResponse(heartbeat=20, max_msg_size=4 * 1024 * 1024)
+        socket = web.WebSocketResponse(heartbeat=20, max_msg_size=(48 if connection.get("provider") == "snowluma" else 4) * 1024 * 1024)
         await socket.prepare(request)
         await transport.attach(socket, role)
         return socket

@@ -191,6 +191,7 @@ class Plugins:
             expression,
         )
         self.jobs, self.database = jobs, database
+        self.channels = None
         self.bridge = PluginActorBridge(host)
         host.domain_ports = self
 
@@ -307,6 +308,27 @@ class Plugins:
             }
         )
         try:
+            if name == "channels.native":
+                if self.channels is None:
+                    raise Fault("channel_port_unavailable", 503)
+                if operation == "describe":
+                    return await self.channels.describe(action.context, value["connection_id"],
+                        api_name=value.get("api_name"), category=value.get("category"))
+                if operation == "get":
+                    return wire(await self.channels.get(action.context, value["action_id"]))
+                result = await self.channels.invoke(
+                    action.context, value["connection_id"], value["api_name"], value["params"],
+                    request_id="plugin:" + digest([action.action_id, value["request_id"]]),
+                    source_refs=action.source_refs, origin_kind=action.origin_kind,
+                    behavior_refs=behavior_refs, behavior_purpose=behavior_purpose,
+                )
+                if result.result.get("expression_id"):
+                    document = await self.host.local(self.host.repository.call, call)
+                    await self.host.local(self.host.repository.update_call, call,
+                        explicit_expression_ids=list(dict.fromkeys([
+                            *document.get("explicit_expression_ids", []), result.result["expression_id"]])),
+                        sdk_delivery=result.delivery)
+                return wire(result)
             if name == "models.generate" and operation == "generate":
                 messages = tuple(
                     ModelMessage(

@@ -18,7 +18,7 @@ from .media import Media
 from .delivery import ChannelDelivery, DeliveryHandler, ContactPreflightStopped, BehaviorPreflightPending
 from .transports import OneBotTransport, OwnerClient
 from .telegram import TelegramTransport, BOT_API_METHODS
-from .onebot.registry import BY_NAME
+from .onebot.registry import resolve_api
 from .operations import Operation
 
 
@@ -54,6 +54,9 @@ class Channels:
         self.recovery_policy = None
         self.statistics = None
         self.delivery = ChannelDelivery(self)
+        from .native import ChannelNativeApi
+
+        self.native = ChannelNativeApi(self)
         self.owner_id = str(uuid4())
         self.owner = False
         self.epoch = None
@@ -483,14 +486,20 @@ class Channels:
                     or quota.data.get("remain_at_all_count_for_uin", 0) <= 0
                 ):
                     raise ChannelError("channel_at_all_unavailable", 409)
-            result = await transport.call(
-                identifier, row["api_name"], params, submitted, context=context
-            )
+            call_options = {"context": context}
+            if isinstance(transport, OneBotTransport):
+                call_options["source_refs"] = action.source_refs
+            result = await transport.call(identifier, row["api_name"], params, submitted, **call_options)
             current = await self.repository.call(identifier)
             if result.state == "unknown" and not current["submitted_at"]:
                 result = replace(result, state="rejected")
+            from .snowluma.catalog import MESSAGE_RECEIPT_APIS
+
+            requires_message_id = (
+                connection.get("provider") == "snowluma" and row["api_name"] in MESSAGE_RECEIPT_APIS
+            )
             if (
-                row["api_name"]
+                (requires_message_id or row["api_name"]
                 in {
                     "send_private_msg",
                     "send_group_msg",
@@ -506,7 +515,7 @@ class Channels:
                     "sendDocument",
                     "sendSticker",
                     "sendMediaGroup",
-                }
+                })
                 and result.state == "confirmed"
                 and not result.message_ids
             ):
@@ -566,7 +575,10 @@ class Channels:
         if connection["adapter"] == "telegram":
             return not name.startswith("get")
         base = name[:-6] if name.endswith("_async") else name
-        return BY_NAME[base].effect != "read"
+        spec = resolve_api(base, connection)
+        if spec is None:
+            raise ChannelError("channel_api_not_implemented", 400)
+        return spec.effect != "read"
 
     @staticmethod
     def checked_identity(connection, result):

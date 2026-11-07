@@ -306,7 +306,7 @@ class ExpressionService:
     @staticmethod
     def _parts(parts):
         allowed = {"text", "image", "audio", "video", "file", "reaction", "reference", "forward", "reply",
-                   "mention", "mention_all", "channel_segment"}
+                   "mention", "mention_all", "channel_segment", "channel_action"}
         output = []
         for part in parts:
             if not isinstance(part, dict) or part.get("kind") not in allowed:
