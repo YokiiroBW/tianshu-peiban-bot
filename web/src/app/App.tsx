@@ -27,6 +27,7 @@ import {
 } from "./Auth";
 import { Drawer } from "../components/Drawer";
 import { PageBoundary } from "../components/PageBoundary";
+import { UiVersionMonitor } from "./uiRelease";
 import { CommandMonitor } from "../components/CommandMonitor";
 import { NotificationProvider } from "../components/Notifications";
 import { StatePanel } from "../components/StatePanel";
@@ -176,6 +177,7 @@ function readGenerationNotice() {
 export function App() {
   return (
     <NotificationProvider>
+          <UiVersionMonitor />
       <AuthProvider>
         <RoleWorkspaceProvider>
           <CommandMonitor />
