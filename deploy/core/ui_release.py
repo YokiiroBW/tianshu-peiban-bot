@@ -325,7 +325,12 @@ def build_ui_package(
         _link_or_junction_directory(node_modules_path, target_nm)
     else:
         run([npm_binary, "ci"], cwd=web_dir, env=build_env)
-    run([npm_binary, "run", "build"], cwd=web_dir, env=build_env)
+    if shutil.which(npm_binary) is not None or Path(npm_binary).is_file():
+        run([npm_binary, "run", "build"], cwd=web_dir, env=build_env)
+    else:
+        node_bin = shutil.which("node") or "node"
+        run([node_bin, "node_modules/typescript/bin/tsc", "-p", "tsconfig.json", "--noEmit"], cwd=web_dir, env=build_env)
+        run([node_bin, "node_modules/vite/bin/vite.js", "build"], cwd=web_dir, env=build_env)
     dist_dir = web_dir / "dist"
     if not dist_dir.is_dir() or dist_dir.is_symlink():
         raise ValueError("built_ui_dist_missing")

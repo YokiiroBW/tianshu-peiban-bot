@@ -15,6 +15,7 @@ from .ui_release import (
 )
 
 RESERVED_PREFIXES = frozenset({"api", "health", "internal", "channels", "v1", "v1beta", "_ui"})
+UI_RELEASE_MANAGER = web.AppKey("tianshu.ui_release_manager", UiReleaseManager)
 
 
 def _safe_legacy_file(base_dir: Path, rel_route: str) -> Path | None:
@@ -51,7 +52,7 @@ def register_static(
         raise ValueError("built_web_index_missing")
     ui_root = Path(ui_release_directory) if ui_release_directory is not None else None
     manager = UiReleaseManager(ui_root, root, backend_contract=backend_contract)
-    app["ui_release_manager"] = manager
+    app[UI_RELEASE_MANAGER] = manager
 
     async def serve(request: web.Request):
         route = request.match_info["path"]

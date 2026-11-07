@@ -5,6 +5,7 @@ import {
   resolveRoom,
   type PreviewInput,
 } from "../environment";
+import { publicAssetUrl } from "../../../app/uiRelease";
 import { createReadingForeground } from "./occlusion";
 
 const WIDTH = 1536;

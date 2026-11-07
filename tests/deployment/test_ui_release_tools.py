@@ -213,6 +213,8 @@ async def test_activate_rollback_http_verification_and_preserve_legacy(tmp_path:
     install_ui_package(ui_root, archive_a, min_free_bytes=1024)
     install_ui_package(ui_root, archive_b, min_free_bytes=1024)
 
+    import asyncio
+
     app = web.Application()
     register_static(app, builtin_dir, ui_release_directory=ui_root)
     server = TestServer(app)
@@ -220,37 +222,49 @@ async def test_activate_rollback_http_verification_and_preserve_legacy(tmp_path:
     try:
         base_url = str(server.make_url("")).rstrip("/")
 
-        # Activate A with live HTTP verification
-        act_a = activate_ui_release(ui_root, build_a, verify_url=base_url)
+        # Activate A with real HTTP verification (run synchronous urllib client in worker thread)
+        act_a = await asyncio.to_thread(
+            activate_ui_release, ui_root, build_a, verify_url=base_url
+        )
         assert act_a["package_installed"] is True
         assert act_a["pointer_switched"] is True
         assert act_a["http_verified"] is True
 
-        # Activate B with expected_current CAS and HTTP verification
-        act_b = activate_ui_release(
-            ui_root, build_b, expected_current_build_id=build_a, verify_url=base_url
+        # Activate B with expected_current CAS and real HTTP verification
+        act_b = await asyncio.to_thread(
+            activate_ui_release,
+            ui_root,
+            build_b,
+            expected_current_build_id=build_a,
+            verify_url=base_url,
         )
         assert act_b["current_build_id"] == build_b
         assert act_b["previous_build_id"] == build_a
         assert act_b["http_verified"] is True
 
-        # Rollback B -> A with HTTP verification
-        rb_a = rollback_ui_release(
-            ui_root, expected_current_build_id=build_b, verify_url=base_url
+        # Rollback B -> A with real HTTP verification
+        rb_a = await asyncio.to_thread(
+            rollback_ui_release,
+            ui_root,
+            expected_current_build_id=build_b,
+            verify_url=base_url,
         )
         assert rb_a["current_build_id"] == build_a
         assert rb_a["rolled_back_to"] == build_a
         assert rb_a["http_verified"] is True
 
         # Both historical releases A and B remain installed on disk
-        st = status_ui_release(ui_root, builtin_root=builtin_dir, verify_url=base_url)
+        st = await asyncio.to_thread(
+            status_ui_release, ui_root, builtin_root=builtin_dir, verify_url=base_url
+        )
         assert st["http_verified"] is True
         assert st["release_count"] == 2
         assert {r["build_id"] for r in st["installed_releases"]} == {build_a, build_b}
 
         # Failed network verification must NOT claim http_verified=True and CLI returns non-zero
         with pytest.raises(UiReleaseVerificationError) as exc_info:
-            activate_ui_release(
+            await asyncio.to_thread(
+                activate_ui_release,
                 ui_root,
                 build_b,
                 expected_current_build_id=build_a,
@@ -263,8 +277,9 @@ async def test_activate_rollback_http_verification_and_preserve_legacy(tmp_path:
         assert err_receipt["http_verified"] is False
         assert err_receipt["verification_error"]
 
-        exit_code = ui_release_main(
-            ["status", "--ui-root", str(ui_root), "--verify-url", "http://127.0.0.1:1", "--timeout", "0.2"]
+        exit_code = await asyncio.to_thread(
+            ui_release_main,
+            ["status", "--ui-root", str(ui_root), "--verify-url", "http://127.0.0.1:1", "--timeout", "0.2"],
         )
         assert exit_code == 1
     finally:
