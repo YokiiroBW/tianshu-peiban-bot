@@ -9,6 +9,7 @@ import { CommandFeedback } from "../../components/CommandFeedback";
 import { useIdentityDirectory } from "./api";
 import { humanizeCode } from "../../design/humanize";
 import type { Conversation, ConversationLink } from "./types";
+import { GroupParticipationControl } from "./GroupParticipationControl";
 
 function LinkEditor({
   link,
@@ -24,6 +25,9 @@ function LinkEditor({
   const [mode, setMode] = useState(link.mode);
   const [mention, setMention] = useState(link.mention_required);
   const [owner, setOwner] = useState(link.reply_owner);
+  const [keywords, setKeywords] = useState(
+    (link.reply_keywords ?? []).join("\n"),
+  );
   const command = useDomainCommand<ConversationLink>(
     `channel-policy:${link.connection_id}:${link.external_id}`,
     "global",
@@ -46,6 +50,10 @@ function LinkEditor({
               mode,
               mention_required: mention,
               reply_owner: owner,
+              reply_keywords: keywords
+                .split("\n")
+                .map((word) => word.trim())
+                .filter(Boolean),
             },
             link.revision,
           )
@@ -54,21 +62,25 @@ function LinkEditor({
       }}
     >
       <h4>{conversation.label}</h4>
-      <p className="muted">
-        渠道账号 {link.external_id} · 当前修订 {link.revision}
-      </p>
-      <label>
-        准入行为
-        <select
-          value={mode}
+      <label className="inline-check">
+        <input
+          type="checkbox"
+          checked={mode !== "ignore"}
           onChange={(event) =>
-            setMode(event.target.value as ConversationLink["mode"])
+            setMode(event.target.checked ? "observe" : "ignore")
           }
-        >
-          <option value="ignore">忽略</option>
-          <option value="observe">仅观察</option>
-          <option value="reply">允许回复</option>
-        </select>
+        />
+        接收此会话
+      </label>
+      <label className="inline-check">
+        <input
+          type="checkbox"
+          checked={mode === "reply"}
+          onChange={(event) =>
+            setMode(event.target.checked ? "reply" : "observe")
+          }
+        />
+        允许普通回复
       </label>
       <label>
         <input
@@ -76,7 +88,15 @@ function LinkEditor({
           checked={mention}
           onChange={(event) => setMention(event.target.checked)}
         />
-        仅被提及时回复
+        仅被提及或命中关键词时回复
+      </label>
+      <label>
+        回复关键词（每行一个）
+        <textarea
+          value={keywords}
+          onChange={(event) => setKeywords(event.target.value)}
+          rows={3}
+        />
       </label>
       <label>
         命令回复归属
@@ -86,14 +106,13 @@ function LinkEditor({
         >
           {[...new Set(["tianshu", "external", link.reply_owner])].map(
             (value) => (
-              <option key={value} value={value}>{humanizeCode(value, "已登记的回复服务")}</option>
+              <option key={value} value={value}>
+                {humanizeCode(value, "已登记的回复服务")}
+              </option>
             ),
           )}
         </select>
       </label>
-      <p className="muted">
-        外部命令由登记宿主处理时，天枢只观察，避免双重回复。
-      </p>
       <button className="button" disabled={command.busy}>
         保存此会话策略
       </button>
@@ -131,9 +150,9 @@ export function ReplyPermissions({
     ) ?? [];
   return (
     <section>
-      <h3>会话准入与回复</h3>
+      <h3>会话权限</h3>
       <p className="muted">
-        实际权限由登记渠道、账号和此会话策略决定，人物关系不授予访问或发送权限。
+        决定当前角色是否接收和回复此会话。关闭接收后不再处理新消息。
       </p>
       {!directory.manageable && (
         <p>当前身份可读人物资料；会话策略需要身份管理权限。</p>
@@ -141,18 +160,34 @@ export function ReplyPermissions({
       {(directory.error || conversations.error) && (
         <p role="alert">{directory.error || conversations.error}</p>
       )}
+      {conversations.loading && <p role="status">正在读取会话权限…</p>}
+      {directory.manageable && conversations.data && !available.length && (
+        <p>尚无与此人物关联的私聊。群内接收与回复可在“群画像”的权限页调整。</p>
+      )}
       {available.map((row) => {
-        const link = directory.data?.conversation_links.find(
+        const links = directory.data?.conversation_links.filter(
           (item) => item.conversation_id === row.conversation_id,
         );
-        return link ? (
-          <LinkEditor
-            key={`${link.connection_id}:${link.external_id}:${link.revision}`}
-            link={link}
-            conversation={row}
-            actorId={actorId}
-            refreshed={directory.refresh}
-          />
+        return links?.length ? (
+          links.map((link) => (
+            <div
+              key={`${link.connection_id}:${link.external_id}:${link.revision}`}
+            >
+              <LinkEditor
+                key={`${link.connection_id}:${link.external_id}:${link.revision}`}
+                link={link}
+                conversation={row}
+                actorId={actorId}
+                refreshed={directory.refresh}
+              />
+              {row.kind === "group" && (
+                <GroupParticipationControl
+                  inline
+                  link={{ ...link, actor_id: actorId }}
+                />
+              )}
+            </div>
+          ))
         ) : (
           <p key={row.conversation_id}>
             {row.label} ·{" "}

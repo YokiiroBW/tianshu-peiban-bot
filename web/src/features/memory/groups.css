@@ -102,3 +102,135 @@
     grid-template-columns: 1fr;
   }
 }
+.group-content-tabs {
+  flex-wrap: wrap;
+}
+.group-activity {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.group-stat-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 28px;
+  padding: 16px;
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-inner);
+}
+.group-stat-strip span {
+  display: grid;
+  gap: 4px;
+  color: var(--text-secondary);
+}
+.group-stat-strip strong {
+  color: var(--accent);
+  font-size: 1.25rem;
+}
+.group-insight-card {
+  min-width: 0;
+  padding: 16px;
+  border: 1px solid var(--border-inner);
+  background: var(--bg-card);
+}
+.group-cloud {
+  width: 100%;
+  height: 360px;
+  display: block;
+}
+.group-cloud line {
+  stroke: var(--accent);
+  opacity: 0.22;
+}
+.group-cloud circle {
+  fill: var(--accent-soft);
+  stroke: var(--accent);
+  stroke-width: 1.5;
+}
+.group-cloud g {
+  cursor: pointer;
+}
+.group-cloud g:hover circle,
+.group-cloud g:focus-visible circle {
+  stroke-width: 4;
+}
+.group-cloud text {
+  fill: var(--text-primary);
+  font-size: 13px;
+  pointer-events: none;
+}
+.group-cloud .group-cloud-count {
+  fill: var(--accent);
+  font-weight: 700;
+}
+.group-topic-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.group-topic-chips small {
+  margin-left: 6px;
+  color: var(--text-muted);
+}
+.group-heat-bars {
+  height: 170px;
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  padding-top: 24px;
+  margin-bottom: 30px;
+}
+.group-heat-bars > div {
+  flex: 1;
+  height: 100%;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: end;
+  position: relative;
+}
+.group-heat-bar {
+  display: block;
+  background: var(--accent);
+  opacity: 0.7;
+  border-radius: 3px 3px 0 0;
+  min-height: 2px;
+}
+.group-heat-bars small {
+  position: absolute;
+  top: calc(100% + 6px);
+  font-size: 10px;
+  white-space: nowrap;
+  transform: rotate(-35deg);
+  transform-origin: top left;
+}
+.group-heat-bars > div:nth-child(even) small {
+  display: none;
+}
+.group-evidence-list {
+  list-style: none;
+  padding: 0;
+  display: grid;
+  gap: 14px;
+}
+.group-evidence-list li {
+  border-bottom: 1px solid var(--border-inner);
+  padding-bottom: 12px;
+}
+.group-impression-summary {
+  line-height: 1.8;
+  padding: 16px;
+  background: var(--bg-subtle);
+  border-left: 3px solid var(--accent);
+}
+@media (max-width: 760px) {
+  .group-content-tabs {
+    gap: 3px;
+  }
+  .group-insight-card {
+    padding: 10px;
+  }
+  .group-cloud {
+    height: 360px;
+  }
+}

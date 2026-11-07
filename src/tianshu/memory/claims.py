@@ -3,6 +3,7 @@
 from dataclasses import replace
 from datetime import UTC, datetime
 import json
+import re
 
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.commands import body_hash
@@ -77,7 +78,7 @@ class ClaimService:
         return await select_supports_on(self.sources, conn, context, rows)
 
     async def _claim_rows_on(self, conn, context, *, claim_id=None, subject_id=None, cursor=None,
-                             limit=50, time_mode="current", known_at=None):
+                             limit=50, time_mode="current", known_at=None, predicate=None, exclude_predicate=None):
         if time_mode == "known_at":
             version = "JOIN LATERAL (SELECT * FROM memory.claim_revisions v WHERE v.claim_id=c.claim_id AND v.recorded_at<=%s ORDER BY v.revision DESC LIMIT 1) r ON true "
             arguments = [known_at]
@@ -87,9 +88,10 @@ class ClaimService:
         return await (await conn.execute("SELECT r.*,c.actor_id,c.current_revision FROM memory.claims c " + version +
             "WHERE c.actor_id=%s AND " + ELIGIBLE_SCOPES +
             " AND (%s::text IS NULL OR c.claim_id=%s) AND (%s::text IS NULL OR r.subject_id=%s) "
+            "AND (%s::text IS NULL OR r.predicate=%s) AND (%s::text IS NULL OR r.predicate<>%s) "
             "AND (%s::text IS NULL OR c.claim_id>%s) ORDER BY c.claim_id LIMIT %s",
             (*arguments, context.actor_id, list(context.scope_ids), claim_id, claim_id,
-             subject_id, subject_id, cursor, cursor, limit))).fetchall()
+             subject_id, subject_id, predicate, predicate, exclude_predicate, exclude_predicate, cursor, cursor, limit))).fetchall()
 
     async def _claim_views_on(self, conn, context, rows, *, historical=False, known_at=None):
         selected = await self.selected_groups(conn, context, rows)
@@ -107,13 +109,16 @@ class ClaimService:
                    and (link.valid_until is None or moment < link.valid_until) for link in links)
 
     async def list(self, context, *, subject_id=None, cursor=None, limit=50,
-                   time_mode="current", valid_at=None, known_at=None):
+                   time_mode="current", valid_at=None, known_at=None, predicate=None, exclude_predicate=None):
         await self.identity.check_context(context)
+        for value in (predicate, exclude_predicate):
+            if value is not None and (not isinstance(value, str) or not re.fullmatch(CLAIM_PREDICATE_PATTERN, value)):
+                raise AppError("invalid_claim_predicate")
         time_mode, valid_at, known_at = temporal_selection(time_mode=time_mode, valid_at=valid_at, known_at=known_at)
         limit = min(max(int(limit), 1), 200)
         async with self.database.transaction(read_only=True) as conn:
             rows = await self._claim_rows_on(conn, context, subject_id=subject_id, cursor=cursor, limit=limit + 1,
-                time_mode=time_mode, known_at=known_at)
+                time_mode=time_mode, known_at=known_at, predicate=predicate, exclude_predicate=exclude_predicate)
             values, selected, links = await self._claim_views_on(conn, context, rows[:limit],
                 historical=time_mode != "current", known_at=known_at)
             unknown_recording = False
@@ -123,9 +128,11 @@ class ClaimService:
                     "WHERE c.actor_id=%s AND r.recorded_at IS NULL AND r.state='active' AND " + ELIGIBLE_SCOPES +
                     " AND (%s::text IS NULL OR r.subject_id=%s) AND NOT EXISTS(SELECT 1 FROM memory.claim_revisions known "
                     "WHERE known.claim_id=c.claim_id AND known.recorded_at<=%s) "
+                    "AND (%s::text IS NULL OR r.predicate=%s) AND (%s::text IS NULL OR r.predicate<>%s) "
                     "AND sources.any_support_usable(r.support_groups,%s::text[]) "
                     "AND sources.any_support_usable(jsonb_build_array(r.derivation_refs),%s::text[]) LIMIT 1",
                     (context.actor_id, list(context.scope_ids), subject_id, subject_id, known_at,
+                     predicate, predicate, exclude_predicate, exclude_predicate,
                      list(context.scope_ids), list(context.scope_ids)))).fetchone() is not None
         moment = valid_at or known_at or datetime.now(UTC)
         items = tuple(value for value in values if valid_for_time(value, time_mode=time_mode, valid_at=moment)
@@ -149,6 +156,7 @@ class ClaimService:
     async def correct(self, context, body, *, evidence_refs=None):
         old = await self.get(context, body["claim_id"])
         if evidence_refs is None:
+            context = await self.identity.person_write_context(context, permission="memory.manage")
             command_refs = await self.sources.record_event(context, producer="web.claim.correct",
                 event_id=body["client_request_id"], revision=1, occurred_at=datetime.now(UTC),
                 parts=({"text": json.dumps({"claim_id": old.claim_id, "value": body.get("value"),

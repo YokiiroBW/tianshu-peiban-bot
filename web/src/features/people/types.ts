@@ -1,6 +1,9 @@
 import { humanizeCode } from "../../design/humanize";
 
-export function connectionName(connection?: { namespace: string; self_external_id: string }): string {
+export function connectionName(connection?: {
+  namespace: string;
+  self_external_id: string;
+}): string {
   if (!connection) return "渠道连接不可用";
   return `${humanizeCode(connection.namespace, "机器人账号")} · ${connection.self_external_id}`;
 }
@@ -45,6 +48,7 @@ export type ConversationLink = {
   mode: "reply" | "observe" | "ignore";
   mention_required: boolean;
   reply_owner: string;
+  reply_keywords?: string[];
   revision: number;
 };
 export type IdentityDirectory = {

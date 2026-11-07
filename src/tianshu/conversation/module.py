@@ -5,6 +5,7 @@ from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import Migration
 from tianshu.runtime.execution import ExecutionLane
+from .group_insights import group_insights
 
 
 def create_module(service, expression, identity, result_consumer, renderer):
@@ -23,6 +24,7 @@ def create_module(service, expression, identity, result_consumer, renderer):
         route("participation", service.participation.view, permission="companion.read")
         route("participation.save", service.participation.save, write=True, permission="companion.manage")
         route("messages", lambda ctx, body: service.messages(ctx, cursor=body.get("cursor"), limit=body.get("limit", 50)))
+        route("group-insights", lambda ctx, body: group_insights(service, ctx, body))
         route("send", service.send, write=True)
         route("turn", lambda ctx, body: service.turn(ctx, body.get("turn_id")))
         route("cancel", service.cancel, write=True)

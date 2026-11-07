@@ -342,7 +342,7 @@ function PersonaEditor({
   );
   return (
     <form
-      className="domain-form"
+      className="domain-form persona-editor"
       onSubmit={(event) => {
         event.preventDefault();
         const data = new FormData(event.currentTarget);
@@ -368,6 +368,9 @@ function PersonaEditor({
           });
       }}
     >
+      <p className="muted">
+        修改会保存为一份新的作者修订；需要应用给角色时，再选择相应修订。
+      </p>
       <label>
         人格名称
         <input
@@ -377,23 +380,38 @@ function PersonaEditor({
           maxLength={128}
         />
       </label>
-      {Object.entries(labels).map(([key, label]) => (
-        <label key={key}>
-          {label}
-          <textarea
-            name={key}
-            defaultValue={value.persona[key as keyof typeof labels] ?? ""}
-            required={key === "author_text"}
-            maxLength={key === "author_text" ? 200000 : 20000}
-            rows={key === "author_text" ? 16 : 5}
-          />
-        </label>
-      ))}
+      <label>
+        {labels.author_text}
+        <textarea
+          className="persona-editor-main"
+          name="author_text"
+          defaultValue={value.persona.author_text ?? ""}
+          required
+          maxLength={200000}
+          rows={18}
+        />
+      </label>
+      <fieldset className="persona-editor-sections">
+        <legend>表达与角色背景</legend>
+        {Object.entries(labels)
+          .filter(([key]) => key !== "author_text")
+          .map(([key, label]) => (
+            <label key={key}>
+              {label}
+              <textarea
+                name={key}
+                defaultValue={value.persona[key as keyof typeof labels] ?? ""}
+                maxLength={20000}
+                rows={4}
+              />
+            </label>
+          ))}
+      </fieldset>
       <label>
         本次修订说明
-        <textarea name="note" maxLength={20000} />
+        <textarea name="note" maxLength={20000} rows={3} />
       </label>
-      <div className="domain-actions">
+      <div className="domain-actions persona-editor-actions">
         <button className="button primary" disabled={action.busy}>
           保存作者修订
         </button>

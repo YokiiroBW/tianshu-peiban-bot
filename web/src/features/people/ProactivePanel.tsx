@@ -30,11 +30,12 @@ export function ProactivePanel({ scope }: { scope: DomainTarget }) {
   useEffect(() => setDraft(view.data), [view.data]);
   return (
     <section>
-      <h3>主动联系偏好</h3>
+      <h3>主动联系</h3>
       <p className="muted">
-        偏好约束该角色与此人物的实际联系节奏；明确提醒沿原承诺期限执行，不从普通随兴联系筛选。
+        决定角色是否可以主动找这个人聊天，以及何时保持安静。已约定的提醒另行执行。
       </p>
       {view.error && <p role="alert">{view.error}</p>}
+      {view.loading && <p role="status">正在读取联系设置…</p>}
       {draft && (
         <form
           className="people-config-form"

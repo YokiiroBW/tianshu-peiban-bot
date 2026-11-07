@@ -535,8 +535,7 @@
   grid-column: 1 / -1;
 }
 
-.life-form,
-.domain-form {
+.life-form {
   display: grid;
   gap: 12px;
   margin-top: 14px;
@@ -545,8 +544,7 @@
 .life-form label,
 .life-form-row label,
 .life-content-reader label,
-.life-record > label,
-.domain-form label {
+.life-record > label {
   display: grid;
   gap: 6px;
   font-size: 12.5px;
@@ -562,10 +560,7 @@
 .life-form-row select,
 .life-record select,
 .life-record textarea,
-.room-live select,
-.domain-form input:not([type="checkbox"]):not([type="radio"]),
-.domain-form select,
-.domain-form textarea {
+.room-live select {
   width: 100%;
   min-width: 0;
   box-sizing: border-box;
@@ -578,24 +573,9 @@
 }
 
 .life-form textarea,
-.life-record textarea,
-.domain-form textarea {
+.life-record textarea {
   resize: vertical;
   min-height: 85px;
-}
-
-.domain-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  margin-top: 10px;
-}
-
-.domain-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
-  gap: 14px;
 }
 
 .life-records {

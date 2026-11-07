@@ -40,9 +40,15 @@ class IdentityManagement:
             rows = await (
                 await conn.execute(
                     "SELECT p.*,ARRAY(SELECT alias FROM identity.person_aliases a WHERE a.person_id=p.person_id ORDER BY alias) AS aliases FROM identity.people p WHERE "
-                    "(EXISTS(SELECT 1 FROM identity.scopes s JOIN identity.scope_grants g USING(scope_id) WHERE s.person_id=p.person_id AND g.principal_id=%s) OR EXISTS(SELECT 1 FROM identity.conversation_members m JOIN identity.conversations v USING(conversation_id) JOIN identity.scope_grants g USING(scope_id) WHERE m.person_id=p.person_id AND g.principal_id=%s)) "
+                    "(EXISTS(SELECT 1 FROM identity.scopes s JOIN identity.scope_grants g USING(scope_id) "
+                    "WHERE s.person_id=p.person_id AND g.principal_id=%s AND g.permissions && ARRAY['read','*'] "
+                    "AND (%s::text IS NULL OR s.scope_id=ANY(%s::text[]))) "
+                    "OR EXISTS(SELECT 1 FROM identity.conversation_members m JOIN identity.conversations v USING(conversation_id) "
+                    "JOIN identity.scope_grants g USING(scope_id) WHERE m.person_id=p.person_id AND g.principal_id=%s "
+                    "AND g.permissions && ARRAY['read','*'] AND (%s::text IS NULL OR v.scope_id=ANY(%s::text[])))) "
                     "AND (%s::text IS NULL OR p.person_id>%s) ORDER BY p.person_id LIMIT %s",
-                    (context.principal_id, context.principal_id, cursor, cursor, limit + 1),
+                    (context.principal_id, context.actor_id, list(context.scope_ids),
+                     context.principal_id, context.actor_id, list(context.scope_ids), cursor, cursor, limit + 1),
                 )
             ).fetchall()
         return Page(

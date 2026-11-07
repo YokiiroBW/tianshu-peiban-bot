@@ -11,7 +11,7 @@ export function Interactions({
   const [query, setQuery] = useMemoryTime();
   return (
     <>
-      <MemoryTimeFilter value={query} onChange={setQuery} />
+      <MemoryTimeFilter compact value={query} onChange={setQuery} />
       <MemoryReview
         key={JSON.stringify(query)}
         scope={scope}

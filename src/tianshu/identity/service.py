@@ -160,7 +160,7 @@ class IdentityService:
                     raise AppError("actor_forbidden", status=403)
                 permissions = {"life.published.read", "sources.read"}
                 if person_id and person_id != principal["person_id"]:
-                    raise AppError("person_forbidden", status=403)
+                    raise AppError("person_forbidden", "当前角色无权读取这个人物，请切换角色或重新选择档案。", status=403)
             # Owners can still manage a disabled role; execution is checked separately.
             if not actor["enabled"] and permission not in {
                 None,
@@ -230,18 +230,23 @@ class IdentityService:
                     )
                 ).fetchone()
                 if not visible:
-                    raise AppError("person_forbidden", status=403)
+                    raise AppError("person_forbidden", "当前角色无权读取这个人物，请切换角色或重新选择档案。", status=403)
         person_filter = person_id if conversation_kind != "group" else None
         rows = await (
             await conn.execute(
-                "SELECT s.*,g.permissions AS granted FROM identity.scopes s "
+                "SELECT s.*,g.permissions AS granted,EXISTS(SELECT 1 FROM identity.conversations v "
+                "JOIN identity.conversation_members m USING(conversation_id) WHERE v.scope_id=s.scope_id "
+                "AND v.kind='group' AND m.person_id=%s) AS person_member FROM identity.scopes s "
                 "JOIN identity.scope_grants g USING(scope_id) WHERE g.principal_id=%s "
                 "AND (s.actor_id=%s OR (%s::text IS NULL AND s.actor_id IS NULL)) "
                 "AND (NOT %s OR s.kind='publication') "
                 "AND (%s::text IS NULL OR s.scope_id=%s OR s.kind='public' OR EXISTS(SELECT 1 FROM identity.scope_inclusions i "
                 "WHERE i.publication_scope_id=s.scope_id AND i.conversation_scope_id=%s)) "
-                "AND (%s::text IS NULL OR s.person_id=%s OR s.kind IN ('public','publication')) ORDER BY s.scope_id",
+                "AND (%s::text IS NULL OR s.person_id=%s OR s.kind IN ('public','publication') "
+                "OR EXISTS(SELECT 1 FROM identity.conversations v JOIN identity.conversation_members m USING(conversation_id) "
+                "WHERE v.scope_id=s.scope_id AND v.kind='group' AND m.person_id=%s)) ORDER BY s.scope_id",
                 (
+                    person_filter,
                     principal_id,
                     actor_id,
                     actor_id,
@@ -249,6 +254,7 @@ class IdentityService:
                     scope_id,
                     scope_id,
                     scope_id,
+                    person_filter,
                     person_filter,
                     person_filter,
                 ),
@@ -259,9 +265,10 @@ class IdentityService:
         if (
             person_filter
             and not publication_only
-            and not any(row["person_id"] == person_id for row in rows)
+            and not any((row["person_id"] == person_id or row["person_member"])
+                        and {"read", "*"} & set(row["granted"]) for row in rows)
         ):
-            raise AppError("person_forbidden", status=403)
+            raise AppError("person_forbidden", "当前角色无权读取这个人物，请切换角色或重新选择档案。", status=403)
         if any(row["kind"] == "publication" for row in rows):
             permissions.update(("life.published.read", "sources.read"))
         require_permission(permissions, permission)
@@ -474,9 +481,9 @@ class IdentityService:
                 "SELECT DISTINCT p.person_id,p.display_name,p.revision,ARRAY(SELECT alias FROM identity.person_aliases a "
                 "WHERE a.person_id=p.person_id ORDER BY alias) AS aliases FROM identity.people p "
                 "WHERE p.person_id=%s OR EXISTS(SELECT 1 FROM identity.scopes s WHERE s.person_id=p.person_id AND s.scope_id=ANY(%s)) "
-                "OR EXISTS(SELECT 1 FROM identity.conversation_members m "
-                "WHERE m.person_id=p.person_id AND m.conversation_id=%s) ORDER BY p.person_id LIMIT 256",
-                (context.person_id, list(context.scope_ids), context.conversation_id),
+                "OR EXISTS(SELECT 1 FROM identity.conversation_members m JOIN identity.conversations v USING(conversation_id) "
+                "WHERE m.person_id=p.person_id AND v.scope_id=ANY(%s::text[])) ORDER BY p.person_id LIMIT 256",
+                (context.person_id, list(context.scope_ids), list(context.scope_ids)),
             )
         ).fetchall()
 
@@ -513,10 +520,11 @@ class IdentityService:
             "WHERE (p.person_id=ANY(%s::text[]) OR lower(p.display_name)=ANY(%s::text[]) "
             "OR EXISTS(SELECT 1 FROM identity.person_aliases a WHERE a.person_id=p.person_id AND lower(a.alias)=ANY(%s::text[]))) "
             "AND (p.person_id=%s OR EXISTS(SELECT 1 FROM identity.scopes s WHERE s.person_id=p.person_id AND s.scope_id=ANY(%s::text[])) "
-            "OR EXISTS(SELECT 1 FROM identity.conversation_members m WHERE m.person_id=p.person_id AND m.conversation_id=%s) "
+            "OR EXISTS(SELECT 1 FROM identity.conversation_members m JOIN identity.conversations v USING(conversation_id) "
+            "WHERE m.person_id=p.person_id AND v.scope_id=ANY(%s::text[])) "
             "OR EXISTS(SELECT 1 FROM identity.events e WHERE e.speaker_id=p.person_id AND e.conversation_id=%s)) "
             "ORDER BY p.person_id LIMIT 129",
-            (selected, names, names, context.person_id, list(context.scope_ids), context.conversation_id,context.conversation_id),
+            (selected, names, names, context.person_id, list(context.scope_ids), list(context.scope_ids),context.conversation_id),
         )).fetchall()
         if len(rows) > 128:
             raise AppError("memory_identity_candidates_too_large")
@@ -909,17 +917,22 @@ class IdentityService:
         )
         return row["access_epoch"]
 
-    async def conversations(self, context, actor_id, *, cursor=None, limit=50):
+    async def conversations(self, context, actor_id, *, cursor=None, limit=50, kind=None, person_id=None, conversation_id=None):
         current = await self.authorize_actor(context, actor_id)
+        if kind is not None and kind not in {"private", "group", "project", "system"}:
+            raise AppError("invalid_conversation_kind")
         limit = min(max(int(limit), 1), 100)
         async with self.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
                     "SELECT c.*,COALESCE(c.target_ref,'web:'||c.conversation_id) AS target_ref "
                     "FROM identity.conversations c WHERE c.actor_id=%s "
-                    "AND c.scope_id=ANY(%s) AND (%s::text IS NULL OR c.conversation_id>%s) "
+                    "AND c.scope_id=ANY(%s) AND (%s::text IS NULL OR c.kind=%s) "
+                    "AND (%s::text IS NULL OR c.person_id=%s) AND (%s::text IS NULL OR c.conversation_id>%s) "
+                    "AND (%s::text IS NULL OR c.conversation_id=%s) "
                     "ORDER BY c.conversation_id LIMIT %s",
-                    (actor_id, list(current.scope_ids), cursor, cursor, limit + 1),
+                    (actor_id, list(current.scope_ids), kind, kind, person_id, person_id, cursor, cursor,
+                     conversation_id, conversation_id, limit + 1),
                 )
             ).fetchall()
         more = len(rows) > limit
@@ -961,6 +974,45 @@ class IdentityService:
         if not row:
             raise AppError("public_projection_scope_unavailable", status=403)
         return row["scope_id"]
+
+    async def person_write_context(self, context, *, permission):
+        """An explicit profile edit gets its own private evidence scope.
+
+        Group membership admits the person for reads. It must not make a private
+        correction or relationship setting into a group-authored statement.
+        """
+        require_permission(context.permissions, permission)
+        if not context.actor_id or not context.person_id or context.conversation_id:
+            return context
+        async with self.database.transaction() as conn:
+            # Use the existing actor -> scope -> principal authority lock order.
+            await conn.execute("SELECT actor_id FROM identity.actors WHERE actor_id=%s FOR UPDATE",
+                               (context.actor_id,))
+            await self.lock_context_on(conn, context)
+            current = await self.context_on(conn, context.principal_id, actor_id=context.actor_id,
+                person_id=context.person_id, permission=permission, origin_kind=context.origin_kind)
+            await self.check_context(context, connection=conn)
+            private = await (await conn.execute(
+                "SELECT scope_id FROM identity.scopes WHERE scope_id=ANY(%s::text[]) "
+                "AND actor_id=%s AND person_id=%s AND kind='private' LIMIT 1",
+                (list(current.scope_ids), current.actor_id, current.person_id),
+            )).fetchone()
+            if not private:
+                scope_id = identifier("scope")
+                await conn.execute(
+                    "INSERT INTO identity.scopes(scope_id,actor_id,person_id,kind,label) "
+                    "SELECT %s,%s,person_id,'private',display_name FROM identity.people WHERE person_id=%s",
+                    (scope_id, current.actor_id, current.person_id),
+                )
+                await conn.execute("INSERT INTO identity.scope_grants VALUES(%s,%s,ARRAY['*'])",
+                                   (scope_id, current.principal_id))
+            else:
+                scope_id = private["scope_id"]
+            refreshed = await self.context_on(conn, current.principal_id, actor_id=current.actor_id,
+                person_id=current.person_id, permission=permission, origin_kind=current.origin_kind)
+            bound = replace(context, scope_ids=tuple(dict.fromkeys((*context.scope_ids, scope_id))),
+                            audience=tuple(dict.fromkeys((*context.audience, scope_id))))
+            return self._limit_context(refreshed, bound)
 
     async def intake_scope(self, context, *, connection):
         await self.lock_context_on(connection, context)

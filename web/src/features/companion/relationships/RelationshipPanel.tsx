@@ -108,7 +108,14 @@ function RelationshipContent({
           <p style={{ whiteSpace: "pre-wrap" }}>
             {value.summary || "还没有单独记下相处背景。"}
           </p>
-          <SourceEvidence sources={value.source_refs} />
+          <SourceEvidence
+            sources={value.source_refs}
+            scope={{
+              actor_id: state.roleId,
+              person_id: state.personId,
+              conversation_id: null,
+            }}
+          />
           {(
             [
               ["boundaries", "边界"],
@@ -126,12 +133,27 @@ function RelationshipContent({
                     {item.explicit ? "明确记录" : "有来源的认识"} · 修订{" "}
                     {item.revision}
                   </small>
-                  <SourceEvidence sources={item.source_refs} />
+                  <SourceEvidence
+                    sources={item.source_refs}
+                    scope={{
+                      actor_id: state.roleId,
+                      person_id: state.personId,
+                      conversation_id: null,
+                    }}
+                  />
                 </article>
               ))}
             </section>
           ))}
-          {value.can_manage && (
+          {value.can_manage && selection && (
+            <RelationshipForm
+              key={value.revision}
+              value={value}
+              busy={state.command.busy}
+              save={state.save}
+            />
+          )}
+          {value.can_manage && !selection && (
             <div className="domain-actions">
               <button
                 className="button"

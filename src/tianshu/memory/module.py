@@ -73,6 +73,8 @@ def create_module(memory, retrieval, workers, identity):
             lambda ctx, body: memory.claims.list(
                 ctx,
                 subject_id=body.get("subject_id"),
+                predicate=body.get("predicate"),
+                exclude_predicate=body.get("exclude_predicate"),
                 cursor=body.get("cursor"),
                 limit=body.get("limit", 50),
                 time_mode=body.get("time_mode","current"),valid_at=body.get("valid_at"),known_at=body.get("known_at"),
@@ -102,7 +104,7 @@ def create_module(memory, retrieval, workers, identity):
         route("relationship/save", memory.save_relationship, write=True)
         route(
             "episodes",
-            lambda ctx, body: memory.episodes_since(ctx, body.get("cursor"), body.get("limit", 50)),
+            lambda ctx, body: memory.episodes_since(ctx, body.get("cursor"), body.get("limit", 50), selected_scene=True),
         )
         route(
             "episodes/between",

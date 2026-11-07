@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { currentMemory, type MemoryTimeQuery } from "./types";
+import { DetailCard } from "../../components/DetailCard";
 import "./memory.css";
 
 export function useMemoryTime() {
@@ -9,14 +10,16 @@ export function useMemoryTime() {
 export function MemoryTimeFilter({
   value,
   onChange,
+  compact = false,
 }: {
   value: MemoryTimeQuery;
   onChange: (query: MemoryTimeQuery) => void;
+  compact?: boolean;
 }) {
   const [mode, setMode] = useState(value.time_mode);
   const [validAt, setValidAt] = useState("");
   const [knownAt, setKnownAt] = useState("");
-  return (
+  const form = (
     <form
       className="memory-time-filter"
       onSubmit={(event) => {
@@ -77,5 +80,19 @@ export function MemoryTimeFilter({
         </p>
       )}
     </form>
+  );
+  return compact ? (
+    <DetailCard
+      title="按时间查看记忆"
+      label={
+        value.time_mode === "current"
+          ? "当前记忆 · 查看历史"
+          : "正在查看历史 · 调整时间"
+      }
+    >
+      {form}
+    </DetailCard>
+  ) : (
+    form
   );
 }

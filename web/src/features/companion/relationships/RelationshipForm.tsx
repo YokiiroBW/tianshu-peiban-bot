@@ -9,7 +9,7 @@ export function RelationshipForm({
   value: Projection;
   busy: boolean;
   save: (body: object, revision: number) => Promise<unknown>;
-  close: () => void;
+  close?: () => void;
 }) {
   return (
     <form
@@ -37,7 +37,7 @@ export function RelationshipForm({
               .filter(Boolean);
         }
         void save(body, value.revision).then((result) => {
-          if (result) close();
+          if (result) close?.();
         });
       }}
     >
@@ -93,9 +93,11 @@ export function RelationshipForm({
         <button className="button primary" disabled={busy}>
           保存明确修订
         </button>
-        <button className="button" type="button" onClick={close}>
-          收起编辑
-        </button>
+        {close && (
+          <button className="button" type="button" onClick={close}>
+            收起编辑
+          </button>
+        )}
       </div>
     </form>
   );

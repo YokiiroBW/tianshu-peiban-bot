@@ -140,11 +140,34 @@ export function useRoleWorkspace() {
   return value;
 }
 
-export function RolePicker() {
+export function RolePicker({ compact = false }: { compact?: boolean }) {
   const { roles, actor, select, error } = useRoleWorkspace();
   const currentRole = roles.find((r) => r.id === actor);
   const roleName = currentRole?.name ?? "角色";
   const sealChar = roleName.slice(0, 1) || "角";
+  if (compact)
+    return (
+      <label className="workspace-role-filter">
+        查看角色
+        <select
+          aria-label="当前角色"
+          value={actor}
+          disabled={!roles.length}
+          onChange={(event) => {
+            if (!select(event.target.value)) event.currentTarget.value = actor;
+          }}
+        >
+          {!roles.length && (
+            <option value="">{error ? "角色暂不可读" : "还没有角色"}</option>
+          )}
+          {roles.map((role) => (
+            <option key={role.id} value={role.id}>
+              {role.name}
+            </option>
+          ))}
+        </select>
+      </label>
+    );
 
   return (
     <div className="role-picker curio-role-picker">

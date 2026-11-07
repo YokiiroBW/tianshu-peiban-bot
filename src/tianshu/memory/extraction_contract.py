@@ -359,6 +359,9 @@ def consolidation_instruction(frozen):
         "群内词义仅以language.term_meaning表示，subject为当前group，value为{term,meaning}；"
         "speaker保留实际真人、assertion用reported/quoted/observed/inferred，单人解释不能称群体自证；"
         "不同解释与适用条件分别保存，不把人物别名或任务约定当词义。"
+        "群整体的交流氛围、共同话题与相处习惯可在当前group下以group.impression记录为hypothesis，"
+        "保留语境、适用条件与反例；依据群内实际交流，不把单人的喜好推广为全群印象。"
+        "明确陈述的群规或共同约定保留其实际作者与reported/quoted归属；证据不足时不补造群印象。"
         + protocol_rules +
         "每个目标的reason说明改变、无改变或未决的依据；无新增事实用no_change，缺关键依据unresolved；"
         "缺目标/重复目标/缺结果均拒绝，不自动补全。"

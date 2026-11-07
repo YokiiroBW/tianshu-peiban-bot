@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "../../app/Auth";
+import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { useDomainCommand } from "../../api/useDomainResource";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import RelationshipPanel from "../companion/relationships/RelationshipPanel";
@@ -20,10 +21,11 @@ export function PersonDetail({
   renamed: () => Promise<void>;
 }) {
   const { session } = useAuth();
+  const workspace = useRoleWorkspace();
   const manageable = session?.principal?.permissions.some(
     (value) => value === "*" || value === "identity.manage",
   );
-  const [tab, setTab] = useState("overview");
+  const [tab, setTab] = useState("portrait");
   const [name, setName] = useState(person.display_name);
   const command = useDomainCommand<Person>("person-name", "actor");
   const scope = {
@@ -40,7 +42,8 @@ export function PersonDetail({
         <div>
           <h2>{personName(person)}</h2>
           <p className="muted">
-            人物档案 · 修订 {person.revision}
+            {workspace.roles.find((role) => role.id === actorId)?.name}
+            的用户档案
           </p>
         </div>
       </header>
@@ -49,13 +52,13 @@ export function PersonDetail({
         aria-label="人物详情"
       >
         {[
-          ["overview", "身份"],
-          ["portrait", "认识与记忆"],
-          ["messages", "经历与反思"],
+          ["portrait", "记住了什么"],
+          ["messages", "相遇与反思"],
           ["permissions", "会话权限"],
           ["relationship", "相处关系"],
           ["proactive", "主动联系"],
           ["accounts", "账号关联"],
+          ["overview", "基本资料"],
         ].map(([id, label]) => (
           <button
             key={id}

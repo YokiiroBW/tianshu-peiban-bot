@@ -176,7 +176,8 @@
 }
 
 .people-config-form input:not([type="checkbox"]),
-.people-config-form select {
+.people-config-form select,
+.people-config-form textarea {
   width: 100%;
   padding: 8px 10px;
   color: var(--text-primary);

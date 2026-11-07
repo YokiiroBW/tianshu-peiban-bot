@@ -8,6 +8,8 @@ import {
 import type { Page } from "../../api/contracts";
 import { SourceEvidence } from "../../components/SourceEvidence";
 import { CommandFeedback } from "../../components/CommandFeedback";
+import { DetailCard } from "../../components/DetailCard";
+import { humanizeCode, humanizeScopeTarget } from "../../design/humanize";
 import { SourceForget } from "./SourceForget";
 import { useMemoryCursor } from "./pagination";
 import {
@@ -38,9 +40,15 @@ function ClaimEditor({
 }) {
   const valueLabelId = useId();
   const conditionsLabelId = useId();
-  const [value, setValue] = useState(showValue(item.value) ?? "");
+  const [value, setValue] = useState(
+    typeof item.value === "string"
+      ? item.value
+      : JSON.stringify(item.value, null, 2),
+  );
   const [negative, setNegative] = useState(!item.polarity);
-  const [conditions, setConditions] = useState(showValue(item.conditions));
+  const [conditions, setConditions] = useState(
+    JSON.stringify(item.conditions, null, 2),
+  );
   const [reason, setReason] = useState("");
   const [error, setError] = useState("");
   const command = useDomainCommand<Claim>(
@@ -191,6 +199,12 @@ function ClaimCard({
   const share =
     permissions.includes("*") || permissions.includes("memory.share");
   const [editing, setEditing] = useState(false);
+  const term =
+    item.predicate === "language.term_meaning" &&
+    typeof item.value === "object" &&
+    item.value !== null
+      ? (item.value as { term?: string; meaning?: string })
+      : null;
   const command = useDomainCommand<Claim>(
     `claim-share:${item.claim_id}:${item.revision}`,
     "actor",
@@ -207,70 +221,80 @@ function ClaimCard({
   return (
     <li className="memory-record">
       <div className="section-heading">
-        <h4>{item.predicate}</h4>
+        <h4>{term?.term ?? humanizeCode(item.predicate, "记下的认识")}</h4>
         <small>
           {item.memory_kind === "hypothesis" ? "可修订认识" : "有依据的事实"} ·{" "}
           {assertionNames[item.assertion] ?? item.assertion} · v{item.revision}
         </small>
       </div>
-      <p className="memory-prewrap">{showValue(item.value)}</p>
-      <EvidenceDetails item={item} scope={scope} identities={identities} />
-      <EvidenceRelations
-        relations={item.relations}
-        scope={scope}
-        identities={identities}
-      />
-      <SourceEvidence sources={item.source_refs} scope={scope} />
-      <EvidenceHistory
-        kind="claims"
-        id={item.claim_id}
-        scope={scope}
-        identities={identities}
-      />
-      {manage && (
-        <button
-          className="text-link"
-          aria-expanded={editing}
-          onClick={() => setEditing(!editing)}
-        >
-          {historical ? "读取当前版本并更正" : "更正这条记忆"}
-        </button>
+      {scope.conversation_id && (
+        <p className="muted">
+          关于{humanizeScopeTarget(item.subject_id, identities)}
+        </p>
       )}
-      {editing && (
-        <CurrentClaimEditor
+      <p className="memory-card-summary">
+        {term?.meaning ?? showValue(item.value)}
+      </p>
+      <DetailCard title="记忆详情" label="查看依据与更正">
+        <p className="memory-prewrap">{showValue(item.value)}</p>
+        <EvidenceDetails item={item} scope={scope} identities={identities} />
+        <EvidenceRelations
+          relations={item.relations}
+          scope={scope}
+          identities={identities}
+        />
+        <SourceEvidence sources={item.source_refs} scope={scope} />
+        <EvidenceHistory
+          kind="claims"
           id={item.claim_id}
           scope={scope}
-          refresh={refresh}
-          close={() => setEditing(false)}
+          identities={identities}
         />
-      )}
-      {share && ordinary && (
-        <button
-          className="text-link"
-          disabled={command.busy}
-          onClick={async () => {
-            if (
-              await command.run(
-                "memory/claims/share",
-                { ...scope, claim_id: item.claim_id },
-                item.revision,
+        {manage && (
+          <button
+            className="text-link"
+            aria-expanded={editing}
+            onClick={() => setEditing(!editing)}
+          >
+            {historical ? "读取当前版本并更正" : "更正这条记忆"}
+          </button>
+        )}
+        {editing && (
+          <CurrentClaimEditor
+            id={item.claim_id}
+            scope={scope}
+            refresh={refresh}
+            close={() => setEditing(false)}
+          />
+        )}
+        {share && ordinary && (
+          <button
+            className="text-link"
+            disabled={command.busy}
+            onClick={async () => {
+              if (
+                await command.run(
+                  "memory/claims/share",
+                  { ...scope, claim_id: item.claim_id },
+                  item.revision,
+                )
               )
-            )
-              await refresh();
-          }}
-        >
-          明确披露这条普通兴趣到角色公共范围
-        </button>
-      )}
-      {item.source_refs.map((source) => (
-        <SourceForget
-          key={JSON.stringify(source)}
-          source={source}
-          scope={scope}
-          onChanged={refresh}
-        />
-      ))}
-      <CommandFeedback {...command} />
+                await refresh();
+            }}
+          >
+            明确披露这条普通兴趣到角色公共范围
+          </button>
+        )}
+        {item.source_refs.map((source) => (
+          <SourceForget
+            key={JSON.stringify(source)}
+            source={source}
+            scope={scope}
+            onChanged={refresh}
+          />
+        ))}
+        <CommandFeedback {...command} />
+      </DetailCard>
     </li>
   );
 }
@@ -280,14 +304,22 @@ export default function MemoryRecords({
   subjectId,
   query = currentMemory,
   identities = {},
+  predicate,
+  excludePredicate,
+  title = "记住了什么",
+  description = "用于后续交流时理解背景、偏好与约定。点开可查看来源或更正。",
 }: {
   scope: DomainTarget;
   subjectId?: string | null;
   query?: MemoryTimeQuery;
   identities?: Record<string, string>;
+  predicate?: string;
+  excludePredicate?: string;
+  title?: string;
+  description?: string;
 }) {
   const pages = useMemoryCursor(
-    { ...scope, subject_id: subjectId, ...query },
+    { ...scope, subject_id: subjectId, predicate, excludePredicate, ...query },
     "claims",
   );
   const view = useDomainResource<Page<Claim>>(
@@ -295,6 +327,8 @@ export default function MemoryRecords({
     {
       ...scope,
       subject_id: subjectId ?? null,
+      predicate,
+      exclude_predicate: excludePredicate,
       ...query,
       cursor: pages.cursor,
       limit: 40,
@@ -318,7 +352,7 @@ export default function MemoryRecords({
   return (
     <section className="memory-records">
       <div className="section-heading">
-        <h3>有来源的记忆条目</h3>
+        <h3>{title}</h3>
         <button
           className="button"
           disabled={view.loading}
@@ -327,9 +361,7 @@ export default function MemoryRecords({
           刷新
         </button>
       </div>
-      <p className="muted">
-        明确自述、转述与可修订认识分别保留。支持、反例和适用条件随证据展示，重复记录不代表更多独立支持。
-      </p>
+      <p className="muted">{description}</p>
       {view.loading && <p role="status">正在核验记忆来源…</p>}
       {view.error && <p role="alert">{view.error}</p>}
       {view.data && (

@@ -64,6 +64,9 @@ def create_module(identity):
                     context.actor_id,
                     cursor=request.query.get("cursor"),
                     limit=request.query.get("limit", 50),
+                    kind=request.query.get("kind"),
+                    person_id=request.query.get("person_id"),
+                    conversation_id=request.query.get("conversation_id"),
                 )
             )
 
@@ -91,7 +94,7 @@ def create_module(identity):
         async def people(request):
             return json_response(
                 await management.people(
-                    await identity.for_request(request),
+                    await identity.for_request(request, actor_id=request.query.get("actor_id")),
                     cursor=request.query.get("cursor"),
                     limit=request.query.get("limit", 50),
                 )

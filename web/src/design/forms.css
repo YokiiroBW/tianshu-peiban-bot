@@ -1,0 +1,50 @@
+/* Shared forms must be usable before any feature stylesheet has been loaded. */
+.domain-form {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+  margin-top: 14px;
+}
+.domain-form label {
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.domain-form input:not([type="checkbox"]):not([type="radio"]),
+.domain-form select,
+.domain-form textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: var(--control-height);
+  border: 1px solid var(--border-outer);
+  border-radius: 2px;
+  padding: 8px 11px;
+  background: var(--bg-subtle);
+  color: var(--text-primary);
+  font: inherit;
+}
+.domain-form textarea {
+  min-height: 85px;
+  line-height: 1.65;
+  resize: vertical;
+}
+.domain-form .inline-check {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.domain-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-top: 10px;
+}
+.domain-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 14px;
+}

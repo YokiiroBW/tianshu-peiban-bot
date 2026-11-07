@@ -1,11 +1,11 @@
 import { useAuth } from "../../app/Auth";
 import { useState } from "react";
 import { UserRound, UsersRound, RefreshCw, Search } from "lucide-react";
-import { useRoleWorkspace } from "../../app/RoleWorkspace";
+import { RolePicker, useRoleWorkspace } from "../../app/RoleWorkspace";
 import {
   useDomainCommand,
   useDomainResource,
-  GLOBAL_SCOPE,
+  actorScope,
 } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import { CommandFeedback } from "../../components/CommandFeedback";
@@ -15,6 +15,11 @@ import { personName, type Person } from "./types";
 import "./people.css";
 
 export default function PeoplePage({ section }: { section: number }) {
+  const workspace = useRoleWorkspace();
+  return <PeopleDirectory key={workspace.actor} section={section} />;
+}
+
+function PeopleDirectory({ section }: { section: number }) {
   const { session } = useAuth();
   const manageable = session?.principal?.permissions.some(
     (value) => value === "*" || value === "identity.manage",
@@ -24,13 +29,23 @@ export default function PeoplePage({ section }: { section: number }) {
   const [chosen, setChosen] = useState("");
   const [query, setQuery] = useState("");
   const [newName, setNewName] = useState("");
-  const page = useDomainResource<Page<Person>>("identity/people", {
-    ...GLOBAL_SCOPE,
-    cursor,
-    limit: 100,
-  });
+  const page = useDomainResource<Page<Person>>(
+    "identity/people",
+    {
+      ...actorScope(workspace.actor),
+      cursor,
+      limit: 100,
+    },
+    !!workspace.actor,
+  );
   const command = useDomainCommand<Person>("person-create", "actor");
-  const person = page.data?.items.find((row) => row.person_id === chosen);
+  const people =
+    page.data?.items.filter((row) =>
+      `${personName(row)} ${row.person_id}`
+        .toLocaleLowerCase()
+        .includes(query.toLocaleLowerCase()),
+    ) ?? [];
+  const person = people.find((row) => row.person_id === chosen) ?? people[0];
   if (section === 2)
     return (
       <div className="people-page">
@@ -44,12 +59,15 @@ export default function PeoplePage({ section }: { section: number }) {
         <div className="page-identity">
           <span className="role-seal-avatar">友</span>
           <div className="page-title-wrap">
-            <h2>人物目录</h2>
+            <h2>用户档案</h2>
             <p className="page-title-meta">
-              只显示当前身份有权访问的人物；渠道账号和应用登录独立关联。
+              {workspace.roles.find((role) => role.id === workspace.actor)
+                ?.name ?? "当前角色"}
+              认识的人。切换顶部角色，查看各自的记忆与相处设置。
             </p>
           </div>
         </div>
+        <RolePicker compact />
         <button
           className="button curio-btn"
           onClick={() => void page.refresh()}
@@ -59,6 +77,7 @@ export default function PeoplePage({ section }: { section: number }) {
         </button>
       </header>
       {page.error && <p role="alert">{page.error}</p>}
+      {!workspace.actor && <p>请先在顶部选择角色。</p>}
       <div className="people-workspace scroll-layout">
         <aside className="curio-card people-directory scroll-pane">
           <label className="people-search">
@@ -71,32 +90,29 @@ export default function PeoplePage({ section }: { section: number }) {
           </label>
           {page.loading && <p>正在读取授权目录…</p>}
           <ul className="people-directory-list">
-            {page.data?.items
-              .filter((row) =>
-                `${personName(row)} ${row.person_id}`
-                  .toLocaleLowerCase()
-                  .includes(query.toLocaleLowerCase()),
-              )
-              .map((row) => (
-                <li key={row.person_id}>
-                  <button
-                    className="people-person-choice"
-                    aria-pressed={chosen === row.person_id}
-                    onClick={() => setChosen(row.person_id)}
-                  >
-                    <span className="people-avatar">
-                      <UserRound size={17} />
-                    </span>
-                    <span>
-                      <strong>{personName(row)}</strong>
-
-                    </span>
-                  </button>
-                </li>
-              ))}
+            {people.map((row) => (
+              <li key={row.person_id}>
+                <button
+                  className="people-person-choice"
+                  aria-pressed={person?.person_id === row.person_id}
+                  onClick={() => setChosen(row.person_id)}
+                >
+                  <span className="people-avatar">
+                    <UserRound size={17} />
+                  </span>
+                  <span>
+                    <strong>{personName(row)}</strong>
+                  </span>
+                </button>
+              </li>
+            ))}
           </ul>
-          {!page.loading && page.data?.items.length === 0 && (
-            <p>没有可读取的人物。</p>
+          {!page.loading && !people.length && (
+            <p>
+              {query
+                ? "本批没有匹配的人物。"
+                : "这个角色还没有可读取的人物档案。"}
+            </p>
           )}
           <div className="models-actions">
             {cursor && (
@@ -122,7 +138,7 @@ export default function PeoplePage({ section }: { section: number }) {
               </button>
             )}
           </div>
-          {manageable && (
+          {manageable && !!workspace.actor && (
             <details>
               <summary>登记新人物</summary>
               <form

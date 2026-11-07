@@ -4,6 +4,7 @@ import {
   useDomainCommand,
   useDomainResource,
   GLOBAL_SCOPE,
+  actorScope,
 } from "../../api/useDomainResource";
 import type { Page } from "../../api/contracts";
 import { CommandFeedback } from "../../components/CommandFeedback";
@@ -22,7 +23,11 @@ export function AccountLinkPanel({
   const [peopleCursor, setPeopleCursor] = useState<string | null>(null);
   const people = useDomainResource<Page<Person>>(
     "identity/people",
-    { ...GLOBAL_SCOPE, limit: 100, cursor: peopleCursor },
+    {
+      ...(actorId ? actorScope(actorId) : GLOBAL_SCOPE),
+      limit: 100,
+      cursor: peopleCursor,
+    },
     directory.manageable && !person,
   );
   const command = useDomainCommand<Account>("identity-account-link", "global");
@@ -40,7 +45,11 @@ export function AccountLinkPanel({
   );
   const accounts =
     directory.data?.accounts.filter(
-      (row) => !person || row.person_id === person.person_id,
+      (row) =>
+        (!person || row.person_id === person.person_id) &&
+        connections.some(
+          (connection) => connection.connection_id === row.connection_id,
+        ),
     ) ?? [];
   if (!directory.manageable)
     return (
@@ -59,10 +68,21 @@ export function AccountLinkPanel({
         {accounts.map((row) => (
           <li key={`${row.connection_id}:${row.external_id}`}>
             <strong>
-              {connectionName(connections.find((item) => item.connection_id === row.connection_id))} / {row.external_id}
+              {connectionName(
+                connections.find(
+                  (item) => item.connection_id === row.connection_id,
+                ),
+              )}{" "}
+              / {row.external_id}
             </strong>{" "}
-            → {person?.display_name || people.data?.items.find((item) => item.person_id === row.person_id)?.display_name || "已关联人物"}
-            {row.principal_id && ` · 登录账号：${directory.data?.principals.find((item) => item.principal_id === row.principal_id)?.display_name || "已关联"}`}
+            →{" "}
+            {person?.display_name ||
+              people.data?.items.find(
+                (item) => item.person_id === row.person_id,
+              )?.display_name ||
+              "已关联人物"}
+            {row.principal_id &&
+              ` · 登录账号：${directory.data?.principals.find((item) => item.principal_id === row.principal_id)?.display_name || "已关联"}`}
             <button
               className="text-link"
               onClick={() => {

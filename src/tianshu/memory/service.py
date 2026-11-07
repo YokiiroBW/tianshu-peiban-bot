@@ -283,8 +283,8 @@ class MemoryService:
                 key=f"memory-episode-index:{episode_id}:{row['revision']}")
             return await self._episode_observed_on(conn,context,row)
 
-    async def episodes_since(self, context, cursor, limit):
-        return await self._episodes(context, cursor, limit)
+    async def episodes_since(self, context, cursor, limit, *, selected_scene=False):
+        return await self._episodes(context, cursor, limit, selected_scene=selected_scene)
 
     async def episode_at(self, context, episode_id, *, time_mode="current", valid_at=None, known_at=None):
         """Read a saved semantic version while enforcing today's authority and retention.
@@ -580,21 +580,30 @@ class MemoryService:
             raise AppError("invalid_episode_time_range")
         return await self._episodes(context, cursor, limit, start=start, end=end)
 
-    async def _episodes(self, context, cursor, limit, *, start=None, end=None):
+    async def _episodes(self, context, cursor, limit, *, start=None, end=None, selected_scene=False):
         await self.identity.check_context(context)
         if not context.actor_id:
             raise AppError("actor_required")
         sequence, limit = cursor_sequence(cursor), min(max(int(limit), 1), 500)
+        conversation_filter = context.conversation_id if selected_scene else None
+        person_filter = context.person_id if selected_scene and not context.conversation_id else None
         async with self.database.transaction(read_only=True) as conn:
             rows = await (
                 await conn.execute(
                     "SELECT * FROM memory.episodes WHERE actor_id=%s AND sequence>%s "
-                    "AND scope_ids<@%s::text[] AND (%s::timestamptz IS NULL OR occurred_at>=%s) "
+                    "AND scope_ids<@%s::text[] AND (%s::text IS NULL OR conversation_id=%s) "
+                    "AND (%s::text IS NULL OR person_id=%s OR speaker_id=%s) "
+                    "AND (%s::timestamptz IS NULL OR occurred_at>=%s) "
                     "AND (%s::timestamptz IS NULL OR occurred_at<%s) ORDER BY sequence LIMIT %s",
                     (
                         context.actor_id,
                         sequence,
                         list(context.scope_ids),
+                        conversation_filter,
+                        conversation_filter,
+                        person_filter,
+                        person_filter,
+                        person_filter,
                         start,
                         start,
                         end,
@@ -930,6 +939,7 @@ class MemoryService:
         allowed = {"acquaintance", "friend", "family", "partner", "colleague", "custom"}
         if body.get("relationship_type", "acquaintance") not in allowed:
             raise AppError("invalid_relationship_type")
+        selected = await self.identity.person_write_context(selected, permission="memory.manage")
         command_refs = await self.sources.record_event(
             selected,
             producer="web.relationship",

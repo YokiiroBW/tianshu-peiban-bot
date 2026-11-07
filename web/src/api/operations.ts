@@ -90,6 +90,7 @@ const reads = new Set([
   "operations/incidents/get",
   "operations/settings",
   "conversation/messages",
+  "conversation/group-insights",
   "conversation/turn",
   "conversation/expression",
   "images/workflows.inspect",

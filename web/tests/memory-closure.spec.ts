@@ -62,40 +62,126 @@ const unit = {
 
 test.beforeEach(async ({ page }) => nativeSession(page));
 
-test("memory status separates committed material from missing context and unknown indexing", async ({ page }) => {
-  const pending = { batch_id: "batch", status: "pending", target_results: [], unresolved: [] };
-  let indexing: { state: string; objects: { kind: string; id: string; revision: number; state?: string; profile_key?: string | null; generation?: string | null }[] } =
-    { state: "unknown", objects: [{ kind: "claim", id: "claim-1", revision: 1 }] };
-  await page.route(apiPath("memory/episodes"), (route) => answer(route, {
-    ...emptyPage, watermark: "1", items: [{ episode_id: "episode", revision: 1, event_id: "event", origin_kind: "actor",
-      occurred_at: "2026-11-04T00:00:00Z", summary: "一条经历", source_refs: [], actual_result: null,
-      coverage, extraction_state: "pending", consolidation: pending }],
-  }));
-  await page.route(apiPath("memory/extraction/status"), (route) => answer(route, {
-    ...pending, status: "applied", revision: 1, commit_state: "applied", required_context_missing: ["原图缺失"],
-    indexing,
-  }));
+test("memory status separates committed material from missing context and unknown indexing", async ({
+  page,
+}) => {
+  const pending = {
+    batch_id: "batch",
+    status: "pending",
+    target_results: [],
+    unresolved: [],
+  };
+  let indexing: {
+    state: string;
+    objects: {
+      kind: string;
+      id: string;
+      revision: number;
+      state?: string;
+      profile_key?: string | null;
+      generation?: string | null;
+    }[];
+  } = {
+    state: "unknown",
+    objects: [{ kind: "claim", id: "claim-1", revision: 1 }],
+  };
+  await page.route(apiPath("memory/episodes"), (route) =>
+    answer(route, {
+      ...emptyPage,
+      watermark: "1",
+      items: [
+        {
+          episode_id: "episode",
+          revision: 1,
+          event_id: "event",
+          origin_kind: "actor",
+          occurred_at: "2026-11-04T00:00:00Z",
+          summary: "一条经历",
+          source_refs: [],
+          actual_result: null,
+          coverage,
+          extraction_state: "pending",
+          consolidation: pending,
+        },
+      ],
+    }),
+  );
+  await page.route(apiPath("memory/extraction/status"), (route) =>
+    answer(route, {
+      ...pending,
+      status: "applied",
+      revision: 1,
+      commit_state: "applied",
+      required_context_missing: ["原图缺失"],
+      indexing,
+    }),
+  );
   await page.goto("/#/memory");
   await page.getByLabel("读取范围").selectOption("actor");
   await page.getByRole("button", { name: "经历与反思", exact: true }).click();
+  await page
+    .getByRole("button", { name: "查看经历与记忆处理", exact: true })
+    .first()
+    .click();
   await page.getByRole("button", { name: "读取最新处理状态" }).click();
-  await expect(page.getByText("提交状态：记忆已应用。", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("提交状态：记忆已应用。", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("必要上下文仍有 1 项缺失")).toBeVisible();
   await expect(page.getByText("索引状态：尚未确认")).toBeVisible();
-  indexing = { ...indexing, state: "pending", objects: [{ ...indexing.objects[0], state: "pending", profile_key: "profile-1", generation: "generation-1" }] };
+  indexing = {
+    ...indexing,
+    state: "pending",
+    objects: [
+      {
+        ...indexing.objects[0],
+        state: "pending",
+        profile_key: "profile-1",
+        generation: "generation-1",
+      },
+    ],
+  };
   await page.getByRole("button", { name: "读取最新处理状态" }).click();
   await page.getByText("索引状态：等待索引").click();
-  await expect(page.getByText("记忆已应用，部分对象仍在等待索引。")).toBeVisible();
-  await expect(page.getByText(/索引档案 profile-1 · 数据代际 generation-1/)).toBeVisible();
+  await expect(
+    page.getByText("记忆已应用，部分对象仍在等待索引。"),
+  ).toBeVisible();
+  await expect(
+    page.getByText(/已关联索引档案 · 数据代际 generation-1/),
+  ).toBeVisible();
 });
 
-test("reflections use the companion authority with scoped time and cursor", async ({ page }) => {
+test("reflections use the companion authority with scoped time and cursor", async ({
+  page,
+}) => {
   const reads: Record<string, unknown>[] = [];
   let oldReads = 0;
-  await page.route(apiPath("memory/reflections"), (route) => { oldReads++; return answer(route, emptyPage); });
+  await page.route(apiPath("memory/reflections"), (route) => {
+    oldReads++;
+    return answer(route, emptyPage);
+  });
   await page.route(apiPath("companion/growth/reflections"), (route) => {
-    const body = route.request().postDataJSON(); reads.push(body);
-    return answer(route, { items: [{ proposal_id: body.cursor ? "old" : "current", revision: 1, content: body.cursor ? "更早的反思" : "当前反思", kind: "reflection", occurred_at: "2026-11-04T00:00:00Z", recorded_at: "2026-11-04T00:01:00Z", source_refs: [], conditions: {}, counterexamples: [], interpretation: true, state: "active" }], next_cursor: body.cursor ? null : "next-reflection", coverage });
+    const body = route.request().postDataJSON();
+    reads.push(body);
+    return answer(route, {
+      items: [
+        {
+          proposal_id: body.cursor ? "old" : "current",
+          revision: 1,
+          content: body.cursor ? "更早的反思" : "当前反思",
+          kind: "reflection",
+          occurred_at: "2026-11-04T00:00:00Z",
+          recorded_at: "2026-11-04T00:01:00Z",
+          source_refs: [],
+          conditions: {},
+          counterexamples: [],
+          interpretation: true,
+          state: "active",
+        },
+      ],
+      next_cursor: body.cursor ? null : "next-reflection",
+      coverage,
+    });
   });
   await page.goto("/#/memory");
   await page.getByLabel("读取范围").selectOption("actor");
@@ -104,8 +190,16 @@ test("reflections use the companion authority with scoped time and cursor", asyn
   await expect(page.getByText("当前反思", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "下一批", exact: true }).click();
   await expect(page.getByText("更早的反思", { exact: true })).toBeVisible();
-  expect(reads[0]).toMatchObject({ actor_id: "actor", time_mode: "current", cursor: null });
-  expect(reads[1]).toMatchObject({ actor_id: "actor", time_mode: "current", cursor: "next-reflection" });
+  expect(reads[0]).toMatchObject({
+    actor_id: "actor",
+    time_mode: "current",
+    cursor: null,
+  });
+  expect(reads[1]).toMatchObject({
+    actor_id: "actor",
+    time_mode: "current",
+    cursor: "next-reflection",
+  });
   expect(oldReads).toBe(0);
 });
 
@@ -174,6 +268,9 @@ test("time queries and bounded history keep corrections on the latest claim head
   await expect.poll(() => reads.at(-1)?.time_mode).toBe("known_at");
   expect(reads.at(-1)?.known_at).toBeTruthy();
   const card = page.locator(".memory-record").filter({ hasText: "周末散步" });
+  await card
+    .getByRole("button", { name: "查看依据与更正", exact: true })
+    .click();
   await expect(
     card.getByText("未知（未记录）", { exact: true }).first(),
   ).toBeVisible();
@@ -200,6 +297,7 @@ test("time queries and bounded history keep corrections on the latest claim head
     expected_revision: 3,
     value: "当前版本的明确修订",
   });
+  await page.getByRole("button", { name: "关闭记忆详情", exact: true }).click();
   await page.getByLabel("时间查询").selectOption("valid_at");
   await page.getByLabel("适用时点", { exact: true }).fill("2026-09-02T10:00");
   await page.getByRole("button", { name: "按时间读取", exact: true }).click();
@@ -373,6 +471,10 @@ test("episode recovery follows server actions and unknown only observes the orig
   await page.goto("/#/memory");
   await page.getByLabel("读取范围").selectOption("actor");
   await page.getByRole("button", { name: "经历与反思", exact: true }).click();
+  await page
+    .getByRole("button", { name: "查看经历与记忆处理", exact: true })
+    .first()
+    .click();
   await expect(
     page.getByRole("button", { name: "观察原执行", exact: true }),
   ).toHaveCount(1);
@@ -399,7 +501,9 @@ test("episode recovery follows server actions and unknown only observes the orig
   await expect(page.getByText(/当前未派发新整理任务/)).toBeVisible();
 });
 
-test("retry computation uses the existing resume command and waits for actual results", async ({ page }) => {
+test("retry computation uses the existing resume command and waits for actual results", async ({
+  page,
+}) => {
   const writes: Record<string, unknown>[] = [];
   const retry = {
     batch_id: "original-retry-batch",
@@ -417,18 +521,20 @@ test("retry computation uses the existing resume command and waits for actual re
     answer(route, {
       ...emptyPage,
       watermark: "7",
-      items: [{
-        episode_id: "retry-computation",
-        revision: 7,
-        event_id: "retry-event",
-        origin_kind: "human",
-        occurred_at: "2026-11-03T00:00:00Z",
-        summary: "暂时失败后等待继续整理的材料",
-        source_refs: [],
-        coverage,
-        extraction_state: "consolidation_failed",
-        consolidation: retry,
-      }],
+      items: [
+        {
+          episode_id: "retry-computation",
+          revision: 7,
+          event_id: "retry-event",
+          origin_kind: "human",
+          occurred_at: "2026-11-03T00:00:00Z",
+          summary: "暂时失败后等待继续整理的材料",
+          source_refs: [],
+          coverage,
+          extraction_state: "consolidation_failed",
+          consolidation: retry,
+        },
+      ],
     }),
   );
   await page.route(apiPath("memory/extraction/status"), (route) =>
@@ -438,35 +544,63 @@ test("retry computation uses the existing resume command and waits for actual re
     const body = route.request().postDataJSON();
     writes.push(body);
     await resumeResponse;
-    return answer(route, command(body, {
-      action: "retry_computation", queued: true, batch_id: "original-retry-batch",
-    }, 7));
+    return answer(
+      route,
+      command(
+        body,
+        {
+          action: "retry_computation",
+          queued: true,
+          batch_id: "original-retry-batch",
+        },
+        7,
+      ),
+    );
   });
   await page.goto("/#/memory");
   await page.getByLabel("读取范围").selectOption("actor");
   await page.getByRole("button", { name: "经历与反思", exact: true }).click();
-  const resume = page.getByRole("button", { name: "重试记忆整理", exact: true });
+  await page
+    .getByRole("button", { name: "查看经历与记忆处理", exact: true })
+    .first()
+    .click();
+  const resume = page.getByRole("button", {
+    name: "重试记忆整理",
+    exact: true,
+  });
   await expect(resume).toBeVisible();
-  await expect(page.getByText(/重新核对材料与权限后安排独立重试/)).toBeVisible();
+  await expect(
+    page.getByText(/重新核对材料与权限后安排独立重试/),
+  ).toBeVisible();
   expect(writes).toHaveLength(0);
   try {
     await resume.click();
     await expect.poll(() => writes.length).toBe(1);
     expect(writes[0]).toMatchObject({
-      actor_id: "actor", episode_id: "retry-computation", expected_revision: 7,
+      actor_id: "actor",
+      episode_id: "retry-computation",
+      expected_revision: 7,
     });
     await expect(resume).toBeDisabled();
-    await expect(page.getByText("正在提交并读取回执…", { exact: true })).toBeVisible();
-    await expect(page.getByText(/本批已提交|已完成本次材料|执行完成/)).toHaveCount(0);
+    await expect(
+      page.getByText("正在提交并读取回执…", { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByText(/本批已提交|已完成本次材料|执行完成/),
+    ).toHaveCount(0);
   } finally {
     releaseResume();
   }
   await expect(page.getByText(/已排队，尚未表示整理成功/)).toBeVisible();
-  await expect(page.getByText(/本批已提交|已完成本次材料|执行完成/)).toHaveCount(0);
+  await expect(
+    page.getByText(/本批已提交|已完成本次材料|执行完成/),
+  ).toHaveCount(0);
   expect(writes).toHaveLength(1);
 });
 
-test("a known stale late result holds its original material for explicit refresh", async ({ page }) => {
+test("a known stale late result holds its original material for explicit refresh", async ({
+  page,
+}) => {
   const writes: Record<string, unknown>[] = [];
   const held = {
     batch_id: "late-original",
@@ -481,18 +615,20 @@ test("a known stale late result holds its original material for explicit refresh
     answer(route, {
       ...emptyPage,
       watermark: "2",
-      items: [{
-        episode_id: "held-stale",
-        revision: 2,
-        event_id: "stale-event",
-        origin_kind: "human",
-        occurred_at: "2026-11-02T00:00:00Z",
-        summary: "迟到前已变化的材料",
-        source_refs: [],
-        coverage,
-        extraction_state: "consolidation_stale",
-        consolidation: held,
-      }],
+      items: [
+        {
+          episode_id: "held-stale",
+          revision: 2,
+          event_id: "stale-event",
+          origin_kind: "human",
+          occurred_at: "2026-11-02T00:00:00Z",
+          summary: "迟到前已变化的材料",
+          source_refs: [],
+          coverage,
+          extraction_state: "consolidation_stale",
+          consolidation: held,
+        },
+      ],
     }),
   );
   await page.route(apiPath("memory/extraction/status"), (route) =>
@@ -501,21 +637,44 @@ test("a known stale late result holds its original material for explicit refresh
   await page.route(apiPath("memory/extraction/resume"), (route) => {
     const body = route.request().postDataJSON();
     writes.push(body);
-    return answer(route, command(body, {
-      action: "refresh_material", queued: true, batch_id: "late-original",
-    }, 2));
+    return answer(
+      route,
+      command(
+        body,
+        {
+          action: "refresh_material",
+          queued: true,
+          batch_id: "late-original",
+        },
+        2,
+      ),
+    );
   });
   await page.goto("/#/memory");
   await page.getByLabel("读取范围").selectOption("actor");
   await page.getByRole("button", { name: "经历与反思", exact: true }).click();
-  await expect(page.getByText(/迟到结果与当前材料或记忆版本不一致，未写入/)).toBeVisible();
-  await expect(page.getByRole("button", { name: "观察原执行", exact: true })).toHaveCount(0);
-  const refresh = page.getByRole("button", { name: "重新准备当前材料", exact: true });
+  await page
+    .getByRole("button", { name: "查看经历与记忆处理", exact: true })
+    .first()
+    .click();
+  await expect(
+    page.getByText(/迟到结果与当前材料或记忆版本不一致，未写入/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "观察原执行", exact: true }),
+  ).toHaveCount(0);
+  const refresh = page.getByRole("button", {
+    name: "重新准备当前材料",
+    exact: true,
+  });
   await expect(refresh).toBeVisible();
   expect(writes).toHaveLength(0);
   await refresh.click();
   await expect.poll(() => writes.length).toBe(1);
-  expect(writes[0]).toMatchObject({ episode_id: "held-stale", expected_revision: 2 });
+  expect(writes[0]).toMatchObject({
+    episode_id: "held-stale",
+    expected_revision: 2,
+  });
 });
 
 test("group processing shows authorized targets separately from committed no-change results", async ({
@@ -581,6 +740,10 @@ test("group processing shows authorized targets separately from committed no-cha
     return answer(route, emptyPage);
   });
   await page.goto("/#/groups");
+  await page.getByRole("button", { name: "记录与依据", exact: true }).click();
+  await page
+    .getByRole("button", { name: "查看整理进展与诊断", exact: true })
+    .click();
   await expect(
     page.getByText("已处理，无需变化", { exact: false }),
   ).toBeVisible();
@@ -588,7 +751,10 @@ test("group processing shows authorized targets separately from committed no-cha
     page.getByText("固定目标：已授权人物甲、已授权人物乙", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText(/尚缺本人说明/)).toBeVisible();
-  await page.getByRole("button", { name: "共享事项", exact: true }).click();
+  await page
+    .getByRole("button", { name: "关闭群材料处理记录", exact: true })
+    .click();
+  await page.getByRole("button", { name: "群共同事项", exact: true }).click();
   await expect.poll(() => reads.length).toBe(1);
   expect(reads[0]).toMatchObject({
     subject_id: "verified-shared-subject",
@@ -760,7 +926,9 @@ test("Growth exposes fixed versions and observes unknown attempts without offeri
   await page.goto("/#/roles/growth");
   await expect(page.getByText(/待处理经历版本：32/)).toBeVisible();
   await expect(page.getByText(/待观察原请求：1/)).toBeVisible();
-  await expect(page.getByText("1 条材料当前不可用。", { exact: true })).toBeVisible();
+  await expect(
+    page.getByText("1 条材料当前不可用。", { exact: true }),
+  ).toBeVisible();
   await expect(page.getByText("episode-a · v2", { exact: true })).toBeVisible();
   await expect(
     page.getByText(/原 attempt：original-growth-attempt/),
