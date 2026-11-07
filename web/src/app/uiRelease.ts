@@ -17,7 +17,7 @@ export function UiVersionMonitor() {
   const [notice, setNotice] = useState<ReactNode | null>(null);
 
   useEffect(() => {
-    let timer: number;
+    let timer: any;
     const check = async () => {
       try {
         const response = await fetch('/_ui/version', { cache: 'no-store' });
