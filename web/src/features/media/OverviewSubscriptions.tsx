@@ -1,6 +1,7 @@
 import { ArrowRight, Music2, Rss } from "lucide-react";
 import type { MediaView } from "./types";
 import { count } from "./overviewPresentation";
+import { word } from "./wording";
 
 export function OverviewSubscriptions({
   view,
@@ -10,6 +11,7 @@ export function OverviewSubscriptions({
   music?: boolean;
 }) {
   const data = view.overview?.music;
+  const scan = data?.scan;
   const subscriptions = view.subscriptions;
   const title = music ? "音乐订阅" : "视频订阅";
   const sealChar = music ? "乐" : "影";
@@ -132,19 +134,19 @@ export function OverviewSubscriptions({
       </div>
 
       <div className="overview-card-footer">
-        {total === 0 ? (
-          <span className="muted">还没有{title}</span>
-        ) : total == null ? (
-          <span className="muted">尚未取得音乐摘要</span>
-        ) : music ? (
+        {music ? (
           <>
-            <span>
-              歌单成员 <strong>{count(data?.members)}</strong>
-            </span>
             <span>
               本地歌曲 <strong>{count(data?.files)}</strong>
             </span>
+            <span>
+              歌单成员 <strong>{count(data?.members)}</strong>
+            </span>
+            {total === 0 && <span className="muted">尚未订阅歌单</span>}
+            {total == null && <span className="muted">尚未取得音乐摘要</span>}
           </>
+        ) : total === 0 ? (
+          <span className="muted">还没有{title}</span>
         ) : (
           <>
             <span>
@@ -157,6 +159,28 @@ export function OverviewSubscriptions({
           </>
         )}
       </div>
+      {music && (
+        <div className="overview-scan-summary" aria-label="本地曲库扫描">
+          <p>
+            {scan
+              ? `曲库扫描 · ${scan.state === "queued" ? "等待扫描" : word(scan.state)}`
+              : "尚未取得曲库扫描状态"}
+          </p>
+          {scan && ["scanning", "completed"].includes(scan.state) && (
+            <p className="muted">
+              发现 {count(scan.total)} 个文件 · 新登记 {count(scan.indexed)} ·
+              未变化 {count(scan.unchanged)} · 等待导入 {count(scan.queued)} ·
+              失败 {count(scan.failed)}
+            </p>
+          )}
+          {scan?.schedule?.state === "blocked" && (
+            <p className="media-warning">
+              自动扫描暂时受阻：
+              {scan.schedule.code ? word(scan.schedule.code) : "原因尚未取得"}
+            </p>
+          )}
+        </div>
+      )}
     </section>
   );
 }

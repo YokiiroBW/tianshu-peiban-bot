@@ -25,6 +25,8 @@ export const stateWords: Record<string, string> = {
   asset_indexed: "媒体已入库",
   library_verifying: "媒体服务器核对中",
   completed: "核对完成",
+  scanning: "正在扫描",
+  not_scanned: "尚未扫描",
   published: "发布完成",
   auth_required: "需要重新登录账号",
   waiting_metadata: "等待补全元数据",
@@ -142,8 +144,10 @@ export const reasonWords: Record<string, string> = {
   error_short_circuit: "前面的规则执行失败，后续规则未执行",
 };
 export const errorWords: Record<string, string> = {
-  subscription_context_required: "自动扫描尚未建立，请保存设置或立即扫描以继续。",
-  media_job_requires_reconciliation: "原任务结果尚未确认，请在下载任务中核对后继续。",
+  subscription_context_required:
+    "自动扫描尚未建立，请保存设置或立即扫描以继续。",
+  media_job_requires_reconciliation:
+    "原任务结果尚未确认，请在下载任务中核对后继续。",
   ...bookWords,
   ...comicWords,
   music_request_deferred: reasonWords.music_request_deferred,
