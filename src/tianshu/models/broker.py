@@ -871,6 +871,7 @@ class ModelBroker:
         started = None
         timing = HttpTiming(row.get("queued_at"))
         read_complete = False
+        upstream_error = None
         failure_site = "local"
         local_slots = self.diagnostic_slots if request.function == "ops.diagnose" else self.cloud_slots
         http_session = self.diagnostic_session if request.function == "ops.diagnose" else self.session
@@ -960,7 +961,16 @@ class ModelBroker:
                             else:
                                 await self.ledger.defer_route(plan.route_id, until)
                                 await self.scheduler.defer_route(plan.quota_group, plan.route_id, until)
-                        # Provider error bodies may contain secrets or prompts; retain status only.
+                        # Keep only bounded identifiers, never provider messages or echoed prompts.
+                        from .upstream_error import describe
+                        try:
+                            async with asyncio.timeout(1):
+                                error_body = await response.content.read(16384)
+                        except (TimeoutError, aiohttp.ClientError, OSError):
+                            error_body = b""
+                        upstream_error = describe(response.status, error_body,
+                            tuple(call.headers.get(key, "").removeprefix("Bearer ")
+                                  for key in ("Authorization", "x-goog-api-key", "x-api-key")))
                         failure_site = "http_status"
                         raise AppError("upstream_http_" + str(response.status), status=502)
                     if stream and plan.protocol not in {"openai.embedding", "cohere.rerank"}:
@@ -1230,6 +1240,8 @@ class ModelBroker:
                     "native_completed": collector.completed, "completion": wire(collector.completion), **failure}
                 if transport is not None:
                     diagnostic["transport"] = transport
+                if upstream_error is not None:
+                    diagnostic["upstream"] = upstream_error
                 recorded = None
                 if submitted:
                     try:

@@ -9,10 +9,15 @@ import { Drawer } from "../../components/Drawer";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { StatusRail } from "../../components/StatusRail";
 import { humanizeCode } from "../../design/humanize";
-import { capabilityNames, modelRouteName, quotaGroupName } from "./providerPresentation";
+import {
+  capabilityNames,
+  modelRouteName,
+  quotaGroupName,
+} from "./providerPresentation";
 import { useDomainCommand } from "../../api/useDomainResource";
 import { SourceEditor, ModelEditor } from "./ProviderEditors";
-import { useModelCommand, type ProbeResult } from "./providerApi";
+import { useModelCommand } from "./providerApi";
+import { ProviderProbe } from "./ProviderProbe";
 import {
   protocolNames,
   type ModelCatalog,
@@ -52,7 +57,7 @@ export function ProviderManager({
     setReadError("");
   }, [session?.csrf]);
   const command = useModelCommand("model-connections");
-  const probe = useDomainCommand<ProbeResult>("model-probe", "global");
+  const [probeRouteId, setProbeRouteId] = useState<string | null>(null);
   const enumerate = useDomainCommand<Enumeration>("model-directory", "global");
   const [selected, setSelected] = useState("");
   const source =
@@ -77,7 +82,13 @@ export function ProviderManager({
         .toLocaleLowerCase()
         .includes(query.toLocaleLowerCase()),
   );
-  const busy = command.busy || probe.busy || enumerate.busy;
+  const busy = command.busy || enumerate.busy;
+  const probeRoute = catalog.routes.find(
+    (route) => route.route_id === probeRouteId,
+  );
+  const probeProvider = catalog.providers.find(
+    (provider) => provider.provider_id === probeRoute?.provider_id,
+  );
   const listed =
     directory &&
     source &&
@@ -200,7 +211,6 @@ export function ProviderManager({
         )}
       </div>
       <CommandFeedback {...command} />
-      <CommandFeedback {...probe} />
       <CommandFeedback {...enumerate} />
       {sourceEditor && (
         <Drawer
@@ -374,9 +384,30 @@ export function ProviderManager({
                   {route.verification && (
                     <details>
                       <summary>能力依据</summary>
-                      <p>{typeof route.verification.note === "string" ? humanizeCode(route.verification.note, "已保存能力核验记录") : "已保存能力核验记录"}</p>
-                      {typeof route.verification.context_window_tokens === "number" && <p>上下文容量：{route.verification.context_window_tokens.toLocaleString()} 个词元</p>}
-                      {typeof route.verification.observed_at === "string" && <p>核验时间：{new Date(route.verification.observed_at).toLocaleString("zh-CN")}</p>}
+                      <p>
+                        {typeof route.verification.note === "string"
+                          ? humanizeCode(
+                              route.verification.note,
+                              "已保存能力核验记录",
+                            )
+                          : "已保存能力核验记录"}
+                      </p>
+                      {typeof route.verification.context_window_tokens ===
+                        "number" && (
+                        <p>
+                          上下文容量：
+                          {route.verification.context_window_tokens.toLocaleString()}{" "}
+                          个词元
+                        </p>
+                      )}
+                      {typeof route.verification.observed_at === "string" && (
+                        <p>
+                          核验时间：
+                          {new Date(
+                            route.verification.observed_at,
+                          ).toLocaleString("zh-CN")}
+                        </p>
+                      )}
                     </details>
                   )}
                   {command.manageable && (
@@ -388,23 +419,13 @@ export function ProviderManager({
                       >
                         编辑路由
                       </button>
-                      {["text", "stream"].map((capability) => (
-                        <button
-                          className="button"
-                          key={capability}
-                          disabled={busy}
-                          onClick={async () => {
-                            const result = await probe.run(
-                              `models/routes/${encodeURIComponent(route.route_id)}/probe`,
-                              { capability },
-                              route.revision,
-                            );
-                            if (result) await reload();
-                          }}
-                        >
-                          实际测试{capability === "text" ? "文字" : "流式"}
-                        </button>
-                      ))}
+                      <button
+                        className="button"
+                        disabled={busy}
+                        onClick={() => setProbeRouteId(route.route_id)}
+                      >
+                        测试与登记能力
+                      </button>
                       <button
                         className="button"
                         disabled={busy}
@@ -426,12 +447,6 @@ export function ProviderManager({
                 </article>
               ))}
             </div>
-            {probe.result?.data.receipt && (
-              <p role="status">
-                最近测试：{humanizeCode(probe.result.data.receipt.status, "测试状态尚未确认")}
-                {probe.result.data.receipt.error_code && ` · ${humanizeCode(probe.result.data.receipt.error_code, "测试未完成，请查看原任务")}`}
-              </p>
-            )}
             {command.manageable && (
               <details>
                 <summary>获取供应商模型目录并批量添加</summary>
@@ -443,7 +458,9 @@ export function ProviderManager({
                   >
                     <option value="">选择容量组</option>
                     {catalog.quota_groups.map((row) => (
-                      <option key={row.quota_group} value={row.quota_group}>{quotaGroupName(catalog, row.quota_group)}</option>
+                      <option key={row.quota_group} value={row.quota_group}>
+                        {quotaGroupName(catalog, row.quota_group)}
+                      </option>
                     ))}
                   </select>
                 </label>
@@ -474,7 +491,11 @@ export function ProviderManager({
                       ? "已取得完整目录"
                       : `目录仍有 ${directory.coverage.missing.length} 项未取得`}{" "}
                     ·{" "}
-                    {directory.model_receipt.error_code && humanizeCode(directory.model_receipt.error_code, "读取未完成，请查看原任务")}
+                    {directory.model_receipt.error_code &&
+                      humanizeCode(
+                        directory.model_receipt.error_code,
+                        "读取未完成，请查看原任务",
+                      )}
                   </p>
                 )}
                 <div className="provider-model-directory">
@@ -517,6 +538,16 @@ export function ProviderManager({
             )}
           </section>
         </div>
+      )}
+      {probeRoute && probeProvider && (
+        <ProviderProbe
+          key={probeRoute.route_id}
+          route={probeRoute}
+          provider={probeProvider}
+          catalog={catalog}
+          reload={reload}
+          close={() => setProbeRouteId(null)}
+        />
       )}
       {routeEditor && source && (
         <Drawer

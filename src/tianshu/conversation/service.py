@@ -1269,7 +1269,10 @@ class ConversationService:
         if calls:
             if row["round"] >= 8 or len(calls)>8:
                 raise AppError("tool_round_limit", status=409)
-            continuation = list(row["continuation"])+[{"role": "assistant", "parts": wire(result_parts)}]
+            from tianshu.models.continuation import assistant_message
+            assistant = assistant_message(result, parts=result_parts)
+            continuation = list(row["continuation"])+[{"role": assistant.role, "parts": wire(assistant.parts),
+                "native": assistant.native}]
             async with self.database.transaction() as connection:
                 if pack.deployment_generation is not None:
                     await self.jobs.assert_generation_on(connection, pack.deployment_generation)

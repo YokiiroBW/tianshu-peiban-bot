@@ -12,6 +12,7 @@ from tianshu.types import Coverage
 from .catalog import FUNCTIONS, NATIVE_PROTOCOLS, QuotaPolicy, embedding_fingerprint
 from .ledger import digest, receipt
 from .types import ModelMessage, ModelPart, ModelRequest
+from . import probes
 from tianshu.types import RequestBudget, ServiceClass
 
 
@@ -33,6 +34,7 @@ def positive(body, name, *, optional=False, allow_zero=False):
 
 async def configuration(conn, settings):
     result = {"functions": list(FUNCTIONS), "protocols": sorted(NATIVE_PROTOCOLS)}
+    result["probe_capabilities"] = {protocol: probes.capabilities(protocol) for protocol in sorted(NATIVE_PROTOCOLS)}
     for key, statement in (
         ("providers", "SELECT * FROM models.providers ORDER BY name,provider_id"),
         ("routes", "SELECT * FROM models.routes ORDER BY route_id"),
@@ -559,7 +561,8 @@ def register_routes(app, services):
             raise AppError("expected_revision_required")
 
         async def replay(conn, original):
-            return replace(original, data={"catalog": await configuration(conn, services.settings)})
+            return replace(original, data={"verification": "provider_test", "capability": body.get("capability", "text"),
+                "catalog": await configuration(conn, services.settings)})
 
         cached = await services.commands.replay(
             context, "models.probe", body["client_request_id"], digest(body), on_replay=replay
@@ -567,62 +570,58 @@ def register_routes(app, services):
         if cached:
             return json_response(cached)
         capability = body.get("capability", "text")
-        if capability not in {"text", "stream"}:
-            raise AppError("probe_requires_actual_modality_fixture", status=422)
+        async with services.database.transaction(read_only=True) as conn:
+            selected = await (await conn.execute("SELECT r.revision,p.protocol FROM models.routes r "
+                "JOIN models.providers p USING(provider_id) WHERE r.route_id=%s", (route_id,))).fetchone()
+        if selected is None:
+            raise AppError("route_not_found", status=404)
+        if selected["revision"] != expected:
+            raise AppError("revision_conflict", status=409)
+        if capability not in probes.capabilities(selected["protocol"]):
+            raise AppError("probe_protocol_unsupported", status=422)
         probe_id = (
             "probe-"
             + hashlib.sha256(
                 (context.principal_id + route_id + body["client_request_id"]).encode()
             ).hexdigest()
         )
-        model_request = ModelRequest(
-            probe_id,
-            probe_id,
-            "chat",
-            ServiceClass.INTERACTIVE,
-            context,
-            RequestBudget(datetime.now(UTC) + timedelta(seconds=180)),
-            (ModelMessage("user", (ModelPart("text", text="Reply with OK."),)),),
-            route_id=route_id,
-            required_capabilities=frozenset(),
-            max_output_tokens=8192,
-            capability_probe=True,
-            route_revision=expected,
-        )
-        from .budgets import with_output_tokens
-        from .completion import content_completion
         output_tokens = body.get("max_output_tokens", 8192)
         timeout_seconds = body.get("timeout_seconds", 180)
         if type(output_tokens) is not int or not 256 <= output_tokens <= 16384:
             raise AppError("invalid_probe_output_budget", status=422)
         if type(timeout_seconds) is not int or not 30 <= timeout_seconds <= 600:
             raise AppError("invalid_probe_timeout", status=422)
+        model_request = ModelRequest(
+            probe_id,
+            probe_id,
+            capability if capability in {"embed", "rerank"} else "chat",
+            ServiceClass.INTERACTIVE,
+            context,
+            RequestBudget(datetime.now(UTC) + timedelta(seconds=timeout_seconds)),
+            (ModelMessage("user", (ModelPart("text", text="Reply with OK."),)),),
+            route_id=route_id,
+            required_capabilities=frozenset(),
+            max_output_tokens=0 if capability in {"embed", "rerank"} else output_tokens,
+            execution_timeout_seconds=timeout_seconds,
+            capability_probe=True,
+            route_revision=expected,
+        )
+        from .budgets import with_output_tokens
+        from .completion import content_completion
         profile = await services.models.generation_profile(model_request)
         model_request = replace(model_request,
-            budget=RequestBudget(datetime.now(UTC) + timedelta(seconds=timeout_seconds)),
-            execution_timeout_seconds=timeout_seconds,
-            protocol=profile["protocol"], max_output_tokens=output_tokens,
-            parameters=with_output_tokens(profile["protocol"], profile["output_parameters"], output_tokens))
-        result = None
-        if capability == "stream":
-            terminal = None
-            saw_text = False
-            async for event in services.models.stream(model_request):
-                saw_text |= event.kind == "text" and bool(event.text)
-                if event.receipt:
-                    terminal = event.receipt
-            result = await services.models.result(probe_id, context=context)
-        else:
-            result = await services.models.generate(model_request)
-            terminal = result.receipt
-            saw_text = any(part.kind == "text" and part.text and not part.native.get("thought") for part in result.parts)
+            protocol=profile["protocol"], parameters={} if capability in {"embed", "rerank"} else
+                with_output_tokens(profile["protocol"], profile["output_parameters"], output_tokens))
+        result, receipts, verified, reason = await probes.run(services.models, model_request, capability)
+        terminal = result.receipt if result else None
         completion = content_completion(result) if result else None
-        if terminal is None or terminal.status != "succeeded" or not saw_text or not completion or completion.state != "complete":
+        if not verified:
             return json_response(
                 CommandResult(
                     body["client_request_id"],
                     attempt_id=probe_id,
-                    data={"verification": "not_verified", "receipt": terminal, "completion": completion},
+                    data={"verification": "not_verified", "capability": capability, "reason": reason,
+                          "receipt": terminal, "receipts": receipts, "completion": completion},
                 )
             )
 
@@ -630,14 +629,19 @@ def register_routes(app, services):
             await conn.execute(
                 "SELECT pg_advisory_xact_lock(hashtextextended('models.configuration',0))"
             )
+            current = await (await conn.execute("SELECT verification FROM models.routes WHERE route_id=%s "
+                "AND revision=%s FOR UPDATE", (route_id, expected))).fetchone()
+            if current is None:
+                raise AppError("revision_conflict", status=409)
+            granted = [capability] if capability in {"embed", "rerank"} else ["text", capability]
             changed = await (
                 await conn.execute(
                     "UPDATE models.routes SET verified_capabilities="
                     "ARRAY(SELECT DISTINCT unnest(verified_capabilities || %s::text[])),verification=%s,"
                     "revision=revision+1 WHERE route_id=%s AND revision=%s RETURNING revision",
                     (
-                        ["text", "stream"] if capability == "stream" else ["text"],
-                        Jsonb({"source": "provider_test", "attempt_id": probe_id}),
+                        granted,
+                        Jsonb(probes.evidence(current["verification"], capability, receipts)),
                         route_id,
                         expected,
                     ),
@@ -651,7 +655,9 @@ def register_routes(app, services):
                 attempt_id=probe_id,
                 data={
                     "verification": "provider_test",
+                    "capability": capability,
                     "receipt": terminal,
+                    "receipts": receipts,
                     "catalog": await configuration(conn, services.settings),
                 },
             )

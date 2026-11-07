@@ -9,7 +9,10 @@ import type { ModelCatalog, ModelReceipt } from "./providerTypes";
 
 export type ProbeResult = {
   verification: string;
+  capability?: string;
+  reason?: string | null;
   receipt?: ModelReceipt | null;
+  receipts?: ModelReceipt[];
   catalog?: ModelCatalog;
 };
 export function useModelCatalog(actorId?: string) {

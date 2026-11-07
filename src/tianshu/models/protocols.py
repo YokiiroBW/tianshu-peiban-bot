@@ -21,6 +21,11 @@ class NativeCall:
     body: dict[str, Any]
 
 
+def chat_video_part(uri):
+    """OpenAI-compatible video_url extension, also used by modality probes."""
+    return {"type": "video_url", "video_url": {"url": uri}}
+
+
 def requested_capabilities(request, stream=False):
     required = set(request.required_capabilities)
     if stream:
@@ -67,6 +72,8 @@ def requested_capabilities(request, stream=False):
                 required.add("vision")
             if part.get("type") == "input_audio":
                 required.add("audio")
+            if part.get("type") == "video_url":
+                required.add("video")
         if message.get("tool_calls") or message.get("role") == "tool":
             required.add("tools")
     return frozenset(required)
@@ -155,6 +162,8 @@ class NativeCompiler:
                     content, calls = [], []
                     tool_results = []
                     for part in message.parts:
+                        if part.native.get("thought"):
+                            continue
                         if part.kind == "text":
                             content.append({"type": "text", "text": part.text or ""})
                         elif part.kind == "image":
@@ -171,6 +180,8 @@ class NativeCompiler:
                         elif part.kind == "tool_call":
                             calls.append({"id": part.call_id, "type": "function", "function":
                                           {"name": part.name, "arguments": json.dumps(part.arguments)}})
+                        elif part.kind == "video":
+                            content.append(chat_video_part(self._data_uri(part.media)))
                         elif part.kind == "tool_result":
                             tool_results.append({"role": "tool", "tool_call_id": part.call_id,
                                                  "content": json.dumps(part.result, ensure_ascii=False)})
@@ -334,6 +345,11 @@ class ResponseCollector:
                 if not isinstance(content, str):
                     raise AppError("invalid_native_chat_response", status=502)
                 added.append(ModelPart("text", text=content))
+            reasoning = message.get("reasoning_content")
+            if reasoning is not None:
+                if not isinstance(reasoning, str):
+                    raise AppError("invalid_native_chat_response", status=502)
+                added.append(ModelPart("text", text="", native={"thought": True, "reasoning_content": reasoning}))
             # These fields are explicitly nullable in ChatCompletionMessage and
             # ChoiceDelta. Required choices/message/delta structures are not.
             calls = message.get("tool_calls")

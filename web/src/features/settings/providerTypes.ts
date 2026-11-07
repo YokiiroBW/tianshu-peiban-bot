@@ -61,6 +61,7 @@ export type EmbeddingProfile = {
   revision: number;
 };
 export type ModelCatalog = {
+  probe_capabilities?: Record<string, string[]>;
   providers: Provider[];
   routes: ModelRoute[];
   quota_groups: QuotaGroup[];
@@ -71,6 +72,15 @@ export type ModelCatalog = {
   broker_reload?: "applied" | "pending";
 };
 export type ModelReceipt = {
+  diagnostic?: {
+    upstream?: {
+      status: number;
+      category: string;
+      code?: string;
+      type?: string;
+      param?: string;
+    };
+  } | null;
   attempt_id: string;
   intent_id: string;
   status:

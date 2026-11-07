@@ -83,3 +83,39 @@ def test_chat_does_not_relabel_ogg_as_mp3(tmp_path):
     with pytest.raises(AppError, match="native_audio_requires_transcode"):
         NativeCompiler(files, Secrets({"TEST_TOKEN": "fixture-key"})).compile(
             route("openai.chat"), model_request, stream=False)
+
+
+def test_chat_video_uses_the_native_video_url_extension(tmp_path):
+    from tianshu.models.probe_media import sample
+
+    files = FileStore(tmp_path)
+    mime, data, _ = sample("video", "0123456789abcdef" * 4)
+    media = files.put_bytes(data, media_type=mime)
+    model_request = request((ModelMessage("user", (ModelPart("video", media=media),)),))
+    call = NativeCompiler(files, Secrets({"TEST_TOKEN": "fixture-key"})).compile(route("openai.chat"), model_request, stream=False)
+    block = call.body["messages"][0]["content"][0]
+    assert block["type"] == "video_url" and block["video_url"]["url"].startswith("data:video/mp4;base64,")
+    assert "video" in requested_capabilities(request(native_payload=call.body))
+
+
+def test_non_streaming_chat_reasoning_is_private_and_available_to_continuation():
+    from types import SimpleNamespace
+    from tianshu.models.continuation import assistant_message
+
+    native = {"choices": [{"index": 0, "message": {"role": "assistant", "content": "public", "reasoning_content": "private"}, "finish_reason": "stop"}]}
+    collector = ResponseCollector("openai.chat")
+    collector.feed(native)
+    original = SimpleNamespace(parts=tuple(collector.parts), native_response=collector.native_response,
+        receipt=SimpleNamespace(protocol="openai.chat"))
+    message = assistant_message(original)
+    assert message.native == {"reasoning_content": "private"}
+    assert "".join(part.text for part in message.parts) == "public"
+    # Old saved results did not have private canonical parts; their native field is enough.
+    original.parts = (ModelPart("text", text="public"),)
+    assert assistant_message(original).native == message.native
+
+
+def test_chat_rejects_malformed_reasoning_content():
+    with pytest.raises(AppError, match="invalid_native_chat_response"):
+        ResponseCollector("openai.chat").feed({"choices": [{"index": 0, "message": {
+            "role": "assistant", "content": "public", "reasoning_content": ["not a string"]}, "finish_reason": "stop"}]})

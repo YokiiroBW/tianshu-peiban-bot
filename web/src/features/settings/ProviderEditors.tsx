@@ -315,7 +315,7 @@ export function ModelEditor({
             />
           </label>
           <p className="muted">
-            配置与实际验证分别记录；文字/流式可用下方真实测试，多模态能力需要对应材料与依据。备用路由还需要可证明的上下文容量；JSON 用途需要已核验 json 能力。
+            可在“测试与登记能力”中逐项实际验证。上下文容量仍需单独提供依据；备用路由需要可证明的上下文容量，JSON 用途需要已核验的结构化输出能力。
           </p>
         </details>
         {error && <p role="alert">{error}</p>}
