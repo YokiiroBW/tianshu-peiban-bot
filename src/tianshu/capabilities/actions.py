@@ -240,6 +240,23 @@ class Actions:
             return receipt
         return receipt if background else await self.run(action.action_id)
 
+    async def find_applied_result(self, capability_id, field, value):
+        """Find the original author of an exact, confirmed current-generation result.
+
+        This restores ownership evidence, not permission: timer execution must
+        still refresh and check the original authority ceiling.
+        """
+        async with self.database.transaction(read_only=True) as connection:
+            row = await (await connection.execute(
+                "SELECT action FROM capabilities.actions WHERE kind=%s "
+                "AND receipt->>'execution'='succeeded' AND receipt->>'effect'='confirmed' "
+                "AND receipt->'result'->%s=%s::jsonb "
+                "AND document::jsonb->>'data_generation'="
+                "(SELECT id::text FROM runtime.installation_generation WHERE singleton) "
+                "ORDER BY created_at DESC,id DESC LIMIT 1",
+                (capability_id, field, encoded(value)))).fetchone()
+        return action_from(row["action"]) if row else None
+
     async def find(self, capability_id, client_request_id, context):
         if (
             not isinstance(capability_id, str)

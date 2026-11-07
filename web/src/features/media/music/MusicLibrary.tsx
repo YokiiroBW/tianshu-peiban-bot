@@ -1,6 +1,6 @@
 import { useState } from "react";
 import type { MediaController } from "../useMediaController";
-import { timestamp, word } from "../wording";
+import { errorWords, timestamp, word } from "../wording";
 import {
   providerNames,
   type AudioQuality,
@@ -34,6 +34,7 @@ export function MusicLibrary({
   media: MediaController;
   status?: {
     state: string;
+    schedule?: { state: string; code?: string | null };
     checked_at?: number;
     total?: number;
     failed?: number;
@@ -73,6 +74,11 @@ export function MusicLibrary({
         {status?.total != null ? ` · ${status.total} 个文件` : ""}
         {status?.failed ? ` · ${status.failed} 项未能登记` : ""}
       </p>
+      {status?.schedule?.code && (
+        <p className="media-warning" role="status">
+          自动扫描：{errorWords[status.schedule.code] ?? word(status.schedule.code)}
+        </p>
+      )}
       <div className="music-actions">
         <button
           className="button"

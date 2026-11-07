@@ -34,6 +34,7 @@ export const stateWords: Record<string, string> = {
   unknown: "结果未知",
   active: "订阅运行中",
   paused: "已暂停",
+  blocked: "暂时无法继续",
   rule_error: "规则需要修正",
   library_files_verified: "媒体服务器已收录文件",
   ready: "可用",
@@ -141,6 +142,8 @@ export const reasonWords: Record<string, string> = {
   error_short_circuit: "前面的规则执行失败，后续规则未执行",
 };
 export const errorWords: Record<string, string> = {
+  subscription_context_required: "自动扫描尚未建立，请保存设置或立即扫描以继续。",
+  media_job_requires_reconciliation: "原任务结果尚未确认，请在下载任务中核对后继续。",
   ...bookWords,
   ...comicWords,
   music_request_deferred: reasonWords.music_request_deferred,

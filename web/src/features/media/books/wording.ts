@@ -1,4 +1,6 @@
 export const bookWords: Record<string, string> = {
+  book_subscription_paused: "书籍追更已暂停，恢复后会立即检查更新。",
+  book_feed_paused: "书源订阅已暂停，恢复后会继续更新。",
   book_source_selected: "已按正文可读性和章节更新进度选择来源。",
   book_source_switched: "原来源读取失败，已自动切换到通过同书核对的备用来源。",
   book_source_single: "暂无可以核对的备用来源，继续使用当前书源。",

@@ -40,8 +40,10 @@ class WebMusic:
                 body, "music/" + operation, session, lambda db: music.maintenance.save(body, db)
             )
         if operation == "library/scan":
-            self.fields(body, set())
-            result = await local(music.imports.enqueue)
+            require(set(body) <= {"expected_revision"}, "invalid_input", 400)
+            if "expected_revision" in body:
+                self.fields(body, {"expected_revision"})
+            result = await local(music.imports.enqueue, expected_revision=body.get("expected_revision"))
             self.media.wake.set()
             return result
         if operation == "library/view":
@@ -55,7 +57,7 @@ class WebMusic:
         if operation == "settings/save":
             self.fields(body, {"directory", "layout", "expected_revision", "client_request_id"})
             return await self.web.receipt(
-                body, "music/" + operation, session, lambda db: library.save_settings(body, db)
+                body, "music/" + operation, session, lambda db: music.save_settings(body, db)
             )
         if operation == "settings/inspect":
             self.fields(body, {"directory"})

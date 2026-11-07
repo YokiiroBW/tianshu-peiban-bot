@@ -253,6 +253,7 @@ class Sources:
     async def refresh_feed(self, identity):
         feed = await self.media.local(self.repo.get, "book_feed", identity)
         require(feed, "not_found", 404)
+        require(feed["state"] == "active", "book_feed_paused", 409)
         try:
             response = await asyncio.to_thread(
                 self.books.network.fetch, feed["url"], max_bytes=32 * 1024 * 1024, timeout=25

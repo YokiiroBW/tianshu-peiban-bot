@@ -214,6 +214,7 @@ class Books:
     async def scan(self, identity):
         subscription = await self.media.local(self.repo.get, "book_subscription", identity)
         require(subscription and subscription.get("state") != "removed", "not_found", 404)
+        require(subscription["state"] == "active", "book_subscription_paused", 409)
         owner = uuid.uuid4().hex
         generation = await self.media.local(self.repo.scan_claim, "books:" + identity, owner)
 
@@ -234,7 +235,7 @@ class Books:
                     current = self.repo._document(db, "book_subscription", identity)
                     require(
                         current
-                        and current.get("state") != "removed"
+                        and current.get("state") == "active"
                         and current["revision"] == subscription["revision"],
                         "version_conflict",
                         409,

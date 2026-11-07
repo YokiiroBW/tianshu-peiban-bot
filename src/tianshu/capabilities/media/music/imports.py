@@ -7,6 +7,8 @@ from pathlib import Path
 
 import mutagen
 
+from tianshu.types import OriginKind
+
 from ...contracts import Fault, digest, require
 from ..destination import safe_path
 from ..organizer import library_lock
@@ -14,7 +16,7 @@ from ..video_storage import copy_file
 from .audio import probe, record
 from .decoding import ENCRYPTED, PLAIN, encrypted_format
 from .downloads import settled
-from .quality import verify_quality, quality_rank
+from .quality import quality_rank, verify_quality
 
 
 def stamp(path):
@@ -81,17 +83,80 @@ class Imports:
         self.lock = asyncio.Lock()
 
     def view(self):
-        return self.repo.get("music_import_scan", "library") or {
+        status = self.repo.get("music_import_scan", "library") or {
             "state": "not_scanned",
             "next_scan_at": 0,
         }
+        source = self.repo.get("music_library", "library")
+        if source:
+            return {**status, "schedule": source.get("schedule", {})}
+        if self.music.library.settings()["directory"]:
+            return {**status, "schedule": {"state": "blocked", "code": "subscription_context_required"}}
+        return status
 
-    def enqueue(self, *, item=None):
-        settings = self.music.library.settings()
-        require(settings["directory"], "music_directory_unavailable", 409)
+    def configure(self, settings, db, *, author=None):
+        """The authored directory owns one source on the existing scan scheduler."""
+        current = self.repo._document(db, "music_library", "library")
+        body = {
+            **(current or {}),
+            "library_id": "library",
+            "state": "active",
+            "settings_revision": settings["revision"],
+            "directory": settings["directory"],
+            "interval_seconds": 3600,
+            "next_scan_at": self.repo.clock(),
+            "code": "ready",
+        }
+        if author is not None:
+            from tianshu.runtime.serialization import wire
+
+            body.update(context=wire(author.context), source_refs=wire(author.source_refs))
+        return self.repo.put("music_library", "library", body,
+                             current["revision"] if current else 0, db=db)
+
+    async def restore_schedule(self, settings):
+        author = await self.media.capabilities.actions.find_applied_result(
+            "music.settings.save", "settings", settings)
+        if author is None:
+            return False
+
+        def restore():
+            with self.repo.transaction() as db:
+                if self.repo._document(db, "music_library", "library"):
+                    return True
+                if self.music.library.settings(db) != settings:
+                    return False
+                self.configure(settings, db, author=author)
+                return True
+
+        return await self.media.local(restore)
+
+    def enqueue(self, *, item=None, expected_revision=None):
+        from ...execution_context import CURRENT_ACTION
+
         operation = "import" if item else "scan"
-        key = digest({"operation": operation, "directory": settings["directory"], "input": item})
         with self.repo.transaction() as db:
+            settings = self.music.library.settings(db)
+            require(settings["directory"], "music_directory_unavailable", 409)
+            require(expected_revision is None or settings["revision"] == expected_revision,
+                    "version_conflict", 409)
+            action = CURRENT_ACTION.get()
+            require(action is not None, "media_context_required", 403)
+            source = None
+            if operation == "scan":
+                if action.origin_kind in {OriginKind.HUMAN, OriginKind.ACTOR}:
+                    source = self.configure(settings, db)
+                else:
+                    source = self.repo._document(db, "music_library", "library")
+                require(source and source["state"] == "active"
+                        and source["settings_revision"] == settings["revision"],
+                        "version_conflict", 409)
+            identity = {"operation": operation, "directory": settings["directory"], "input": item}
+            if operation == "scan":
+                # Each periodic scan is new work; replay of its original Action
+                # still finds the same job without rewriting old outcomes/grants.
+                identity["action_id"] = action.action_id
+            key = digest(identity)
             job = self.repo.enqueue(
                 {
                     "media_kind": "audio",
@@ -110,23 +175,8 @@ class Imports:
                 },
                 db=db,
             )
-            if operation == "scan" and job["state"] in {
-                "completed",
-                "failed",
-                "cancelled",
-                "unknown",
-            }:
-                job = self.repo.update_job(
-                    job["job_id"],
-                    {
-                        "state": "queued",
-                        "stage": "queued",
-                        "code": "queued",
-                        "cancel_requested": False,
-                    },
-                    db=db,
-                )
             if operation == "scan":
+                require(job["state"] != "unknown", "media_job_requires_reconciliation", 409)
                 prior = self.repo._document(db, "music_import_scan", "library") or {}
                 self.repo.put(
                     "music_import_scan",
@@ -139,6 +189,10 @@ class Imports:
                     },
                     db=db,
                 )
+                self.repo.put("music_library", "library", {
+                    **source, "last_scan_at": self.repo.clock(),
+                    "next_scan_at": self.repo.clock() + source["interval_seconds"],
+                }, source["revision"], db=db)
         return {"job_id": job["job_id"], "state": job["state"]}
 
     async def index(self, root, item):
@@ -476,10 +530,13 @@ class Imports:
             await asyncio.gather(pulse, return_exceptions=True)
 
     async def pump(self):
-        try:
-            settings, status = (await self.media.local(self.music.library.settings), await self.media.local(self.view))
-            if settings['directory'] and self.repo.clock() >= status.get('next_scan_at', 0):
-                await self.media.local(self.enqueue)
-                self.media.wake.set()
-        except (Fault, OSError):
-            pass
+        from ..scheduling import pump_scans
+
+        source = await self.media.local(self.repo.get, "music_library", "library")
+        if source is None:
+            settings = await self.media.local(self.music.library.settings)
+            if settings["directory"] and not await self.restore_schedule(settings):
+                return {"schedule_observation": {
+                    "state": "blocked", "code": "subscription_context_required",
+                }}
+        return await pump_scans(self.media, "music_library", "library_id", None)

@@ -254,7 +254,9 @@ class WebBooks:
                             **current,
                             "state": state,
                             "interval_seconds": interval,
-                            "next_scan_at": repo.clock() + interval,
+                            "next_scan_at": repo.clock()
+                            if body["action"] == "resume"
+                            else repo.clock() + interval,
                         },
                         current["revision"],
                         db=db,

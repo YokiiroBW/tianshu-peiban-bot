@@ -38,6 +38,11 @@ class Music:
         require(provider in PROVIDERS, "invalid_input", 400)
         return self.connector if provider == "netease" else self.connectors[provider]
 
+    def save_settings(self, body, db):
+        result = self.library.save_settings(body, db)
+        self.imports.configure(result["settings"], db)
+        return result
+
     def capabilities(self):
         return [
             {
