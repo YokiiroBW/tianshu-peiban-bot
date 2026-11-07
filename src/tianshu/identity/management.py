@@ -104,7 +104,7 @@ class IdentityManagement:
             "principals": principals,
         }
 
-    async def execute(self, context, operation, body):
+    async def execute(self, context, operation, body, *, connection=None):
         require_permission(context.permissions, "identity.manage")
         try:
             hashed_password = (
@@ -556,6 +556,11 @@ class IdentityManagement:
             # Return current directory via its independent short read, never cached personal data.
             return replace(original, data={"refresh_required": True})
 
+        if connection is not None:
+            return await self.identity.commands.execute_on(
+                connection, context, "identity." + operation,
+                body["client_request_id"], body_hash(body), apply, on_replay=replay,
+            )
         return await self.identity.commands.execute(
             context,
             "identity." + operation,

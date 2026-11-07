@@ -12,6 +12,8 @@ from .management import IdentityManagement
 
 def create_module(identity):
     sessions, management = identity.sessions, IdentityManagement(identity)
+    from .role_administrator import RoleAdministrator
+    administrators = RoleAdministrator(identity)
 
     def register(app, _runtime):
         @web.middleware
@@ -107,6 +109,17 @@ def create_module(identity):
                 )
             )
 
+        async def role_administrator(request):
+            context = await identity.for_request(request, actor_id=request.query.get("actor_id"),
+                person_id=request.query.get("person_id"), permission="identity.manage")
+            return json_response(await administrators.view(context))
+
+        async def save_role_administrator(request):
+            body = await command_body(request)
+            context = await identity.for_request(request, actor_id=body.get("actor_id"),
+                person_id=body.get("person_id"), permission="identity.users.manage")
+            return json_response(await administrators.save(context, body))
+
         async def publication_recipients(request):
             context = await identity.for_request(
                 request, actor_id=request.query.get("actor_id"), permission="life.manage"
@@ -137,6 +150,8 @@ def create_module(identity):
         app.router.add_post("/api/v1/identity/conversations/open", open_conversation)
         app.router.add_get("/api/v1/identity/people", people)
         app.router.add_get("/api/v1/identity/directory", directory)
+        app.router.add_get("/api/v1/identity/role-administrator", role_administrator)
+        app.router.add_post("/api/v1/identity/role-administrator.save", save_role_administrator)
         app.router.add_get("/api/v1/identity/publication-recipients", publication_recipients)
         app.router.add_post(
             "/api/v1/identity/{operation:principals.save|actors.grant|scopes.grant|people.save|connections.save|accounts.link|conversations.link}",
@@ -150,5 +165,6 @@ def create_module(identity):
             Migration(
                 "0010_identity", files("tianshu.identity").joinpath("schema.sql").read_text()
             ),
+            Migration("role_administrator", files("tianshu.identity").joinpath("role_administrator.sql").read_text()),
         ),
     )

@@ -46,9 +46,9 @@ class Contacts:
                     raise
         return None
 
-    async def preferences(self, context, *, group=False):
+    async def preferences(self, context, *, group=False, connection=None):
         person_id = "" if group else context.person_id or ""
-        async with self.database.transaction(read_only=True) as connection:
+        async with self.database.transaction(read_only=True, connection=connection) as connection:
             row = await (await connection.execute(
                 "SELECT * FROM life.contact_preferences WHERE actor_id=%s AND person_id IN (%s,'') "
                 "AND scope_ids<@%s::text[] ORDER BY (person_id=%s) DESC LIMIT 1",
@@ -60,11 +60,14 @@ class Contacts:
             readable=not refs or self.identity is not None and (await self.identity.check_many(context,(refs,)))[0]
             if not readable or row["available_until"] and row["available_until"]<=datetime.now(UTC):
                 row={**row,"availability":"unknown"}
-            return {**row,"edit_revision":row["revision"] if exact else None,"inherited":not exact}
+            return {**row,"enabled":row["enabled"] if exact or group else False,
+                    "edit_revision":row["revision"] if exact else None,"inherited":not exact}
         return {"revision": 0,"edit_revision":None,"inherited":False, "timezone": "Asia/Shanghai", "quiet_start": "23:00", "quiet_end": "08:00",
                        "cooldown_seconds": 1800, "daily_quota": 3, "unanswered_limit": 3,
                        "expiry_seconds": DEFAULT_EXPIRY_SECONDS,
-                       "responsiveness": .5, "enabled": True, "availability": "unknown", "available_until": None}
+                       # Group participation has its own explicit per-group switch.
+                       # Its existing shared timing budget must survive private opt-out.
+                       "responsiveness": .5, "enabled": group, "availability": "unknown", "available_until": None}
 
     async def history(self, context, *, conversation_only=False):
         async with self.database.transaction(read_only=True) as connection:

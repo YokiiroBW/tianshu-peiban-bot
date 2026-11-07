@@ -513,7 +513,7 @@ class LifeService:
             return CommandResult(body["client_request_id"], {"id": row["id"], "state": "cancelled"}, row["revision"] + 1)
         return await self.commands.execute(context, "life.commitments.cancel", body["client_request_id"], signature(body), apply)
 
-    async def save_contact_preferences(self, context, body):
+    async def save_contact_preferences(self, context, body, *, connection=None):
         await self.identity.check(context)
         zone = timezone(body.get("timezone", "Asia/Shanghai"))
         for key in ("quiet_start", "quiet_end"):
@@ -544,18 +544,21 @@ class LifeService:
             available_until=timestamp(body.get("available_until",row["available_until"] if row else None),optional=True)
             if type(responsiveness) not in (int,float) or not 0<=responsiveness<=1 or availability not in {"unknown","free","busy","sleeping","away"}:
                 raise AppError("invalid_contact_preferences")
-            if type(body.get("enabled",True)) is not bool:
+            if type(body.get("enabled",False)) is not bool:
                 raise AppError("invalid_contact_preferences")
             await connection.execute(
                 "INSERT INTO life.contact_preferences(actor_id,person_id,revision,timezone,quiet_start,quiet_end,cooldown_seconds,daily_quota,unanswered_limit,enabled,scope_ids) "
                 "VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s) ON CONFLICT(actor_id,person_id) DO UPDATE SET "
                 "revision=excluded.revision,timezone=excluded.timezone,quiet_start=excluded.quiet_start,quiet_end=excluded.quiet_end,"
                 "cooldown_seconds=excluded.cooldown_seconds,daily_quota=excluded.daily_quota,unanswered_limit=excluded.unanswered_limit,enabled=excluded.enabled",
-                (context.actor_id, context.person_id or "", next_revision, zone, body["quiet_start"], body["quiet_end"], body["cooldown_seconds"], body["daily_quota"], body["unanswered_limit"], body.get("enabled", True), list(context.scope_ids)))
+                (context.actor_id, context.person_id or "", next_revision, zone, body["quiet_start"], body["quiet_end"], body["cooldown_seconds"], body["daily_quota"], body["unanswered_limit"], body.get("enabled", False), list(context.scope_ids)))
             await connection.execute("UPDATE life.contact_preferences SET responsiveness=%s,availability=%s,available_until=%s,expiry_seconds=%s WHERE actor_id=%s AND person_id=%s",(responsiveness,availability,available_until,expiry,context.actor_id,context.person_id or ""))
             if "availability" in body or "available_until" in body:
                 await connection.execute("UPDATE life.contact_preferences SET availability_event_id=NULL,availability_source_refs='[]',availability_occurred_at=now() WHERE actor_id=%s AND person_id=%s",(context.actor_id,context.person_id or ""))
             return CommandResult(body["client_request_id"], {"revision": next_revision}, next_revision)
+        if connection is not None:
+            return await self.commands.execute_on(connection, context, "life.contact_preferences.save",
+                body["client_request_id"], signature(body), apply)
         return await self.commands.execute(context, "life.contact_preferences.save", body["client_request_id"], signature(body), apply)
 
     async def signal(self, context, watermark, *, connection=None, change=None):
