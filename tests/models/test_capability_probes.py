@@ -157,6 +157,18 @@ async def test_existing_unsettled_or_failed_probe_never_submits_another_attempt(
     models.generate.assert_not_awaited()
 
 
+@pytest.mark.parametrize(
+    "changed",
+    [{"route_revision": 2}, {"route_id": "changed-route"}, {"protocol": "gemini.generate"}],
+)
+async def test_same_id_cannot_register_an_old_receipt_for_a_changed_route(changed):
+    req = request()
+    models = SimpleNamespace(result=AsyncMock(return_value=result(req)), generate=AsyncMock())
+    with pytest.raises(AppError, match="probe_original_route_changed"):
+        await probes.run(models, replace(req, **changed), "text")
+    models.generate.assert_not_awaited()
+
+
 async def test_successful_text_is_not_a_successful_tool_probe():
     models = SimpleNamespace(
         result=AsyncMock(return_value=None), generate=AsyncMock(return_value=result(request()))
