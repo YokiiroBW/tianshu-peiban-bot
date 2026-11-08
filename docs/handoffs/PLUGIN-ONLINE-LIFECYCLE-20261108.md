@@ -5,7 +5,8 @@
 - 分支：`codex/plugin-online-lifecycle-20261108`
 - 工作树：`C:\Users\Administrator\.codex\worktrees\plugin-online-lifecycle-20261108\tianshu-peiban-bot`
 - 首版实现：`0745c42c8d79a4ea52c955248ab19b45895a1834`（实现）→ `4a88e2558f86673aac6e578ba4dcc7df0b485585`（用例）→ 文档收尾
-- 本轮返修基线：`2a18fd17f591dbeb567f44d4ae7e577200d0b601`（返修提交号见分支 HEAD；本文档不记录自身提交）
+- 本轮返修基线：`2a18fd17f591dbeb567f44d4ae7e577200d0b601`
+- 本轮返修提交：`7d5023e19641f8ca7bd2b270dec48ca499ea38a0`（代码、用例、前端与两份文档；随后仅追加本条 SHA 记录）
 - 基线分支源自 `37d4cb50`，**不含此后的网页在线发布与模型绑定交付**，因此本分支不用于覆盖现有部署基线。
 
 ## 1. 结论摘要
