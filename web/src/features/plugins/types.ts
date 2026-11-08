@@ -113,17 +113,26 @@ export type Invocation = {
 };
 export type Installation = {
   id: string;
-  kind?: "upgrade" | "uninstall";
+  kind?: "install" | "upgrade" | "uninstall";
   execution: string;
   error: {
     code: string;
     rolled_back?: boolean;
-    restored_version?: string;
+    restored_version?: string | null;
+    failed_version?: string;
+    restore_error?: string | null;
+    stopped_instances?: string[];
+    remaining_instances?: string[];
   } | null;
   package_id: string | null;
   instance_id?: string;
+  from_version?: string;
+  to_version?: string;
+  generation?: string;
   purged?: boolean;
   reclaimed?: string[];
+  already_uninstalled?: boolean;
+  result?: unknown;
 };
 export type PluginOverview = {
   packages: Package[];

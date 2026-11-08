@@ -140,7 +140,7 @@ export default function PluginCenter() {
         setNotice(
           `已切换到 ${
             (result as { version?: string } | undefined)?.version ?? "目标版本"
-          }，实例身份、绑定与数据保持。`,
+          }，承接后续调用的是这里显示的运行进程，实例身份、绑定与数据保持。`,
         );
       else if (operation === "uninstall") {
         const value = result as

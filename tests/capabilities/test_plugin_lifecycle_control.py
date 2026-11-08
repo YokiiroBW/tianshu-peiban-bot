@@ -1,6 +1,7 @@
 """Online lifecycle contract: request schemas, admission, withdrawal and purge scope."""
 
 import asyncio
+from collections import defaultdict
 from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock
 
@@ -97,20 +98,103 @@ async def test_page_ticket_stops_serving_an_uninstalled_or_replaced_package():
     assert error.value.code == "not_found"
 
 
-def test_instance_admission_closes_only_for_the_switching_instance():
+@pytest.mark.asyncio
+async def test_uninstall_refuses_a_concurrent_enable_instead_of_leaving_a_live_instance():
+    """A deterministic barrier reproduces the reported uninstall/enable race."""
+    state = {"package": "example"}
+
+    class Manager:
+        def __init__(self):
+            self.admission = {}
+            self.package_locks = defaultdict(asyncio.Lock)
+            self.started_at = asyncio.Event()
+            self.release = asyncio.Event()
+            self.instance = {
+                "id": "instance",
+                "package_id": "example",
+                "desired_state": "enabled",
+                "revision": 2,
+                "config": {},
+                "bindings": [],
+            }
+
+        async def _disable(self, identifier, expected):
+            self.started_at.set()
+            await self.release.wait()
+            self.instance.update(desired_state="disabled", revision=expected + 1)
+            return self.instance
+
+    manager = Manager()
+
+    async def uninstall():
+        async with manager.package_locks["example"]:
+            for identifier in ("instance",):
+                manager.admission[identifier] = "instance_unloading"
+            try:
+                await manager._disable("instance", manager.instance["revision"])
+            finally:
+                manager.admission.pop("instance", None)
+            state["package"] = "uninstalled"
+            return {"uninstalled": True}
+
+    async def enable():
+        # Enable must queue behind the package lock, not slip between the stop
+        # of one instance and the removal of the package.
+        async with manager.package_locks["example"]:
+            assert state["package"] == "uninstalled"
+            return {"enabled": True}
+
+    unloading = asyncio.create_task(uninstall())
+    await manager.started_at.wait()
+    enabling = asyncio.create_task(enable())
+    await asyncio.sleep(0)
+    assert enabling.done() is False
+    manager.release.set()
+    await unloading
+    assert (await enabling) == {"enabled": True}
+    assert state["package"] == "uninstalled"
+
+
+@pytest.mark.asyncio
+async def test_uninstall_holds_admission_so_queued_calls_cannot_restart_the_old_version():
+    from tianshu.capabilities.plugins.manager import PluginManager
+
+    manager = object.__new__(PluginManager)
+    manager.admission = {"instance": "instance_unloading"}
+    instance = {"id": "instance", "desired_state": "enabled", "package_id": "p", "version": "1"}
     host = SimpleNamespace(
-        admission={"switching"}, operations_lock=asyncio.Lock(), repository=SimpleNamespace()
+        admission=manager.admission,
+        operations_lock=asyncio.Lock(),
+        repository=SimpleNamespace(),
+        instance=AsyncMock(return_value=instance),
+        package=AsyncMock(return_value={"description": {"actions": []}}),
+        available_capabilities=set(),
+        ensure_active=AsyncMock(),
+        check_authorizer=AsyncMock(return_value=True),
     )
     executions = Executions(host)
-    assert executions.blocked("switching")
-    assert not executions.blocked("another")
+    with pytest.raises(Fault) as error:
+        await executions.invoke("instance", "value", {}, "intent", "owner")
+    assert error.value.code == "instance_unloading"
+    host.package.assert_not_awaited()
+
+
+def test_instance_admission_closes_only_for_the_switching_instance():
+    host = SimpleNamespace(
+        admission={"switching": "instance_upgrading"},
+        operations_lock=asyncio.Lock(),
+        repository=SimpleNamespace(),
+    )
+    executions = Executions(host)
+    assert executions.refusal("switching") == "instance_upgrading"
+    assert executions.refusal("another") is None
 
 
 @pytest.mark.asyncio
 async def test_invoke_refuses_new_admission_while_that_instance_is_switching():
     instance = {"id": "switching", "desired_state": "enabled", "package_id": "p", "version": "1"}
     host = SimpleNamespace(
-        admission={"switching"},
+        admission={"switching": "instance_reloading"},
         operations_lock=asyncio.Lock(),
         repository=SimpleNamespace(),
         instance=AsyncMock(return_value=instance),
@@ -124,6 +208,11 @@ async def test_invoke_refuses_new_admission_while_that_instance_is_switching():
         await executions.invoke("switching", "value", {}, "intent", "owner")
     assert error.value.code == "instance_reloading"
     host.instance.assert_awaited_once()
+    # Another instance is never refused by this one's lifecycle switch.
+    host.admission = {"other": "instance_unloading"}
+    with pytest.raises(Fault) as error:
+        await executions.invoke("switching", "value", {}, "intent", "owner")
+    assert error.value.code == "not_found"
 
 
 @pytest.mark.asyncio

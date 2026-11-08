@@ -230,6 +230,20 @@ class Repository:
             parameters.append(limit)
             return [json.loads(row[0]) for row in db.execute(query, parameters)]
 
+    def accepted(self, instance=None):
+        """Accepted calls that have not yet entered a plugin process."""
+        with self.transaction() as db:
+            query = (
+                "SELECT document FROM capabilities.actions WHERE instance_id IS NOT NULL "
+                "AND (document::jsonb #>> '{execution}')='accepted'"
+            )
+            parameters = []
+            if instance:
+                query += " AND instance_id=%s"
+                parameters.append(instance)
+            query += " FOR UPDATE"
+            return [json.loads(row[0]) for row in db.execute(query, parameters)]
+
     def unfinished(self):
         with self.transaction(False) as db:
             return [
@@ -290,11 +304,53 @@ class Repository:
             return {"value": value["value"], "revision": revision}
 
     def purge(self, instance):
-        """Delete only this plugin instance's own rows; shared ledgers stay."""
+        """Delete this plugin instance's own configured data in one transaction.
+
+        The instance document itself loses config, bindings, secrets and persisted
+        state semantics, so a later reinstall cannot resurrect cleared values.
+        Original Action/call/attempt rows, receipts and unknown outcomes are
+        execution evidence, not plugin data, and are never deleted here.
+        """
         with self.transaction() as db:
-            for table in ("plugin_state", "plugin_secrets", "plugin_logs", "plugin_schedules"):
+            row = db.execute('SELECT document FROM plugin_instances WHERE id=%s', (instance,)).fetchone()
+            if row is not None:
+                document = json.loads(row[0])
+                document.update(
+                    config={},
+                    bindings=[],
+                    revision=document["revision"] + 1,
+                    data_purged_at=time.time(),
+                )
+                db.execute(
+                    "UPDATE plugin_instances SET document=%s WHERE id=%s",
+                    (canonical(document), instance),
+                )
+            for table in ("plugin_state", "plugin_secrets", "plugin_logs"):
                 db.execute(f'DELETE FROM {table} WHERE instance_id=%s', (instance,))
-            db.execute('DELETE FROM capabilities.plugin_consumptions WHERE instance_id=%s', (instance,))
+            # Stop persisted timers: they are plugin-owned scheduling data. The
+            # durable job rows themselves are kept as execution evidence.
+            for identifier, raw in db.execute("SELECT id,document FROM plugin_schedules"):
+                document = json.loads(raw)
+                if document.get("instance_id") != instance:
+                    continue
+                if not document.get("enabled"):
+                    continue
+                document.update(
+                    enabled=False,
+                    state="removed",
+                    code="plugin_data_purged",
+                    revision=document["revision"] + 1,
+                )
+                for key in ("dispatch", "previous_dispatch", "pending", "wake_generation"):
+                    document.pop(key, None)
+                db.execute(
+                    "UPDATE plugin_schedules SET document=%s WHERE id=%s",
+                    (canonical(document), identifier),
+                )
+            db.execute(
+                'DELETE FROM capabilities.plugin_consumptions WHERE instance_id=%s', (instance,)
+            )
+            return document if row is not None else None
 
     def log(self, instance, document):
         with self.transaction() as db:

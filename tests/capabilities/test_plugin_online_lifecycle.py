@@ -10,6 +10,7 @@ product's own synchronous database pool.
 """
 
 import asyncio
+import base64
 import json
 import os
 import sys
@@ -25,14 +26,17 @@ from psycopg.conninfo import make_conninfo
 if sys.platform == "win32":
     asyncio.set_event_loop_policy(asyncio.DefaultEventLoopPolicy())
 
+from tianshu.capabilities.contracts import Fault
 from tianshu.capabilities.plugins.manager import PluginManager
-from tianshu.capabilities.plugins.process import RemoteError
 from tianshu.runtime.credentials import CredentialStore
 from tianshu.runtime.database import Database, DatabaseConfig
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import migrate, product_migrations
+from tianshu.types import TrustedContext
 
 CAPABILITIES = Path(__file__).parents[2] / "src" / "tianshu" / "capabilities"
-MASTER_KEY = "c2VjcmV0LW1hc3teci1rZXktZm9yLXRlc3RzLW9ubHktMzJi"
+# 32-byte base64 key, so sealed plugin secrets really round-trip in these tests.
+MASTER_KEY = base64.urlsafe_b64encode(b"tianshu-lifecycle-key-32-bytes!!").decode()
 
 
 @pytest.fixture
@@ -185,7 +189,7 @@ class Host:
         """A real action admission over the same execution path the API uses."""
         manager = self.manager
         from tianshu.capabilities.execution_context import CURRENT_ACTION
-        from tianshu.types import Action, OriginKind, TrustedContext
+        from tianshu.types import Action, OriginKind
 
         instance = await manager.instance(instance_id)
         context = TrustedContext(
@@ -236,6 +240,15 @@ async def scenario(host, tmp_path):
     current = await manager.instance(instance["id"])
     upgraded = await manager.upgrade(instance["id"], "2.0.0", current["revision"])
     assert upgraded["version"] == "2.0.0" and upgraded["state"] == "ready"
+    # The recorded success is the process that actually serves the new version,
+    # not a staged child that was closed afterwards.
+    upgrades = [
+        item
+        for item in await manager.local(manager.repository.list, "operations")
+        if item.get("kind") == "upgrade" and item["instance_id"] == instance["id"]
+    ]
+    assert upgrades[-1]["execution"] == "succeeded"
+    assert generation(manager, instance["id"])["generation"] == upgrades[-1]["generation"]
     assert (await host.call(instance["id"], "value", "call-b"))["result"] == {"text": "B"}
     assert manager.workers[other["id"]][0].process.pid == other_pid
     assert manager.workers[other["id"]][0].runtime_id == other_generation
@@ -301,7 +314,7 @@ class Fixture(Plugin):
     )
 
     current = await manager.instance(instance["id"])
-    with pytest.raises(RemoteError):
+    with pytest.raises(AppError):
         await manager.upgrade(instance["id"], "2.0.0", current["revision"])
     restored = await manager.instance(instance["id"])
     assert restored["version"] == "1.0.0"
@@ -433,6 +446,162 @@ async def test_reinstall_restores_the_retained_instance(lifecycle_database, tmp_
     await reinstall_scenario(Host(lifecycle_database, tmp_path), tmp_path)
 
 
+CONFIGURED_SOURCE = """
+from tianshu_plugin import Plugin, action, Invocation
+
+class Fixture(Plugin):
+    @action(id="value", title="value",
+        input_schema={"type": "object", "properties": {}},
+        output_schema={"type": "object", "properties": {"text": {"type": "string"}}})
+    async def value(self, call: Invocation, args):
+        return {"text": "configured"}
+"""
+
+CONFIG_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "label": {"type": "string", "default": "default-label"},
+        "token": {"type": "string", "x-secret": True},
+    },
+    "required": ["token"],
+    "additionalProperties": False,
+}
+
+
+def configured_package(directory, identifier, version):
+    source = package(directory, identifier, version, "configured", source=CONFIGURED_SOURCE)
+    manifest_path = Path(source["path"]) / "plugin.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["config_schema"] = "config.schema.json"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+    (Path(source["path"]) / "config.schema.json").write_text(
+        json.dumps(CONFIG_SCHEMA), encoding="utf-8"
+    )
+    return source
+
+
+def bound(binding_id, identifier):
+    return {
+        "kind": "binding",
+        "schema_version": 1,
+        "binding_id": str(uuid.uuid5(uuid.NAMESPACE_URL, binding_id)),
+        "instance_id": identifier,
+        "revision": 1,
+        "enabled": True,
+        "priority": 0,
+        "overrides": {},
+        "scope": {"kind": "workspace", "workspace_id": "system-1"},
+        "entries": [{"kind": "action", "id": "value"}],
+    }
+
+
+async def retained_config_uninstall_scenario(host, tmp_path):
+    """A normal uninstall keeps configuration, bindings and secrets for reinstall."""
+    manager = await host.open()
+    first = await host.install(
+        configured_package(tmp_path / "cfg", "fixture.configured", "1.0.0"), "install-cfg"
+    )
+    instance = await manager.create(first, "Configured", "instance-configured")
+    configured = await manager.configure(
+        instance["id"], {"label": "kept"}, {"token": "s3cret"}, instance["revision"]
+    )
+    bound_config = await manager.bindings(
+        configured["id"], [bound("workspace-binding", configured["id"])], configured["revision"]
+    )
+    enabled = await manager.state(bound_config["id"], True, bound_config["revision"])
+    assert enabled["state"] == "ready"
+    revision = (await manager.instance(instance["id"]))["revision"]
+    assert (await manager.uninstall("fixture.configured"))["instance_data"] == "retained"
+    retained = await manager.instance(instance["id"])
+    assert retained["config"]["label"] == "kept"
+    assert retained["bindings"] != []
+    assert await manager.local(manager.vault.names, instance["id"]) == {"token": True}
+    assert retained["revision"] == revision + 1
+    again = await host.install(
+        configured_package(tmp_path / "cfg2", "fixture.configured", "1.0.0"), "install-cfg-again"
+    )
+    assert again == first
+    restored = await manager.create(again, "Configured", "instance-configured")
+    assert restored["id"] == instance["id"]
+    assert restored["config"] == retained["config"]
+    assert restored["bindings"] == retained["bindings"]
+    assert restored["secret_configured"] == {"token": True}
+    ready = await manager.state(instance["id"], True, restored["revision"])
+    assert ready["state"] == "ready"
+    assert (await host.call(instance["id"], "value", "call-restored"))["result"] == {
+        "text": "configured"
+    }
+    await manager.close()
+
+
+async def purged_config_uninstall_scenario(host, tmp_path):
+    """purge_data removes configuration, bindings, secrets and state for good."""
+    manager = await host.open()
+    first = await host.install(
+        configured_package(tmp_path / "cfg", "fixture.purged", "1.0.0"), "install-purged"
+    )
+    instance = await manager.create(first, "Purged", "instance-purged")
+    configured = await manager.configure(
+        instance["id"], {"label": "secret-label"}, {"token": "s3cret"}, instance["revision"]
+    )
+    bound_config = await manager.bindings(
+        configured["id"], [bound("workspace-binding", configured["id"])], configured["revision"]
+    )
+    enabled = await manager.state(bound_config["id"], True, bound_config["revision"])
+    assert enabled["state"] == "ready"
+    assert (await host.call(instance["id"], "value", "call-before"))["result"] == {
+        "text": "configured"
+    }
+    # A persisted timer is plugin-owned scheduling data and must stop with the purge.
+    schedules_before = [
+        item
+        for item in await manager.local(manager.repository.list, "schedules")
+        if item["instance_id"] == instance["id"]
+    ]
+    assert schedules_before == [] or all(item.get("enabled") for item in schedules_before)
+    result = await manager.uninstall("fixture.purged", purge_data=True)
+    assert result["instance_data"] == "purged"
+    purged = await manager.instance(instance["id"])
+    assert purged["config"] == {}
+    assert purged["bindings"] == []
+    assert "data_purged_at" in purged
+    assert await manager.local(manager.vault.names, instance["id"]) == {}
+    schedules = [
+        item
+        for item in await manager.local(manager.repository.list, "schedules")
+        if item["instance_id"] == instance["id"]
+    ]
+    # No schedule may keep ticking; a row that exists must be disabled.
+    assert all(item["enabled"] is False for item in schedules)
+    # Reinstall keeps the instance identity but cannot resurrect cleared values.
+    again = await host.install(
+        configured_package(tmp_path / "cfg2", "fixture.purged", "1.0.0"), "install-purged-again"
+    )
+    assert again == first
+    restored = await manager.create(again, "Purged", "instance-purged")
+    assert restored["id"] == instance["id"]
+    assert restored["config"] == {}
+    assert restored["bindings"] == []
+    assert restored["secret_configured"] == {"token": False}
+    assert enabled["id"] == instance["id"]
+    # Original execution evidence is preserved, not treated as plugin data.
+    calls = await manager.local(manager.repository.calls, instance["id"])
+    succeeded = [item for item in calls if item["execution"] == "succeeded"]
+    assert succeeded and succeeded[0]["result"] == {"text": "configured"}
+    assert succeeded[0]["id"] in {item["id"] for item in calls}
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_retained_uninstall_keeps_configuration_for_reinstall(lifecycle_database, tmp_path):
+    await retained_config_uninstall_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_purge_uninstall_clears_configuration_and_other_plugin_state(lifecycle_database, tmp_path):
+    await purged_config_uninstall_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
 @pytest.mark.asyncio
 async def test_disabled_instance_keeps_its_config_in_the_ledger(lifecycle_database, tmp_path):
     host = Host(lifecycle_database, tmp_path)
@@ -452,3 +621,345 @@ async def test_disabled_instance_keeps_its_config_in_the_ledger(lifecycle_databa
     assert after["package_id"] == stored["package_id"]
     assert after["version"] == stored["version"]
     await manager.close()
+
+
+def failing_start_source(message="fixture refuses to start"):
+    return (
+        "from tianshu_plugin import Plugin, PluginError, action, Invocation\n"
+        "\n"
+        "class Fixture(Plugin):\n"
+        "    async def start(self):\n"
+        '        raise PluginError("plugin_start_failed", '
+        + repr(message)
+        + ', effect="none")\n'
+        "\n"
+        '    @action(id="value", title="value",\n'
+        '        input_schema={"type": "object", "properties": {}},\n'
+        '        output_schema={"type": "object", "properties": {"text": {"type": "string"}}})\n'
+        "    async def value(self, call: Invocation, args):\n"
+        '        return {"text": "never"}\n'
+    )
+
+
+async def upgrade_start_failure_scenario(host, tmp_path):
+    """The staged child starts, then its start hook fails: no success may remain."""
+    manager = await host.open()
+    good = await host.install(package(tmp_path / "good", "fixture.start", "1.0.0", "ok"), "install-good")
+    instance = await host.enable(good, "Start", "instance-start")
+    assert (await host.call(instance["id"], "value", "call-good"))["result"] == {"text": "ok"}
+    await host.install(
+        package(
+            tmp_path / "bad",
+            "fixture.start",
+            "2.0.0",
+            "never",
+            source=failing_start_source(),
+        ),
+        "install-bad",
+    )
+    current = await manager.instance(instance["id"])
+    with pytest.raises(AppError):
+        await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    operations = [
+        item
+        for item in await manager.local(manager.repository.list, "operations")
+        if item.get("kind") == "upgrade"
+    ]
+    assert operations[-1]["execution"] == "failed"
+    assert operations[-1]["error"]["code"] == "plugin_start_failed"
+    assert operations[-1]["error"]["rolled_back"] is True
+    assert operations[-1]["error"]["restored_version"] == "1.0.0"
+    assert operations[-1]["error"]["failed_version"] == "2.0.0"
+    assert not [item for item in operations if item["execution"] == "succeeded"]
+    restored = await manager.instance(instance["id"])
+    assert restored["version"] == "1.0.0" and restored["revision"] == current["revision"]
+    # The recovered old version serves the accepted call.
+    assert (await host.call(instance["id"], "value", "call-restored"))["result"] == {"text": "ok"}
+    await manager.close()
+
+
+async def upgrade_restore_failure_scenario(host, tmp_path):
+    """Rollback itself fails: reported as not rolled back, original cause kept."""
+    manager = await host.open()
+    marker = tmp_path / "old-version-broken"
+    old_source = f'''
+import asyncio
+from pathlib import Path
+from tianshu_plugin import Plugin, PluginError, action, Invocation
+MARKER = Path({str(marker)!r})
+
+class Fixture(Plugin):
+    async def start(self):
+        if MARKER.exists():
+            raise PluginError("plugin_start_failed", "old version can no longer start", effect="none")
+
+    @action(id="value", title="value",
+        input_schema={{"type": "object", "properties": {{}}}},
+        output_schema={{"type": "object", "properties": {{"text": {{"type": "string"}}}}}})
+    async def value(self, call: Invocation, args):
+        return {{"text": "old"}}
+'''
+    old = await host.install(
+        package(tmp_path / "old", "fixture.unrestorable", "1.0.0", "old", source=old_source),
+        "install-old",
+    )
+    instance = await host.enable(old, "Restore", "instance-restore")
+    assert (await host.call(instance["id"], "value", "call-old"))["result"] == {"text": "old"}
+    await host.install(
+        package(
+            tmp_path / "v2",
+            "fixture.unrestorable",
+            "2.0.0",
+            "two",
+            source=failing_start_source("new version refuses to start"),
+        ),
+        "install-v2",
+    )
+    # From now on the previous version cannot start either; the switch's
+    # rollback therefore has no continuity to claim.
+    marker.write_text("broken", encoding="utf-8")
+    current = await manager.instance(instance["id"])
+    with pytest.raises(AppError):
+        await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    operations = [
+        item
+        for item in await manager.local(manager.repository.list, "operations")
+        if item.get("kind") == "upgrade"
+    ]
+    assert operations[-1]["execution"] == "failed"
+    assert operations[-1]["error"]["code"] == "plugin_start_failed"
+    assert operations[-1]["error"]["failed_version"] == "2.0.0"
+    assert operations[-1]["error"]["rolled_back"] is False
+    assert operations[-1]["error"]["restored_version"] is None
+    assert operations[-1]["error"]["restore_error"] == "plugin_start_failed"
+    stored = await manager.instance(instance["id"])
+    assert stored["version"] == "1.0.0"
+    await manager.close()
+
+
+async def accepted_call_is_settled_before_the_version_switch(host, tmp_path):
+    """A call accepted but not yet executing must not restart the old version."""
+    manager = await host.open()
+    old = await host.install(package(tmp_path / "old", "fixture.queued", "1.0.0", "old"), "install-old")
+    instance = await host.enable(old, "Queued", "instance-queued")
+    revision = (await manager.instance(instance["id"]))["revision"]
+    await host.install(package(tmp_path / "new", "fixture.queued", "2.0.0", "new"), "install-new")
+
+    # Accept a call against the previous version without letting it execute.
+    from tianshu.capabilities.execution_context import CURRENT_ACTION
+    from tianshu.types import Action, OriginKind
+
+    trusted = Action(
+        instance["id"] + ":queued", "queued-intent",
+        "plugin:" + instance["id"] + "::value", None,
+        TrustedContext("owner", None, None, None, ("system",), ("system",), 1, OriginKind.HUMAN),
+        {}, OriginKind.HUMAN,
+    )
+    token = CURRENT_ACTION.set(trusted)
+    try:
+        accepted = await manager.executions.admit(
+            instance["id"], "value", {}, "queued-intent", "owner", defer=True
+        )
+    finally:
+        CURRENT_ACTION.reset(token)
+    assert accepted["execution"] == "accepted"
+    await manager.upgrade(instance["id"], "2.0.0", revision)
+    settled = await manager.local(manager.repository.call, accepted["id"])
+    assert settled["execution"] == "interrupted"
+    assert settled["effect"] == "none"
+    assert settled["error"]["code"] == "instance_upgraded"
+    assert settled["error"]["retriable"] is False
+    # The switch stands: the old package never runs again, the new one serves.
+    assert (await manager.instance(instance["id"]))["version"] == "2.0.0"
+    assert (await host.call(instance["id"], "value", "call-after"))["result"] == {"text": "new"}
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_upgrade_start_failure_never_records_success(lifecycle_database, tmp_path):
+    await upgrade_start_failure_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_upgrade_restore_failure_is_reported_without_false_continuity(lifecycle_database, tmp_path):
+    await upgrade_restore_failure_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_accepted_call_is_settled_before_the_version_switch(lifecycle_database, tmp_path):
+    await accepted_call_is_settled_before_the_version_switch(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+
+async def uninstall_concurrency_scenario(host, tmp_path):
+    """Uninstall holds the package lock: a racing enable cannot resurrect it."""
+    manager = await host.open()
+    package_id = await host.install(
+        package(tmp_path / "race", "fixture.race", "1.0.0", "race"), "install-race"
+    )
+    instance = await host.enable(package_id, "Race", "instance-race")
+    assert instance["state"] == "ready"
+    # An unrelated plugin must keep serving throughout the removal.
+    bystander_package = await host.install(
+        package(tmp_path / "bystander", "fixture.bystander", "1.0.0", "bystander"),
+        "install-bystander",
+    )
+    bystander = await host.enable(bystander_package, "Bystander", "instance-bystander")
+    bystander_runtime = generation(manager, bystander["id"])
+    revision = (await manager.instance(instance["id"]))["revision"]
+
+    started, release = asyncio.Event(), asyncio.Event()
+    original_disable = manager._disable
+
+    async def observed_disable(identifier, expected):
+        started.set()
+        await release.wait()
+        return await original_disable(identifier, expected)
+
+    manager._disable = observed_disable
+    unloading = asyncio.create_task(manager.uninstall("fixture.race"))
+    await started.wait()
+
+    # Deterministic barrier: enable is issued while the uninstall is mid-flight.
+    enabling = asyncio.create_task(manager.state(instance["id"], True, revision))
+    await asyncio.sleep(0)
+    assert not enabling.done(), "enable must not slip into the middle of an uninstall"
+    release.set()
+    result = await unloading
+    assert result["uninstalled"] is True
+    manager._disable = original_disable
+
+    # The blocked enable was refused; the instance is disabled and has no process.
+    outcome = await asyncio.gather(enabling, return_exceptions=True)
+    assert isinstance(outcome[0], BaseException)
+    assert instance["id"] not in manager.workers
+    stored = await manager.instance(instance["id"])
+    assert stored["desired_state"] == "disabled"
+    assert stored["revision"] >= revision + 1
+    # No live entry may remain for the removed instance.
+    assert not [
+        key
+        for key in manager.domain_ports.catalog.handlers
+        if key.startswith("plugin:" + instance["id"] + ":")
+    ]
+    # A repeated uninstall does not delete twice and reports already_uninstalled.
+    again = await manager.uninstall("fixture.race")
+    assert again["already_uninstalled"] is True and again["reclaimed"] == []
+    # The other plugin never lost its process and still answers.
+    assert generation(manager, bystander["id"]) == bystander_runtime
+    assert (await host.call(bystander["id"], "value", "bystander-after"))["result"] == {
+        "text": "bystander"
+    }
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_uninstall_is_mutually_exclusive_with_enable(lifecycle_database, tmp_path):
+    await uninstall_concurrency_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def install_race_scenario(host, tmp_path):
+    """A concurrent install of this package cannot outrun its removal."""
+    manager = await host.open()
+    first = await host.install(
+        package(tmp_path / "p", "fixture.installrace", "1.0.0", "one"), "install-one"
+    )
+    instance = await host.enable(first, "Race", "instance-install")
+    source = package(tmp_path / "p2", "fixture.installrace", "1.0.0", "one")
+    started, release = asyncio.Event(), asyncio.Event()
+    original_disable = manager._disable
+
+    async def observed_disable(identifier, expected):
+        started.set()
+        await release.wait()
+        return await original_disable(identifier, expected)
+
+    manager._disable = observed_disable
+    unloading = asyncio.create_task(manager.uninstall("fixture.installrace"))
+    await started.wait()
+    # The reinstall is issued mid-removal; the install lock and package lock
+    # must serialise it behind the removal rather than prepare into a
+    # directory that is about to be reclaimed.
+    reinstalling = asyncio.create_task(manager.install(source, "install-again", wait=True))
+    await asyncio.sleep(0)
+    release.set()
+    result = await unloading
+    assert result["uninstalled"] is True
+    manager._disable = original_disable
+    operation = await reinstalling
+    assert operation["execution"] == "succeeded"
+    # The freshly prepared package is readable again and can be enabled.
+    package_document = await manager.local(
+        manager.repository.get, "packages", "fixture.installrace@1.0.0"
+    )
+    assert package_document is not None and package_document["installed"] is True
+    again = await manager.create("fixture.installrace@1.0.0", "Race", "instance-install")
+    assert again["id"] == instance["id"]
+    ready = await manager.state(instance["id"], True, again["revision"])
+    assert ready["state"] == "ready"
+    assert (await host.call(instance["id"], "value", "install-race"))["result"] == {"text": "one"}
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_uninstall_serialises_with_a_concurrent_reinstall(lifecycle_database, tmp_path):
+    await install_race_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def ledger_conflict_after_handover_scenario(host, tmp_path):
+    """A ledger conflict cannot leave the new version serving behind a failed switch."""
+    manager = await host.open()
+    old = await host.install(
+        package(tmp_path / "old", "fixture.handover", "1.0.0", "old"), "install-old"
+    )
+    instance = await host.enable(old, "Handover", "instance-handover")
+    await host.install(
+        package(tmp_path / "new", "fixture.handover", "2.0.0", "new"), "install-new"
+    )
+    revision = (await manager.instance(instance["id"]))["revision"]
+    # Make the final ledger write conflict after the new child already took
+    # over, as a concurrent revision bump would.
+    original = manager.repository.put
+
+    def conflicting(kind, document, *args, **kwargs):
+        if kind == "instances" and document.get("version") == "2.0.0":
+            raise Fault("revision_conflict", 409)
+        return original(kind, document, *args, **kwargs)
+
+    manager.repository.put = conflicting
+    with pytest.raises(AppError) as failure:
+        await manager.upgrade(instance["id"], "2.0.0", revision)
+    manager.repository.put = original
+    # The switch is never recorded as succeeded, whatever the stage.
+    assert failure.value.details["execution"] == "failed"
+    assert failure.value.code == "revision_conflict"
+    recorded = failure.value.details["error"]
+    assert recorded["failed_version"] == "2.0.0"
+    # Recovery restored the previous version, so continuity is claimed truthfully.
+    assert recorded["rolled_back"] is True
+    assert recorded["restored_version"] == "1.0.0"
+    assert recorded["restore_error"] is None
+    # Ledger and live process describe the same version again.
+    stored = await manager.instance(instance["id"])
+    assert stored["version"] == "1.0.0"
+    served = generation(manager, instance["id"])
+    assert served is not None
+    assert (await host.call(instance["id"], "value", "after-conflict"))["result"] == {
+        "text": "old"
+    }
+    successes = [
+        item
+        for item in await manager.local(manager.repository.list, "operations")
+        if item.get("kind") == "upgrade" and item["execution"] == "succeeded"
+    ]
+    assert successes == []
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_ledger_conflict_after_handover_is_never_recorded_as_success(
+    lifecycle_database, tmp_path
+):
+    await ledger_conflict_after_handover_scenario(
+        Host(lifecycle_database, tmp_path), tmp_path
+    )

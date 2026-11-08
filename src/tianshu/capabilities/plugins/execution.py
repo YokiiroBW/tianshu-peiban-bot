@@ -17,12 +17,14 @@ class Executions:
         self.host, self.repo = host, host.repository
         self.contexts, self.running, self.authorizers = {}, {}, {}
 
-    def blocked(self, identifier):
-        """True while that instance's code version is switching, never for others."""
-        return identifier in getattr(self.host, "admission", ())
+    def refusal(self, identifier):
+        """The code a blocked instance returns while its lifecycle switches, else None."""
+        admission = getattr(self.host, "admission", {})
+        return admission.get(identifier) if hasattr(admission, "get") else None
 
-    async def invoke(
-        self, identifier, action_id, value, intent, principal, *, authorize=None, binding_id=None
+    async def admit(
+        self, identifier, action_id, value, intent, principal, *, authorize=None, binding_id=None,
+        defer=False,
     ):
         await self.host.ensure_active()
         require(
@@ -34,9 +36,10 @@ class Executions:
             require(await self.host.check_authorizer(authorize), "session_expired", 401)
         async with self.host.operations_lock:
             instance = await self.host.instance(identifier)
-            # New admission is refused while this instance's code version switches;
-            # already accepted calls keep their original attempt and process.
-            require(not self.blocked(identifier), "instance_reloading", 409)
+            # New admission is refused while this instance's lifecycle switches;
+            # already accepted calls keep their original attempt and identity.
+            refusal = self.refusal(identifier)
+            require(not refusal, refusal or "instance_reloading", 409)
             require(instance["desired_state"] == "enabled", "instance_disabled", 409)
             package = await self.host.package(instance["package_id"], instance["version"])
             action = next(
@@ -76,12 +79,27 @@ class Executions:
             document, created = await self.host.local(
                 self.repo.accept, snapshot, action, value, intent, principal, binding=binding_id
             )
-        if created:
-            self.authorizers[document["id"]] = authorize
-            task = asyncio.create_task(self.execute(document["id"]))
-            self.running[document["id"]] = task
-            task.add_done_callback(lambda task, id=document["id"]: self.running.pop(id, None))
+        if created and not defer:
+            self.dispatch(document["id"], authorize)
         return self.public(document)
+
+    async def invoke(
+        self, identifier, action_id, value, intent, principal, *, authorize=None, binding_id=None
+    ):
+        """Accept a call and start it immediately, as every existing caller expects."""
+        return await self.admit(
+            identifier, action_id, value, intent, principal,
+            authorize=authorize, binding_id=binding_id,
+        )
+
+    def dispatch(self, identifier, authorize=None):
+        """Start the accepted call; callers that must not race a switch defer this."""
+        if authorize is not None:
+            self.authorizers[identifier] = authorize
+        task = asyncio.create_task(self.execute(identifier))
+        self.running[identifier] = task
+        task.add_done_callback(lambda task, id=identifier: self.running.pop(id, None))
+        return task
 
     async def context(self, instance, call):
         package = await self.host.package(instance["package_id"], instance["version"])
@@ -125,9 +143,36 @@ class Executions:
         async with self.host.locks[instance["id"]]:
             try:
                 current = await self.host.instance(instance["id"])
-                # A version switch or an explicit reload refuses new admission for
-                # this instance only; calls accepted earlier are never replayed.
-                require(not self.blocked(instance["id"]), "instance_reloading", 409)
+                # Re-read inside the lock: a version switch may have settled this
+                # call under its original identity. It is never replayed against
+                # the previous or the replacement version behind the caller's back.
+                latest = await self.host.local(self.repo.call, identifier)
+                if latest["execution"] != "accepted":
+                    return
+                if latest["package_version"] != current["version"]:
+                    await self.host.local(
+                        self.repo.update_call,
+                        identifier,
+                        execution="interrupted",
+                        effect=(
+                            "unknown"
+                            if latest["write"] and latest["dispatch"] != "not_sent"
+                            else "not_applied"
+                            if latest["write"]
+                            else "none"
+                        ),
+                        error={
+                            "code": "outcome_unknown"
+                            if latest["write"] and latest["dispatch"] != "not_sent"
+                            else "instance_upgraded",
+                            "retriable": False,
+                        },
+                    )
+                    return
+                # A version switch, reload or uninstall refuses new admission for
+                # this instance only; accepted calls above are settled by identity.
+                refusal = self.refusal(instance["id"])
+                require(not refusal, refusal or "instance_reloading", 409)
                 require(current["desired_state"] == "enabled", "instance_disabled", 409)
                 authorization = self.authorizers.get(identifier)
                 if authorization:
