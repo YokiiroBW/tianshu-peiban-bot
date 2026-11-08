@@ -38,7 +38,6 @@ def freeze(root, container):
         "state_directory": str(root / "guard/state"),
         "free_paths": ["/var/lib/docker"],
         "min_free_bytes": 21474836480,
-        "max_deployment_bytes": 21474836480,
         "poll_seconds": 5,
         "term_timeout_seconds": 120,
         "docker_binary": "/usr/bin/docker",

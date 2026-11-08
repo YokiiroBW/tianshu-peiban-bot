@@ -256,11 +256,9 @@ class CapacityGuard:
         if any(value < self.config["min_free_bytes"] for value in free.values()):
             raise GuardError("minimum_free_bytes_breached")
         report["deployment"]["image_bytes"] = image_bytes
-        if (
-            max(size["lower_bound_bytes"], size["last_complete_bytes"] or 0) + image_bytes
-            > self.config["max_deployment_bytes"]
-        ):
-            raise GuardError("maximum_deployment_bytes_breached")
+        # The deployment tree includes mutable business data, logs and media
+        # staging.  Its size is useful telemetry, but is not a product quota.
+        # Disk exhaustion is governed separately by the actual free-space check.
         return report
 
     def write(self, report):

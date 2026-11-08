@@ -96,7 +96,7 @@ NAS volume2 约 361 GiB 自由。优先在 **NAS 上明确批准的天枢专属�
 
    该工具只从精确 Git 提交归档产品构建输入，产生 `image.tar`、`source.tar` 与 `release.json`。
    传输后先按 manifest 核 SHA256，再 `docker load`，核实际 image ID 与 OCI revision。
-   构建产物是发布材料，不能放进 `.230` 应用数据目录长期占用 20 GiB 产品限额。
+构建产物是发布材料，不应长期占用 `.230` 的应用数据磁盘空间。
 
 2. NAS 单独部署 `compose.postgres.yaml`，使用新专属路径
    `/volume2/Dockers/tianshu-core-postgres/data`、私网绑定 `192.168.31.210:25018`、
@@ -141,8 +141,10 @@ NAS volume2 约 361 GiB 自由。优先在 **NAS 上明确批准的天枢专属�
 
 ## 容量、日志与停止
 
-容量守护仍每 5 秒观察 `/var/lib/docker`，自由空间底线与部署上限都为 **20 GiB**，TERM 为 120 秒。
-它按新 root/专属外部路径增量核已分配字节，加实际镜像大小；不每轮扫描所有 NAS inode。
+容量守护仍每 5 秒观察 `/var/lib/docker`，自由空间底线为 **20 GiB**，TERM 为 120 秒。
+它按新 root/专属外部路径增量统计已分配字节并报告实际镜像大小；统计包含业务数据、日志和下载暂存，
+只用于观察，不作为本体配额或停机条件。实际文件系统空间不足仍受独立的自由空间保护；
+不每轮扫描所有 NAS inode。
 Docker 挂载只在新容器 ID 出现时解析一次，保留 R67 对路径解析开销的修复。
 镜像、命令、全部 bind、只读标记或 Compose 身份不符时拒绝认领；已核实的本产品发生容量违规或
 `foreign_deployment_mount` 则只将本产品 restart=no 并停止，锁存等待处理，不停止其他服务。

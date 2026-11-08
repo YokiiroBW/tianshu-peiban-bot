@@ -130,3 +130,37 @@ def test_one_large_flat_directory_is_processed_incrementally(tmp_path):
         if result["complete"]:
             break
     assert result["complete"] and result["last_complete_bytes"] >= 10000
+
+
+def test_business_data_growth_does_not_stop_product_even_with_legacy_quota(tmp_path, monkeypatch):
+    capacity = module("capacity")
+    config, row = fixture(tmp_path)
+    config["max_deployment_bytes"] = 1  # Existing installed guards may retain this field.
+    (tmp_path / "installation" / "data" / "download.part").write_bytes(b"video bytes")
+    calls = []
+
+    def docker(_binary, *args, **kwargs):
+        calls.append(args)
+        return "own" if args[0] == "ps" else json.dumps([row])
+
+    monkeypatch.setattr(capacity, "docker", docker)
+    result = capacity.CapacityGuard(config).poll(enforce=True)
+    assert result["state"] == "healthy"
+    assert result["deployment"]["image_bytes"] == 10
+    assert not any(args[0] in {"update", "stop"} for args in calls)
+
+
+def test_low_free_space_remains_independent_of_business_data_size(tmp_path, monkeypatch):
+    capacity = module("capacity")
+    config, row = fixture(tmp_path)
+    config["min_free_bytes"] = 10**30
+    calls = []
+
+    def docker(_binary, *args, **kwargs):
+        calls.append(args)
+        return "own" if args[0] == "ps" else json.dumps([row])
+
+    monkeypatch.setattr(capacity, "docker", docker)
+    result = capacity.CapacityGuard(config).poll(enforce=True)
+    assert result["reason"] == "minimum_free_bytes_breached"
+    assert ("stop", "--time", "1", "own") in calls
