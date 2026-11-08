@@ -1,4 +1,4 @@
-"""Reopen only the original batch affected by the RBI local bookkeeping failure."""
+"""Reopen original batches after local request or receipt bookkeeping failures."""
 
 from copy import deepcopy
 from datetime import timedelta
@@ -15,7 +15,11 @@ from .rbh_transport import validate_frozen_attempt_on
 from .rbi_outcome import lock_attempt_on, lock_batch_on, lock_original_recovery_facts_on, reconcile_locked_on
 
 
-LOCAL_FAILURE = "recovery_original_not_failed"
+# These codes admit observation, never permission to replay. The original
+# request must still match Runtime and all source/receipt/budget fences below.
+LOCAL_FAILURES = frozenset({
+    "recovery_original_not_failed", "memory_consolidation_attempt_changed",
+})
 
 
 def _frozen_for(batch):
@@ -89,7 +93,7 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
         return {"batch_id": batch_id, "queued": False, "reason": "already_applied"}
     if snapshot["status"] == "quarantined" and snapshot["manifest"].get("rbi_local_recovery"):
         return {"batch_id": batch_id, "queued": False, "reason": "already_reopened"}
-    if (snapshot["status"] != "failed" or snapshot.get("error_code") != LOCAL_FAILURE or not snapshot["step_ids"]
+    if (snapshot["status"] != "failed" or snapshot.get("error_code") not in LOCAL_FAILURES or not snapshot["step_ids"]
             or snapshot.get("selected_step_id") or snapshot.get("proposal_digest")
             or snapshot["manifest"].get("remote_wait_unresolved") or snapshot["manifest"].get("original_observation_only")):
         return {"batch_id": batch_id, "queued": False, "reason": "memory_batch_not_local_failure"}
@@ -112,7 +116,7 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
                                                     require_unleased=True)
         if not batch or block:
             return {"batch_id": batch_id, "queued": False, "reason": block}
-        if batch.get("error_code") != LOCAL_FAILURE or batch.get("selected_step_id") or batch.get("proposal_digest"):
+        if batch.get("error_code") not in LOCAL_FAILURES or batch.get("selected_step_id") or batch.get("proposal_digest"):
             return {"batch_id": batch_id, "queued": False, "reason": "memory_batch_changed"}
         rows = []
         for episode in sorted(batch["manifest"]["episodes"], key=lambda value: value["episode_id"]):
@@ -186,7 +190,7 @@ async def resume_local_failure(recovery, batch_id, *, repair_ref):
         else:
             due = lineage["db_now"] + timedelta(seconds=30)
         manifest = deepcopy(batch["manifest"])
-        manifest["rbi_local_recovery"] = {"repair_ref": repair_ref, "original_error_code": LOCAL_FAILURE,
+        manifest["rbi_local_recovery"] = {"repair_ref": repair_ref, "original_error_code": batch["error_code"],
             "original_step_id": request.intent_id, "original_attempt_id": request.attempt_id,
             "original_observation": outcome.record(), "reopened_at": wire(lineage["db_now"])}
         manifest.pop("recovery_budget_blocked", None)

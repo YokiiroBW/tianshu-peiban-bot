@@ -10,6 +10,7 @@ from pgvector.psycopg import register_vector_async
 from psycopg.errors import QueryCanceled
 
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.cancellation import transaction_on
 from .candidate_sources import check_rows_on
 
 
@@ -272,7 +273,7 @@ class CandidateStore:
                     try:
                         # A statement cancellation rolls back this family's
                         # cursor, not prior fully source-checked batches.
-                        async with conn.transaction():
+                        async with transaction_on(conn):
                             await self._lexical_family_on(conn, context, plan, family, budget,
                                 tsquery, fragments, limit, rows, missing)
                     except (TimeoutError, QueryCanceled):
@@ -461,7 +462,7 @@ class CandidateStore:
                         continue
                     rows = selected.setdefault(family, [])
                     try:
-                        async with conn.transaction():
+                        async with transaction_on(conn):
                             if budget:
                                 budget.check()
                             p = self._searchable(self._vector_selection(self.selection(context, plan, family), generation))

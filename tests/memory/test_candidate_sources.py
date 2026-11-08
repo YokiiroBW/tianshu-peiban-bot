@@ -6,7 +6,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from tianshu.memory.candidate_sources import check_rows_on
+from tianshu.memory.candidate_sources import check_rows_on, check_ref_groups_on
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 from tianshu.types import SourceRef
@@ -120,3 +120,16 @@ async def test_external_cancellation_propagates_out_of_source_batch_savepoint():
     with pytest.raises(asyncio.CancelledError):
         await task
     assert conn.rollbacks == 1
+
+
+async def test_complete_reference_groups_preserve_unknown_denial_and_locator_ranges():
+    class Authority(Sources):
+        async def check_many_on(self,conn,context,groups):
+            if any(ref.source_id=="unknown" for group in groups for ref in group):
+                raise AppError("source_dependency_budget_exceeded",status=503)
+            return tuple(all(ref.locator.get("end",0)<=4 for ref in group) for group in groups)
+    small=SourceRef("same",1,{"end":4})
+    wide=SourceRef("same",1,{"end":8})
+    unknown=SourceRef("unknown",1)
+    assert await check_ref_groups_on(Authority(),Connection(),SimpleNamespace(),
+        ((small,),(small,),(wide,),(unknown,),(small,unknown))) == (True,True,False,None,None)

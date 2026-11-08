@@ -15,6 +15,8 @@ from .recovery_wait import is_unresolved_wait
 from .consolidation_retry import explicit_retry_available, semantic_output_failure, rpc_recovery_available
 from .extraction_contract import SCHEMA_VERSION
 from .materials import batch_frozen, closed_episode_split
+from .candidate_sources import check_ref_groups_on
+from .rbi_recovery import LOCAL_FAILURES
 
 
 class ConsolidationRecovery:
@@ -43,25 +45,12 @@ class ConsolidationRecovery:
             "WHERE s.actor_id=%s AND b.manifest->'episodes' @> ANY(%s::jsonb[]) ORDER BY b.created_at DESC",
             (context.actor_id,selectors))).fetchall()
         by_episode={}
-        visible={}
-        # Source checks are chunked by unique versions, preserving the existing authority limits.
-        chunk=[]
-        keys=set()
-        async def check_chunk():
-            if chunk:
-                checked=await self.sources.check_many_on(conn,context,tuple(codec.refs(batch["dependency_refs"]) for batch in chunk))
-                visible.update((batch["batch_id"],allowed) for batch,allowed in zip(chunk,checked,strict=True))
+        checked=await check_ref_groups_on(self.sources,conn,context,tuple(
+            codec.refs(batch["dependency_refs"]) for batch in batches))
+        visible={batch["batch_id"]:allowed for batch,allowed in zip(batches,checked,strict=True)}
         for batch in batches:
-            batch_keys={(ref.source_id,ref.revision) for ref in codec.refs(batch["dependency_refs"])}
-            if chunk and (len(keys|batch_keys)>1800 or len(chunk)>=128):
-                await check_chunk()
-                chunk=[]
-                keys=set()
-            chunk.append(batch)
-            keys.update(batch_keys)
             for episode in batch["manifest"].get("episodes",()):
                 by_episode.setdefault((episode["episode_id"],episode["sequence"]),batch)
-        await check_chunk()
         return {episode["episode_id"]:self._status_value(episode,by_episode.get((episode["episode_id"],episode["sequence"])),visible,
             errors.get(episode.get("consolidation_partition_id")),budgets.get(episode.get("consolidation_partition_id")))
             for episode in episodes}
@@ -113,6 +102,9 @@ class ConsolidationRecovery:
             "coverage":{"state":episode["extraction_state"],"missing":episode["extraction_missing"]},
             "commit_state":"not_committed", "required_context_missing":[],
             "indexing":{"state":"not_required","objects":[]}}
+        if batch and batch["batch_id"] in visible and visible[batch["batch_id"]] is None:
+            result["coverage"]["missing"] = list(dict.fromkeys(
+                (*result["coverage"]["missing"],"source_dependency_budget_exceeded")))
         if batch and batch["status"] == "superseded":
             result["action"] = "wait_for_reorganized_input"
             result["reorganization"] = batch["manifest"].get("superseded_by_reorganization")
@@ -127,7 +119,7 @@ class ConsolidationRecovery:
             result["selected_step_id"]=batch.get("selected_step_id")
         if batch and batch["status"] == "failed" and (
                 batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT
-                or batch.get("error_code") == "recovery_original_not_failed"):
+                or batch.get("error_code") in LOCAL_FAILURES):
             result["action"] = "resume_original_batch"
         if batch and batch["manifest"].get("local_wait"):
             result["action"] = "wait_for_dependency"
@@ -287,7 +279,7 @@ class ConsolidationRecovery:
         elif batch and batch["status"] == "failed" and batch.get("error_code") in PREPARATION_DEPENDENCY_WAIT:
             if await self.memory.consolidation.waits.reopen_failed_on(conn,batch,original_context,body["client_request_id"]):
                 data.update(queued=True,action="resume_original_batch")
-        elif batch and batch["status"] == "failed" and batch.get("error_code") == "recovery_original_not_failed":
+        elif batch and batch["status"] == "failed" and batch.get("error_code") in LOCAL_FAILURES:
             # The targeted worker observes Models outside this command's
             # transaction and reopens only the same still-eligible batch.
             await self.memory.consolidation._schedule_on(conn, batch["partition_id"], datetime.now(UTC),

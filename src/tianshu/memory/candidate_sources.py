@@ -1,10 +1,11 @@
-"""Batch complete candidate proofs through the existing Sources authority."""
+"""Batch complete Memory proofs through the existing Sources authority."""
 
 from dataclasses import dataclass
 import json
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
+from tianshu.runtime.cancellation import transaction_on
 from . import codec
 
 
@@ -63,7 +64,7 @@ async def _check_on(sources, conn, context, groups):
     try:
         # A dependency-limit error aborts its SQL statement. Roll it back before
         # splitting so the surrounding cursor/transaction remains usable.
-        async with conn.transaction():
+        async with transaction_on(conn):
             return tuple(await sources.check_many_on(conn, context, groups))
     except AppError as exc:
         if exc.code not in _BATCH_LIMITS:
@@ -98,6 +99,14 @@ async def check_group_batches_on(sources, conn, context, groups):
             position += 1
         checked.extend(await _check_on(sources, conn, context, tuple(batch)))
     return tuple(checked)
+
+
+async def check_ref_groups_on(sources, conn, context, refs_groups):
+    """Check each complete AND group, sharing only exact, call-local proofs."""
+    groups = SourceProofGroups()
+    positions = tuple(groups.add(refs) for refs in refs_groups)
+    checked = await check_group_batches_on(sources, conn, context, groups.values)
+    return tuple(_all(checked[index] for index in indexes) for indexes in positions)
 
 
 async def check_rows_on(sources, conn, context, rows):

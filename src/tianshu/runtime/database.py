@@ -18,6 +18,7 @@ from psycopg.rows import dict_row
 from psycopg.conninfo import conninfo_to_dict
 from psycopg import ProgrammingError
 from psycopg_pool import AsyncConnectionPool, ConnectionPool, PoolTimeout
+from .cancellation import transaction_on
 
 from tianshu.types import RequestBudget
 
@@ -444,7 +445,7 @@ class Database:
                 self._metrics_add(pool_name, acquire_waiting=-1, in_transaction=1, acquire_count=1,
                                   acquire_wait_ms=int((time.monotonic()-started)*1000))
                 try:
-                    async with connection.transaction():
+                    async with transaction_on(connection):
                         if read_only:
                             await connection.execute("SET TRANSACTION READ ONLY")
                         milliseconds = max(1, math.ceil(budget.remaining() * 1000)) if budget else 30000

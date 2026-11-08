@@ -11,6 +11,7 @@ import pytest
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.recovery_policy import RecoveryWait
+from tianshu.runtime.serialization import wire
 from tianshu.sources import rbj_locking
 from tianshu.sources.types import EvidenceSetRef, EvidenceSpec
 import tianshu.sources.proofs as source_proofs
@@ -59,6 +60,89 @@ async def _seed(core, context, prefix, count):
             (prefix, list(scopes), Jsonb(epochs), list(scopes), prefix + "-event-", count),
         )
     return tuple(SourceRef(f"{prefix}{index}", 1, {}) for index in range(count))
+
+
+async def test_dense_activity_event_proves_supports_once_after_lock_recheck(core):
+    from tianshu.conversation.types import InputPart
+
+    refs = await _seed(core,core.owner,"activity-dense-",266)
+    async with core.database.transaction() as conn:
+        await conn.execute("""
+            INSERT INTO sources.supports(source_id,revision,group_id,support_source_id,
+                                         support_revision,support_locator,support_key)
+            SELECT 'activity-dense-'||p,1,'0','activity-dense-'||c,1,'{}'::jsonb,p||'-'||c
+            FROM generate_series(1,265) p CROSS JOIN generate_series(0,264) c
+            WHERE c<p ORDER BY p,c LIMIT 17380
+        """)
+    produced = await core.sources.record_event(core.owner,producer="life:actor",event_id="dense-completion",
+        revision=1,occurred_at=datetime.now(UTC),origin_kind=OriginKind.ACTOR,
+        parts=(InputPart("text","completed imagined activity"),),support_refs=refs)
+    assert len(produced) == 1
+    await core.sources.check(core.owner,produced)
+    # Authorization is still proved at registration, and the entire event rolls
+    # back when a support is denied. No partial original/version survives.
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE sources.originals SET state='retracted' WHERE source_id=%s",(refs[0].source_id,))
+    with pytest.raises(AppError,match="source_support_unavailable"):
+        await core.sources.record_event(core.owner,producer="life:actor",event_id="denied-completion",
+            revision=1,occurred_at=datetime.now(UTC),origin_kind=OriginKind.ACTOR,
+            parts=(InputPart("text","must not persist"),),support_refs=refs)
+    async with core.database.transaction(read_only=True) as conn:
+        assert not await (await conn.execute(
+            "SELECT 1 FROM sources.versions WHERE evidence_unit='life:actor:denied-completion'")).fetchone()
+
+
+async def test_diary_episode_page_batches_all_sources_without_losing_a_denied_group(core,ordinary_users):
+    alice,_=ordinary_users
+    refs=await _seed(core,alice,"diary-page-",266)
+    now=datetime.now(UTC)
+    async with core.database.transaction() as conn:
+        # 200 complete episodes exceed the old 32,768 raw input-ref cap even
+        # though their shared dependency set is small and fully readable.
+        await conn.execute("INSERT INTO memory.episodes(episode_id,event_id,actor_id,principal_id,"
+            "origin_kind,occurred_at,summary,source_refs,scope_ids,coverage,content_hash,event_revision,event_content_hash) "
+            "SELECT 'diary-page-'||n,'diary-page-'||n,%s,%s,'actor',%s,'completed',%s,%s,%s,'hash',1,'hash' "
+            "FROM generate_series(0,199) n",
+            (alice.actor_id,alice.principal_id,now,Jsonb(wire(refs)),list(alice.scope_ids),Jsonb({"complete":True})))
+    page=await core.memory.episodes_between(alice,now-timedelta(seconds=1),now+timedelta(seconds=1),limit=200)
+    assert len(page.items)==200 and page.next_cursor is None and page.coverage.complete
+    selected=tuple((item.episode_id,item.revision) for item in page.items[:128])
+    assert len((await core.memory.episodes_by_refs(alice,selected)).items)==128
+    async with core.database.transaction() as conn:
+        await conn.execute("UPDATE sources.originals SET state='retracted' WHERE source_id=%s",(refs[-1].source_id,))
+    withdrawn=await core.memory.episodes_between(alice,now-timedelta(seconds=1),now+timedelta(seconds=1),limit=200)
+    assert not withdrawn.items and "unavailable_sources" in withdrawn.coverage.missing
+    assert not (await core.memory.episodes_by_refs(alice,selected)).items
+
+
+@pytest.mark.parametrize("unknown", [False,True])
+async def test_episode_read_is_not_blocked_by_repeated_consolidation_history_proofs(core,ordinary_users,monkeypatch,unknown):
+    alice,_=ordinary_users
+    refs=await _seed(core,alice,"diary-status-",266)
+    episode=await core.memory.observe_episode(alice,{"event_id":"diary-status-episode",
+        "origin_kind":"actor","occurred_at":datetime.now(UTC),"summary":"completed","source_refs":refs})
+    async with core.database.transaction() as conn:
+        row=await (await conn.execute("SELECT consolidation_partition_id FROM memory.episodes WHERE episode_id=%s",
+            (episode.episode_id,))).fetchone()
+        manifest={"episodes":[{"episode_id":episode.episode_id,"sequence":episode.sequence}],
+                  "targets":{alice.person_id:{}}}
+        dependencies=(*refs,SourceRef("unprovable-root",1)) if unknown else refs
+        await conn.execute("INSERT INTO memory.consolidation_batches(batch_id,partition_id,schema_version,"
+            "status,manifest,context_fingerprint,dependency_refs) SELECT 'diary-status-'||n,%s,'fixture',"
+            "'failed',%s,'fixture',%s FROM generate_series(0,127) n",
+            (row["consolidation_partition_id"],Jsonb(manifest),Jsonb(wire(dependencies))))
+    if unknown:
+        original=core.sources.check_many_on
+        async def limited(connection,context,groups):
+            if any(ref.source_id=="unprovable-root" for group in groups for ref in group):
+                raise AppError("source_dependency_budget_exceeded",status=503)
+            return await original(connection,context,groups)
+        monkeypatch.setattr(core.sources,"check_many_on",limited)
+    page=await core.memory.episodes_by_refs(alice,((episode.episode_id,episode.revision),))
+    assert len(page.items)==1 and page.coverage.complete
+    status=page.items[0].consolidation
+    assert status["targets"]==([] if unknown else [{"subject_id":alice.person_id}])
+    assert ("source_dependency_budget_exceeded" in status["coverage"]["missing"]) is unknown
 
 
 async def _seed_field_graph(core, context):
@@ -387,7 +471,9 @@ async def test_evidence_expansion_uses_current_authority_and_shared_lock_budget(
 
 async def test_caught_budget_error_rolls_back_all_parts_of_event(core, ordinary_users):
     alice, _ = ordinary_users
-    refs = await _seed(core, alice, "rbj-multipart-budget-", 2000)
+    # Lock discovery/recheck plus two part proofs exceed the shared budget;
+    # failure must occur after the first part was written and roll it back.
+    refs = await _seed(core, alice, "rbj-multipart-budget-", 2200)
     async with core.database.transaction() as conn:
         with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
             await core.sources.record_event(

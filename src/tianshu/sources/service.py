@@ -14,7 +14,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec
 from tianshu.runtime.recovery_policy import RecoveryWait
 from tianshu.runtime.serialization import wire
-from tianshu.runtime.cancellation import finish_cleanup
+from tianshu.runtime.cancellation import finish_cleanup, transaction_on
 from tianshu.types import Coverage, MediaRef, OriginKind, ServiceClass, SourceRef
 
 
@@ -222,7 +222,8 @@ class SourceService:
         )
 
     async def _prepare_event_writes(
-        self, connection, context, events, *, additional_refs=(), scoped_refs=(), budget
+        self, connection, context, events, *, additional_refs=(), scoped_refs=(), budget,
+        validate_supports=True,
     ):
         """Prepare before domain/source locks; scoped false proofs remain optional.
 
@@ -331,6 +332,12 @@ class SourceService:
             if not any(original_context == checked_context and refs == checked_refs
                        for checked_context, checked_refs, _ in checks):
                 checks.append((original_context, refs, False))
+        # record_event owns the atomic registration and proves each part's
+        # supports under its actual intake context in _register. Its enclosing
+        # savepoint rolls back the whole event on denial. Preflight callers
+        # still need the proof here before taking their domain locks.
+        if not validate_supports:
+            return tuple(aliases)
         results = await check_scoped_on(self.identity, connection, tuple(
             (original_context, (refs,), mandatory)
             for original_context, refs, mandatory in checks
@@ -370,7 +377,7 @@ class SourceService:
             native_alias = (await self._prepare_event_writes(conn, context, ({
                 "producer": producer, "event_id": event_id, "revision": revision,
                 "parts": original_parts, "support_refs": support_refs,
-            },), budget=budget))[0]
+            },), budget=budget, validate_supports=False))[0]
             if native_alias:
                 if await (
                     await conn.execute(
@@ -476,7 +483,7 @@ class SourceService:
         if connection is not None:
             # A budget/error after an earlier part must not leave partial source
             # writes if the owner catches the error inside its outer transaction.
-            async with connection.transaction():
+            async with transaction_on(connection):
                 yield connection
         else:
             async with self.database.transaction() as opened:
@@ -711,7 +718,7 @@ class SourceService:
         if connection is not None:
             # The audience is prepared before source locks; a failed proof or
             # source write must not leave audience changes in the caller's tx.
-            async with connection.transaction():
+            async with transaction_on(connection):
                 return await publish(connection)
         async with self.database.transaction() as conn:
             return await publish(conn)
@@ -832,7 +839,7 @@ class SourceService:
             )
 
         if connection is not None:
-            async with connection.transaction():
+            async with transaction_on(connection):
                 return await publish(connection)
         async with self.database.transaction() as conn:
             return await publish(conn)

@@ -18,7 +18,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
 
 from . import codec
-from .authority import context_record, request_identity
+from .authority import context_record, request_digest_matches
 from .consolidation_wait import batch_snapshot
 from .model_outcome import interrupted_computation, original_status
 
@@ -53,7 +53,7 @@ async def validate_frozen_attempt_on(conn, attempt_id, recovery, request):
     if ledger["version"] != recovery["version"]:
         raise AppError("recovery_version_changed",status=409)
     if (ledger["lineage_id"] != recovery["lineage_id"]
-            or ledger["request_digest"] != body_hash(request_identity(request))):
+            or not request_digest_matches(request, ledger["request_digest"])):
         raise AppError("memory_consolidation_attempt_changed",status=409)
 
 

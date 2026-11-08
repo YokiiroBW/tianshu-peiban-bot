@@ -308,7 +308,12 @@ class PlanningEngine:
         supersede_reason = None
         supersede_status = None
         if not pending and (same_material or same_recovery_material) and mark["last_error"]:
-            if transient_model_failure(mark["last_error"]) or (previous and previous.get("recovery_state") == "unknown"):
+            if (mark["failed_generation_key"] is None and mark["last_error"] in {
+                    "planner_model_unavailable", "planner_context_budget_exceeded"}):
+                # Preparation failed before a new request existed. The retained
+                # successful head is history, not the attempt to observe/retry.
+                repair_ready = True
+            elif transient_model_failure(mark["last_error"]) or (previous and previous.get("recovery_state") == "unknown"):
                 restored = await self.retry_original(context, mark, now)
                 if restored is None:
                     return
@@ -379,7 +384,7 @@ class PlanningEngine:
                     "model_function_not_configured", "model_route_unavailable", "model_capability_unverified"}:
                     raise
                 reason = "planner_context_budget_exceeded" if "budget" in error.code else "planner_model_unavailable"
-                await self.failure(context, mark, reason, material, now)
+                await self.preparation_failure(context, mark, reason, material, now)
                 return
             original_receipt, original_request = None, None
             if (previous and previous.get("recovery_state") in {"failed", "unknown"}
@@ -1134,6 +1139,26 @@ class PlanningEngine:
                 (reason, now+timedelta(seconds=30), context.actor_id, mark["revision"], mark["generation_key"]))).fetchone()
             if fresh and reason in {"planner_queued", "planner_running", "planner_unknown", "planner_absent", "planner_observation_unavailable", "planner_refresh_wait", "planner_original_deadline_passed"}:
                 await self.schedule(connection, context, mark, now + timedelta(seconds=30), "observe")
+
+    async def preparation_failure(self, context, mark, reason, material, now):
+        if mark["generation_key"] and not mark["generation_consumed"]:
+            return await self.failure(context, mark, reason, material, now)
+        # No physical request or recovery budget was spent. Keep the previous
+        # successful generation immutable and retry preparation on its own wake.
+        async with self.transaction() as connection:
+            current = await (await connection.execute(
+                "SELECT *,now() AS db_now FROM life.plan_watermarks WHERE actor_id=%s FOR UPDATE",
+                (context.actor_id,))).fetchone()
+            if (not current or current["revision"] != mark["revision"]
+                    or current["generation_key"] != mark["generation_key"]
+                    or current["generation_consumed"] != mark["generation_consumed"]):
+                return
+            when = current["db_now"] + timedelta(seconds=30)
+            await connection.execute(
+                "UPDATE life.plan_watermarks SET reason=%s,last_error=%s,failed_generation_key=NULL,"
+                "generation_material=%s,repair_due_at=%s,next_due_at=%s,review_after=NULL WHERE actor_id=%s",
+                (reason,reason,material,when,when,context.actor_id))
+            await self.schedule(connection,context,current,when,"preparation")
 
     async def failure(self, context, mark, reason, material, now, *, repairable=False, status_reason=None, physical_failure=False):
         """Reject a result without accepting its material as a valid decision."""

@@ -493,6 +493,18 @@ class DiaryService:
         self.generations.observer_context(original,reader)
         return await self.generate(diary_id,generation_id,data_generation=data_generation)
 
+    async def saved_material_changed(self, connection, diary, day):
+        saved = await (await connection.execute(
+            "SELECT recipe FROM life.diary_revisions WHERE diary_id=%s AND revision=%s",
+            (diary["id"],diary["current_revision"]))).fetchone()
+        if not saved:
+            return False
+        versions = dict(saved["recipe"].get("material_revisions", ()))
+        versions.update((item["episode_id"],item["revision"])
+                        for item in saved["recipe"].get("episodes", ()))
+        return any(versions.get(key,0) < version
+                   for key,version in day["material_revisions"].items())
+
     async def reconcile_saved(self, context, row, connection):
         """Repair only the closed-day projection of this immutable saved success."""
         if row["state"] not in {"draft","published"} or not row["current_revision"] or row["generation_cancel_requested"]:

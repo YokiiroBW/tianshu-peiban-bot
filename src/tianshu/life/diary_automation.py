@@ -116,7 +116,15 @@ class DiaryAutomation:
                 raise AppError("diary_scope_unavailable", status=403)
             if (not row["generation_id"] and row["blocked_revision"]>=row["revision"]
                     and not (diary and diary["current_revision"])):
-                return {"state":"blocked","reason":row["last_error"]}
+                # Collection can fail before a model request exists. A repaired
+                # dependency may resume that day; a submitted request must still
+                # follow its original receipt/recovery path.
+                retry_collection = (diary and diary["state"] == "failed"
+                    and row["last_error"] == "source_dependency_budget_exceeded"
+                    and await self.diaries.generations.observe_request(
+                        diary["generation_id"],observer=context) is None)
+                if not retry_collection:
+                    return {"state":"blocked","reason":row["last_error"]}
             if diary and diary["state"] in UNRESOLVED:
                 if diary["state"] == "collecting":
                     return {"state": "collecting", "attempt_id": diary["generation_id"]}
@@ -175,22 +183,28 @@ class DiaryAutomation:
                         return {"state":"changed_since_review"}
                 return await self.diaries.generate(diary["id"], diary["generation_id"],data_generation=data_generation)
             if diary and diary["current_revision"] and diary["state"] in {"draft", "published"}:
-                # A saved body is authoritative. Repair its closed-day projection
-                # from that original success rather than creating another draft.
+                # Unchanged saved successes need only projection repair. New
+                # actual material owns a new draft, never an edited old receipt.
                 async with self.life.database.transaction() as connection:
                     await self.life.jobs.assert_generation_on(connection,data_generation)
-                    await self.diaries.reconcile_saved(context, diary, connection)
                     fresh = await (await connection.execute(
                         "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s FOR UPDATE",
                         (actor_id, scope_key, row["day"]))).fetchone()
-                    if fresh["reviewed_revision"] < fresh["revision"] or fresh["last_error"]:
-                        await connection.execute(
-                            "UPDATE life.diary_days SET blocked_revision=greatest(blocked_revision,revision),"
-                            "last_error='diary_saved_material_unreconciled',updated_at=now() "
-                            "WHERE actor_id=%s AND scope_key=%s AND day=%s",
-                            (actor_id, scope_key, row["day"]))
-                        return {"state": "blocked", "reason": "diary_saved_material_unreconciled"}
-                return {"state": "reviewed"}
+                    changed = await self.diaries.saved_material_changed(connection,diary,fresh)
+                    if not changed:
+                        await self.diaries.reconcile_saved(context, diary, connection)
+                        fresh = await (await connection.execute(
+                            "SELECT * FROM life.diary_days WHERE actor_id=%s AND scope_key=%s AND day=%s",
+                            (actor_id,scope_key,row["day"]))).fetchone()
+                        if fresh["reviewed_revision"] < fresh["revision"] or fresh["last_error"]:
+                            await connection.execute(
+                                "UPDATE life.diary_days SET blocked_revision=greatest(blocked_revision,revision),"
+                                "last_error='diary_saved_material_unreconciled',updated_at=now() "
+                                "WHERE actor_id=%s AND scope_key=%s AND day=%s",
+                                (actor_id, scope_key, row["day"]))
+                            return {"state": "blocked", "reason": "diary_saved_material_unreconciled"}
+                        return {"state": "reviewed"}
+                    row = fresh
             if row["generation_id"]:
                 reason = (diary.get("reason") if diary and diary["state"] in {"failed", "cancelled"} else None)
                 reason = reason or "diary_saved_body_missing"
@@ -200,7 +214,8 @@ class DiaryAutomation:
                 # A later event has its own queued review. This job only settles its original.
                 return {"state": "blocked", "reason": reason}
             result = await self.diaries.request(context,
-                {"client_request_id": "auto-diary:"+signature((actor_id,scope_key,day,row["revision"])),
+                {"client_request_id": "auto-diary:"+signature((actor_id,scope_key,day,row["revision"],
+                    diary["generation_id"] if diary else None)),
                  "day": day, "expected_revision": diary["revision"] if diary else 0},
                 automatic={"actor_id": actor_id, "scope_key": scope_key, "day": day,
                            "revision": row["revision"], "timezone": row["timezone"],"data_generation":data_generation})
@@ -286,7 +301,8 @@ class DiaryAutomation:
         # not invent missing days or ask the model to recreate a history.
         async with self.life.database.transaction() as connection:
             rows = await (await connection.execute(
-                "SELECT * FROM life.diary_days WHERE (reviewed_revision<revision AND blocked_revision<revision) OR generation_id IS NOT NULL "
+                "SELECT * FROM life.diary_days WHERE (reviewed_revision<revision AND (blocked_revision<revision "
+                "OR last_error IN ('source_dependency_budget_exceeded','diary_saved_material_unreconciled'))) OR generation_id IS NOT NULL "
                 "ORDER BY day,actor_id,scope_key FOR UPDATE")).fetchall()
             for row in rows:
                 await self.enqueue(connection, row, reason="recover:"+datetime.now(UTC).isoformat())

@@ -355,6 +355,44 @@ async def test_cancelled_sql_releases_the_original_connection(database):
         await db.close()
 
 
+async def test_cancel_during_savepoint_entry_settles_before_outer_rollback(database):
+    from tianshu.runtime.cancellation import transaction_on
+
+    entered, release = asyncio.Event(), asyncio.Event()
+    db = Database(DatabaseConfig(database.config.dsn,max_connections=1),role="savepoint-cancel")
+    await db.open()
+
+    class EntryBarrier:
+        def __init__(self,connection):self.native=connection.transaction()
+        async def __aenter__(self):
+            await self.native.__aenter__()
+            entered.set()
+            await release.wait()
+        async def __aexit__(self,*error):return await self.native.__aexit__(*error)
+
+    async def work():
+        async with db.transaction() as conn:
+            proxy=SimpleNamespace(transaction=lambda:EntryBarrier(conn))
+            async with transaction_on(proxy):
+                pytest.fail("cancelled entry must never run its body")
+
+    task=asyncio.create_task(work())
+    try:
+        await entered.wait()
+        task.cancel()
+        await asyncio.sleep(0)
+        assert not task.done()
+        release.set()
+        with pytest.raises(asyncio.CancelledError):await task
+        async with db.transaction() as conn:
+            assert (await (await conn.execute("SELECT 1 AS value")).fetchone())["value"]==1
+    finally:
+        release.set()
+        task.cancel()
+        await asyncio.gather(task,return_exceptions=True)
+        await db.close()
+
+
 async def test_repeated_cancellation_keeps_sync_slot_until_thread_exits(database):
     db = Database(DatabaseConfig(database.config.dsn, max_connections=1, control_connections=1,
                                  sync_connections=1), role="sync-cancel")

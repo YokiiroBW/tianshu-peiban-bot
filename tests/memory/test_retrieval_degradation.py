@@ -46,6 +46,10 @@ def pipeline(count=4, *, settings=None):
         async def execute(self, sql):
             calls.sql.append(sql)
 
+        @asynccontextmanager
+        async def transaction(self):
+            yield self
+
     class Database:
         @asynccontextmanager
         async def transaction(self, phase_budget, *, read_only=False):

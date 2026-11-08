@@ -329,6 +329,21 @@ def test_fixed_request_authority_has_stable_set_order_after_restart():
         {"context":second,"attempt_id":"same","budget":{"deadline_at":"new"}})
 
 
+def test_request_capabilities_are_a_set_and_legacy_digest_remains_immutable():
+    from tianshu.memory.authority import request_digest_matches
+    from tianshu.runtime.commands import body_hash
+
+    request = {"context":{"permissions":["*"],"scope_ids":["actor"],"audience":["actor"]},
+               "attempt_id":"original","route_id":"original-route","required_capabilities":["vision","text"]}
+    old = body_hash(request_identity(request,canonical_capabilities=False))
+    reordered = {**request,"required_capabilities":["text","vision"]}
+    assert request_identity(request) == request_identity(reordered)
+    assert request_digest_matches(reordered,old)
+    assert not request_digest_matches({**reordered,"route_id":"different"},old)
+    assert not request_digest_matches({**reordered,"required_capabilities":["text"]},old)
+    assert request["required_capabilities"] == ["vision","text"]
+
+
 def test_index_rebuild_cursor_is_bound_to_actual_kinds_and_stable_object_id():
     kinds=("claim","episode","hypothesis","matter","reflection")
     cursor=next_index_cursor({"kind":"episode","id":"expression:synthetic"},kinds)

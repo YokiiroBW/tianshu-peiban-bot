@@ -4,11 +4,12 @@ from psycopg.errors import ProgramLimitExceeded
 from psycopg.types.json import Jsonb
 
 from tianshu.runtime.errors import AppError
+from tianshu.runtime.cancellation import transaction_on
 
 
 async def _read(conn, statement, arguments, budget, field):
     try:
-        async with conn.transaction():
+        async with transaction_on(conn):
             row = await (await conn.execute(statement, (*arguments, Jsonb(budget.remaining)))).fetchone()
     except ProgramLimitExceeded:
         raise AppError("source_dependency_budget_exceeded", status=503) from None

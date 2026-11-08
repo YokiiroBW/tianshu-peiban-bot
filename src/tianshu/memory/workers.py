@@ -7,6 +7,7 @@ import logging
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobSpec, current_execution_generation
 from tianshu.types import ServiceClass
+from .rbi_recovery import LOCAL_FAILURES
 
 
 LOG = logging.getLogger(__name__)
@@ -29,7 +30,7 @@ class MemoryWorkers:
             async with self.database.transaction(read_only=True) as conn:
                 batch = await (await conn.execute("SELECT status,error_code FROM memory.consolidation_batches "
                     "WHERE batch_id=%s AND partition_id=%s", (batch_id, partition_id))).fetchone()
-            if batch and batch["status"] == "failed" and batch["error_code"] == "recovery_original_not_failed":
+            if batch and batch["status"] == "failed" and batch["error_code"] in LOCAL_FAILURES:
                 result = await self.recovery.resume_local_failure(batch_id, repair_ref="rbi-local-recovery:"+batch_id)
                 if result["reason"] not in {"reopened", "already_reopened"}:
                     return result

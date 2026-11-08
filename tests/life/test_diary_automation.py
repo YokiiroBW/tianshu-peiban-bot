@@ -216,6 +216,54 @@ async def test_changed_original_revision_revises_that_day_once_and_preserves_pub
     assert all(row["disclosure_ref"] is None for row in versions)
 
 
+async def test_new_experience_updates_a_previously_blocked_saved_day(database):
+    value=await fixture(database)
+    day,scope=await start_day(value)
+    diary=await collect_current(database,value)
+    await value.diaries.generate(diary["id"],diary["generation_id"])
+    later=replace(value.episode,episode_id="later-tool",event_id="later-tool",sequence=2,
+                  origin_kind=OriginKind.TOOL_RESULT,actual_result={"execution":"succeeded"})
+    value.memory.episodes+=(later,)
+    await value.diaries.changed(value.context,"later-tool:1",episode=later)
+    async with database.transaction() as conn:
+        await conn.execute("UPDATE life.diary_days SET blocked_revision=revision,last_error='diary_saved_material_unreconciled'")
+    await value.diaries.review_day("actor",scope,day,2,await value.jobs.current_generation())
+    pending=await collect_current(database,value)
+    assert pending["state"]=="generating" and pending["current_revision"]==1
+    await value.diaries.generate(pending["id"],pending["generation_id"])
+    final=await diary_state(database)
+    assert final["current_revision"]==2 and final["published_revision"] is None
+    assert (await day_state(database))["last_error"] is None
+    assert len(value.models.calls)==2
+
+
+@pytest.mark.parametrize("submitted", [False, True])
+async def test_failed_collection_can_resume_without_reusing_its_old_command(database,submitted):
+    value=await fixture(database)
+    day,scope=await start_day(value)
+    original=await diary_state(database)
+    with patch.object(value.memory,"episodes_between",AsyncMock(side_effect=AppError("source_dependency_budget_exceeded",status=503))):
+        with pytest.raises(AppError,match="source_dependency_budget_exceeded"):
+            await collect_current(database,value)
+    assert (await day_state(database))["blocked_revision"]==1 and not value.models.calls
+    await value.diaries.recover()
+    if submitted:
+        # An existing frozen request is not a collection-only failure. Keep
+        # observing that original rather than creating another physical call.
+        with patch.object(value.diaries.generations,"observe_request",AsyncMock(return_value=object())):
+            result=await value.diaries.review_day("actor",scope,day,1,await value.jobs.current_generation())
+        assert result["state"]=="blocked"
+        assert (await diary_state(database))["generation_id"]==original["generation_id"]
+        assert not value.models.calls
+        return
+    await value.diaries.review_day("actor",scope,day,1,await value.jobs.current_generation())
+    current=await diary_state(database)
+    assert current["state"]=="collecting" and current["generation_id"]!=original["generation_id"]
+    current=await collect_current(database,value)
+    await value.diaries.generate(current["id"],current["generation_id"])
+    assert (await diary_state(database))["current_revision"]==1 and len(value.models.calls)==1
+
+
 @pytest.mark.asyncio
 async def test_unknown_same_scene_new_epoch_observes_original_and_late_success_commits_once(database):
     value = await fixture(database,unknown=True)

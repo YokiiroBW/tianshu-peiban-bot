@@ -24,19 +24,19 @@ class Contacts:
                 return context
         async with self.database.transaction(read_only=True) as connection:
             configured = await (await connection.execute(
-                "SELECT person_id FROM life.contact_preferences WHERE actor_id=%s AND person_id<>'' AND enabled "
-                "AND scope_ids<@%s::text[] ORDER BY person_id LIMIT 20",
-                (context.actor_id, list(context.scope_ids)))).fetchall()
-        people = {row["person_id"] for row in configured}
-        if not people:
-            return None
-        page = await identity.conversations(context, context.actor_id, limit=100)
-        for row in page.items:
-            if row["kind"] != "private" or row["person_id"] not in people:
-                continue
+                "SELECT v.conversation_id,p.person_id FROM life.contact_preferences p "
+                "JOIN identity.conversations v ON v.actor_id=p.actor_id AND v.person_id=p.person_id "
+                "WHERE p.actor_id=%s AND p.person_id<>'' AND p.enabled AND v.kind='private' "
+                "ORDER BY p.person_id,v.conversation_id",
+                (context.actor_id,))).fetchall()
+        # The saved actor routine deliberately has no private recipient scope.
+        # Selecting an explicitly opted-in destination is a separate Identity
+        # authorization, not permission to read its scene in the planner.
+        await identity.check(context, refs)
+        for row in configured:
             try:
                 selected = await identity.authorize_conversation(context, row["conversation_id"])
-                if not selected.delivery_allowed or selected.person_id not in people:
+                if not selected.delivery_allowed or selected.person_id != row["person_id"]:
                     continue
                 await identity.check(selected, refs)
                 if (await self.preferences(selected))["enabled"]:

@@ -7,6 +7,7 @@ from psycopg.types.json import Jsonb
 
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
+from tianshu.runtime.cancellation import transaction_on
 
 
 def normalize_groups(refs_groups):
@@ -52,7 +53,7 @@ async def _execute_scoped(connection, requests, budget):
     try:
         # Roll back a failed statement to a savepoint before exposing its typed
         # budget error; callers may still need their outer transaction for cleanup.
-        async with connection.transaction():
+        async with transaction_on(connection):
             row = await (await connection.execute(
                 "SELECT sources._rbj_check_contexts(%s::jsonb,%s::jsonb) AS proof",
                 (Jsonb(payload), Jsonb(budget.remaining) if budget is not None else None),
@@ -83,7 +84,7 @@ async def check_many_on(identity, connection, context, refs_groups, *, budget=No
     if budget is not None:
         return (await _execute_scoped(connection, ((context, groups, False),), budget))[0]
     try:
-        async with connection.transaction():
+        async with transaction_on(connection):
             row = await (await connection.execute(
                 "SELECT sources.check_groups(%s::jsonb,%s::text[]) AS allowed",
                 (Jsonb(wire(groups)), list(context.scope_ids)),

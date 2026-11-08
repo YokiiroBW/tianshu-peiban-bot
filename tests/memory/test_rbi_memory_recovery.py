@@ -113,9 +113,14 @@ async def failed_local_batch(core, alice, name):
     return model, item, partition, batch
 
 
-async def test_local_failure_reopens_same_batch_and_retains_lineage(core, ordinary_users):
+@pytest.mark.parametrize("local_error", ["recovery_original_not_failed","memory_consolidation_attempt_changed"])
+async def test_local_failure_reopens_same_batch_and_retains_lineage(core, ordinary_users,local_error):
     alice, _ = ordinary_users
     model, item, partition, batch = await failed_local_batch(core, alice, "rbi-local-failure")
+    if local_error != "recovery_original_not_failed":
+        async with core.database.transaction() as conn:
+            await conn.execute("UPDATE memory.consolidation_batches SET error_code=%s WHERE batch_id=%s",
+                (local_error,batch["batch_id"]))
     receipts = [model.results[request.attempt_id].receipt for request, _ in model.submissions]
     result = await core.workers.recovery.resume_local_failure(batch["batch_id"], repair_ref="rbi-fixture")
     again = await core.workers.recovery.resume_local_failure(batch["batch_id"], repair_ref="rbi-fixture")
@@ -129,7 +134,7 @@ async def test_local_failure_reopens_same_batch_and_retains_lineage(core, ordina
             "FROM memory.consolidation_attempts a JOIN runtime.recovery_attempts r ON r.attempt_id=a.model_attempt_id "
             "WHERE a.batch_id=%s ORDER BY a.number", (batch["batch_id"],))).fetchall()
     assert restored["step_ids"] == batch["step_ids"] and restored["status"] == "quarantined"
-    assert restored["manifest"]["rbi_local_recovery"]["original_error_code"] == "recovery_original_not_failed"
+    assert restored["manifest"]["rbi_local_recovery"]["original_error_code"] == local_error
     assert attempts[-1]["status"] == attempts[-1]["recovery_policy_state"] == attempts[-1]["ledger_status"] == "unknown"
     await mature(core, restored)
     await core.workers.consolidate(partition)

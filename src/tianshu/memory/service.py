@@ -18,6 +18,7 @@ from tianshu.types import Coverage, OriginKind, ServiceClass, SourceRef
 from . import codec
 from .types import EpisodePage
 from .domain_utils import parse_time
+from .candidate_sources import check_ref_groups_on
 
 
 def cursor_sequence(cursor):
@@ -489,19 +490,7 @@ class MemoryService:
                 "WITH ORDINALITY requested(episode_id,revision,ordinal) USING(episode_id,revision) "
                 "WHERE e.actor_id=%s AND e.active AND e.scope_ids<@%s::text[] ORDER BY requested.ordinal",
                 ([item[0] for item in refs],[item[1] for item in refs],context.actor_id,list(context.scope_ids)))).fetchall()
-            valid=[]
-            group=[]
-            count=0
-            for row in rows:
-                selected=(*codec.refs(row["source_refs"]),*codec.refs(row.get("supplement_refs")))
-                if group and count+len(selected)>1800:
-                    valid.extend(await self.sources.check_many_on(conn,context,tuple(group)))
-                    group=[]
-                    count=0
-                group.append(selected)
-                count+=len(selected)
-            if group:
-                valid.extend(await self.sources.check_many_on(conn,context,tuple(group)))
+            valid=await self._episode_source_checks(conn,context,rows)
             if self.pipeline_recovery is not None:
                 visible=tuple(row for row,allowed in zip(rows,valid,strict=True) if allowed)
                 statuses=await self.pipeline_recovery.statuses_on(conn,context,visible)
@@ -620,9 +609,7 @@ class MemoryService:
             ).fetchone()
             more = len(rows) > limit
             scanned = rows[:limit]
-            checked = await self.sources.check_many_on(
-                conn, context, tuple((*codec.refs(row["source_refs"]),*codec.refs(row.get("supplement_refs"))) for row in scanned)
-            )
+            checked = await self._episode_source_checks(conn,context,scanned)
             if self.pipeline_recovery is not None:
                 visible_rows=tuple(row for row,valid in zip(scanned,checked,strict=True) if valid and row["active"])
                 statuses=await self.pipeline_recovery.statuses_on(conn,context,visible_rows)
@@ -639,6 +626,15 @@ class MemoryService:
             Coverage(complete=not more and not missing, missing=missing),
             "e:" + str(watermark),
         )
+
+    async def _episode_source_checks(self, connection, context, rows):
+        checked = await check_ref_groups_on(self.sources,connection,context,tuple(
+            (*codec.refs(row["source_refs"]),*codec.refs(row.get("supplement_refs"))) for row in rows))
+        # An unprovable root is neither denied nor an empty day. Keep the
+        # original typed failure so callers can recover collection normally.
+        if None in checked:
+            raise AppError("source_dependency_budget_exceeded",status=503)
+        return checked
 
     async def _extraction_status_snapshot(self,context,episode_id):
         async with self.database.transaction(read_only=True) as conn:
