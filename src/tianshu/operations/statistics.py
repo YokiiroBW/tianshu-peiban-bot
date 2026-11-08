@@ -6,17 +6,17 @@ IDs are deduplication keys, never aggregation dimensions. NULL means unknown.
 
 from __future__ import annotations
 
-from datetime import UTC, datetime, timedelta
 import hashlib
 import json
 import math
+from datetime import UTC, datetime, timedelta
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from psycopg.types.json import Jsonb
 
+from tianshu.models.statistics import usage_breakdown_on
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.serialization import wire
-
 
 FAMILIES = frozenset({"channels", "messages", "models", "memory", "growth", "life", "media", "recovery"})
 PRODUCERS = frozenset({"channels", "conversation", "models", "memory", "growth", "life", "media", "operations", "capabilities"})
@@ -235,25 +235,28 @@ class StatisticsProjection:
         except (ValueError, TypeError, ZoneInfoNotFoundError):
             raise AppError("invalid_statistics_range") from None
         start, end = (value.astimezone(UTC).replace(second=0, microsecond=0) for value in (start, end))
-        if end <= start or end - start > timedelta(days=7):
+        if end <= start or end - start > timedelta(days=31):
             raise AppError("invalid_statistics_range")
         module = _text(body.get("module"), "module", optional=True)
         actor = _text(body.get("actor_id"), "actor", optional=True)
         route = _text(body.get("route_id"), "route", optional=True)
         condition = " AND (%s='' OR module=%s) AND (%s='' OR actor_id=%s) AND (%s='' OR route_id=%s)"
         params = (module, module, actor, actor, route, route)
+        resolution = "day" if end - start > timedelta(days=3) else "hour"
         async with self.database.transaction(control=True, read_only=True) as conn:
             rows = await (await conn.execute(
-                "SELECT date_trunc('hour',bucket AT TIME ZONE 'UTC') AT TIME ZONE 'UTC' AS bucket,family,module,actor_id,route_id,state,metric,"
+                "SELECT date_trunc(%s,bucket AT TIME ZONE %s) AT TIME ZONE %s AS bucket,family,module,actor_id,route_id,state,metric,"
                 "sum(total) AS total,sum(samples) AS samples,sum(unknown) AS unknown "
                 "FROM operations.statistic_buckets WHERE grain='minute' AND bucket >= %s AND bucket < %s" + condition +
                 " GROUP BY 1,2,3,4,5,6,7 HAVING sum(samples)<>0 OR sum(unknown)<>0 ORDER BY 1",
-                (start, end, *params))).fetchall()
+                (resolution, str(zone), str(zone), start, end, *params))).fetchall()
             cumulative = await (await conn.execute(
                 "SELECT metric,sum(total) AS total,sum(samples) AS samples,sum(unknown) AS unknown "
                 "FROM operations.statistic_buckets WHERE grain='minute' AND bucket < %s" + condition +
                 " GROUP BY metric HAVING sum(samples)<>0 OR sum(unknown)<>0", (end, *params))).fetchall()
             producers = await (await conn.execute("SELECT * FROM operations.statistic_producers ORDER BY producer")).fetchall()
+            model_usage = await usage_breakdown_on(conn, start=start, end=end, timezone=zone,
+                                                   module=module, actor=actor, route=route)
         overview, series, breakdowns = {}, {}, {}
         for row in rows:
             metric = row["metric"]
@@ -298,11 +301,11 @@ class StatisticsProjection:
                          "missing_evaluated": missing_evaluation}
         scopes = _producer_scopes(present)
         outcomes = _outcome_summary(rows, breakdowns, scopes)
-        return {"range": {"start": start, "end": end, "timezone": str(zone), "resolution": "minute"},
+        return {"range": {"start": start, "end": end, "timezone": str(zone), "resolution": resolution},
                 "overview": overview, "cumulative": {row["metric"]: _metric(row) for row in cumulative},
                 "series": [{"time": key, "metrics": val} for key, val in series.items()],
                 "breakdowns": breakdowns, "resources": resources, "recovery_rate": recovery_rate,
-                "outcomes": outcomes,
+                "outcomes": outcomes, "model_usage": model_usage,
                 "freshness": {"source_watermarks": {row["producer"]: row["watermark"] for row in producers},
                               "source_last_seen": {row["producer"]: row["last_seen"] for row in producers}},
                 "coverage": {"complete": not missing and not incomplete, "missing": missing,
