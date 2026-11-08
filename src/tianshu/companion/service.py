@@ -1,18 +1,19 @@
-"""Authored persona versions and scoped affect; no scoring or hidden second model loop."""
+"""Editable authored personas and scoped affect; no hidden second model loop."""
 from __future__ import annotations
-from contextlib import asynccontextmanager
-from tianshu.sources.dependencies import unique_refs
 
 import math
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from uuid import uuid4
 
+from tianshu.conversation.codec import document, signature, source_refs
 from tianshu.runtime.api import CommandResult, Page
 from tianshu.runtime.errors import AppError
-from tianshu.types import Coverage,OriginKind
-from tianshu.conversation.codec import document, signature, source_refs
-from .types import AffectUpdate, Persona
+from tianshu.sources.dependencies import unique_refs
+from tianshu.types import Coverage, OriginKind
+
 from .regulation import regulate
+from .types import AffectUpdate, Persona
 
 
 def bounded_text(value, name, maximum=4000, *, empty=False):
@@ -72,12 +73,22 @@ class CompanionService:
     async def save_actor(self, context, body):
         await self.identity.check(context)
         name = bounded_text(body.get("name"), "角色名称", 128)
-        persona_id, persona_revision = body.get("persona_id"), body.get("persona_revision")
+        persona_id = body.get("persona_id") or None
         enabled = body.get("enabled", False)
         if type(enabled) is not bool:
             raise AppError("invalid_input")
 
         async def apply(connection):
+            # Lock the document before actors, matching save_persona's lock order.
+            persona_revision = None
+            if persona_id:
+                persona = await (await connection.execute(
+                    "SELECT revision FROM companion.persona_profiles "
+                    "WHERE persona_id=%s AND archived_at IS NULL FOR SHARE",
+                    (persona_id,))).fetchone()
+                if not persona:
+                    raise AppError("persona_not_found", status=404)
+                persona_revision = persona["revision"]
             actor_id = context.actor_id
             row = None
             if actor_id:
@@ -86,12 +97,6 @@ class CompanionService:
                 if row is None:
                     raise AppError("actor_not_found", status=404)
             require_revision(row, body.get("expected_revision"))
-            if persona_id:
-                persona = await (await connection.execute(
-                    "SELECT 1 FROM companion.persona_revisions WHERE persona_id=%s AND revision=%s",
-                    (persona_id, persona_revision))).fetchone()
-                if not persona:
-                    raise AppError("persona_revision_not_found", status=404)
             if row is None:
                 actor_id = await self.actor_registry.register_actor(context, connection=connection,
                                                                     enabled=enabled)
@@ -140,18 +145,20 @@ class CompanionService:
         await self.identity.check(context)
         async with self.database.transaction(read_only=True) as connection:
             rows = await (await connection.execute(
-                "SELECT persona_id,name,revision,current_revision FROM companion.persona_profiles ORDER BY name,persona_id")).fetchall()
+                "SELECT persona_id,name,revision FROM companion.persona_profiles "
+                "WHERE archived_at IS NULL ORDER BY name,persona_id")).fetchall()
         return {"items": rows,"can_manage":bool(context.permissions & {"*","companion.manage"})}
 
     async def persona(self, context, persona_id, revision=None):
         await self.identity.check(context)
         async with self.database.transaction(read_only=True) as connection:
             row = await (await connection.execute(
-                "SELECT p.name,r.* FROM companion.persona_profiles p JOIN companion.persona_revisions r "
-                "ON r.persona_id=p.persona_id AND r.revision=COALESCE(%s,p.current_revision) WHERE p.persona_id=%s",
-                (revision, persona_id))).fetchone()
+                "SELECT * FROM companion.persona_profiles WHERE persona_id=%s AND archived_at IS NULL",
+                (persona_id,))).fetchone()
         if not row:
             raise AppError("persona_not_found", status=404)
+        if revision is not None:
+            require_revision(row, revision)
         return Persona(row["persona_id"], row["revision"], row["name"], row["author_text"],
                        row["tone"], row["style"], row["address"], row["world"])
 
@@ -160,36 +167,30 @@ class CompanionService:
         name = bounded_text(body.get("name"), "人格名称", 128)
         text = bounded_text(body.get("author_text"), "完整作者人格", 200000)
         fields = {key: bounded_text(body.get(key, ""), key, 20000, empty=True)
-                  for key in ("tone", "style", "address", "world", "note")}
+                  for key in ("tone", "style", "address", "world")}
         async def apply(connection):
             persona_id = body.get("persona_id") or str(uuid4())
             row = await (await connection.execute(
                 "SELECT * FROM companion.persona_profiles WHERE persona_id=%s FOR UPDATE", (persona_id,))).fetchone()
+            if row is not None and row["archived_at"] is not None:
+                raise AppError("persona_not_found", status=404)
             require_revision(row, body.get("expected_revision"))
             revision = row["revision"] + 1 if row else 1
             if row:
                 await connection.execute(
-                    "UPDATE companion.persona_profiles SET name=%s,revision=%s,current_revision=%s WHERE persona_id=%s",
-                    (name, revision, revision, persona_id))
+                    "UPDATE companion.persona_profiles SET name=%s,revision=%s,author_text=%s,"
+                    "tone=%s,style=%s,address=%s,world=%s WHERE persona_id=%s",
+                    (name, revision, text, fields["tone"], fields["style"], fields["address"], fields["world"], persona_id))
+                await connection.execute(
+                    "UPDATE companion.actors SET persona_revision=%s,revision=revision+1,updated_at=now() "
+                    "WHERE persona_id=%s", (revision, persona_id))
             else:
                 await connection.execute(
-                    "INSERT INTO companion.persona_profiles(persona_id,name) VALUES (%s,%s)", (persona_id, name))
-            await connection.execute(
-                "INSERT INTO companion.persona_revisions(persona_id,revision,author_text,tone,style,address,world,note) "
-                "VALUES (%s,%s,%s,%s,%s,%s,%s,%s)",
-                (persona_id, revision, text, fields["tone"], fields["style"], fields["address"], fields["world"], fields["note"]))
+                    "INSERT INTO companion.persona_profiles(persona_id,name,author_text,tone,style,address,world) "
+                    "VALUES (%s,%s,%s,%s,%s,%s,%s)",
+                    (persona_id, name, text, fields["tone"], fields["style"], fields["address"], fields["world"]))
             return CommandResult(body["client_request_id"], {"persona_id": persona_id, "revision": revision}, revision)
         return await self.commands.execute(context, "companion.personas.save", body["client_request_id"], signature(body), apply)
-
-    async def persona_history(self, context, persona_id, *, cursor=None, limit=40):
-        await self.identity.check(context)
-        async with self.database.transaction(read_only=True) as connection:
-            rows = await (await connection.execute(
-                "SELECT revision,note,created_at FROM companion.persona_revisions WHERE persona_id=%s "
-                "AND (%s::bigint IS NULL OR revision<%s) ORDER BY revision DESC LIMIT %s",
-                (persona_id, cursor, cursor, min(100, limit) + 1))).fetchall()
-        more = len(rows) > limit
-        return Page(tuple(rows[:limit]), str(rows[limit - 1]["revision"]) if more else None, Coverage(not more))
 
     @asynccontextmanager
     async def connection(self, connection=None):
