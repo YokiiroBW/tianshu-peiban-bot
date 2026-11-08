@@ -246,6 +246,7 @@ const commands = new Set([
   "plugins/reconcile",
   "plugins/resume",
   "plugins/upgrade",
+  "plugins/reload",
   "plugins/uninstall",
   "plugins/schedules/save",
   "plugins/schedules/delete",

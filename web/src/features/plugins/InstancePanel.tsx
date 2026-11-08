@@ -22,6 +22,13 @@ export const states: Record<string, string> = {
   cancelled: "已取消",
   interrupted: "已中断",
 };
+/** Version order for upgrade versus rollback labels; unknown forms sort lowest. */
+function semver(value: string) {
+  return value
+    .split("-")[0]
+    .split(".")
+    .map((part) => Number.parseInt(part, 10) || 0);
+}
 const effects: Record<string, string> = {
   none: "无外部写入",
   applied: "操作已发生",
@@ -149,7 +156,27 @@ export function InstancePanel({
         >
           {instance.desired_state === "enabled" ? "停用" : "启用"}
         </button>
+        {instance.desired_state === "enabled" && (
+          <button
+            disabled={busy}
+            onClick={() =>
+              void mutate("reload", {
+                instance_id: instance.id,
+                expected_revision: instance.revision,
+              })
+            }
+          >
+            重新加载
+          </button>
+        )}
       </div>
+      {instance.plugin_runtime && (
+        <p className="plugins-note">
+          运行进程 {instance.plugin_runtime.pid ?? "未知"} · 代次{" "}
+          {(instance.plugin_runtime.generation ?? "").slice(0, 8)} · 观察于{" "}
+          {new Date(instance.plugin_runtime.observed_at ?? 0).toLocaleTimeString()}
+        </p>
+      )}
       {instance.problem && (
         <p className="plugins-note">请完成“配置”中的必填项。</p>
       )}
@@ -409,19 +436,45 @@ export function InstancePanel({
               })
             }
           >
-            切换版本
+            {semver(version) < semver(instance.version) ? "回退到此版本" : "升级到此版本"}
           </button>
           <p className="plugins-note">
-            切换失败会恢复迁移前的实例状态；卸载保留实例数据和外部任务。
+            升级先准备新包并迁移配置/数据。启用中的实例由新进程完成启动确认后接管；
+            停用实例完成迁移后继续停用，启用时才启动。失败时恢复原版本与原启停状态，
+            失败不会显示为成功，恢复失败也会如实给出阶段和原因。回退只对仍保留的兼容
+            版本有效；不可逆数据迁移后回退会出现数据不匹配，应在页面如实判断后再操作。
           </p>
           <button
             disabled={busy}
             onClick={() =>
-              void mutate("uninstall", { package_id: instance.package_id })
+              void mutate("uninstall", {
+                package_id: instance.package_id,
+                purge_data: false,
+              })
             }
           >
             卸载此插件包
           </button>
+          <p className="plugins-note">
+            卸载会停止该插件包的全部实例、撤销其工具/命令/事件/定时任务与页面入口，
+            并回收不再被引用的包文件；实例配置、绑定、密钥与业务数据默认保留，重装后
+            可继续使用。卸载期间该包的启用、创建实例、配置修改与版本切换都会被拒绝。
+          </p>
+          <button
+            className="plugins-danger"
+            disabled={busy}
+            onClick={() =>
+              void mutate("uninstall", {
+                package_id: instance.package_id,
+                purge_data: true,
+              })
+            }
+          >
+            卸载并清除此插件数据
+          </button>
+          <p className="plugins-note">
+            {"清除范围是该插件包下所有实例的自有数据：公开配置、绑定、密钥引用、插件持久状态、插件日志与定时任务；实例身份记录保留但配置清空，重装不会恢复已清除的配置。不删除原 Action/调用/尝试、请求、回执或 unknown 执行证明，也不删除共享文件、外部资源、宿主配置或其他插件数据。"}
+          </p>
         </div>
       )}
     </section>

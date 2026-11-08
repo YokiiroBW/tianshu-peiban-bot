@@ -195,6 +195,10 @@
   color: var(--color-accent);
   background: var(--color-selection);
 }
+.plugins-danger {
+  color: var(--color-red);
+  border-color: var(--color-red);
+}
 .plugins-error {
   color: var(--color-red);
   padding: 12px;

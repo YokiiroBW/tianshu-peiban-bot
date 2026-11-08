@@ -29,7 +29,18 @@ class WebPlugins:
             "not_found",
             404,
         )
-        return await self.host.local(document, entry["package"], entry["view"], entry["nonce"])
+        # An uninstalled or replaced package must not keep serving a cached page.
+        current = await self.host.local(
+            self.host.repository.get, "packages", entry["package"]["id"]
+        )
+        require(
+            current is not None
+            and current["installed"]
+            and current["digest"] == entry["package"]["digest"],
+            "not_found",
+            404,
+        )
+        return await self.host.local(document, current, entry["view"], entry["nonce"])
 
     async def guard(self, session):
         await self.service.authority.check(session)
@@ -213,8 +224,19 @@ class WebPlugins:
             result = await host.upgrade(
                 body["instance_id"], body["version"], body["expected_revision"]
             )
+        elif operation == "reload":
+            result = await host.restart(body["instance_id"], body["expected_revision"])
         elif operation == "uninstall":
-            result = await host.uninstall(body["package_id"])
+            # Views and cached tickets die with the package so no stale entry
+            # can keep serving an uninstalled plugin page.
+            for identifier in tuple(self.tickets):
+                if self.tickets[identifier]["package"].get("manifest", {}).get("id") == body[
+                    "package_id"
+                ]:
+                    self.tickets.pop(identifier, None)
+            result = await host.uninstall(
+                body["package_id"], purge_data=bool(body.get("purge_data"))
+            )
         elif operation == "logs":
             result = {"items": await host.local(repo.logs, body["instance_id"])}
         elif operation == "schedules":

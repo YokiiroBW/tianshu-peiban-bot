@@ -35,9 +35,43 @@ interactive，其次 elastic，再次 due；角色覆盖不变。修订提升到
 Memory/reflect 在读取时三类均已选 OC，其他功能和角色仍有独立绑定。本批按各功能已有选择
 统一，不把全部功能改为 OC，不重放既有请求或改写原 unknown，不调整模型供应商或预算。
 
-## 验证与发布状态
+## 验证与发布结果
 
-实现及集中验证进行中；尚未推送或部署。最终回执、精确提交和发布后读回将在收口时补齐。
-静态/发布工具 7 个用例中，6 个首轮通过，1 个受 Windows 无 npm 的测试 mock 影响；
-该 mock 已按其模拟边界固定，相关文件 3 个用例通过。前端 TypeScript 已通过。
-后续以最终集中结果为准，不把局部或模拟验证称为实际模型/QQ业务完成。
+产品提交 `34dfba6314d869c3a15c18b5e63db4d151ff83e3` 已推送到
+`github/codex/ui-model-release-20261108` 并串行部署。正式镜像为
+`sha256:26f33e09d2e6757d5163ffbff52759b44867f4db8c51f2bb23641b173436573f`。
+北京时间 2026-11-08 10:47:39 核验：六角色 ready、HTTP 200、0 重启、无 OOM，
+容量守护 healthy，容量守护与巡检服务 active。
+
+- 55 个不同受影响 Python/隔离 PG 用例通过；54 项首轮有效结果复用，
+  1 项旧“跨执行类别应无绑定”的断言按统一功能绑定语义更新后定向通过。
+  Windows npm mock 的修订包含在该轮结果中，未重复计数。
+- TypeScript 与正式前端构建通过；桌面/手机共 10 项 Playwright 通过，
+  包括两个真实构建包、真实 aiohttp 静态服务、旧页面懒加载与图片、输入与 unknown
+  提示保留、API/后台模拟工作连续及 A→B→A。
+- 同正式 Linux Dockerfile 的镜像构建通过。11 个受影响安装文件与不可变源码归档
+  SHA256 一致，包含模型 SQL、静态服务和配置资源。
+- 正式环境以 UID/GID 10001:10001 使用同一工具安装内置基线 A 和独立包 B，
+  实际完成 A→B→A→B；每次切换与回退均取得 HTTP 实际版本核验。
+  容器 ID/启动时间/重启计数、六个职责进程 instance_id 和 data_generation 全程不变。
+  两个版本共 10 个实际 HTTP 资源 SHA256 匹配，3 项原根路径资源仍与旧版一致。
+
+当前独立 UI 为 `ui-20261108-34dfba6314d8`，切换序号 4、compatible=true、
+degraded=false；前一版本为 `ui-core-34dfba6314d869c3a15c18b5e63db4d151ff83e3`，
+已安装保留，可用同一 rollback 工具恢复。
+
+原 48 条绑定全部与 `models.binding_class_history` 逐字段核对一致；统一后共
+20 个功能/角色选择、60 条兼容同步别名，主路线、备用顺序和修订与合并规则一致。
+只读调用实际安装的 ModelCatalog，确认 memory.extract、reflect、life.plan 对各调度类别
+选择一致；前两项仍为用户选定的 OC DeepSeek，Life 规划保留其现有 DeepSeek 绑定。
+其他功能和角色仍按各自配置选择，不能据此宣称所有 Gemini 请求均应消失。
+
+配置文件摘要、11 个挂载、其他 2 个容器、媒体配置、频道配置及业务代际保持。
+新增迁移仅 `models_function_bindings`；没有业务清理。
+原 251 条 Models unknown、6 条 Action unknown 和 0 条频道 unknown 的身份与关键事实
+摘要逐项保持，本次未新增 unknown。原配置另有发布前 JSON 快照，原镜像与工作树保留。
+隔离验证数据库、容器及临时凭据已按 owner 回收。
+
+没有发送真实模型或 QQ 测试请求，没有重放未知外部效果；健康和部署核验不代表全部历史业务
+已经收敛。完整构建、部署、UI 切换及核验材料保存在原协调目录的
+`.runtime/ui-model-release-20261108/`，最终摘要为 `final-receipt.json`。

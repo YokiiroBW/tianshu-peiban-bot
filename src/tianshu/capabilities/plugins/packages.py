@@ -61,6 +61,21 @@ class Packages:
         self.root = Path(root).resolve()
         self.root.mkdir(parents=True, exist_ok=True)
 
+    def reclaim(self, roots):
+        """Remove immutable package directories no instance or rollback still references."""
+        removed = []
+        for root in roots:
+            path = Path(root)
+            require(
+                path.is_absolute() and path.is_relative_to(self.root) and path.name != "",
+                "invalid_input",
+                400,
+            )
+            if path.exists():
+                shutil.rmtree(path)
+                removed.append(str(path))
+        return removed
+
     def prepare(self, source):
         require(isinstance(source, dict), "invalid_input", 400)
         staging = Path(tempfile.mkdtemp(prefix="staging-", dir=self.root)).resolve()

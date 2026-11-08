@@ -10,11 +10,13 @@ from pathlib import Path
 import time
 import uuid
 
-from ..contracts import Fault, require
+from tianshu.runtime.errors import AppError
+
+from ..contracts import Fault, digest, require
 from ..local_work import settled
 from ..storage import run_repository
 from .packages import Packages, relative_path
-from .process import Process, RemoteError
+from .process import Process, RemoteError, os_process_exited
 from .repository import Repository
 from .schema import (
     check,
@@ -26,6 +28,11 @@ from .schema import (
     validate_description,
 )
 from .vault import Vault
+
+# An instance whose failed upgrade candidate could not be proven exited keeps this
+# refusal code: nothing may start it, restore it or auto-recover it until cleanup
+# is confirmed through the same controlled path.
+CLEANUP_PENDING = "instance_cleanup_pending"
 
 AVAILABLE = frozenset(
     {"state.kv", "http.client", "secrets.read", "jobs.manage", "notifications.emit", "models.generate", "files.store", "sources.read", "messages.present", "channels.native"}
@@ -79,7 +86,24 @@ class PluginManager:
             settings.get("plugins", {}).get("package_directory", str(anchor) + ".plugins")
         )
         self.workers, self.locks, self.background = {}, defaultdict(asyncio.Lock), set()
+        # Instance admission stays open unless that instance's lifecycle is switching;
+        # the value is the refusal code its queued and new calls receive.
+        self.admission = {}
+        # One lifecycle lock per plugin package. Lock order is always
+        # package lock -> instance lock; other packages keep serving.
+        self.package_locks = defaultdict(asyncio.Lock)
         self.installations = set()
+        # Failed upgrade candidates whose exit could not be confirmed yet. They are
+        # retried through recover_candidate(); the durable marker lives in the
+        # operation ledger so a restarted host reads it back instead of guessing.
+        self.abandoned = {}
+        # Instances whose own recovery is starting their previous version right
+        # now. Only that start may pass the block; admission still refuses every
+        # other caller for the same instance.
+        self.recovering = set()
+        # Immutable roots a prepare already created but has not published yet.
+        # Reclaim must never remove a directory that is about to become installed.
+        self.preparing = defaultdict(int)
         self.scheduler_task = None
         self.operations_lock = asyncio.Lock()
         self.installation_lock = asyncio.Lock()
@@ -143,22 +167,52 @@ class PluginManager:
                 },
             )
         for operation in await self.local(self.repository.list, "operations"):
+            if operation.get("kind") == "upgrade" and operation.get("instance_id"):
+                stage = self.recovery_stage(operation)
+                if stage is not None and stage != self.RECOVERY_DONE:
+                    # This host died mid-recovery. Read the recorded stage back and
+                    # keep the instance blocked; the stage - not an assumption - is
+                    # resumed on the next normal access through recover_candidate().
+                    instance_id = operation["instance_id"]
+                    self.admission[instance_id] = CLEANUP_PENDING
+                    self.abandoned[instance_id] = {
+                        "process": None,
+                        "operation": operation,
+                    }
+                    continue
             if operation["execution"] in {"accepted", "running"}:
                 if operation.get("kind") == "upgrade":
+                    # Only a switch that never entered recovery may be rolled back
+                    # here; a recorded stage is resumed rather than re-run blindly.
                     await self.local(
-                        self.repository.restore, operation["instance_id"], operation["snapshot"]
+                        self.repository.restore,
+                        operation["instance_id"],
+                        operation["snapshot"],
                     )
                 operation.update(execution="interrupted", error={"code": "plugin_interrupted"})
                 await self.local(self.repository.put, "operations", operation)
-        for instance in await self.local(self.repository.list, "instances"):
-            if instance["desired_state"] == "enabled":
-                try:
-                    async with self.locks[instance["id"]]:
-                        await self.worker(instance)
-                        await self.scheduler.instance_changed(instance["id"])
-                except (Fault, RemoteError, TimeoutError, OSError):
-                    pass
-            elif await self.comic_instance(instance):
+        async def revive(instance):
+            try:
+                async with self.locks[instance["id"]]:
+                    await self.worker(instance)
+                    await self.scheduler.instance_changed(instance["id"])
+            except (Fault, RemoteError, TimeoutError, OSError):
+                # A blocked instance stays blocked; worker() refused it here.
+                pass
+
+        # Recovery runs per package so a slow start never blocks another package,
+        # and under that package's lifecycle lock so a switch cannot interleave.
+        instances = await self.local(self.repository.list, "instances")
+        per_package = defaultdict(list)
+        for instance in instances:
+            per_package[instance["package_id"]].append(instance)
+        for package_id, group in per_package.items():
+            async with self.package_locks[package_id]:
+                for instance in group:
+                    if instance["desired_state"] == "enabled":
+                        await revive(instance)
+        for instance in instances:
+            if instance["desired_state"] != "enabled" and await self.comic_instance(instance):
                 # Recover a crash after persisting disable but before releasing
                 # the runtime's old owner. Never re-enable that instance.
                 try:
@@ -207,6 +261,15 @@ class PluginManager:
                 *(self.stop_worker(identifier, "host_shutdown") for identifier in tuple(self.workers)),
                 return_exceptions=True,
             )
+            # A failed switch may still owe a live candidate that never registered.
+            for candidate in tuple(self.abandoned.values()):
+                process = candidate.get("process")
+                if process is not None:
+                    try:
+                        await process.close("host_shutdown")
+                    except (Fault, TimeoutError, OSError):
+                        pass
+            self.abandoned.clear()
             self.workers.clear()
         finally:
             self.started = False
@@ -227,6 +290,8 @@ class PluginManager:
 
     async def install(self, source, client_id, *, wait=False):
         await self.ensure_active()
+        # Installation never shares the ordinary capability file workers: staging,
+        # dependency resolution and Git fetches run on this owner's own thread.
         require(isinstance(client_id, str) and 1 <= len(client_id) <= 128, "invalid_input", 400)
         require(isinstance(source, dict), "invalid_input", 400)
         if source.get("type") == "builtin":
@@ -238,8 +303,8 @@ class PluginManager:
                 "type": "directory",
                 "path": str(Path(__file__).parent / "builtin" / identifier),
             }
-        from ..contracts import digest
-
+        # The source fingerprint keeps a repeated request from re-preparing
+        # different content under the same caller-supplied identity.
         fingerprint = digest(source)
         identifier = "install:" + digest(client_id)
         async with self.operations_lock:
@@ -297,8 +362,15 @@ class PluginManager:
         return package is not None and builtin_package(package)
 
     async def _install(self, operation, source):
-        async with self.installation_lock:
-            await self._prepare_install(operation, source)
+        """Stage the package, then publish it under this package's lifecycle lock.
+
+        Staging (source fetch, dependency environment, inspection child) never
+        holds the package lock, so a slow checkout does not stall that plugin's
+        ordinary lifecycle work. The publish step is where a package becomes
+        installed, and it takes package lock then installation lock - the same
+        order uninstall uses.
+        """
+        await self._prepare_install(operation, source)
 
     async def _install_local(self, operation, *args, **kwargs):
         # The installation lock bounds admission. Git/pip waits belong to this
@@ -309,42 +381,68 @@ class PluginManager:
         )
 
     async def _prepare_install(self, operation, source):
-        process = None
+        process, package, prepared = None, None, None
         try:
             operation.update(execution="running")
             await self.local(self.repository.put, "operations", operation)
-            package = await settled(self._install_local, self.packages.prepare, source)
-            process = Process(package, self.reject_capability)
-            await process.start()
-            description = await process.call("plugin.describe", {}, timeout=15)
-            manifest = package["manifest"]
-            if manifest.get("contributions_file"):
-                static = json.loads(
-                    (
-                        Path(package["root"]) / str(relative_path(manifest["contributions_file"]))
-                    ).read_text(encoding="utf-8")
-                )
-                for key in ("actions", "commands", "tools", "events", "bridges"):
-                    require(
-                        static.get(key, []) == description.get(key, []),
-                        "plugin_description_mismatch",
-                        409,
+            # Held only while immutable content and its environment are produced
+            # and inspected. A slow checkout therefore never blocks this plugin's
+            # ordinary lifecycle work, and it is never taken in reverse order.
+            async with self.installation_lock:
+                package = await settled(self._install_local, self.packages.prepare, source)
+                # No package row points at this directory yet: hold this plugin
+                # id so reclaim cannot take it while it is inspected or before
+                # the publish below submits it.
+                prepared = package["manifest"]["id"]
+                self.preparing[package["root"]] += 1
+                process = Process(package, self.reject_capability)
+                await process.start()
+                description = await process.call("plugin.describe", {}, timeout=15)
+                manifest = package["manifest"]
+                if manifest.get("contributions_file"):
+                    static = json.loads(
+                        (
+                            Path(package["root"])
+                            / str(relative_path(manifest["contributions_file"]))
+                        ).read_text(encoding="utf-8")
                     )
-                description = static
-            validate_description(description, manifest)
-            package["description"] = description
-            old = await self.local(self.repository.get, "packages", package["id"])
-            require(
-                old is None or old["digest"] == package["digest"], "plugin_version_conflict", 409
-            )
-            await self.local(self.repository.put, "packages", package)
-            operation.update(execution="succeeded", package_id=package["id"])
+                    for key in ("actions", "commands", "tools", "events", "bridges"):
+                        require(
+                            static.get(key, []) == description.get(key, []),
+                            "plugin_description_mismatch",
+                            409,
+                        )
+                    description = static
+                validate_description(description, manifest)
+                package["description"] = description
+                await process.close("inspection_finished")
+                process = None
+            # Publish is the only step that makes this package globally visible,
+            # so it is what must not interleave with an uninstall of this plugin.
+            # Lock order is always package lock -> installation lock, exactly as
+            # uninstall takes them, so no waiter can be held in reverse order.
+            async with self.package_locks[prepared], self.installation_lock:
+                regenerate = await self.local(self.repository.get, "packages", package["id"])
+                require(
+                    regenerate is None or regenerate["digest"] == package["digest"],
+                    "plugin_version_conflict",
+                    409,
+                )
+                # Reclamation only skips roots a publish is holding, so a second
+                # probe here proves the files really survived to publication.
+                require(Path(package["root"]).is_dir(), "plugin_install_failed", 409)
+                await self.local(self.repository.put, "packages", package)
+                operation.update(execution="succeeded", package_id=package["id"])
         except (Fault, RemoteError, TimeoutError, OSError, ValueError, KeyError) as error:
             operation.update(
                 execution="failed",
                 error={"code": error.code if isinstance(error, Fault) else "plugin_install_failed"},
             )
         finally:
+            if package is not None and package["root"] in self.preparing:
+                self.preparing[package["root"]] -= 1
+                if not self.preparing[package["root"]]:
+                    del self.preparing[package["root"]]
             if process:
                 await process.close("inspection_finished")
             await self.local(self.repository.put, "operations", operation)
@@ -372,16 +470,20 @@ class PluginManager:
             400,
         )
         identifier = str(uuid.uuid5(uuid.NAMESPACE_URL, "tianshu-plugin-instance:" + client_id))
-        async with self.operations_lock:
+        manifest = package["manifest"]
+        async with self.package_locks[manifest["id"]], self.operations_lock:
+            # Re-read under the locks so an uninstall that finished meanwhile is
+            # visible here and cannot be raced by a new instance.
+            package = await self.package(package_key)
+            manifest = package["manifest"]
             old = await self.local(self.repository.get, "instances", identifier)
             if old:
                 require(
-                    old["package_id"] == package["manifest"]["id"] and old["name"] == name.strip(),
+                    old["package_id"] == manifest["id"] and old["name"] == name.strip(),
                     "idempotency_conflict",
                     409,
                 )
                 return await self.projection(old)
-            manifest = package["manifest"]
             instance = {
                 "id": identifier,
                 "package_id": manifest["id"],
@@ -394,7 +496,7 @@ class PluginManager:
                 "created_at": time.time(),
             }
             await self.local(self.repository.put, "instances", instance)
-        return await self.projection(instance)
+            return await self.projection(instance)
 
     async def projection(self, instance):
         package = await self.local(
@@ -479,6 +581,12 @@ class PluginManager:
     async def configure(self, identifier, config, secrets, expected):
         await self.ensure_active()
         require(isinstance(config, dict) and isinstance(secrets, dict), "invalid_input", 400)
+        await self.settle_pending(identifier)
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id]:
+            return await self._configure(identifier, config, secrets, expected)
+
+    async def _configure(self, identifier, config, secrets, expected):
         async with self.locks[identifier]:
             instance = await self.instance(identifier)
             package = await self.package(instance["package_id"], instance["version"])
@@ -526,21 +634,25 @@ class PluginManager:
     async def state(self, identifier, enabled, expected):
         await self.ensure_active()
         require(type(enabled) is bool, "invalid_input", 400)
+        await self.settle_pending(identifier)
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id]:
+            if enabled:
+                return await self._enable(identifier, expected)
+            return await self._disable(identifier, expected)
+
+    async def _enable(self, identifier, expected):
         async with self.locks[identifier]:
             instance = await self.instance(identifier)
             previous_state = instance["desired_state"]
-            instance.update(
-                desired_state="enabled" if enabled else "disabled",
-                revision=instance["revision"] + 1,
-            )
+            instance.update(desired_state="enabled", revision=instance["revision"] + 1)
             await self.local(self.repository.put, "instances", instance, expected=expected)
             try:
                 await self.stop_worker(identifier, "instance_state_changed")
-                if enabled:
-                    await self.worker(instance)
-                    await self.scheduler.instance_changed(identifier)
+                await self.worker(instance)
+                await self.scheduler.instance_changed(identifier)
             except Fault as error:
-                if enabled and error.code == "comic_file_owner_conflict":
+                if error.code == "comic_file_owner_conflict":
                     # A rejected second instance must not become a future owner
                     # merely because it sorts before the real owner after reboot.
                     revision = instance["revision"]
@@ -549,9 +661,29 @@ class PluginManager:
                 raise
             return await self.projection(instance)
 
+    async def _disable(self, identifier, expected):
+        """Withdraw this instance's entries, then stop it; the package lock is held."""
+        async with self.locks[identifier]:
+            instance = await self.instance(identifier)
+            instance.update(desired_state="disabled", revision=instance["revision"] + 1)
+            await self.local(self.repository.put, "instances", instance, expected=expected)
+            # Disable withdraws this instance's entries before its process stops;
+            # other instances keep their own handlers and running children.
+            ports = getattr(self, "domain_ports", None)
+            if ports is not None and hasattr(ports, "revoke"):
+                ports.revoke(identifier)
+            await self.stop_worker(identifier, "instance_state_changed")
+            return await self.projection(instance)
+
     async def bindings(self, identifier, bindings, expected):
         await self.ensure_active()
         require(isinstance(bindings, list) and len(bindings) <= 128, "invalid_input", 400)
+        await self.settle_pending(identifier)
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id]:
+            return await self._bindings(identifier, bindings, expected)
+
+    async def _bindings(self, identifier, bindings, expected):
         async with self.locks[identifier]:
             instance = await self.instance(identifier)
             package = await self.package(instance["package_id"], instance["version"])
@@ -586,28 +718,66 @@ class PluginManager:
                 await self.scheduler.instance_changed(identifier)
             return await self.projection(instance)
 
-    async def worker(self, instance):
+    def child(self, package, identifier):
+        """A child whose host callbacks are attributed to its own generation.
+
+        The closure captures the generation so a late callback from a replaced
+        child can never act under the replacement's handles.
+        """
+        process = Process(package, None)
+        process.callback = lambda method, params: self.executions.callback(
+            identifier, method, params, generation=process.runtime_id
+        )
+        return process
+
+    async def worker(self, instance, *, prepared=None):
+        """Return the process that actually serves this instance's revision.
+
+        A caller that already staged a started, initialized and started child
+        (an upgrade switch) hands it in as `prepared` so the plugin's start hook
+        runs exactly once; the child then becomes the serving process.
+        """
         await self.ensure_active()
         require(
             instance["desired_state"] == "enabled" and not self.closing, "instance_disabled", 409
         )
+        # A failed switch whose candidate is not proven gone blocks every path that
+        # could start a process for this instance, not just the original upgrade.
+        # The refusal code is the durable marker itself, so a restarted host that
+        # read it back blocks exactly the same way.
+        await self.require_clean_settled(instance["id"])
         package = await self.package(instance["package_id"], instance["version"])
         projection = await self.projection(instance)
         require(not projection["missing_capabilities"], "capability_unavailable", 409)
         validate_config(package["schema"], instance["config"], projection["secret_configured"])
         current = self.workers.get(instance["id"])
         if current and current[0].alive and current[1] == instance["revision"]:
+            if prepared is not None and prepared is not current[0]:
+                self.executions.revoke(instance["id"], prepared.runtime_id)
+                await prepared.close("handover_duplicate")
             return current[0]
-        await self.stop_worker(instance["id"], "instance_restarted")
-        process = Process(
-            package, lambda method, params: self.executions.callback(instance["id"], method, params)
-        )
+        # Stop the previous child by identity: only its own handles die, so a
+        # prepared replacement keeps the context it already obtained.
+        previous = self.workers.get(instance["id"])
+        if previous:
+            await self.stop_worker(instance["id"], "instance_restarted", previous[0])
+        elif prepared is None:
+            self.executions.revoke(instance["id"])
+        else:
+            self.executions.retain(instance["id"], prepared.runtime_id)
+        process = prepared or self.child(package, instance["id"])
         try:
-            await process.start()
-            context = await self.executions.context(instance, None)
-            await process.call("plugin.initialize", context, timeout=15)
-            await process.call("plugin.start", {}, timeout=15)
+            if prepared is None:
+                await process.start()
+                context = await self.executions.context(
+                    instance, None, generation=process.runtime_id
+                )
+                await process.call("plugin.initialize", context, timeout=15)
+                await process.call("plugin.start", {}, timeout=15)
             self.workers[instance["id"]] = process, instance["revision"]
+            # This child is now the only serving generation; handles minted for
+            # any earlier one must not linger.
+            self.executions.retain(instance["id"], process.runtime_id)
             await self.runtime_state.started(instance["id"], process, instance["revision"])
             self.spawn(self.watch_worker(instance["id"], process))
             await self.scheduler.seed(instance["id"], package["description"])
@@ -620,8 +790,8 @@ class PluginManager:
                 await self.runtime_state.forget(instance["id"], process)
             except Exception:
                 pass
+            self.executions.revoke(instance["id"], process.runtime_id)
             await process.close("startup_failed")
-            self.executions.revoke(instance["id"])
             if await self.comic_instance(instance):
                 try:
                     await self.comic_files.stop(instance["id"])
@@ -641,106 +811,865 @@ class PluginManager:
                         await self.stop_worker(identifier, "worker_exited")
                     except (Fault, TimeoutError, OSError):
                         pass
+                else:
+                    # A child that already lost its registration still owns the
+                    # handles issued during its startup or staging.
+                    self.executions.revoke(identifier, process.runtime_id)
         finally:
             if not exited.done():
                 exited.cancel()
             await asyncio.gather(exited, return_exceptions=True)
 
-    async def stop_worker(self, identifier, reason):
-        item = self.workers.pop(identifier, None)
-        if item:
+    async def settle_accepted(self, identifier, code):
+        """Settle calls accepted but not yet executing, without replaying them.
+
+        Their original intent/attempt and receipts stay in the ledger; writes are
+        reported as unknown because their dispatch state cannot be proven, reads
+        as failed. A call already inside the old process keeps running to its own
+        outcome and can never resume the replaced version afterwards.
+        """
+        for call in await self.local(self.repository.accepted, identifier):
+            await self.local(
+                self.repository.update_call,
+                call["id"],
+                execution="interrupted",
+                effect="unknown" if call.get("write") else "none",
+                error={
+                    "code": "outcome_unknown" if call.get("write") else code,
+                    "retriable": False,
+                },
+            )
+
+    # --- failed-switch recovery -------------------------------------------------
+    # One rule decides where a failed switch stands, everywhere: the three facts
+    # are independent and none of them may be inferred from the others' absence.
+    #   candidate_confirmed : the named candidate's OS process is proven gone
+    #   snapshot_restored   : the instance snapshot was really written back
+    #   service_restored    : the previous version is really serving again
+    #   service_stopped    : an originally disabled instance is confirmed stopped
+    # Only "done" releases the instance block; only "snapshot_restored" allows a
+    # start. Completion requires the original desired state, running or stopped.
+    RECOVERY_CANDIDATE = "candidate_pending"
+    RECOVERY_SNAPSHOT = "snapshot_pending"
+    RECOVERY_SERVICE = "service_pending"
+    RECOVERY_DONE = "done"
+    RECOVERY_STAGES = frozenset(
+        {RECOVERY_CANDIDATE, RECOVERY_SNAPSHOT, RECOVERY_SERVICE, RECOVERY_DONE}
+    )
+
+    def recovery_stage(self, operation):
+        """This failed switch's stage, computed from the recorded facts only.
+
+        A record that never entered recovery returns None. The order is strict:
+        a snapshot can only be pending once the candidate is confirmed gone, and a
+        service can only be pending once the snapshot is really restored. An
+        originally disabled instance completes with a confirmed stopped state.
+        """
+        error = (operation or {}).get("error") or {}
+        if error.get("recovery") not in self.RECOVERY_STAGES:
+            return None
+        if error.get("candidate_closed") is not True:
+            return self.RECOVERY_CANDIDATE
+        if error.get("snapshot_restored") is not True:
+            return self.RECOVERY_SNAPSHOT
+        service_restored = error.get("service_restored") is True
+        expected = ((operation or {}).get("snapshot") or {}).get("instance") or {}
+        if expected.get("desired_state") == "disabled":
+            service_restored = error.get("service_stopped") is True
+        if not service_restored:
+            return self.RECOVERY_SERVICE
+        return self.RECOVERY_DONE
+
+    def recovery_pending(self, operation):
+        stage = self.recovery_stage(operation)
+        return stage is not None and stage != self.RECOVERY_DONE
+
+    async def pending_recovery(self, identifier=None):
+        """The newest failed switch of this instance that recovery has not finished.
+
+        Read from the operation ledger, so a restarted host resumes from the
+        recorded stage instead of guessing from memory.
+        """
+        found = None
+        for operation in await self.local(self.repository.list, "operations"):
+            if operation.get("kind") != "upgrade":
+                continue
+            if identifier is not None and operation.get("instance_id") != identifier:
+                continue
+            if not self.recovery_pending(operation):
+                continue
+            if found is None or (operation.get("created_at") or 0) >= (
+                found.get("created_at") or 0
+            ):
+                found = operation
+        return found
+
+    @staticmethod
+    def candidate_identity(operation):
+        """The recorded identity of this switch's candidate, never a guess."""
+        error = (operation or {}).get("error") or {}
+        return {
+            "pid": error.get("candidate_pid"),
+            "generation": error.get("candidate_generation"),
+        }
+
+    async def candidate_gone(self, identifier, process, record=None):
+        """Prove from the real OS process that this failed candidate is gone.
+
+        `returncode` is the direct fact while the object is here. Otherwise the
+        recorded pid may only prove **absence**. A pending recovery record without
+        a process object and without an exit proof is *unconfirmed* - never a
+        licence to recover - because a candidate may have been created and its
+        identity lost. Only a record that proves no candidate was ever created
+        skips the wait.
+        """
+        if process is not None and process.exited:
+            return True
+        error = (record or {}).get("error") or {}
+        if error.get("candidate_never_created") is True:
+            return True
+        if error.get("candidate_closed") is True:
+            # The exit proof was already obtained and is kept as a fact.
+            return True
+        pid = getattr(getattr(process, "process", None), "pid", None) if process else None
+        if pid is None:
+            pid = error.get("candidate_pid")
+        if pid is None:
+            # Created, yet neither a process nor a usable pid proves the exit.
+            return False
+        return await asyncio.to_thread(lambda: os_process_exited(pid))
+
+    async def require_clean_settled(self, identifier):
+        """Refuse while a failed switch of this instance has not finished recovery.
+
+        The refusal is the same code the admission gate uses, so ordinary calls,
+        reloads, enables and configuration changes are all stopped in one place
+        instead of each endpoint re-checking for itself. The one exception is the
+        recovery's own start of the previous version, marked while it holds this
+        instance's locks; admission keeps refusing everyone else meanwhile.
+        """
+        if identifier in self.recovering:
+            return
+        refusal = self.admission.get(identifier)
+        require(refusal != CLEANUP_PENDING, CLEANUP_PENDING, 409)
+
+    async def settle_pending(self, identifier):
+        """Advance a blocked instance through the one recovery path.
+
+        Called before this instance's lifecycle locks are taken. While any stage
+        of the recorded recovery is unfinished it either continues that stage or
+        refuses with the same code admission uses - it never starts a version
+        behind the stage order.
+        """
+        refusal = self.admission.get(identifier)
+        operation = await self.pending_recovery(identifier)
+        if refusal != CLEANUP_PENDING and operation is None:
+            return None
+        return await self.recover_candidate(identifier)
+
+    def block_instance(self, identifier, operation, process=None):
+        """Keep this instance refused while a recorded stage is unfinished."""
+        self.abandoned[identifier] = {"process": process, "operation": operation}
+        self.admission[identifier] = CLEANUP_PENDING
+
+    async def record_stage(self, operation, **changes):
+        """Persist one recovery stage without losing the original facts."""
+        error = dict(operation.get("error") or {})
+        for key in (
+            "candidate_pid",
+            "candidate_generation",
+            "code",
+            "failed_version",
+        ):
+            if key in error:
+                changes.setdefault(key, error[key])
+        error.update(changes)
+        operation.update(execution="failed", error=error)
+        await self.local(self.repository.put, "operations", operation)
+        return operation
+
+    async def record_cleanup_pending(self, operation, process, reason):
+        """Persist the block while the candidate's exit is still unproven.
+
+        The candidate's recorded identity is preserved: a missing process object
+        in this host must never overwrite the pid/generation an earlier host
+        obtained, because that would silently turn "unknown" into "gone".
+        """
+        pid = getattr(getattr(process, "process", None), "pid", None) if process else None
+        changes = {
+            "candidate_closed": False,
+            "candidate_error": reason,
+            "recovery": self.RECOVERY_CANDIDATE,
+            "restore_state": "blocked_candidate_alive",
+            "snapshot_restored": False,
+            "service_restored": False,
+            "rolled_back": False,
+            "restored_version": None,
+        }
+        if pid is not None:
+            changes["candidate_pid"] = pid
+        if process is not None:
+            changes["candidate_generation"] = process.runtime_id
+        return await self.record_stage(operation, **changes)
+
+    async def settle_failed_candidate(self, identifier, operation, process):
+        """Stop this candidate and decide, from the OS fact alone, what happens next.
+
+        Returning `True` means the candidate is confirmed gone and the same
+        recovery path continues. Returning `False` means the instance stays
+        blocked at the "waiting for the candidate" stage.
+        """
+        cleanup_error = None
+        if process is not None:
+            try:
+                await self.stop_worker(identifier, "upgrade_abandoned", process)
+            except (Fault, RemoteError, TimeoutError, OSError) as error:
+                # A closing error is not the exit proof: the OS process decides.
+                cleanup_error = getattr(error, "code", type(error).__name__)
+        if await self.candidate_gone(identifier, process, operation):
+            await self.record_stage(
+                operation,
+                candidate_closed=True,
+                candidate_error=cleanup_error,
+                candidate_exit=(
+                    "process_exit" if process is not None and process.exited else "pid_absent"
+                ),
+                recovery=self.RECOVERY_SNAPSHOT,
+                snapshot_restored=False,
+                service_restored=False,
+                rolled_back=False,
+                restored_version=None,
+            )
+            return True, cleanup_error
+        self.abandoned[identifier] = {"process": process, "operation": operation}
+        self.admission[identifier] = CLEANUP_PENDING
+        await self.record_cleanup_pending(
+            operation, process, cleanup_error or "candidate_still_running"
+        )
+        return False, cleanup_error or "candidate_still_running"
+
+    async def recover_candidate(self, identifier):
+        """Continue this instance's failed switch from its recorded stage.
+
+        Every entry point and every host restart lands here, so the stage order
+        exists once: candidate exit, then snapshot, then service, then release.
+        """
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id], self.locks[identifier]:
+            # Re-read the authoritative record inside the lock: a caller's stale
+            # copy must never drive a second restore or start.
+            operation = await self.pending_recovery(identifier)
+            require(operation is not None, "not_found", 404)
+            error = operation.get("error") or {}
+            stage = self.recovery_stage(operation)
+            if stage == self.RECOVERY_CANDIDATE:
+                candidate = self.abandoned.get(identifier) or {}
+                process = candidate.get("process")
+                if not await self.candidate_gone(identifier, process, operation):
+                    await self.record_cleanup_pending(
+                        operation, process, error.get("candidate_error") or "candidate_still_running"
+                    )
+                    raise Fault(CLEANUP_PENDING, 409)
+                await self.record_stage(
+                    operation,
+                    candidate_closed=True,
+                    candidate_exit=error.get("candidate_exit") or "pid_absent",
+                    recovery=self.RECOVERY_SNAPSHOT,
+                )
+                operation = await self.repository_operation(operation["id"])
+            return await self.resume_recovery(identifier, operation)
+
+    async def repository_operation(self, identifier):
+        """The authoritative copy of one operation, read back from the ledger."""
+        return await self.local(self.repository.get, "operations", identifier)
+
+    async def resume_recovery(self, identifier, operation):
+        """Run the remaining stages of a failed switch, in order and idempotently."""
+        # The ledger is the authority: a caller holding a pre-recovery copy must
+        # not restore the data or start a service the record already finished.
+        operation = await self.repository_operation(operation["id"])
+        stage = self.recovery_stage(operation)
+        if stage == self.RECOVERY_CANDIDATE:
+            raise Fault(CLEANUP_PENDING, 409)
+        if stage == self.RECOVERY_SNAPSHOT:
+            operation = await self.restore_snapshot_stage(identifier, operation)
+            stage = self.recovery_stage(operation)
+            if stage == self.RECOVERY_CANDIDATE:
+                raise Fault(CLEANUP_PENDING, 409)
+        if self.recovery_stage(operation) == self.RECOVERY_SERVICE:
+            operation = await self.restore_service_stage(identifier, operation)
+        return operation
+
+    async def restore_snapshot_stage(self, identifier, operation):
+        """Write the snapshot back and mark the stage in the same transaction.
+
+        The data and the "restored" fact commit together, so the stage can never
+        say pending while the data is already back (or the reverse).
+        """
+        snapshot = operation.get("snapshot") or {}
+        recorded = snapshot.get("instance") or {}
+
+        def attempt():
+            with self.repository.transaction() as db:
+                current = self.repository.get("instances", identifier, db)
+                fresh = self.repository.get("operations", operation["id"], db)
+                if (fresh.get("error") or {}).get("recovery") != self.RECOVERY_SNAPSHOT:
+                    # Already past this stage in the ledger: a caller holding a
+                    # stale record must not restore the data a second time.
+                    return fresh
+                # Never roll a newer valid state back to an old snapshot.
+                if current["revision"] != recorded.get("revision"):
+                    fresh["error"].update(
+                        recovery=self.RECOVERY_SNAPSHOT,
+                        snapshot_restored=False,
+                        restore_state="restore_conflict",
+                        restore_error="instance_changed_since_snapshot",
+                        rolled_back=False,
+                        restored_version=None,
+                    )
+                    fresh["execution"] = "failed"
+                    self.repository.put("operations", fresh, db)
+                    return fresh
+                self.repository.restore(identifier, snapshot, db)
+                fresh["execution"] = "failed"
+                fresh["error"].update(
+                    recovery=self.RECOVERY_SERVICE,
+                    snapshot_restored=True,
+                    restore_state="restored",
+                    restore_error=None,
+                    service_restored=False,
+                )
+                self.repository.put("operations", fresh, db)
+                return fresh
+
+        try:
+            fresh = await run_repository(self.runtime.database, attempt)
+        except (Fault, RemoteError, TimeoutError, OSError, AppError) as failure:
+            recorded = await self.record_stage(
+                operation,
+                candidate_closed=True,
+                recovery=self.RECOVERY_SNAPSHOT,
+                snapshot_restored=False,
+                restore_state="restore_failed",
+                restore_error=getattr(failure, "code", type(failure).__name__),
+                rolled_back=False,
+                restored_version=None,
+            )
+            # The data did not come back, so the instance keeps refused until the
+            # snapshot stage really succeeds - including across a host restart.
+            self.block_instance(identifier, recorded)
+            raise
+        operation = fresh
+        if (operation.get("error") or {}).get("restore_state") == "restore_conflict":
+            # The recorded snapshot no longer describes this instance: keeping
+            # both facts is the honest outcome, and the block stays.
+            self.block_instance(identifier, operation)
+            raise Fault(CLEANUP_PENDING, 409)
+        return operation
+
+    async def restore_service_stage(self, identifier, operation):
+        """Restore the previous version's desired running state and record it.
+
+        The snapshot is never touched here: a restored stage is only retried for
+        service, so a failed start cannot roll the data back a second time. A
+        disabled instance is restored by remaining stopped, without a start.
+        """
+        fresh = await self.repository_operation(operation["id"])
+        if self.recovery_stage(fresh) in {self.RECOVERY_DONE, None}:
+            # Completed (or no longer pending) in the ledger: nothing to redo.
+            return fresh
+        operation = fresh
+        # Keep admission closed even if the process starts but the completion
+        # write fails. A retry may reuse that same process and its startup handle.
+        self.block_instance(identifier, operation)
+        current = await self.instance(identifier)
+        started, stopped, service_error = False, False, None
+        try:
+            serving = self.workers.get(identifier)
+            if current["desired_state"] == "disabled":
+                await self.stop_worker(identifier, "restore_disabled")
+                if serving is not None:
+                    require(serving[0].exited, "plugin_unavailable", 503)
+                self.executions.revoke(identifier)
+                stopped = True
+            elif current["desired_state"] == "enabled":
+                if serving and serving[0].alive and serving[1] == current["revision"]:
+                    # The preceding attempt may have started this child before
+                    # its completion write failed. Keep its own handles intact.
+                    self.executions.retain(identifier, serving[0].runtime_id)
+                else:
+                    self.recovering.add(identifier)
+                    await self.worker(current)
+                started = True
+        except (Fault, RemoteError, TimeoutError, OSError) as failure:
+            service_error = (
+                failure.data.get("code")
+                if isinstance(failure, RemoteError)
+                else getattr(failure, "code", type(failure).__name__)
+            )
+        finally:
+            self.recovering.discard(identifier)
+        if started or stopped:
+            restored_version = (await self.package(
+                current["package_id"], current["version"]
+            ))["manifest"]["version"]
+            operation = await self.record_stage(
+                operation,
+                recovery=self.RECOVERY_DONE,
+                service_restored=started,
+                service_stopped=stopped,
+                snapshot_restored=True,
+                candidate_closed=True,
+                rolled_back=True,
+                restored_version=restored_version,
+                restore_error=None,
+                service_error=None,
+            )
+            self.abandoned.pop(identifier, None)
+            self.admission.pop(identifier, None)
+            return operation
+        # The snapshot stays restored; only the service stage is still owed, so
+        # the next attempt retries the start and never rewrites the data again.
+        recorded = await self.record_stage(
+            operation,
+            recovery=self.RECOVERY_SERVICE,
+            snapshot_restored=True,
+            service_restored=False,
+            service_stopped=False,
+            rolled_back=False,
+            restored_version=None,
+            restore_error=service_error or "plugin_unavailable",
+            service_error=service_error or "plugin_unavailable",
+        )
+        # Registering the block is what keeps the instance refused: the upgrade's
+        # own cleanup must not release a stage that is still owed.
+        self.block_instance(identifier, recorded)
+        raise Fault(CLEANUP_PENDING, 409)
+
+    async def finish_failed_switch(self, identifier, operation):
+        """The settled failure path shared by the switch and every later entry."""
+        return await self.resume_recovery(identifier, operation)
+
+    async def stop_worker(self, identifier, reason, process=None):
+        """Stop the named child and revoke only the handles minted for it.
+
+        A process that never registered - a staged upgrade candidate, an
+        inspection child, a candidate that lost its registration - is still a
+        live OS child with its own handles, so it is revoked **and closed** here.
+        Only the named process is touched: a registered replacement is left
+        running with its own handles when a different candidate is being stopped.
+        """
+        item = self.workers.get(identifier)
+        if item and (process is None or item[0] is process):
+            self.workers.pop(identifier, None)
+            self.executions.revoke(identifier, item[0].runtime_id)
             try:
                 await self.runtime_state.forget(identifier, item[0])
             finally:
                 await item[0].close(reason)
-        self.executions.revoke(identifier)
+        elif process is not None:
+            # A candidate that never registered still owns its handles.
+            self.executions.revoke(identifier, process.runtime_id)
+            await process.close(reason)
         instance = await self.instance(identifier)
         if await self.comic_instance(instance):
             await self.comic_files.stop(identifier)
 
-    async def uninstall(self, package_id):
+    async def restart(self, identifier, expected):
+        """Rebuild this instance's process on its existing installed version.
+
+        The instance keeps its identity, configuration, secret references, bindings
+        and persisted state; only the running generation changes. The revision bump
+        makes an exiting old process unable to observe or stop its replacement.
+        """
         await self.ensure_active()
+        await self.settle_pending(identifier)
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id], self.locks[identifier]:
+            instance = await self.instance(identifier)
+            require(instance["revision"] == expected, "revision_conflict", 409)
+            require(instance["desired_state"] == "enabled", "instance_disabled", 409)
+            previous = self.workers.get(identifier)
+            old = previous[0] if previous else None
+            generation = old.runtime_id if old else None
+            instance.update(revision=instance["revision"] + 1)
+            await self.local(self.repository.put, "instances", instance, expected=expected)
+            # New admission stays closed from the old process's stop until the
+            # replacement is started; accepted calls keep their own attempt.
+            self.admission[identifier] = "instance_reloading"
+            try:
+                if old is not None:
+                    await self.stop_worker(identifier, "instance_reloaded", old)
+                process = await self.worker(instance)
+            finally:
+                self.admission.pop(identifier, None)
+            await self.scheduler.instance_changed(identifier)
+            return {
+                **(await self.projection(await self.instance(identifier))),
+                "reload": {
+                    "previous_generation": generation,
+                    "generation": process.runtime_id,
+                    "pid": process.process.pid,
+                },
+            }
+
+    async def uninstall(self, package_id, *, purge_data=False, client_id=None):
+        """Stop this package's instances, revoke entries and reclaim its files.
+
+        The package lock covers the whole operation: no instance of this package
+        can be enabled, created, configured, upgraded or reloaded while it runs,
+        and other packages keep their own processes and lifecycle locks.
+        """
+        await self.ensure_active()
+        identifier = "uninstall:" + digest(
+            [package_id, client_id or str(uuid.uuid4()), bool(purge_data)]
+        )
+        if client_id:
+            old = await self.local(self.repository.get, "operations", identifier)
+            if old is not None:
+                require(
+                    old["fingerprint"] == [package_id, bool(purge_data)],
+                    "idempotency_conflict",
+                    409,
+                )
+                return old["result"]
+        # A blocked instance is settled through the single recovery path before
+        # this package lock is taken, so the order is never lock-then-recover.
+        for instance in await self.local(self.repository.list, "instances"):
+            if instance["package_id"] == package_id:
+                await self.settle_pending(instance["id"])
+        async with self.package_locks[package_id]:
+            return await self._uninstall(package_id, identifier, purge_data)
+
+    async def _uninstall(self, package_id, identifier, purge_data):
+        """The package lock is already held by the caller."""
         packages = [
             package
             for package in await self.local(self.repository.list, "packages")
             if package["manifest"]["id"] == package_id
         ]
         require(packages, "not_found", 404)
-        for instance in await self.local(self.repository.list, "instances"):
-            if instance["package_id"] == package_id:
-                await self.state(instance["id"], False, instance["revision"])
-        for package in packages:
-            package["installed"] = False
-            await self.local(self.repository.put, "packages", package)
-        return {"uninstalled": True, "instance_data": "retained", "external_resources": "retained"}
+        instances = [
+            instance
+            for instance in await self.local(self.repository.list, "instances")
+            if instance["package_id"] == package_id
+        ]
+        if all(not package["installed"] for package in packages):
+            # A repeated request must not delete the same paths twice or touch an
+            # instance created after the first removal.
+            result = {
+                "uninstalled": True,
+                "package_id": package_id,
+                "instances": [instance["id"] for instance in instances],
+                "reclaimed": [],
+                "instance_data": "purged" if purge_data else "retained",
+                "external_resources": "retained",
+                "operation_id": identifier,
+                "already_uninstalled": True,
+            }
+            await self.local(
+                self.repository.put,
+                "operations",
+                {
+                    "id": identifier,
+                    "kind": "uninstall",
+                    "package_id": package_id,
+                    "fingerprint": [package_id, bool(purge_data)],
+                    "execution": "succeeded",
+                    "error": None,
+                    "instances": result["instances"],
+                    "reclaimed": [],
+                    "purged": bool(purge_data),
+                    "created_at": time.time(),
+                    "result": result,
+                    "already_uninstalled": True,
+                },
+            )
+            return result
+        operation = {
+            "id": identifier,
+            "kind": "uninstall",
+            "package_id": package_id,
+            "fingerprint": [package_id, bool(purge_data)],
+            "execution": "running",
+            "error": None,
+            "instances": [instance["id"] for instance in instances],
+            "reclaimed": [],
+            "purged": bool(purge_data),
+            "created_at": time.time(),
+            "result": None,
+        }
+        await self.local(self.repository.put, "operations", operation)
+        stopped = []
+        # This method already holds the package lock, so a pending cleanup cannot
+        # be settled here without deadlocking. Removal refuses instead: an
+        # instance that still owes a confirmed exit is never silently unblocked.
+        for instance in instances:
+            await self.require_clean_settled(instance["id"])
+        # No instance of this package may take a new call while it is removed.
+        for instance in instances:
+            self.admission[instance["id"]] = "instance_unloading"
+        try:
+            for instance in instances:
+                # `_disable` expects the package lock to be already held.
+                await self._disable(instance["id"], instance["revision"])
+                ports = getattr(self, "domain_ports", None)
+                if ports is not None and hasattr(ports, "revoke"):
+                    ports.revoke(instance["id"])
+                if purge_data:
+                    await self.local(self.repository.purge, instance["id"])
+                stopped.append(instance["id"])
+            digests = {package["root"] for package in packages}
+            others = {
+                package["root"]
+                for package in await self.local(self.repository.list, "packages")
+                if package["manifest"]["id"] != package_id
+            }
+            # Reclaim only once no instance, process or upgrade snapshot can still
+            # run this directory. Package documents stay as installed=False so a
+            # retained instance keeps its identity for a later reinstall.
+            for package in packages:
+                package["installed"] = False
+                await self.local(self.repository.put, "packages", package)
+            # Reclamation runs under the installation lock: a concurrent prepare of
+            # this package may have re-created an identical directory meanwhile, and
+            # a currently installed package row always keeps its files.
+            async with self.installation_lock:
+                referenced = {
+                    package["root"]
+                    for package in await self.local(self.repository.list, "packages")
+                    if package["installed"]
+                }
+                # A prepare that already created its directory but has not yet
+                # published still owns it: reclaiming it would leave that install
+                # with a package row pointing at missing files.
+                # Roots a prepare already produced but has not published are
+                # held: deleting them would leave that publish with no files.
+                reclaimed = await settled(
+                    self._install_local,
+                    self.packages.reclaim,
+                    digests - others - referenced - set(self.preparing),
+                )
+            result = {
+                "uninstalled": True,
+                "package_id": package_id,
+                "instances": [instance["id"] for instance in instances],
+                "reclaimed": reclaimed,
+                "instance_data": "purged" if purge_data else "retained",
+                "external_resources": "retained",
+                "operation_id": identifier,
+            }
+            operation.update(execution="succeeded", reclaimed=reclaimed, result=result)
+            await self.local(self.repository.put, "operations", operation)
+            return result
+        except BaseException as error:
+            operation.update(
+                execution="failed",
+                error={
+                    "code": getattr(error, "code", "plugin_uninstall_failed"),
+                    "stopped_instances": stopped,
+                    "packages_marked": [
+                        package["id"] for package in packages if not package["installed"]
+                    ],
+                    "remaining_instances": [
+                        instance["id"]
+                        for instance in instances
+                        if instance["id"] not in stopped
+                    ],
+                },
+            )
+            await self.local(self.repository.put, "operations", operation)
+            raise
+        finally:
+            for instance in instances:
+                self.admission.pop(instance["id"], None)
+                if instance["id"] in self.abandoned:
+                    # Cleanup is still owed, so the block survives this operation.
+                    self.admission[instance["id"]] = CLEANUP_PENDING
 
     async def upgrade(self, identifier, version, expected):
         await self.ensure_active()
-        async with self.locks[identifier]:
-            instance = await self.instance(identifier)
-            require(instance["revision"] == expected, "revision_conflict", 409)
-            previous = await self.package(instance["package_id"], instance["version"])
-            package = await self.package(instance["package_id"], version)
-            # Data/config migrations are explicit SDK calls, isolated to this instance's state.
-            await self.stop_worker(identifier, "upgrading")
-            snapshot = await self.local(self.repository.snapshot, identifier)
-            operation = {
-                "id": "upgrade:" + uuid.uuid4().hex,
-                "kind": "upgrade",
-                "instance_id": identifier,
-                "snapshot": snapshot,
-                "execution": "running",
-                "error": None,
-                "package_id": package["id"],
-                "created_at": time.time(),
-            }
-            await self.local(self.repository.put, "operations", operation)
-            process = Process(
-                package, lambda method, params: self.executions.callback(identifier, method, params)
-            )
+        # A pending cleanup always runs first, through this same path only.
+        await self.settle_pending(identifier)
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id], self.locks[identifier]:
             try:
-                await process.start()
-                migrated = await process.call(
-                    "plugin.migrate_config",
-                    {
-                        "from_version": previous["manifest"].get("config_version", 0),
-                        "config": instance["config"],
-                    },
+                return await self._upgrade(identifier, version, expected)
+            except (Fault, RemoteError, TimeoutError, OSError, AppError) as error:
+                # The console must never present a switch as successful when the
+                # serving process did not come up. The recorded operation carries
+                # the exact stage and any rollback outcome.
+                await self.raise_operation_failure(
+                    error, kind="upgrade", instance=identifier
                 )
-                instance["config"] = merge(defaults(package["schema"]), migrated)
-                validate_config(
-                    package["schema"],
-                    instance["config"],
-                    await self.local(self.vault.names, identifier),
-                )
-                candidate = {**instance, "version": version}
-                context = await self.executions.context(candidate, None)
-                await process.call("plugin.initialize", context)
-                await process.call(
-                    "plugin.migrate_data",
-                    {
-                        "from_version": previous["manifest"].get("data_version", 0),
-                        "to_version": package["manifest"].get("data_version", 0),
-                    },
-                )
-                instance.update(version=version, revision=instance["revision"] + 1)
 
-                def commit():
-                    with self.repository.transaction() as db:
-                        self.repository.put("instances", instance, db, expected=expected)
-                        operation["execution"] = "succeeded"
-                        self.repository.put("operations", operation, db)
+    async def raise_operation_failure(self, error, *, kind, instance=None, package=None):
+        """Refuse with the recorded stage/rollback facts instead of a bare fault."""
+        failure = None
+        for operation in reversed(await self.local(self.repository.list, "operations")):
+            if operation.get("kind") != kind:
+                continue
+            if instance is not None and operation.get("instance_id") != instance:
+                continue
+            if package is not None and operation.get("package_id") != package:
+                continue
+            failure = operation
+            break
+        recorded = (failure or {}).get("error") or {}
+        raise AppError(
+            recorded.get("code") or ("plugin_" + kind + "_failed"),
+            409,
+            details={
+                "operation_id": (failure or {}).get("id"),
+                "execution": (failure or {}).get("execution"),
+                "error": recorded or None,
+                "cause": getattr(error, "code", type(error).__name__),
+            },
+        ) from None
 
-                await run_repository(self.runtime.database,commit)
-            except BaseException:
-                await self.local(self.repository.restore, identifier, snapshot)
-                operation.update(execution="failed", error={"code": "plugin_upgrade_failed"})
-                await self.local(self.repository.put, "operations", operation)
-                raise
-            finally:
-                await process.close("upgrade_staged")
-                self.executions.revoke(identifier)
-                current = await self.instance(identifier)
-                if current["desired_state"] == "enabled":
-                    await self.worker(current)
-            return await self.projection(await self.instance(identifier))
+    async def _upgrade(self, identifier, version, expected):
+        """Prepare the new version, hand its process over and only then commit."""
+        instance = await self.instance(identifier)
+        require(instance["revision"] == expected, "revision_conflict", 409)
+        previous = await self.package(instance["package_id"], instance["version"])
+        package = await self.package(instance["package_id"], version)
+        require(version != instance["version"], "invalid_input", 400)
+        snapshot = await self.local(self.repository.snapshot, identifier)
+        operation = {
+            "id": "upgrade:" + uuid.uuid4().hex,
+            "kind": "upgrade",
+            "instance_id": identifier,
+            "snapshot": snapshot,
+            "execution": "running",
+            "error": None,
+            "package_id": package["id"],
+            "from_version": previous["manifest"]["version"],
+            "to_version": version,
+            "created_at": time.time(),
+        }
+        await self.local(self.repository.put, "operations", operation)
+        # Admission closes for this instance only. A call accepted before the
+        # switch keeps its own document and attempt; it is settled by its
+        # original snapshot rather than restarting the previous version.
+        self.admission[identifier] = "instance_upgrading"
+        process = None
+        handed_over = False
+        try:
+            await self.stop_worker(identifier, "upgrading")
+            # A call accepted against the previous version but not yet executed
+            # would otherwise wake that version behind the switch's back. It is
+            # settled now under its original identity: writes become unknown,
+            # reads become failed, and nothing is replayed.
+            await self.settle_accepted(identifier, "instance_upgraded")
+            process = self.child(package, identifier)
+            await process.start()
+            migrated = await process.call(
+                "plugin.migrate_config",
+                {
+                    "from_version": previous["manifest"].get("config_version", 0),
+                    "config": instance["config"],
+                },
+            )
+            candidate = {**instance, "version": version}
+            candidate["config"] = merge(defaults(package["schema"]), migrated)
+            validate_config(
+                package["schema"],
+                candidate["config"],
+                await self.local(self.vault.names, identifier),
+            )
+            context = await self.executions.context(
+                candidate, None, generation=process.runtime_id
+            )
+            await process.call("plugin.initialize", context)
+            await process.call(
+                "plugin.migrate_data",
+                {
+                    "from_version": previous["manifest"].get("data_version", 0),
+                    "to_version": package["manifest"].get("data_version", 0),
+                },
+            )
+            # Enabled instances hand this same started child over. Disabled
+            # instances only validate/migrate, then close it without running the
+            # plugin's start hook or changing their desired state.
+            enabled = instance["desired_state"] == "enabled"
+            if enabled:
+                await process.call("plugin.start", {}, timeout=15)
+                require(process.alive, "plugin_unavailable", 503)
+            instance.update(
+                config=candidate["config"],
+                version=version,
+                revision=instance["revision"] + 1,
+            )
+            if enabled:
+                served = await self.worker(instance, prepared=process)
+                require(served is process, "plugin_upgrade_failed", 409)
+                handed_over = True
+            else:
+                await self.stop_worker(identifier, "upgraded_disabled", process)
+                require(process.exited, "plugin_unavailable", 503)
+
+            def commit():
+                with self.repository.transaction() as db:
+                    self.repository.put("instances", instance, db, expected=expected)
+                    operation["execution"] = "succeeded"
+                    if handed_over:
+                        operation["generation"] = process.runtime_id
+                    self.repository.put("operations", operation, db)
+
+            await run_repository(self.runtime.database, commit)
+            operation["execution"] = "succeeded"
+        except BaseException as error:
+            code = (
+                error.data.get("code")
+                if isinstance(error, RemoteError)
+                else error.code
+                if isinstance(error, Fault)
+                else "plugin_upgrade_failed"
+            )
+            code = code or "plugin_upgrade_failed"
+            # Only the facts of the failure are seeded here. rolled_back and
+            # restored_version are written by the stage that really restores the
+            # service, never by the failure itself.
+            operation.update(
+                error={
+                    "code": code,
+                    "failed_version": version,
+                    "restored_version": None,
+                    "rolled_back": False,
+                }
+            )
+            # Two mutually exclusive outcomes, decided by the OS fact alone:
+            # the candidate is proven gone, or the instance stays blocked. A
+            # snapshot is never restored and an old version is never started
+            # while the failed candidate could still be running.
+            settled = True
+            if process is not None:
+                settled, _ = await self.settle_failed_candidate(
+                    identifier, operation, process
+                )
+            else:
+                # Nothing was created for this attempt, which is recorded as a
+                # fact rather than inferred from a missing process object.
+                await self.record_stage(
+                    operation,
+                    candidate_never_created=True,
+                    candidate_closed=True,
+                    recovery=self.RECOVERY_SNAPSHOT,
+                )
+            if settled:
+                await self.finish_failed_switch(identifier, operation)
+            raise
+        finally:
+            # Cleanup only. This close is never the exit proof, so it cannot unblock
+            # an unsettled instance, and a second close must not replace the
+            # original failure with a cleanup error.
+            if not handed_over and process is not None:
+                try:
+                    await process.close("upgrade_abandoned")
+                except (Fault, RemoteError, TimeoutError, OSError):
+                    pass
+            # The guard is released unless the candidate still blocks this
+            # instance; the exit proof - never this cleanup - decides that.
+            if identifier not in self.abandoned:
+                self.admission.pop(identifier, None)
+        return await self.projection(await self.instance(identifier))
