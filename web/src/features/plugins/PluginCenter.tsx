@@ -128,7 +128,30 @@ export default function PluginCenter() {
         setNotice("动作已受理，可在实例任务中查看结果。");
       else if (operation === "install")
         setNotice("安装操作已完成，下方显示当前安装状态。");
-      else setNotice("操作已保存。");
+      else if (operation === "reload") {
+        const pid = (result as { plugin_runtime?: { pid?: number } } | undefined)
+          ?.plugin_runtime?.pid;
+        setNotice(
+          pid
+            ? `已重建该实例的运行进程（PID ${pid}），容器与其他插件保持运行。`
+            : "已重建该实例的运行进程。",
+        );
+      } else if (operation === "upgrade")
+        setNotice(
+          `已切换到 ${
+            (result as { version?: string } | undefined)?.version ?? "目标版本"
+          }，承接后续调用的是这里显示的运行进程，实例身份、绑定与数据保持。`,
+        );
+      else if (operation === "uninstall") {
+        const value = result as
+          | { instance_data?: string; reclaimed?: string[] }
+          | undefined;
+        setNotice(
+          value?.instance_data === "purged"
+            ? "已卸载并清除该插件自有数据；共享文件、外部资源与执行回执保持。"
+            : "已卸载该插件：进程已停止、入口已撤销，实例配置与业务数据保留，可重装恢复。",
+        );
+      } else setNotice("操作已保存。");
       await reload(active.signal).catch((cause) => {
         if (!active.signal.aborted) setError(readFailure(cause));
       });
