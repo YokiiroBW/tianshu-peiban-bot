@@ -1,3 +1,5 @@
+> 最新联合部署状态见 [PLUGIN-FISH-RELEASE-20261109.md](PLUGIN-FISH-RELEASE-20261109.md)。当前产品 976aea31e24f46f2f4978ba749a85935e131c57d 已发布；本文原本地交付状态保留为历史记录。
+
 # 插件在线安装、重载、升级、回退、卸载交付（PLUGIN-ONLINE-LIFECYCLE-20261108）
 
 ## 当前集成与直接修复（2026-11-09）
