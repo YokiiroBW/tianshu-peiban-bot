@@ -72,8 +72,7 @@ async def group_names(service, context, conversation_ids, *, refresh=False):
             error_code = None
             display_name = previous
             try:
-                async with asyncio.timeout(5):
-                    receipt = await service.actions.invoke(action, background=False)
+                receipt = await service.actions.invoke(action, background=False)
                 data = receipt.result.get("data")
                 if receipt.execution != "succeeded" or not isinstance(data, dict):
                     raise ChannelError(receipt.error_code or "group_name_unavailable", 503)
