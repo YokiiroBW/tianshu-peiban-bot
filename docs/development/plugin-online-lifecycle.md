@@ -64,14 +64,28 @@
   - 卸载：先撤贡献与页面票据，再按代次停进程与撤销句柄。
 - 不放宽任何校验：`callback` 仍要求实例匹配、句柄未过期、期望状态与授权有效；所有权检查只是附加的、更严格的条件。
 
-## 四、升级的真实成功条件
+## 四、失败候选的关闭与退出确认
+
+升级失败时，候选子进程可能**从未注册**到 `workers[instance_id]`，但它仍是一个持有 RPC 通道、句柄和插件自有任务的活动操作系统进程。因此失败分支的顺序是：
+
+1. `stop_worker(identifier, "upgrade_abandoned", process)`：撤销该候选**自身代次**的句柄并 `process.close()`（`plugin.stop` → `terminate` → `kill` 后 `await process.wait()`）；
+2. `process.exited`（`returncode is not None`）确认操作系统子进程已经退出；
+3. 恢复实例快照；
+4. 撤销该实例残留句柄；
+5. 需要时重启旧版本，并按真实结果写 `rolled_back`/`restored_version`/`restore_error`。
+
+- `stop_worker(..., process)` 只处理**指定**进程：若 `workers` 中当前登记的是另一台替代进程，它不会被关闭、其句柄不会被撤销、其资源不会被释放。
+- `Process.close()` 带 `closed` 幂等标记：失败分支与 `finally` 都会清理同一子进程，第二次调用是安全的空操作。
+- 候选关闭失败或无法确认退出时：`candidate_closed=false`、`candidate_error` 记录 `candidate_still_running` 或清理异常码，`rolled_back` 与 `restored_version` 不再声称安全恢复；原始失败码仍在 `error.code`，原始 `failed_version` 不变，请求/回执/unknown、实例身份、配置、版本与 CAS 均不受影响。
+
+## 五、升级的真实成功条件
 
 - `plugin.start` 成功且 RPC 通道仍在（`process.alive`）之后，该暂存进程直接注册为 `workers[instance_id]` 的服务进程；记账的 `generation` 就是这台进程（用例断言 `plugin_runtime.generation == operations.generation`）。
 - 该进程注册失败、或提交账本失败时一律记 `execution=failed`：先停掉已接管的暂存进程，恢复实例快照并重启旧版本；`rolled_back`/`restored_version` 只在旧版本**真的恢复可用**时为真，否则 `rolled_back=false`、`restored_version=null` 并给出 `restore_error`，原始失败码保留在 `error.code`。
 - 升级接口把该操作的失败以 `AppError`（`details.operation_id/execution/error`）返回，页面据此显示失败原因，不会把失败呈现成成功。
 - 升级窗口内该实例拒绝新调用（409 `instance_upgrading`）。**升级前已受理但尚未执行的调用**按原身份结算为 `interrupted`（写操作 `effect=unknown`、读操作 `none`，`error.code=instance_upgraded`，`retriable=false`），绝不重新启动旧版本、也绝不重放外部写；已在旧进程里执行的调用按自身结果收尾，且`execute()` 在锁内复读调用文档，包版本已变更时不再启动任何进程。
 
-## 五、`purge_data` 的真实范围
+## 六、`purge_data` 的真实范围
 
 在单个事务内：
 
@@ -82,18 +96,19 @@
 
 不删除：`capabilities.actions`（Action/Attempt/Receipt/`unknown` 等历史执行证明）、请求、回执、宿主配置、共享文件、外部资源、其他插件或包的数据。页面文案与上述范围一致，并写明"该插件包下所有实例"。
 
-## 六、实现位置
+## 七、实现位置
 
-- `src/tianshu/capabilities/plugins/manager.py`：`child()`（回调绑定自身代次）、`worker(prepared=...)`（只撤旧代次）、`stop_worker`（按代次撤销）、包级锁与准入、安装的"准备/提交"两段、实例投影、启停、`restart`、`upgrade`、`uninstall`（互斥撤销与回收）、`settle_accepted`
+- `src/tianshu/capabilities/plugins/manager.py`：`child()`（回调绑定自身代次）、`worker(prepared=...)`（只撤旧代次）、`stop_worker`（按代次撤销，并对未注册的指定进程关闭）、包级锁与准入、安装的"准备/提交"两段、实例投影、启停、`restart`、`upgrade`、`uninstall`（互斥撤销与回收）、`settle_accepted`
 - `src/tianshu/capabilities/plugins/execution.py`：`context(..., generation=)`、`revoke(identifier, generation=None)`、`retain(identifier, generation)`、`callback(..., generation=)`、按实例的准入拒绝码（`refusal`）、已受理调用的原身份结算
 - `src/tianshu/capabilities/plugins/service.py`: `revoke(instance_id)` 立即撤下该实例的 catalog handler
 - `src/tianshu/capabilities/plugins/web.py`：`reload` 路由、卸载清理页面票据、页面票据重新校验包仍安装且摘要未变
 - `src/tianshu/capabilities/plugins/control.py`：`reload` 与 `purge_data` 请求 schema（同时生成 OpenAPI）
-- `src/tianshu/capabilities/plugins/packages.py`：`reclaim` 回收不可变包目录
+- `src/tianshu/capabilities/plugins/packages.py`：`reclaim` 回收不可变包目录（跳过仍 installed 与 `preparing` 中的目录）
+- `src/tianshu/capabilities/plugins/process.py`：`Process.exited`（`returncode` 判定操作系统退出）、`close()` 的 `closed` 幂等标记
 - `src/tianshu/capabilities/plugins/repository.py`：`purge`（实例自有数据）、`accepted`（未执行调用）、注入 owner 不再遮蔽 `runtime()` 方法
 - `web/src/features/plugins/`：重载按钮、运行进程/代次显示、升级/回退按钮、卸载与"卸载并清除数据"入口及与后端一致的说明
 
-## 七、边界与证据
+## 八、边界与证据
 
 - 不重启容器、不重启 `independent` 角色、不中断其他插件；重载/升级期间只允许目标插件短暂不可用。
 - 旧代次迟到退出由 `watch_worker` 比对 `workers[id]` 中的实际进程对象，不会停掉替代进程；未注册的候选进程退出时也只撤它自己的句柄。

@@ -793,7 +793,14 @@ class PluginManager:
             )
 
     async def stop_worker(self, identifier, reason, process=None):
-        """Stop this child and revoke only the handles minted for it."""
+        """Stop the named child and revoke only the handles minted for it.
+
+        A process that never registered - a staged upgrade candidate, an
+        inspection child, a candidate that lost its registration - is still a
+        live OS child with its own handles, so it is revoked **and closed** here.
+        Only the named process is touched: a registered replacement is left
+        running with its own handles when a different candidate is being stopped.
+        """
         item = self.workers.get(identifier)
         if item and (process is None or item[0] is process):
             self.workers.pop(identifier, None)
@@ -805,6 +812,7 @@ class PluginManager:
         elif process is not None:
             # A candidate that never registered still owns its handles.
             self.executions.revoke(identifier, process.runtime_id)
+            await process.close(reason)
         instance = await self.instance(identifier)
         if await self.comic_instance(instance):
             await self.comic_files.stop(identifier)
@@ -1144,11 +1152,20 @@ class PluginManager:
             # Recovery always leaves the ledger and the live process agreeing on
             # the same version. Continuity is only claimed when that previous
             # version really serves again.
-            # The failed candidate is stopped and its handles are revoked before
-            # the previous state and previous child are restored, so it can never
-            # keep writing into the data that recovery just reinstated.
+            # The failed candidate is stopped, closed, and **confirmed exited**
+            # before the previous state and previous child are restored: a live
+            # candidate could otherwise keep writing into the data that recovery
+            # has just reinstated. Only this candidate is touched, never a
+            # replacement that already serves another revision.
+            candidate_gone, candidate_error = True, None
             if process is not None:
-                await self.stop_worker(identifier, "upgrade_abandoned", process)
+                try:
+                    await self.stop_worker(identifier, "upgrade_abandoned", process)
+                except (Fault, RemoteError, TimeoutError, OSError) as cleanup:
+                    candidate_error = getattr(cleanup, "code", type(cleanup).__name__)
+                candidate_gone = bool(getattr(process, "exited", True))
+                if not candidate_gone and candidate_error is None:
+                    candidate_error = "candidate_still_running"
             await self.local(self.repository.restore, identifier, snapshot)
             # Nothing minted for the abandoned attempt may survive recovery.
             self.executions.revoke(identifier)
@@ -1169,10 +1186,18 @@ class PluginManager:
                 execution="failed",
                 error={
                     "code": code,
-                    "rolled_back": restored,
-                    "restored_version": previous["manifest"]["version"] if restored else None,
+                    "rolled_back": restored and candidate_gone,
+                    "restored_version": (
+                        previous["manifest"]["version"]
+                        if restored and candidate_gone
+                        else None
+                    ),
                     "failed_version": version,
                     "restore_error": restore_error,
+                    # A candidate that could not be confirmed gone blocks any
+                    # claim of a safe restore; the original cause is kept above.
+                    "candidate_closed": candidate_gone,
+                    "candidate_error": candidate_error,
                 },
             )
             await self.local(self.repository.put, "operations", operation)

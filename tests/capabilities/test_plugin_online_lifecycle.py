@@ -1307,3 +1307,151 @@ async def test_uninstall_during_install_prepare_keeps_records_coherent(lifecycle
     await uninstall_during_install_prepare_scenario(
         Host(lifecycle_database, tmp_path), tmp_path
     )
+
+
+async def abandoned_candidate_exit_scenario(host, tmp_path):
+    """The failed candidate really exits before the snapshot and old child return."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.abandoned", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-abandoned-old",
+    )
+    instance = await host.enable(old, "Abandoned", "instance-abandoned")
+    assert (await host.call(instance["id"], "value", "old-call"))["result"] == {"text": "1.0.0"}
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.abandoned", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-abandoned-broken",
+    )
+
+    # Observation only: the snapshot restore and the old child's start still run
+    # for real, so the assertions are OS-level facts about the real processes.
+    observed = {"children": [], "restore": None, "revive": None, "revive_pid": None}
+    original_child, original_restore = manager.child, manager.repository.restore
+    original_worker = manager.worker
+
+    def observing_child(package, identifier):
+        process = original_child(package, identifier)
+        observed["children"].append(process)
+        return process
+
+    def observing_restore(identifier_arg, snapshot):
+        # A raw OS fact: the child's own return code, not a model-level flag.
+        observed["restore"] = [
+            member.process.returncode is not None for member in observed["children"]
+        ]
+        return original_restore(identifier_arg, snapshot)
+
+    def observing_worker(instance_arg, *, prepared=None):
+        if prepared is None and observed["revive"] is None:
+            observed["revive"] = [
+                member.process.returncode is not None for member in observed["children"]
+            ]
+            observed["revive_pid"] = manager.workers.get(instance_arg["id"])
+        return original_worker(instance_arg, prepared=prepared)
+
+    manager.child = observing_child
+    manager.repository.restore = observing_restore
+    manager.worker = observing_worker
+    current = await manager.instance(instance["id"])
+    try:
+        with pytest.raises(AppError) as failure:
+            await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    finally:
+        manager.child = original_child
+        manager.repository.restore = original_restore
+        manager.worker = original_worker
+
+    # Children created after this hook: the staged candidate of the failed switch,
+    # then the restored 1.0.0 child that recovery starts afterwards.
+    assert len(observed["children"]) == 2, [m.runtime_id for m in observed["children"]]
+    candidate = observed["children"][0]
+    assert observed["restore"] == [True], (
+        "recovery reached the snapshot while the failed candidate was still running"
+    )
+    assert observed["revive"] == [True], (
+        "the previous version restarted while the failed candidate was still running"
+    )
+    assert candidate.process.returncode is not None
+    recorded = failure.value.details["error"]
+    assert recorded["failed_version"] == "2.0.0"
+    assert recorded["candidate_closed"] is True
+    assert recorded["candidate_error"] is None
+    assert recorded["rolled_back"] is True
+    assert recorded["restored_version"] == "1.0.0"
+    # The failed candidate's handles are gone, and only the restored child's stay.
+    restored = generation(manager, instance["id"])
+    remaining = {
+        context.get("generation")
+        for context in manager.executions.contexts.values()
+        if context["instance"] == instance["id"]
+    }
+    assert candidate.runtime_id not in remaining
+    assert remaining <= {restored["generation"]}
+    # The restored version serves again, using its own startup context.
+    assert (await host.call(instance["id"], "value", "restored-call"))["result"] == {
+        "text": "1.0.0"
+    }
+    stored = await host.call(instance["id"], "stored", "restored-state")
+    assert stored["result"]["boot"] == {"version": "1.0.0"}
+    await manager.close()
+
+
+async def abandoned_candidate_cleanup_spares_replacement_scenario(host, tmp_path):
+    """Stopping an unregistered candidate never touches a serving replacement."""
+    manager = await host.open()
+    first = await host.install(
+        package(tmp_path / "one", "fixture.spare", "1.0.0", "one"), "install-spare-one"
+    )
+    instance = await host.enable(first, "Spare", "instance-spare")
+    assert instance["state"] == "ready"
+    serving = generation(manager, instance["id"])
+    replacement = await manager.worker(await manager.instance(instance["id"]))
+    assert replacement.runtime_id == serving["generation"]
+    # A candidate that was never registered against this instance.
+    stray = manager.child(
+        await manager.package(instance["package_id"], instance["version"]), instance["id"]
+    )
+    await stray.start()
+    handles_before = {
+        reference
+        for reference, context in manager.executions.contexts.items()
+        if context["instance"] == instance["id"]
+    }
+    await manager.stop_worker(instance["id"], "candidate_discarded", stray)
+    assert stray.process.returncode is not None
+    # The replacement keeps running with the very same generation and handles.
+    assert manager.workers[instance["id"]][0].process.returncode is None
+    assert manager.workers[instance["id"]][0].runtime_id == serving["generation"]
+    assert [
+        reference
+        for reference, context in manager.executions.contexts.items()
+        if context["instance"] == instance["id"]
+    ] == list(handles_before)
+    assert (await host.call(instance["id"], "value", "spare-after"))["result"] == {"text": "one"}
+    # Repeated cleanup of the same candidate stays safe.
+    await manager.stop_worker(instance["id"], "candidate_discarded_again", stray)
+    assert stray.process.returncode is not None
+    assert manager.workers[instance["id"]][0].runtime_id == serving["generation"]
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_abandoned_candidate_exits_before_the_previous_version_returns(
+    lifecycle_database, tmp_path
+):
+    await abandoned_candidate_exit_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_candidate_cleanup_spares_a_serving_replacement(lifecycle_database, tmp_path):
+    await abandoned_candidate_cleanup_spares_replacement_scenario(
+        Host(lifecycle_database, tmp_path), tmp_path
+    )
