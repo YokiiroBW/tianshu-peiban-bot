@@ -93,6 +93,69 @@ test("unavailable statistics remain an explicit coverage failure", async ({
   await expect(page.getByText("实际模型调用", { exact: true })).toHaveCount(0);
 });
 
+test("statistics refresh advances the applied rolling range and preserves a selected historical date", async ({
+  page,
+}) => {
+  await page.clock.setFixedTime(new Date("2026-11-08T15:00:00Z"));
+  await nativeSession(page);
+  const requests: Record<string, unknown>[] = [];
+  await page.route(apiPath("system/statistics"), (route) => {
+    const body = route.request().postDataJSON() as Record<string, unknown>;
+    requests.push(body);
+    return answer(route, {
+      range: {
+        start: body.start,
+        end: body.end,
+        timezone: body.timezone,
+        resolution: "hour",
+      },
+      overview: {},
+      cumulative: {},
+      series: [],
+      breakdowns: {},
+      coverage: { complete: true },
+      as_of: body.end,
+    });
+  });
+  await page.goto("/#/system/statistics");
+  await expect.poll(() => requests.length).toBe(1);
+  await page.getByText("更多筛选", { exact: true }).click();
+  await page.getByLabel("模块", { exact: true }).fill("life");
+  await page.getByLabel("时间范围").selectOption("3");
+  await page.clock.setFixedTime(new Date("2026-11-08T15:02:00Z"));
+  await page.getByRole("button", { name: "刷新统计" }).click();
+  await expect.poll(() => requests.length).toBe(2);
+  expect(requests[1]).toMatchObject({
+    start: "2026-11-07T16:00:00.000Z",
+    end: "2026-11-08T15:02:00.000Z",
+    module: null,
+  });
+  await page.getByRole("button", { name: "应用筛选" }).click();
+  await expect.poll(() => requests.length).toBe(3);
+  await page.clock.setFixedTime(new Date("2026-11-08T15:04:00Z"));
+  await page.getByRole("button", { name: "刷新统计" }).click();
+  await expect.poll(() => requests.length).toBe(4);
+  expect(requests[3]).toMatchObject({
+    end: "2026-11-08T15:04:00.000Z",
+    module: "life",
+  });
+  expect(
+    Date.parse(String(requests[3].end)) - Date.parse(String(requests[3].start)),
+  ).toBe(3 * 86400000);
+  await page.getByLabel("时间范围").selectOption("date");
+  await page.getByLabel("统计日期").fill("2026-11-07");
+  await page.getByRole("button", { name: "应用筛选" }).click();
+  await expect.poll(() => requests.length).toBe(5);
+  await page.clock.setFixedTime(new Date("2026-11-09T02:00:00Z"));
+  await page.getByRole("button", { name: "刷新统计" }).click();
+  await expect.poll(() => requests.length).toBe(6);
+  expect(requests[5]).toMatchObject({
+    start: requests[4].start,
+    end: requests[4].end,
+    module: "life",
+  });
+});
+
 function usageMetrics(
   input: number,
   output: number,

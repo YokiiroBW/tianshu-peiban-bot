@@ -1,20 +1,19 @@
 import asyncio
-from datetime import UTC, datetime
 import json
 import logging
 import threading
+from datetime import UTC, datetime
 from types import SimpleNamespace
 from uuid import uuid4
 
 import pytest
 
-from tianshu.runtime.errors import AppError
 from tianshu.runtime.diagnostics import RuntimeDiagnostics
+from tianshu.runtime.errors import AppError
 from tianshu.runtime.events import EventLog
 from tianshu.runtime.logging import StructuredFormatter
 from tianshu.runtime.rb_logs_output import output_record, secret_values
 from tianshu.runtime.rb_logs_query import LogQuery
-
 
 STAMP = "2026-11-05T00:00:00.123456789+00:00"
 START = int(datetime(2026, 11, 5, tzinfo=UTC).timestamp()) * 1_000_000_000
@@ -300,3 +299,134 @@ async def test_failure_identifiers_reach_incremental_reader_without_receipt_cont
     assert changes["entries"][1]["material_id"] is None
     assert changes["entries"][1]["failure_id"] is None
     assert "private-result" not in log.path.read_text(encoding="utf-8")
+
+
+def test_index_skips_old_bytes_and_only_reindexes_the_appended_tail(tmp_path, monkeypatch):
+    from tianshu.runtime import rb_logs_index
+    monkeypatch.setattr(rb_logs_index, "BLOCK_BYTES", 4096)
+    old = [event("one", i, timestamp="2026-11-04T00:00:00+00:00", message="history " * 60)
+           for i in range(1, 1501)]
+    current = [event("one", i, message="current") for i in range(1501, 1521)]
+    path, data = source(tmp_path, "one", old + current)
+    query = LogQuery(tmp_path)
+    query.prepare_index()
+    page = query.page(start_ns=START, end_ns=END, limit=5)
+    assert [row["sequence"] for row in page["entries"]] == [1520, 1519, 1518, 1517, 1516]
+    assert page["freshness"]["scan"]["read_bytes"] < len(data) // 10
+    assert page["freshness"]["scan"]["indexed_bytes"] == 0
+    late = event("one", 1521, timestamp="2026-11-05T00:00:00.000000001+00:00")
+    with path.open("ab") as stream:
+        stream.write(json.dumps(late).encode() + b"\n")
+    # The old snapshot still excludes the later appended event.
+    second = query.page(start_ns=START, end_ns=END, cursor=page["next_cursor"], limit=100)
+    assert late["event_id"] not in {row["event_id"] for row in second["entries"]}
+    refreshed = query.page(start_ns=START, end_ns=END, limit=100)
+    assert late["event_id"] in {row["event_id"] for row in refreshed["entries"]}
+    assert refreshed["freshness"]["scan"]["indexed_bytes"] < len(data) // 10
+
+
+def test_index_preserves_unordered_timestamps_filters_and_invalid_record_coverage(tmp_path, monkeypatch):
+    from tianshu.runtime import rb_logs_index
+    monkeypatch.setattr(rb_logs_index, "BLOCK_BYTES", 1000)
+    seconds = [50, 1, 42, 7, 33, 11, 28, 17, 22, 2, 49, 3, 48, 4]
+    rows = [event("one", i+1, timestamp=f"2026-11-05T00:00:{second:02d}+00:00",
+                  level="WARNING" if i % 2 else "ERROR") for i, second in enumerate(seconds)]
+    path, _ = source(tmp_path, "one", rows)
+    with path.open("ab") as stream:
+        stream.write(b'{"invalid":"record"}\n')
+    query = LogQuery(tmp_path)
+    query.prepare_index()
+    cursor, actual = None, []
+    while True:
+        page = query.page(start_ns=START, end_ns=END, limit=2, level="ERROR", cursor=cursor)
+        actual.extend(page["entries"])
+        assert "invalid_log_record" in page["coverage"]["missing"]
+        cursor = page["next_cursor"]
+        if cursor is None:
+            break
+    expected = sorted((r for r in rows if r["level"] == "ERROR"), key=lambda r: r["timestamp"], reverse=True)
+    assert [r["event_id"] for r in actual] == [r["event_id"] for r in expected]
+
+
+def test_index_revisits_a_partial_line_after_it_is_completed(tmp_path):
+    rows = [event("one", 1), event("one", 2)]
+    path, _ = source(tmp_path, "one", rows[:1])
+    encoded = json.dumps(rows[1]).encode() + b"\n"
+    with path.open("ab") as stream:
+        stream.write(encoded[:35])
+    query = LogQuery(tmp_path)
+    first = query.page(start_ns=START, end_ns=END)
+    assert "oversized_or_partial_record" in first["coverage"]["missing"]
+    with path.open("ab") as stream:
+        stream.write(encoded[35:])
+    second = query.page(start_ns=START, end_ns=END)
+    assert {r["event_id"] for r in second["entries"]} == {r["event_id"] for r in rows}
+    assert "oversized_or_partial_record" not in second["coverage"]["missing"]
+
+
+def test_corrupt_or_unwritable_index_never_replaces_the_log_authority(tmp_path):
+    rows = [event("one", 1), event("one", 2)]
+    source(tmp_path, "one", rows)
+    query = LogQuery(tmp_path)
+    query.prepare_index()
+    index = tmp_path / ".query-index" / "one.jsonl.json"
+    index.write_text("not json", encoding="utf-8")
+    page = query.page(start_ns=START, end_ns=END)
+    assert {r["event_id"] for r in page["entries"]} == {r["event_id"] for r in rows}
+    index.unlink()
+    (tmp_path / ".query-index").rmdir()
+    (tmp_path / ".query-index").write_text("cache unavailable", encoding="utf-8")
+    page = query.page(start_ns=START, end_ns=END)
+    assert len(page["entries"]) == 2
+    assert page["coverage"]["snapshot_complete"] is True
+
+
+def test_newer_index_does_not_complete_an_older_partial_snapshot(tmp_path):
+    rows = [event("one", i) for i in range(1, 4)]
+    path, _ = source(tmp_path, "one", rows[:2])
+    encoded = json.dumps(rows[2]).encode() + b"\n"
+    with path.open("ab") as stream:
+        stream.write(encoded[:25])
+    query = LogQuery(tmp_path)
+    first = query.page(start_ns=START, end_ns=END, limit=1)
+    with path.open("ab") as stream:
+        stream.write(encoded[25:])
+    refreshed = query.page(start_ns=START, end_ns=END, limit=100)
+    assert len(refreshed["entries"]) == 3
+    old = query.page(start_ns=START, end_ns=END, limit=100, cursor=first["next_cursor"])
+    assert len(old["entries"]) == 1
+    assert old["coverage"]["snapshot_complete"] is False
+    assert "oversized_or_partial_record" in old["coverage"]["missing"]
+
+
+async def test_slow_collection_probe_does_not_delay_local_rows_or_start_duplicate_probes(tmp_path, monkeypatch):
+    logs = tmp_path / "logs"
+    logs.mkdir()
+    source(logs, "one", [event("one", 1)])
+    settings = SimpleNamespace(artifact_directory=tmp_path / "artifacts", secrets=None)
+    diagnostics = RuntimeDiagnostics(None, None, settings)
+    release = asyncio.Event()
+    probes = 0
+
+    async def pipeline():
+        nonlocal probes
+        probes += 1
+        await release.wait()
+        return {"collector": {"status": "available"}, "loki": {"status": "available"}}
+
+    monkeypatch.setattr(diagnostics, "_log_pipeline", pipeline)
+    try:
+        page = await asyncio.wait_for(diagnostics.logs(start_ns=START, end_ns=END), 1)
+        assert len(page["entries"]) == 1
+        assert page["freshness"]["collector"]["status"] == "checking"
+        await asyncio.wait_for(diagnostics.logs(start_ns=START, end_ns=END), 1)
+        assert probes == 1
+        release.set()
+        await diagnostics._log_pipeline_task
+        page = await diagnostics.logs(start_ns=START, end_ns=END)
+        assert page["freshness"]["collector"]["status"] == "available"
+        assert probes == 1
+    finally:
+        release.set()
+        if diagnostics._log_pipeline_task is not None:
+            await diagnostics._log_pipeline_task

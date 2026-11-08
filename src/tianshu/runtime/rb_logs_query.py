@@ -3,24 +3,24 @@
 from __future__ import annotations
 
 import base64
-from datetime import UTC, datetime, timedelta
 import heapq
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import time
-from uuid import uuid4
 import zlib
+from datetime import UTC, datetime, timedelta
+from pathlib import Path
+from uuid import uuid4
 
 from .errors import AppError
+from .rb_logs_index import MAX_LINE, SourceChanged, SourceTimeIndex, decode_record
+from .rb_logs_index import event_ns as _event_ns
 from .rb_logs_output import LEVELS, redact_text
 
-MAX_LINE = 8 * 1024 * 1024
 MAX_PAGE_BYTES = 4 * 1024 * 1024
 SNAPSHOT_SECONDS = 24 * 60 * 60
-_STAMP = re.compile(r"^(\d{4}-\d\d-\d\d[Tt ]\d\d:\d\d:\d\d)(?:\.(\d{1,9}))?(Z|[+-]\d\d:\d\d)$")
 _SENSITIVE = re.compile(r"^(?:authorization|api[_-]?key|access[_-]?token|refresh[_-]?token|"
                         r"password|passwd|secret|credentials?|prompt|messages|body|payload|"
                         r"content|arguments|kwargs|source_text)$", re.I)
@@ -36,16 +36,6 @@ def _ns(value):
     if not 0 <= result <= 2**63 - 1:
         raise AppError("invalid_log_time_range")
     return result
-
-
-def _event_ns(value):
-    match = _STAMP.fullmatch(value) if isinstance(value, str) else None
-    if not match:
-        raise ValueError("invalid_timestamp")
-    zone = "+00:00" if match.group(3) == "Z" else match.group(3)
-    instant = datetime.fromisoformat(match.group(1) + zone).astimezone(UTC)
-    delta = instant - datetime(1970, 1, 1, tzinfo=UTC)
-    return (delta.days * 86400 + delta.seconds) * 1_000_000_000 + int((match.group(2) or "").ljust(9, "0"))
 
 
 def _text(value, name, *, maximum=128):
@@ -139,6 +129,7 @@ class LogQuery:
         self.directory = Path(directory)
         self.snapshots = self.directory / ".query-snapshots"
         self.secrets = tuple(secrets)
+        self.index = SourceTimeIndex(self.directory)
 
     def _capture_sources(self):
         if not self.directory.is_dir():
@@ -182,6 +173,7 @@ class LogQuery:
                     missing.add("writer_checkpoint_unreadable")
                 sources.append({"name": path.name, "device": stat.st_dev,
                                 "inode": stat.st_ino, "size": stat.st_size,
+                                "modified_ns": stat.st_mtime_ns,
                                 "persisted_size": persisted_size})
             if not sources:
                 missing.add("writer_state_unknown")
@@ -230,7 +222,7 @@ class LogQuery:
             raise AppError("log_cursor_expired", status=410)
         return manifest
 
-    def _read_source(self, source, filters, before, selection, capacity, missing):
+    def _read_source(self, source, filters, before, selection, capacity, missing, *, start=0, end=None):
         heap, keys = selection["heap"], selection["keys"]
         path = self.directory / source["name"]
         if path.parent != self.directory or path.is_symlink():
@@ -242,13 +234,15 @@ class LogQuery:
                 if (stat.st_dev, stat.st_ino) != (source["device"], source["inode"]) or stat.st_size < source["size"]:
                     missing.add("source_changed")
                     return
-                remaining = source["size"]
+                stream.seek(start)
+                remaining = min(source["size"], end if end is not None else source["size"]) - start
                 while remaining:
                     line = stream.readline(min(remaining, MAX_LINE + 1))
                     if not line:
                         missing.add("source_changed")
                         break
                     remaining -= len(line)
+                    selection["read_bytes"] += len(line)
                     if not line.endswith(b"\n"):
                         missing.add("oversized_or_partial_record")
                         # Continue after an oversized line; a partial final line
@@ -259,23 +253,16 @@ class LogQuery:
                                 remaining = 0
                                 break
                             remaining -= len(line)
+                            selection["read_bytes"] += len(line)
                         continue
                     try:
-                        row = json.loads(line)
-                        if not isinstance(row, dict):
-                            raise ValueError
-                        stamp = _event_ns(row.get("timestamp"))
-                        instance, event_id, sequence = row.get("instance_id"), row.get("event_id"), row.get("sequence")
-                        if (not isinstance(instance, str) or not instance or len(instance) > 128
-                                or not isinstance(event_id, str) or not event_id or len(event_id) > 128
-                                or type(sequence) is not int or sequence < 1):
-                            raise ValueError
+                        row, key = decode_record(line)
+                        stamp = key[0]
                     except (ValueError, TypeError, UnicodeError, OverflowError):
                         missing.add("invalid_log_record")
                         continue
                     if not filters["start_ns"] <= stamp < filters["end_ns"]:
                         continue
-                    key = (stamp, instance, sequence, event_id)
                     if before is not None and key >= before:
                         continue
                     row["persistence"] = (
@@ -315,9 +302,33 @@ class LogQuery:
             snapshot_id, manifest = self._create_snapshot(filters)
             before = None
         missing = set(manifest["missing"])
-        selection = {"heap": [], "keys": set(), "bytes": 0, "has_more": False}
+        selection = {"heap": [], "keys": set(), "bytes": 0, "has_more": False, "read_bytes": 0}
+        candidates, indexed_bytes = [], 0
         for source in manifest["sources"]:
-            self._read_source(source, filters, before, selection, limit + 1, missing)
+            try:
+                blocks, gaps, indexed = self.index.get(source)
+                indexed_bytes += indexed
+                missing.update(gaps)
+            except SourceChanged:
+                missing.add("source_changed")
+                continue
+            except OSError:
+                missing.add("source_unavailable")
+                continue
+            for block in blocks:
+                if (block["start"] >= source["size"] or block["max_ns"] is None
+                        or block["max_ns"] < filters["start_ns"] or block["min_ns"] >= filters["end_ns"]
+                        or before is not None and block["min_ns"] > before[0]):
+                    continue
+                candidates.append((block["max_ns"], source, block))
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        for maximum, source, block in candidates:
+            # One extra distinct match proves a next page. Older blocks cannot
+            # change this page, even when timestamps inside a file are unordered.
+            if len(selection["heap"]) >= limit + 1 and maximum < selection["heap"][0][0][0]:
+                break
+            self._read_source(source, filters, before, selection, limit + 1, missing,
+                              start=block["start"], end=block["end"])
         selected = sorted(selection["heap"], key=lambda item: item[0], reverse=True)
         has_more = selection["has_more"] or len(selected) > limit
         selected = selected[:limit]
@@ -354,8 +365,24 @@ class LogQuery:
                           "snapshot_expires_at": (datetime.fromisoformat(manifest["created_at"]) +
                                                   timedelta(seconds=SNAPSHOT_SECONDS)).isoformat(),
                           "late_arrivals": "refresh_with_new_snapshot",
-                          "writers": manifest["writer_states"], "disk": capacity},
+                          "writers": manifest["writer_states"], "disk": capacity,
+                          "scan": {"read_bytes": selection["read_bytes"], "indexed_bytes": indexed_bytes}},
         }
+
+    def prepare_index(self):
+        """Warm only derived byte/time metadata before a release or after cache loss."""
+        sources, _, missing = self._capture_sources()
+        indexed_bytes = 0
+        for source in sources:
+            try:
+                _, gaps, indexed = self.index.get(source)
+                indexed_bytes += indexed
+                missing.update(gaps)
+            except SourceChanged:
+                missing.add("source_changed")
+            except OSError:
+                missing.add("source_unavailable")
+        return {"sources": len(sources), "indexed_bytes": indexed_bytes, "missing": sorted(missing)}
 
     @staticmethod
     def _decode_checkpoint(checkpoint):

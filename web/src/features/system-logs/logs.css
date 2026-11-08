@@ -1,8 +1,65 @@
-.log-filters { display: grid; grid-template-columns: repeat(auto-fit, minmax(155px, 1fr)); gap: 0.75rem; }
-.log-filters label { display: grid; gap: 0.3rem; min-width: 0; }
-.log-viewport { height: 486px; overflow: auto; border: 1px solid var(--border-inner); margin: 1rem 0; }
-.log-row { box-sizing: border-box; display: grid; grid-template-columns: 10rem 5rem 12rem minmax(12rem, 1fr); gap: 0.6rem; width: 100%; height: 54px; padding: 0.5rem; align-items: center; text-align: left; color: var(--text-primary); background: transparent; border: 0; border-bottom: 1px solid var(--border-inner); cursor: pointer; }
-.log-row[aria-pressed="true"] { background: var(--accent-soft); }
-.log-row > * { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.log-detail pre, .log-coverage pre { white-space: pre-wrap; overflow-wrap: anywhere; }
-@media (max-width: 720px) { .log-row { grid-template-columns: 7rem 4rem minmax(8rem, 1fr); font-size: 0.82rem; } .log-row > :nth-child(3) { display: none; } }
+.log-filters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(155px, 1fr));
+  gap: 0.75rem;
+}
+.log-filters label {
+  display: grid;
+  gap: 0.3rem;
+  min-width: 0;
+}
+.log-viewport {
+  height: 486px;
+  overflow: auto;
+  border: 1px solid var(--border-inner);
+  margin: 1rem 0;
+}
+.log-row {
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: 10rem 5rem 12rem minmax(12rem, 1fr);
+  gap: 0.6rem;
+  width: 100%;
+  height: 54px;
+  padding: 0.5rem;
+  align-items: center;
+  text-align: left;
+  color: var(--text-primary);
+  background: transparent;
+  border: 0;
+  border-bottom: 1px solid var(--border-inner);
+  cursor: pointer;
+}
+.log-row[aria-pressed="true"] {
+  background: var(--accent-soft);
+}
+.log-row > * {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.log-detail pre,
+.log-coverage pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.log-coverage {
+  margin-top: 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+.log-coverage > summary {
+  cursor: pointer;
+}
+.log-coverage[open] > summary {
+  margin-bottom: 0.75rem;
+}
+@media (max-width: 720px) {
+  .log-row {
+    grid-template-columns: 7rem 4rem minmax(8rem, 1fr);
+    font-size: 0.82rem;
+  }
+  .log-row > :nth-child(3) {
+    display: none;
+  }
+}

@@ -258,6 +258,7 @@ export default function StatisticsPage() {
       "",
     ),
   );
+  const [appliedRange, setAppliedRange] = useState({ days: 1, date: "" });
   const [metric, setMetric] = useState("received");
   const [dimension, setDimension] = useState("module");
   const view = useDomainResource<Statistics>("system/statistics", {
@@ -274,7 +275,19 @@ export default function StatisticsPage() {
         </div>
         <button
           className="button statistics-refresh"
-          onClick={() => void view.refresh()}
+          onClick={() => {
+            const next = makeRange(
+              appliedRange.days,
+              query.timezone,
+              query.module ?? "",
+              query.actor_id ?? "",
+              query.route_id ?? "",
+              appliedRange.date,
+            );
+            if (JSON.stringify(next) === JSON.stringify(query))
+              void view.refresh();
+            else setQuery(next);
+          }}
           disabled={view.loading}
         >
           <RefreshCw size={15} />
@@ -300,6 +313,10 @@ export default function StatisticsPage() {
                 days === "date" ? date : "",
               ),
             );
+            setAppliedRange({
+              days: Number(days),
+              date: days === "date" ? date : "",
+            });
             setFormError("");
           } catch {
             setFormError("请填写有效的时区和日期。");

@@ -1,22 +1,25 @@
 """Read actual jobs, process resources and Loki; no parallel operational state ledger."""
 
 import asyncio
-from datetime import UTC, datetime
 import os
 import ssl
+from datetime import UTC, datetime
 
 import aiohttp
 
 from .errors import AppError
 from .execution import job_observation
-from .rb_logs_query import LogQuery
 from .rb_logs_output import secret_values
+from .rb_logs_query import LogQuery
 
 
 class RuntimeDiagnostics:
     def __init__(self, database, models, settings, *, events=None):
         self.database, self.models, self.settings = database, models, settings
         self.events = events
+        self._log_pipeline_task = None
+        self._log_pipeline_result = None
+        self._last_log_probe = None
 
     async def tasks(self, *, limit=50, job_id=None, include_retired=False):
         if type(include_retired) is not bool:
@@ -103,37 +106,48 @@ class RuntimeDiagnostics:
                               "collected_sequence": None, "delivered_sequence": None,
                               "reason": "per_source_delivery_not_exposed"}}
 
+    def _log_pipeline_status(self):
+        """Refresh diagnostics independently; local log rows never wait on probes."""
+        if self._log_pipeline_task is not None and self._log_pipeline_task.done():
+            self._log_pipeline_result = self._log_pipeline_task.result()
+            self._log_pipeline_task = None
+        now = asyncio.get_running_loop().time()
+        if (self._log_pipeline_task is None
+                and (self._last_log_probe is None or now - self._last_log_probe >= 10)):
+            self._last_log_probe = now
+            self._log_pipeline_task = asyncio.create_task(self._log_pipeline())
+        return self._log_pipeline_result or {
+            "loki": {"status": "checking"},
+            "collector": {"status": "checking", "collected_sequence": None,
+                          "delivered_sequence": None, "reason": "probe_pending"},
+        }
+
     async def logs(self, *, start_ns, end_ns, role=None, level=None, module=None,
                    correlation_id=None, trace_id=None, job_id=None, attempt_id=None,
                    keyword=None, exclude_conversation=False, cursor=None, limit=100):
         query = self._log_query()
-        pipeline = asyncio.create_task(self._log_pipeline())
+        self._log_pipeline_status()
         try:
-            try:
-                result = await asyncio.to_thread(
-                    query.page, start_ns=start_ns, end_ns=end_ns, role=role, level=level,
-                    module=module, correlation_id=correlation_id, trace_id=trace_id,
-                    job_id=job_id, attempt_id=attempt_id, keyword=keyword,
-                    exclude_conversation=exclude_conversation, cursor=cursor, limit=limit,
-                )
-            except AppError as exc:
-                if exc.code not in {"local_log_directory_unavailable", "log_snapshot_unavailable"}:
-                    raise
-                result = {"entries": [], "next_cursor": None, "streams": [], "next_end_ns": None,
-                          "coverage": {"complete": False, "snapshot_complete": False,
-                                       "source": "local_append_files", "missing": [exc.code],
-                                       "has_more": False},
-                          "freshness": {"as_of": datetime.now(UTC).isoformat(), "snapshot_at": None,
-                                        "late_arrivals": "refresh_with_new_snapshot", "writers": [],
-                                        "disk": {"total_bytes": None, "free_bytes": None}}}
-            result["freshness"].update(await pipeline)
-            if self.events:
-                result["freshness"]["current_writer"] = self.events.status()
-            return result
-        finally:
-            if not pipeline.done():
-                pipeline.cancel()
-                await asyncio.gather(pipeline, return_exceptions=True)
+            result = await asyncio.to_thread(
+                query.page, start_ns=start_ns, end_ns=end_ns, role=role, level=level,
+                module=module, correlation_id=correlation_id, trace_id=trace_id,
+                job_id=job_id, attempt_id=attempt_id, keyword=keyword,
+                exclude_conversation=exclude_conversation, cursor=cursor, limit=limit,
+            )
+        except AppError as exc:
+            if exc.code not in {"local_log_directory_unavailable", "log_snapshot_unavailable"}:
+                raise
+            result = {"entries": [], "next_cursor": None, "streams": [], "next_end_ns": None,
+                      "coverage": {"complete": False, "snapshot_complete": False,
+                                   "source": "local_append_files", "missing": [exc.code],
+                                   "has_more": False},
+                      "freshness": {"as_of": datetime.now(UTC).isoformat(), "snapshot_at": None,
+                                    "late_arrivals": "refresh_with_new_snapshot", "writers": [],
+                                    "disk": {"total_bytes": None, "free_bytes": None}}}
+        result["freshness"].update(self._log_pipeline_status())
+        if self.events:
+            result["freshness"]["current_writer"] = self.events.status()
+        return result
 
     def _log_query(self):
         environ = dict(os.environ)
