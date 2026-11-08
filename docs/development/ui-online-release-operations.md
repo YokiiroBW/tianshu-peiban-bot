@@ -31,7 +31,7 @@
   - `contract_id`: `"tianshu.web_api.v1"`
   - `api_prefix`: `"/api/v1"`
   - `contract_version`: `1`
-  - `provided_capabilities`: `["command_recovery.v1", "data_generation_header.v1", "session.v1", "ui_version_status.v1"]`
+  - `provided_capabilities`: `["command_recovery.v1", "data_generation_header.v1", "session.v1", "ui_version_status.v1", "function_bindings.v1"]`
 - 校验原则：
   - 安装与激活时，由后端兼容规则独立核验 `contract_id`、`api_prefix`、`min_backend_contract_version <= contract_version <= max_backend_contract_version` 及 `required_capabilities` 子集关系；
   - 不凭前后端 `source_sha` 相同推定兼容，也不信任包内自报的 `compatible` 字段；
@@ -91,7 +91,8 @@ python3 deploy/core/ui_release.py status \
 若首次接入的核心镜像本身需要回退到接入前镜像：
 1. 将 `.env` 中的 `TIANSHU_IMAGE` 与 `TIANSHU_RELEASE_ID` 恢复为上一版已核验镜像摘要；
 2. 执行 `docker compose -f <stack_root>/compose.yaml up -d` 恢复原容器；
-3. `<stack_root>/data/ui` 目录与业务数据完全隔离，保留或移除均不影响旧版核心运行。
+3. 保留 `<stack_root>/data/ui` 和新旧资源，便于恢复升级。首次核心回退遵循既有服务切换流程；
+   旧核心不提供版本 URL，已打开的新界面需要主动刷新，不能将首次核心回退当作 UI-only 无中断回退。
 
 ---
 
@@ -100,6 +101,19 @@ python3 deploy/core/ui_release.py status \
 首次接入完成后，所有兼容的 UI 更新、激活与回退均通过 `deploy/core/ui_release.py` 完成，**严禁调用 `docker build`（核心镜像）、`docker restart` 或 `docker compose up`**。
 
 ### 3.1 独立构建 UI 发布包（`build`）
+
+首次常规升级后，先把镜像内置版本保存为可回退的已安装基线。内置版本已包含
+`release.json` 和固定版本资源路径；在容器内以业务用户运行：
+
+```bash
+docker exec -u 10001:10001 tianshu-core python -c 'from pathlib import Path; import tarfile; p=Path("/data/ui/.staging/builtin-baseline.tar.gz"); t=tarfile.open(p,"w:gz"); t.add("/opt/tianshu/web/dist",arcname="release"); t.close()'
+docker exec -u 10001:10001 tianshu-core python /opt/tianshu/deploy/core/ui_release.py install --package /data/ui/.staging/builtin-baseline.tar.gz --ui-root /data/ui
+docker exec -u 10001:10001 tianshu-core python /opt/tianshu/deploy/core/ui_release.py activate --ui-root /data/ui --build-id <内置release.json中的build_id> --require-expected --verify-url http://127.0.0.1:18446
+```
+
+上述初始激活仅在 current.json 尚不存在时执行；已有外部版本时保留原入口，使用正常的
+`--expected-current` 操作。先保存基线，再激活第一个独立包，才能通过同一 rollback 命令
+完整恢复首次独立发布之前的界面。已安装的基线与旧版本不得随新版发布被删除。
 
 从已提交的 Git commit SHA 和锁定依赖（`web/package-lock.json`）构建不可变 UI 发布包，工作区未提交修改不会混入：
 

@@ -1,3 +1,11 @@
+# 2026-11-08 UI 在线发布与功能模型绑定已推送部署
+
+用户授权检查 UI 交付并修复聊天01a1b8f2-29f7-7f91-8a1c-1db2489c45ee的问题后推送部署。本批串行发布者为01a1b700-8dc7-7283-91e8-a53b7070b835，线上产品34dfba6314d869c3a15c18b5e63db4d151ff83e3、镜像26f33e09d2e6。北京时间10:47:39六角色ready、HTTP200、0重启/无OOM，容量守护healthy，容量守护及巡检active。
+
+UI首次接入已完成，当前独立版本ui-20261108-34dfba6314d8。线上实际A→B→A→B切换中，容器及六角色instance_id、业务代际保持；旧资源保留。模型按功能配置一次、角色覆盖，执行类别只参与调度；原48条配置完整归档，20个功能/角色选择以60条兼容别名同步，原备用顺序保留。新增models_function_bindings增量迁移，未清理业务或重放unknown。
+
+55个不同Python/隔离PG与10个桌面手机用例通过，正式Linux镜像构建通过，11个安装文件及10个HTTP版本资源、3个旧路径资源匹配。配置文件/11挂载/其他2容器/媒体与频道配置/代际保持，原251模型unknown、6 Action unknown全部保持且无新增。未发送真实模型或QQ测试，不称全部历史业务收敛。隔离PG和临时凭据已按owner回收。详见docs/handoffs/UI-ONLINE-RELEASE-20261108.md与docs/development/ui-online-release-operations.md；下方为历史阶段。
+
 # 2026-11-08 SnowLuma 统一内部接口已部署
 
 用户明确授权“推送部署吧，然后项目放一份接口文档”。本聊天串行上线 `40e32ff1cc5c35e6710622940664ed4ab7cf416b`，镜像 `1b048f5e79f1`，已合入最终订阅概览补修42251a33和全部此前已上线功能。北京时间01:05:25六角色ready、HTTP200、0重启/无OOM，容量守护healthy、守护及巡检active。两条实际SnowLuma连接只读目录各222动作/213可执行/6别名，9上游占位明确拒绝；统一调用入口为product.channels.native及插件channels.native，复用原Actions/Expression/Channels/FileStore。开发文档在 `docs/development/snowluma-native-interfaces.md`，README有入口。
