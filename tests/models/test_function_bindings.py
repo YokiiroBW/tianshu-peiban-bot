@@ -7,11 +7,13 @@ import pytest
 
 from tianshu.models.catalog import ModelCatalog
 from tianshu.models.management import _apply_configuration
+from tianshu.models.configuration_delete import delete_configuration
+from tianshu.runtime.commands import CommandStore
 from tianshu.runtime.config import Settings, Secrets
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.migrations import foundation_migrations, execution_migrations, migrate
 from tianshu.runtime.jobs import JobQueue
-from tianshu.types import ServiceClass
+from tianshu.types import OriginKind, ServiceClass, TrustedContext
 
 
 async def seed(connection):
@@ -47,7 +49,8 @@ async def test_migration_archives_choices_and_keeps_author_selection_for_all_pri
 
 
 async def test_one_save_updates_every_legacy_alias_and_rejects_stale_cas(database, tmp_path):
-    services = SimpleNamespace(settings=Settings({}, Secrets({}), tmp_path))
+    services = SimpleNamespace(database=database, commands=CommandStore(database),
+                               settings=Settings({}, Secrets({}), tmp_path))
     async with database.transaction() as conn:
         await seed(conn)
         body = dict(function='reflect', route_id='oc', fallback_routes=['gemini'],
@@ -64,3 +67,9 @@ async def test_one_save_updates_every_legacy_alias_and_rejects_stale_cas(databas
             request = SimpleNamespace(function='reflect', service_class=priority,
                                       context=SimpleNamespace(actor_id='role'))
             assert (await ModelCatalog(database).bound_binding(conn, request))['route_id'] == 'gemini'
+    context = TrustedContext('author', None, None, None, (), (), 1, OriginKind.HUMAN,
+                             frozenset({'models.manage'}))
+    await delete_configuration(services, context, 'bindings', dict(
+        function='reflect', expected_revision=2, client_request_id='inherit', service_class='due'))
+    async with database.transaction() as conn:
+        assert await (await conn.execute("SELECT 1 FROM models.bindings WHERE function='reflect'")).fetchone() is None
