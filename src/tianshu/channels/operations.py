@@ -142,11 +142,15 @@ class Operation:
             sensitive = spec.sensitive
             if connection.get("provider") == "snowluma":
                 name = spec.name
-        if self.name == "read" and (
-            action.origin_kind != OriginKind.OBSERVATION
-            or name not in {"get_msg", "get_forward_msg", "get_image", "get_record", "getFile"}
-        ):
-            raise ChannelError("channel_internal_read_only", 403)
+        if self.name == "read":
+            if action.origin_kind != OriginKind.OBSERVATION:
+                raise ChannelError("channel_internal_read_only", 403)
+            if name in {"get_group_info", "getChat"}:
+                from .group_names import check_metadata_target
+
+                await check_metadata_target(self.service, action.context, connection, name, params)
+            elif name not in {"get_msg", "get_forward_msg", "get_image", "get_record", "getFile"}:
+                raise ChannelError("channel_internal_read_only", 403)
         if expression_api(name, connection):
             if self.service.expression is None:
                 raise ChannelError("expression_port_unavailable", 503)

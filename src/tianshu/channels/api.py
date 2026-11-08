@@ -27,6 +27,14 @@ def bearer(header, token):
 
 
 def register_routes(app, service):
+    async def names(request):
+        from .group_names import group_names
+
+        context = require_context(request)
+        return json_response(await group_names(service, context,
+            request.query.get("conversation_ids", "").split(","),
+            refresh=bool(request.query.get("refresh"))))
+
     async def view(request):
         context = require_context(request, "external.manage")
         await service.identity.check_context(context)
@@ -341,6 +349,7 @@ def register_routes(app, service):
         return json_response(result)
 
     app.router.add_get("/api/v1/channels/view", view)
+    app.router.add_get("/api/v1/channels/group-names", names)
     app.router.add_post(
         "/api/v1/channels/{operation:connections/save|connections/probe|actions/invoke}", command
     )

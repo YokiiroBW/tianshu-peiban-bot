@@ -76,6 +76,9 @@ const activity = {
 
 async function session(page: Page) {
   await nativeSession(page);
+  await page.route(apiPath("channels/group-names"), (route) =>
+    answer(route, { names: {} }),
+  );
   await page.route(apiPath("companion/roles/list"), (route) =>
     answer(route, {
       ...emptyPage,
@@ -218,6 +221,44 @@ test("private chat uses one disabled passive active control in both profile tabs
   ).toBeTruthy();
 });
 
+test("group directory shows live names keeps group numbers and searches names", async ({
+  page,
+}) => {
+  await session(page);
+  await page.route(apiPath("identity/conversations"), (route) =>
+    answer(route, {
+      ...emptyPage,
+      items: [{ ...group, label: "QQ 群 123" }],
+    }),
+  );
+  const refreshes: boolean[] = [];
+  await page.route(apiPath("channels/group-names"), (route) => {
+    const query = new URL(route.request().url()).searchParams;
+    expect(query.get("actor_id")).toBe("actor");
+    expect(query.get("conversation_ids")).toBe("group-a");
+    const fresh = !!query.get("refresh");
+    refreshes.push(fresh);
+    return answer(route, {
+      names: { "group-a": fresh ? "群的新名字" : "真实猫咪群" },
+    });
+  });
+  await page.route(apiPath("conversation/group-insights"), (route) =>
+    answer(route, activity),
+  );
+  await page.goto("/#/groups");
+  const list = page.locator(".group-directory-list");
+  await expect(list.getByRole("button", { name: /真实猫咪群/ })).toBeVisible();
+  await expect(list.getByText("qq · group:123", { exact: true })).toBeVisible();
+  await page.getByLabel("查找本批群会话").fill("真实猫咪");
+  await expect(list.getByRole("button", { name: /真实猫咪群/ })).toBeVisible();
+  await page.getByLabel("查找本批群会话").fill("123");
+  await expect(list.getByRole("button", { name: /真实猫咪群/ })).toBeVisible();
+  await page.getByLabel("查找本批群会话").fill("");
+  await page.getByRole("button", { name: "刷新群会话", exact: true }).click();
+  await expect(list.getByRole("button", { name: /群的新名字/ })).toBeVisible();
+  expect(refreshes).toContain(true);
+});
+
 test("role administrator binding is available after basic profile and can be revoked", async ({
   page,
 }) => {
@@ -261,7 +302,9 @@ test("role administrator binding is available after basic profile and can be rev
     return answer(route, command(body, current()));
   });
   await page.goto("/#/people");
-  await expect(page.getByRole("navigation", { name: "人物详情" })).toBeVisible();
+  await expect(
+    page.getByRole("navigation", { name: "人物详情" }),
+  ).toBeVisible();
   const tabs = await page
     .getByRole("navigation", { name: "人物详情" })
     .getByRole("button")

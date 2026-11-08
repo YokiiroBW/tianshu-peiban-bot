@@ -47,6 +47,7 @@ const reads = new Set([
   "models/catalog",
   "models/attempts",
   "channels/view",
+  "channels/group-names",
   "weather/view",
   "weather/search",
   "weather/current",
