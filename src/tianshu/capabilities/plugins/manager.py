@@ -1355,8 +1355,12 @@ class PluginManager:
             if instance["package_id"] == package_id
         ]
         if all(not package["installed"] for package in packages):
-            # A repeated request must not delete the same paths twice or touch an
-            # instance created after the first removal.
+            # Files are already gone, but a later explicit purge still owns the
+            # data retained by the first uninstall. Use the same repository path.
+            if purge_data:
+                for instance in instances:
+                    await self.require_clean_settled(instance["id"])
+                    await self.local(self.repository.purge, instance["id"])
             result = {
                 "uninstalled": True,
                 "package_id": package_id,
