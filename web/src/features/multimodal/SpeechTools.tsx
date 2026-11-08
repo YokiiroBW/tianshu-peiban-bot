@@ -9,9 +9,9 @@ import {
 } from "../../api/useDomainResource";
 import { uploadMedia } from "../../api/uploads";
 import { CommandFeedback } from "../../components/CommandFeedback";
-import { MediaPreview } from "../../components/MediaPreview";
 import { DetailCard } from "../../components/DetailCard";
-import type { FishConnection, Voice } from "./types";
+import type { FishConnection } from "./types";
+import { VoicePicker } from "./VoicePicker";
 
 export function SpeechTranscription({
   connections,
@@ -71,7 +71,9 @@ export function SpeechTranscription({
             {connections
               .filter((x) => x.capabilities.asr)
               .map((x) => (
-                <option key={x.id} value={x.id}>{speechConnectionName(x, connections.indexOf(x))}</option>
+                <option key={x.id} value={x.id}>
+                  {speechConnectionName(x, connections.indexOf(x))}
+                </option>
               ))}
           </select>
         </label>
@@ -116,97 +118,34 @@ export function VoiceBrowser({
 }: {
   connections: FishConnection[];
 }) {
-  const query = useDomainCommand<{
-    items: Voice[];
-    next_cursor: string | null;
-  }>();
-  const [criteria, setCriteria] = useState<{
-    query: string;
-    connection_id: string;
-    owned: boolean;
-  } | null>(null);
-  const [voices, setVoices] = useState<Voice[]>([]);
-  const [cursor, setCursor] = useState<string | null>(null);
-  async function search(
-    value: NonNullable<typeof criteria>,
-    next: string | null,
-  ) {
-    setCriteria(value);
-    const answer = await query.run(
-      "speech/voices.search",
-      { ...value, cursor: next },
-      null,
-    );
-    if (answer?.data) {
-      setVoices((current) =>
-        next ? [...current, ...answer.data.items] : answer.data.items,
-      );
-      setCursor(answer.data.next_cursor);
-    }
-  }
+  const available = connections.filter(
+    (item) => item.enabled && item.configured && item.capabilities.voices,
+  );
+  const [selected, setSelected] = useState(available[0]?.id ?? "");
+  const connection =
+    available.find((item) => item.id === selected) ?? available[0];
   return (
     <section className="panel">
       <h3>查找音色</h3>
-      <form
-        className="domain-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          void search(
-            {
-              query: String(data.get("query")),
-              connection_id: String(data.get("connection")),
-              owned: data.get("owned") === "on",
-            },
-            null,
-          );
-        }}
-      >
-        <label>
-          音色连接
-          <select name="connection" required>
-            {connections
-              .filter((x) => x.capabilities.voices)
-              .map((x) => (
-                <option key={x.id} value={x.id}>{speechConnectionName(x, connections.indexOf(x))}</option>
+      {!connection ? (
+        <p>连接语音账户后可以读取音色列表。</p>
+      ) : (
+        <>
+          <label>
+            音色连接
+            <select
+              value={connection.id}
+              onChange={(event) => setSelected(event.target.value)}
+            >
+              {available.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.id} · {speechConnectionName(item)}
+                </option>
               ))}
-          </select>
-        </label>
-        <label>
-          名称或描述
-          <input name="query" />
-        </label>
-        <label>
-          <input type="checkbox" name="owned" />
-          仅自己的音色
-        </label>
-        <button className="button" disabled={query.busy}>
-          实际查询音色
-        </button>
-        <CommandFeedback {...query} />
-      </form>
-      <div className="domain-grid">
-        {voices.map((voice, index) => (
-          <article className="domain-record" key={voice.id + ":" + index}>
-            <h4>{voice.name}</h4>
-            <p>
-              {{ public: "公开音色", private: "私有音色", unlisted: "未公开音色" }[voice.visibility] ?? "可见范围未知"} · 所属{" "}
-              {voice.owner_id ? "已登记音色作者" : "作者未登记"}
-            </p>
-            {voice.preview && (
-              <MediaPreview media={voice.preview} alt={voice.name + "试听"} />
-            )}
-          </article>
-        ))}
-      </div>
-      {cursor && criteria && (
-        <button
-          className="button"
-          disabled={query.busy}
-          onClick={() => void search(criteria, cursor)}
-        >
-          继续查询音色
-        </button>
+            </select>
+          </label>
+          <VoicePicker key={connection.id} connection={connection} />
+        </>
       )}
       <DetailCard title="创建私有音色">
         <VoiceClone connections={connections} />
@@ -214,7 +153,7 @@ export function VoiceBrowser({
     </section>
   );
 }
-function VoiceClone({ connections }: { connections: FishConnection[] }) {
+export function VoiceClone({ connections }: { connections: FishConnection[] }) {
   const { session } = useAuth();
   const scope = useDomainTarget();
   const clone = useDomainCommand<{ voice: unknown; visibility: string }>();
@@ -276,7 +215,9 @@ function VoiceClone({ connections }: { connections: FishConnection[] }) {
           {connections
             .filter((x) => x.capabilities.clone)
             .map((x) => (
-              <option key={x.id} value={x.id}>{speechConnectionName(x, connections.indexOf(x))}</option>
+              <option key={x.id} value={x.id}>
+                {speechConnectionName(x, connections.indexOf(x))}
+              </option>
             ))}
         </select>
       </label>

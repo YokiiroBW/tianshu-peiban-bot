@@ -1,19 +1,143 @@
-.domain-workspace { display: grid; gap: var(--space-5); }
-.domain-workspace h2, .domain-workspace h3 { margin-top: 0; }
-.domain-workspace .panel { min-width: 0; }
-.domain-toolbar { display: flex; flex-wrap: wrap; align-items: center; gap: .65rem; }
-.domain-toolbar { justify-content: space-between; }
-.domain-record { border: 1px solid var(--color-line); border-radius: var(--radius-control); padding: 1rem; min-width: 0; }
-.domain-record header { display: flex; align-items: center; flex-wrap: wrap; gap: .6rem; justify-content: space-between; }
-.domain-record dl, .scene-summary { display: grid; gap: .5rem; }
-.domain-record dl div, .scene-summary div { display: grid; grid-template-columns: 7rem 1fr; gap: .6rem; }
-.domain-record dt, .scene-summary dt { color: var(--color-muted); }
-.domain-record dd, .scene-summary dd { margin: 0; overflow-wrap: anywhere; }
-.domain-record pre, .domain-workspace pre { white-space: pre-wrap; overflow-wrap: anywhere; font-size: .875rem; }
-.media-artifact { display: grid; gap: .5rem; }
-.media-artifact img, .media-artifact video { max-width: 100%; max-height: 32rem; object-fit: contain; border-radius: .7rem; }
-.media-artifact audio { width: 100%; }
-.artifact-list { display: grid; grid-template-columns: repeat(auto-fit,minmax(min(100%,17rem),1fr)); gap: 1rem; }
-.reaction-card img { height: 12rem; width: 100%; object-fit: contain; }
-.domain-unknown { color: var(--color-muted); }
-.command-feedback { border-left: 3px solid var(--color-accent); padding-left: 1rem; margin: 1rem 0; }
+.domain-workspace {
+  display: grid;
+  gap: var(--space-5);
+}
+.domain-workspace h2,
+.domain-workspace h3 {
+  margin-top: 0;
+}
+.domain-workspace .panel {
+  min-width: 0;
+}
+.domain-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+}
+.domain-toolbar {
+  justify-content: space-between;
+}
+.domain-record {
+  border: 1px solid var(--color-line);
+  border-radius: var(--radius-control);
+  padding: 1rem;
+  min-width: 0;
+}
+.domain-record header {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  justify-content: space-between;
+}
+.domain-record dl,
+.scene-summary {
+  display: grid;
+  gap: 0.5rem;
+}
+.domain-record dl div,
+.scene-summary div {
+  display: grid;
+  grid-template-columns: 7rem 1fr;
+  gap: 0.6rem;
+}
+.domain-record dt,
+.scene-summary dt {
+  color: var(--color-muted);
+}
+.domain-record dd,
+.scene-summary dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.domain-record pre,
+.domain-workspace pre {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.875rem;
+}
+.media-artifact {
+  display: grid;
+  gap: 0.5rem;
+}
+.media-artifact img,
+.media-artifact video {
+  max-width: 100%;
+  max-height: 32rem;
+  object-fit: contain;
+  border-radius: 0.7rem;
+}
+.media-artifact audio {
+  width: 100%;
+}
+.artifact-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr));
+  gap: 1rem;
+}
+.reaction-card img {
+  height: 12rem;
+  width: 100%;
+  object-fit: contain;
+}
+.domain-unknown {
+  color: var(--color-muted);
+}
+.command-feedback {
+  border-left: 3px solid var(--color-accent);
+  padding-left: 1rem;
+  margin: 1rem 0;
+}
+.voice-picker,
+.voice-picker-list {
+  display: grid;
+  gap: var(--space-3);
+  min-width: 0;
+}
+.voice-picker-list {
+  max-height: 28rem;
+  overflow: auto;
+}
+.voice-option {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+.voice-option > div {
+  min-width: 0;
+}
+.voice-option > button {
+  flex-shrink: 0;
+}
+.voice-id {
+  display: block;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  margin: 0.35rem 0 0;
+}
+.voice-binding,
+.voice-selection {
+  padding: 0.75rem;
+  border-radius: var(--radius-control);
+  background: var(--color-selection);
+  overflow-wrap: anywhere;
+}
+.role-voice-settings details > summary {
+  cursor: pointer;
+  margin-bottom: 0.75rem;
+}
+.role-voice-settings details label {
+  display: grid;
+  gap: 0.4rem;
+}
+@media (max-width: 480px) {
+  .voice-option {
+    align-items: start;
+    flex-direction: column;
+  }
+  .voice-option > button {
+    width: 100%;
+  }
+}

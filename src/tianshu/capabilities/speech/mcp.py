@@ -121,6 +121,42 @@ class FishMCP:
             raise ProviderError("speech_mcp_parameter_unsupported", 409)
         return args
 
+    def voice_search_arguments(self, query="", *, owned=False, cursor=None, parameters=None):
+        """Use the connected tool's declared self selector and pagination fields."""
+        properties = self.tools.get("search_voices", {}).get("inputSchema", {}).get("properties", {})
+        semantic = {**(parameters or {}), "query": query, "limit": 20, "page_size": 20}
+        if "self" in properties:
+            semantic["self"] = str(owned).lower() if properties["self"].get("type") == "string" else owned
+        else:
+            selector = next((key for key, field in properties.items() if "self" in field.get("enum", [])), None)
+            if selector:
+                choices = properties[selector]["enum"]
+                if owned:
+                    semantic[selector] = "self"
+                else:
+                    preference = ("search", "public", "popular") if query else ("popular", "public", "search")
+                    semantic[selector] = next((value for value in preference if value in choices), None)
+            elif owned:
+                # Never return public search results under a "my voices" label.
+                raise ProviderError("speech_owned_voices_unsupported", 409)
+        if "cursor" in properties:
+            if cursor is not None:
+                semantic["cursor"] = cursor
+        elif any(key in properties for key in ("offset", "page_number", "page")):
+            try:
+                offset = int(cursor or 0)
+            except (TypeError, ValueError):
+                raise ProviderError("speech_voice_cursor_invalid", 400) from None
+            if offset < 0:
+                raise ProviderError("speech_voice_cursor_invalid", 400)
+            if "offset" in properties:
+                semantic["offset"] = offset
+            else:
+                semantic["page_number" if "page_number" in properties else "page"] = offset // 20 + 1
+        elif cursor is not None:
+            raise ProviderError("speech_voice_cursor_invalid", 400)
+        return self.compile("search_voices", semantic)
+
     async def upload(self, raw, mime, *, filename="recording", parameters=None):
         """Upload actual bytes using the connected server's temporary-audio slot."""
         semantic = {
