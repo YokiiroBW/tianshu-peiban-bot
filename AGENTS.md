@@ -1,3 +1,16 @@
+# 2026-11-08 系统统计与模型用量已部署并启动
+
+用户明确授权“推送部署吧”“然后启动”。本聊天以实际线上8a0d6f45及已生效音乐前端为基线，
+从独立工作树串行上线 `b38a5d205d90028564328d6189c9c7b74c5a5537`，镜像 `3c49b221ddde`，
+对应UI已正常安装激活至序号8。北京时间21:28:57六角色ready、网页HTTP200、0重启/无OOM；
+容量守护healthy，守护及巡检active。模型/供应商/功能用量排行、每日趋势、30天及指定日期和手机布局已生效。
+
+复用13个受影响PG有效结果，实际生产基线重验6桌面/手机、TypeScript和build通过；2安装模块与8项当前/旧UI资源SHA匹配。
+真实管理员权限上下文只读查询30天返回10功能/14模型/9供应商，统计覆盖仍不完整、缺失费用保持未知。
+配置/绑定/15媒体配置/两连接/代际/迁移登记/现有12挂载/其他2容器保持。原265模型unknown和35Action unknown事实保持；
+另观察1个新media.acquire为running/publishing、effect unknown，未重放、未冒称终态。无新迁移/清理/真实模型或QQ测试。
+详见 `docs/handoffs/STATISTICS-USAGE-20261108.md`；下方为历史阶段。
+
 # 2026-11-08 SnowLuma 统一内部接口已部署
 
 用户明确授权“推送部署吧，然后项目放一份接口文档”。本聊天串行上线 `40e32ff1cc5c35e6710622940664ed4ab7cf416b`，镜像 `1b048f5e79f1`，已合入最终订阅概览补修42251a33和全部此前已上线功能。北京时间01:05:25六角色ready、HTTP200、0重启/无OOM，容量守护healthy、守护及巡检active。两条实际SnowLuma连接只读目录各222动作/213可执行/6别名，9上游占位明确拒绝；统一调用入口为product.channels.native及插件channels.native，复用原Actions/Expression/Channels/FileStore。开发文档在 `docs/development/snowluma-native-interfaces.md`，README有入口。
