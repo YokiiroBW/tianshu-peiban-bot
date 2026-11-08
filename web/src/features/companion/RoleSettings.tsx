@@ -3,9 +3,10 @@ import { Settings2 } from "lucide-react";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { ModelFunctionsPanel } from "../settings/ModelFunctionsPanel";
 import { SkillsPanel } from "../settings/skills/SkillsPanel";
+import { RoleSpeechSettings } from "../multimodal/RoleSpeechSettings";
 export default function RoleSettings() {
   const workspace = useRoleWorkspace();
-  const [tab, setTab] = useState<"models" | "skills">("models");
+  const [tab, setTab] = useState<"models" | "skills" | "speech">("models");
   return (
     <section className="role-settings-page scroll-page">
       <header className="role-section-heading">
@@ -19,7 +20,7 @@ export default function RoleSettings() {
                 ?.name ?? "选择角色"}
               的设置
             </h2>
-            <p>角色功能模型绑定与统一能力目录。</p>
+            <p>设置角色的模型分工、声音与可用能力。</p>
           </div>
         </div>
       </header>
@@ -29,6 +30,12 @@ export default function RoleSettings() {
           onClick={() => setTab("models")}
         >
           模型分工
+        </button>
+        <button
+          aria-selected={tab === "speech"}
+          onClick={() => setTab("speech")}
+        >
+          声音与语音
         </button>
         <button
           aria-selected={tab === "skills"}
@@ -45,6 +52,8 @@ export default function RoleSettings() {
       </nav>
       {!workspace.actor ? (
         <p>先选择一位角色。</p>
+      ) : tab === "speech" ? (
+        <RoleSpeechSettings key={workspace.actor} actor={workspace.actor} />
       ) : tab === "skills" ? (
         <SkillsPanel key={workspace.actor} actorId={workspace.actor} />
       ) : (

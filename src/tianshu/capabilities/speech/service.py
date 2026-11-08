@@ -11,6 +11,7 @@ from ..external import request, ProviderError
 from .native import NativeFish, MODELS
 from .mcp import FishMCP, OAuth
 from .compatible import EdgeSpeech, CompatibleSpeech
+from .voices import voice_page
 
 INPUT = {
     "type": "object",
@@ -159,6 +160,7 @@ class Speech:
             for key in (
                 "connection_id",
                 "voice_id",
+                "voice_name",
                 "model",
                 "language",
                 "output_mode",
@@ -519,6 +521,15 @@ class Speech:
     async def voices(self, action, attempt):
         _, connection, _ = await self.selected(action)
         adapter = await self.adapter(connection)
+        cursor = action.arguments.get("cursor")
+        offset_pagination = isinstance(adapter, NativeFish)
+        if offset_pagination:
+            try:
+                offset = int(cursor or 0)
+            except (TypeError, ValueError):
+                raise Fault("speech_voice_cursor_invalid", 400) from None
+            if offset < 0:
+                raise Fault("speech_voice_cursor_invalid", 400)
         async with self.broker.resource(
             request(action, attempt, connection, "speech.voices")
         ) as permit:
@@ -541,39 +552,24 @@ class Speech:
                 answer = await adapter.voices(
                     action.arguments.get("query", ""),
                     owned=action.arguments.get("owned", False),
-                    offset=int(action.arguments.get("cursor") or 0),
+                    offset=offset,
                 )
             elif isinstance(adapter, FishMCP):
-                answer = await adapter.call(
-                    "search_voices",
-                    adapter.compile(
-                        "search_voices",
-                        {
-                            "query": action.arguments.get("query", ""),
-                            "limit": 20,
-                            **action.arguments.get("mcp_parameters", {}),
-                        },
-                    ),
+                parameters = adapter.voice_search_arguments(
+                    action.arguments.get("query", ""),
+                    owned=action.arguments.get("owned", False),
+                    cursor=cursor,
+                    parameters=action.arguments.get("mcp_parameters"),
                 )
+                properties = adapter.tools["search_voices"]["inputSchema"].get("properties", {})
+                offset_pagination = "cursor" not in properties and any(
+                    key in properties for key in ("offset", "page_number", "page")
+                )
+                answer = await adapter.call("search_voices", parameters)
             else:
                 raise ProviderError("voices_not_supported", 409)
             await permit.finish()
-        rows = answer.get("items", answer.get("voices", [])) if isinstance(answer, dict) else answer
-        return {
-            "items": [
-                {
-                    "id": x.get("_id", x.get("id")),
-                    "name": x.get("title", x.get("name", "")),
-                    "preview": None,
-                    "visibility": x.get("visibility"),
-                    "owner_id": (x.get("author") or {}).get("_id")
-                    if isinstance(x.get("author"), dict)
-                    else x.get("owner_id"),
-                }
-                for x in rows
-            ],
-            "next_cursor": answer.get("next_cursor") if isinstance(answer, dict) else None,
-        }
+        return voice_page(answer, cursor=cursor, offset_pagination=offset_pagination)
 
     async def clone(self, action, attempt):
         _, connection, _ = await self.selected(action)
