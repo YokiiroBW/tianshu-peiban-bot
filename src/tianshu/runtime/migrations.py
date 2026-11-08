@@ -59,6 +59,8 @@ def product_migrations():
             files("tianshu.life").joinpath("private_contact_default.sql").read_text(encoding="utf-8")),
         Migration("role_administrator",
             files("tianshu.identity").joinpath("role_administrator.sql").read_text(encoding="utf-8")),
+        Migration("persona_storage",
+            files("tianshu.companion").joinpath("persona_storage.sql").read_text(encoding="utf-8")),
         Migration("rbf_source_proof_jit",
             files("tianshu.sources").joinpath("rbf_source_proof_jit.sql").read_text(encoding="utf-8")),
         Migration("rbf_source_proof_reuse",

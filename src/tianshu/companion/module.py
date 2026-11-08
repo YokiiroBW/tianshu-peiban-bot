@@ -1,5 +1,6 @@
 """Public composition entry; concrete services are injected by the application root."""
 from importlib.resources import files
+
 from tianshu.runtime.api import command_body, json_response
 from tianshu.runtime.composition import DomainModule
 from tianshu.runtime.errors import AppError
@@ -32,7 +33,6 @@ def create_module(service, growth, identity):
         route("roles/get", lambda ctx, _body: service.actor(ctx))
         route("personas/catalog", lambda ctx, _body: service.persona_catalog(ctx), actor=False)
         route("personas/view", lambda ctx, body: service.persona(ctx, body.get("persona_id"), body.get("revision")), actor=False)
-        route("personas/history", lambda ctx, body: service.persona_history(ctx, body.get("persona_id"), cursor=body.get("cursor"), limit=body.get("limit", 40)), actor=False)
         route("personas/save", service.save_persona, write=True, actor=False)
         route("affect/view", lambda ctx, _body: service.affect(ctx))
         route("growth/review",growth.request_review,write=True)
@@ -66,6 +66,7 @@ def create_module(service, growth, identity):
     return DomainModule("companion", register, start=start, register_tasks=tasks,
         maintenance=maintenance, maintenance_roles=("bot-background",),
         migrations=(Migration("0030_companion", files("tianshu.companion").joinpath("schema.sql").read_text()),
+            Migration("persona_storage", files("tianshu.companion").joinpath("persona_storage.sql").read_text(encoding="utf-8")),
             Migration("0034_companion_growth_batches", files("tianshu.companion").joinpath("growth_batches.sql").read_text()),
             Migration("0037_companion_growth_retry", files("tianshu.companion").joinpath("growth_retry.sql").read_text()),
             Migration("rbh_growth_transport", files("tianshu.companion").joinpath("rbh_growth_transport.sql").read_text(encoding="utf-8")),
