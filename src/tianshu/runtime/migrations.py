@@ -92,6 +92,8 @@ def rbj_runtime_migrations():
 
 def model_recovery_migrations():
     return (
+        Migration("models_function_bindings",
+            files("tianshu.models").joinpath("function_bindings.sql").read_text(encoding="utf-8")),
         Migration("models_recovery_wait",
             files("tianshu.models").joinpath("recovery_wait.sql").read_text(encoding="utf-8")),
         Migration("models_prestart_reconciliation",

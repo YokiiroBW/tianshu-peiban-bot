@@ -40,6 +40,7 @@
     "host": "0.0.0.0",
     "port": 18446,
     "static_directory": "/opt/tianshu/web/dist",
+    "ui_release_directory": "/data/ui",
     "max_body_bytes": 536870912,
     "drain_seconds": 30,
     "access": {

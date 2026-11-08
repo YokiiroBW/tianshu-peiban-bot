@@ -230,6 +230,13 @@
         "static_directory": {
           "type": "string"
         },
+        "ui_release_directory": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "minLength": 1
+        },
         "access": {
           "type": "object",
           "required": [

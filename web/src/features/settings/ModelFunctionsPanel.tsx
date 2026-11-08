@@ -2,49 +2,32 @@ import { useState } from "react";
 import { CommandFeedback } from "../../components/CommandFeedback";
 import { useModelCatalog, useModelCommand } from "./providerApi";
 import { modelRouteName } from "./providerPresentation";
-import {
-  functionNames,
-  serviceNames,
-  type ModelCatalog,
-  type ServiceClass,
-} from "./providerTypes";
+import { functionNames, type ModelCatalog } from "./providerTypes";
 
 function Binding({
   catalog,
   actorId,
   functionId,
-  serviceClass,
   reload,
 }: {
   catalog: ModelCatalog;
   actorId?: string;
   functionId: string;
-  serviceClass: ServiceClass;
   reload: () => Promise<void>;
 }) {
   const own = catalog.bindings.find(
-    (row) =>
-      row.function === functionId &&
-      row.service_class === serviceClass &&
-      row.actor_id === (actorId ?? ""),
+    (row) => row.function === functionId && row.actor_id === (actorId ?? ""),
   );
   const inherited =
     catalog.bindings.find(
-      (row) =>
-        row.function === functionId &&
-        row.service_class === serviceClass &&
-        !row.actor_id,
-    ) ??
-    catalog.bindings.find(
-      (row) =>
-        row.function === "*" &&
-        row.service_class === serviceClass &&
-        !row.actor_id,
-    );
+      (row) => row.function === functionId && !row.actor_id,
+    ) ?? catalog.bindings.find((row) => row.function === "*" && !row.actor_id);
   const [selected, setSelected] = useState(own?.route_id ?? "");
-  const [fallbacks, setFallbacks] = useState<string[]>(own?.fallback_routes ?? []);
+  const [fallbacks, setFallbacks] = useState<string[]>(
+    own?.fallback_routes ?? [],
+  );
   const command = useModelCommand(
-    `model-binding:${actorId ?? "system"}:${functionId}:${serviceClass}`,
+    `model-binding:${actorId ?? "system"}:${functionId}`,
     actorId,
   );
   const routes = catalog.routes.filter(
@@ -88,30 +71,97 @@ function Binding({
           ))}
         </select>
       </label>
-      {selected && <fieldset>
-        <legend>按顺序尝试的备用路由</legend>
-        <p className="muted">只有原路线不可用且候选通过能力、容量及协议检查时才会切换；结果未知的请求不会自动重发。</p>
-        {fallbacks.map((id, index) => <div className="models-actions" key={`${index}:${id}`}>
-          <label>备用路由 {index + 1}
-            <select value={id} onChange={(event) => {
-              const next = event.target.value;
-              setFallbacks((current) => current.map((value, position) => position === index ? next : value));
-            }}>
-              {!routes.some((route) => route.route_id === id) && <option value={id}>原备用模型（当前不可用）</option>}
-              {routes.filter((route) => route.route_id !== selected && (route.route_id === id || !fallbacks.includes(route.route_id))).map((route) =>
-                <option key={route.route_id} value={route.route_id}>{modelRouteName(catalog, route.route_id)}</option>)}
-            </select>
-          </label>
-          <button type="button" className="button" disabled={index === 0} onClick={() => setFallbacks((current) => {
-            const next = [...current]; [next[index - 1], next[index]] = [next[index], next[index - 1]]; return next;
-          })}>上移</button>
-          <button type="button" className="button" onClick={() => setFallbacks((current) => current.filter((_, position) => position !== index))}>移除</button>
-        </div>)}
-        {routes.some((route) => route.route_id !== selected && !fallbacks.includes(route.route_id)) && <button type="button" className="button" onClick={() => {
-          const next = routes.find((route) => route.route_id !== selected && !fallbacks.includes(route.route_id));
-          if (next) setFallbacks((current) => [...current, next.route_id]);
-        }}>添加备用路由</button>}
-      </fieldset>}
+      {selected && (
+        <fieldset>
+          <legend>按顺序尝试的备用路由</legend>
+          <p className="muted">
+            只有原路线不可用且候选通过能力、容量及协议检查时才会切换；结果未知的请求不会自动重发。
+          </p>
+          {fallbacks.map((id, index) => (
+            <div className="models-actions" key={`${index}:${id}`}>
+              <label>
+                备用路由 {index + 1}
+                <select
+                  value={id}
+                  onChange={(event) => {
+                    const next = event.target.value;
+                    setFallbacks((current) =>
+                      current.map((value, position) =>
+                        position === index ? next : value,
+                      ),
+                    );
+                  }}
+                >
+                  {!routes.some((route) => route.route_id === id) && (
+                    <option value={id}>原备用模型（当前不可用）</option>
+                  )}
+                  {routes
+                    .filter(
+                      (route) =>
+                        route.route_id !== selected &&
+                        (route.route_id === id ||
+                          !fallbacks.includes(route.route_id)),
+                    )
+                    .map((route) => (
+                      <option key={route.route_id} value={route.route_id}>
+                        {modelRouteName(catalog, route.route_id)}
+                      </option>
+                    ))}
+                </select>
+              </label>
+              <button
+                type="button"
+                className="button"
+                disabled={index === 0}
+                onClick={() =>
+                  setFallbacks((current) => {
+                    const next = [...current];
+                    [next[index - 1], next[index]] = [
+                      next[index],
+                      next[index - 1],
+                    ];
+                    return next;
+                  })
+                }
+              >
+                上移
+              </button>
+              <button
+                type="button"
+                className="button"
+                onClick={() =>
+                  setFallbacks((current) =>
+                    current.filter((_, position) => position !== index),
+                  )
+                }
+              >
+                移除
+              </button>
+            </div>
+          ))}
+          {routes.some(
+            (route) =>
+              route.route_id !== selected &&
+              !fallbacks.includes(route.route_id),
+          ) && (
+            <button
+              type="button"
+              className="button"
+              onClick={() => {
+                const next = routes.find(
+                  (route) =>
+                    route.route_id !== selected &&
+                    !fallbacks.includes(route.route_id),
+                );
+                if (next)
+                  setFallbacks((current) => [...current, next.route_id]);
+              }}
+            >
+              添加备用路由
+            </button>
+          )}
+        </fieldset>
+      )}
       {command.manageable && (
         <button
           className="button"
@@ -121,9 +171,10 @@ function Binding({
               selected ? "bindings" : "bindings/delete",
               {
                 function: functionId,
-                service_class: serviceClass,
                 actor_id: actorId ?? null,
-                ...(selected ? { route_id: selected, fallback_routes: fallbacks } : {}),
+                ...(selected
+                  ? { route_id: selected, fallback_routes: fallbacks }
+                  : {}),
               },
               own?.revision ?? 0,
             );
@@ -140,7 +191,6 @@ function Binding({
 
 export function ModelFunctionsPanel({ actorId }: { actorId?: string } = {}) {
   const catalog = useModelCatalog(actorId);
-  const [serviceClass, setServiceClass] = useState<ServiceClass>("interactive");
   return (
     <section
       className="model-functions"
@@ -150,28 +200,13 @@ export function ModelFunctionsPanel({ actorId }: { actorId?: string } = {}) {
         <div>
           <h3>{actorId ? "此角色的模型功能" : "系统默认与功能分工"}</h3>
           <p className="muted">
-            即时、到期和后台各自选择默认路由；角色仅覆盖明确功能，嵌入始终使用唯一固定配置。
+            每项功能统一选择模型，角色可覆盖具体功能；排队优先级由系统管理，嵌入使用唯一固定配置。
           </p>
         </div>
         <button className="button" onClick={() => void catalog.refresh()}>
           刷新
         </button>
       </div>
-      <label>
-        执行类别
-        <select
-          value={serviceClass}
-          onChange={(event) =>
-            setServiceClass(event.target.value as ServiceClass)
-          }
-        >
-          {Object.entries(serviceNames).map(([id, name]) => (
-            <option key={id} value={id}>
-              {name}
-            </option>
-          ))}
-        </select>
-      </label>
       {catalog.error && <p role="alert">{catalog.error}</p>}
       {catalog.loading && !catalog.data && <p>正在读取实际模型目录…</p>}
       {catalog.data && (
@@ -181,11 +216,10 @@ export function ModelFunctionsPanel({ actorId }: { actorId?: string } = {}) {
             ...catalog.data.functions.filter((id) => id !== "embed"),
           ].map((id) => (
             <Binding
-              key={`${actorId ?? "system"}:${serviceClass}:${id}:${catalog.data?.bindings.find((row) => row.function === id && row.actor_id === (actorId ?? "") && row.service_class === serviceClass)?.revision ?? 0}`}
+              key={`${actorId ?? "system"}:${id}:${catalog.data?.bindings.find((row) => row.function === id && row.actor_id === (actorId ?? ""))?.revision ?? 0}`}
               catalog={catalog.data!}
               actorId={actorId}
               functionId={id}
-              serviceClass={serviceClass}
               reload={catalog.refresh}
             />
           ))}

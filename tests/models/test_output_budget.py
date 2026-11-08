@@ -181,5 +181,5 @@ async def test_image_consistency_binding_inherits_vision_without_changing_other_
     async with database.transaction() as connection:
         await connection.execute("DELETE FROM models.bindings WHERE function='image.consistency'")
     assert (await catalog.resolve(check)).route_id == "vision-actor"
-    with pytest.raises(AppError, match="model_function_not_configured"):
-        await catalog.resolve(replace(check, service_class=ServiceClass.INTERACTIVE))
+    for priority in ServiceClass:
+        assert (await catalog.resolve(replace(check, service_class=priority))).route_id == "vision-actor"

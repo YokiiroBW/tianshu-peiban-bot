@@ -250,6 +250,9 @@ class Supervisor:
             data / "channels",
             data / "plugins",
             data / "capabilities",
+            data / "ui",
+            data / "ui" / "releases",
+            data / "ui" / ".staging",
             data / "observability",
             *(
                 data / "observability" / name

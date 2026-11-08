@@ -65,14 +65,19 @@ async def delete_configuration(services, context, operation, body):
                     ("sealed:provider:" + identifier,),
                 )
         elif operation == "bindings":
+            current = await (await conn.execute(
+                "SELECT revision FROM models.bindings WHERE function=%s AND actor_id=%s "
+                "ORDER BY CASE service_class WHEN 'interactive' THEN 0 WHEN 'elastic' THEN 1 ELSE 2 END LIMIT 1",
+                (text(body, "function"), body.get("actor_id") or ""),
+            )).fetchone()
+            if not current or current["revision"] != expected:
+                raise AppError("revision_conflict", status=409)
             changed = await (
                 await conn.execute(
-                    "DELETE FROM models.bindings WHERE function=%s AND service_class=%s AND actor_id=%s AND revision=%s RETURNING revision",
+                    "DELETE FROM models.bindings WHERE function=%s AND actor_id=%s RETURNING revision",
                     (
                         text(body, "function"),
-                        text(body, "service_class"),
                         body.get("actor_id") or "",
-                        expected,
                     ),
                 )
             ).fetchone()

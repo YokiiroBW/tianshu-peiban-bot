@@ -83,12 +83,14 @@ test("model binding saves ordered fallback routes with the current revision", as
   });
   await page.goto("/#/settings/models");
   const binding = page.getByRole("heading", { name: "对话", exact: true }).locator("..");
+  await expect(page.getByLabel("执行类别", { exact: true })).toHaveCount(0);
   await expect(binding.getByLabel("备用路由 1")).toHaveValue("backup-a");
   await binding.getByRole("button", { name: "添加备用路由" }).click();
   await binding.getByRole("button", { name: "上移" }).nth(1).click();
   await binding.getByRole("button", { name: "保存绑定" }).click();
   await expect.poll(() => writes.length).toBe(1);
   expect(writes[0]).toMatchObject({ function: "chat", route_id: "primary", fallback_routes: ["backup-b", "backup-a"], expected_revision: 3 });
+  expect(writes[0]).not.toHaveProperty("service_class");
 });
 
 test("long model routes and fallback controls stay inside their cards", async ({ page }) => {

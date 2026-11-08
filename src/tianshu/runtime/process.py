@@ -28,7 +28,7 @@ from .jobs import JobQueue
 from .migrations import product_migrations, migrate
 from .product import build_authority, build_product
 from .listeners import start_sites
-from .static import register_static
+from .static import UI_RELEASE_MANAGER, register_static
 from .serialization import wire
 from .execution import PROCESS_ROLES, TASK_LANES, role_worker_groups
 
@@ -343,11 +343,20 @@ async def run(settings, role, *, initialize=False):
 
             register_native_proxy(app, settings)
             if settings.get("http", {}).get("static_directory"):
-                register_static(app, settings["http"]["static_directory"])
+                register_static(
+                    app,
+                    settings["http"]["static_directory"],
+                    ui_release_directory=settings.ui_release_directory,
+                )
             registration = {"domains": [module.name for module in modules]}
 
             async def ready():
                 registration["modules"] = services.module_status
+                if app.get(UI_RELEASE_MANAGER) is not None:
+                    try:
+                        registration["ui"] = app[UI_RELEASE_MANAGER].status()
+                    except Exception as exc:
+                        registration["ui"] = {"degraded": True, "error": type(exc).__name__}
                 if getattr(product, "channels", None):
                     try:
                         registration["channels"] = await product.channels.status()
