@@ -288,3 +288,49 @@ async def test_http_content_source_keeps_its_provenance_reference():
     assert actions.invoke.await_args.args[0].source_refs == (
         SourceRef("provenance", 2), SourceRef("article", 3),
     )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("withdrawn", [False, True])
+async def test_action_lookup_refreshes_an_already_cached_plugin_after_lifecycle_change(withdrawn):
+    from tianshu.capabilities.actions import Actions
+    from tianshu.capabilities.catalog import Catalog
+    from tianshu.capabilities.service import Capabilities
+
+    catalog = Catalog()
+    plugins = object.__new__(Plugins)
+    plugins.catalog = catalog
+    plugins.authority = SimpleNamespace(check=AsyncMock())
+    row = {
+        "binding": {"instance_id":"instance", "binding_id":"binding",
+                    "action_id":"value", "binding_revision":1},
+        "scope":{"kind":"workspace", "workspace_id":"system"},
+        "title":"value", "description":"local fixture", "effect":"read",
+        "input_schema":{"type":"object"}, "output_schema":{"type":"object"},
+        "long_running":False,
+    }
+    plugins.bridge = SimpleNamespace(discover=AsyncMock(return_value=[row]))
+    await plugins.refresh(session())
+    identifier = "plugin:instance:binding:value"
+    old = catalog.handlers[identifier]
+    other = object()
+    catalog.handlers["media.view"] = other
+    owner = SimpleNamespace(plugins=plugins)
+    actions = object.__new__(Actions)
+    actions.catalog = catalog
+    async def prepare(action):
+        await Capabilities.prepare_handler(owner, action)
+    actions.prepare_handler = prepare
+    plugins.bridge.discover.return_value = [] if withdrawn else [
+        {**row, "binding":{**row["binding"], "binding_revision":2}},
+    ]
+    action = SimpleNamespace(capability_id=identifier, context=session())
+    if withdrawn:
+        with pytest.raises(Fault) as error:
+            await actions.handler(action)
+        assert error.value.code == "adapter_not_installed"
+    else:
+        current = await actions.handler(action)
+        assert current is not old
+        assert current.binding["binding_revision"] == 2
+    assert catalog.handlers["media.view"] is other
