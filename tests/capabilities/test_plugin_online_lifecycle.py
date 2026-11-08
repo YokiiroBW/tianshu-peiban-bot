@@ -431,3 +431,24 @@ async def test_failed_install_is_never_enableable_and_repeats_idempotently(lifec
 @pytest.mark.asyncio
 async def test_reinstall_restores_the_retained_instance(lifecycle_database, tmp_path):
     await reinstall_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_disabled_instance_keeps_its_config_in_the_ledger(lifecycle_database, tmp_path):
+    host = Host(lifecycle_database, tmp_path)
+    manager = await host.open()
+    package_id = await host.install(
+        package(tmp_path / "cfg", "fixture.config", "1.0.0", "cfg"), "install-cfg"
+    )
+    instance = await host.enable(package_id, "Config", "instance-cfg")
+    stored = await manager.instance(instance["id"])
+    assert stored["config"] == {} and stored["bindings"] == []
+    disabled = await manager.state(instance["id"], False, stored["revision"])
+    assert disabled["desired_state"] == "disabled"
+    assert instance["id"] not in manager.workers
+    # The ledger keeps identity, configuration and bindings for a later enable.
+    after = await manager.instance(instance["id"])
+    assert after["config"] == stored["config"]
+    assert after["package_id"] == stored["package_id"]
+    assert after["version"] == stored["version"]
+    await manager.close()

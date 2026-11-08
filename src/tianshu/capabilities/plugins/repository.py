@@ -126,18 +126,18 @@ class Repository:
 
     def save_schedule(self, document, expected, enqueue):
         with self.transaction() as connection:
-            self.runtime.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
+            self.owner.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
             self.put("schedules",document,connection,expected=expected)
             enqueue(connection,document)
 
     def wait_schedule(self, document, expected):
         with self.transaction() as connection:
-            self.runtime.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
+            self.owner.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
             self.put("schedules", document, connection, expected=expected)
 
     def defer_schedule(self, document, enqueue):
         with self.transaction() as connection:
-            self.runtime.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
+            self.owner.jobs.assert_generation_sync_on(connection, document.get("data_generation"))
             enqueue(connection,document)
 
     def accept(self, instance, action, value, intent, principal, *, binding=None):
