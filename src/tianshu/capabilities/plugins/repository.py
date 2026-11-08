@@ -269,7 +269,13 @@ class Repository:
         with self.transaction() as db:
             self.put("instances", snapshot["instance"], db)
             db.execute('DELETE FROM plugin_state WHERE instance_id=%s', (instance,))
-            for key, value, revision in snapshot["state"]:
+            for row in snapshot["state"]:
+                if isinstance(row, dict):
+                    # A snapshot read back from the operation ledger has been
+                    # through JSON, so its rows are column-named objects again.
+                    key, value, revision = row["key"], row["value"], row["revision"]
+                else:
+                    key, value, revision = row
                 db.execute(
                     'INSERT INTO plugin_state VALUES(%s,%s,%s,%s)', (instance, key, value, revision)
                 )

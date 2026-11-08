@@ -10,7 +10,8 @@
 - 本轮（第三轮）返修基线：`d0d29aa654b2c243c901c868f25d11f29bb7035c`
 - 第三轮返修提交：`ff100befc37859a66a482c12dc8785bf73cd849d`（后端调用链、回归用例与两份文档）
 - 本轮（第四轮）返修基线：`87b4f0263b708b10c75e8338b2acdcc08b852744`
-- 本轮（第四轮）返修提交：`8942f4cb3c60b72a626cc124623f53765f2c2b35`（`process.py`、`manager.py`、回归用例与两份文档；随后另有一条只追加本条 SHA 的记录）
+- 第四轮返修提交：`8942f4cb3c60b72a626cc124623f53765f2c2b35`
+- 本轮（第五轮）返修基线：`30d598f57917152cf5d8ca4cd2e41c653d460cb5`；本轮提交 SHA 见分支 HEAD（随后另有一条只追加本条 SHA 的记录）
 - 基线分支源自 `37d4cb50`，**不含此后的网页在线发布与模型绑定交付**，因此本分支不用于覆盖现有部署基线。
 
 ## 1. 结论摘要
@@ -27,7 +28,8 @@
 
 4. **上下文按进程代次归属**：接管新进程时不撤销它已获得的句柄，旧代次句柄失效且迟到回调不能操作新代次；升级失败先撤候选进程句柄再恢复旧版本。
 5. **同包安装提交与卸载真正互斥**：只有"提交成 installed"进入包锁，"准备"在 `installation_lock` 内并登记 `preparing` 目录；两条路径的第二段同序，无死锁；其它插件不受影响。
-6. **失败候选进程先关闭并确认退出，再恢复**（本轮）：`stop_worker` 对未注册的候选补齐关闭；`_upgrade` 失败分支按"停并关闭 → 确认退出 → 恢复快照 → 重启旧版本 → 记账"执行，未确认退出时如实记录并拒绝宣称安全恢复。
+6. **失败候选进程先关闭并确认退出，再恢复**（第四轮）：`stop_worker` 对未注册的候选补齐关闭；`_upgrade` 失败分支按"停并关闭 → 确认退出 → 恢复快照 → 重启旧版本 → 记账"执行，未确认退出时如实记录并拒绝宣称安全恢复。
+7. **未确认退出时真正停止恢复**（本轮）：失败分支改为两条互斥路径；候选未确认退出时**不恢复快照、不启动旧版本**，以 `instance_cleanup_pending` 拒绝普通调用/重载/启用/配置/升级/卸载，跨宿主由操作账本读回标记，确认退出后经同一条受控路径恢复并解除限制。
 
 ## 2. 本轮（第三轮）两项缺陷：根因、修复归属与锁序
 
@@ -53,7 +55,7 @@
 | B 卸载与其他操作非互斥 | `uninstall` 逐个 `state(id, False, rev)` 各自拿放**实例锁**，释放期间另一请求可重新启用；随后仍标记 `installed=false` 并回收目录，产生"实例 enabled + 进程在跑 + 目录已删" | `manager.uninstall/_uninstall`：整个操作在 `package_locks[plugin_id]` 内；`create/configure/bindings/state/restart/upgrade/启动恢复` 均在该包级锁下；卸载期间 `admission[id]="instance_unloading"`；`_disable` 拆出供包锁内复用；失败写 `stopped_instances/remaining_instances/packages_marked`；回收前在 `installation_lock` 内重读"仍 installed 的包"的目录，避免删掉并发重装刚准备的同一目录；重复卸载读 `fingerprint` 幂等或 `already_uninstalled` 短路 |
 | C purge 与页面承诺不一致 | `repository.purge` 只删 `plugin_state/plugin_secrets/plugin_logs/plugin_schedules/plugin_consumptions`，实例文档的 `config`/`bindings` 原样保留；页面却宣称"已清除插件自有配置" | `repository.purge` 在同一事务内清空实例文档 `config`/`bindings`、`revision+1`、`data_purged_at`，并停用该实例定时任务（`enabled=false`，清 `dispatch/previous_dispatch/pending/wake_generation`）；保留 Action/Attempt/Receipt/unknown；`web/src/features/plugins/InstancePanel.tsx` 文案改写为真实范围与"该包下所有实例" |
 
-## 4. 本轮（第四轮）：失败候选进程的关闭与退出确认
+## 4. 第四轮：失败候选进程的关闭与退出确认
 
 **根因**：`PluginManager._upgrade` 失败后调用 `stop_worker(identifier, "upgrade_abandoned", process)`，但 `stop_worker` 对"尚未注册到 `workers` 的候选进程"只走 `elif process is not None` 分支——**只撤销上下文，不调用 `process.close()`**。因此实际顺序仍是：① 候选仍存活时恢复快照；② 候选仍存活时重启旧版本；③ 最后才在 `finally` 里 `process.close("upgrade_abandoned")`。候选进程在恢复期间继续持有 RPC 通道，可能继续写刚被恢复的数据。
 
@@ -75,6 +77,37 @@
 5. 需要时 `worker(current)` 重启旧版本；
 6. 写操作记录：`rolled_back = restored and candidate_gone`，`restored_version` 同条件，`candidate_closed`/`candidate_error` 如实记录，`code`/`failed_version` 保留原始失败原因；
 7. `finally` 仍调用 `process.close("upgrade_abandoned")`，因 `closed` 标记而成为安全的空操作。
+
+## 4b. 本轮（第五轮）：未确认退出时真正停止恢复
+
+**根因**：第四轮虽然计算了 `candidate_gone`，但失败分支**无条件**继续执行 `repository.restore(...)` 与 `worker(current)`，所以 `candidate_closed=false`/`rolled_back=false` 只是改变了报告，没有阻止"候选仍存活时恢复数据并启动旧版本"。
+
+**修复**：失败分支改成两条互斥路径，由"指定失败候选是否确认退出"决定，二者不再汇合到无条件恢复。
+
+| 路径 | 行为 |
+| --- | --- |
+| 已确认退出 | `stop_worker` 撤销该候选自身代次句柄并关闭 → `candidate_gone`（`returncode`，或记录 pid 证明**不存在**）→ `finish_failed_switch`：恢复快照 → 撤销该实例残留句柄 → 必要时启动旧版本 → 按真实结果记账 |
+| 未确认退出 | 记录原升级失败与清理失败 → **不调用 `repository.restore`** → **不启动旧版本** → 不宣告恢复 → 返回 `instance_cleanup_pending` 并保持限制 |
+
+**退出证明**：只用真实进程事实——`Process.exited`（`returncode is not None`），或对**已记录的候选 pid** 做只读探测且仅接受"不存在"结论（Windows 用 `OpenProcess(QUERY_LIMITED_INFORMATION)`+`GetExitCodeProcess`，非 Windows 用 `kill(pid, 0)`）。`close()` 返回、RPC 断开、`closed` 标记、句柄撤销都不算退出证明；关闭抛错但进程确实已退出时按真实退出事实处理（`candidate_error` 只记录清理异常，不覆盖原失败码）。
+
+**防止后续请求绕过**（复用既有准入与代次，不新建恢复平台）：
+
+| 位置 | 机制 |
+| --- | --- |
+| `admission[instance]` | 置为 `instance_cleanup_pending`；`finally` 不再无条件 `admission.pop`，只有在候选未登记为待清理时才释放 |
+| `Executions.admit` | 既有准入检查直接以该码拒绝新调用，普通调用不会经 `worker()` 拉起旧版本 |
+| `worker()` | 入口 `require_clean_settled` 同样拒绝，覆盖重启、启用、重载等所有可能启动进程的路径 |
+| 生命周期入口 | `enable/disable`(`state`)、`configure`、`bindings`、`upgrade`、`restart`、`uninstall` 先 `settle_pending`；候选未退则保持拒绝，退出了则走同一条恢复路径 |
+| 跨宿主 | 操作账本记录 `candidate_closed=false` 与 `candidate_pid`；`start()` 读回该标记，恢复 `admission` 与 `abandoned` 记录，**不在启动时假设恢复**；只有记录 pid 被证明不存在时才解除 |
+| 影响范围 | 限制只作用于该 `instance_id`，不持有全局锁、其它插件照常服务 |
+
+**清理与错误语义**：`finally` 只做幂等清理（`Process.close` 的 `closed` 标记），不用它解除限制、不恢复数据，第二处关闭异常被吞掉以免覆盖原失败码。未确认退出时记录 `candidate_closed=false`、`candidate_error`、`candidate_pid`、`rolled_back=false`、`restored_version=null`、`restore_state="blocked_candidate_alive"`，原 `code`/`failed_version`/请求与回执/unknown 不变。
+
+**顺带修正的两处事实错误**（同属本次控制流，非新功能）：
+
+- `Repository.restore` 从操作账本读回的 `state` 行是 JSON 对象，原实现按元组解包会导致 `invalid input syntax for type integer`；现在按列名读取，跨宿主恢复才能真正执行。
+- `restored_version` 原先取自旧字段，现在按恢复后真实运行的版本读回。
 
 ## 5. 生命周期状态
 
@@ -117,7 +150,10 @@
 - `tests/capabilities/test_plugin_online_lifecycle.py`：新增 8 个场景（启动失败不记成功、恢复失败不谎报回退、已受理调用按原身份结算、升级成功代次等于服务进程、保留配置卸载、清除数据卸载、卸载与启用互斥、卸载与重装串行、接管后账本冲突）；
 - `tests/capabilities/test_plugin_lifecycle_control.py`：新增准入拒绝码、卸载准入、以及带事件屏障的"卸载 vs 启用"确定性并发用例；
 - **第三轮** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 4 个真实子进程场景（接管上下文存活、失败候选上下文、同包安装/卸载互斥、准备期卸载），并把 `package()` 扩展为可声明所需能力；
-- **本轮（第四轮）** `process.py`：`Process.exited`（以 `returncode` 判断操作系统退出）与 `close()` 的 `closed` 幂等标记；`manager.py`：`stop_worker` 对未注册的指定进程补齐 `close()`，`_upgrade` 失败分支按"停并关闭 → 确认退出 → 恢复快照 → 重启旧版本 → 记账"执行，并如实记录 `candidate_closed`/`candidate_error`；
+- **本轮（第五轮）** `manager.py`：失败分支改为两条互斥路径（`settle_failed_candidate` / `finish_failed_switch`），新增 `CLEANUP_PENDING`、`abandoned`、`require_clean_settled`、`settle_pending`、`candidate_gone`、`recover_candidate`、`record_cleanup_pending`；`worker()` 与全部生命周期入口受同一准入码约束；`start()` 从操作账本读回跨宿主标记；`repository.restore` 兼容账本读回的行；
+- **本轮（第五轮）** `process.py`：新增 `os_process_exited(pid)` 只读探测（仅证明"不存在"），供跨宿主/已回收句柄场景使用；
+- **本轮（第五轮）** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 5 个真实子进程场景并把断言放在"行为"而非"报告字段"上；
+- **第四轮** `process.py`：`Process.exited`（以 `returncode` 判断操作系统退出）与 `close()` 的 `closed` 幂等标记；`manager.py`：`stop_worker` 对未注册的指定进程补齐 `close()`，`_upgrade` 失败分支按"停并关闭 → 确认退出 → 恢复快照 → 重启旧版本 → 记账"执行，并如实记录 `candidate_closed`/`candidate_error`；
 - **本轮（第四轮）** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 2 个真实子进程场景（失败候选退出顺序、候选清理不伤替代进程）；
 - **第三轮** `tests/capabilities/test_plugin_runtime.py` / `test_plugin_model_timing.py`：把"撤销句柄"的断言更新为"按代次撤销"，并断言迟到退出只撤自己的代次；
 - `web/tests/plugin-lifecycle.spec.ts`：桌面+手机 3 条浏览器用例（重载提示/失败不显示成功、升级仅在接管后提示、卸载与清除范围）。
@@ -129,9 +165,10 @@
 | 验证 | 命令/范围 | 结果 |
 | --- | --- | --- |
 | 插件相关回归 | `pytest test_plugin_runtime.py test_plugin_model_timing.py test_rb_independent_plugins.py test_plugin_channel_port.py test_catalog_lifecycle.py test_plugin_lifecycle_control.py test_plugin_online_lifecycle.py -q` | **51 passed** |
-| 真实在线生命周期（第四轮） | `tests/capabilities/test_plugin_online_lifecycle.py` | **20 passed**（新增 2 个场景：失败候选退出顺序、候选清理不伤替代进程） |
+| 真实在线生命周期（第五轮） | `tests/capabilities/test_plugin_online_lifecycle.py` | **25 passed**（新增 5 个场景：关闭抛错仍存活、关闭返回但未退出、确认退出后恢复正常、跨宿主读回标记、关闭抛错但已退出） |
 | 契约与并发编排 | `tests/capabilities/test_plugin_lifecycle_control.py` | **10 passed** |
 | 新增用例在第三轮实现上的失败证明（第四轮） | 同一测试文件在 `87b4f026` 工作树上运行 | **2 failed / 18 passed**（`restore` 入口读到候选 `returncode is None`；未注册候选清理后进程仍存活） |
+| 新增用例在第四轮实现上的失败证明（本轮） | 同一测试文件在 `30d598f5` 工作树上运行 | **5 failed / 20 passed**，全部先失败于"candidate alive 时仍 restore/启动旧版本"或缺少 `restore_state` 标记 |
 | 新增用例在第二轮实现上的失败证明 | 同一测试文件在 `d0d29aa6` 工作树上运行 | **4 failed / 14 passed**（2 个上下文归属缺陷 + 2 个安装/卸载互斥缺陷，失败原因均为 `permission_denied` / "卸载期间同包发布") |
 | 新增用例在首轮实现上的失败证明 | 同一测试文件在 `2a18fd17` 工作树上运行 | **11 failed / 13 passed**（准入缺失、已受理调用未结算、暂存进程未接管、purge 不清配置、卸载非互斥） |
 | 前端类型检查 | `tsc -p tsconfig.json --noEmit` | exit 0 |
@@ -177,6 +214,14 @@
 
 1. **失败候选的退出顺序**（真实子进程 + 真实隔离 PostgreSQL）：在 `repository.restore` 入口与旧版本 `worker()` 入口各取一次所有子进程的 `process.returncode`（操作系统事实，非模型标记）。断言两处均为 `returncode is not None`；候选 `runtime_id` 不再出现在上下文表中；恢复后的旧版本可 `value`/`stored` 调用并读回 1.0.0 的启动键；记账为 `candidate_closed=true`、`candidate_error=null`、`rolled_back=true`、`restored_version=1.0.0`。修复前该断言读到 `[False]`（候选仍存活）并直接失败。
 2. **清理不伤替代进程**：对一个已注册并正在服务的进程，另外启动一个从未注册的候选子进程，调用 `stop_worker(identifier, "candidate_discarded", stray)`。断言候选 `returncode is not None`、替代进程 `returncode is None` 且 `runtime_id` 不变、该实例句柄集合逐项不变、实例仍可调用；再次调用同一清理仍安全（`closed` 幂等）。修复前候选进程在调用后仍 `returncode is None`。
+
+### 本轮（第五轮）新增场景的断言
+
+1. **关闭抛错、候选仍存活**（真实子进程 + 真实隔离 PostgreSQL）：在候选被创建时替换其 `close`，使 `OSError` 抛出且子进程继续运行。断言 `repository.restore` **一次都没有**以该实例为目标、旧版本 `worker()` **一次都没有**被调用、存活候选的 `returncode is None`；记账保留 `code=plugin_start_failed`、`failed_version=2.0.0`、`candidate_closed=false`、`candidate_error`、`candidate_pid`、`rolled_back=false`、`restored_version=null`、`restore_state=blocked_candidate_alive`；后续普通调用（`executions.invoke`）、`restart`、`upgrade`、`recover_candidate`、`state`、`configure` 全部以 `instance_cleanup_pending` 拒绝；旁观插件仍可真实调用。
+2. **关闭返回但退出未确认**：`close` 正常返回而子进程存活，断言与上面相同的"不恢复、不启动、不解除限制"，覆盖"只检查 close 返回就算退出"的错误实现。
+3. **后续确认候选退出**：把真实 `close` 放回并真的关闭候选（`returncode is not None` 作证），再经 `restart` 入口 `settle_pending`/recover 一次。断言先确认退出（`restore_exit==[True]`、`revive_exit[:1]==[True]`），再恢复快照，再启动旧版；恢复后实例可调用、限制解除、账本 `rolled_back=true`/`restored_version=1.0.0`；再次 `recover_candidate` 得 `not_found`，恢复次数仍为 1。
+4. **跨宿主读回标记**：关掉候选并丢弃内存记录后重启管理器，断言 `start()` 从操作账本读回 `instance_cleanup_pending` 且在候选未清零前**未**在启动时恢复或启动旧版；随后一次受控恢复完成 `rolled_back=true`。
+5. **关闭抛错但进程已退出**：`close` 真实关闭子进程后再抛出 `OSError`，断言按真实退出事实处理——原失败码不变、`candidate_closed=true`、`rolled_back=true`、`restored_version=1.0.0`、实例可调用。
 
 ## 8. 未验证项（明确如实）
 

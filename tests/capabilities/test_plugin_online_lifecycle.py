@@ -1455,3 +1455,406 @@ async def test_candidate_cleanup_spares_a_serving_replacement(lifecycle_database
     await abandoned_candidate_cleanup_spares_replacement_scenario(
         Host(lifecycle_database, tmp_path), tmp_path
     )
+
+
+async def blocked_candidate_scenario(host, tmp_path, mode):
+    """A failed candidate that never exits must block every recovery path.
+
+    mode="raises": the closing call throws OSError and the child keeps running.
+    mode="silent": the closing call returns normally while the child still runs,
+    which is what an implementation checking only "close returned" would accept.
+    """
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.blocked", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-blocked-old",
+    )
+    instance = await host.enable(old, "Blocked", "instance-blocked")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.blocked", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-blocked-broken",
+    )
+    other_package = await host.install(
+        package(tmp_path / "other", "fixture.blocked.other", "1.0.0", "other"),
+        "install-blocked-other",
+    )
+    other = await host.enable(other_package, "Other", "instance-blocked-other")
+
+    observed = {
+        "restores": [],
+        "candidate": None,
+        "revived": [],
+        "closed": 0,
+        "restore_exit": [],
+        "revive_exit": [],
+        "failed": None,
+    }
+    original_restore = manager.repository.restore
+    original_child = manager.child
+    original_worker = manager.worker
+
+    def exit_fact():
+        failed = observed["failed"]
+        return None if failed is None else failed.process.returncode is not None
+
+    def observing_restore(identifier, snapshot):
+        observed["restores"].append(identifier)
+        # Faithful ordering proof: the snapshot must only be restored after the
+        # failed candidate's OS process has already exited.
+        observed["restore_exit"].append(exit_fact())
+        return original_restore(identifier, snapshot)
+
+    def observing_child(package_document, identifier):
+        process = original_child(package_document, identifier)
+        if identifier == instance["id"]:
+            observed["candidate"] = process
+        return process
+
+    def observing_worker(instance_document, *, prepared=None):
+        # Only the instance under test is observed; the bystander's own start is
+        # not part of this ordering proof.
+        if prepared is None and instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+            observed["revive_exit"].append(exit_fact())
+        return original_worker(instance_document, prepared=prepared)
+
+    async def refusing_close(_reason="stopped"):
+        observed["closed"] += 1
+        raise OSError("simulated close failure")
+
+    async def silently_stuck_close(_reason="stopped"):
+        observed["closed"] += 1
+
+    # The stub is installed the moment the candidate child is created, before it
+    # is ever closed, so the failing close is exercised inside the upgrade itself.
+    # It is armed only for the staged candidate, never for a later restored child.
+    armed = {"on": False}
+
+    def installing_child(package_document, identifier):
+        process = observing_child(package_document, identifier)
+        if armed["on"] and identifier == instance["id"]:
+            armed["on"] = False
+            observed["failed"] = process
+            observed["original_close"] = process.close
+            process.close = refusing_close if mode == "raises" else silently_stuck_close
+        return process
+
+    manager.repository.restore = observing_restore
+    manager.child = installing_child
+    manager.worker = observing_worker
+    current = await manager.instance(instance["id"])
+    armed["on"] = True
+    with pytest.raises(AppError) as failure:
+        await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    armed["on"] = False
+    candidate = observed["candidate"]
+    assert candidate is not None and candidate.process.returncode is None, (
+        "the fixture must leave the candidate really running"
+    )
+    # Behaviour first: no snapshot may be restored and no previous version may be
+    # started while the failed candidate is still a live OS process.
+    assert instance["id"] not in observed["restores"], (
+        "recovery restored the snapshot while the failed candidate was still alive"
+    )
+    assert instance["id"] not in observed["revived"], (
+        "recovery restarted the previous version while the failed candidate was still alive"
+    )
+    assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+    recorded = failure.value.details["error"]
+    assert recorded["code"] == "plugin_start_failed"
+    assert recorded["failed_version"] == "2.0.0"
+    assert recorded["rolled_back"] is False
+    assert recorded["restored_version"] is None
+    assert recorded["candidate_closed"] is False
+    assert recorded["restore_state"] == "blocked_candidate_alive"
+    assert recorded["candidate_error"]
+    operations = await manager.local(manager.repository.list, "operations")
+    stored = [
+        operation
+        for operation in operations
+        if operation.get("kind") == "upgrade" and operation.get("instance_id") == instance["id"]
+    ][-1]
+    assert stored["execution"] != "succeeded"
+    assert stored["error"]["rolled_back"] is False
+    assert stored["error"]["candidate_closed"] is False
+    assert stored["error"]["candidate_pid"] is not None
+
+    # Ordinary calls cannot reach the old version through worker() either.
+    with pytest.raises(Fault) as refused:
+        await manager.executions.invoke(instance["id"], "value", {}, "blocked-call", "owner")
+    assert refused.value.code == "instance_cleanup_pending"
+    # Reload, enable, configuration and bindings refuse through the same gate.
+    before = await manager.instance(instance["id"])
+    for attempt in (
+        lambda: manager.restart(instance["id"], before["revision"]),
+        lambda: manager.state(instance["id"], False, before["revision"]),
+        lambda: manager.configure(instance["id"], before["config"], {}, before["revision"]),
+    ):
+        with pytest.raises(Fault) as entry:
+            await attempt()
+        assert entry.value.code == "instance_cleanup_pending"
+    # A later entry point keeps refusing through the same gate: the block is not
+    # a one-shot that the next request could bypass.
+    for attempt in (
+        lambda: manager.restart(instance["id"], before["revision"]),
+        lambda: manager.upgrade(instance["id"], "2.0.0", before["revision"]),
+        lambda: manager.recover_candidate(instance["id"]),
+    ):
+        with pytest.raises(Fault) as again:
+            await attempt()
+        assert again.value.code == "instance_cleanup_pending"
+    assert observed["restores"].count(instance["id"]) == 0
+    # A different plugin is untouched and still callable.
+    assert (await host.call(other["id"], "value", "other-call"))["result"] == {"text": "other"}
+
+    return {
+        "host": host,
+        "manager": manager,
+        "candidate": candidate,
+        "instance": instance,
+        "other": other,
+        "observed": observed,
+        "original_close": observed["original_close"],
+        "original_restore": original_restore,
+        "original_child": original_child,
+        "original_worker": original_worker,
+    }
+
+
+async def release_blocked(state, *, terminate):
+    """Teardown: restore the real collaborators and never leave a child behind."""
+    manager = state["manager"]
+    manager.repository.restore = state["original_restore"]
+    manager.child = state["original_child"]
+    manager.worker = state["original_worker"]
+    candidate = state["candidate"]
+    if terminate:
+        candidate.close = state["original_close"]
+        if candidate.process.returncode is None:
+            await state["original_close"]("test_teardown")
+    assert candidate.process.returncode is not None
+
+
+@pytest.mark.asyncio
+async def test_candidate_that_does_not_exit_blocks_restore_and_revival(
+    lifecycle_database, tmp_path
+):
+    host = Host(lifecycle_database, tmp_path)
+    try:
+        await blocked_candidate_scenario(host, tmp_path, "raises")
+    finally:
+        await host.manager.close()
+
+
+@pytest.mark.asyncio
+async def test_candidate_that_returns_without_exiting_blocks_recovery(
+    lifecycle_database, tmp_path
+):
+    host = Host(lifecycle_database, tmp_path)
+    state = None
+    try:
+        state = await blocked_candidate_scenario(host, tmp_path, "silent")
+        # "close returned" is not an exit proof: nothing may have recovered.
+        assert state["instance"]["id"] not in state["observed"]["restores"]
+        assert state["instance"]["id"] not in state["observed"]["revived"]
+    finally:
+        if state is not None:
+            await release_blocked(state, terminate=True)
+        await host.manager.close()
+
+
+@pytest.mark.asyncio
+async def test_confirmed_exit_resumes_recovery_exactly_once(lifecycle_database, tmp_path):
+    host = Host(lifecycle_database, tmp_path)
+    state = None
+    try:
+        state = await blocked_candidate_scenario(host, tmp_path, "raises")
+        manager = state["manager"]
+        instance = state["instance"]
+        candidate = state["candidate"]
+        observations = state["observed"]
+        # The candidate is still a real live child, so the instance stays blocked.
+        with pytest.raises(Fault) as refused:
+            await manager.recover_candidate(instance["id"])
+        assert refused.value.code == "instance_cleanup_pending"
+        assert instance["id"] not in observations["restores"]
+
+        # Teardown of the injected failure: the real close now runs and the exit
+        # is confirmed from the OS process, not from the fact that close returned.
+        candidate.close = state["original_close"]
+        await candidate.close("candidate_released")
+        assert candidate.process.returncode is not None
+
+        # One ordinary entry point settles it through the single recovery path.
+        result = await manager.restart(
+            instance["id"], (await manager.instance(instance["id"]))["revision"]
+        )
+        assert instance["id"] in observations["restores"], (
+            "the confirmed exit must resume the snapshot restore"
+        )
+        assert instance["id"] in observations["revived"], (
+            "the previous version must be started through the normal path"
+        )
+        assert observations["restores"].count(instance["id"]) == 1
+        # Order: exit confirmed -> snapshot restored -> previous version started.
+        # Every observed restore/revival after the cleanup must see a dead candidate;
+        # the blocked attempt itself never restored anything at all.
+        assert observations["restore_exit"][:1] == [True], observations["restore_exit"]
+        # Order for this instance only: exit confirmed -> snapshot restored ->
+        # previous version started. No restore or start may be recorded before
+        # that, so every entry in both lists must come after the confirmed exit.
+        assert observations["restore_exit"] == [True], observations["restore_exit"]
+        assert observations["revive_exit"][:1] == [True], observations["revive_exit"]
+        assert manager.admission.get(instance["id"]) is None
+        assert manager.abandoned.get(instance["id"]) is None
+        assert (await host.call(instance["id"], "value", "after-recovery"))["result"] == {
+            "text": "1.0.0"
+        }
+        stored = await host.call(instance["id"], "stored", "state-after-recovery")
+        assert stored["result"]["boot"] == {"version": "1.0.0"}
+        # A repeated recovery does not restore or start a second time.
+        assert manager.abandoned.get(instance["id"]) is None
+        with pytest.raises(Fault) as repeated:
+            await manager.recover_candidate(instance["id"])
+        assert repeated.value.code == "not_found"
+        assert observations["restores"].count(instance["id"]) == 1
+        assert (await host.call(state["other"]["id"], "value", "other-after"))["result"] == {
+            "text": "other"
+        }
+        return result
+    finally:
+        if state is not None:
+            await release_blocked(state, terminate=True)
+        await host.manager.close()
+
+
+@pytest.mark.asyncio
+async def test_restarted_host_honors_the_durable_cleanup_marker(lifecycle_database, tmp_path):
+    host = Host(lifecycle_database, tmp_path)
+    state = None
+    try:
+        state = await blocked_candidate_scenario(host, tmp_path, "raises")
+        manager, instance = state["manager"], state["instance"]
+        # Proven absence is the only evidence a fresh host accepts: the OS fact
+        # about the recorded pid, never an in-memory flag.
+        candidate = state["candidate"]
+        candidate.close = state["original_close"]
+        await candidate.close("host_restart_simulation")
+        assert candidate.process.returncode is not None
+        # Simulate a fresh host: drop the in-memory candidate, keep the marker.
+        manager.abandoned.pop(instance["id"], None)
+        await manager.close()
+        host.manager = None
+        fresh = await host.open()
+        assert fresh.admission.get(instance["id"]) == "instance_cleanup_pending"
+        # Nothing was revived at startup while the marker was unresolved...
+        assert instance["id"] not in state["observed"]["revived"]
+        # ...and the first ordinary access finishes it exactly once.
+        restored = await fresh.recover_candidate(instance["id"])
+        assert restored["error"]["rolled_back"] is True, restored["error"]
+        assert restored["error"]["restored_version"] == "1.0.0"
+        assert fresh.admission.get(instance["id"]) is None
+        assert (await host.call(instance["id"], "value", "fresh-host"))["result"] == {
+            "text": "1.0.0"
+        }
+        state = None
+    finally:
+        if state is not None:
+            await release_blocked(state, terminate=True)
+        if host.manager is None:
+            host.manager = await host.open()
+        await host.manager.close()
+
+
+async def close_error_after_real_exit_scenario(host, tmp_path):
+    """A closing error must not override the real exit fact."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.closeerr", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-closeerr-old",
+    )
+    instance = await host.enable(old, "CloseError", "instance-closeerr")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.closeerr", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-closeerr-broken",
+    )
+    observed = {"restores": [], "revived": []}
+    original_restore = manager.repository.restore
+    original_child = manager.child
+    original_worker = manager.worker
+
+    def observing_restore(identifier, snapshot):
+        observed["restores"].append(identifier)
+        return original_restore(identifier, snapshot)
+
+    def observing_worker(instance_document, *, prepared=None):
+        if prepared is None and instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    armed = {"on": False}
+
+    def installing_child(package_document, identifier):
+        process = original_child(package_document, identifier)
+        if armed["on"] and identifier == instance["id"]:
+            armed["on"] = False
+            original_close = process.close
+
+            async def closing_then_raising(_reason="stopped"):
+                # The child really exits, and the call still reports an error:
+                # the OS fact, not the call's return, decides recovery.
+                await original_close(_reason)
+                raise OSError("simulated close error after exit")
+
+            process.close = closing_then_raising
+        return process
+
+    manager.repository.restore = observing_restore
+    manager.child = installing_child
+    manager.worker = observing_worker
+    current = await manager.instance(instance["id"])
+    armed["on"] = True
+    try:
+        with pytest.raises(AppError) as failure:
+            await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    finally:
+        armed["on"] = False
+        manager.repository.restore = original_restore
+        manager.child = original_child
+        manager.worker = original_worker
+    recorded = failure.value.details["error"]
+    # The original cause is preserved and the rollback is reported as real.
+    assert recorded["code"] == "plugin_start_failed"
+    assert recorded["failed_version"] == "2.0.0"
+    assert recorded["candidate_closed"] is True
+    assert recorded["rolled_back"] is True
+    assert recorded["restored_version"] == "1.0.0"
+    assert recorded["restore_state"] in {"restored", "restore_failed"}
+    assert observed["restores"] == [instance["id"]]
+    assert observed["revived"] == [instance["id"]]
+    assert manager.admission.get(instance["id"]) is None
+    assert (await host.call(instance["id"], "value", "after-close-error"))["result"] == {
+        "text": "1.0.0"
+    }
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_close_error_does_not_override_a_confirmed_exit(lifecycle_database, tmp_path):
+    await close_error_after_real_exit_scenario(Host(lifecycle_database, tmp_path), tmp_path)

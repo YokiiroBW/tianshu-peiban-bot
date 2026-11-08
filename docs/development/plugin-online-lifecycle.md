@@ -78,6 +78,27 @@
 - `Process.close()` 带 `closed` 幂等标记：失败分支与 `finally` 都会清理同一子进程，第二次调用是安全的空操作。
 - 候选关闭失败或无法确认退出时：`candidate_closed=false`、`candidate_error` 记录 `candidate_still_running` 或清理异常码，`rolled_back` 与 `restored_version` 不再声称安全恢复；原始失败码仍在 `error.code`，原始 `failed_version` 不变，请求/回执/unknown、实例身份、配置、版本与 CAS 均不受影响。
 
+## 四之二、未确认退出时停止恢复
+
+失败分支是**两条互斥路径**，由"指定失败候选是否确认退出"决定，不再汇合到无条件恢复：
+
+- **已确认退出** → 撤销该候选自身代次句柄 → 关闭 → `candidate_gone` → 恢复快照 → 撤销残留句柄 → 必要时启动旧版本 → 按真实结果记账。
+- **未确认退出** → 记录原升级失败与清理失败 → **不调用 `repository.restore`** → **不启动旧版本** → 不报告恢复完成 → 返回 `instance_cleanup_pending`。
+
+退出证明只接受真实进程事实：`Process.exited`（`returncode is not None`），或在句柄已回收/跨宿主时对**记录在账本的候选 pid** 做只读探测且仅接受"不存在"结论。`close()` 返回、RPC 断开、`closed` 标记、句柄撤销都不构成退出证明；关闭抛错但进程确实已退出时按真实退出事实处理，`candidate_error` 只记录清理异常、不改写原失败码。
+
+限制通过既有准入统一生效：
+
+| 入口 | 行为 |
+| --- | --- |
+| `Executions.admit` | `admission[instance]=instance_cleanup_pending` 时拒绝新调用 |
+| `worker()` | 同样拒绝，覆盖任何间接启动路径 |
+| `state`/`configure`/`bindings`/`upgrade`/`restart`/`uninstall` | 先 `settle_pending`；候选未退保持拒绝，退出了走同一条受控恢复 |
+| `start()` | 从操作账本读回 `candidate_closed=false`/`candidate_pid`，恢复限制与待清理记录，**不在启动时假设恢复** |
+| `finally` | 只做幂等清理（`Process.close` 的 `closed` 标记），不解除限制、不恢复数据、不覆盖原失败 |
+
+影响范围只限该实例：不持有全局锁，其它插件照常服务。
+
 ## 五、升级的真实成功条件
 
 - `plugin.start` 成功且 RPC 通道仍在（`process.alive`）之后，该暂存进程直接注册为 `workers[instance_id]` 的服务进程；记账的 `generation` 就是这台进程（用例断言 `plugin_runtime.generation == operations.generation`）。
@@ -104,7 +125,8 @@
 - `src/tianshu/capabilities/plugins/web.py`：`reload` 路由、卸载清理页面票据、页面票据重新校验包仍安装且摘要未变
 - `src/tianshu/capabilities/plugins/control.py`：`reload` 与 `purge_data` 请求 schema（同时生成 OpenAPI）
 - `src/tianshu/capabilities/plugins/packages.py`：`reclaim` 回收不可变包目录（跳过仍 installed 与 `preparing` 中的目录）
-- `src/tianshu/capabilities/plugins/process.py`：`Process.exited`（`returncode` 判定操作系统退出）、`close()` 的 `closed` 幂等标记
+- `src/tianshu/capabilities/plugins/process.py`：`Process.exited`（`returncode` 判定操作系统退出）、`close()` 的 `closed` 幂等标记、`os_process_exited(pid)` 只读探测（仅证明不存在，不杀进程）
+- `src/tianshu/capabilities/plugins/repository.py`：`restore` 兼容从操作账本读回的行（JSON 对象按列名读取）
 - `src/tianshu/capabilities/plugins/repository.py`：`purge`（实例自有数据）、`accepted`（未执行调用）、注入 owner 不再遮蔽 `runtime()` 方法
 - `web/src/features/plugins/`：重载按钮、运行进程/代次显示、升级/回退按钮、卸载与"卸载并清除数据"入口及与后端一致的说明
 
