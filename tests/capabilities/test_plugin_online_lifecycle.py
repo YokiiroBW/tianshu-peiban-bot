@@ -1653,9 +1653,12 @@ async def test_candidate_that_does_not_exit_blocks_restore_and_revival(
     lifecycle_database, tmp_path
 ):
     host = Host(lifecycle_database, tmp_path)
+    state = None
     try:
-        await blocked_candidate_scenario(host, tmp_path, "raises")
+        state = await blocked_candidate_scenario(host, tmp_path, "raises")
     finally:
+        if state is not None:
+            await release_blocked(state, terminate=True)
         await host.manager.close()
 
 
@@ -2599,3 +2602,218 @@ async def test_stale_snapshot_is_never_applied_to_a_newer_instance(
     lifecycle_database, tmp_path
 ):
     await snapshot_conflict_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_service_completion_retry_preserves_the_serving_startup_context(
+    lifecycle_database, tmp_path
+):
+    """A live restored child survives a failed completion write and its retry."""
+    host = Host(lifecycle_database, tmp_path)
+    manager = await host.open()
+    original_put = manager.repository.put
+    failed = False
+
+    def fail_completion(kind, document, *args, **kwargs):
+        nonlocal failed
+        if (
+            kind == "operations"
+            and document.get("kind") == "upgrade"
+            and (document.get("error") or {}).get("recovery") == manager.RECOVERY_DONE
+            and not failed
+        ):
+            failed = True
+            raise OSError("completion write unavailable")
+        return original_put(kind, document, *args, **kwargs)
+
+    try:
+        old = await host.install(
+            package(
+                tmp_path / "old", "fixture.completionretry", "1.0.0", "old",
+                source=stateful_source("1.0.0"),
+                capabilities=[{"id": "state.kv", "major": 1}],
+            ),
+            "completion-old",
+        )
+        instance = await host.enable(old, "Completion", "completion-instance")
+        await host.install(
+            package(
+                tmp_path / "broken", "fixture.completionretry", "2.0.0", "broken",
+                source=stateful_source("2.0.0", failing_start=True),
+                capabilities=[{"id": "state.kv", "major": 1}],
+            ),
+            "completion-broken",
+        )
+        manager.repository.put = fail_completion
+        with pytest.raises(AppError):
+            await manager.upgrade(instance["id"], "2.0.0", instance["revision"])
+        manager.repository.put = original_put
+        assert failed
+        serving = generation(manager, instance["id"])
+        handles = {
+            reference for reference, context in manager.executions.contexts.items()
+            if context["instance"] == instance["id"]
+            and context["generation"] == serving["generation"]
+        }
+        assert handles
+        assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+        recovered = await manager.recover_candidate(instance["id"])
+        assert recovered["error"]["recovery"] == manager.RECOVERY_DONE
+        assert generation(manager, instance["id"]) == serving
+        assert handles <= manager.executions.contexts.keys()
+        result = await host.call(instance["id"], "stored", "completion-stored")
+        assert result["execution"] == "succeeded", result.get("error")
+        assert result["result"] == {
+            "boot": {"version": "1.0.0"},
+            "started": {"version": "1.0.0"},
+            "starts": 1,
+        }
+        assert manager.admission.get(instance["id"]) is None
+    finally:
+        manager.repository.put = original_put
+        await manager.close()
+        await asyncio.to_thread(host.database.sync_pool.close)
+
+
+@pytest.mark.asyncio
+async def test_disabled_instance_upgrades_and_rolls_back_without_starting(
+    lifecycle_database, tmp_path
+):
+    host = Host(lifecycle_database, tmp_path)
+    manager = await host.open()
+    try:
+        for version in ("1.0.0", "2.0.0"):
+            await host.install(
+                package(
+                    tmp_path / version, "fixture.disabledversions", version, version,
+                    source=stateful_source(version),
+                    capabilities=[{"id": "state.kv", "major": 1}],
+                ),
+                "disabled-install-" + version,
+            )
+        instance = await manager.create(
+            "fixture.disabledversions@1.0.0", "Disabled", "disabled-versions"
+        )
+        for version in ("2.0.0", "1.0.0", "2.0.0"):
+            instance = await manager.upgrade(instance["id"], version, instance["revision"])
+            assert instance["version"] == version
+            assert instance["desired_state"] == "disabled"
+            assert instance["state"] == "stopped"
+            assert instance["id"] not in manager.workers
+            assert not [
+                context for context in manager.executions.contexts.values()
+                if context["instance"] == instance["id"]
+            ]
+        # The initialization/migration path may run; the start hook must not.
+        started = await manager.local(
+            manager.repository.state, instance["id"], "get", {"key": "started"}
+        )
+        assert started is None
+        enabled = await manager.state(instance["id"], True, instance["revision"])
+        assert enabled["state"] == "ready"
+        result = await host.call(instance["id"], "stored", "enabled-after-upgrade")
+        assert result["execution"] == "succeeded", result.get("error")
+        assert result["result"]["boot"] == {"version": "2.0.0"}
+        assert result["result"]["started"] == {"version": "2.0.0"}
+        assert result["result"]["starts"] == 1
+    finally:
+        await manager.close()
+        await asyncio.to_thread(host.database.sync_pool.close)
+
+
+@pytest.mark.asyncio
+async def test_failed_upgrade_of_disabled_instance_recovers_the_stopped_state(
+    lifecycle_database, tmp_path
+):
+    host = Host(lifecycle_database, tmp_path)
+    manager = await host.open()
+    broken_source = '''
+from tianshu_plugin import Plugin, PluginError, action, Invocation
+
+class Fixture(Plugin):
+    async def initialize(self):
+        raise PluginError("plugin_initialize_failed", "cannot initialize", effect="none")
+
+    @action(id="value", title="value", input_schema={"type": "object"},
+        output_schema={"type": "object"})
+    async def value(self, call: Invocation, args):
+        return {"text": "never"}
+'''
+    try:
+        old = await host.install(
+            package(tmp_path / "old", "fixture.disabledfailure", "1.0.0", "old"),
+            "disabled-failure-old",
+        )
+        instance = await manager.create(old, "Disabled failure", "disabled-failure-instance")
+        await host.install(
+            package(
+                tmp_path / "broken", "fixture.disabledfailure", "2.0.0", "broken",
+                source=broken_source,
+            ),
+            "disabled-failure-new",
+        )
+        with pytest.raises(AppError) as failure:
+            await manager.upgrade(instance["id"], "2.0.0", instance["revision"])
+        error = failure.value.details["error"]
+        assert error["code"] == "plugin_initialize_failed"
+        assert error["recovery"] == manager.RECOVERY_DONE
+        assert error["service_restored"] is False
+        assert error["service_stopped"] is True
+        assert error["rolled_back"] is True
+        assert error["restored_version"] == "1.0.0"
+        assert instance["id"] not in manager.workers
+        assert manager.admission.get(instance["id"]) is None
+        assert await manager.pending_recovery(instance["id"]) is None
+        current = await manager.instance(instance["id"])
+        assert current["desired_state"] == "disabled"
+        enabled = await manager.state(instance["id"], True, current["revision"])
+        assert enabled["state"] == "ready"
+        assert (await host.call(instance["id"], "value", "after-disabled-failure"))["result"] == {
+            "text": "old"
+        }
+    finally:
+        await manager.close()
+        await asyncio.to_thread(host.database.sync_pool.close)
+
+
+@pytest.mark.asyncio
+async def test_restarted_host_finishes_a_disabled_service_recovery_without_starting(
+    lifecycle_database, tmp_path
+):
+    host = Host(lifecycle_database, tmp_path)
+    manager = await host.open()
+    try:
+        old = await host.install(
+            package(tmp_path / "old", "fixture.disabledrestart", "1.0.0", "old"),
+            "disabled-restart-old",
+        )
+        instance = await manager.create(old, "Disabled restart", "disabled-restart-instance")
+        snapshot = await manager.local(manager.repository.snapshot, instance["id"])
+        operation = {
+            "id": "upgrade:" + uuid.uuid4().hex,
+            "kind": "upgrade", "instance_id": instance["id"],
+            "package_id": "fixture.disabledrestart@2.0.0",
+            "snapshot": snapshot, "execution": "failed", "created_at": time.time(),
+            "error": {
+                "code": "plugin_initialize_failed", "failed_version": "2.0.0",
+                "candidate_closed": True, "snapshot_restored": True,
+                "service_restored": False, "recovery": manager.RECOVERY_SERVICE,
+            },
+        }
+        await manager.local(manager.repository.put, "operations", operation)
+        await manager.close()
+        await asyncio.to_thread(host.database.sync_pool.close)
+        manager = await host.open()
+        assert manager.admission[instance["id"]] == "instance_cleanup_pending"
+        recovered = await manager.recover_candidate(instance["id"])
+        assert recovered["error"]["recovery"] == manager.RECOVERY_DONE
+        assert recovered["error"]["service_stopped"] is True
+        assert recovered["error"]["service_restored"] is False
+        assert instance["id"] not in manager.workers
+        assert manager.admission.get(instance["id"]) is None
+        current = await manager.instance(instance["id"])
+        assert current["desired_state"] == "disabled"
+        assert (await manager.state(instance["id"], True, current["revision"]))["state"] == "ready"
+    finally:
+        await manager.close()
+        await asyncio.to_thread(host.database.sync_pool.close)

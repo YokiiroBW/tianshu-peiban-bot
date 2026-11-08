@@ -85,7 +85,10 @@ async function openPanel(page: import("@playwright/test").Page, value = instance
   for (const path of ["plugins/invocations", "plugins/logs", "plugins/schedules"])
     await page.route(apiPath(path), (route) => answer(route, { items: [] }));
   await page.goto("/#/plugins");
-  await page.getByRole("button", { name: "实例 运行中", exact: true }).click();
+  await page.getByRole("button", {
+    name: value.state === "stopped" ? "实例 已停用" : "实例 运行中",
+    exact: true,
+  }).click();
 }
 
 test("reload reports the new serving process and never claims success on failure", async ({ page }) => {
@@ -184,4 +187,25 @@ test("uninstall keeps data by default and states the real purge scope", async ({
   await expect.poll(() => sent.length).toBeGreaterThan(0);
   expect(sent[0]).toMatchObject({ package_id: "example", purge_data: true });
   await expect(page.getByText(/已卸载并清除该插件自有数据/)).toBeVisible();
+});
+
+test("upgrading a disabled instance reports that it remains stopped", async ({ page }) => {
+  let current = instance({ desired_state: "disabled", state: "stopped", plugin_runtime: undefined });
+  await openPanel(page, current);
+  await page.route(apiPath("plugins/view"), (route) => answer(route, overview(current)));
+  await page.route(apiPath("plugins/upgrade"), (route) => {
+    const body = route.request().postDataJSON();
+    expect(body).toMatchObject({ instance_id: "instance", version: "2.0.0", expected_revision: 3 });
+    current = instance({
+      version: "2.0.0", revision: 4,
+      desired_state: "disabled", state: "stopped", plugin_runtime: undefined,
+    });
+    return answer(route, command(body, current));
+  });
+  await page.getByRole("button", { name: "版本", exact: true }).click();
+  await page.getByRole("combobox", { name: "已安装版本" }).selectOption("2.0.0");
+  await page.getByRole("button", { name: "升级到此版本" }).click();
+  await expect(page.getByText("已切换到 2.0.0，实例保持停用，启用后才会启动。")).toBeVisible();
+  await expect(page.getByRole("button", { name: "启用", exact: true })).toBeVisible();
+  await expect(page.getByText(/承接后续调用的是这里显示的运行进程/)).toHaveCount(0);
 });

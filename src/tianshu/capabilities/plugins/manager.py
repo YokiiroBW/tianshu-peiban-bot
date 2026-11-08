@@ -846,8 +846,9 @@ class PluginManager:
     #   candidate_confirmed : the named candidate's OS process is proven gone
     #   snapshot_restored   : the instance snapshot was really written back
     #   service_restored    : the previous version is really serving again
+    #   service_stopped    : an originally disabled instance is confirmed stopped
     # Only "done" releases the instance block; only "snapshot_restored" allows a
-    # start, and only a start may set rolled_back/restored_version.
+    # start. Completion requires the original desired state, running or stopped.
     RECOVERY_CANDIDATE = "candidate_pending"
     RECOVERY_SNAPSHOT = "snapshot_pending"
     RECOVERY_SERVICE = "service_pending"
@@ -861,7 +862,8 @@ class PluginManager:
 
         A record that never entered recovery returns None. The order is strict:
         a snapshot can only be pending once the candidate is confirmed gone, and a
-        service can only be pending once the snapshot is really restored.
+        service can only be pending once the snapshot is really restored. An
+        originally disabled instance completes with a confirmed stopped state.
         """
         error = (operation or {}).get("error") or {}
         if error.get("recovery") not in self.RECOVERY_STAGES:
@@ -870,7 +872,11 @@ class PluginManager:
             return self.RECOVERY_CANDIDATE
         if error.get("snapshot_restored") is not True:
             return self.RECOVERY_SNAPSHOT
-        if error.get("service_restored") is not True:
+        service_restored = error.get("service_restored") is True
+        expected = ((operation or {}).get("snapshot") or {}).get("instance") or {}
+        if expected.get("desired_state") == "disabled":
+            service_restored = error.get("service_stopped") is True
+        if not service_restored:
             return self.RECOVERY_SERVICE
         return self.RECOVERY_DONE
 
@@ -1091,10 +1097,6 @@ class PluginManager:
             if stage == self.RECOVERY_CANDIDATE:
                 raise Fault(CLEANUP_PENDING, 409)
         if self.recovery_stage(operation) == self.RECOVERY_SERVICE:
-            # Nothing minted for the abandoned attempt may survive into the
-            # restored service, and this must happen before the start so the
-            # fresh startup context is the one that lives.
-            self.executions.revoke(identifier)
             operation = await self.restore_service_stage(identifier, operation)
         return operation
 
@@ -1166,43 +1168,56 @@ class PluginManager:
         return operation
 
     async def restore_service_stage(self, identifier, operation):
-        """Start the previous version once and record what really happened.
+        """Restore the previous version's desired running state and record it.
 
         The snapshot is never touched here: a restored stage is only retried for
-        service, so a failed start cannot roll the data back a second time.
+        service, so a failed start cannot roll the data back a second time. A
+        disabled instance is restored by remaining stopped, without a start.
         """
         fresh = await self.repository_operation(operation["id"])
         if self.recovery_stage(fresh) in {self.RECOVERY_DONE, None}:
             # Completed (or no longer pending) in the ledger: nothing to redo.
             return fresh
         operation = fresh
+        # Keep admission closed even if the process starts but the completion
+        # write fails. A retry may reuse that same process and its startup handle.
+        self.block_instance(identifier, operation)
         current = await self.instance(identifier)
-        started, service_error = False, None
-        if current["desired_state"] == "enabled":
+        started, stopped, service_error = False, False, None
+        try:
             serving = self.workers.get(identifier)
-            if serving and serving[0].alive and serving[1] == current["revision"]:
-                started = True
-            else:
-                self.recovering.add(identifier)
-                try:
+            if current["desired_state"] == "disabled":
+                await self.stop_worker(identifier, "restore_disabled")
+                if serving is not None:
+                    require(serving[0].exited, "plugin_unavailable", 503)
+                self.executions.revoke(identifier)
+                stopped = True
+            elif current["desired_state"] == "enabled":
+                if serving and serving[0].alive and serving[1] == current["revision"]:
+                    # The preceding attempt may have started this child before
+                    # its completion write failed. Keep its own handles intact.
+                    self.executions.retain(identifier, serving[0].runtime_id)
+                else:
+                    self.recovering.add(identifier)
                     await self.worker(current)
-                    started = True
-                except (Fault, RemoteError, TimeoutError, OSError) as failure:
-                    service_error = (
-                        failure.data.get("code")
-                        if isinstance(failure, RemoteError)
-                        else getattr(failure, "code", type(failure).__name__)
-                    )
-                finally:
-                    self.recovering.discard(identifier)
-        if started:
+                started = True
+        except (Fault, RemoteError, TimeoutError, OSError) as failure:
+            service_error = (
+                failure.data.get("code")
+                if isinstance(failure, RemoteError)
+                else getattr(failure, "code", type(failure).__name__)
+            )
+        finally:
+            self.recovering.discard(identifier)
+        if started or stopped:
             restored_version = (await self.package(
                 current["package_id"], current["version"]
             ))["manifest"]["version"]
             operation = await self.record_stage(
                 operation,
                 recovery=self.RECOVERY_DONE,
-                service_restored=True,
+                service_restored=started,
+                service_stopped=stopped,
                 snapshot_restored=True,
                 candidate_closed=True,
                 rolled_back=True,
@@ -1220,10 +1235,11 @@ class PluginManager:
             recovery=self.RECOVERY_SERVICE,
             snapshot_restored=True,
             service_restored=False,
+            service_stopped=False,
             rolled_back=False,
             restored_version=None,
-            restore_error=service_error or "instance_disabled",
-            service_error=service_error or "instance_disabled",
+            restore_error=service_error or "plugin_unavailable",
+            service_error=service_error or "plugin_unavailable",
         )
         # Registering the block is what keeps the instance refused: the upgrade's
         # own cleanup must not release a stage that is still owed.
@@ -1572,28 +1588,32 @@ class PluginManager:
                     "to_version": package["manifest"].get("data_version", 0),
                 },
             )
-            # The staged child runs this plugin's start hook exactly once. Its
-            # successful start plus the RPC channel is the switch's health proof;
-            # the same child then becomes the serving process.
-            await process.call("plugin.start", {}, timeout=15)
-            require(process.alive, "plugin_unavailable", 503)
+            # Enabled instances hand this same started child over. Disabled
+            # instances only validate/migrate, then close it without running the
+            # plugin's start hook or changing their desired state.
+            enabled = instance["desired_state"] == "enabled"
+            if enabled:
+                await process.call("plugin.start", {}, timeout=15)
+                require(process.alive, "plugin_unavailable", 503)
             instance.update(
                 config=candidate["config"],
                 version=version,
                 revision=instance["revision"] + 1,
             )
-            served = await self.worker(instance, prepared=process)
-            require(served is process, "plugin_upgrade_failed", 409)
-            # From here the new version is the serving process; a later ledger
-            # failure (for example a CAS conflict) can no longer roll the switch
-            # back, so it must not be reported as a restored previous version.
-            handed_over = True
+            if enabled:
+                served = await self.worker(instance, prepared=process)
+                require(served is process, "plugin_upgrade_failed", 409)
+                handed_over = True
+            else:
+                await self.stop_worker(identifier, "upgraded_disabled", process)
+                require(process.exited, "plugin_unavailable", 503)
 
             def commit():
                 with self.repository.transaction() as db:
                     self.repository.put("instances", instance, db, expected=expected)
                     operation["execution"] = "succeeded"
-                    operation["generation"] = process.runtime_id
+                    if handed_over:
+                        operation["generation"] = process.runtime_id
                     self.repository.put("operations", operation, db)
 
             await run_repository(self.runtime.database, commit)

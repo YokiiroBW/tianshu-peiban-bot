@@ -136,13 +136,17 @@ export default function PluginCenter() {
             ? `已重建该实例的运行进程（PID ${pid}），容器与其他插件保持运行。`
             : "已重建该实例的运行进程。",
         );
-      } else if (operation === "upgrade")
+      } else if (operation === "upgrade") {
+        const value = result as
+          | { version?: string; desired_state?: string }
+          | undefined;
+        const version = value?.version ?? "目标版本";
         setNotice(
-          `已切换到 ${
-            (result as { version?: string } | undefined)?.version ?? "目标版本"
-          }，承接后续调用的是这里显示的运行进程，实例身份、绑定与数据保持。`,
+          value?.desired_state === "disabled"
+            ? `已切换到 ${version}，实例保持停用，启用后才会启动。`
+            : `已切换到 ${version}，承接后续调用的是这里显示的运行进程，实例身份、绑定与数据保持。`,
         );
-      else if (operation === "uninstall") {
+      } else if (operation === "uninstall") {
         const value = result as
           | { instance_data?: string; reclaimed?: string[] }
           | undefined;
