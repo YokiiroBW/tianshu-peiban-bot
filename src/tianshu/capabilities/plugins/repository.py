@@ -265,11 +265,13 @@ class Repository:
                 ),
             }
 
-    def restore(self, instance, snapshot):
-        with self.transaction() as db:
-            self.put("instances", snapshot["instance"], db)
-            db.execute('DELETE FROM plugin_state WHERE instance_id=%s', (instance,))
-            for row in snapshot["state"]:
+    def restore(self, instance, snapshot, db=None):
+        if db is None:
+            with self.transaction() as connection:
+                return self.restore(instance, snapshot, connection)
+        self.put("instances", snapshot["instance"], db)
+        db.execute('DELETE FROM plugin_state WHERE instance_id=%s', (instance,))
+        for row in snapshot["state"]:
                 if isinstance(row, dict):
                     # A snapshot read back from the operation ledger has been
                     # through JSON, so its rows are column-named objects again.

@@ -99,6 +99,23 @@
 
 影响范围只限该实例：不持有全局锁，其它插件照常服务。
 
+## 四之三、恢复阶段的统一判定与跨宿主续接
+
+失败恢复的**三个事实**各自持久化在原操作 JSON 中，不可互相推断，也不可由"缺失"推断完成：
+
+| 事实 | 字段 | 含义 |
+| --- | --- | --- |
+| 候选退出 | `candidate_closed`（+`candidate_exit`） | 指定候选的操作系统进程已确认退出 |
+| 快照恢复 | `snapshot_restored` | 该实例快照真的写回，并与阶段标记**同一事务**提交 |
+| 服务恢复 | `service_restored` | 旧版本真的再次服务 |
+
+`recovery` 由这三者推导：`candidate_pending` → `snapshot_pending` → `service_pending` → `done`。`recovery_stage()` 是唯一判定处；`start()`、`settle_pending()`、`recover_candidate()` 与全部生命周期入口都用它，不各写一套条件。
+
+- **身份保留**：`record_stage()` 每次复制 `candidate_pid`/`candidate_generation`/`code`/`failed_version`；空进程对象不会把已有身份清空。`candidate_gone()` 只有在拿到真实退出证据时才返回已退出，"有记录但无对象无 PID"一律**未确认**，只有明确的 `candidate_never_created` 事实可以直接通过。
+- **跨宿主续接**：`start()` 只把未完成阶段重建为限制（不恢复、不启动），首次普通访问经同一路径续接：候选未退出则继续等待；快照未恢复则只重试快照；快照已恢复则只重试服务。
+- **幂等**：锁内重读账本，已过阶段直接跳过；服务阶段从不写快照；完成后重复恢复返回 `not_found`。`rolled_back`/`restored_version` 只在服务真的恢复后写入。
+- **冲突**：快照 `revision` 与当前实例不符时记 `restore_conflict`，不写数据、不启动，保留较新的有效配置并维持限制。
+
 ## 五、升级的真实成功条件
 
 - `plugin.start` 成功且 RPC 通道仍在（`process.alive`）之后，该暂存进程直接注册为 `workers[instance_id]` 的服务进程；记账的 `generation` 就是这台进程（用例断言 `plugin_runtime.generation == operations.generation`）。
@@ -126,7 +143,7 @@
 - `src/tianshu/capabilities/plugins/control.py`：`reload` 与 `purge_data` 请求 schema（同时生成 OpenAPI）
 - `src/tianshu/capabilities/plugins/packages.py`：`reclaim` 回收不可变包目录（跳过仍 installed 与 `preparing` 中的目录）
 - `src/tianshu/capabilities/plugins/process.py`：`Process.exited`（`returncode` 判定操作系统退出）、`close()` 的 `closed` 幂等标记、`os_process_exited(pid)` 只读探测（仅证明不存在，不杀进程）
-- `src/tianshu/capabilities/plugins/repository.py`：`restore` 兼容从操作账本读回的行（JSON 对象按列名读取）
+- `src/tianshu/capabilities/plugins/repository.py`：`restore` 兼容从操作账本读回的行（JSON 对象按列名读取），并支持在调用方事务内执行（`restore(instance, snapshot, db)`）
 - `src/tianshu/capabilities/plugins/repository.py`：`purge`（实例自有数据）、`accepted`（未执行调用）、注入 owner 不再遮蔽 `runtime()` 方法
 - `web/src/features/plugins/`：重载按钮、运行进程/代次显示、升级/回退按钮、卸载与"卸载并清除数据"入口及与后端一致的说明
 

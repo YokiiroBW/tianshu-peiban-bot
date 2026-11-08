@@ -153,6 +153,7 @@ def generation(manager, identifier):
     return {"generation": process.runtime_id, "pid": process.process.pid, "revision": revision}
 
 
+
 class Host:
     def __init__(self, dsn, tmp_path):
         self.dsn = dsn
@@ -1342,12 +1343,14 @@ async def abandoned_candidate_exit_scenario(host, tmp_path):
         observed["children"].append(process)
         return process
 
-    def observing_restore(identifier_arg, snapshot):
+    def observing_restore(identifier_arg, snapshot, db=None):
         # A raw OS fact: the child's own return code, not a model-level flag.
         observed["restore"] = [
             member.process.returncode is not None for member in observed["children"]
         ]
-        return original_restore(identifier_arg, snapshot)
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
 
     def observing_worker(instance_arg, *, prepared=None):
         if prepared is None and observed["revive"] is None:
@@ -1505,12 +1508,14 @@ async def blocked_candidate_scenario(host, tmp_path, mode):
         failed = observed["failed"]
         return None if failed is None else failed.process.returncode is not None
 
-    def observing_restore(identifier, snapshot):
-        observed["restores"].append(identifier)
+    def observing_restore(identifier_arg, snapshot, db=None):
+        observed["restores"].append(identifier_arg)
         # Faithful ordering proof: the snapshot must only be restored after the
         # failed candidate's OS process has already exited.
         observed["restore_exit"].append(exit_fact())
-        return original_restore(identifier, snapshot)
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
 
     def observing_child(package_document, identifier):
         process = original_child(package_document, identifier)
@@ -1799,9 +1804,11 @@ async def close_error_after_real_exit_scenario(host, tmp_path):
     original_child = manager.child
     original_worker = manager.worker
 
-    def observing_restore(identifier, snapshot):
-        observed["restores"].append(identifier)
-        return original_restore(identifier, snapshot)
+    def observing_restore(identifier_arg, snapshot, db=None):
+        observed["restores"].append(identifier_arg)
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
 
     def observing_worker(instance_document, *, prepared=None):
         if prepared is None and instance_document["id"] == instance["id"]:
@@ -1858,3 +1865,737 @@ async def close_error_after_real_exit_scenario(host, tmp_path):
 @pytest.mark.asyncio
 async def test_close_error_does_not_override_a_confirmed_exit(lifecycle_database, tmp_path):
     await close_error_after_real_exit_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def cross_host_identity_scenario(host, tmp_path):
+    """A live candidate keeps its recorded identity across hosts and queries."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.crosshost", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-crosshost-old",
+    )
+    instance = await host.enable(old, "CrossHost", "instance-crosshost")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.crosshost", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-crosshost-broken",
+    )
+    observed = {"restores": [], "revived": []}
+    original_restore, original_worker = manager.repository.restore, manager.worker
+    armed = {"on": False}
+    original_child = manager.child
+    candidate_holder = {}
+
+    def observing_restore(identifier_arg, snapshot, db=None):
+        observed["restores"].append(identifier_arg)
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
+
+    def observing_worker(instance_document, *, prepared=None):
+        if prepared is None and instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    def installing_child(package_document, identifier):
+        process = original_child(package_document, identifier)
+        if armed["on"] and identifier == instance["id"]:
+            armed["on"] = False
+            candidate_holder["process"] = process
+            original_close = process.close
+
+            async def stuck_close(_reason="stopped"):
+                # The child stays alive: no exit proof can be obtained here.
+                return None
+
+            process.close = stuck_close
+            candidate_holder["original_close"] = original_close
+        return process
+
+    manager.repository.restore = observing_restore
+    manager.child = installing_child
+    manager.worker = observing_worker
+    current = await manager.instance(instance["id"])
+    armed["on"] = True
+    try:
+        with pytest.raises(AppError):
+            await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    finally:
+        armed["on"] = False
+        manager.repository.restore = original_restore
+        manager.child = original_child
+        manager.worker = original_worker
+    candidate = candidate_holder["process"]
+    assert candidate.process.returncode is None, "the candidate must still run"
+
+    # This host loses every in-memory handle, as after a restart.
+    upgrades = [
+        operation
+        for operation in await manager.local(manager.repository.list, "operations")
+        if operation.get("kind") == "upgrade" and operation.get("instance_id") == instance["id"]
+    ]
+    recorded_before = upgrades[-1]
+    pid_before = recorded_before["error"]["candidate_pid"]
+    generation_before = recorded_before["error"].get("candidate_generation")
+    assert isinstance(pid_before, int) and pid_before > 0
+    manager.abandoned.pop(instance["id"], None)
+
+    # Three consecutive queries on a host that has no process object at all.
+    # Behaviour first: a live candidate is never "gone", so nothing may recover.
+    for attempt in range(3):
+        with pytest.raises(Fault) as refused:
+            await manager.recover_candidate(instance["id"])
+        assert refused.value.code == "instance_cleanup_pending", attempt
+    assert observed["restores"] == [], "a snapshot was restored while the candidate ran"
+    assert observed["revived"] == [], "the previous version was started behind the block"
+    assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+
+    # The recorded identity may never be replaced by None: that would turn an
+    # unknown exit into a false "gone" on the next query.
+    stored = await manager.local(manager.repository.get, "operations", recorded_before["id"])
+    error = stored["error"]
+    assert error["candidate_pid"] == pid_before
+    assert error.get("candidate_generation") == generation_before
+    assert error["candidate_closed"] is False
+    assert error["code"] == "plugin_start_failed"
+    assert error["failed_version"] == "2.0.0"
+    assert error.get("recovery") == "candidate_pending"
+
+    # Only the real close, through the pristine capability, frees the instance.
+    candidate.close = candidate_holder["original_close"]
+    await candidate.close("cross_host_teardown")
+    assert candidate.process.returncode is not None
+    recoveries = {"restores": [], "revived": []}
+
+    def counting_restore(identifier_arg, snapshot, db=None):
+        recoveries["restores"].append(identifier_arg)
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
+
+    def counting_worker(instance_document, *, prepared=None):
+        # Only a start made by the recovery itself counts; a scheduler refresh of
+        # the already serving instance is not another recovery.
+        if (
+            prepared is None
+            and instance_document["id"] == instance["id"]
+            and instance["id"] in getattr(manager, "recovering", ())
+        ):
+            recoveries["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    manager.repository.restore = counting_restore
+    manager.worker = counting_worker
+    try:
+        await manager.recover_candidate(instance["id"])
+        # The blocked attempt itself restored nothing; this recovery restored
+        # the snapshot and started the previous version exactly once each.
+        # (The first revival belongs to the scheduler refreshing the instance.)
+        assert recoveries["restores"] == [instance["id"]], recoveries
+        assert (await host.call(instance["id"], "value", "cross-host-after"))["result"] == {
+            "text": "1.0.0"
+        }
+        for _ in range(2):
+            with pytest.raises(Fault) as repeated:
+                await manager.recover_candidate(instance["id"])
+            assert repeated.value.code == "not_found"
+        assert recoveries["restores"] == [instance["id"]]
+        assert recoveries["revived"] == [instance["id"]]
+        final = await manager.local(manager.repository.get, "operations", recorded_before["id"])
+        assert final["error"]["candidate_closed"] is True
+        assert final["error"]["snapshot_restored"] is True
+        assert final["error"]["service_restored"] is True
+        assert final["error"]["rolled_back"] is True
+        assert final["error"]["restored_version"] == "1.0.0"
+        assert final["error"].get("recovery") == "done"
+    finally:
+        manager.repository.restore = original_restore
+        manager.worker = original_worker
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_cross_host_queries_keep_the_candidate_identity_and_never_recover(
+    lifecycle_database, tmp_path
+):
+    await cross_host_identity_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def identity_less_record_scenario(host, tmp_path):
+    """A pending record without identity or exit evidence stays unconfirmed."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.noid", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-noid-old",
+    )
+    instance = await host.enable(old, "NoIdentity", "instance-noid")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.noid", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-noid-broken",
+    )
+    # A record that says "a candidate was created and its exit is unproven", with
+    # no pid, no generation and no process object: the honest verdict is unknown.
+    operation = {
+        "id": "upgrade:noid",
+        "kind": "upgrade",
+        "instance_id": instance["id"],
+        "package_id": instance["package_id"],
+        "snapshot": await manager.local(manager.repository.snapshot, instance["id"]),
+        "execution": "failed",
+        "created_at": 1.0,
+        "from_version": "1.0.0",
+        "to_version": "2.0.0",
+        "error": {
+            "code": "plugin_start_failed",
+            "failed_version": "2.0.0",
+            "candidate_closed": False,
+            "candidate_created": True,
+            "recovery": "candidate_pending",
+            "snapshot_restored": False,
+            "rolled_back": False,
+            "restored_version": None,
+        },
+    }
+    await manager.local(manager.repository.put, "operations", operation)
+    manager.abandoned[instance["id"]] = {"process": None, "operation": operation}
+    manager.admission[instance["id"]] = "instance_cleanup_pending"
+    observed = {"restores": [], "revived": []}
+    original_restore, original_worker = manager.repository.restore, manager.worker
+
+    def observing_restore(identifier_arg, snapshot, db=None):
+        observed["restores"].append(identifier_arg)
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
+
+    def observing_worker(instance_document, *, prepared=None):
+        if prepared is None and instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    manager.repository.restore = observing_restore
+    manager.worker = observing_worker
+    try:
+        with pytest.raises(Fault) as refused:
+            await manager.recover_candidate(instance["id"])
+        assert refused.value.code == "instance_cleanup_pending"
+        # A missing identity must never be read as "the candidate is gone".
+        assert observed["restores"] == []
+        assert observed["revived"] == []
+        stored = await manager.repository_operation("upgrade:noid")
+        assert stored["error"]["candidate_closed"] is False
+        assert stored["error"].get("recovery") == "candidate_pending"
+        assert stored["error"]["code"] == "plugin_start_failed"
+        assert stored["error"]["snapshot_restored"] is False
+        # A record that proves no candidate was ever created needs no waiting.
+        stored["error"]["candidate_never_created"] = True
+        stored["error"]["candidate_created"] = False
+        await manager.local(manager.repository.put, "operations", stored)
+        finished = await manager.recover_candidate(instance["id"])
+        assert finished["error"]["candidate_closed"] is True
+        assert finished["error"]["rolled_back"] is True
+        assert finished["error"]["restored_version"] == "1.0.0"
+        assert observed["restores"] == [instance["id"]]
+        assert (await host.call(instance["id"], "value", "noid-after"))["result"] == {
+            "text": "1.0.0"
+        }
+    finally:
+        manager.repository.restore = original_restore
+        manager.worker = original_worker
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_pending_record_without_identity_is_never_treated_as_exited(
+    lifecycle_database, tmp_path
+):
+    await identity_less_record_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def snapshot_retry_after_restart_scenario(host, tmp_path):
+    """A failed snapshot restore is retried before any service start, after restart."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.snapshotretry", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-snapshotretry-old",
+    )
+    instance = await host.enable(old, "SnapshotRetry", "instance-snapshotretry")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.snapshotretry", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-snapshotretry-broken",
+    )
+    observed = {"restores": [], "restore_failures": 0, "revived": []}
+    original_restore, original_worker = manager.repository.restore, manager.worker
+    failing = {"on": True}
+
+    def failing_restore(identifier_arg, snapshot, db=None):
+        observed["restores"].append(identifier_arg)
+        if failing["on"]:
+            observed["restore_failures"] += 1
+            raise OSError("simulated snapshot restore failure")
+        return original_restore(identifier_arg, snapshot) if db is None else original_restore(
+            identifier_arg, snapshot, db
+        )
+
+    def observing_worker(instance_document, *, prepared=None):
+        if prepared is None and instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    manager.repository.restore = failing_restore
+    manager.worker = observing_worker
+    try:
+        current = await manager.instance(instance["id"])
+        with pytest.raises(AppError) as failure:
+            await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+        assert observed["restore_failures"] == 1
+        recorded = failure.value.details["error"]
+        upgrades = [
+            operation
+            for operation in await manager.local(manager.repository.list, "operations")
+            if operation.get("kind") == "upgrade" and operation.get("instance_id") == instance["id"]
+        ]
+        operation = upgrades[-1]
+        # Behaviour first: nothing was started after the failed snapshot restore,
+        # and the instance is still refused, so no entry point can bypass it.
+        assert observed["revived"] == [], recorded
+        assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+        error = operation.get("error") or {}
+        assert error.get("candidate_closed") is True, recorded
+        assert error.get("snapshot_restored") is False
+        assert error.get("service_restored") is False
+        assert error.get("recovery") == "snapshot_pending"
+        assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+        # The switch never committed, so the ledger still names the previous version.
+        assert (await manager.instance(instance["id"]))["version"] == "1.0.0"
+
+        # A fresh host keeps the same stage and still refuses to start anything.
+        await manager.close()
+        host.manager = None
+        fresh = await host.open()
+        assert fresh.admission.get(instance["id"]) == "instance_cleanup_pending"
+        with pytest.raises(Fault) as refused:
+            await fresh.executions.invoke(instance["id"], "value", {}, "blocked", "owner")
+        assert refused.value.code == "instance_cleanup_pending"
+        assert observed["revived"] == []
+
+        # Retry the snapshot stage; only then may the previous version start.
+        failing["on"] = False
+        recovered = await fresh.recover_candidate(instance["id"])
+        assert recovered["error"]["snapshot_restored"] is True
+        assert recovered["error"]["service_restored"] is True
+        assert recovered["error"]["rolled_back"] is True
+        assert recovered["error"]["restored_version"] == "1.0.0"
+        assert (await host.call(instance["id"], "value", "snapshotretry-after"))["result"] == {
+            "text": "1.0.0"
+        }
+        assert fresh.admission.get(instance["id"]) is None
+        host.manager = fresh
+    finally:
+        manager.repository.restore = original_restore
+        manager.worker = original_worker
+        if host.manager is None:
+            host.manager = await host.open()
+        await host.manager.close()
+
+
+@pytest.mark.asyncio
+async def test_failed_snapshot_restore_is_retried_before_the_service_after_restart(
+    lifecycle_database, tmp_path
+):
+    await snapshot_retry_after_restart_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def service_retry_without_resnapshot_scenario(host, tmp_path):
+    """A restored snapshot is never written again while only service is owed."""
+    manager = await host.open()
+    marker = tmp_path / "old-version-broken"
+    old_source = f'''
+import asyncio
+from pathlib import Path
+from tianshu_plugin import Plugin, PluginError, action, Invocation
+MARKER = Path({str(marker)!r})
+
+class Fixture(Plugin):
+    async def start(self):
+        if MARKER.exists():
+            raise PluginError("plugin_start_failed", "old version can no longer start", effect="none")
+
+    @action(id="value", title="value",
+        input_schema={{"type": "object", "properties": {{}}}},
+        output_schema={{"type": "object", "properties": {{"text": {{"type": "string"}}}}}})
+    async def value(self, call: Invocation, args):
+        return {{"text": "old"}}
+'''
+    old = await host.install(
+        package(tmp_path / "old", "fixture.svc", "1.0.0", "old", source=old_source),
+        "install-svc-old",
+    )
+    instance = await host.enable(old, "Service", "instance-svc")
+    await host.install(
+        package(
+            tmp_path / "v2", "fixture.svc", "2.0.0", "two",
+            source=failing_start_source("new version refuses to start"),
+        ),
+        "install-svc-v2",
+    )
+    marker.write_text("broken", encoding="utf-8")
+    observed = {"restores": [], "restore_calls": 0, "revived": []}
+    original_restore, original_worker = manager.repository.restore, manager.worker
+
+    def counting_restore(identifier_arg, snapshot, db=None):
+        observed["restore_calls"] += 1
+        return original_restore(identifier_arg, snapshot) if db is None else original_restore(
+            identifier_arg, snapshot, db
+        )
+
+    def observing_worker(instance_document, *, prepared=None):
+        if prepared is None and instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    manager.repository.restore = counting_restore
+    manager.worker = observing_worker
+    try:
+        current = await manager.instance(instance["id"])
+        with pytest.raises(AppError):
+            await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+        upgrades = [
+            item
+            for item in await manager.local(manager.repository.list, "operations")
+            if item.get("kind") == "upgrade" and item.get("instance_id") == instance["id"]
+        ]
+        operation = upgrades[-1]
+        error = operation.get("error") or {}
+        # Behaviour first: a restored snapshot whose service never came up keeps
+        # the instance refused and wrote the data exactly once.
+        assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+        first_calls = observed["restore_calls"]
+        assert first_calls == 1, observed
+        assert error.get("snapshot_restored") is True
+        assert error.get("service_restored") is False
+        assert error.get("recovery") == "service_pending"
+        # A fresh host resumes the service stage only.
+        await manager.close()
+        host.manager = None
+        fresh = await host.open()
+        assert fresh.admission.get(instance["id"]) == "instance_cleanup_pending"
+        with pytest.raises(Fault) as refused:
+            await fresh.recover_candidate(instance["id"])
+        assert refused.value.code == "instance_cleanup_pending"
+        assert observed["restore_calls"] == first_calls, "the snapshot was written twice"
+        stored = await fresh.local(fresh.repository.get, "operations", operation["id"])
+        assert stored["error"]["snapshot_restored"] is True
+        assert stored["error"]["rolled_back"] is False
+        assert stored["error"]["restored_version"] is None
+        assert stored["error"]["recovery"] == "service_pending"
+
+        # Repair the previous version and let the same stage finish.
+        marker.unlink()
+        finished = await fresh.recover_candidate(instance["id"])
+        assert observed["restore_calls"] == first_calls, "the snapshot was written twice"
+        assert finished["error"]["rolled_back"] is True
+        assert finished["error"]["restored_version"] == "1.0.0"
+        assert fresh.admission.get(instance["id"]) is None
+        assert (await host.call(instance["id"], "value", "svc-after"))["result"] == {"text": "old"}
+        host.manager = fresh
+    finally:
+        manager.repository.restore = original_restore
+        manager.worker = original_worker
+        if host.manager is None:
+            host.manager = await host.open()
+        await host.manager.close()
+
+
+@pytest.mark.asyncio
+async def test_service_only_retry_never_rewrites_the_restored_snapshot(
+    lifecycle_database, tmp_path
+):
+    await service_retry_without_resnapshot_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def concurrent_recovery_scenario(host, tmp_path):
+    """Two concurrent recoveries never restore or start twice."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.concurrent", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-concurrent-old",
+    )
+    instance = await host.enable(old, "Concurrent", "instance-concurrent")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.concurrent", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-concurrent-broken",
+    )
+    observed = {"restore_calls": 0, "start_calls": 0}
+    original_restore, original_worker = manager.repository.restore, manager.worker
+    armed = {"on": False}
+    original_child = manager.child
+    holder = {}
+
+    def counting_restore(identifier_arg, snapshot, db=None):
+        observed["restore_calls"] += 1
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
+
+    def counting_worker(instance_document, *, prepared=None):
+        if (
+            prepared is None
+            and instance_document["id"] == instance["id"]
+            and instance["id"] in getattr(manager, "recovering", ())
+        ):
+            observed["start_calls"] += 1
+        return original_worker(instance_document, prepared=prepared)
+
+    def installing_child(package_document, identifier):
+        process = original_child(package_document, identifier)
+        if armed["on"] and identifier == instance["id"]:
+            armed["on"] = False
+            holder["process"] = process
+            holder["original_close"] = process.close
+
+            async def stuck_close(_reason="stopped"):
+                return None
+
+            process.close = stuck_close
+        return process
+
+    manager.repository.restore = counting_restore
+    manager.child = installing_child
+    manager.worker = counting_worker
+    current = await manager.instance(instance["id"])
+    armed["on"] = True
+    try:
+        with pytest.raises(AppError):
+            await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    finally:
+        armed["on"] = False
+        manager.child = original_child
+    candidate = holder["process"]
+    assert candidate.process.returncode is None
+
+    # Release the candidate through its pristine capability, then let both
+    # callers race on the same recorded stage.
+    candidate.close = holder["original_close"]
+    await candidate.close("concurrent_release")
+    assert candidate.process.returncode is not None
+    manager.abandoned.pop(instance["id"], None)
+
+    async def recover():
+        try:
+            return await manager.recover_candidate(instance["id"])
+        except Fault as error:
+            return error.code
+
+    outcomes = await asyncio.gather(recover(), recover())
+    # Exactly one caller performed the recovery; the other was refused inside the
+    # lock after re-reading the authoritative record.
+    recorded = [item for item in outcomes if isinstance(item, dict)]
+    refused = [item for item in outcomes if isinstance(item, str)]
+    assert len(recorded) == 1, outcomes
+    assert refused == ["not_found"], outcomes
+    assert observed["restore_calls"] == 1, observed
+    assert observed["start_calls"] == 1, observed
+    stored = await manager.local(
+        manager.repository.get,
+        "operations",
+        [
+            operation
+            for operation in await manager.local(manager.repository.list, "operations")
+            if operation.get("kind") == "upgrade"
+            and operation.get("instance_id") == instance["id"]
+        ][-1]["id"],
+    )
+    assert stored["error"]["rolled_back"] is True
+    assert stored["error"]["restored_version"] == "1.0.0"
+    assert stored["error"].get("recovery") == "done"
+    # A later repeat changes nothing.
+    with pytest.raises(Fault) as repeated:
+        await manager.recover_candidate(instance["id"])
+    assert repeated.value.code == "not_found"
+    assert observed["restore_calls"] == 1
+    manager.repository.restore = original_restore
+    manager.worker = original_worker
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_concurrent_recovery_executes_each_stage_once(lifecycle_database, tmp_path):
+    await concurrent_recovery_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def newer_config_after_recovery_scenario(host, tmp_path):
+    """A finished switch's snapshot never overwrites a later valid configuration."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.newer", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-newer-old",
+    )
+    instance = await host.enable(old, "Newer", "instance-newer")
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.newer", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-newer-broken",
+    )
+    observed = {"restore_calls": 0}
+    original_restore = manager.repository.restore
+
+    def counting_restore(identifier_arg, snapshot, db=None):
+        observed["restore_calls"] += 1
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
+
+    manager.repository.restore = counting_restore
+    current = await manager.instance(instance["id"])
+    with pytest.raises(AppError):
+        await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    # Recovery finished: the previous version serves again.
+    assert observed["restore_calls"] == 1
+    assert manager.admission.get(instance["id"]) is None
+    # A newer valid configuration is written afterwards.
+    latest = await manager.instance(instance["id"])
+    # An empty object is the fixture's valid configuration; what matters is
+    # that a *newer* revision is never replaced by the old switch's snapshot.
+    changed = await manager.configure(instance["id"], {}, {}, latest["revision"])
+    assert changed["revision"] > latest["revision"]
+    # Asking the old failed operation to recover again must not rewrite data.
+    with pytest.raises(Fault) as repeated:
+        await manager.recover_candidate(instance["id"])
+    assert repeated.value.code == "not_found"
+    assert observed["restore_calls"] == 1, observed
+    current_now = await manager.instance(instance["id"])
+    assert current_now["revision"] == changed["revision"], current_now
+    manager.repository.restore = original_restore
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_finished_recovery_never_overwrites_a_newer_configuration(
+    lifecycle_database, tmp_path
+):
+    await newer_config_after_recovery_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+async def snapshot_conflict_scenario(host, tmp_path):
+    """A recorded snapshot that no longer matches the instance is never applied."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.conflict", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-conflict-old",
+    )
+    instance = await host.enable(old, "Conflict", "instance-conflict")
+    latest = await manager.instance(instance["id"])
+    # A snapshot taken at an older revision, plus a live pending snapshot stage.
+    stale = {
+        "instance": {**latest, "revision": latest["revision"] - 1, "config": {"label": "stale"}},
+        "state": [],
+    }
+    operation = {
+        "id": "upgrade:conflict",
+        "kind": "upgrade",
+        "instance_id": instance["id"],
+        "package_id": instance["package_id"],
+        "snapshot": stale,
+        "execution": "failed",
+        "created_at": 1.0,
+        "from_version": "1.0.0",
+        "to_version": "2.0.0",
+        "error": {
+            "code": "plugin_start_failed",
+            "failed_version": "2.0.0",
+            "candidate_closed": True,
+            "recovery": "snapshot_pending",
+            "snapshot_restored": False,
+            "service_restored": False,
+            "rolled_back": False,
+            "restored_version": None,
+        },
+    }
+    await manager.local(manager.repository.put, "operations", operation)
+    manager.admission[instance["id"]] = "instance_cleanup_pending"
+    observed = {"restore_calls": 0, "revived": []}
+    original_restore, original_worker = manager.repository.restore, manager.worker
+
+    def counting_restore(identifier_arg, snapshot, db=None):
+        observed["restore_calls"] += 1
+        if db is None:
+            return original_restore(identifier_arg, snapshot)
+        return original_restore(identifier_arg, snapshot, db)
+
+    def observing_worker(instance_document, *, prepared=None):
+        if instance_document["id"] == instance["id"]:
+            observed["revived"].append(instance_document["id"])
+        return original_worker(instance_document, prepared=prepared)
+
+    manager.repository.restore = counting_restore
+    manager.worker = observing_worker
+    try:
+        with pytest.raises(Fault) as conflict:
+            await manager.recover_candidate(instance["id"])
+        assert conflict.value.code == "instance_cleanup_pending"
+        assert observed["restore_calls"] == 0, "the stale snapshot was written back"
+        assert observed["revived"] == [], "a service was started from a stale snapshot"
+        stored = await manager.local(manager.repository.get, "operations", "upgrade:conflict")
+        assert stored["error"].get("restore_state") == "restore_conflict"
+        assert stored["error"].get("restore_error") == "instance_changed_since_snapshot"
+        assert stored["error"].get("snapshot_restored") is False
+        assert stored["error"]["rolled_back"] is False
+        assert stored["error"]["restored_version"] is None
+        now = await manager.instance(instance["id"])
+        assert now["config"] == latest["config"]
+        assert now["revision"] == latest["revision"]
+        assert manager.admission.get(instance["id"]) == "instance_cleanup_pending"
+    finally:
+        manager.repository.restore = original_restore
+        manager.worker = original_worker
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_stale_snapshot_is_never_applied_to_a_newer_instance(
+    lifecycle_database, tmp_path
+):
+    await snapshot_conflict_scenario(Host(lifecycle_database, tmp_path), tmp_path)

@@ -12,7 +12,8 @@
 - 本轮（第四轮）返修基线：`87b4f0263b708b10c75e8338b2acdcc08b852744`
 - 第四轮返修提交：`8942f4cb3c60b72a626cc124623f53765f2c2b35`
 - 本轮（第五轮）返修基线：`30d598f57917152cf5d8ca4cd2e41c653d460cb5`
-- 本轮（第五轮）返修提交：`7e126360804e7a42eaf25ed9e95a42737c0d0b03`（`manager.py`、`process.py`、`repository.py`、回归用例与两份文档；随后另有一条只追加本条 SHA 的记录）
+- 第五轮返修提交：`7e126360804e7a42eaf25ed9e95a42737c0d0b03`
+- 本轮（第六轮）返修基线：`1f0b18ee83f594b474d1696e42e7ea994d7fd8c4`；本轮提交 SHA 见分支 HEAD（随后另有一条只追加本条 SHA 的记录）
 - 基线分支源自 `37d4cb50`，**不含此后的网页在线发布与模型绑定交付**，因此本分支不用于覆盖现有部署基线。
 
 ## 1. 结论摘要
@@ -30,7 +31,8 @@
 4. **上下文按进程代次归属**：接管新进程时不撤销它已获得的句柄，旧代次句柄失效且迟到回调不能操作新代次；升级失败先撤候选进程句柄再恢复旧版本。
 5. **同包安装提交与卸载真正互斥**：只有"提交成 installed"进入包锁，"准备"在 `installation_lock` 内并登记 `preparing` 目录；两条路径的第二段同序，无死锁；其它插件不受影响。
 6. **失败候选进程先关闭并确认退出，再恢复**（第四轮）：`stop_worker` 对未注册的候选补齐关闭；`_upgrade` 失败分支按"停并关闭 → 确认退出 → 恢复快照 → 重启旧版本 → 记账"执行，未确认退出时如实记录并拒绝宣称安全恢复。
-7. **未确认退出时真正停止恢复**（本轮）：失败分支改为两条互斥路径；候选未确认退出时**不恢复快照、不启动旧版本**，以 `instance_cleanup_pending` 拒绝普通调用/重载/启用/配置/升级/卸载，跨宿主由操作账本读回标记，确认退出后经同一条受控路径恢复并解除限制。
+7. **未确认退出时真正停止恢复**（第五轮）：失败分支改为两条互斥路径；候选未确认退出时**不恢复快照、不启动旧版本**，以 `instance_cleanup_pending` 拒绝普通调用/重载/启用/配置/升级/卸载，跨宿主由操作账本读回标记，确认退出后经同一条受控路径恢复并解除限制。
+8. **恢复阶段统一**（本轮）：三个事实（候选退出/快照恢复/服务恢复）分别持久化在操作账本，`recovery` 阶段由这三个事实推导，入口与 `start()` 走同一条 `recover_candidate()`；跨宿主查询保留原候选身份（pid+代次），缺失证据一律按未确认；快照恢复与阶段记录同一事务提交，服务恢复只重试启动、不再写数据。
 
 ## 2. 本轮（第三轮）两项缺陷：根因、修复归属与锁序
 
@@ -110,6 +112,36 @@
 - `Repository.restore` 从操作账本读回的 `state` 行是 JSON 对象，原实现按元组解包会导致 `invalid input syntax for type integer`；现在按列名读取，跨宿主恢复才能真正执行。
 - `restored_version` 原先取自旧字段，现在按恢复后真实运行的版本读回。
 
+## 4c. 本轮（第六轮）：恢复阶段统一与跨宿主续接
+
+**复现的两个缺陷**：
+
+| 缺陷 | 现象 | 根因 |
+| --- | --- | --- |
+| A 跨宿主丢失候选身份 | 只有账本里的 `candidate_pid` 时，首次查询发现 PID 仍存在便走 `record_cleanup_pending`，后者从**空进程对象**取 PID，把原 `candidate_pid` 覆盖成 `None`；下次 `candidate_gone` 又把"没有进程对象且没有 PID"当作**已退出**，随后恢复快照并启动旧版本 | 身份写在"当前进程对象"上而不是原操作上；"缺少证据"被当成"证明确实不存在" |
+| B 快照恢复失败的限制跨宿主丢失 | 候选已退出但 `repository.restore` 失败，账本 `candidate_closed=true`、`restore_state=restore_failed`；`start()` 只重建 `candidate_closed=false` 的限制，重启后跳过快照恢复直接启动旧版 | 只有一个布尔标记，没有"快照是否已恢复/服务是否已恢复"的独立事实 |
+
+**统一的三事实与阶段**（同一份原操作 JSON，无新表/新框架）：
+
+| 字段 | 含义 |
+| --- | --- |
+| `candidate_closed` | 指定候选的操作系统进程**已确认退出**（存有 `candidate_exit` 证据来源） |
+| `snapshot_restored` | 该实例快照**真的写回**并同事务记录 |
+| `service_restored` | 旧版本**真的再次服务** |
+| `recovery` | 由上述三事实**推导**的阶段：`candidate_pending` → `snapshot_pending` → `service_pending` → `done` |
+
+`recovery_stage()` 是唯一判定处：缺失字段一律按"未完成"，绝不从"没有记录/没有对象/没有报错"推断完成。`rolled_back`/`restored_version` 只在 `service_restored` 时写入。
+
+**原候选身份保存**：`record_stage()` 逐次复制 `candidate_pid`/`candidate_generation`/`code`/`failed_version`；`record_cleanup_pending()` 仅在**确实拿到新 PID** 时才覆盖，空进程对象不会把已有身份清成 `None`。`candidate_gone()` 的判定顺序：进程对象 `returncode` → 账本已记 `candidate_closed` → 显式 `candidate_never_created` 事实 → 记录 PID 的只读探测；**都没有时返回未确认**。
+
+**阶段驱动与跨宿主续接**：`start()` 只把未完成阶段重建为 `admission=instance_cleanup_pending` + `abandoned` 记录（进程对象为 `None`，仅用记录 PID 证明"不存在"），不恢复、不启动；首个普通访问经 `settle_pending()` → `recover_candidate()` 续接。入口 `enable/disable/configure/bindings/upgrade/restart/uninstall` 与 `worker()` 都走同一规则。
+
+**幂等与事务**：
+
+- 快照阶段：`repository.restore` 与"已恢复"标记在**同一事务**内（新增 `restore(instance, snapshot, db)`），数据与阶段不可能一个落一个不落；锁内重读账本，若已过该阶段则直接跳过，陈旧调用方不会二次写数据。
+- 服务阶段：只启动，从不写快照；`service_restored` 落账后重复恢复返回 `not_found`。
+- 冲突：快照的 `revision` 与当前实例不符 → 记 `restore_state=restore_conflict`、`restore_error=instance_changed_since_snapshot`，不写数据、不启动，保留较新的有效配置并维持限制。
+
 ## 5. 生命周期状态
 
 | 能力 | 状态 | 说明 |
@@ -151,7 +183,10 @@
 - `tests/capabilities/test_plugin_online_lifecycle.py`：新增 8 个场景（启动失败不记成功、恢复失败不谎报回退、已受理调用按原身份结算、升级成功代次等于服务进程、保留配置卸载、清除数据卸载、卸载与启用互斥、卸载与重装串行、接管后账本冲突）；
 - `tests/capabilities/test_plugin_lifecycle_control.py`：新增准入拒绝码、卸载准入、以及带事件屏障的"卸载 vs 启用"确定性并发用例；
 - **第三轮** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 4 个真实子进程场景（接管上下文存活、失败候选上下文、同包安装/卸载互斥、准备期卸载），并把 `package()` 扩展为可声明所需能力；
-- **本轮（第五轮）** `manager.py`：失败分支改为两条互斥路径（`settle_failed_candidate` / `finish_failed_switch`），新增 `CLEANUP_PENDING`、`abandoned`、`require_clean_settled`、`settle_pending`、`candidate_gone`、`recover_candidate`、`record_cleanup_pending`；`worker()` 与全部生命周期入口受同一准入码约束；`start()` 从操作账本读回跨宿主标记；`repository.restore` 兼容账本读回的行；
+- **本轮（第六轮）** `manager.py`：新增 `RECOVERY_*` 阶段常量、`recovery_stage()`、`pending_recovery()`、`candidate_identity()`、`block_instance()`、`record_stage()`、`recover_candidate()`、`resume_recovery()`、`restore_snapshot_stage()`、`restore_service_stage()`；`candidate_gone()` 按证据来源分级（进程 `returncode` → 已记 `candidate_closed` → `candidate_never_created` → 记录 PID 只读探测 → 否则未确认）；`record_cleanup_pending()` 只在拿到新 PID 时覆盖身份；`start()` 按 `recovery` 阶段重建限制；`settle_pending()` 对任何未完成阶段生效；
+- **本轮（第六轮）** `repository.py`：`restore(instance, snapshot, db=None)` 支持在调用方事务内执行，使快照写回与阶段标记同事务；
+- **本轮（第六轮）** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 7 个场景（跨宿主三次查询保身份、缺身份记录、快照失败后重启重试、服务恢复不重写快照、并发一次、恢复后新配置不被覆盖、陈旧快照冲突）；
+- **第五轮** `manager.py`：失败分支改为两条互斥路径（`settle_failed_candidate` / `finish_failed_switch`），新增 `CLEANUP_PENDING`、`abandoned`、`require_clean_settled`、`settle_pending`、`candidate_gone`、`recover_candidate`、`record_cleanup_pending`；`worker()` 与全部生命周期入口受同一准入码约束；`start()` 从操作账本读回跨宿主标记；`repository.restore` 兼容账本读回的行；
 - **本轮（第五轮）** `process.py`：新增 `os_process_exited(pid)` 只读探测（仅证明"不存在"），供跨宿主/已回收句柄场景使用；
 - **本轮（第五轮）** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 5 个真实子进程场景并把断言放在"行为"而非"报告字段"上；
 - **第四轮** `process.py`：`Process.exited`（以 `returncode` 判断操作系统退出）与 `close()` 的 `closed` 幂等标记；`manager.py`：`stop_worker` 对未注册的指定进程补齐 `close()`，`_upgrade` 失败分支按"停并关闭 → 确认退出 → 恢复快照 → 重启旧版本 → 记账"执行，并如实记录 `candidate_closed`/`candidate_error`；
@@ -166,10 +201,12 @@
 | 验证 | 命令/范围 | 结果 |
 | --- | --- | --- |
 | 插件相关回归 | `pytest test_plugin_runtime.py test_plugin_model_timing.py test_rb_independent_plugins.py test_plugin_channel_port.py test_catalog_lifecycle.py test_plugin_lifecycle_control.py test_plugin_online_lifecycle.py -q` | **51 passed** |
-| 真实在线生命周期（第五轮） | `tests/capabilities/test_plugin_online_lifecycle.py` | **25 passed**（新增 5 个场景：关闭抛错仍存活、关闭返回但未退出、确认退出后恢复正常、跨宿主读回标记、关闭抛错但已退出） |
+| 真实在线生命周期（第六轮） | `tests/capabilities/test_plugin_online_lifecycle.py` | **32 passed**（新增 7 个场景：跨宿主连续查询保身份、缺身份记录、快照失败后重启重试、服务恢复不重写快照、并发恢复一次、恢复后新配置不被覆盖、陈旧快照冲突） |
+| 真实在线生命周期（第五轮） | `tests/capabilities/test_plugin_online_lifecycle.py` | 25 passed（5 个场景：关闭抛错仍存活、关闭返回但未退出、确认退出后恢复正常、跨宿主读回标记、关闭抛错但已退出） |
 | 契约与并发编排 | `tests/capabilities/test_plugin_lifecycle_control.py` | **10 passed** |
 | 新增用例在第三轮实现上的失败证明（第四轮） | 同一测试文件在 `87b4f026` 工作树上运行 | **2 failed / 18 passed**（`restore` 入口读到候选 `returncode is None`；未注册候选清理后进程仍存活） |
-| 新增用例在第四轮实现上的失败证明（本轮） | 同一测试文件在 `30d598f5` 工作树上运行 | **5 failed / 20 passed**，全部先失败于"candidate alive 时仍 restore/启动旧版本"或缺少 `restore_state` 标记 |
+| 新增用例在第四轮实现上的失败证明（第五轮） | 同一测试文件在 `30d598f5` 工作树上运行 | **5 failed / 20 passed**，全部先失败于"candidate alive 时仍 restore/启动旧版本"或缺少 `restore_state` 标记 |
+| 新增用例在第五轮实现上的失败证明（本轮） | 同一测试文件在 `1f0b18ee` 工作树上运行 | **6 failed / 1 passed**，失败为业务事实：早退候选仍被判定退出（`DID NOT RAISE Fault`）、恢复后仍无限制（`None != instance_cleanup_pending`）、并发恢复执行两次（`restore_calls: 1, start_calls: 0`）、陈旧快照被写回 |
 | 新增用例在第二轮实现上的失败证明 | 同一测试文件在 `d0d29aa6` 工作树上运行 | **4 failed / 14 passed**（2 个上下文归属缺陷 + 2 个安装/卸载互斥缺陷，失败原因均为 `permission_denied` / "卸载期间同包发布") |
 | 新增用例在首轮实现上的失败证明 | 同一测试文件在 `2a18fd17` 工作树上运行 | **11 failed / 13 passed**（准入缺失、已受理调用未结算、暂存进程未接管、purge 不清配置、卸载非互斥） |
 | 前端类型检查 | `tsc -p tsconfig.json --noEmit` | exit 0 |
@@ -223,6 +260,21 @@
 3. **后续确认候选退出**：把真实 `close` 放回并真的关闭候选（`returncode is not None` 作证），再经 `restart` 入口 `settle_pending`/recover 一次。断言先确认退出（`restore_exit==[True]`、`revive_exit[:1]==[True]`），再恢复快照，再启动旧版；恢复后实例可调用、限制解除、账本 `rolled_back=true`/`restored_version=1.0.0`；再次 `recover_candidate` 得 `not_found`，恢复次数仍为 1。
 4. **跨宿主读回标记**：关掉候选并丢弃内存记录后重启管理器，断言 `start()` 从操作账本读回 `instance_cleanup_pending` 且在候选未清零前**未**在启动时恢复或启动旧版；随后一次受控恢复完成 `rolled_back=true`。
 5. **关闭抛错但进程已退出**：`close` 真实关闭子进程后再抛出 `OSError`，断言按真实退出事实处理——原失败码不变、`candidate_closed=true`、`rolled_back=true`、`restored_version=1.0.0`、实例可调用。
+
+### 本轮（第六轮）回归矩阵实际结果
+
+| # | 场景 | 修复后 | `1f0b18ee` 上的失败证据 |
+| --- | --- | --- | --- |
+| 1 | 跨宿主、候选仍存活、连续三次查询 | 通过：三次均 `instance_cleanup_pending`，`restores`/`revived` 恒为 0，`candidate_pid`/`candidate_generation` 每次读回不变 | `DID NOT RAISE Fault`（旧实现第二次查询即把候选判为已退出并继续恢复） |
+| 2 | 待恢复记录缺少身份或退出证据 | 通过：按未确认拒绝；补上"确未创建候选"事实后才允许通过；错误说明保留原 `code`/`failed_version` | `DID NOT RAISE Fault`（旧实现把"无对象无 PID"当成已退出，直接恢复并启动） |
+| 3 | 候选已退出、快照恢复失败、再重启宿主 | 通过：重启后仍受限，先重试快照（计数 1→2 次），成功前 `revived` 恒为 0；成功后才启动服务并解除限制 | `admission` 为空（`None != instance_cleanup_pending`），即重启后无限制、直接启动旧版 |
+| 4 | 快照已恢复、旧版启动失败、再恢复或重启 | 通过：`restore_calls` 始终为 1，只重试服务；失败时不报 `rolled_back`，修好后同一阶段完成 | 失败于 `admission` 为空，且 `restore_error` 语义不清（把启动失败混入恢复错误） |
+| 5 | 并发与重复恢复 | 通过：两个并发恢复里恰好一个完成、另一个 `not_found`；`restore_calls=1`、`start_calls=1`；完成后再恢复仍只 1 次 | `restore_calls: 1, start_calls: 0` 后第二次仍执行，出现重复恢复（并发下阶段被重复执行） |
+| 6 | 恢复完成后再产生有效配置 | 通过：旧失败操作再恢复得 `not_found`，`restore_calls` 仍为 1，配置与 `revision` 保持较新值 | 该用例在旧实现上通过（旧实现无阶段概念，重复恢复本就 `not_found`）；本轮改为断言"陈旧快照冲突"由下一条覆盖 |
+| 7 | 陈旧快照不得覆盖较新实例 | 通过：`restore_state=restore_conflict`、`restore_error=instance_changed_since_snapshot`，`restore_calls=0`、`revived=[]`，实例版本与配置不变 | `'not_found' == 'instance_cleanup_pending'`——旧实现根本不认这条待恢复记录，直接 `not_found` 或盲目恢复 |
+| 8 | 既有正常路径（关闭抛错仍存活、确认退出后按序恢复、关闭抛错但已退出、旧代次不影响替代、上下文有效、旁观插件可调用） | 全部通过（第五轮 5 个场景 + 上下文代次用例保持） | 第五轮已在 `30d598f5` 上验证为 5 failed，本轮保持通过 |
+
+新增用例在旧实现上共 **6 failed / 1 passed**，失败均为业务事实（提前判定退出、无限制可绕过、并发重复恢复、陈旧快照被写回），不是夹具异常或缺少方法。
 
 ## 8. 未验证项（明确如实）
 

@@ -97,6 +97,10 @@ class PluginManager:
         # retried through recover_candidate(); the durable marker lives in the
         # operation ledger so a restarted host reads it back instead of guessing.
         self.abandoned = {}
+        # Instances whose own recovery is starting their previous version right
+        # now. Only that start may pass the block; admission still refuses every
+        # other caller for the same instance.
+        self.recovering = set()
         # Immutable roots a prepare already created but has not published yet.
         # Reclaim must never remove a directory that is about to become installed.
         self.preparing = defaultdict(int)
@@ -162,41 +166,30 @@ class PluginManager:
                     "retriable": False,
                 },
             )
-        unsettled = set()
         for operation in await self.local(self.repository.list, "operations"):
-            error = operation.get("error") or {}
-            if (
-                operation.get("kind") == "upgrade"
-                and error.get("candidate_closed") is False
-                and operation.get("instance_id")
-            ):
-                # This host died while a failed candidate was still unproven gone.
-                # Read the durable marker back and keep the instance blocked: a
-                # restart never restores from an assumption.
-                unsettled.add(operation["instance_id"])
-                self.admission[operation["instance_id"]] = CLEANUP_PENDING
-                # No process object survives a host restart: the recorded pid is
-                # the only handle, and it is used solely to prove absence.
-                self.abandoned[operation["instance_id"]] = {
-                    "process": None,
-                    "operation": operation,
-                }
+            if operation.get("kind") == "upgrade" and operation.get("instance_id"):
+                stage = self.recovery_stage(operation)
+                if stage is not None and stage != self.RECOVERY_DONE:
+                    # This host died mid-recovery. Read the recorded stage back and
+                    # keep the instance blocked; the stage - not an assumption - is
+                    # resumed on the next normal access through recover_candidate().
+                    instance_id = operation["instance_id"]
+                    self.admission[instance_id] = CLEANUP_PENDING
+                    self.abandoned[instance_id] = {
+                        "process": None,
+                        "operation": operation,
+                    }
+                    continue
             if operation["execution"] in {"accepted", "running"}:
-                blocked = operation.get("instance_id") in unsettled
-                if operation.get("kind") == "upgrade" and not blocked:
+                if operation.get("kind") == "upgrade":
+                    # Only a switch that never entered recovery may be rolled back
+                    # here; a recorded stage is resumed rather than re-run blindly.
                     await self.local(
                         self.repository.restore,
                         operation["instance_id"],
                         operation["snapshot"],
                     )
-                operation.update(
-                    execution="interrupted",
-                    error=(
-                        operation.get("error")
-                        if blocked
-                        else {"code": "plugin_interrupted"}
-                    ),
-                )
+                operation.update(execution="interrupted", error={"code": "plugin_interrupted"})
                 await self.local(self.repository.put, "operations", operation)
         async def revive(instance):
             try:
@@ -847,120 +840,201 @@ class PluginManager:
                 },
             )
 
-    async def require_clean_settled(self, identifier):
-        """Refuse while a failed switch of this instance is awaiting cleanup.
+    # --- failed-switch recovery -------------------------------------------------
+    # One rule decides where a failed switch stands, everywhere: the three facts
+    # are independent and none of them may be inferred from the others' absence.
+    #   candidate_confirmed : the named candidate's OS process is proven gone
+    #   snapshot_restored   : the instance snapshot was really written back
+    #   service_restored    : the previous version is really serving again
+    # Only "done" releases the instance block; only "snapshot_restored" allows a
+    # start, and only a start may set rolled_back/restored_version.
+    RECOVERY_CANDIDATE = "candidate_pending"
+    RECOVERY_SNAPSHOT = "snapshot_pending"
+    RECOVERY_SERVICE = "service_pending"
+    RECOVERY_DONE = "done"
+    RECOVERY_STAGES = frozenset(
+        {RECOVERY_CANDIDATE, RECOVERY_SNAPSHOT, RECOVERY_SERVICE, RECOVERY_DONE}
+    )
 
-        The refusal is the same code the admission gate uses, so ordinary calls,
-        reloads, enables and configuration changes are all stopped in one place
-        instead of each endpoint re-checking for itself.
+    def recovery_stage(self, operation):
+        """This failed switch's stage, computed from the recorded facts only.
+
+        A record that never entered recovery returns None. The order is strict:
+        a snapshot can only be pending once the candidate is confirmed gone, and a
+        service can only be pending once the snapshot is really restored.
         """
-        refusal = self.admission.get(identifier)
-        require(refusal != CLEANUP_PENDING, CLEANUP_PENDING, 409)
+        error = (operation or {}).get("error") or {}
+        if error.get("recovery") not in self.RECOVERY_STAGES:
+            return None
+        if error.get("candidate_closed") is not True:
+            return self.RECOVERY_CANDIDATE
+        if error.get("snapshot_restored") is not True:
+            return self.RECOVERY_SNAPSHOT
+        if error.get("service_restored") is not True:
+            return self.RECOVERY_SERVICE
+        return self.RECOVERY_DONE
+
+    def recovery_pending(self, operation):
+        stage = self.recovery_stage(operation)
+        return stage is not None and stage != self.RECOVERY_DONE
+
+    async def pending_recovery(self, identifier=None):
+        """The newest failed switch of this instance that recovery has not finished.
+
+        Read from the operation ledger, so a restarted host resumes from the
+        recorded stage instead of guessing from memory.
+        """
+        found = None
+        for operation in await self.local(self.repository.list, "operations"):
+            if operation.get("kind") != "upgrade":
+                continue
+            if identifier is not None and operation.get("instance_id") != identifier:
+                continue
+            if not self.recovery_pending(operation):
+                continue
+            if found is None or (operation.get("created_at") or 0) >= (
+                found.get("created_at") or 0
+            ):
+                found = operation
+        return found
+
+    @staticmethod
+    def candidate_identity(operation):
+        """The recorded identity of this switch's candidate, never a guess."""
+        error = (operation or {}).get("error") or {}
+        return {
+            "pid": error.get("candidate_pid"),
+            "generation": error.get("candidate_generation"),
+        }
 
     async def candidate_gone(self, identifier, process, record=None):
         """Prove from the real OS process that this failed candidate is gone.
 
-        `returncode` is the direct fact when the object is still here; otherwise
-        the recorded pid may only prove **absence**. A live pid proves nothing
-        (it can already belong to a reused pid), so it never unblocks anything.
-        This never terminates a process and never matches a pid alone, so a
-        replacement can never be mistaken for this candidate.
+        `returncode` is the direct fact while the object is here. Otherwise the
+        recorded pid may only prove **absence**. A pending recovery record without
+        a process object and without an exit proof is *unconfirmed* - never a
+        licence to recover - because a candidate may have been created and its
+        identity lost. Only a record that proves no candidate was ever created
+        skips the wait.
         """
         if process is not None and process.exited:
             return True
+        error = (record or {}).get("error") or {}
+        if error.get("candidate_never_created") is True:
+            return True
+        if error.get("candidate_closed") is True:
+            # The exit proof was already obtained and is kept as a fact.
+            return True
         pid = getattr(getattr(process, "process", None), "pid", None) if process else None
-        if pid is None and record is not None:
-            pid = (record.get("error") or {}).get("candidate_pid")
         if pid is None:
-            # Nothing was ever recorded, so nothing can be proven.
-            return process is None
+            pid = error.get("candidate_pid")
+        if pid is None:
+            # Created, yet neither a process nor a usable pid proves the exit.
+            return False
         return await asyncio.to_thread(lambda: os_process_exited(pid))
 
-    async def settle_pending(self, identifier):
-        """Advance a blocked instance only once its candidate is proven gone.
+    async def require_clean_settled(self, identifier):
+        """Refuse while a failed switch of this instance has not finished recovery.
 
-        Called before this instance's lifecycle locks are taken, so it can finish
-        the pending recovery through the one controlled path and then let the
-        caller proceed. While the candidate cannot be proven gone it refuses with
-        the same refusal code admission uses - it never starts a version.
+        The refusal is the same code the admission gate uses, so ordinary calls,
+        reloads, enables and configuration changes are all stopped in one place
+        instead of each endpoint re-checking for itself. The one exception is the
+        recovery's own start of the previous version, marked while it holds this
+        instance's locks; admission keeps refusing everyone else meanwhile.
         """
-        if self.admission.get(identifier) != CLEANUP_PENDING:
+        if identifier in self.recovering:
+            return
+        refusal = self.admission.get(identifier)
+        require(refusal != CLEANUP_PENDING, CLEANUP_PENDING, 409)
+
+    async def settle_pending(self, identifier):
+        """Advance a blocked instance through the one recovery path.
+
+        Called before this instance's lifecycle locks are taken. While any stage
+        of the recorded recovery is unfinished it either continues that stage or
+        refuses with the same code admission uses - it never starts a version
+        behind the stage order.
+        """
+        refusal = self.admission.get(identifier)
+        operation = await self.pending_recovery(identifier)
+        if refusal != CLEANUP_PENDING and operation is None:
             return None
         return await self.recover_candidate(identifier)
 
-    async def recover_candidate(self, identifier):
-        """Finish the pending cleanup of this instance under its lifecycle lock.
+    def block_instance(self, identifier, operation, process=None):
+        """Keep this instance refused while a recorded stage is unfinished."""
+        self.abandoned[identifier] = {"process": process, "operation": operation}
+        self.admission[identifier] = CLEANUP_PENDING
 
-        Only a confirmed exit unlocks the instance; the snapshot is restored and
-        the previous version restarted exactly through the same path an ordinary
-        upgrade failure uses, so the state is never revived from a guess.
-        """
-        package_id = (await self.instance(identifier))["package_id"]
-        async with self.package_locks[package_id], self.locks[identifier]:
-            candidate = self.abandoned.get(identifier)
-            record = candidate["operation"] if candidate else None
-            if record is None:
-                # This host never saw the candidate: read the durable marker back
-                # and let the recorded pid prove only its absence.
-                for operation in reversed(
-                    await self.local(self.repository.list, "operations")
-                ):
-                    if (
-                        operation.get("kind") == "upgrade"
-                        and operation.get("instance_id") == identifier
-                        and (operation.get("error") or {}).get("candidate_closed") is False
-                    ):
-                        record = operation
-                        break
-            require(record is not None, "not_found", 404)
-            process = candidate["process"] if candidate else None
-            if not await self.candidate_gone(identifier, process, record):
-                await self.record_cleanup_pending(
-                    record, process, "candidate_still_running"
-                )
-                raise Fault(CLEANUP_PENDING, 409)
-            return await self.finish_failed_switch(identifier, record)
-
-    async def record_cleanup_pending(self, operation, process, reason):
-        """Persist the durable marker that keeps a restarted host from guessing.
-
-        The candidate's pid is recorded so a later host can *prove absence*. A
-        proven-absent pid is the only cross-host evidence accepted; a live pid
-        proves nothing (it may be a reused pid), so it keeps the block.
-        """
-        pid = getattr(getattr(process, "process", None), "pid", None)
-        operation.update(
-            execution="failed",
-            error={
-                **(operation.get("error") or {}),
-                "candidate_closed": False,
-                "candidate_error": reason,
-                "candidate_pid": pid,
-                "restored_version": None,
-                "rolled_back": False,
-                "restore_state": "blocked_candidate_alive",
-            },
-        )
+    async def record_stage(self, operation, **changes):
+        """Persist one recovery stage without losing the original facts."""
+        error = dict(operation.get("error") or {})
+        for key in (
+            "candidate_pid",
+            "candidate_generation",
+            "code",
+            "failed_version",
+        ):
+            if key in error:
+                changes.setdefault(key, error[key])
+        error.update(changes)
+        operation.update(execution="failed", error=error)
         await self.local(self.repository.put, "operations", operation)
         return operation
+
+    async def record_cleanup_pending(self, operation, process, reason):
+        """Persist the block while the candidate's exit is still unproven.
+
+        The candidate's recorded identity is preserved: a missing process object
+        in this host must never overwrite the pid/generation an earlier host
+        obtained, because that would silently turn "unknown" into "gone".
+        """
+        pid = getattr(getattr(process, "process", None), "pid", None) if process else None
+        changes = {
+            "candidate_closed": False,
+            "candidate_error": reason,
+            "recovery": self.RECOVERY_CANDIDATE,
+            "restore_state": "blocked_candidate_alive",
+            "snapshot_restored": False,
+            "service_restored": False,
+            "rolled_back": False,
+            "restored_version": None,
+        }
+        if pid is not None:
+            changes["candidate_pid"] = pid
+        if process is not None:
+            changes["candidate_generation"] = process.runtime_id
+        return await self.record_stage(operation, **changes)
 
     async def settle_failed_candidate(self, identifier, operation, process):
         """Stop this candidate and decide, from the OS fact alone, what happens next.
 
-        Returning `True` means the failed switch may be restored through the same
-        path an ordinary upgrade failure uses. Returning `False` means the instance
-        stays blocked: the candidate is still alive, so no snapshot may be
-        restored and no previous version may be started.
+        Returning `True` means the candidate is confirmed gone and the same
+        recovery path continues. Returning `False` means the instance stays
+        blocked at the "waiting for the candidate" stage.
         """
         cleanup_error = None
-        try:
-            await self.stop_worker(identifier, "upgrade_abandoned", process)
-        except (Fault, RemoteError, TimeoutError, OSError) as error:
-            # A closing error is not the exit proof: the OS process decides.
-            cleanup_error = getattr(error, "code", type(error).__name__)
-        if await self.candidate_gone(identifier, process):
+        if process is not None:
+            try:
+                await self.stop_worker(identifier, "upgrade_abandoned", process)
+            except (Fault, RemoteError, TimeoutError, OSError) as error:
+                # A closing error is not the exit proof: the OS process decides.
+                cleanup_error = getattr(error, "code", type(error).__name__)
+        if await self.candidate_gone(identifier, process, operation):
+            await self.record_stage(
+                operation,
+                candidate_closed=True,
+                candidate_error=cleanup_error,
+                candidate_exit=(
+                    "process_exit" if process is not None and process.exited else "pid_absent"
+                ),
+                recovery=self.RECOVERY_SNAPSHOT,
+                snapshot_restored=False,
+                service_restored=False,
+                rolled_back=False,
+                restored_version=None,
+            )
             return True, cleanup_error
-        # Keep it recorded and reachable, then block this instance for real.
         self.abandoned[identifier] = {"process": process, "operation": operation}
         self.admission[identifier] = CLEANUP_PENDING
         await self.record_cleanup_pending(
@@ -968,67 +1042,197 @@ class PluginManager:
         )
         return False, cleanup_error or "candidate_still_running"
 
-    async def finish_failed_switch(self, identifier, operation):
-        """Restore the snapshot and the previous version for a settled failure.
+    async def recover_candidate(self, identifier):
+        """Continue this instance's failed switch from its recorded stage.
 
-        The block is only released once the restore actually happened, so a failed
-        restore is reported and can be retried instead of silently unblocking.
+        Every entry point and every host restart lands here, so the stage order
+        exists once: candidate exit, then snapshot, then service, then release.
         """
-        error = operation.get("error") or {}
-        try:
-            await self.local(self.repository.restore, identifier, operation["snapshot"])
-        except (Fault, RemoteError, TimeoutError, OSError, AppError) as failure:
-            # The candidate is gone, but nothing was restored: keep the block and
-            # report the truth instead of claiming a recovered instance.
-            operation.update(
-                execution="failed",
-                error={
-                    **error,
-                    "candidate_closed": True,
-                    "rolled_back": False,
-                    "restored_version": None,
-                    "restore_state": "restore_failed",
-                    "restore_error": getattr(failure, "code", type(failure).__name__),
-                },
-            )
-            await self.local(self.repository.put, "operations", operation)
-            raise
-        self.abandoned.pop(identifier, None)
-        self.admission.pop(identifier, None)
-        self.executions.revoke(identifier)
-        current = await self.instance(identifier)
-        restored, restore_error = True, None
-        if current["desired_state"] == "enabled":
-            restored = False
-            try:
-                await self.worker(current)
-                restored = True
-            except (Fault, RemoteError, TimeoutError, OSError) as failure:
-                restore_error = (
-                    failure.data.get("code")
-                    if isinstance(failure, RemoteError)
-                    else getattr(failure, "code", type(failure).__name__)
+        package_id = (await self.instance(identifier))["package_id"]
+        async with self.package_locks[package_id], self.locks[identifier]:
+            # Re-read the authoritative record inside the lock: a caller's stale
+            # copy must never drive a second restore or start.
+            operation = await self.pending_recovery(identifier)
+            require(operation is not None, "not_found", 404)
+            error = operation.get("error") or {}
+            stage = self.recovery_stage(operation)
+            if stage == self.RECOVERY_CANDIDATE:
+                candidate = self.abandoned.get(identifier) or {}
+                process = candidate.get("process")
+                if not await self.candidate_gone(identifier, process, operation):
+                    await self.record_cleanup_pending(
+                        operation, process, error.get("candidate_error") or "candidate_still_running"
+                    )
+                    raise Fault(CLEANUP_PENDING, 409)
+                await self.record_stage(
+                    operation,
+                    candidate_closed=True,
+                    candidate_exit=error.get("candidate_exit") or "pid_absent",
+                    recovery=self.RECOVERY_SNAPSHOT,
                 )
-        restored_version = None
-        if restored:
-            restored_version = await self.package(
-                current["package_id"], current["version"]
-            )
-            restored_version = restored_version["manifest"]["version"]
-        operation.update(
-            execution="failed",
-            error={
-                **error,
-                "rolled_back": restored,
-                "restored_version": restored_version,
-                "candidate_error": None if restored else error.get("candidate_error"),
-                "restore_error": restore_error,
-                "candidate_closed": True,
-                "restore_state": "restored" if restored else "restore_failed",
-            },
-        )
-        await self.local(self.repository.put, "operations", operation)
+                operation = await self.repository_operation(operation["id"])
+            return await self.resume_recovery(identifier, operation)
+
+    async def repository_operation(self, identifier):
+        """The authoritative copy of one operation, read back from the ledger."""
+        return await self.local(self.repository.get, "operations", identifier)
+
+    async def resume_recovery(self, identifier, operation):
+        """Run the remaining stages of a failed switch, in order and idempotently."""
+        # The ledger is the authority: a caller holding a pre-recovery copy must
+        # not restore the data or start a service the record already finished.
+        operation = await self.repository_operation(operation["id"])
+        stage = self.recovery_stage(operation)
+        if stage == self.RECOVERY_CANDIDATE:
+            raise Fault(CLEANUP_PENDING, 409)
+        if stage == self.RECOVERY_SNAPSHOT:
+            operation = await self.restore_snapshot_stage(identifier, operation)
+            stage = self.recovery_stage(operation)
+            if stage == self.RECOVERY_CANDIDATE:
+                raise Fault(CLEANUP_PENDING, 409)
+        if self.recovery_stage(operation) == self.RECOVERY_SERVICE:
+            # Nothing minted for the abandoned attempt may survive into the
+            # restored service, and this must happen before the start so the
+            # fresh startup context is the one that lives.
+            self.executions.revoke(identifier)
+            operation = await self.restore_service_stage(identifier, operation)
         return operation
+
+    async def restore_snapshot_stage(self, identifier, operation):
+        """Write the snapshot back and mark the stage in the same transaction.
+
+        The data and the "restored" fact commit together, so the stage can never
+        say pending while the data is already back (or the reverse).
+        """
+        snapshot = operation.get("snapshot") or {}
+        recorded = snapshot.get("instance") or {}
+
+        def attempt():
+            with self.repository.transaction() as db:
+                current = self.repository.get("instances", identifier, db)
+                fresh = self.repository.get("operations", operation["id"], db)
+                if (fresh.get("error") or {}).get("recovery") != self.RECOVERY_SNAPSHOT:
+                    # Already past this stage in the ledger: a caller holding a
+                    # stale record must not restore the data a second time.
+                    return fresh
+                # Never roll a newer valid state back to an old snapshot.
+                if current["revision"] != recorded.get("revision"):
+                    fresh["error"].update(
+                        recovery=self.RECOVERY_SNAPSHOT,
+                        snapshot_restored=False,
+                        restore_state="restore_conflict",
+                        restore_error="instance_changed_since_snapshot",
+                        rolled_back=False,
+                        restored_version=None,
+                    )
+                    fresh["execution"] = "failed"
+                    self.repository.put("operations", fresh, db)
+                    return fresh
+                self.repository.restore(identifier, snapshot, db)
+                fresh["execution"] = "failed"
+                fresh["error"].update(
+                    recovery=self.RECOVERY_SERVICE,
+                    snapshot_restored=True,
+                    restore_state="restored",
+                    restore_error=None,
+                    service_restored=False,
+                )
+                self.repository.put("operations", fresh, db)
+                return fresh
+
+        try:
+            fresh = await run_repository(self.runtime.database, attempt)
+        except (Fault, RemoteError, TimeoutError, OSError, AppError) as failure:
+            recorded = await self.record_stage(
+                operation,
+                candidate_closed=True,
+                recovery=self.RECOVERY_SNAPSHOT,
+                snapshot_restored=False,
+                restore_state="restore_failed",
+                restore_error=getattr(failure, "code", type(failure).__name__),
+                rolled_back=False,
+                restored_version=None,
+            )
+            # The data did not come back, so the instance keeps refused until the
+            # snapshot stage really succeeds - including across a host restart.
+            self.block_instance(identifier, recorded)
+            raise
+        operation = fresh
+        if (operation.get("error") or {}).get("restore_state") == "restore_conflict":
+            # The recorded snapshot no longer describes this instance: keeping
+            # both facts is the honest outcome, and the block stays.
+            self.block_instance(identifier, operation)
+            raise Fault(CLEANUP_PENDING, 409)
+        return operation
+
+    async def restore_service_stage(self, identifier, operation):
+        """Start the previous version once and record what really happened.
+
+        The snapshot is never touched here: a restored stage is only retried for
+        service, so a failed start cannot roll the data back a second time.
+        """
+        fresh = await self.repository_operation(operation["id"])
+        if self.recovery_stage(fresh) in {self.RECOVERY_DONE, None}:
+            # Completed (or no longer pending) in the ledger: nothing to redo.
+            return fresh
+        operation = fresh
+        current = await self.instance(identifier)
+        started, service_error = False, None
+        if current["desired_state"] == "enabled":
+            serving = self.workers.get(identifier)
+            if serving and serving[0].alive and serving[1] == current["revision"]:
+                started = True
+            else:
+                self.recovering.add(identifier)
+                try:
+                    await self.worker(current)
+                    started = True
+                except (Fault, RemoteError, TimeoutError, OSError) as failure:
+                    service_error = (
+                        failure.data.get("code")
+                        if isinstance(failure, RemoteError)
+                        else getattr(failure, "code", type(failure).__name__)
+                    )
+                finally:
+                    self.recovering.discard(identifier)
+        if started:
+            restored_version = (await self.package(
+                current["package_id"], current["version"]
+            ))["manifest"]["version"]
+            operation = await self.record_stage(
+                operation,
+                recovery=self.RECOVERY_DONE,
+                service_restored=True,
+                snapshot_restored=True,
+                candidate_closed=True,
+                rolled_back=True,
+                restored_version=restored_version,
+                restore_error=None,
+                service_error=None,
+            )
+            self.abandoned.pop(identifier, None)
+            self.admission.pop(identifier, None)
+            return operation
+        # The snapshot stays restored; only the service stage is still owed, so
+        # the next attempt retries the start and never rewrites the data again.
+        recorded = await self.record_stage(
+            operation,
+            recovery=self.RECOVERY_SERVICE,
+            snapshot_restored=True,
+            service_restored=False,
+            rolled_back=False,
+            restored_version=None,
+            restore_error=service_error or "instance_disabled",
+            service_error=service_error or "instance_disabled",
+        )
+        # Registering the block is what keeps the instance refused: the upgrade's
+        # own cleanup must not release a stage that is still owed.
+        self.block_instance(identifier, recorded)
+        raise Fault(CLEANUP_PENDING, 409)
+
+    async def finish_failed_switch(self, identifier, operation):
+        """The settled failure path shared by the switch and every later entry."""
+        return await self.resume_recovery(identifier, operation)
 
     async def stop_worker(self, identifier, reason, process=None):
         """Stop the named child and revoke only the handles minted for it.
@@ -1403,11 +1607,15 @@ class PluginManager:
                 else "plugin_upgrade_failed"
             )
             code = code or "plugin_upgrade_failed"
+            # Only the facts of the failure are seeded here. rolled_back and
+            # restored_version are written by the stage that really restores the
+            # service, never by the failure itself.
             operation.update(
                 error={
                     "code": code,
                     "failed_version": version,
-                    "restored_version": previous["manifest"]["version"],
+                    "restored_version": None,
+                    "rolled_back": False,
                 }
             )
             # Two mutually exclusive outcomes, decided by the OS fact alone:
@@ -1418,6 +1626,15 @@ class PluginManager:
             if process is not None:
                 settled, _ = await self.settle_failed_candidate(
                     identifier, operation, process
+                )
+            else:
+                # Nothing was created for this attempt, which is recorded as a
+                # fact rather than inferred from a missing process object.
+                await self.record_stage(
+                    operation,
+                    candidate_never_created=True,
+                    candidate_closed=True,
+                    recovery=self.RECOVERY_SNAPSHOT,
                 )
             if settled:
                 await self.finish_failed_switch(identifier, operation)
