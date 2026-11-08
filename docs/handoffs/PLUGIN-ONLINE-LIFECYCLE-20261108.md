@@ -1,12 +1,19 @@
 # 插件在线安装、重载、升级、回退、卸载交付（PLUGIN-ONLINE-LIFECYCLE-20261108）
 
+## 0. 提交
+
+- 分支：`codex/plugin-online-lifecycle-20261108`
+- 工作树：`C:\Users\Administrator\.codex\worktrees\plugin-online-lifecycle-20261108\tianshu-peiban-bot`
+- 提交：`4a88e2558f86673aac6e578ba4dcc7df0b485585`（实现 `0745c42c8d79a4ea52c955248ab19b45895a1834` + 用例补充）
+- 基线：`37d4cb50`（主协调目录 `codex/snowluma-interfaces-20261108`）
+
 ## 1. 结论摘要
 
 本次在既有插件系统上演进，没有新建插件平台，没有改动 Memory/Life/Conversation 或六角色架构，也没有改动插件 SDK 合同、共享装配、迁移或部署根文件。
 
 - 实现：在线安装、启用、停用、**显式在线重载**、升级、**兼容版本回退**、卸载（含可选清除实例自有数据）、动态贡献撤销、页面票据复检、包目录回收。
 - 关键缺口修复：`reload` 后端控制接口与页面入口原先完全不存在；`uninstall` 原先既不撤销 catalog 贡献、也不回收包目录、且没有数据清除范围；`upgrade` 原先缺少 `plugin.start` 健康确认，新版本启动失败会被当成成功；`Repository.__init__` 的 `self.runtime` 赋值遮蔽了同名 `runtime()` 方法，导致运行代次投影在生产不可用（真实子进程路径才会暴露）。
-- 验证：40 个插件相关用例通过（含 5 个使用真实插件子进程、真实不可变包目录与真实 PostgreSQL 账本的在线生命周期场景）。
+- 验证：41 个插件相关用例通过（含 6 个使用真实插件子进程、真实不可变包目录与真实 PostgreSQL 账本的在线生命周期场景）。
 - 未验证：容器内 `independent` 角色的实机热重载、真实 NAS 发布、浏览器视觉验收、真实 QQ/付费模型调用。
 
 ## 2. 生命周期状态
@@ -57,8 +64,8 @@
 
 | 验证 | 命令/范围 | 结果 |
 | --- | --- | --- |
-| 插件相关回归 | `pytest tests/capabilities/test_plugin_runtime.py test_plugin_model_timing.py test_rb_independent_plugins.py test_plugin_channel_port.py test_catalog_lifecycle.py test_plugin_lifecycle_control.py test_plugin_online_lifecycle.py -q` | 40 passed |
-| 真实在线生命周期（含安装/重载/升级/回退/卸载/长任务隔离/坏版本恢复/失败安装幂等/重装） | `tests/capabilities/test_plugin_online_lifecycle.py` | 5 passed |
+| 插件相关回归 | `pytest tests/capabilities/test_plugin_runtime.py test_plugin_model_timing.py test_rb_independent_plugins.py test_plugin_channel_port.py test_catalog_lifecycle.py test_plugin_lifecycle_control.py test_plugin_online_lifecycle.py -q` | 41 passed |
+| 真实在线生命周期（含安装/重载/升级/回退/卸载/长任务隔离/坏版本恢复/失败安装幂等/重装/停用保留） | `tests/capabilities/test_plugin_online_lifecycle.py` | 6 passed |
 | 契约与撤销（reload/uninstall schema、页面票据、admission、revoke） | `tests/capabilities/test_plugin_lifecycle_control.py` | 8 passed |
 | 前端类型检查 | `tsc -p tsconfig.json --noEmit` | 通过（无输出、exit 0） |
 | 前端构建 | `vite build` | 构建完成（exit 0） |
