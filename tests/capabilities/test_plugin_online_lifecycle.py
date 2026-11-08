@@ -538,7 +538,7 @@ async def retained_config_uninstall_scenario(host, tmp_path):
     await manager.close()
 
 
-async def purged_config_uninstall_scenario(host, tmp_path):
+async def purged_config_uninstall_scenario(host, tmp_path, *, retain_first=False):
     """purge_data removes configuration, bindings, secrets and state for good."""
     manager = await host.open()
     first = await host.install(
@@ -563,6 +563,11 @@ async def purged_config_uninstall_scenario(host, tmp_path):
         if item["instance_id"] == instance["id"]
     ]
     assert schedules_before == [] or all(item.get("enabled") for item in schedules_before)
+    if retain_first:
+        retained = await manager.uninstall("fixture.purged")
+        assert retained["instance_data"] == "retained"
+        assert (await manager.instance(instance["id"]))["config"]["label"] == "secret-label"
+        assert await manager.local(manager.vault.names, instance["id"])
     result = await manager.uninstall("fixture.purged", purge_data=True)
     assert result["instance_data"] == "purged"
     purged = await manager.instance(instance["id"])
@@ -2817,3 +2822,8 @@ async def test_restarted_host_finishes_a_disabled_service_recovery_without_start
     finally:
         await manager.close()
         await asyncio.to_thread(host.database.sync_pool.close)
+
+
+@pytest.mark.asyncio
+async def test_already_uninstalled_package_can_purge_its_retained_data(lifecycle_database, tmp_path):
+    await purged_config_uninstall_scenario(Host(lifecycle_database, tmp_path), tmp_path, retain_first=True)
