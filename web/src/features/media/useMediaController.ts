@@ -35,6 +35,10 @@ export function useMediaController() {
     setError("");
     errorSlot.current = "";
   }, []);
+  const clearFeedback = useCallback(() => {
+    clearError();
+    setNotice("");
+  }, [clearError]);
   const request = useCallback(
     async <T>(
       slot: string,
@@ -43,6 +47,7 @@ export function useMediaController() {
     ): Promise<T | undefined> => {
       if (!csrf || !alive.current) return;
       cancel(slot);
+      clearError(slot);
       const controller = new AbortController();
       active.current.set(slot, controller);
       const mine = generation.current;
@@ -59,8 +64,10 @@ export function useMediaController() {
           mine === generation.current &&
           currentSession.current === csrf &&
           active.current.get(slot) === controller
-        )
+        ) {
+          clearError(slot);
           return result;
+        }
       } catch (cause) {
         if (
           !controller.signal.aborted &&
@@ -80,6 +87,7 @@ export function useMediaController() {
             failedCommands.current.clear();
           }
           errorSlot.current = slot;
+          setNotice("");
           setError(
             cause instanceof MediaError
               ? cause.message
@@ -93,7 +101,7 @@ export function useMediaController() {
       }
       return undefined;
     },
-    [csrf, cancel],
+    [csrf, cancel, clearError],
   );
 
   const refresh = useCallback(async () => {
@@ -204,6 +212,7 @@ export function useMediaController() {
     cancel,
     setNotice,
     clearError,
+    clearFeedback,
   };
 }
 export type MediaController = ReturnType<typeof useMediaController>;

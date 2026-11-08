@@ -1,4 +1,4 @@
-import { DetailCard } from "../../../components/DetailCard";
+import { MediaDetailCard } from "../MediaDetailCard";
 import { useState } from "react";
 import type { MediaController } from "../useMediaController";
 import { timestamp, word } from "../wording";
@@ -38,17 +38,7 @@ export function MusicMaintenance({
         天分批检查已归档的订阅歌曲，比较全部可用渠道，只升级验证后更高音质的版本。同一首歌只检查一次；新歌下载优先，限流或预算耗尽时顺延。
         暂不可查询的渠道单独等待，其他渠道继续比较；恢复后自动补查并复用同等或更好的本地文件。
       </p>
-      <DetailCard title={"音乐自动维护设置"}>
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}
+      <MediaDetailCard media={media} title={"音乐自动维护设置"}>
         <div className="music-select-row">
           <label>
             歌单自动同步周期
@@ -95,23 +85,12 @@ export function MusicMaintenance({
             保存维护设置
           </button>
         </div>
-      </DetailCard>
+      </MediaDetailCard>
       <p className="muted">
         已记录 {view.counts.tracked} 首 · 已检查 {view.counts.checked} 首 · 到期{" "}
         {view.counts.due} 首 · 累计升级 {view.counts.upgrades} 次
       </p>
-      <DetailCard title="请求节流与最近检查">
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}
-
+      <MediaDetailCard media={media} title="请求节流与最近检查">
         <div className="media-stack">
           <p className="muted">
             同步、搜索、音质查询和下载共享请求控制：间隔至少{" "}
@@ -141,7 +120,7 @@ export function MusicMaintenance({
             </div>
           ))}
         </div>
-      </DetailCard>
+      </MediaDetailCard>
     </section>
   );
 }

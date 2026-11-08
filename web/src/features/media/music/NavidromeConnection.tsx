@@ -1,4 +1,4 @@
-import { DetailCard } from "../../../components/DetailCard";
+import { MediaDetailCard } from "../MediaDetailCard";
 import { useState } from "react";
 import type { MediaController } from "../useMediaController";
 import { timestamp } from "../wording";
@@ -54,18 +54,11 @@ export function NavidromeConnection({
           </span>
         </p>
       )}
-      <DetailCard title={<>{connection ? "编辑连接" : "连接 Navidrome"}</>}>
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}
-
+      <MediaDetailCard
+        media={media}
+        title={<>{connection ? "编辑连接" : "连接 Navidrome"}</>}
+        requestSlots={["navidrome-test"]}
+      >
         <form
           className="media-stack navidrome-form"
           onSubmit={async (event) => {
@@ -203,7 +196,7 @@ export function NavidromeConnection({
             )}
           </div>
         </form>
-      </DetailCard>
+      </MediaDetailCard>
     </section>
   );
 }

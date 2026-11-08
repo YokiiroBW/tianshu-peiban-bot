@@ -1,5 +1,5 @@
 import { Drawer } from "../../../components/Drawer";
-import { DetailCard } from "../../../components/DetailCard";
+import { MediaDetailCard } from "../MediaDetailCard";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Music2, RefreshCw, Trash2 } from "lucide-react";
 import type { MediaController } from "../useMediaController";
@@ -27,6 +27,7 @@ export function MusicPanel({ media }: { media: MediaController }) {
   const [detail, setDetail] = useState<PlaylistDetail | null>(null);
   const [interval, setInterval] = useState("43200");
   const [reading, setReading] = useState("");
+  const catalogCursor = useRef<object | null>(null);
   const detailCursor = useRef<{ playlist_id: string; offset: number } | null>(
     null,
   );
@@ -87,6 +88,9 @@ export function MusicPanel({ media }: { media: MediaController }) {
           account.account_id === accountId && account.state === "ready",
       )
     ) {
+      catalogCursor.current = null;
+      current.current.cancel("music-catalog");
+      setReading("");
       setAccountId(
         view.accounts.find((account) => account.state === "ready")
           ?.account_id ?? "",
@@ -95,16 +99,22 @@ export function MusicPanel({ media }: { media: MediaController }) {
     }
   }, [view, accountId]);
   async function readCatalog() {
+    const cursor = { account_id: accountId };
+    catalogCursor.current = cursor;
+    media.clearFeedback();
     setReading("catalog");
     const result = await media.request<{ playlists: SourcePlaylist[] }>(
       "music-catalog",
       "music/playlists/list",
-      { account_id: accountId },
+      cursor,
     );
+    if (catalogCursor.current !== cursor) return;
     if (result) setCatalog(result.playlists);
-    setReading("");
+    else await refresh();
+    if (catalogCursor.current === cursor) setReading("");
   }
   async function readDetail(playlist: MusicPlaylist, offset = 0) {
+    media.clearFeedback();
     setReading("detail");
     const cursor = { playlist_id: playlist.playlist_id, offset };
     detailCursor.current = cursor;
@@ -125,6 +135,19 @@ export function MusicPanel({ media }: { media: MediaController }) {
         </button>
       </section>
     );
+  const selectedAccount = view.accounts.find(
+    (account) => account.account_id === accountId,
+  );
+  const cooldownUntil = Math.max(
+    0,
+    ...(view.maintenance?.requests.scopes ?? [])
+      .filter(
+        (scope) =>
+          scope.provider === selectedAccount?.provider &&
+          (!scope.account_id || scope.account_id === accountId),
+      )
+      .map((scope) => scope.cooldown_until ?? 0),
+  );
   return (
     <section className="media-stack music-panel" aria-label="音乐订阅">
       <div className="media-section-head">
@@ -187,17 +210,17 @@ export function MusicPanel({ media }: { media: MediaController }) {
         connection={view.navidrome?.connection}
         refresh={refresh}
       />
-      <DetailCard title={"添加音乐订阅"}>
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}
+      <MediaDetailCard
+        media={media}
+        title="添加音乐订阅"
+        requestSlots={["music-catalog"]}
+        onOpenChange={(open) => {
+          if (!open) {
+            catalogCursor.current = null;
+            setReading("");
+          }
+        }}
+      >
         <section className="media-card media-stack" aria-label="选择音乐歌单">
           <div>
             <h3>选择歌单</h3>
@@ -210,8 +233,12 @@ export function MusicPanel({ media }: { media: MediaController }) {
               音乐账号
               <select
                 value={accountId}
-                disabled={!!reading || !!media.busy}
+                disabled={!!media.busy}
                 onChange={(event) => {
+                  catalogCursor.current = null;
+                  media.cancel("music-catalog");
+                  media.clearFeedback();
+                  setReading("");
                   setAccountId(event.target.value);
                   setCatalog(null);
                 }}
@@ -247,6 +274,13 @@ export function MusicPanel({ media }: { media: MediaController }) {
               {reading === "catalog" ? "正在读取…" : "读取账号歌单"}
             </button>
           </div>
+          {cooldownUntil * 1000 > Date.now() && selectedAccount && (
+            <p className="media-warning" role="status">
+              {providerNames[selectedAccount.provider]}请求冷却至{" "}
+              {timestamp(cooldownUntil)}
+              ，之后可重新读取账号歌单。本地曲库与目录设置仍可使用。
+            </p>
+          )}
           {catalog?.length === 0 && (
             <p className="muted">此账号暂未返回可访问的歌单。</p>
           )}
@@ -298,7 +332,7 @@ export function MusicPanel({ media }: { media: MediaController }) {
             </div>
           )}
         </section>
-      </DetailCard>
+      </MediaDetailCard>
       <section className="media-card media-stack" aria-label="本地歌单">
         <div>
           <h3>天枢中的歌单</h3>
@@ -432,21 +466,12 @@ export function MusicPanel({ media }: { media: MediaController }) {
           variant="card"
           open={true}
           onClose={() => {
+            media.clearFeedback();
             detailCursor.current = null;
             media.cancel("music-detail");
             setDetail(null);
           }}
         >
-          {media.error && (
-            <p className="media-message media-warning" role="alert">
-              {media.error}
-            </p>
-          )}
-          {media.notice && (
-            <p className="media-message" role="status">
-              {media.notice}
-            </p>
-          )}
           <section className="media-card media-stack" aria-label="歌单歌曲">
             <div className="media-section-head">
               <div>
@@ -481,9 +506,7 @@ export function MusicPanel({ media }: { media: MediaController }) {
                   {detail.tracks.map((track) => (
                     <tr key={track.position}>
                       <td>{track.position}</td>
-                      <td>
-                        {track.title || "暂不可用的歌曲"}
-                      </td>
+                      <td>{track.title || "暂不可用的歌曲"}</td>
                       <td>{track.artists.join("、") || "未知"}</td>
                       <td>{track.album || "未知"}</td>
                       <td>

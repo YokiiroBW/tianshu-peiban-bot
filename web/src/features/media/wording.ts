@@ -151,8 +151,8 @@ export const errorWords: Record<string, string> = {
   ...bookWords,
   ...comicWords,
   music_request_deferred: reasonWords.music_request_deferred,
-  music_request_budget: reasonWords.music_request_budget,
-  music_account_cooling: reasonWords.music_account_cooling,
+  music_request_budget: "本时段平台请求预算已用完，请稍后重试。",
+  music_account_cooling: "平台请求正在冷却，请稍后重试；本地曲库仍可使用。",
   invalid_destination_subdirectory:
     "请检查整理子目录：使用相对目录，不含空层级、.、..、保留文件名或不兼容字符。",
   destination_not_supported:

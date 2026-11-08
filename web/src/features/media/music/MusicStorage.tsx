@@ -1,4 +1,4 @@
-import { DetailCard } from "../../../components/DetailCard";
+import { MediaDetailCard } from "../MediaDetailCard";
 import { useEffect, useState } from "react";
 import type { MediaController } from "../useMediaController";
 import type { MusicSettings } from "./types";
@@ -33,17 +33,11 @@ export function MusicStorage({
           选择天枢所在主机可访问的音乐目录。歌单关系保存于天枢，文件按专辑整理。
         </p>
       </div>
-      <DetailCard title={"音乐存档设置"}>
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}
+      <MediaDetailCard
+        media={media}
+        title="音乐存档设置"
+        requestSlots={["music-directory"]}
+      >
         <form
           className="media-stack"
           onSubmit={async (event) => {
@@ -115,7 +109,7 @@ export function MusicStorage({
             </button>
           </div>
         </form>
-      </DetailCard>
+      </MediaDetailCard>
       {inspection && (
         <div role="status" className="music-directory-result">
           <p>

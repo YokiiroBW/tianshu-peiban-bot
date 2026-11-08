@@ -1,3 +1,4 @@
+import { MediaDetailCard } from "../MediaDetailCard";
 import { DetailCard } from "../../../components/DetailCard";
 import { useEffect, useState } from "react";
 import type { MediaController } from "../useMediaController";
@@ -112,18 +113,7 @@ export function MusicDownloads({
         </button>
       </div>
       {!configured && <p className="muted">保存音乐目录后即可下载。</p>}
-      <DetailCard title="下载设置">
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}
-
+      <MediaDetailCard media={media} title="下载设置">
         <form
           className="media-stack"
           onSubmit={async (event) => {
@@ -192,7 +182,7 @@ export function MusicDownloads({
             保存下载设置
           </button>
         </form>
-      </DetailCard>
+      </MediaDetailCard>
     </div>
   );
 }

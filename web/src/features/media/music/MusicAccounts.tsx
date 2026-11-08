@@ -1,4 +1,4 @@
-import { DetailCard } from "../../../components/DetailCard";
+import { MediaDetailCard } from "../MediaDetailCard";
 import { useEffect, useMemo, useRef, useState } from "react";
 import qrcode from "qrcode-generator";
 import { QrCode } from "lucide-react";
@@ -113,23 +113,23 @@ export function MusicAccounts({
           扫码连接歌单。下载时自动检查已连接账号的权限，无需设置渠道优先级。
         </p>
       </div>
-      <DetailCard title="连接音乐账号">
-        {media.error && (
-          <p className="media-message media-warning" role="alert">
-            {media.error}
-          </p>
-        )}
-        {media.notice && (
-          <p className="media-message" role="status">
-            {media.notice}
-          </p>
-        )}{" "}
+      <MediaDetailCard
+        media={media}
+        title="连接音乐账号"
+        requestSlots={["music-qr-start", "music-qr-poll"]}
+        onOpenChange={(open) => {
+          if (!open) setQr(null);
+        }}
+      >
         <label>
           音乐平台
           <select
             value={provider}
             disabled={starting}
             onChange={(event) => {
+              media.cancel("music-qr-start");
+              media.cancel("music-qr-poll");
+              media.clearFeedback();
               setQr(null);
               setProvider(event.target.value as MusicProvider);
             }}
@@ -198,7 +198,7 @@ export function MusicAccounts({
             <p className="muted">有效至 {timestamp(qr.expires_at)}</p>
           </div>
         )}
-      </DetailCard>{" "}
+      </MediaDetailCard>{" "}
       {accounts.length === 0 && <p className="muted">尚未连接音乐账号。</p>}
       {accounts.map((account) => (
         <div className="music-account" key={account.account_id}>
