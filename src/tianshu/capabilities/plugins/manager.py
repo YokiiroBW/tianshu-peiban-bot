@@ -88,6 +88,9 @@ class PluginManager:
         # package lock -> instance lock; other packages keep serving.
         self.package_locks = defaultdict(asyncio.Lock)
         self.installations = set()
+        # Immutable roots a prepare already created but has not published yet.
+        # Reclaim must never remove a directory that is about to become installed.
+        self.preparing = defaultdict(int)
         self.scheduler_task = None
         self.operations_lock = asyncio.Lock()
         self.installation_lock = asyncio.Lock()
@@ -319,8 +322,15 @@ class PluginManager:
         return package is not None and builtin_package(package)
 
     async def _install(self, operation, source):
-        async with self.installation_lock:
-            await self._prepare_install(operation, source)
+        """Stage the package, then publish it under this package's lifecycle lock.
+
+        Staging (source fetch, dependency environment, inspection child) never
+        holds the package lock, so a slow checkout does not stall that plugin's
+        ordinary lifecycle work. The publish step is where a package becomes
+        installed, and it takes package lock then installation lock - the same
+        order uninstall uses.
+        """
+        await self._prepare_install(operation, source)
 
     async def _install_local(self, operation, *args, **kwargs):
         # The installation lock bounds admission. Git/pip waits belong to this
@@ -331,42 +341,68 @@ class PluginManager:
         )
 
     async def _prepare_install(self, operation, source):
-        process = None
+        process, package, prepared = None, None, None
         try:
             operation.update(execution="running")
             await self.local(self.repository.put, "operations", operation)
-            package = await settled(self._install_local, self.packages.prepare, source)
-            process = Process(package, self.reject_capability)
-            await process.start()
-            description = await process.call("plugin.describe", {}, timeout=15)
-            manifest = package["manifest"]
-            if manifest.get("contributions_file"):
-                static = json.loads(
-                    (
-                        Path(package["root"]) / str(relative_path(manifest["contributions_file"]))
-                    ).read_text(encoding="utf-8")
-                )
-                for key in ("actions", "commands", "tools", "events", "bridges"):
-                    require(
-                        static.get(key, []) == description.get(key, []),
-                        "plugin_description_mismatch",
-                        409,
+            # Held only while immutable content and its environment are produced
+            # and inspected. A slow checkout therefore never blocks this plugin's
+            # ordinary lifecycle work, and it is never taken in reverse order.
+            async with self.installation_lock:
+                package = await settled(self._install_local, self.packages.prepare, source)
+                # No package row points at this directory yet: hold this plugin
+                # id so reclaim cannot take it while it is inspected or before
+                # the publish below submits it.
+                prepared = package["manifest"]["id"]
+                self.preparing[package["root"]] += 1
+                process = Process(package, self.reject_capability)
+                await process.start()
+                description = await process.call("plugin.describe", {}, timeout=15)
+                manifest = package["manifest"]
+                if manifest.get("contributions_file"):
+                    static = json.loads(
+                        (
+                            Path(package["root"])
+                            / str(relative_path(manifest["contributions_file"]))
+                        ).read_text(encoding="utf-8")
                     )
-                description = static
-            validate_description(description, manifest)
-            package["description"] = description
-            old = await self.local(self.repository.get, "packages", package["id"])
-            require(
-                old is None or old["digest"] == package["digest"], "plugin_version_conflict", 409
-            )
-            await self.local(self.repository.put, "packages", package)
-            operation.update(execution="succeeded", package_id=package["id"])
+                    for key in ("actions", "commands", "tools", "events", "bridges"):
+                        require(
+                            static.get(key, []) == description.get(key, []),
+                            "plugin_description_mismatch",
+                            409,
+                        )
+                    description = static
+                validate_description(description, manifest)
+                package["description"] = description
+                await process.close("inspection_finished")
+                process = None
+            # Publish is the only step that makes this package globally visible,
+            # so it is what must not interleave with an uninstall of this plugin.
+            # Lock order is always package lock -> installation lock, exactly as
+            # uninstall takes them, so no waiter can be held in reverse order.
+            async with self.package_locks[prepared], self.installation_lock:
+                regenerate = await self.local(self.repository.get, "packages", package["id"])
+                require(
+                    regenerate is None or regenerate["digest"] == package["digest"],
+                    "plugin_version_conflict",
+                    409,
+                )
+                # Reclamation only skips roots a publish is holding, so a second
+                # probe here proves the files really survived to publication.
+                require(Path(package["root"]).is_dir(), "plugin_install_failed", 409)
+                await self.local(self.repository.put, "packages", package)
+                operation.update(execution="succeeded", package_id=package["id"])
         except (Fault, RemoteError, TimeoutError, OSError, ValueError, KeyError) as error:
             operation.update(
                 execution="failed",
                 error={"code": error.code if isinstance(error, Fault) else "plugin_install_failed"},
             )
         finally:
+            if package is not None and package["root"] in self.preparing:
+                self.preparing[package["root"]] -= 1
+                if not self.preparing[package["root"]]:
+                    del self.preparing[package["root"]]
             if process:
                 await process.close("inspection_finished")
             await self.local(self.repository.put, "operations", operation)
@@ -639,6 +675,18 @@ class PluginManager:
                 await self.scheduler.instance_changed(identifier)
             return await self.projection(instance)
 
+    def child(self, package, identifier):
+        """A child whose host callbacks are attributed to its own generation.
+
+        The closure captures the generation so a late callback from a replaced
+        child can never act under the replacement's handles.
+        """
+        process = Process(package, None)
+        process.callback = lambda method, params: self.executions.callback(
+            identifier, method, params, generation=process.runtime_id
+        )
+        return process
+
     async def worker(self, instance, *, prepared=None):
         """Return the process that actually serves this instance's revision.
 
@@ -657,19 +705,31 @@ class PluginManager:
         current = self.workers.get(instance["id"])
         if current and current[0].alive and current[1] == instance["revision"]:
             if prepared is not None and prepared is not current[0]:
+                self.executions.revoke(instance["id"], prepared.runtime_id)
                 await prepared.close("handover_duplicate")
             return current[0]
-        await self.stop_worker(instance["id"], "instance_restarted")
-        process = prepared or Process(
-            package, lambda method, params: self.executions.callback(instance["id"], method, params)
-        )
+        # Stop the previous child by identity: only its own handles die, so a
+        # prepared replacement keeps the context it already obtained.
+        previous = self.workers.get(instance["id"])
+        if previous:
+            await self.stop_worker(instance["id"], "instance_restarted", previous[0])
+        elif prepared is None:
+            self.executions.revoke(instance["id"])
+        else:
+            self.executions.retain(instance["id"], prepared.runtime_id)
+        process = prepared or self.child(package, instance["id"])
         try:
             if prepared is None:
                 await process.start()
-                context = await self.executions.context(instance, None)
+                context = await self.executions.context(
+                    instance, None, generation=process.runtime_id
+                )
                 await process.call("plugin.initialize", context, timeout=15)
                 await process.call("plugin.start", {}, timeout=15)
             self.workers[instance["id"]] = process, instance["revision"]
+            # This child is now the only serving generation; handles minted for
+            # any earlier one must not linger.
+            self.executions.retain(instance["id"], process.runtime_id)
             await self.runtime_state.started(instance["id"], process, instance["revision"])
             self.spawn(self.watch_worker(instance["id"], process))
             await self.scheduler.seed(instance["id"], package["description"])
@@ -682,8 +742,8 @@ class PluginManager:
                 await self.runtime_state.forget(instance["id"], process)
             except Exception:
                 pass
+            self.executions.revoke(instance["id"], process.runtime_id)
             await process.close("startup_failed")
-            self.executions.revoke(instance["id"])
             if await self.comic_instance(instance):
                 try:
                     await self.comic_files.stop(instance["id"])
@@ -703,6 +763,10 @@ class PluginManager:
                         await self.stop_worker(identifier, "worker_exited")
                     except (Fault, TimeoutError, OSError):
                         pass
+                else:
+                    # A child that already lost its registration still owns the
+                    # handles issued during its startup or staging.
+                    self.executions.revoke(identifier, process.runtime_id)
         finally:
             if not exited.done():
                 exited.cancel()
@@ -729,14 +793,18 @@ class PluginManager:
             )
 
     async def stop_worker(self, identifier, reason, process=None):
+        """Stop this child and revoke only the handles minted for it."""
         item = self.workers.get(identifier)
         if item and (process is None or item[0] is process):
             self.workers.pop(identifier, None)
+            self.executions.revoke(identifier, item[0].runtime_id)
             try:
                 await self.runtime_state.forget(identifier, item[0])
             finally:
                 await item[0].close(reason)
-        self.executions.revoke(identifier)
+        elif process is not None:
+            # A candidate that never registered still owns its handles.
+            self.executions.revoke(identifier, process.runtime_id)
         instance = await self.instance(identifier)
         if await self.comic_instance(instance):
             await self.comic_files.stop(identifier)
@@ -895,8 +963,15 @@ class PluginManager:
                     for package in await self.local(self.repository.list, "packages")
                     if package["installed"]
                 }
+                # A prepare that already created its directory but has not yet
+                # published still owns it: reclaiming it would leave that install
+                # with a package row pointing at missing files.
+                # Roots a prepare already produced but has not published are
+                # held: deleting them would leave that publish with no files.
                 reclaimed = await settled(
-                    self._install_local, self.packages.reclaim, digests - others - referenced
+                    self._install_local,
+                    self.packages.reclaim,
+                    digests - others - referenced - set(self.preparing),
                 )
             result = {
                 "uninstalled": True,
@@ -1004,9 +1079,7 @@ class PluginManager:
             # settled now under its original identity: writes become unknown,
             # reads become failed, and nothing is replayed.
             await self.settle_accepted(identifier, "instance_upgraded")
-            process = Process(
-                package, lambda method, params: self.executions.callback(identifier, method, params)
-            )
+            process = self.child(package, identifier)
             await process.start()
             migrated = await process.call(
                 "plugin.migrate_config",
@@ -1022,7 +1095,9 @@ class PluginManager:
                 candidate["config"],
                 await self.local(self.vault.names, identifier),
             )
-            context = await self.executions.context(candidate, None)
+            context = await self.executions.context(
+                candidate, None, generation=process.runtime_id
+            )
             await process.call("plugin.initialize", context)
             await process.call(
                 "plugin.migrate_data",
@@ -1069,10 +1144,13 @@ class PluginManager:
             # Recovery always leaves the ledger and the live process agreeing on
             # the same version. Continuity is only claimed when that previous
             # version really serves again.
-            registered = self.workers.get(identifier)
-            if registered is not None and registered[0] is process:
+            # The failed candidate is stopped and its handles are revoked before
+            # the previous state and previous child are restored, so it can never
+            # keep writing into the data that recovery just reinstated.
+            if process is not None:
                 await self.stop_worker(identifier, "upgrade_abandoned", process)
             await self.local(self.repository.restore, identifier, snapshot)
+            # Nothing minted for the abandoned attempt may survive recovery.
             self.executions.revoke(identifier)
             current = await self.instance(identifier)
             restored, restore_error = True, None

@@ -101,7 +101,13 @@ class Executions:
         task.add_done_callback(lambda task, id=identifier: self.running.pop(id, None))
         return task
 
-    async def context(self, instance, call):
+    async def context(self, instance, call, *, generation=None):
+        """Mint one handle bound to the instance and to the process generation.
+
+        `generation` is the `runtime_id` of the child this handle belongs to. A
+        handle that belongs to no generation (only used by synthetic callers)
+        stays valid until its own reference is revoked.
+        """
         package = await self.host.package(instance["package_id"], instance["version"])
         reference = secrets.token_urlsafe(32)
         snapshot = instance.get("secret_snapshot")
@@ -118,6 +124,7 @@ class Executions:
         }
         self.contexts[reference] = {
             "instance": instance["id"],
+            "generation": generation,
             "call": call,
             "package": package,
             "ports": ports,
@@ -131,9 +138,23 @@ class Executions:
             envelope.update(invocation_id=call, intent_key=document["intent_key"])
         return envelope
 
-    def revoke(self, identifier):
+    def revoke(self, identifier, generation=None):
+        """Revoke this instance's handles, or only one process generation's handles.
+
+        A generation-scoped revoke is what stopping or reaping one child needs: it
+        must never take the replacement child's already-issued handles with it.
+        """
         for reference, context in tuple(self.contexts.items()):
-            if context["instance"] == identifier:
+            if context["instance"] != identifier:
+                continue
+            if generation is not None and context.get("generation") != generation:
+                continue
+            self.contexts.pop(reference, None)
+
+    def retain(self, identifier, generation):
+        """Keep only the serving generation's handles; every other one is dead."""
+        for reference, context in tuple(self.contexts.items()):
+            if context["instance"] == identifier and context.get("generation") != generation:
                 self.contexts.pop(reference, None)
 
     async def execute(self, identifier, method="plugin.invoke"):
@@ -186,7 +207,11 @@ class Executions:
                     if item["id"] == document["action"]
                 )
                 process = await self.host.worker(instance)
-                envelope = await self.context(instance, identifier)
+                # The handle belongs to the child that will actually run this
+                # call, so stopping any other generation cannot revoke it.
+                envelope = await self.context(
+                    instance, identifier, generation=process.runtime_id
+                )
                 reference = envelope["context_ref"]
                 params = {
                     "call": envelope,
@@ -317,10 +342,20 @@ class Executions:
             return [Executions.redact(item, secrets) for item in value]
         return value
 
-    async def callback(self, instance, method, params):
+    async def callback(self, instance, method, params, *, generation=None):
+        """Serve one host callback for the child that actually issued it.
+
+        A handle is bound to the instance and to one process generation. The
+        issuing child is attributed by its own callback closure, so a handle left
+        behind by a replaced or exited process can neither be used by the
+        replacement nor survive it.
+        """
         context = self.contexts.get(params.get("context_ref"))
         require(
-            context and context["instance"] == instance and context["expires"] > time.time(),
+            context
+            and context["instance"] == instance
+            and context["expires"] > time.time()
+            and (generation is None or context.get("generation") == generation),
             "permission_denied",
             403,
         )

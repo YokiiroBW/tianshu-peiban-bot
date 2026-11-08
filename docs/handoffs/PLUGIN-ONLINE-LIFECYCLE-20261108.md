@@ -6,20 +6,40 @@
 - 工作树：`C:\Users\Administrator\.codex\worktrees\plugin-online-lifecycle-20261108\tianshu-peiban-bot`
 - 首版实现：`0745c42c8d79a4ea52c955248ab19b45895a1834`（实现）→ `4a88e2558f86673aac6e578ba4dcc7df0b485585`（用例）→ 文档收尾
 - 本轮返修基线：`2a18fd17f591dbeb567f44d4ae7e577200d0b601`
-- 本轮返修提交：`7d5023e19641f8ca7bd2b270dec48ca499ea38a0`（代码、用例、前端与两份文档；随后仅追加本条 SHA 记录）
+- 第二轮返修提交：`7d5023e19641f8ca7bd2b270dec48ca499ea38a0`（升级接管/卸载互斥/purge 范围）
+- 本轮（第三轮）返修基线：`d0d29aa654b2c243c901c868f25d11f29bb7035c`；本轮提交 SHA 见分支 HEAD（本文档随后另有一条只追加 SHA 的记录）
 - 基线分支源自 `37d4cb50`，**不含此后的网页在线发布与模型绑定交付**，因此本分支不用于覆盖现有部署基线。
 
 ## 1. 结论摘要
 
 在既有插件系统上演进，没有新建插件平台，没有改动 Memory/Life/Conversation 或六角色架构，也没有改动插件 SDK 合同、共享装配、迁移或部署根文件。
 
-本轮返修针对三个已确认缺陷：
+本轮（第三轮）返修针对两处新复现缺陷（见第 2 节）；前两轮的三处缺陷仍按第 3 节的实现保持：
 
 1. **升级的"成功"必须等于最终服务进程**：暂存进程 `plugin.start` 后**直接接管为服务进程**（不再关闭后另起一个进程），只有它接管后才记账成功；失败一律不记成功并进入真实恢复，`rolled_back` 只在旧版本真的可用时为真。
 2. **卸载与其它生命周期互斥**：引入包级生命周期锁 + 实例级锁的固定顺序，卸载全程关闭该包实例准入，分阶段如实报告，重复卸载幂等且不重复删目录。
 3. **`purge_data` 与页面承诺一致**：在同一事务内清空该包下实例的配置、绑定、密钥引用、状态、日志与定时任务，保留执行证明（Action/Attempt/Receipt/unknown），页面文案与后端范围一致并写明"该包下所有实例"。
 
-## 2. 三个缺陷的根因与修复位置
+本轮新增：
+
+4. **上下文按进程代次归属**：接管新进程时不撤销它已获得的句柄，旧代次句柄失效且迟到回调不能操作新代次；升级失败先撤候选进程句柄再恢复旧版本。
+5. **同包安装提交与卸载真正互斥**：只有"提交成 installed"进入包锁，"准备"在 `installation_lock` 内并登记 `preparing` 目录；两条路径的第二段同序，无死锁；其它插件不受影响。
+
+## 2. 本轮（第三轮）两项缺陷：根因、修复归属与锁序
+
+| 缺陷 | 根因 | 修复归属 |
+| --- | --- | --- |
+| P1 接管新进程撤销了新进程的回调上下文 | `Executions.context()` 的句柄只按 `instance` 归属；`worker(instance, prepared=process)` 在接管前调用 `stop_worker(instance_id)`，其 `executions.revoke(instance_id)` 无条件删除该实例的**全部**句柄——包括暂存进程 `plugin.initialize` 得到的那个。于是新进程启动成功、投影 ready，但它用启动上下文调用 `state.kv` 时被 `permission_denied` 拒绝 | `execution.py`：句柄记录 `generation`；`revoke(identifier, generation=None)` 与新增 `retain(identifier, generation)` 按代次收敛；`callback(instance, method, params, *, generation=None)` 增加"发出者代次必须等于句柄代次"的附加校验（原有实例/过期/授权校验全部保留）。`manager.py`：新增 `child(package, identifier)`，子进程回调闭包绑定自己的 `runtime_id`；`worker()` 只在有前代进程时按该进程代次停旧（否则只 `retain` 现任代次），启动/升级暂存都用带代次的 `context()`；`stop_worker` 按被停进程代次撤销；`watch_worker` 对未注册的退出进程也按其自身代次撤销；升级失败先停候选进程（含其句柄）再恢复快照与旧进程；`service.py` 的事件投递也用服务进程代次铸造句柄 |
+| P2 同包安装提交与卸载不互斥 | `_install` 只持 `installation_lock`，从不进入 `package_locks`；卸载持包锁只覆盖"停实例/改包记录/回收"，于是同包新版本可以在卸载进行中完成准备并 `put` 成 `installed=true`，此后卸载仍返回 `uninstalled=true`，留下"已卸载 + 新版本仍已安装"的矛盾状态；准备阶段新建的不可变目录也没有任何引用保护，可能与回收竞争 | `manager.py`：安装拆成"准备"（`installation_lock` 内做源码获取、依赖环境、检查子进程、目录登记到 `preparing`，然后**释放**）与"提交"（`package_locks[plugin_id] → installation_lock` 内重读指纹、校验目录仍在、写 `installed=true`）；回收在 `installation_lock` 内重读仍 installed 的引用并排除 `preparing` 中的目录 |
+
+### 锁顺序（固定，只有两条，且同序）
+
+1. 发布：`installation_lock`（准备）→ 放锁 → `package_locks[plugin_id] → installation_lock`（提交）
+2. 移除：`package_locks[plugin_id] → installation_lock`（回收）
+
+两条路径的第二段完全同序，因此不存在"安装持 `installation_lock` 等包锁、卸载持包锁等 `installation_lock`"的死锁；慢速 git/pip 只在第一段，不阻塞该插件的其它生命周期操作。`create` 的 `package_locks → operations_lock` 与两者都不交叉。所有等待都局限在同一插件包内，其它插件用自己的锁与进程继续服务。
+
+## 3. 前两轮缺陷的根因与修复位置
 
 | 缺陷 | 原根因 | 修复位置（当前实现） |
 | --- | --- | --- |
@@ -29,7 +49,7 @@
 | B 卸载与其他操作非互斥 | `uninstall` 逐个 `state(id, False, rev)` 各自拿放**实例锁**，释放期间另一请求可重新启用；随后仍标记 `installed=false` 并回收目录，产生"实例 enabled + 进程在跑 + 目录已删" | `manager.uninstall/_uninstall`：整个操作在 `package_locks[plugin_id]` 内；`create/configure/bindings/state/restart/upgrade/启动恢复` 均在该包级锁下；卸载期间 `admission[id]="instance_unloading"`；`_disable` 拆出供包锁内复用；失败写 `stopped_instances/remaining_instances/packages_marked`；回收前在 `installation_lock` 内重读"仍 installed 的包"的目录，避免删掉并发重装刚准备的同一目录；重复卸载读 `fingerprint` 幂等或 `already_uninstalled` 短路 |
 | C purge 与页面承诺不一致 | `repository.purge` 只删 `plugin_state/plugin_secrets/plugin_logs/plugin_schedules/plugin_consumptions`，实例文档的 `config`/`bindings` 原样保留；页面却宣称"已清除插件自有配置" | `repository.purge` 在同一事务内清空实例文档 `config`/`bindings`、`revision+1`、`data_purged_at`，并停用该实例定时任务（`enabled=false`，清 `dispatch/previous_dispatch/pending/wake_generation`）；保留 Action/Attempt/Receipt/unknown；`web/src/features/plugins/InstancePanel.tsx` 文案改写为真实范围与"该包下所有实例" |
 
-## 3. 生命周期状态
+## 5. 生命周期状态
 
 | 能力 | 状态 | 说明 |
 | --- | --- | --- |
@@ -44,7 +64,7 @@
 | 动态贡献撤销 | 已实现 | 重载/升级/停用/卸载都会即时撤下该实例 handler；页面票据重新校验包仍安装且摘要一致 |
 | 旧代次迟到退出 | 已实现 | `watch_worker` 比对 `workers[id]` 中的实际进程对象 |
 
-## 4. 变更清单（本轮返修）
+## 6. 变更清单（累计）
 
 后端：
 
@@ -54,8 +74,9 @@
   - `restart/configure/bindings/state/create/upgrade/uninstall/启动恢复` 全部纳入固定锁序；
   - `_uninstall` 分阶段执行、失败带阶段证据、幂等短路、回收前重读引用；
   - `_upgrade` 改为"暂存进程接管 + 真实恢复 + 准确 `rolled_back`"，并在失败时用 `raise_operation_failure` 返回 `AppError`；
-  - `settle_accepted` 结算升级前已受理但未执行的调用。
-- `src/tianshu/capabilities/plugins/execution.py`：`refusal(identifier)` 取代 `blocked`；`admit(...)` 支持 `defer`，`dispatch` 独立；`execute` 在流内复读文档并按原身份结算。
+  - `settle_accepted` 结算升级前已受理但未执行的调用；
+  - **本轮**：`child()` 绑定回调代次；`worker(prepared=...)` 只撤旧代次并在注册后 `retain`；`stop_worker`/`watch_worker` 按代次撤销；升级失败先停候选进程再恢复；安装拆成"准备（`installation_lock`，登记 `preparing` 目录）+ 提交（`package_locks → installation_lock`）"；回收排除 `preparing` 目录。
+- `src/tianshu/capabilities/plugins/execution.py`：`refusal(identifier)` 取代 `blocked`；`admit(...)` 支持 `defer`，`dispatch` 独立；`execute` 在流内复读文档并按原身份结算；**本轮**新增 `context(..., generation=)`、`revoke(identifier, generation=None)`、`retain(identifier, generation)`、`callback(..., generation=)`。
 - `src/tianshu/capabilities/plugins/repository.py`：`purge` 扩展真实范围；新增 `accepted(instance)`。
 
 前端：
@@ -68,18 +89,21 @@
 
 - `tests/capabilities/test_plugin_online_lifecycle.py`：新增 8 个场景（启动失败不记成功、恢复失败不谎报回退、已受理调用按原身份结算、升级成功代次等于服务进程、保留配置卸载、清除数据卸载、卸载与启用互斥、卸载与重装串行、接管后账本冲突）；
 - `tests/capabilities/test_plugin_lifecycle_control.py`：新增准入拒绝码、卸载准入、以及带事件屏障的"卸载 vs 启用"确定性并发用例；
+- **本轮** `tests/capabilities/test_plugin_online_lifecycle.py`：新增 4 个真实子进程场景（接管上下文存活、失败候选上下文、同包安装/卸载互斥、准备期卸载），并把 `package()` 扩展为可声明所需能力；
+- **本轮** `tests/capabilities/test_plugin_runtime.py` / `test_plugin_model_timing.py`：把"撤销句柄"的断言更新为"按代次撤销"，并断言迟到退出只撤自己的代次；
 - `web/tests/plugin-lifecycle.spec.ts`：桌面+手机 3 条浏览器用例（重载提示/失败不显示成功、升级仅在接管后提示、卸载与清除范围）。
 
-## 5. 实际验证（本轮运行）
+## 7. 实际验证（本轮运行）
 
 环境：Windows、仓库自带 `.venv`（Python 3.12）、临时 PostgreSQL 17.2 + pgvector 0.8.0（隔离实例，未连接生产）、真实插件子进程。
 
 | 验证 | 命令/范围 | 结果 |
 | --- | --- | --- |
 | 插件相关回归 | `pytest test_plugin_runtime.py test_plugin_model_timing.py test_rb_independent_plugins.py test_plugin_channel_port.py test_catalog_lifecycle.py test_plugin_lifecycle_control.py test_plugin_online_lifecycle.py -q` | **51 passed** |
-| 真实在线生命周期 | `tests/capabilities/test_plugin_online_lifecycle.py` | **14 passed**（含 8 个新增场景） |
+| 真实在线生命周期（本轮） | `tests/capabilities/test_plugin_online_lifecycle.py` | **18 passed**（含 4 个本轮新增场景：升级接管上下文、失败候选上下文、同包安装/卸载互斥、准备期卸载） |
 | 契约与并发编排 | `tests/capabilities/test_plugin_lifecycle_control.py` | **10 passed** |
-| 新增用例在旧实现上的失败证明 | 同一测试文件在 `2a18fd17` 工作树上运行 | **11 failed / 13 passed**（旧实现缺少 `refusal`、不结算已受理调用、不接管暂存进程、purge 不清配置、卸载非互斥） |
+| 新增用例在第二轮实现上的失败证明 | 同一测试文件在 `d0d29aa6` 工作树上运行 | **4 failed / 14 passed**（2 个上下文归属缺陷 + 2 个安装/卸载互斥缺陷，失败原因均为 `permission_denied` / "卸载期间同包发布") |
+| 新增用例在首轮实现上的失败证明 | 同一测试文件在 `2a18fd17` 工作树上运行 | **11 failed / 13 passed**（准入缺失、已受理调用未结算、暂存进程未接管、purge 不清配置、卸载非互斥） |
 | 前端类型检查 | `tsc -p tsconfig.json --noEmit` | exit 0 |
 | 前端构建 | `vite build` | exit 0 |
 | 浏览器用例（桌面 1440×1000 + 手机 390×844） | `playwright test plugin-lifecycle.spec.ts` | **6 passed**（3 条 × 2 视口） |
@@ -111,7 +135,15 @@
 | 清除数据后配置又回来了 | `purge` 清空实例文档 config/bindings，重装不复活 |
 | 执行证明被当插件数据删掉 | 只删 state/secrets/logs/schedules/consumptions，`actions` 原样保留 |
 
-## 6. 未验证项（明确如实）
+### 本轮新增场景的断言（真实子进程 + 真实隔离 PostgreSQL）
+
+1. **升级接管后上下文仍有效**：插件在 `initialize` 用启动上下文写 `boot`、在 `start` 再用它写 `started`；A→B 接管后，B 调用 `stored` 动作（内部刻意使用 `self._maintenance`，即**启动句柄**而非本次调用句柄）读回两键成功，`STARTS` 长度为 1（`start` 没有重复执行），记账 `generation` 就是该进程；
+2. **A 的句柄失效且不能操作 B**：接管后不存在属于 A 代次的句柄；携带 A 代次的身份调用 B 的句柄回调得到 `permission_denied`，而同一句柄以 B 代次调用返回 `{"value": {"version": "2.0.0"}}`；
+3. **失败候选的句柄先死再恢复**：B 的 `start` 抛 `plugin_start_failed`，升级记 `failed`、`rolled_back=true`；恢复后上下文中只剩 A 的句柄，A 可继续 `value`/`stored`（读回 1.0.0 的两个键）；
+4. **同包安装与卸载互斥**：卸载进行中提交同包 2.0.0，屏障断言"卸载期间没有任何 `installed=true` 的包记录写入"，卸载返回 `uninstalled=true` 后 2.0.0 才提交；最终 2.0.0 目录存在、1.0.0 记录为 `installed=false` 且目录已删除、新实例可启用并调用；
+5. **准备阶段与卸载**：在 `packages.prepare` 卡住时发起同包卸载，断言卸载期间没有发布写入；完成后（若安装成功）目录仍存在，且"任何 `installed=true` 的包目录必须存在"这一不变式成立。
+
+## 8. 未验证项（明确如实）
 
 - **容器内 / 六宿主角色实机证据**：本机没有可用的天枢容器与 Supervisor 运行环境，未在真实容器中观察"容器与六个宿主角色不重启"。代码路径上所有锁与准入都限于 `PluginManager` 的该包/该实例，不触碰 `Capabilities` 其他组件或 Supervisor，但这是代码事实而非运行证据。
 - **NAS 发布与生产迁移**：未执行；本窗口不部署，生产由统一协调者串行发布。
@@ -119,15 +151,16 @@
 - **不可逆数据迁移后的回退**：`plugin.migrate_data` 默认拒绝跨 `data_version`，回退得不到数据兼容保证；本次未实现数据降级，页面与本文档如实说明该限制。
 - **既有的基线失败**（与本批无关，在 `2a18fd17` 上同样复现）：`tests/capabilities/test_model_timing.py` 两个插件 LLM 端口用例（`SimpleNamespace` 缺 `load_for_execution`）、`tests/capabilities` 目录整体运行时的 4 失败/116 错误（订阅与媒体夹具的环境问题）。本轮未修改这些模块。
 
-## 7. 配置、迁移、SDK 与装配变化
+## 9. 配置、迁移、SDK 与装配变化
 
 - **迁移**：无。未新增表、列或迁移注册。`purge` 只删除/改写既有表中该实例的行；`data_purged_at` 为实例文档内的 JSON 字段，不需要 DDL。
 - **SDK**：无变化（`packages/tianshu-plugin` 未改动），既有 `migrate_config/migrate_data/start/stop` 语义不变；本轮只是保证 `start` 只执行一次且该进程即服务进程。
 - **装配**：无变化，仅 `PluginManager` 内部新增锁与方法；`Plugins.revoke` 通过既有 `catalog.handlers` 生效。
 - **配置**：无新增配置项。
 - **兼容性**：`uninstall` 请求新增可选 `purge_data`（缺省 `false`）；新增独立 `reload` 操作；升级失败现在以 `AppError`（409）返回并携带 `details.operation_id/execution/error`，原先是抛内部 `RemoteError`/`Fault`。前端已按新返回体展示。
+- **本轮兼容性**：插件 SDK 合同未改动，插件仍只用 `self.ctx`（启动上下文）与每次调用给定的 `Invocation.ctx`；宿主侧的句柄所有权是附加校验，不放宽任何权限、有效期或来源检查。纳入修复的调用链只有 `Executions.context/revoke/retain/callback`、`PluginManager.child/worker/stop_worker/watch_worker/_upgrade/_prepare_install/_uninstall` 与事件投递处的 `context()` 调用，未改动其余能力、路由或页面。
 
-## 8. 首次上线方式
+## 10. 首次上线方式
 
 沿用现有核心发布流程（一次性发布核心），上线后每次插件操作都通过既有 `/api/v1/plugins/*` 在线完成，不需要重新发布核心。
 
@@ -138,7 +171,7 @@
 3. 对一个测试插件执行升级，确认提示中的代次就是随后调用所用的进程；构造启动失败版本，确认页面显示失败而非成功；
 4. 卸载一个测试插件后其入口消失、其它插件可继续调用；对含配置的实例执行"卸载并清除数据"，重装后配置不再出现。
 
-## 9. 回退限制与集成限制
+## 11. 回退限制与集成限制
 
 - 本批未改变数据结构，核心回退到上一镜像不会丢失插件账本；但已执行"卸载并清除数据"的插件自有配置/密钥/状态/日志/定时任务不可恢复（执行证明仍保留）。
 - 已 `installed=false` 且目录被回收的包，重新安装必须重新提供来源，不能依赖旧目录。

@@ -122,7 +122,7 @@ class Fixture(Plugin):
 '''
 
 
-def package(directory, identifier, version, text, *, slow=0.0, source=None):
+def package(directory, identifier, version, text, *, slow=0.0, source=None, capabilities=()):
     directory.mkdir()
     (directory / "plugin.json").write_text(
         json.dumps(
@@ -135,7 +135,10 @@ def package(directory, identifier, version, text, *, slow=0.0, source=None):
                 "author": "test",
                 "entrypoint": "main:Fixture",
                 "sdk": {"min": "2.0.0", "max_exclusive": "3.0.0"},
-                "capabilities": {"required": [], "optional": []},
+                "capabilities": {
+                    "required": [dict(item) for item in capabilities],
+                    "optional": [],
+                },
             }
         ),
         encoding="utf-8",
@@ -961,5 +964,346 @@ async def test_ledger_conflict_after_handover_is_never_recorded_as_success(
     lifecycle_database, tmp_path
 ):
     await ledger_conflict_after_handover_scenario(
+        Host(lifecycle_database, tmp_path), tmp_path
+    )
+
+
+def stateful_source(version, *, failing_start=False):
+    """A plugin that keeps and reuses the context its startup obtained."""
+    lines = [
+        "import asyncio",
+        "from tianshu_plugin import Plugin, PluginError, action, Invocation",
+        "STARTS = []",
+        "",
+        "",
+        "async def write(ctx, key, value):",
+        "    current = await ctx.state.get(key)",
+        "    await ctx.state.compare_and_set(",
+        "        key, value, expected_revision=current.revision if current else None",
+        "    )",
+        "",
+        "",
+        "class Fixture(Plugin):",
+        "    async def initialize(self):",
+        '        await write(self.ctx, "boot", {"version": "' + version + '"})',
+        "",
+        "    async def start(self):",
+    ]
+    if failing_start:
+        lines += [
+            '        STARTS.append("start-raised")',
+            '        raise PluginError("plugin_start_failed", "refuses to start", effect="none")',
+        ]
+    else:
+        lines += [
+            '        STARTS.append("started")',
+            '        await write(self.ctx, "started", {"version": "' + version + '"})',
+        ]
+    lines += [
+        "",
+        '    @action(id="value", title="value",',
+        '        input_schema={"type": "object", "properties": {}},',
+        '        output_schema={"type": "object", "properties": {"text": {"type": "string"}}})',
+        "    async def value(self, call: Invocation, args):",
+        '        return {"text": "' + version + '"}',
+        "",
+        '    @action(id="stored", title="stored",',
+        '        input_schema={"type": "object", "properties": {}},',
+        '        output_schema={"type": "object", "properties": {}})',
+        "    async def stored(self, call: Invocation, args):",
+        "        # Deliberately the startup handle, not this invocation's handle.",
+        '        boot = await self._maintenance.state.get("boot")',
+        '        started = await self._maintenance.state.get("started")',
+        '        return {"boot": boot.value if boot else None,',
+        '                "started": started.value if started else None,',
+        '                "starts": len(STARTS)}',
+    ]
+    return "\n".join(lines) + "\n"
+
+
+async def context_handover_scenario(host, tmp_path):
+    """A startup context survives the handover and dies with its own child."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.context", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-context-old",
+    )
+    instance = await host.enable(old, "Context", "instance-context")
+    assert instance["state"] == "ready"
+    first = await host.call(instance["id"], "stored", "stored-first")
+    # initialize and start both used the startup context, and it stays usable.
+    assert first["result"] == {
+        "boot": {"version": "1.0.0"},
+        "started": {"version": "1.0.0"},
+        "starts": 1,
+    }
+    served = generation(manager, instance["id"])
+    old_generation = served["generation"]
+    assert [
+        reference
+        for reference, context in manager.executions.contexts.items()
+        if context["instance"] == instance["id"]
+    ], "the startup handle stays recorded for this instance"
+
+    await host.install(
+        package(
+            tmp_path / "new", "fixture.context", "2.0.0", "new",
+            source=stateful_source("2.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-context-new",
+    )
+    current = await manager.instance(instance["id"])
+    upgraded = await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    assert upgraded["version"] == "2.0.0" and upgraded["state"] == "ready"
+    serving = generation(manager, instance["id"])
+    assert serving["generation"] != old_generation
+    # B is the very child that passed its own start: it started exactly once
+    # and still uses the context it obtained before the handover.
+    after = await host.call(instance["id"], "stored", "stored-second")
+    # The direct defect: without the fix this call fails with permission_denied
+    # because the handover revoked the context the new child already had.
+    assert after["execution"] == "succeeded", after.get("error")
+    assert after["result"]["starts"] == 1
+    assert after["result"]["boot"] == {"version": "2.0.0"}
+    assert after["result"]["started"] == {"version": "2.0.0"}
+    # A's handles are gone; B's handle is what remains.
+    assert not [
+        reference
+        for reference, context in manager.executions.contexts.items()
+        if context["instance"] == instance["id"]
+        and context.get("generation") == old_generation
+    ]
+    retained = [
+        reference
+        for reference, context in manager.executions.contexts.items()
+        if context["instance"] == instance["id"]
+        and context.get("generation") == serving["generation"]
+    ]
+    assert retained, "the serving child keeps the handle it obtained"
+    # A late callback attributed to A cannot use B's handle...
+    with pytest.raises(Fault) as denied:
+        await manager.executions.callback(
+            instance["id"],
+            "host.capability",
+            {
+                "context_ref": retained[0],
+                "capability": "state.kv",
+                "major": 1,
+                "operation": "get",
+                "input": {"key": "boot"},
+            },
+            generation=old_generation,
+        )
+    assert denied.value.code == "permission_denied"
+    # ...while the serving child keeps full use of it.
+    assert await manager.executions.callback(
+        instance["id"],
+        "host.capability",
+        {
+            "context_ref": retained[0],
+            "capability": "state.kv",
+            "major": 1,
+            "operation": "get",
+            "input": {"key": "boot"},
+        },
+        generation=serving["generation"],
+    ) == {"value": {"version": "2.0.0"}, "revision": 2}
+    await manager.close()
+
+
+async def context_restore_scenario(host, tmp_path):
+    """A failed candidate's handles die before the previous version is restored."""
+    manager = await host.open()
+    old = await host.install(
+        package(
+            tmp_path / "old", "fixture.contextfail", "1.0.0", "old",
+            source=stateful_source("1.0.0"),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-context-old",
+    )
+    instance = await host.enable(old, "Context", "instance-context-fail")
+    assert (await host.call(instance["id"], "value", "call-old"))["result"] == {"text": "1.0.0"}
+    await host.install(
+        package(
+            tmp_path / "broken", "fixture.contextfail", "2.0.0", "broken",
+            source=stateful_source("2.0.0", failing_start=True),
+            capabilities=[{"id": "state.kv", "major": 1}],
+        ),
+        "install-context-broken",
+    )
+    current = await manager.instance(instance["id"])
+    with pytest.raises(AppError) as failure:
+        await manager.upgrade(instance["id"], "2.0.0", current["revision"])
+    assert failure.value.details["error"]["rolled_back"] is True
+    restored = generation(manager, instance["id"])
+    # Only the restored child's handles remain: the candidate's are all revoked.
+    remaining = {
+        context.get("generation")
+        for context in manager.executions.contexts.values()
+        if context["instance"] == instance["id"]
+    }
+    assert remaining <= {restored["generation"]}
+    # The restored version works again and reads its own startup state.
+    assert (await host.call(instance["id"], "value", "call-restored"))["result"] == {
+        "text": "1.0.0"
+    }
+    stored = await host.call(instance["id"], "stored", "stored-restored")
+    assert stored["result"]["boot"] == {"version": "1.0.0"}
+    assert stored["result"]["started"] == {"version": "1.0.0"}
+    await manager.close()
+
+
+async def same_package_install_during_uninstall_scenario(host, tmp_path):
+    """No same-plugin version may publish while that plugin's uninstall runs."""
+    manager = await host.open()
+    first = await host.install(
+        package(tmp_path / "one", "fixture.same", "1.0.0", "one"), "install-one"
+    )
+    instance = await host.enable(first, "Same", "instance-same")
+    assert instance["state"] == "ready"
+    source = package(tmp_path / "two", "fixture.same", "2.0.0", "two")
+
+    started, release = asyncio.Event(), asyncio.Event()
+    original_disable = manager._disable
+    original_put = manager.repository.put
+    publishing, guard = [], {"open": False}
+
+    def observed_put(kind, document, *args, **kwargs):
+        # Only a publish makes a version visible; the removal writes the same
+        # rows as installed=False and must not be counted.
+        if kind == "packages" and guard["open"] and document.get("installed"):
+            publishing.append(document["id"])
+        return original_put(kind, document, *args, **kwargs)
+
+    async def observed_disable(identifier, expected):
+        started.set()
+        await release.wait()
+        return await original_disable(identifier, expected)
+
+    manager.repository.put = observed_put
+    manager._disable = observed_disable
+    unloading = asyncio.create_task(manager.uninstall("fixture.same"))
+    await started.wait()
+    # From here the same plugin's removal is mid-flight.
+    guard["open"] = True
+    installing = asyncio.create_task(manager.install(source, "install-two", wait=True))
+    await asyncio.sleep(0)
+    await asyncio.sleep(0.05)
+    release.set()
+    removed = await unloading
+    # The publish may only happen once the removal has finished.
+    guard["open"] = False
+    manager._disable = original_disable
+    manager.repository.put = original_put
+    assert removed["uninstalled"] is True
+    assert publishing == [], f"a same-plugin version published during uninstall: {publishing}"
+    operation = await installing
+    assert operation["execution"] == "succeeded", operation.get("error")
+    # The published package is complete, and the removal only covered what it
+    # listed before the publish: the old version is gone from ledger and disk.
+    stored = await manager.local(manager.repository.get, "packages", "fixture.same@2.0.0")
+    assert stored is not None and stored["installed"] is True
+    assert Path(stored["root"]).is_dir()
+    old = await manager.local(manager.repository.get, "packages", "fixture.same@1.0.0")
+    assert old["installed"] is False
+    assert not Path(old["root"]).exists()
+    fresh = await manager.create("fixture.same@2.0.0", "Same two", "instance-same-two")
+    ready = await manager.state(fresh["id"], True, fresh["revision"])
+    assert ready["state"] == "ready" and ready["version"] == "2.0.0"
+    assert (await host.call(fresh["id"], "value", "same-after"))["result"] == {"text": "two"}
+    # Whatever remains installed must really exist on disk.
+    for package_document in await manager.local(manager.repository.list, "packages"):
+        if package_document["installed"]:
+            assert Path(package_document["root"]).is_dir(), package_document["id"]
+    await manager.close()
+
+
+async def uninstall_during_install_prepare_scenario(host, tmp_path):
+    """A prepare and a same-plugin removal cannot delete the files being published."""
+    manager = await host.open()
+    first = await host.install(
+        package(tmp_path / "one", "fixture.prepare", "1.0.0", "same"), "install-one"
+    )
+    instance = await host.enable(first, "Prepare", "instance-prepare")
+    assert instance["state"] == "ready"
+    # Identical content: the reinstall reuses the very directory it would lose.
+    source = package(tmp_path / "again", "fixture.prepare", "1.0.0", "same")
+
+    import threading
+
+    staged, release = threading.Event(), threading.Event()
+    original_prepare = manager.packages.prepare
+
+    def observed_prepare(origin):
+        staged.set()
+        release.wait(60)
+        return original_prepare(origin)
+
+    original_put = manager.repository.put
+    publishing = []
+    guard = {"open": False}
+
+    def observed_put(kind, document, *args, **kwargs):
+        if kind == "packages" and guard["open"] and document.get("installed"):
+            publishing.append(document["id"])
+        return original_put(kind, document, *args, **kwargs)
+
+    manager.repository.put = observed_put
+    manager.packages.prepare = observed_prepare
+    installing = asyncio.create_task(
+        manager.install(source, "install-again", wait=True)
+    )
+    assert await asyncio.to_thread(staged.wait, 60)
+    guard["open"] = True
+    removing = asyncio.create_task(manager.uninstall("fixture.prepare"))
+    await asyncio.sleep(0)
+    await asyncio.sleep(0.05)
+    release.set()
+    removed = await removing
+    guard["open"] = False
+    manager.packages.prepare = original_prepare
+    manager.repository.put = original_put
+    assert removed["uninstalled"] is True
+    # The publish waited for the removal, so the directory it reuses survived it.
+    assert publishing == [], f"published while the removal was running: {publishing}"
+    operation = await installing
+    # The reinstall either completed with real files, or failed cleanly; it can
+    # never be an installed package whose directory the removal took away.
+    stored = await manager.local(manager.repository.get, "packages", "fixture.prepare@1.0.0")
+    if operation["execution"] == "succeeded":
+        assert stored["installed"] is True
+        assert Path(stored["root"]).is_dir(), "an installed package lost its files"
+    for package_document in await manager.local(manager.repository.list, "packages"):
+        if package_document["installed"]:
+            assert Path(package_document["root"]).is_dir(), package_document["id"]
+    await manager.close()
+
+
+@pytest.mark.asyncio
+async def test_startup_context_survives_the_upgrade_handover(lifecycle_database, tmp_path):
+    await context_handover_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_failed_candidate_context_is_revoked_before_restore(lifecycle_database, tmp_path):
+    await context_restore_scenario(Host(lifecycle_database, tmp_path), tmp_path)
+
+
+@pytest.mark.asyncio
+async def test_same_package_install_serialises_behind_uninstall(lifecycle_database, tmp_path):
+    await same_package_install_during_uninstall_scenario(
+        Host(lifecycle_database, tmp_path), tmp_path
+    )
+
+
+@pytest.mark.asyncio
+async def test_uninstall_during_install_prepare_keeps_records_coherent(lifecycle_database, tmp_path):
+    await uninstall_during_install_prepare_scenario(
         Host(lifecycle_database, tmp_path), tmp_path
     )

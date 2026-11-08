@@ -534,7 +534,11 @@ class PluginEventHandler:
                     (canonical({**previous, **document}), current["id"], action.action_id),
                 )
             process = await host.worker(current)
-            envelope = await host.executions.context(current, action.action_id)
+            # Deliver this event handle to the child that will handle it: one
+            # process generation, so replacing that child also retires the handle.
+            envelope = await host.executions.context(
+                current, action.action_id, generation=process.runtime_id
+            )
             await self.service.authority.check(action.context, action.source_refs)
             from ..tracking import mark_submitted
             await mark_submitted(action.action_id)
