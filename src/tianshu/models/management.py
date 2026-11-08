@@ -39,7 +39,7 @@ async def configuration(conn, settings):
         ("providers", "SELECT * FROM models.providers ORDER BY name,provider_id"),
         ("routes", "SELECT * FROM models.routes ORDER BY route_id"),
         ("quota_groups", "SELECT * FROM models.quota_groups ORDER BY quota_group"),
-        ("bindings", "SELECT * FROM models.bindings ORDER BY function,service_class,actor_id"),
+        ("bindings", "SELECT * FROM models.bindings ORDER BY function,actor_id"),
     ):
         result[key] = await (await conn.execute(statement)).fetchall()
     result["embedding_profile"] = await (
@@ -307,14 +307,13 @@ async def _apply_configuration(conn, operation, body, expected, services):
             raise AppError("unknown_model_function")
         if function == "*" and body.get("actor_id"):
             raise AppError("default_binding_must_be_system_owned")
-        service_class = text(body, "service_class")
-        if service_class not in {"interactive", "due", "elastic"}:
-            raise AppError("invalid_service_class")
+        # Execution priority belongs to scheduling, never to model selection.
         actor_id = body.get("actor_id") or ""
         route_id = text(body, "route_id")
         current = await (await conn.execute(
-            "SELECT fallback_routes FROM models.bindings WHERE function=%s AND service_class=%s AND actor_id=%s",
-            (function, service_class, actor_id))).fetchone()
+            "SELECT revision,fallback_routes FROM models.bindings WHERE function=%s AND actor_id=%s "
+            "ORDER BY CASE service_class WHEN 'interactive' THEN 0 WHEN 'elastic' THEN 1 ELSE 2 END LIMIT 1",
+            (function, actor_id))).fetchone()
         fallbacks = body.get("fallback_routes", current["fallback_routes"] if current else [])
         if (not isinstance(fallbacks, list) or any(not isinstance(item, str) or not item for item in fallbacks)
                 or len(fallbacks) != len(set(fallbacks)) or route_id in fallbacks):
@@ -324,19 +323,17 @@ async def _apply_configuration(conn, operation, body, expected, services):
                                                (fallbacks,))).fetchone()
             if found["count"] != len(fallbacks):
                 raise AppError("model_fallback_route_not_found")
-        values = (function, service_class, actor_id, route_id, fallbacks)
-        if expected == 0:
-            cursor = await conn.execute(
-                "INSERT INTO models.bindings(function,service_class,actor_id,"
-                "route_id,fallback_routes) VALUES(%s,%s,%s,%s,%s) ON CONFLICT DO NOTHING RETURNING revision",
-                values,
-            )
-        else:
-            cursor = await conn.execute(
-                "UPDATE models.bindings SET route_id=%s,fallback_routes=%s,revision=revision+1 "
-                "WHERE function=%s AND service_class=%s AND actor_id=%s AND revision=%s RETURNING revision",
-                (values[3], values[4], *values[:3], expected),
-            )
+        if (current["revision"] if current else 0) != expected:
+            raise AppError("revision_conflict", status=409)
+        # One author choice; synchronized storage aliases keep already open old
+        # pages and the previous image usable. The broker ignores request class.
+        cursor = await conn.execute(
+            "INSERT INTO models.bindings(function,service_class,actor_id,route_id,fallback_routes,revision) "
+            "SELECT %s,kind,%s,%s,%s,%s FROM unnest(ARRAY['interactive','due','elastic']) AS classes(kind) "
+            "ON CONFLICT(function,service_class,actor_id) DO UPDATE SET route_id=excluded.route_id,"
+            "fallback_routes=excluded.fallback_routes,revision=excluded.revision RETURNING revision",
+            (function, actor_id, route_id, fallbacks, expected + 1),
+        )
     elif operation == "embedding-profile":
         values = (
             text(body, "route_id"),

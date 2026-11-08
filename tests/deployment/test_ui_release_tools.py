@@ -112,6 +112,7 @@ def test_build_ui_package_exports_only_committed_source_and_excludes_dirty_workt
         raise AssertionError(f"Unexpected command: {command}")
 
     monkeypatch.setattr("deploy.core.ui_release.run", fake_run)
+    monkeypatch.setattr("deploy.core.ui_release.shutil.which", lambda name: "npm" if name == "npm" else None)
 
     owned_root = tmp_path / "owned"
     owned_root.mkdir()

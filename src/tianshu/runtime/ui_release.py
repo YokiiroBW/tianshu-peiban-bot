@@ -40,6 +40,7 @@ BACKEND_UI_CONTRACT: dict[str, Any] = {
             "command_recovery.v1",
             "data_generation_header.v1",
             "ui_version_status.v1",
+            "function_bindings.v1",
         }
     ),
 }

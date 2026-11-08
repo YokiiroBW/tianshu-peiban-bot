@@ -14,7 +14,8 @@ WORKDIR /build/web
 COPY web/package.json web/package-lock.json ./
 RUN npm install --global npm@11.6.2 && npm ci
 COPY web/ ./
-RUN npm run build
+ARG TIANSHU_SOURCE_SHA
+RUN TIANSHU_UI_BUILD_ID=ui-core-${TIANSHU_SOURCE_SHA} TIANSHU_UI_BASE=/_ui/releases/ui-core-${TIANSHU_SOURCE_SHA}/ npm run build
 FROM ${PG_CLIENT_IMAGE} AS postgres
 FROM ${VECTOR_IMAGE} AS vector
 FROM ${LOKI_IMAGE} AS loki
@@ -74,6 +75,7 @@ COPY --from=web /build/web/dist /opt/tianshu/web/dist
 COPY deploy/core /opt/tianshu/deploy/core
 ARG TIANSHU_SOURCE_SHA
 LABEL org.opencontainers.image.revision=${TIANSHU_SOURCE_SHA}
+RUN python -c "import json; from pathlib import Path; from tianshu.runtime.ui_release import build_release_manifest; p=Path('/opt/tianshu/web/dist'); m=build_release_manifest(p,build_id='ui-core-${TIANSHU_SOURCE_SHA}',source_sha='${TIANSHU_SOURCE_SHA}'); (p/'release.json').write_text(json.dumps(m),encoding='utf-8')"
 RUN python /opt/tianshu/deploy/core/image_inventory.py --source-sha "$TIANSHU_SOURCE_SHA"
 WORKDIR /opt/tianshu
 EXPOSE 18446 18443 18765

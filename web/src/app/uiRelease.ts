@@ -1,5 +1,5 @@
 import { createElement, useEffect, useState } from "react";
-import { Notification } from "../components/Notifications";
+import { createPortal } from "react-dom";
 
 declare const __TIANSHU_UI_BUILD_ID__: string | undefined;
 
@@ -80,7 +80,8 @@ export function UiVersionMonitor({
     const checkVersion = async () => {
       if (!alive || inFlight) return;
       if (typeof document !== "undefined" && document.hidden) return;
-      if (typeof navigator !== "undefined" && navigator.onLine === false) return;
+      if (typeof navigator !== "undefined" && navigator.onLine === false)
+        return;
       inFlight = true;
       try {
         const response = await fetch("/_ui/version", {
@@ -140,9 +141,13 @@ export function UiVersionMonitor({
     return null;
   }
 
-  return createElement(
-    Notification,
-    null,
+  const host =
+    typeof document !== "undefined"
+      ? (document.querySelector(".notification-region") ?? document.body)
+      : null;
+  if (!host) return null;
+
+  return createPortal(
     createElement(
       "aside",
       {
@@ -185,5 +190,6 @@ export function UiVersionMonitor({
         ),
       ),
     ),
+    host,
   );
 }

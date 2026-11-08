@@ -140,10 +140,11 @@ class ModelCatalog:
         # existing vision selection, including its actor/global precedence.
         inherited = "vision" if request.function == "image.consistency" else request.function
         binding = await (await connection.execute(
-            "SELECT route_id,fallback_routes FROM models.bindings WHERE service_class=%s "
-            "AND function IN (%s,%s,'*') AND actor_id IN (%s,'') "
-            "ORDER BY (function=%s) DESC,(function=%s) DESC,(actor_id=%s) DESC LIMIT 1",
-            (request.service_class.value, request.function, inherited, request.context.actor_id or "",
+            "SELECT route_id,fallback_routes FROM models.bindings WHERE "
+            "function IN (%s,%s,'*') AND actor_id IN (%s,'') "
+            "ORDER BY (function=%s) DESC,(function=%s) DESC,(actor_id=%s) DESC,"
+            "CASE service_class WHEN 'interactive' THEN 0 WHEN 'elastic' THEN 1 ELSE 2 END LIMIT 1",
+            (request.function, inherited, request.context.actor_id or "",
              request.function, inherited, request.context.actor_id or ""))).fetchone()
         if not binding:
             raise AppError("model_function_not_configured", status=503,
