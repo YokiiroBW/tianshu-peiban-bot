@@ -229,3 +229,62 @@ async def test_withdrawal_removes_only_this_instance_handlers_immediately():
     assert set(plugins.catalog.handlers) == {"plugin:two:binding:value", "media.view"}
     plugins.revoke("two")
     assert set(plugins.catalog.handlers) == {"media.view"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("source", [
+    {"type": "builtin", "id": "hello"},
+    {"type": "zip", "data": "cGFja2FnZQ=="},
+    {"type": "artifact", "media": {"uri": "artifact:package"}},
+    {"type": "directory", "path": "/owned/plugin"},
+    {"type": "git", "url": "https://example.invalid/plugin.git", "commit": "a" * 40},
+])
+async def test_http_install_descriptor_is_not_a_source_reference(source):
+    from tianshu.capabilities.api import invoke
+    from tianshu.types import OriginKind, Receipt, SourceRef, TrustedContext
+
+    context = TrustedContext(
+        "operator", None, None, None, ("system",), (), 1,
+        OriginKind.HUMAN, frozenset({"config.publish"}),
+    )
+    actions = SimpleNamespace(
+        handler=AsyncMock(return_value=SimpleNamespace(
+            definition=SimpleNamespace(long_running=True))),
+        invoke=AsyncMock(return_value=Receipt(
+            "receipt", "action", "attempt", "pending", "none", "not_requested")),
+    )
+    result = await invoke(SimpleNamespace(actions=actions), "plugins", "install", {
+        "client_request_id": "install-descriptor",
+        "source": source,
+        "source_refs": [{"source_id": "provenance", "revision": 2}],
+    }, context)
+    submitted = actions.invoke.await_args.args[0]
+    assert submitted.arguments["source"] == source
+    assert submitted.source_refs == (SourceRef("provenance", 2),)
+    assert actions.invoke.await_args.kwargs["background"] is True
+    assert result.receipt.execution == "pending"
+
+
+@pytest.mark.asyncio
+async def test_http_content_source_keeps_its_provenance_reference():
+    from tianshu.capabilities.api import invoke
+    from tianshu.types import OriginKind, Receipt, SourceRef, TrustedContext
+
+    context = TrustedContext(
+        "operator", None, None, None, ("system",), (), 1,
+        OriginKind.HUMAN, frozenset({"*"}),
+    )
+    actions = SimpleNamespace(
+        handler=AsyncMock(return_value=SimpleNamespace(
+            definition=SimpleNamespace(long_running=False))),
+        invoke=AsyncMock(return_value=Receipt(
+            "receipt", "action", "attempt", "pending", "none", "not_requested")),
+    )
+    await invoke(SimpleNamespace(actions=actions), "content", "continue", {
+        "client_request_id": "continue-source",
+        "source": {"source_id": "article", "revision": 3},
+        "source_refs": [{"source_id": "provenance", "revision": 2}],
+    }, context)
+    assert actions.invoke.await_args.args[0].source_refs == (
+        SourceRef("provenance", 2), SourceRef("article", 3),
+    )
