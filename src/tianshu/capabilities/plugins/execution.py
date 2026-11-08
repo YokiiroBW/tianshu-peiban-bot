@@ -17,6 +17,10 @@ class Executions:
         self.host, self.repo = host, host.repository
         self.contexts, self.running, self.authorizers = {}, {}, {}
 
+    def blocked(self, identifier):
+        """True while that instance's code version is switching, never for others."""
+        return identifier in getattr(self.host, "admission", ())
+
     async def invoke(
         self, identifier, action_id, value, intent, principal, *, authorize=None, binding_id=None
     ):
@@ -30,6 +34,9 @@ class Executions:
             require(await self.host.check_authorizer(authorize), "session_expired", 401)
         async with self.host.operations_lock:
             instance = await self.host.instance(identifier)
+            # New admission is refused while this instance's code version switches;
+            # already accepted calls keep their original attempt and process.
+            require(not self.blocked(identifier), "instance_reloading", 409)
             require(instance["desired_state"] == "enabled", "instance_disabled", 409)
             package = await self.host.package(instance["package_id"], instance["version"])
             action = next(
@@ -118,6 +125,9 @@ class Executions:
         async with self.host.locks[instance["id"]]:
             try:
                 current = await self.host.instance(instance["id"])
+                # A version switch or an explicit reload refuses new admission for
+                # this instance only; calls accepted earlier are never replayed.
+                require(not self.blocked(instance["id"]), "instance_reloading", 409)
                 require(current["desired_state"] == "enabled", "instance_disabled", 409)
                 authorization = self.authorizers.get(identifier)
                 if authorization:

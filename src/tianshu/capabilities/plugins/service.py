@@ -237,6 +237,13 @@ class Plugins:
             ):
                 del self.catalog.handlers[identifier]
 
+    def revoke(self, identifier):
+        """Withdraw live catalog handlers so no route can still call this instance."""
+        prefixes = ("plugin:" + identifier + ":", "plugin-event:" + identifier + ":")
+        for key in tuple(self.catalog.handlers):
+            if key.startswith(prefixes):
+                self.catalog.handlers.pop(key, None)
+
     async def discover(self, context):
         return [
             item

@@ -50,6 +50,14 @@ export type PluginView = {
   entry: string;
   actions: string[];
 };
+export type PluginRuntime = {
+  owner_id?: string;
+  generation?: string;
+  pid?: number;
+  instance_revision?: number;
+  observed_at?: string;
+  expires_at?: string;
+};
 export type Instance = {
   id: string;
   name: string;
@@ -65,6 +73,7 @@ export type Instance = {
   bindings: Binding[];
   binding_overrides: string[];
   missing_capabilities: string[];
+  plugin_runtime?: PluginRuntime | null;
   contributions: {
     actions: Action[];
     tools?: { name: string; action: string }[];
@@ -104,15 +113,24 @@ export type Invocation = {
 };
 export type Installation = {
   id: string;
+  kind?: "upgrade" | "uninstall";
   execution: string;
-  error: { code: string } | null;
+  error: {
+    code: string;
+    rolled_back?: boolean;
+    restored_version?: string;
+  } | null;
   package_id: string | null;
+  instance_id?: string;
+  purged?: boolean;
+  reclaimed?: string[];
 };
 export type PluginOverview = {
   packages: Package[];
   instances: Instance[];
   catalog: (Manifest & { source_id: string })[];
   installations: Installation[];
+  operations?: Installation[];
   capabilities: string[];
   notifications: {
     id: string;

@@ -11,7 +11,9 @@ from ..contracts import canonical, digest, require
 class Repository:
     def __init__(self, path, *, runtime=None):
         from ..storage import DomainStore
-        self.runtime = runtime
+
+        # The method below is named runtime(); the injected owner must not shadow it.
+        self.owner = runtime
         self.storage = DomainStore(runtime.database, "capability_plugins")
 
     @contextmanager
@@ -45,6 +47,17 @@ class Repository:
             (document["id"], canonical(document)),
         )
         return document
+
+    def delete(self, kind, identifier, db=None):
+        if db is None:
+            with self.transaction() as connection:
+                return self.delete(kind, identifier, connection)
+        require(
+            kind in {"packages", "instances", "operations", "notifications", "schedules"},
+            "invalid_input",
+            400,
+        )
+        db.execute(f"DELETE FROM plugin_{kind} WHERE id=%s", (identifier,))
 
     def list(self, kind):
         require(
@@ -275,6 +288,13 @@ class Repository:
                 (instance, key, canonical(value["value"]), revision),
             )
             return {"value": value["value"], "revision": revision}
+
+    def purge(self, instance):
+        """Delete only this plugin instance's own rows; shared ledgers stay."""
+        with self.transaction() as db:
+            for table in ("plugin_state", "plugin_secrets", "plugin_logs", "plugin_schedules"):
+                db.execute(f'DELETE FROM {table} WHERE instance_id=%s', (instance,))
+            db.execute('DELETE FROM capabilities.plugin_consumptions WHERE instance_id=%s', (instance,))
 
     def log(self, instance, document):
         with self.transaction() as db:
