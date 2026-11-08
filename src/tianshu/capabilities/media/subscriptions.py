@@ -304,7 +304,17 @@ class Subscriptions:
                 jobs, part_members = [], {}
                 for bvid in sorted(members):
                     require(time.monotonic() < deadline, "source_budget_exceeded", 503)
-                    resolved = await self.media.connector.resolve(bvid, cookie, with_formats=False)
+                    try:
+                        resolved = await self.media.connector.resolve(
+                            bvid, cookie, with_formats=False
+                        )
+                    except Fault as error:
+                        if error.code != "source_removed":
+                            raise
+                        # Retain membership and existing local parts/files. Only this
+                        # confirmed unavailable video is skipped; source-wide failures
+                        # still abort the scan before committing its baseline.
+                        continue
                     current_cids = [part["cid"] for part in resolved["snapshot"]["parts"]]
                     part_members[bvid] = current_cids
                     await self.media.local(self.media.repo.episode_numbers, bvid, current_cids)

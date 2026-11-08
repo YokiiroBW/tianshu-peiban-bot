@@ -20,10 +20,13 @@ from tianshu.capabilities.media.books.catalog import Catalog as BookCatalog
 from tianshu.capabilities.media.books.runtime import Books
 from tianshu.capabilities.media.books.sources import Sources
 from tianshu.capabilities.media.config import EMPTY_RULES
+from tianshu.capabilities.media.destination import head_key
 from tianshu.capabilities.media.music.imports import Imports
 from tianshu.capabilities.media.music.library import MusicLibrary
 from tianshu.capabilities.media.music.runtime import Music
 from tianshu.capabilities.media.repository import Repository
+from tianshu.capabilities.media.rule_context import RuleSourceContext
+from tianshu.capabilities.media.rules import RuleEvaluator
 from tianshu.capabilities.media.scheduling import scan_due
 from tianshu.capabilities.media.subscriptions import Subscriptions
 from tianshu.capabilities.media.web import WebMedia
@@ -264,6 +267,145 @@ async def test_true_source_references_still_attach_to_nonmedia_actions(subscript
     assert result.receipt.execution == "succeeded"
     row = await s.owner.actions.get(result.action_id, s.context)
     assert row["action"]["source_refs"] == [wire(reference)]
+
+
+REMOVED_VIDEO = "BV1HbMX6kE95"
+AVAILABLE_VIDEO = "BV1xx411c7mD"
+
+
+async def video_subscription(state, *, initial_sync="history"):
+    state.media.evaluator = RuleEvaluator()
+    state.media.connector.scan.return_value = {
+        bvid: RuleSourceContext(bvid, "favorite", "4061483034")
+        for bvid in (REMOVED_VIDEO, AVAILABLE_VIDEO)
+    }
+    saved = await state.command(
+        "media", "subscriptions/save",
+        {
+            "subscription_id": None, "expected_revision": 0, "label": "收藏夹",
+            "source": {"kind": "favorite", "id": "4061483034"}, "account_id": None,
+            "target_id": "video", "initial_sync": initial_sync,
+            "quality": {"mode": "best", "quality_id": None, "allow_fallback": True},
+            "rules": EMPTY_RULES, "interval_seconds": 900,
+        },
+    )
+    assert saved.execution == "succeeded", saved.error_code
+    return saved.result["subscription"]
+
+
+def resolved_video(bvid):
+    return {
+        "snapshot": {
+            "schema_version": 1, "bvid": bvid, "title": "视频",
+            "description": "简介", "published_at": "2026-11-08T00:00:00Z",
+            "captured_at": "2026-11-08T01:00:00Z",
+            "creators": [{"mid": "123", "name": "作者", "role": "uploader"}],
+            "parts": [{"cid": "101", "index": 1, "title": "正片", "duration_seconds": 60}],
+            "tags": [], "cover_available": False,
+        },
+        "video": {"cover_url": None}, "creator_images": [],
+    }
+
+
+def video_resolver(code="source_removed"):
+    async def resolve(bvid, *_args, **_kwargs):
+        if bvid == REMOVED_VIDEO:
+            raise Fault(code, 503)
+        return resolved_video(bvid)
+    return resolve
+
+
+@pytest.mark.parametrize("initial_sync,queued", [("history", 1), ("future_only", 0)])
+async def test_video_removed_member_does_not_block_baseline_or_other_members(
+    subscriptions, initial_sync, queued
+):
+    s = subscriptions
+    source = await video_subscription(s, initial_sync=initial_sync)
+    s.media.connector.resolve = AsyncMock(side_effect=video_resolver())
+    receipt = await s.command("media", "subscriptions/scan", {
+        "subscription_id": source["subscription_id"], "recompute": False,
+    })
+    assert receipt.execution == "succeeded", receipt.error_code
+    assert receipt.result["subscription"]["baseline_ready"] is True
+    assert receipt.result["subscription"]["code"] == "scan_complete"
+    assert receipt.result["queued"] == queued
+    assert await s.media.local(s.media.repo.members, source["subscription_id"]) == {
+        REMOVED_VIDEO, AVAILABLE_VIDEO,
+    }
+    assert await s.media.local(s.media.repo.member_parts, source["subscription_id"]) == {
+        AVAILABLE_VIDEO: {"101"},
+    }
+    jobs, _more = await s.media.local(s.media.repo.jobs)
+    assert [job["bvid"] for job in jobs] == ([AVAILABLE_VIDEO] if queued else [])
+    repeated = await s.command("media", "subscriptions/scan", {
+        "subscription_id": source["subscription_id"], "recompute": False,
+    })
+    assert repeated.execution == "succeeded", repeated.error_code
+    assert repeated.result["queued"] == 0
+
+
+@pytest.mark.parametrize("code", ["auth_required", "source_rate_limited", "source_unavailable"])
+async def test_video_uncertain_member_failure_does_not_commit_a_partial_baseline(subscriptions, code):
+    s = subscriptions
+    source = await video_subscription(s)
+    s.media.connector.resolve = AsyncMock(side_effect=video_resolver(code))
+    receipt = await s.command("media", "subscriptions/scan", {
+        "subscription_id": source["subscription_id"], "recompute": False,
+    })
+    assert receipt.execution == "failed" and receipt.error_code == code
+    current = await s.media.local(s.media.repo.get, "subscription", source["subscription_id"])
+    assert current["baseline_ready"] is False
+    assert await s.media.local(s.media.repo.members, source["subscription_id"]) == set()
+    assert await s.media.local(s.media.repo.job_count) == 0
+
+
+async def test_video_removed_source_still_fails_without_establishing_an_empty_baseline(subscriptions):
+    s = subscriptions
+    source = await video_subscription(s)
+    s.media.connector.scan.side_effect = Fault("source_removed", 503)
+    receipt = await s.command("media", "subscriptions/scan", {
+        "subscription_id": source["subscription_id"], "recompute": False,
+    })
+    assert receipt.execution == "failed" and receipt.error_code == "source_removed"
+    current = await s.media.local(s.media.repo.get, "subscription", source["subscription_id"])
+    assert current["baseline_ready"] is False
+    assert await s.media.local(s.media.repo.job_count) == 0
+
+
+async def test_video_removed_member_preserves_local_file_receipt_and_parts_during_recompute(
+    subscriptions, tmp_path
+):
+    s = subscriptions
+    source = await video_subscription(s)
+    s.media.connector.resolve = AsyncMock(side_effect=lambda bvid, *_args, **_kwargs: resolved_video(bvid))
+    first = await s.command("media", "subscriptions/scan", {
+        "subscription_id": source["subscription_id"], "recompute": False,
+    })
+    assert first.execution == "succeeded" and first.result["queued"] == 2
+    jobs, _more = await s.media.local(s.media.repo.jobs)
+    original = next(job for job in jobs if job["bvid"] == REMOVED_VIDEO)
+    local_file = tmp_path / "retained-video.mp4"
+    local_file.write_bytes(b"original local video")
+    original = await s.media.local(s.media.repo.update_job, original["job_id"], {
+        "state": "published", "code": "published",
+        "asset_receipt": {"original": "confirmed", "path": str(local_file)},
+    })
+    head = {"job_id": original["job_id"], "original": "local-publication"}
+    identity = head_key({**source, "bvid": REMOVED_VIDEO})
+    before_head = await s.media.local(s.media.repo.put, "target_head", identity, head, 0)
+    current = await s.media.local(s.media.repo.get, "subscription", source["subscription_id"])
+    await s.media.local(s.media.repo.put, "subscription", source["subscription_id"], {
+        **current, "quality_reassessment": True, "destination_reassessment": True,
+    }, current["revision"])
+    s.media.connector.resolve.side_effect = video_resolver()
+    second = await s.command("media", "subscriptions/scan", {
+        "subscription_id": source["subscription_id"], "recompute": True,
+    })
+    assert second.execution == "succeeded", second.error_code
+    assert await s.media.local(s.media.repo.job, original["job_id"]) == original
+    assert await s.media.local(s.media.repo.get, "target_head", identity) == before_head
+    assert (await s.media.local(s.media.repo.member_parts, source["subscription_id"]))[REMOVED_VIDEO] == {"101"}
+    assert local_file.read_bytes() == b"original local video"
 
 
 async def test_music_settings_arm_timer_and_timer_enqueues_with_refreshed_authority(subscriptions):
