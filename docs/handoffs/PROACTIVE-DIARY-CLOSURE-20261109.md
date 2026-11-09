@@ -45,3 +45,5 @@
 
 验收分别检查：11 月 7 日原日记、智乃原成功批次、历史查询耗时、后台维护状态、主动候选/表达/渠道回执。
 无材料日期不补造正文，原模型成功或队列成功均不代替业务完成。
+
+稳定运行后的只读健康复核：Life、Memory、Conversation 维护均 ready，当前没有原 PoolTimeout 维护错误；Operations 的 memory_consolidation 进度探针仍报告 LockNotAvailable/unavailable，和前批观察一致。这是尚未取得的诊断投影，不将六角色就绪表述为全部观测或语义工作完成。未扩大到其他业务域的清理或重试。
