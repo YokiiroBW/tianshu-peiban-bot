@@ -230,5 +230,6 @@ def create_module(memory, retrieval, workers, identity):
             Migration("0025_memory_write", files("tianshu.memory").joinpath("0025_memory_write.sql").read_text()),
             Migration("0026_memory_retrieval", files("tianshu.memory").joinpath("rb_retrieval.sql").read_text()),
             Migration("rbi_memory_maintenance", files("tianshu.memory").joinpath("rbi_maintenance.sql").read_text(encoding="utf-8")),
+            Migration("memory_episode_batch_lookup", files("tianshu.memory").joinpath("episode_batch_lookup.sql").read_text(encoding="utf-8")),
         ),
     )

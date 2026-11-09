@@ -37,6 +37,8 @@ def product_migrations():
             files("tianshu.companion").joinpath("rbi_growth_maintenance.sql").read_text(encoding="utf-8")),
         Migration("rbi_memory_maintenance",
             files("tianshu.memory").joinpath("rbi_maintenance.sql").read_text(encoding="utf-8")),
+        Migration("memory_episode_batch_lookup",
+            files("tianshu.memory").joinpath("episode_batch_lookup.sql").read_text(encoding="utf-8")),
         *model_recovery_migrations(),
         *user_work_migrations(),
         Migration("0041_conversation_submission_confirmation",

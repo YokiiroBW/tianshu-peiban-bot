@@ -86,6 +86,7 @@ def decision_fingerprint(context, actor, data, day, events=None, *, capability_s
             and set(value.get("scope_ids",()))<=set(context.scope_ids)},
         "commitments": data["commitments"], "interests": data["interests"],
         "goals":data["goals"],"writing":data.get("writing",()),
+        "contact_opportunity":data.get("contact_opportunity"),
         "model_configuration": data.get("model_configuration"),
         "lifecycle": lifecycle_material(data),
         "capabilities": capabilities})
@@ -273,8 +274,16 @@ class PlanningEngine:
             basis.append({"id": f"persona:{actor['persona_id']}:{actor['persona_revision']}", "kind": "authored_persona", "source_refs": []})
         basis.extend({"id":"result:"+row["checkpoint_data"]["completed_action_id"],"kind":"actual_result", "source_refs":row["source_refs"]}
             for row in daily["recent_results"])
+        from .contact_planning import material as contact_material
+        contact, contact_bases, contact_refs = await contact_material(self.worker,context,now)
+        basis.extend(contact_bases)
+        basis.extend({"id":f"commitment:{item['id']}:{item['revision']}","kind":"commitment",
+            "summary":item["title"],"due_at":wire(item.get("due_at")),"source_refs":item["source_refs"]}
+            for item in commitments.items if item["state"] in {"scheduled","waiting"})
+        refs = unique_refs(refs,contact_refs)
         data = planner.material(context, state, routine, goals, commitments, choices,
             now.astimezone(ZoneInfo(state["timezone"])).isoformat(), day=daily, basis=basis, interests=interests,writing=writing)
+        data["contact_opportunity"] = contact
         profile, profile_error = None, None
         try:
             profile = await generation_profile(self.worker.models, context, function="life.plan")
@@ -656,7 +665,11 @@ class PlanningEngine:
             if reconsider_at:
                 await self.schedule(connection, context, fresh, reconsider_at, "repair" if repair_at else "review")
             await connection.execute("UPDATE life.plan_generations SET state='applied',reason=%s,application_results=%s,reviewed_at=%s WHERE generation_key=%s",
-                (reason, document(wire(application)), now, key))
+                (reason, document({**wire(application),"contact":{
+                    "decision":"proposed" if prepared_contact else "unavailable" if decision.get("contact") else
+                        "not_proposed" if decision.get("contact_reason") else "not_evaluated",
+                    "reason":decision.get("contact_reason") or (decision.get("contact") or {}).get("reason") or "contact_not_evaluated",
+                    "candidate_id":prepared_contact.candidate.candidate_id if prepared_contact else None}}), now, key))
             from .statistics import record_on
             await record_on(self.life, connection, key, actor_id, now, application, enqueue_replay=True)
 

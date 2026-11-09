@@ -63,6 +63,11 @@ def classify_database_failure(error, *, phase=None, rollback_confirmed=None):
     elif isinstance(error, PsycopgError) and sqlstate in {"55P03", "40P01", "40001"}:
         reason = {"55P03": "database_lock_unavailable", "40P01": "database_deadlock",
                   "40001": "database_serialization"}[sqlstate]
+    elif (phase == "transaction" and isinstance(error, PsycopgError) and sqlstate == "57014"
+            and error.diag.message_primary == "canceling statement due to statement timeout"):
+        # 57014 also represents explicit user cancellation. Only a server
+        # statement timeout with confirmed rollback is a resource retry.
+        reason = "database_statement_timeout"
     else:
         return None
     receipt_required = reason == "database_commit_unknown"

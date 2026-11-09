@@ -479,7 +479,7 @@ class MemoryService:
                 key=f"memory-episode-index:{episode_id}:{row['revision']}")
             return await self._episode_observed_on(conn,context,row)
 
-    async def episodes_by_refs(self,context,refs,*,connection=None):
+    async def episodes_by_refs(self,context,refs,*,connection=None,include_consolidation=True):
         refs=tuple(refs)
         if len(refs)>128 or any(not isinstance(item,(tuple,list)) or len(item)!=2 or not isinstance(item[0],str)
                 or type(item[1]) is not int or item[1]<1 for item in refs):
@@ -491,7 +491,7 @@ class MemoryService:
                 "WHERE e.actor_id=%s AND e.active AND e.scope_ids<@%s::text[] ORDER BY requested.ordinal",
                 ([item[0] for item in refs],[item[1] for item in refs],context.actor_id,list(context.scope_ids)))).fetchall()
             valid=await self._episode_source_checks(conn,context,rows)
-            if self.pipeline_recovery is not None:
+            if include_consolidation and self.pipeline_recovery is not None:
                 visible=tuple(row for row,allowed in zip(rows,valid,strict=True) if allowed)
                 statuses=await self.pipeline_recovery.statuses_on(conn,context,visible)
                 for row in visible:
@@ -563,13 +563,15 @@ class MemoryService:
             "matter_id":matter_id,"actual_result":{"internal":True,"event_kind":"memory_revision",
                 "changed_records":records,"affected_subject_ids":subjects}},connection=conn)
 
-    async def episodes_between(self, context, start, end, limit=200, cursor=None):
+    async def episodes_between(self, context, start, end, limit=200, cursor=None, *, include_consolidation=True):
         start, end = parse_time(start), parse_time(end)
         if end <= start:
             raise AppError("invalid_episode_time_range")
-        return await self._episodes(context, cursor, limit, start=start, end=end)
+        return await self._episodes(context, cursor, limit, start=start, end=end,
+                                    include_consolidation=include_consolidation)
 
-    async def _episodes(self, context, cursor, limit, *, start=None, end=None, selected_scene=False):
+    async def _episodes(self, context, cursor, limit, *, start=None, end=None, selected_scene=False,
+                        include_consolidation=True):
         await self.identity.check_context(context)
         if not context.actor_id:
             raise AppError("actor_required")
@@ -610,7 +612,7 @@ class MemoryService:
             more = len(rows) > limit
             scanned = rows[:limit]
             checked = await self._episode_source_checks(conn,context,scanned)
-            if self.pipeline_recovery is not None:
+            if include_consolidation and self.pipeline_recovery is not None:
                 visible_rows=tuple(row for row,valid in zip(scanned,checked,strict=True) if valid and row["active"])
                 statuses=await self.pipeline_recovery.statuses_on(conn,context,visible_rows)
                 for row in visible_rows:

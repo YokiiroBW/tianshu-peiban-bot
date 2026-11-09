@@ -129,7 +129,12 @@ def create_module(service, presentation, writing, diaries, reading, worker, iden
         await enqueue_backfill(worker)
 
     async def maintenance(_runtime):
-        await worker.reconcile_due(limit=32)
+        import asyncio
+        results = await asyncio.gather(worker.reconcile_due(limit=32),
+            diaries.collection.reconcile(limit=32), return_exceptions=True)
+        for result in results:
+            if isinstance(result,BaseException):
+                raise result
 
     return DomainModule("life", register, start=start, register_tasks=tasks,
         maintenance=maintenance, maintenance_roles=("bot-background",),

@@ -31,6 +31,13 @@ async def reconcile_due(workers, *, generation, limit):
                 (row["partition_id"],))).fetchone()
             if not state:
                 continue
+            succeeded = await workers.consolidation.retries.successful_on(conn,row["partition_id"],generation)
+            if succeeded:
+                # Runtime's physical attempt is already finished. Memory owns
+                # the remaining application, including when another batch is active.
+                await workers.consolidation._schedule_on(conn,row["partition_id"],state["db_now"],
+                    suffix="reconcile-success",target_batch_id=succeeded["batch_id"])
+                woken += 1
             due = None
             if state["active_batch_id"] is not None:
                 active = await (await conn.execute("SELECT status,manifest FROM memory.consolidation_batches "

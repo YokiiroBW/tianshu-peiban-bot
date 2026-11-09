@@ -41,9 +41,14 @@ class ConsolidationRecovery:
         selectors=[Jsonb([{"episode_id":episode["episode_id"],"sequence":episode["sequence"]}]) for episode in episodes]
         batches=await (await conn.execute(
             "SELECT b.*,runtime.work_is_retired('memory',jsonb_build_object('batch_id',b.batch_id)) AS user_retired "
-            "FROM memory.consolidation_batches b JOIN memory.consolidation_state s USING(partition_id) "
-            "WHERE s.actor_id=%s AND b.manifest->'episodes' @> ANY(%s::jsonb[]) ORDER BY b.created_at DESC",
-            (context.actor_id,selectors))).fetchall()
+            "FROM memory.consolidation_batches b WHERE b.batch_id IN ("
+            "SELECT newest.batch_id FROM unnest(%s::jsonb[]) requested(selector) CROSS JOIN LATERAL ("
+            "SELECT candidate.batch_id FROM memory.consolidation_batches candidate "
+            "JOIN memory.consolidation_state s ON s.partition_id=candidate.partition_id "
+            "WHERE s.actor_id=%s AND candidate.manifest->'episodes' @> requested.selector "
+            "ORDER BY candidate.created_at DESC,candidate.batch_id DESC LIMIT 1) newest) "
+            "ORDER BY b.created_at DESC,b.batch_id DESC",
+            (selectors,context.actor_id))).fetchall()
         by_episode={}
         checked=await check_ref_groups_on(self.sources,conn,context,tuple(
             codec.refs(batch["dependency_refs"]) for batch in batches))

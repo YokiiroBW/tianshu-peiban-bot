@@ -18,6 +18,34 @@ from tianshu.runtime.database import Database, DatabaseConfig, classify_database
 from tianshu.runtime.execution import ExecutionLane
 from tianshu.runtime.errors import AppError
 from tianshu.runtime.jobs import JobQueue, JobSpec, current_execution_generation
+
+
+async def test_confirmed_statement_timeout_retries_resource_wait_without_ordinary_attempt_budget(database):
+    from tianshu.runtime.jobs import ResourceRecoveryRetry
+    with pytest.raises(QueryCanceled) as captured:
+        async with database.transaction(read_only=True) as connection:
+            await connection.execute("SET LOCAL statement_timeout='10ms'")
+            await connection.execute('SELECT pg_sleep(0.05)')
+    failure = classify_database_failure(captured.value)
+    assert failure.reason=='database_statement_timeout' and failure.rollback_confirmed and failure.retryable
+    assert ResourceRecoveryRetry(retryable=False).get_retry_decision(
+        exception=captured.value,job=SimpleNamespace(attempts=3)) is not None
+    async with database.transaction(read_only=True) as connection:
+        assert (await (await connection.execute('SELECT 1 AS n')).fetchone())['n']==1
+
+
+async def test_user_cancelled_statement_is_not_a_resource_timeout(database):
+    async def cancel(connection):
+        await asyncio.sleep(.05)
+        await connection.cancel_safe()
+    with pytest.raises(QueryCanceled) as captured:
+        async with database.transaction(read_only=True) as connection:
+            cancellation = asyncio.create_task(cancel(connection))
+            try:
+                await connection.execute('SELECT pg_sleep(2)')
+            finally:
+                await cancellation
+    assert classify_database_failure(captured.value) is None
 from tianshu.runtime.recovery_policy import RecoveryWait
 
 

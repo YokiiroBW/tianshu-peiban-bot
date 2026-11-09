@@ -33,7 +33,8 @@ async def episode_versions(memory, context, versions, *, connection):
     """Recheck the full collected day using Memory's bounded public port."""
     found = set()
     for offset in range(0, len(versions), 128):
-        page = await memory.episodes_by_refs(context, versions[offset:offset+128], connection=connection)
+        page = await memory.episodes_by_refs(context, versions[offset:offset+128],
+            connection=connection, include_consolidation=False)
         found.update((item.episode_id, item.revision) for item in page.items)
     return found
 

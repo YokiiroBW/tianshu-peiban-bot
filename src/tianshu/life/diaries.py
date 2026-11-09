@@ -4,6 +4,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, time, timedelta
 from uuid import NAMESPACE_URL, uuid4, uuid5
 from zoneinfo import ZoneInfo
+from psycopg.errors import QueryCanceled
 
 from tianshu.runtime.api import CommandResult
 from tianshu.runtime.errors import AppError
@@ -22,6 +23,8 @@ from .diary_automation import DiaryAutomation, automatic_view, diary_experience
 from .diary_materials import assemble_diary_material, episode_versions, frozen_recipe
 from .computation_retry import freeze_recipe
 from .diary_retry import DiaryRetry
+from .diary_collection import DiaryCollection
+from tianshu.runtime.database import classify_database_failure
 from .generation_control import (GenerationRecovery, backfill_saved_statistics, defer_generation,
     frozen_data_generation, observe_original, record_saved_on, submit_frozen)
 
@@ -35,6 +38,7 @@ class DiaryService:
         self.generations = GenerationRequests(life.database, life.sources, models)
         self.automation = DiaryAutomation(self)
         self.retry = DiaryRetry(self)
+        self.collection = DiaryCollection(self)
         self.recovery = None
         self.statistics = None
 
@@ -57,7 +61,8 @@ class DiaryService:
         reader = await self._reader(context_from_record(context))
         async with self.life.database.transaction() as connection:
             await self.life.jobs.assert_generation_on(connection,generation)
-            page = await self.life.memory.episodes_by_refs(reader, ((episode_id, revision),), connection=connection)
+            page = await self.life.memory.episodes_by_refs(reader, ((episode_id, revision),),
+                connection=connection, include_consolidation=False)
             if not page.items:
                 return {"state": "unavailable_or_revised", "episode_id": episode_id, "revision": revision}
             await self.changed(reader, watermark, episode=page.items[0],connection=connection,data_generation=generation)
@@ -181,7 +186,8 @@ class DiaryService:
                 await connection.execute("UPDATE life.diaries SET state='collecting',generation_cancel_requested=false,generation_id=%s,context=%s,generation_recipe=%s,revision=%s,reason=NULL,source_refs='[]',episode_ids='{}',generation_retry_count=0,generation_retry_due_at=NULL WHERE id=%s",(generation_id,document(generation_context),document(selected_recipe),current,diary_id))
             else:
                 await connection.execute("INSERT INTO life.diaries(id,actor_id,day,scene_key,state,generation_id,context,generation_recipe,episode_ids,source_refs,scope_ids) VALUES (%s,%s,%s,%s,'collecting',%s,%s,%s,'{}','[]',%s)",(diary_id,context.actor_id,day,scene_key,generation_id,document(generation_context),document(selected_recipe),list(generation_context.scope_ids)))
-            await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":start",{"diary_id":diary_id,"generation_id":generation_id,"cursor":None,"data_generation":data_generation},subject_id=context.actor_id,data_generation=data_generation))
+            collecting = await (await connection.execute("SELECT * FROM life.diaries WHERE id=%s", (diary_id,))).fetchone()
+            await self.collection.enqueue_on(connection,collecting)
             return CommandResult(body["client_request_id"],{"id":diary_id,"revision":current,"state":"collecting"},current,attempt_id=generation_id)
         return await self.life.commands.execute(context,"life.diaries.request",body["client_request_id"],signature(body),apply)
 
@@ -196,8 +202,19 @@ class DiaryService:
             data_generation = frozen_data_generation(row["generation_recipe"])
         try:
             return await self._collect(diary_id, generation_id, cursor, data_generation)
-        except AppError as error:
-            if error.code != "job_generation_expired":
+        except Exception as error:
+            failure = classify_database_failure(error)
+            if failure is not None:
+                # Native resource recovery retains this job and its attempt
+                # history. A later domain scan repairs a lost wake only.
+                try:
+                    await self.collection.record_wait(diary_id,generation_id,cursor,failure,data_generation)
+                except Exception:
+                    pass
+            elif isinstance(error,QueryCanceled):
+                await self._generation_state(diary_id,generation_id,"failed","diary_collection_cancelled",
+                    settle=True,data_generation=data_generation)
+            elif isinstance(error,AppError) and error.code != "job_generation_expired":
                 await self._generation_state(diary_id, generation_id, "failed", error.code, settle=True,data_generation=data_generation)
             raise
 
@@ -211,7 +228,8 @@ class DiaryService:
         day = date.fromisoformat(recipe["day"])
         zone = ZoneInfo(recipe["timezone"])
         start,end = datetime.combine(day,time.min,zone),datetime.combine(day+timedelta(days=1),time.min,zone)
-        page = await self.life.memory.episodes_between(context,start,end,limit=200,cursor=cursor)
+        page = await self.life.memory.episodes_between(context,start,end,limit=200,cursor=cursor,
+            include_consolidation=False)
         actual = tuple(item for item in page.items if diary_experience(item))
         episodes = tuple(item for item in actual if item.source_refs)
         selected = recipe["episodes"]+list(wire(episodes))
@@ -240,8 +258,8 @@ class DiaryService:
                 await self.automation.settle(connection,generation_id,error="source_unavailable",data_generation=data_generation)
                 return
             if page.next_cursor:
-                await connection.execute("UPDATE life.diaries SET generation_recipe=%s,source_refs=%s,context=%s WHERE id=%s",(document(recipe),document(refs),document(context),diary_id))
-                await self.life.jobs.enqueue(connection,JobSpec("life.diary_collect","diary-collect:"+generation_id+":"+signature(page.next_cursor),{"diary_id":diary_id,"generation_id":generation_id,"cursor":page.next_cursor,"data_generation":data_generation},subject_id=context.actor_id,data_generation=data_generation))
+                updated = await (await connection.execute("UPDATE life.diaries SET generation_recipe=%s,source_refs=%s,context=%s,reason=NULL WHERE id=%s RETURNING *",(document(recipe),document(refs),document(context),diary_id))).fetchone()
+                await self.collection.enqueue_on(connection,updated)
                 return
             if not selected or fresh["material_key"]==digest:
                 state = "published" if fresh["published_revision"] == fresh["current_revision"] and fresh["current_revision"] else "draft" if fresh["current_revision"] else "empty"
@@ -548,7 +566,8 @@ class DiaryService:
         zone = ZoneInfo(day["timezone"])
         actual = set()
         for offset in range(0,len(expected),128):
-            page = await self.life.memory.episodes_by_refs(day_reader,expected[offset:offset+128],connection=connection)
+            page = await self.life.memory.episodes_by_refs(day_reader,expected[offset:offset+128],
+                connection=connection,include_consolidation=False)
             actual.update((item.episode_id,item.revision) for item in page.items if diary_experience(item)
                 and item.occurred_at.astimezone(zone).date() == day["day"])
         if not expected or set(expected) != actual or any(versions.get(key,0)<version for key,version in day["material_revisions"].items()):

@@ -48,13 +48,13 @@ class Memory:
         self.watermark = "e:1"
         self.windows = []
 
-    async def episodes_between(self, context, start, end, *, limit, cursor):
+    async def episodes_between(self, context, start, end, *, limit, cursor, include_consolidation=True):
         self.windows.append((start,end))
         rows = tuple(item for item in self.episodes if start <= item.occurred_at < end
             and item.actor_id == context.actor_id and set(item.scope_ids).issubset(context.scope_ids))
         return EpisodePage(rows,None,Coverage(True),self.watermark)
 
-    async def episodes_by_refs(self, context, refs, *, connection=None):
+    async def episodes_by_refs(self, context, refs, *, connection=None, include_consolidation=True):
         assert connection is not None  # The final source/Episode/diary CAS is atomic.
         found = tuple(item for item in self.episodes if (item.episode_id,item.revision) in refs
             and item.actor_id == context.actor_id and set(item.scope_ids).issubset(context.scope_ids))

@@ -378,7 +378,7 @@ class Consolidation:
         await conn.execute("UPDATE memory.episodes SET consolidation_partition_id=%s,consolidation_authority=%s "
             "WHERE episode_id=%s AND sequence=%s",
             (partition_id,Jsonb(state["authority_bound"]),row["episode_id"],row["sequence"]))
-        now = datetime.now(UTC)
+        now = (await (await conn.execute("SELECT now() AS now")).fetchone())["now"]
         first = state["first_pending_at"] or now
         due = min(now+timedelta(seconds=self.policy.quiet_seconds), first+timedelta(seconds=self.policy.max_wait_seconds))
         count = await (await conn.execute(
@@ -406,12 +406,20 @@ class Consolidation:
                 "SELECT * FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE", (partition_id,))).fetchone()
             if not state:
                 return
-            now = datetime.now(UTC)
+            now = (await (await conn.execute("SELECT now() AS now")).fetchone())["now"]
             if is_unresolved_wait(state.get("last_error")) and not state["active_batch_id"]:
                 raise AppError("memory_remote_wait_unresolved", status=503)
             if state["lease_until"] and state["lease_until"] > now:
+                if target_batch_id is not None:
+                    await self._schedule_on(conn,partition_id,min(state["lease_until"],now+timedelta(seconds=30)),
+                        suffix="held-after-lease",target_batch_id=target_batch_id)
                 return
-            held = await (await conn.execute("SELECT b.batch_id FROM memory.consolidation_batches b "
+            held = await (await conn.execute("SELECT b.batch_id,EXISTS ("
+                "SELECT 1 FROM memory.consolidation_attempts a JOIN models.attempts m ON m.attempt_id=a.model_attempt_id "
+                "AND m.intent_id=a.step_id WHERE a.batch_id=b.batch_id "
+                "AND a.step_id=b.step_ids[cardinality(b.step_ids)] AND a.rejected_error IS NULL "
+                "AND m.status='succeeded' AND m.data_generation=%s) AS known_success "
+                "FROM memory.consolidation_batches b "
                 "WHERE b.partition_id=%s AND b.status='quarantined' AND b.manifest->>'data_generation'=%s "
                 "AND (NOT (b.manifest ? 'local_wait') OR b.retry_due_at<=now()) "
                 "AND (NOT (b.manifest ? 'recovery_budget_blocked') OR %s::text IS NOT NULL) "
@@ -422,13 +430,13 @@ class Consolidation:
                 "AND (NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only') "
                 "OR %s::text IS NOT NULL AND b.batch_id=%s) "
                 "AND (%s::text IS NULL OR b.batch_id=%s) "
-                "ORDER BY COALESCE(b.retry_due_at,b.updated_at),b.batch_id LIMIT 1",
-                (partition_id,run_generation,target_batch_id,target_batch_id,target_batch_id,target_batch_id,
+                "ORDER BY known_success DESC,COALESCE(b.retry_due_at,b.updated_at),b.batch_id LIMIT 1",
+                (run_generation,partition_id,run_generation,target_batch_id,target_batch_id,target_batch_id,target_batch_id,
                  target_batch_id,target_batch_id))).fetchone()
             if target_batch_id is not None:
                 if not held:
                     return
-                if state["active_batch_id"]:
+                if state["active_batch_id"] and not held["known_success"]:
                     # A read-only held observation yields to the active batch;
                     # retain its targeted wake instead of dropping it.
                     due = datetime.now(UTC)+timedelta(seconds=30)
@@ -495,8 +503,11 @@ class Consolidation:
                     return
             if not batch_id and state["wake_due_at"] is None:
                 return
-            if not batch_id and state["wake_due_at"] and state["wake_due_at"] > datetime.now(UTC):
-                return
+            if not batch_id and state["wake_due_at"]:
+                async with self.database.transaction(read_only=True) as conn:
+                    db_now = (await (await conn.execute("SELECT now() AS now")).fetchone())["now"]
+                if state["wake_due_at"] > db_now:
+                    return
             if not batch_id:
                 batch_id = await self._prepare(state, context, owner,
                     budget=self.preparation_budget(lease["lease_until"]))
@@ -1630,7 +1641,7 @@ class Consolidation:
             pending = await (await conn.execute("SELECT 1 FROM memory.episodes WHERE consolidation_partition_id=%s "
                 "AND active AND extraction_state='pending' LIMIT 1",(batch["partition_id"],))).fetchone()
             if pending:
-                due = datetime.now(UTC)
+                due = (await (await conn.execute("SELECT now() AS now")).fetchone())["now"]
                 await conn.execute("UPDATE memory.consolidation_state SET wake_due_at=%s,first_pending_at=COALESCE(first_pending_at,now()) WHERE partition_id=%s",(due,batch["partition_id"]))
                 await self._schedule_on(conn,batch["partition_id"],due)
             else:

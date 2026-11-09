@@ -58,7 +58,12 @@ class AttentionPolicy:
                     return AttentionDecision("cancel", "contact_window_before_available_time")
                 return AttentionDecision("defer", "actor_resting", wake)
         salience = candidate.get("payload", {}).get("salience")
-        if salience is None or salience["score"] < salience["thresholds"]["engage"]:
+        planned = candidate.get("payload",{}).get("planner_decision")
+        if planned and salience and salience["inputs"]["repetition"] >= 1:
+            return AttentionDecision("archive", "repeated_contact")
+        # The planner already made the semantic choice using a validated basis
+        # and reason. Scores remain observable; timing and repetition still gate it.
+        if not planned and (salience is None or salience["score"] < salience["thresholds"]["engage"]):
             return AttentionDecision("archive", "kept_for_relevant_conversation")
         decision = self.window(preferences, history, now=now)
         if decision.decision == "defer" and decision.due_at >= expires:

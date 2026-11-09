@@ -22,7 +22,7 @@ def diary_experience(episode):
 def automatic_view(row, diary):
     pending = row["reviewed_revision"] < row["revision"]
     active = row["generation_id"] == diary["generation_id"] and row["generation_id"]
-    error = row["last_error"] or (diary["reason"] if active and diary["state"] in {"failed","cancelled"} else None)
+    error = row["last_error"] or (diary["reason"] if active and diary["state"] in {"failed","cancelled","collecting"} else None)
     state = (diary["state"] if active and diary["state"] in UNRESOLVED
              else "blocked" if error else "pending" if pending else "reviewed")
     return {"state":state,"day":row["day"].isoformat(),"timezone":row["timezone"],
@@ -127,6 +127,7 @@ class DiaryAutomation:
                     return {"state":"blocked","reason":row["last_error"]}
             if diary and diary["state"] in UNRESOLVED:
                 if diary["state"] == "collecting":
+                    await self.diaries.collection.reconcile_one(diary,context=context)
                     return {"state": "collecting", "attempt_id": diary["generation_id"]}
                 if (row["generation_id"]==diary["generation_id"] and row["generation_revision"]<row["revision"]
                         and not diary["generation_cancel_requested"]):

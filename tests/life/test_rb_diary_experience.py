@@ -330,7 +330,8 @@ async def test_episode_revalidation_batches_without_omitting_the_day():
 
     calls = []
     class Memory:
-        async def episodes_by_refs(self, context, refs, *, connection):
+        async def episodes_by_refs(self, context, refs, *, connection, include_consolidation=True):
+            assert not include_consolidation
             calls.append(refs)
             return SimpleNamespace(items=[SimpleNamespace(episode_id=key, revision=revision) for key, revision in refs])
     versions = tuple((f"episode-{index}", 1) for index in range(300))

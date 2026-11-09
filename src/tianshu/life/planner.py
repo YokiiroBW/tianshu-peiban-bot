@@ -35,6 +35,7 @@ def output_schema():
         "properties": {
             "reason": {"type": "string", "minLength": 1, "maxLength": 500},
             "contact": contact_schema(),
+            "contact_reason":{"type":"string","minLength":1,"maxLength":300},
             "free_time_reason": {"type": "string", "minLength": 1, "maxLength": 300},
             "cancel_activity_ids": {"type": "array", "maxItems": 4, "uniqueItems": True, "items": {"type": "string"}},
             "goal_changes": {"type": "array", "maxItems": 3, "items": {
@@ -115,8 +116,13 @@ TASK = (
     "inventing a URL; use its option_id and the supplied fields, or choose silence. Discovery is a next action, never proof of reading. "
     "Capability constraints are current execution limits. For content.discover choose a source_options group, explicitly supply its sources "
     "and its provider_id when non-null; omit a null provider_id. Never choose a source whose can_execute is false or invent missing provider configuration. "
-    "contact may be null, or a brief optional sharing proposal based on supplied actual_result basis IDs. Give a concrete reason "
-    "why that actual finding matters now, never send a routine report after every activity. The executor resolves a configured trusted "
+    "Always evaluate contact independently of choosing an activity. Return contact:null with contact_reason explaining silence, "
+    "or a brief optional proposal with contact_reason and exact supplied basis_ids. A contact_opportunity basis permits a warm "
+    "check-in without a tool finding; conversation, commitment and experience bases permit a sourced continuation or sharing. "
+    "An opted-in recipient and an available window are not evidence of the person's mood, health, whereabouts or intentions. "
+    "Use actual_result bases for claims about real tool results. Mark imagined activity as imagined, never physical experience. "
+    "Give a concrete reason why this contact matters now; silence is valid, never send a report after every activity. "
+    "The executor resolves a configured trusted "
     "recipient and independently checks interruption timing, duplication and current truth before sending. Do not invent a target. "
     "An images.generate selfie may be motivated by the routine or actor's interests. Default to "
     "delivery_kind=create_only; only a justified current trusted conversation can support share_candidate. "
@@ -445,7 +451,14 @@ def decision(result, frozen):
     changed = set()
     capabilities = {item["id"]: item for item in data["capabilities"]}
     contact=value.get("contact")
-    if contact and any(identifier not in {item["id"] for item in data["basis"] if item["kind"]=="actual_result"} for identifier in contact["basis_ids"]):
+    if (data.get("contact_opportunity",{}).get("enabled") is True
+            and ("contact" not in value or not (value.get("contact_reason") or "").strip())):
+        invalid.append({"candidate_key":"contact","status":"invalid_proposal","reason":"planner_contact_decision_missing"})
+        value["contact"] = contact = None
+    contact_bases = {item["id"] for item in data["basis"] if item["kind"] in {
+        "actual_result","experience","conversation","commitment","contact_opportunity"}}
+    if contact and (not set(contact["basis_ids"])<=contact_bases
+            or data.get("contact_opportunity",{}).get("enabled") is False):
         invalid.append({"candidate_key": "contact", "status": "invalid_proposal", "reason": "planner_contact_basis_invalid"})
         value["contact"] = None
     valid_changes = []

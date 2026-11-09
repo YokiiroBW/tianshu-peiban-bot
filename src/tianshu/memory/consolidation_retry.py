@@ -390,10 +390,35 @@ class ConsolidationRetries:
                     "attempt_id": original.attempt_id}), owner=owner)
         return True
 
+    async def successful_on(self, conn, partition_id, generation):
+        """A physical success still needs a Memory wake after Runtime is settled."""
+        return await (await conn.execute(
+            "SELECT b.batch_id FROM memory.consolidation_batches b "
+            "JOIN memory.consolidation_attempts a ON a.batch_id=b.batch_id "
+            "AND a.step_id=b.step_ids[cardinality(b.step_ids)] "
+            "JOIN models.attempts m ON m.attempt_id=a.model_attempt_id AND m.intent_id=a.step_id "
+            "LEFT JOIN runtime.recovery_lineages l ON l.lineage_id=b.manifest->'recovery'->>'lineage_id' "
+            "WHERE b.partition_id=%s AND b.status='quarantined' AND a.rejected_error IS NULL "
+            "AND m.status='succeeded' AND m.data_generation=%s AND b.manifest->>'data_generation'=%s "
+            "AND (b.retry_due_at IS NULL OR b.retry_due_at<=now()) "
+            "AND (NOT (b.manifest ? 'recovery') OR l.data_generation=m.data_generation::text "
+            "AND l.current_version=b.manifest->'recovery'->>'version' "
+            "AND NOT l.paused AND NOT l.cancelled AND NOT l.source_withdrawn) "
+            "AND NOT (b.manifest ? 'remote_wait_unresolved' OR b.manifest ? 'original_observation_only') "
+            "AND (NOT (b.manifest ? 'local_wait') OR b.retry_due_at<=now()) "
+            "ORDER BY b.updated_at,b.batch_id LIMIT 1", (partition_id,generation,generation))).fetchone()
+
     async def arm_on(self, conn, partition_id):
         """Re-arm one native wake for the earliest remaining durable work."""
         state = await (await conn.execute("SELECT active_batch_id,wake_due_at FROM memory.consolidation_state WHERE partition_id=%s FOR UPDATE",
                                          (partition_id,))).fetchone()
+        generation = await self.consolidation.jobs.current_generation_on(conn)
+        succeeded = await self.successful_on(conn, partition_id, generation)
+        if succeeded:
+            now = (await (await conn.execute("SELECT now() AS now")).fetchone())["now"]
+            await self.consolidation._schedule_on(conn, partition_id, now,
+                suffix="consume-original-success", target_batch_id=succeeded["batch_id"])
+            return
         held = await (await conn.execute("SELECT min(COALESCE(retry_due_at,now())) AS due FROM memory.consolidation_batches "
             "WHERE partition_id=%s AND status='quarantined' "
             "AND NOT (manifest ? 'remote_wait_unresolved' OR manifest ? 'original_observation_only' "

@@ -778,7 +778,9 @@ class GenerationControl:
                     if data_generation != active_generation:
                         continue
                     if row["state"]=="collecting":
-                        task,payload="life.diary_collect",{"diary_id":row["id"],"generation_id":row["generation_id"],"cursor":row["generation_recipe"]["cursor"],"data_generation":data_generation}
+                        if kind == "diary":
+                            await self.diaries.collection.enqueue_on(connection,row,recovery=True)
+                        continue
                     elif row["state"]=="generating":
                         task="life.chapter_generate" if kind=="chapter" else "life.diary_generate"
                         payload={"chapter_id" if kind=="chapter" else "diary_id":row["id"],"generation_id":row["generation_id"],"data_generation":data_generation}
