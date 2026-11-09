@@ -288,6 +288,14 @@ class Repository:
                 (connection_id, kind, name, canonical(body)),
             )
 
+    async def observation(self, connection_id, kind, name):
+        async with self.database.transaction(read_only=True) as conn:
+            return await (await conn.execute(
+                "SELECT body,extract(epoch FROM now()-observed_at)::double precision AS age_seconds "
+                "FROM channels.observations WHERE connection_id=%s AND kind=%s AND name=%s",
+                (connection_id, kind, name),
+            )).fetchone()
+
     async def bind_event_sources(self, conn, event_key, refs):
         if not refs:
             return

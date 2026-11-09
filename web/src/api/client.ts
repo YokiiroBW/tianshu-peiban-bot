@@ -110,7 +110,7 @@ function endpoint(path: string): string {
 }
 
 const selectors = ["actor_id", "person_id", "conversation_id"] as const;
-const getReads = new Set(["session", "identity/conversations", "identity/people", "identity/directory", "identity/publication-recipients", "identity/role-administrator", "models/catalog", "models/attempts", "channels/view"]);
+const getReads = new Set(["session", "identity/conversations", "identity/people", "identity/directory", "identity/publication-recipients", "identity/role-administrator", "models/catalog", "models/attempts", "channels/view", "channels/group-names"]);
 
 function selectedEndpoint(path: string, body?: object) {
   const url = new URL(endpoint(path), window.location.origin);

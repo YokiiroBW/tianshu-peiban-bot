@@ -36,9 +36,7 @@ export default function RoleManager() {
       <header className="role-section-heading">
         <div>
           <h2>角色</h2>
-          <p>
-            名称、固定作者人格与启用状态。模型分工和能力使用各自的实际设置。
-          </p>
+          <p>名称、人格档案与启用状态。模型分工和能力使用各自的实际设置。</p>
         </div>
         <div className="domain-actions">
           <button className="button" onClick={() => void roles.refresh()}>
@@ -71,11 +69,7 @@ export default function RoleManager() {
                 </span>
               </div>
             </div>
-            <p>
-              {role.persona_id
-                ? `固定人格修订 ${role.persona_revision}`
-                : "尚未选择作者人格"}
-            </p>
+            <p>{role.persona_id ? "已设置人格档案" : "尚未选择作者人格"}</p>
             <div className="domain-actions">
               <button
                 className="button"
@@ -169,9 +163,7 @@ function RoleEditor({
         onSubmit={(event) => {
           event.preventDefault();
           const data = new FormData(event.currentTarget);
-          const [persona_id, version] = String(data.get("persona") ?? "").split(
-            "@",
-          );
+          const persona_id = String(data.get("persona") ?? "");
           void action
             .run(
               actorId ? "companion/roles/save" : "companion/roles/create",
@@ -182,7 +174,6 @@ function RoleEditor({
                 name: data.get("name"),
                 enabled: data.get("enabled") === "on",
                 persona_id: persona_id || null,
-                persona_revision: persona_id ? Number(version) : null,
               },
               row?.revision ?? null,
             )
@@ -202,31 +193,20 @@ function RoleEditor({
           />
         </label>
         <label>
-          固定作者人格
+          人格档案
           <select
             name="persona"
-            defaultValue={
-              row?.persona_id ? `${row.persona_id}@${row.persona_revision}` : ""
-            }
+            defaultValue={row?.persona_id ?? ""}
             disabled={!canManage}
           >
             <option value="">暂不指定</option>
             {row?.persona_id &&
               !catalog.data?.items.some(
-                (item) =>
-                  item.persona_id === row.persona_id &&
-                  item.current_revision === row.persona_revision,
-              ) && (
-                <option value={`${row.persona_id}@${row.persona_revision}`}>
-                  当前固定版本 · {row.persona_revision}
-                </option>
-              )}
+                (item) => item.persona_id === row.persona_id,
+              ) && <option value={row.persona_id}>当前人格</option>}
             {catalog.data?.items.map((item) => (
-              <option
-                key={item.persona_id}
-                value={`${item.persona_id}@${item.current_revision}`}
-              >
-                {item.name} · 修订 {item.current_revision}
+              <option key={item.persona_id} value={item.persona_id}>
+                {item.name}
               </option>
             ))}
           </select>
@@ -242,7 +222,7 @@ function RoleEditor({
           启用角色与已配置的生活作息
         </label>
         <p className="muted">
-          保存新的人格版本后，角色继续使用这里明确选择的版本。
+          修改所选人格档案后，角色会同步使用保存后的内容。
         </p>
         <div className="domain-actions">
           {canManage && (
@@ -258,7 +238,7 @@ function RoleEditor({
       {actorId && (
         <div className="domain-actions">
           <a href="#/roles/persona" onClick={() => workspace.select(actorId)}>
-            人格版本与作者正文
+          人格档案与作者正文
           </a>
           <a href="#/roles/settings" onClick={() => workspace.select(actorId)}>
             模型分工与能力目录

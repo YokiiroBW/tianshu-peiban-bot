@@ -77,7 +77,14 @@ OPERATIONS = {
     "reconcile": request({"id": TEXT}),
     "resume": request({"id": TEXT, "client_request_id": TEXT}),
     "upgrade": request({**INSTANCE, "version": TEXT}),
-    "uninstall": request({"package_id": TEXT}),
+    "reload": request(INSTANCE),
+    "uninstall": request(
+        {
+            "package_id": TEXT,
+            "purge_data": {"type": "boolean", "default": False},
+        },
+        optional=("purge_data",),
+    ),
     "logs": request({"instance_id": TEXT}),
     "view-content": request(
         {"instance_id": TEXT, "page_id": TEXT, "nonce": {"type": "string", "format": "uuid"}}

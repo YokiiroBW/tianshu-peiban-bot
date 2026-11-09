@@ -74,8 +74,8 @@ async def invoke(service, domain, operation, body, context, *, capability_id=Non
     if contains_secret(arguments):
         arguments = await service.configuration.seal_command(context, key, arguments)
     refs = tuple(SourceRef(**x) for x in body.get("source_refs", []))
-    # Media's source selects an UP, collection or favourites, rather than a SourceRef.
-    if body.get("source") and domain != "media":
+    # Media selectors and plugin package descriptors are domain input, not SourceRefs.
+    if body.get("source") and domain not in {"media", "plugins"}:
         refs = unique_refs(refs, (SourceRef(**body["source"]),))
     try:
         deadline = datetime.fromisoformat(body["deadline_at"]) if body.get("deadline_at") else None

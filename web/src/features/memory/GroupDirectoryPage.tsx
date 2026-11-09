@@ -22,6 +22,7 @@ function GroupDirectory() {
   const cursor = pages.cursor;
   const [selected, setSelected] = useState("");
   const [query, setQuery] = useState("");
+  const [nameRefresh, setNameRefresh] = useState(0);
   const page = useDomainResource<Page<Conversation>>(
     "identity/conversations",
     {
@@ -32,10 +33,23 @@ function GroupDirectory() {
     },
     !!workspace.actor,
   );
-  const groups =
+  const rows =
     page.data?.items.filter(
       (row) => row.kind === "group" && row.actor_id === workspace.actor,
     ) ?? [];
+  const names = useDomainResource<{ names: Record<string, string> }>(
+    "channels/group-names",
+    {
+      ...actorScope(workspace.actor),
+      conversation_ids: rows.map((row) => row.conversation_id).join(","),
+      refresh: nameRefresh || undefined,
+    },
+    !!workspace.actor && rows.length > 0,
+  );
+  const groups = rows.map((row) => ({
+    ...row,
+    label: names.data?.names[row.conversation_id] || row.label,
+  }));
   const visible = groups.filter((row) =>
     `${row.label} ${row.target_ref}`
       .toLocaleLowerCase()
@@ -64,7 +78,13 @@ function GroupDirectory() {
             </p>
           </div>
           <RolePicker compact />
-          <button className="button" onClick={() => void page.refresh()}>
+          <button
+            className="button"
+            onClick={() => {
+              void page.refresh();
+              setNameRefresh((value) => value + 1);
+            }}
+          >
             <RefreshCw size={16} />
             刷新群会话
           </button>

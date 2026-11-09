@@ -162,7 +162,7 @@ async def test_serial_wait_precedes_plugin_execution_and_active_handles_are_revo
         await release.wait()
         return {"effect": "none", "result": {}}
 
-    child = SimpleNamespace(call=call)
+    child = SimpleNamespace(call=call, runtime_id="call-child")
     host = SimpleNamespace(repository=SimpleNamespace(call=AsyncMock(return_value=document), update_call=AsyncMock(side_effect=update_call)),
         local=local, instance=AsyncMock(return_value=instance), package=AsyncMock(return_value=package),
         worker=AsyncMock(return_value=child), locks=defaultdict(asyncio.Lock), workers={"plugin": (child, 1)},
@@ -186,4 +186,6 @@ async def test_serial_wait_precedes_plugin_execution_and_active_handles_are_revo
     assert document["error"] == ({"code": "cancelled", "retriable": False} if cancelled else None)
     assert not value.contexts and not value.authorizers
     with pytest.raises(Fault, match="permission_denied"):
-        await value.callback("plugin", "host.log", {"context_ref": references[0]})
+        await value.callback(
+            "plugin", "host.log", {"context_ref": references[0]}, generation="call-child"
+        )

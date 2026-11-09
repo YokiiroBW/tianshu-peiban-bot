@@ -691,7 +691,14 @@ class Capabilities:
         if domain == "plugins":
             if self.web_plugins is None:
                 raise Fault(self.plugin_error or "plugin_unavailable", 503)
-            if operation not in {"configure", "enable", "disable", "bindings", "upgrade"}:
+            if operation not in {
+                "configure",
+                "enable",
+                "disable",
+                "bindings",
+                "upgrade",
+                "reload",
+            }:
                 clean.pop("expected_revision", None)
             if operation in {"install", "create", "invoke", "resume"}:
                 clean["client_request_id"] = client_id

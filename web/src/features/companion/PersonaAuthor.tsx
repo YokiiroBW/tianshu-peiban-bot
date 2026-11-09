@@ -1,12 +1,11 @@
 import { useEffect, useState } from "react";
-import { Plus, Copy } from "lucide-react";
+import { ArrowLeft, Plus, Copy } from "lucide-react";
 import {
   GLOBAL_SCOPE,
   actorScope,
   useDomainCommand,
   useDomainResource,
 } from "../../api/useDomainResource";
-import type { Page } from "../../api/contracts";
 import type { AccountSession } from "../../api/session";
 import { Drawer } from "../../components/Drawer";
 import { CommandFeedback } from "../../components/CommandFeedback";
@@ -17,7 +16,6 @@ type Edition = {
   expectedRevision: number | null;
   copy: boolean;
 };
-type History = { revision: number; note: string; created_at: string };
 const labels = {
   author_text: "完整作者人格",
   tone: "语气",
@@ -25,6 +23,7 @@ const labels = {
   address: "称呼约定",
   world: "角色世界背景",
 } as const;
+
 export default function PersonaAuthor({
   actor = "",
 }: {
@@ -41,53 +40,37 @@ export default function PersonaAuthor({
     !!actor,
   );
   const [selected, setSelected] = useState("");
-  const [version, setVersion] = useState<number | null>(null);
-  const [historyCursor, setHistoryCursor] = useState<string | null>(null);
-  const [compare, setCompare] = useState<number | null>(null);
+  const [showDetail, setShowDetail] = useState(false);
   const [filter, setFilter] = useState("");
   const [edition, setEdition] = useState<Edition | null>(null);
-  const index = catalog.data?.items.find(
-    (item) => item.persona_id === selected,
-  );
   const view = useDomainResource<Persona>(
     "companion/personas/view",
-    {
-      ...GLOBAL_SCOPE,
-      persona_id: selected,
-      ...(version ? { revision: version } : {}),
-    },
+    { ...GLOBAL_SCOPE, persona_id: selected },
     !!selected,
   );
-  const previous = useDomainResource<Persona>(
-    "companion/personas/view",
-    { ...GLOBAL_SCOPE, persona_id: selected, revision: compare },
-    !!selected && compare !== null,
-  );
-  const history = useDomainResource<Page<History>>(
-    "companion/personas/history",
-    { ...GLOBAL_SCOPE, persona_id: selected, cursor: historyCursor, limit: 40 },
-    !!selected,
-  );
-  const apply = useDomainCommand("persona-apply", "actor");
   useEffect(() => {
-    if (!selected && catalog.data?.items.length)
-      setSelected(catalog.data.items[0].persona_id);
-  }, [catalog.data, selected]);
+    if (selected || !catalog.data?.items.length) return;
+    if (actor && !currentRole.data && !currentRole.error) return;
+    const bound = catalog.data.items.find(
+      (item) => item.persona_id === currentRole.data?.persona_id,
+    );
+    setSelected((bound ?? catalog.data.items[0]).persona_id);
+  }, [actor, catalog.data, currentRole.data, currentRole.error, selected]);
   useEffect(() => {
     if (view.accessLost) setEdition(null);
   }, [view.accessLost]);
   function choose(id: string) {
     setSelected(id);
-    setVersion(null);
-    setHistoryCursor(null);
-    setCompare(null);
+    setShowDetail(true);
     setEdition(null);
   }
   return (
-    <div className="persona-author persona-author-layout scroll-layout">
-      <nav className="persona-author-list scroll-pane" aria-label="人格列表">
+    <div
+      className={`persona-author-layout${showDetail ? " persona-show-detail" : ""}`}
+    >
+      <nav className="persona-author-list" aria-label="人格列表">
         <div className="persona-list-heading">
-          <h3>人格列表</h3>
+          <h3>人格档案</h3>
           {catalog.data?.can_manage && (
             <button
               className="button primary"
@@ -105,6 +88,7 @@ export default function PersonaAuthor({
           )}
         </div>
         <input
+          className="persona-search"
           type="search"
           aria-label="查找人格"
           placeholder="查找人格"
@@ -112,54 +96,58 @@ export default function PersonaAuthor({
           onChange={(event) => setFilter(event.target.value)}
         />
         {catalog.error && <p role="alert">{catalog.error}</p>}
-        {catalog.data?.items
-          .filter((item) =>
-            item.name.toLowerCase().includes(filter.toLowerCase()),
-          )
-          .map((item) => (
-            <button
-              type="button"
-              className="persona-list-item"
-              aria-selected={item.persona_id === selected}
-              key={item.persona_id}
-              onClick={() => choose(item.persona_id)}
-            >
-              <strong>{item.name}</strong>
-              <small>
-                当前作者修订 {item.current_revision}
-                {currentRole.data?.persona_id === item.persona_id
-                  ? ` · 角色固定使用 ${currentRole.data.persona_revision}`
-                  : ""}
-              </small>
-            </button>
-          ))}
+        <div className="persona-list-items">
+          {catalog.data?.items
+            .filter((item) =>
+              item.name.toLowerCase().includes(filter.toLowerCase()),
+            )
+            .map((item) => (
+              <button
+                type="button"
+                className="persona-subject"
+                aria-pressed={item.persona_id === selected}
+                key={item.persona_id}
+                onClick={() => choose(item.persona_id)}
+              >
+                <span className="persona-list-name">{item.name}</span>
+                {currentRole.data?.persona_id === item.persona_id && (
+                  <span className="persona-list-badge">当前使用</span>
+                )}
+              </button>
+            ))}
+        </div>
+        {catalog.data && !catalog.data.items.length && (
+          <p className="muted">还没有人格档案。</p>
+        )}
       </nav>
-      <section className="persona-author-detail scroll-pane">
+      <section className="persona-author-form" aria-label="人格详情">
+        <button
+          className="button persona-mobile-back"
+          onClick={() => setShowDetail(false)}
+        >
+          <ArrowLeft />
+          返回人格列表
+        </button>
+        {currentRole.error && <p role="alert">{currentRole.error}</p>}
         {view.error && <p role="alert">{view.error}</p>}
-        {view.loading && !view.data && <p>正在读取作者人格…</p>}
+        {view.loading && !view.data && <p role="status">正在读取人格档案…</p>}
         {view.data && (
           <>
-            <header className="section-heading">
-              <div>
-                <h3>{view.data.name}</h3>
-                <p>
-                  已保存修订 {view.data.revision} ·
-                  作者正文不会被主观手记自动改写。
-                </p>
-              </div>
+            <header className="persona-author-title">
+              <h3>{view.data.name}</h3>
               {catalog.data?.can_manage && (
-                <div className="domain-actions">
+                <div className="persona-title-actions">
                   <button
-                    className="button"
+                    className="button primary"
                     onClick={() =>
                       setEdition({
                         persona: structuredClone(view.data!),
-                        expectedRevision: index!.revision,
+                        expectedRevision: view.data!.revision,
                         copy: false,
                       })
                     }
                   >
-                    编辑为新修订
+                    编辑人格
                   </button>
                   <button
                     className="button"
@@ -175,122 +163,18 @@ export default function PersonaAuthor({
                     }
                   >
                     <Copy />
-                    复制为新人格
+                    复制
                   </button>
                 </div>
               )}
             </header>
-            <div className={previous.data ? "domain-grid" : ""}>
-              <PersonaText value={view.data} />
-              {previous.data && (
-                <section>
-                  <h4>对照修订 {previous.data.revision}</h4>
-                  <PersonaText value={previous.data} />
-                </section>
-              )}
-            </div>
-            {previous.error && <p role="alert">{previous.error}</p>}
-            {currentRole.data?.can_manage && (
-              <section className="panel">
-                <h4>应用给当前角色</h4>
-                <p>
-                  {currentRole.data.name}当前固定修订：
-                  {currentRole.data.persona_id === selected
-                    ? currentRole.data.persona_revision
-                    : "使用其他人格或尚未选择"}
-                  。
-                </p>
-                <button
-                  className="button primary"
-                  disabled={apply.busy}
-                  onClick={() =>
-                    void apply
-                      .run(
-                        "companion/roles/save",
-                        {
-                          actor_id: actor,
-                          person_id: null,
-                          conversation_id: null,
-                          name: currentRole.data!.name,
-                          enabled: currentRole.data!.enabled,
-                          persona_id: selected,
-                          persona_revision: view.data!.revision,
-                        },
-                        currentRole.data!.revision,
-                      )
-                      .then((result) => {
-                        if (result) void currentRole.refresh();
-                      })
-                  }
-                >
-                  明确使用修订 {view.data.revision}
-                </button>
-                <CommandFeedback {...apply} />
-              </section>
-            )}
-            <section className="panel">
-              <h4>作者修订记录</h4>
-              {history.error && <p role="alert">{history.error}</p>}
-              {history.data?.items.map((item) => (
-                <div className="domain-record" key={item.revision}>
-                  <strong>修订 {item.revision}</strong>
-                  <small>
-                    {new Date(item.created_at).toLocaleString("zh-CN")}
-                  </small>
-                  <p>{item.note || "未填写修订说明"}</p>
-                  <div className="domain-actions">
-                    <button
-                      className="text-link"
-                      onClick={() => setVersion(item.revision)}
-                    >
-                      查看这一版
-                    </button>
-                    <button
-                      className="text-link"
-                      onClick={() => setCompare(item.revision)}
-                    >
-                      与当前显示版对照
-                    </button>
-                  </div>
-                </div>
-              ))}
-              <div className="domain-actions">
-                {compare !== null && (
-                  <button className="button" onClick={() => setCompare(null)}>
-                    收起对照
-                  </button>
-                )}
-                {version !== null && (
-                  <button className="button" onClick={() => setVersion(null)}>
-                    查看最新作者修订
-                  </button>
-                )}
-                {historyCursor && (
-                  <button
-                    className="button"
-                    onClick={() => setHistoryCursor(null)}
-                  >
-                    回到最新记录
-                  </button>
-                )}
-                {history.data?.next_cursor && (
-                  <button
-                    className="button"
-                    onClick={() => setHistoryCursor(history.data!.next_cursor)}
-                  >
-                    更早的修订
-                  </button>
-                )}
-              </div>
-            </section>
+            <PersonaText value={view.data} />
           </>
         )}
-        {!selected && !catalog.loading && (
-          <p>从左侧选择或新建一份完整作者人格。</p>
-        )}
+        {!selected && !catalog.loading && <p>选择或新建一份人格档案。</p>}
       </section>
       <Drawer
-        title={edition?.expectedRevision === null ? "新的人格" : "编辑为新修订"}
+        title={edition?.expectedRevision === null ? "新建人格" : "编辑人格"}
         open={edition !== null}
         onClose={() => setEdition(null)}
         variant="card"
@@ -300,12 +184,11 @@ export default function PersonaAuthor({
             key={`${edition.persona.persona_id ?? "new"}:${edition.persona.revision ?? 0}:${edition.copy}`}
             value={edition}
             close={() => setEdition(null)}
-            saved={(id, revision) => {
-              setEdition(null);
+            saved={(id) => {
               choose(id);
-              setVersion(revision);
               void catalog.refresh();
-              void history.refresh();
+              void view.refresh();
+              void currentRole.refresh();
             }}
           />
         )}
@@ -313,20 +196,22 @@ export default function PersonaAuthor({
     </div>
   );
 }
+
 function PersonaText({ value }: { value: Persona }) {
   return (
     <article className="persona-text">
-      {Object.entries(labels).map(([key, label]) => (
-        <section key={key}>
-          <h4>{label}</h4>
-          <p style={{ whiteSpace: "pre-wrap" }}>
-            {value[key as keyof typeof labels] || "未单独填写"}
-          </p>
-        </section>
-      ))}
+      {Object.entries(labels)
+        .filter(([key]) => value[key as keyof typeof labels]?.trim())
+        .map(([key, label]) => (
+          <section key={key}>
+            <h4>{label}</h4>
+            <p className="persona-body">{value[key as keyof typeof labels]}</p>
+          </section>
+        ))}
     </article>
   );
 }
+
 function PersonaEditor({
   value,
   close,
@@ -334,7 +219,7 @@ function PersonaEditor({
 }: {
   value: Edition;
   close: () => void;
-  saved: (id: string, revision: number) => void;
+  saved: (id: string) => void;
 }) {
   const action = useDomainCommand<{ persona_id: string; revision: number }>(
     `persona:${value.persona.persona_id ?? "new"}:${value.copy}`,
@@ -358,19 +243,15 @@ function PersonaEditor({
                 : {}),
               name: data.get("name"),
               ...fields,
-              note: data.get("note"),
             },
             value.expectedRevision,
           )
           .then((result) => {
-            if (result?.data)
-              saved(result.data.persona_id, result.data.revision);
+            if (result?.data) saved(result.data.persona_id);
           });
       }}
     >
-      <p className="muted">
-        修改会保存为一份新的作者修订；需要应用给角色时，再选择相应修订。
-      </p>
+      <p className="muted">保存后直接更新这份人格，使用它的角色会同步更新。</p>
       <label>
         人格名称
         <input
@@ -407,16 +288,12 @@ function PersonaEditor({
             </label>
           ))}
       </fieldset>
-      <label>
-        本次修订说明
-        <textarea name="note" maxLength={20000} rows={3} />
-      </label>
       <div className="domain-actions persona-editor-actions">
         <button className="button primary" disabled={action.busy}>
-          保存作者修订
+          保存人格
         </button>
         <button type="button" className="button" onClick={close}>
-          收起
+          取消
         </button>
       </div>
       <CommandFeedback {...action} />

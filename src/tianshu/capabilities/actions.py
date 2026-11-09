@@ -109,7 +109,8 @@ class Actions:
         return generation
 
     async def handler(self, action):
-        if action.capability_id not in self.catalog.handlers and self.prepare_handler:
+        # Dynamic definitions can change while their stable capability ID remains cached.
+        if self.prepare_handler:
             await self.prepare_handler(action)
         return self.catalog.handler(action.capability_id)
 
@@ -721,7 +722,7 @@ class Actions:
             from .withdrawal import validate_sources
 
             await self.jobs.assert_generation_on(conn, generation)
-            # Keep the same source→domain lock order as all terminal writes.
+            # Keep the same source鈫抎omain lock order as all terminal writes.
             valid = await validate_sources(conn, action.context, action.source_refs, self.sources)
             claimed = await (
                 await conn.execute(

@@ -144,7 +144,8 @@ class PluginRuntime(unittest.IsolatedAsyncioTestCase):
         await host.watch_worker("plugin", process)
         host.runtime_state.forget.assert_awaited_once_with("plugin", process)
         process.close.assert_awaited_once_with("worker_exited")
-        host.executions.revoke.assert_called_once_with("plugin")
+        # Only the dead child's own handles are revoked.
+        host.executions.revoke.assert_called_once_with("plugin", "original-generation")
         self.assertNotIn("plugin", host.workers)
 
     async def test_late_exit_of_old_generation_does_not_stop_replacement(self):
@@ -152,14 +153,21 @@ class PluginRuntime(unittest.IsolatedAsyncioTestCase):
         reader = asyncio.get_running_loop().create_future()
         reader.set_result(None)
         old = SimpleNamespace(
-            reader=reader, process=SimpleNamespace(wait=AsyncMock(return_value=0))
+            runtime_id="retired-generation",
+            reader=reader,
+            process=SimpleNamespace(wait=AsyncMock(return_value=0)),
         )
-        replacement = object()
+        replacement = SimpleNamespace(runtime_id="replacement-generation")
         host.workers = {"plugin": (replacement, 3)}
         host.locks = defaultdict(asyncio.Lock)
         host.stop_worker = AsyncMock()
+        host.executions = SimpleNamespace(revoke=Mock())
         await host.watch_worker("plugin", old)
         host.stop_worker.assert_not_awaited()
+        # The late exit may revoke its own handles only, never the replacement's.
+        host.executions.revoke.assert_called_once()
+        assert host.executions.revoke.call_args.args[0] == "plugin"
+        assert host.executions.revoke.call_args.args[1] != "replacement-generation"
         self.assertIs(host.workers["plugin"][0], replacement)
 
     async def test_installation_wait_leaves_both_capability_file_workers_available(self):

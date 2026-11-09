@@ -7,7 +7,6 @@ import {
 } from "../../api/useDomainResource";
 import { useRoleWorkspace } from "../../app/RoleWorkspace";
 import { CommandFeedback } from "../../components/CommandFeedback";
-import { ArtifactList } from "../../components/MediaPreview";
 import { DetailCard } from "../../components/DetailCard";
 import {
   SpeechTranscription,
@@ -17,10 +16,10 @@ import {
 import type {
   FishConnection,
   SpeechView,
-  VoiceProfile,
-  SpeechArtifact,
   PronunciationDictionary,
 } from "./types";
+import { VoiceProfileEditor } from "./VoiceProfileEditor";
+import { roleVoiceProfile } from "./types";
 import "./multimodal.css";
 import { CapabilityReadiness } from "./CapabilityReadiness";
 
@@ -115,24 +114,15 @@ export default function SpeechPage() {
               <VoiceProfileEditor
                 key={`${workspace.actor}:${JSON.stringify(view.data.profiles.map((profile) => [profile.id, profile.revision]))}`}
                 actor={workspace.actor}
-                profile={
-                  view.data.profiles.find(
-                    (profile) => profile.id === workspace.actor,
-                  ) ??
-                  (view.data.profiles.filter(
-                    (profile) => profile.actor_id === workspace.actor,
-                  ).length === 1
-                    ? view.data.profiles.find(
-                        (profile) => profile.actor_id === workspace.actor,
-                      )
-                    : undefined)
-                }
+                profile={roleVoiceProfile(view.data.profiles, workspace.actor)}
                 view={view.data}
                 refresh={view.refresh}
               />
             )}
           </section>
-          <VoiceBrowser connections={view.data.connections} />
+          {!workspace.actor && (
+            <VoiceBrowser connections={view.data.connections} />
+          )}
           <section className="panel">
             <h3>中文读音词典</h3>
             <p>为人名、多音字和项目名保存明确读音，并通过试听核对。</p>
@@ -445,195 +435,6 @@ function ConnectionEditor({
       </button>
       <CommandFeedback {...action} />
     </form>
-  );
-}
-
-function VoiceProfileEditor({
-  actor,
-  profile,
-  view,
-  refresh,
-}: {
-  actor: string;
-  profile?: VoiceProfile;
-  view: SpeechView;
-  refresh: () => Promise<void>;
-}) {
-  const action = useDomainCommand<SpeechArtifact>(actor, "actor");
-  const preview = useDomainCommand<SpeechArtifact>("speech-preview:" + actor);
-  const [connection, setConnection] = useState(
-    profile?.connection_id ?? view.connections[0]?.id ?? "",
-  );
-  const [voice, setVoice] = useState(profile?.voice_id ?? "");
-  const [model, setModel] = useState(profile?.model ?? "s2.1-pro");
-  const [sample, setSample] = useState("你好，今天过得怎么样？");
-  const [mode, setMode] = useState(profile?.output_mode ?? "natural");
-  return (
-    <div className="domain-form">
-      <form
-        className="domain-form"
-        onSubmit={(event) => {
-          event.preventDefault();
-          const data = new FormData(event.currentTarget);
-          void action
-            .run(
-              "speech/profiles.save",
-              {
-                id: profile?.id ?? actor,
-                actor_id: actor,
-                connection_id: connection,
-                voice_id: voice,
-                model,
-                language: data.get("language"),
-                output_mode: mode,
-                dictionary_ids: data.getAll("dictionary"),
-                vocal_defaults: {
-                  speed: Number(data.get("pace")),
-                  tone: data.get("direction"),
-                },
-              },
-              profile?.revision ?? 0,
-            )
-            .then((result) => {
-              if (result) void refresh();
-            });
-        }}
-      >
-        <div className="domain-grid">
-          <label>
-            合成连接
-            <select
-              required
-              value={connection}
-              onChange={(event) => setConnection(event.target.value)}
-            >
-              {view.connections.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {speechConnectionName(item, view.connections.indexOf(item))}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label>
-            稳定音色 ID
-            <input
-              value={voice}
-              onChange={(event) => setVoice(event.target.value)}
-              required
-            />
-          </label>
-          <label>
-            模型
-            <input
-              list="fish-models"
-              value={model}
-              onChange={(event) => setModel(event.target.value)}
-              required
-            />
-            <datalist id="fish-models">
-              <option value="s2-pro" />
-              <option value="s2.1-pro" />
-              <option value="s2.1-pro-free" />
-              <option value="drama-3" />
-            </datalist>
-          </label>
-          <label>
-            输出方式
-            <select
-              value={mode}
-              onChange={(event) =>
-                setMode(event.target.value as VoiceProfile["output_mode"])
-              }
-            >
-              <option value="natural">自然选择</option>
-              <option value="text">文字</option>
-              <option value="audio">语音</option>
-              <option value="both">文字与语音</option>
-            </select>
-          </label>
-          <label>
-            语言
-            <input
-              name="language"
-              defaultValue={profile?.language ?? "zh-CN"}
-            />
-          </label>
-          <label>
-            默认语速
-            <input
-              name="pace"
-              type="number"
-              min="0.5"
-              max="2"
-              step="0.05"
-              defaultValue={Number(profile?.vocal_defaults.speed ?? 1)}
-            />
-          </label>
-        </div>
-        <label>
-          发声风格
-          <input
-            name="direction"
-            defaultValue={String(profile?.vocal_defaults.tone ?? "")}
-            placeholder="例如：清晰、轻松，避免过度夸张"
-          />
-        </label>
-        <fieldset>
-          <legend>使用的读音词典</legend>
-          {view.dictionaries.map((item) => (
-            <label className="inline-check" key={item.id}>
-              <input
-                type="checkbox"
-                name="dictionary"
-                value={item.id}
-                defaultChecked={profile?.dictionary_ids.includes(item.id)}
-              />
-              {item.name}
-            </label>
-          ))}
-        </fieldset>
-        <button className="button primary" disabled={action.busy}>
-          保存角色声线
-        </button>
-      </form>
-      <label>
-        试听台词
-        <textarea
-          value={sample}
-          onChange={(event) => setSample(event.target.value)}
-        />
-      </label>
-      <button
-        className="button"
-        disabled={preview.busy || !voice || !connection || !sample.trim()}
-        onClick={() =>
-          void preview.run("speech/preview", {
-            ...(profile
-              ? { profile_id: profile.id, profile_revision: profile.revision }
-              : {}),
-            actor_id: actor,
-            connection_id: connection,
-            voice_id: voice,
-            model,
-            text: sample,
-          })
-        }
-      >
-        试听当前音色与模型
-      </button>
-      <CommandFeedback {...action} />
-      <CommandFeedback {...preview} />
-      {preview.result?.data?.artifacts && (
-        <>
-          <ArtifactList artifacts={preview.result.data.artifacts} />
-          <p className="muted">
-            实际模型 {preview.result.data.model} ·{" "}
-            {preview.result.data.billing_source} ·{" "}
-            {preview.result.data.usage === null ? "费用未知" : "已返回实际用量"}
-          </p>
-        </>
-      )}
-    </div>
   );
 }
 

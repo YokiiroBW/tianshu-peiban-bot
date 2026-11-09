@@ -1,9 +1,19 @@
 import type { ArtifactRef, Coverage, SourceRef } from "../../api/contracts";
 import type { MediaRef } from "../../components/MediaPreview";
 
-export function speechConnectionName(connection: Pick<FishConnection, "transport" | "billing_source">, index?: number): string {
-  const transport = { mcp: "Fish Plus", native: "Fish Audio", edge: "Edge 语音", compatible: "兼容语音服务" }[connection.transport];
-  const billing = { plus: "会员额度", api: "接口额度", free: "免费额度" }[connection.billing_source];
+export function speechConnectionName(
+  connection: Pick<FishConnection, "transport" | "billing_source">,
+  index?: number,
+): string {
+  const transport = {
+    mcp: "Fish Plus",
+    native: "Fish Audio",
+    edge: "Edge 语音",
+    compatible: "兼容语音服务",
+  }[connection.transport];
+  const billing = { plus: "会员额度", api: "接口额度", free: "免费额度" }[
+    connection.billing_source
+  ];
   return `${transport} · ${billing}${index == null ? "" : ` · 连接 ${index + 1}`}`;
 }
 
@@ -38,6 +48,7 @@ export type VoiceProfile = {
   actor_id: string;
   connection_id: string;
   voice_id: string;
+  voice_name?: string | null;
   model: string;
   language: string;
   output_mode: "text" | "audio" | "both" | "natural";
@@ -65,6 +76,17 @@ export type Voice = {
   visibility: string;
   owner_id: string | null;
 };
+export type VoiceSearchResult = {
+  items: Voice[];
+  next_cursor: string | null;
+};
+export function roleVoiceProfile(profiles: VoiceProfile[], actor: string) {
+  const own = profiles.filter((profile) => profile.actor_id === actor);
+  return (
+    own.find((profile) => profile.id === actor) ??
+    (own.length === 1 ? own[0] : undefined)
+  );
+}
 export type SpeechArtifact = {
   artifacts: ArtifactRef[];
   alignment: unknown[];

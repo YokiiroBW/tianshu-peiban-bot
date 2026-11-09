@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 from uuid import uuid4
 from pathlib import Path
 
@@ -16,6 +17,39 @@ WORKER = Path(tianshu_plugin.__file__).with_name("worker.py")
 class RemoteError(Exception):
     def __init__(self, data):
         self.data = data
+
+
+def os_process_exited(pid):
+    """Read-only proof that the OS process holding this pid no longer exists.
+
+    Only absence is proven, never presence: a live pid may already have been
+    reused by an unrelated process, so it cannot prove anything. This never
+    terminates anything - it opens the process for query or signals 0.
+    """
+    if not isinstance(pid, int) or pid <= 0:
+        return False
+    if os.name == "nt":  # pragma: no branch - the product host is Windows today
+        import ctypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        handle = kernel32.OpenProcess(0x1000, False, pid)  # QUERY_LIMITED_INFORMATION
+        if not handle:
+            # ERROR_INVALID_PARAMETER: no process with this pid exists.
+            return ctypes.get_last_error() == 87
+        try:
+            code = ctypes.c_ulong()
+            if kernel32.GetExitCodeProcess(handle, ctypes.byref(code)) == 0:
+                return False
+            return code.value != 259  # STILL_ACTIVE
+        finally:
+            kernel32.CloseHandle(handle)
+    try:
+        os.kill(pid, 0)
+    except ProcessLookupError:
+        return True
+    except (PermissionError, OSError):
+        return False
+    return False
 
 
 class InvocationTimer:
@@ -45,6 +79,9 @@ class Process:
         self.handlers = set()
         self.invocation_timers = {}
         self.write_lock = asyncio.Lock()
+        # Repeated cleanup is expected: a failure path and a finally block both
+        # settle the same child, and the second one must do nothing new.
+        self.closed = False
 
     async def start(self):
         self.process = await asyncio.create_subprocess_exec(
@@ -70,6 +107,11 @@ class Process:
         return (
             self.process is not None and self.process.returncode is None and not self.reader.done()
         )
+
+    @property
+    def exited(self):
+        """The OS child is gone, which a detached RPC reader alone does not prove."""
+        return self.process is None or self.process.returncode is not None
 
     async def send(self, document):
         async with self.write_lock:
@@ -171,6 +213,8 @@ class Process:
             pass
 
     async def close(self, reason="stopped"):
+        if self.closed:
+            return
         if self.alive:
             try:
                 await self.call("plugin.stop", {"reason": reason}, timeout=5)
@@ -192,3 +236,4 @@ class Process:
             *(task for task in (self.reader, self.stderr, *tuple(self.handlers)) if task),
             return_exceptions=True,
         )
+        self.closed = True
