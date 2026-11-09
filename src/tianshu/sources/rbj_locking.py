@@ -7,7 +7,7 @@ from tianshu.runtime.errors import AppError
 from tianshu.runtime.cancellation import transaction_on
 
 
-async def _read(conn, statement, arguments, budget, field):
+async def _read(conn, statement, arguments, budget, field, *, include_pairs=False):
     try:
         async with transaction_on(conn):
             row = await (await conn.execute(statement, (*arguments, Jsonb(budget.remaining)))).fetchone()
@@ -19,6 +19,14 @@ async def _read(conn, statement, arguments, budget, field):
     if not isinstance(values, list) or any(not isinstance(value, item_type) for value in values):
         raise AppError("source_proof_incomplete", status=503)
     budget.update(result.get("remaining"))
+    if include_pairs:
+        pairs = result.get("pairs")
+        if (not isinstance(pairs, list) or len(pairs) > 8192
+                or any(not isinstance(pair, dict) or set(pair) != {"source_id", "revision"}
+                       or not isinstance(pair["source_id"], str)
+                       or type(pair["revision"]) is not int or pair["revision"] < 1 for pair in pairs)):
+            raise AppError("source_proof_incomplete", status=503)
+        return set(values), pairs
     return values if field == "rows" else set(values)
 
 
@@ -34,7 +42,7 @@ def _check_input(refs, extra, aliases, budget):
         raise AppError("source_dependency_budget_exceeded", status=503)
 
 
-async def selected_on(conn, refs, extra, aliases, budget):
+async def selected_on(conn, refs, extra, aliases, budget, *, include_pairs=False):
     from .proofs import normalize_groups
 
     refs = normalize_groups((refs,))[0]
@@ -43,7 +51,7 @@ async def selected_on(conn, refs, extra, aliases, budget):
     roots = [{"source_id": ref.source_id, "revision": ref.revision} for ref in refs]
     return await _read(
         conn, "SELECT sources._rbj_lock_select(%s::jsonb,%s::text[],%s::text[],%s::jsonb) AS result",
-        (Jsonb(roots), list(extra), list(aliases)), budget, "ids",
+        (Jsonb(roots), list(extra), list(aliases)), budget, "ids", include_pairs=include_pairs,
     )
 
 

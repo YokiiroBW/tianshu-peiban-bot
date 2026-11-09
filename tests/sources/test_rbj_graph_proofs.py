@@ -382,9 +382,9 @@ async def test_lock_wait_rechecks_new_closure_and_rolls_back(
     original_select = rbj_locking.selected_on
     scans = 0
 
-    async def observe(conn, refs, extra, aliases, budget):
+    async def observe(conn, refs, extra, aliases, budget, *, include_pairs=False):
         nonlocal scans
-        result = await original_select(conn, refs, extra, aliases, budget)
+        result = await original_select(conn, refs, extra, aliases, budget, include_pairs=include_pairs)
         scans += 1
         if scans == 1:
             first_scan.set()
@@ -429,11 +429,13 @@ async def test_lock_wait_rechecks_new_closure_and_rolls_back(
     assert count["n"] == 0
 
 
-async def test_shared_lock_and_proof_budget_exhaustion_cannot_commit_receipt(core, ordinary_users):
+async def test_shared_lock_and_proof_budget_exhaustion_cannot_commit_receipt(core, ordinary_users, monkeypatch):
     alice, _ = ordinary_users
     refs = await _seed(core, alice, "rbj-atomic-budget-", 3000)
     event = {"producer": "rbj-atomic-budget", "event_id": "receipt", "revision": 1,
              "parts": ({"kind": "text", "text": "receipt"},), "support_refs": refs}
+    from tianshu.sources.rbj_budget import _LIMITS
+    monkeypatch.setitem(_LIMITS, "work", 18000)
     with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
         async with core.database.transaction() as conn:
             await core.sources.prepare_event_writes(conn, alice, (event,))
@@ -448,7 +450,7 @@ async def test_shared_lock_and_proof_budget_exhaustion_cannot_commit_receipt(cor
     assert row["n"] == 0
 
 
-async def test_evidence_expansion_uses_current_authority_and_shared_lock_budget(core, ordinary_users):
+async def test_evidence_expansion_uses_current_authority_and_shared_lock_budget(core, ordinary_users, monkeypatch):
     alice, _ = ordinary_users
     refs = await _seed(core, alice, "rbj-evidence-", 3000)
     async with core.database.transaction() as conn:
@@ -459,8 +461,11 @@ async def test_evidence_expansion_uses_current_authority_and_shared_lock_budget(
         assert await core.sources.prove_many_on(conn, alice, (first, first, missing)) == (True, True, False)
     async with core.database.transaction() as conn:
         assert await core.sources.prove_many_on(conn, alice, (first, second), lock=False) == (True, True)
-        with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
-            await core.sources.prove_many_on(conn, alice, (first, second), lock=True)
+        from tianshu.sources.rbj_budget import _LIMITS
+        with monkeypatch.context() as limited:
+            limited.setitem(_LIMITS, "work", 18000)
+            with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
+                await core.sources.prove_many_on(conn, alice, (first, second), lock=True)
     await core.sources.invalidate(alice, {
         "source_id": refs[0].source_id, "expected_revision": 1,
         "client_request_id": "rbj-evidence-withdraw",
@@ -469,11 +474,13 @@ async def test_evidence_expansion_uses_current_authority_and_shared_lock_budget(
         assert await core.sources.prove_many_on(conn, alice, (first, second)) == (False, True)
 
 
-async def test_caught_budget_error_rolls_back_all_parts_of_event(core, ordinary_users):
+async def test_caught_budget_error_rolls_back_all_parts_of_event(core, ordinary_users, monkeypatch):
     alice, _ = ordinary_users
     # Lock discovery/recheck plus two part proofs exceed the shared budget;
     # failure must occur after the first part was written and roll it back.
     refs = await _seed(core, alice, "rbj-multipart-budget-", 2200)
+    from tianshu.sources.rbj_budget import _LIMITS
+    monkeypatch.setitem(_LIMITS, "work", 20000)
     async with core.database.transaction() as conn:
         with pytest.raises(AppError, match="source_dependency_budget_exceeded"):
             await core.sources.record_event(

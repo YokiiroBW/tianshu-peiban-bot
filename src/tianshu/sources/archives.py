@@ -99,8 +99,8 @@ async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=(), wr
     aliases = bounded_tuple(aliases, inputs_left - len(refs) - len(extra))
     write_ids = bounded_tuple(write_ids, inputs_left - len(refs) - len(extra) - len(aliases))
 
-    async def selected():
-        return await rbj_locking.selected_on(conn, refs, extra, aliases, budget)
+    async def selected(*, include_pairs=False):
+        return await rbj_locking.selected_on(conn, refs, extra, aliases, budget, include_pairs=include_pairs)
 
     async def writable(identifiers):
         if exclusive:
@@ -149,12 +149,13 @@ async def lock_selected(conn, refs, *, extra=(), exclusive=False, aliases=(), wr
 
     # The closure can also change before a row lock is obtained. Abort the
     # transaction instead of acquiring a newly discovered, unordered lock.
-    current = await selected()
+    current, pairs = await selected(include_pairs=True)
     current_targets = await writable(current)
     if not current <= identifiers or not current_targets <= targets:
         raise _lock_set_changed()
     if (exclusive or current_targets or aliases) and not (await alias_keys(current_targets)) <= keys:
         raise _lock_set_changed()
+    await budget.remember_locked_graph(conn, refs, pairs)
 
 
 async def invalidate_related(conn, source, kind):

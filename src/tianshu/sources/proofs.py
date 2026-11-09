@@ -2,7 +2,7 @@
 
 import json
 
-from psycopg.errors import ProgramLimitExceeded
+from psycopg.errors import ProgramLimitExceeded, SerializationFailure
 from psycopg.types.json import Jsonb
 
 from tianshu.runtime.errors import AppError
@@ -50,16 +50,29 @@ def _checked_groups(value, expected):
 async def _execute_scoped(connection, requests, budget):
     payload = [{"viewer": list(context.scope_ids), "groups": wire(groups),
                 "stop_if_denied": stop} for context, groups, stop in requests]
+    graph = budget.proof_graph(connection, requests) if budget is not None else None
+    limits = Jsonb(budget.remaining) if budget is not None else None
+    statement = "SELECT sources._rbj_check_contexts(%s::jsonb,%s::jsonb) AS proof"
+    arguments = (Jsonb(payload), limits)
+    if graph is not None:
+        transaction_id, pairs = graph
+        statement = ("SELECT CASE WHEN pg_current_xact_id()::text=%s THEN "
+                     "sources._rbj_check_locked_contexts(%s::jsonb,%s::jsonb,%s::jsonb) END AS proof")
+        arguments = (transaction_id, Jsonb(payload), Jsonb(pairs), limits)
     try:
         # Roll back a failed statement to a savepoint before exposing its typed
         # budget error; callers may still need their outer transaction for cleanup.
         async with transaction_on(connection):
             row = await (await connection.execute(
-                "SELECT sources._rbj_check_contexts(%s::jsonb,%s::jsonb) AS proof",
-                (Jsonb(payload), Jsonb(budget.remaining) if budget is not None else None),
+                statement, arguments,
             )).fetchone()
     except ProgramLimitExceeded:
         raise AppError("source_dependency_budget_exceeded", status=503) from None
+    except SerializationFailure as error:
+        if error.diag.message_primary == "source_lock_set_changed":
+            from .archives import _lock_set_changed
+            raise _lock_set_changed() from None
+        raise
     proof = row["proof"] if row else None
     values = proof.get("allowed") if isinstance(proof, dict) else None
     if not isinstance(values, (tuple, list)) or not 1 <= len(values) <= len(requests):

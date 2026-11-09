@@ -123,9 +123,10 @@ async def test_alias_closure_growth_never_extends_a_partially_locked_set(monkeyp
 
     conn = ChangingConnection()
 
-    async def changed(_conn, _refs, _extra, _aliases, _budget):
+    async def changed(_conn, _refs, _extra, _aliases, _budget, *, include_pairs=False):
         conn.scans += 1
-        return {"a"} if conn.scans == 1 else {"a", "b"}
+        ids = {"a"} if conn.scans == 1 else {"a", "b"}
+        return (ids, []) if include_pairs else ids
 
     monkeypatch.setattr(rbj_locking, "selected_on", changed)
     with pytest.raises(RecoveryWait) as failure:

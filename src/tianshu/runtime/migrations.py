@@ -71,6 +71,8 @@ def product_migrations():
             files("tianshu.sources").joinpath("rbj_lock_graph.sql").read_text(encoding="utf-8")),
         Migration("rbj_source_proof",
             files("tianshu.sources").joinpath("rbj_source_proof.sql").read_text(encoding="utf-8")),
+        Migration("sources_locked_graph_proof",
+            files("tianshu.sources").joinpath("locked_graph_proof.sql").read_text(encoding="utf-8")),
     )
 
 
